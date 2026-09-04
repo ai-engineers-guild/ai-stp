@@ -52,11 +52,14 @@ SQLite, and keeps install as a public provider write.
 
 ## Decision
 
-1. **Component wrapper.** `component-scaffold/3` writes `README.md`,
+1. **Component wrapper.** `component-scaffold/4` writes `README.md`,
    `component-passport.json`, `eval-profile.json`, `.ai-stp-template.json`,
    `.gitignore`, `source/`, and, when the variant is a concrete harness,
    `projections/<harness>/`. It does not write `native/`,
-   authoring-template.md, SAFETY.md, or PUBLICATION.md.
+   authoring-template.md, SAFETY.md, or PUBLICATION.md. Executable MCP and
+   hook scaffolds contain runnable stdlib-based examples for Python,
+   TypeScript, JavaScript, Go, and Rust; `fastmcp` is an optional Python MCP
+   framework selected explicitly in the descriptor.
    `component template render` and `scaffold()` remain for SPEC-005 REQ-528.
 
 2. **Canon versus projection.** `source/` is what the author edits.
@@ -81,8 +84,8 @@ SQLite, and keeps install as a public provider write.
    `redistribution_allowed: false`, and for `skill` copies the `SKILL.md`
    YAML `description`. Draft text uses the marker `TODO(ai-stp-scaffold):`.
 
-5. **Git is an apply side-effect.** After the planned files exist, apply
-   runs `git init` when the destination is not already inside a worktree,
+5. **Git is a setup-apply side-effect.** After the planned setup files exist,
+   setup apply runs `git init` when the destination is not already inside a worktree,
    writes `.gitignore` (OS junk, bytecode, `.env`; never the passport,
    `source/`, README, or `setup.json`), then `git add -A` and one commit
    `Initial ai-stp scaffold` using the user's git identity. It does not pass
@@ -99,7 +102,7 @@ SQLite, and keeps install as a public provider write.
    `.gitignore`, optional `components/<member>/` using the component wrapper
    without a nested `.git`, and `projections/<harness>/` left empty until a
    later export command. A setup requires a concrete harness. Optional
-   `--components type:name` (and `type:name:language` for executable kinds)
+   `--components type:name` (and `type:name:language[:framework]` for executable kinds)
    nests members the harness can route. `setup compose` remains SQLite.
    Compose is not install. Export is not scaffold.
 
@@ -109,11 +112,11 @@ SQLite, and keeps install as a public provider write.
 
 ## Consequences
 
-- Template version `component-scaffold/3` and generator `ai-stp/3` are
+- Template version `component-scaffold/4` and generator `ai-stp/4` are
   current for components. `setup-scaffold/1` is the first setup template.
   Versions `1` and `2` remain validatable against their schemas.
-- `ComponentScaffoldResult` gains `git_initialized`, `git_commit`, and
-  `git_reason` because the result schema forbids extra fields.
+- `SetupScaffoldResult` reports the git initialization outcome; component
+  scaffolds remain ordinary trees and do not create a nested repository.
 - User documentation, evidence slices, and discover/adopt copy paths that
   named `native/` move to `source/` or `projections/<harness>/`.
 - Tests must ignore `.git` when asserting owner-only file modes.

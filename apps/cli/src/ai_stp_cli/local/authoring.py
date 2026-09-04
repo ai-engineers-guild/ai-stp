@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import stat
@@ -65,6 +66,19 @@ GITIGNORE: Final[bytes] = (
     b".venv/\n"
     b"venv/\n"
     b"node_modules/\n"
+    b".pytest_cache/\n"
+    b".mypy_cache/\n"
+    b".ruff_cache/\n"
+    b".coverage\n"
+    b"coverage.xml\n"
+    b"htmlcov/\n"
+    b"build/\n"
+    b"dist/\n"
+    b"target/\n"
+    b"*.exe\n"
+    b"*.pdb\n"
+    b"*.db\n"
+    b"*.sqlite3\n"
     b".env\n"
     b".env.*\n"
     b"!.env.example\n"
@@ -112,6 +126,7 @@ def scaffold_plan(
     language: str,
     harness_variant: str,
     output: Path,
+    framework: str = "none",
 ) -> tuple[ComponentScaffoldPlan, dict[str, bytes]]:
     """Preview every byte of one complete authoring scaffold."""
     if component_type not in TYPES or not _NAME.fullmatch(name):
@@ -131,6 +146,7 @@ def scaffold_plan(
         language=language,  # pyright: ignore[reportArgumentType]
         harness_variant=harness_variant,  # pyright: ignore[reportArgumentType]
         executable=not declarative,
+        framework=framework,  # pyright: ignore[reportArgumentType]
     )
     files = _scaffold_files(name, descriptor)
     entries = [
@@ -363,11 +379,9 @@ def _unused_destination(destination: Path) -> None:
 
 def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[str, bytes]:
     component_type = descriptor.component_type
-    native, entry, managed, projection, authoring_source = _native_source(name, descriptor)
+    native, entries, managed_paths, projection, authoring_source = _native_source(name, descriptor)
     patch_input: dict[str, JsonValue] = {
-        "name": name.replace("-", " ").title(),
-        "description": f"Authoring draft for the {name} {component_type} component.",
-        "tags": ["devops"],
+        "name": name,
         "component_type": component_type,
         "projection_kind": projection,
         "provides_capabilities": [],
@@ -387,10 +401,12 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [managed],
+        "managed_paths": list(managed_paths),
         "native_ids": [name],
-        "entry_points": [entry],
-        "runtime_requirements": [],
+        "entry_points": list(entries),
+        "runtime_requirements": (
+            ["python-package:fastmcp>=2"] if descriptor.framework == "fastmcp" else []
+        ),
         "harness_variants": [descriptor.harness_variant],
         "supported_harness_versions": [],
     }
@@ -413,7 +429,7 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
         adaptation["harness_id"] = variant
     files: dict[str, bytes] = {
         "component.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
-        "source/authoring-template.md": scaffold(component_type, name).encode(),
+        ".gitignore": GITIGNORE,
         "component-passport.json": canonize(
             cast(JsonValue, patch.model_dump(mode="json", exclude_none=True))
         ),
@@ -421,44 +437,51 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
             cast(JsonValue, reference_profile((component_type,)).model_dump(mode="json"))
         ),
         "README.md": (
-            f"# {name}\n\n{component_type} scaffold generated from "
+            f"# {name}\n\n{DRAFT} replace this draft with the component's "
+            "consumer-facing purpose.\n\n"
+            f"This is a `{component_type}` authoring scaffold generated from "
             f"`{descriptor.template_version}`.\n\n"
-            "Authoring source lives under `source/`. Native bytes under "
-            f"`{projection_root}/` are a generated projection, not the source of truth.\n"
+            "## Source of truth\n\n"
+            "Edit files under `source/`. The selected language handler is runnable "
+            "with the command recorded in the source metadata.\n\n"
+            + (
+                f"`projections/{variant}/` is the exact native projection for `{variant}`. "
+                "Regenerate it after changing source; do not edit it by hand.\n\n"
+                if variant != "portable"
+                else "This portable scaffold has no provider projection. Choose a concrete "
+                "harness before publishing.\n\n"
+            )
+            + "## Before publication\n\n"
+            f"- Replace every `{DRAFT}` marker with reviewed behavior and metadata.\n"
+            "- Add exact public source commit/path, license, capabilities, permissions, "
+            "environment names, and harness support to the passport.\n"
+            "- Run the deterministic checks in `eval-profile.json` and the repository gate.\n"
         ).encode(),
-        "SAFETY.md": (
-            b"# Safety\n\nDeclare bounded filesystem, network, process, credential and "
-            b"authorization needs before evaluation.\n"
-        ),
-        "PUBLICATION.md": (
-            b"# Publication checklist\n\n- [ ] Add exact public GitHub source commit and path.\n"
-            b"- [ ] Replace NOASSERTION with a reviewed redistributable license.\n"
-            b"- [ ] Replace generated stub programs. A no-op that returns 0 is not "
-            b"publication-ready.\n"
-            b"- [ ] Run passport validation and the exact SetupEvalProfile.\n"
-        ),
         f"{adaptation_root}/adaptation.json": canonize(cast(JsonValue, adaptation)),
-        f"{projection_root}/GENERATED.md": (
-            b"# Generated projection\n\n"
-            b"Native bytes in this directory are produced by `ai-stp/3` from `source/`.\n"
-            b"Do not treat them as the source of truth.\n"
-        ),
     }
-    files.update({f"{projection_root}/{path}": payload for path, payload in native.items()})
     files.update({f"source/{path}": payload for path, payload in authoring_source.items()})
+    if variant != "portable":
+        files[f"{projection_root}/GENERATED.md"] = (
+            b"# Generated projection\n\n"
+            b"Native bytes in this directory are produced by `ai-stp/4` from `source/`.\n"
+            b"Do not treat them as the source of truth.\n"
+        )
+        files.update({f"{projection_root}/{path}": payload for path, payload in native.items()})
     return files
 
 
 def _native_source(
     name: str, descriptor: ComponentTemplateDescriptor
-) -> tuple[dict[str, bytes], str, str, str, dict[str, bytes]]:
+) -> tuple[dict[str, bytes], tuple[str, ...], tuple[str, ...], str, dict[str, bytes]]:
     """Build one exact native artifact and the portable source that produced it."""
     from ai_stp_cli.local import composition
 
     component_type = descriptor.component_type
     harness = descriptor.harness_variant
     rule = None if harness == "portable" else composition.rule_for(component_type, harness)
-    if harness != "portable" and rule is None and component_type != "mcp":
+    if component_type == "setting" and harness == "portable":
+        raise _failure("setting requires a concrete harness projection")
+    if harness != "portable" and rule is None:
         raise _failure(
             f"{component_type} cannot be projected to {harness} without losing semantics"
         )
@@ -470,7 +493,7 @@ def _native_source(
         native = {entry: _program(name, descriptor.language, "activate_plugin")}
         managed = f"{rule.relative}/{entry}" if rule is not None else f"plugins/{entry}"
         projection = rule.projection_kind if rule is not None else "native_files"
-        return native, entry, managed, projection, {}
+        return native, (entry,), (managed,), projection, {entry: native[entry]}
     if component_type == "plugin":
         entry = _program_entry(name, descriptor.language)
         manifest = {
@@ -492,95 +515,176 @@ def _native_source(
         }
         managed = f"plugins/{name}" if rule is None else f"{rule.relative}/{name}"
         projection = "plugin" if rule is None else rule.projection_kind
-        return native, entry, managed, projection, {}
+        return native, (entry,), (managed,), projection, {entry: native[entry]}
     if component_type == "hook":
-        entry = _program_entry(name, descriptor.language, prefix="hooks/handler")
-        manifest = "hooks.json"
-        native_root = "hooks" if rule is None else rule.relative
-        command_path = _hook_command_path(
-            native_root,
-            name,
-            entry,
-            rule is not None and rule.shape == "directory",
+        suffix = PurePosixPath(_program_entry(name, descriptor.language)).suffix
+        parent = PurePosixPath("hooks") if rule is None else PurePosixPath(rule.relative).parent
+        hook_root = (
+            parent / name
+            if rule is None
+            else parent / "hooks" / name
+            if rule.shape == "file"
+            else PurePosixPath(rule.relative) / name
         )
+        entry = f"{hook_root.as_posix()}/handler{suffix}"
+        command_path = _command_for_file(entry, descriptor.language)
         source = PortableHookSource(
             event="PreToolUse",
             order=0,
             failure="block",
             handler=PortableHookHandler(command=command_path),
         )
-        native = {
-            manifest: canonize(
-                {
-                    "hooks": {
-                        source.event: [
-                            {
-                                "matcher": "*",
-                                "hooks": [{"type": "command", "command": source.handler.command}],
-                            }
-                        ]
-                    }
+        manifest_path = (
+            f"{hook_root.as_posix()}/hooks.json"
+            if rule is None or rule.shape == "directory"
+            else rule.relative
+        )
+        manifest = canonize(
+            {
+                "hooks": {
+                    source.event: [
+                        {
+                            "matcher": "*",
+                            "hooks": [{"type": "command", "command": source.handler.command}],
+                        }
+                    ]
                 }
-            ),
-            entry: _hook_program(descriptor.language),
+            }
+        )
+        handler = _hook_program(descriptor.language)
+        native = {manifest_path: manifest, entry: handler}
+        source_files = {
+            "hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json"))),
+            entry: handler,
         }
+        if descriptor.language == "rust":
+            runner = entry.rsplit("/", 1)[0] + "/run.py"
+            native[runner] = _rust_runner(entry)
+            source_files[runner] = native[runner]
         managed = (
-            "hooks.json"
-            if rule is None
-            else (rule.relative if rule.shape == "file" else f"{rule.relative}/{name}")
+            (rule.relative,)
+            if rule is not None and rule.shape == "file"
+            else (hook_root.as_posix(),)
         )
+        if rule is not None and rule.shape == "file":
+            managed += (hook_root.as_posix(),)
         projection = "native_files" if rule is None else rule.projection_kind
-        return (
-            native,
-            entry,
-            managed,
-            projection,
-            {"hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json")))},
-        )
+        return native, (entry,), managed, projection, source_files
 
     if component_type in {"instruction", "command", "agent", "setting"}:
-        if rule is not None and rule.shape == "file":
-            entry = PurePosixPath(rule.relative).name
-            managed = rule.relative
+        if component_type == "instruction":
+            entry = "AGENTS.md" if rule is None or rule.shape == "file" else f"{name}.md"
+            payload = _instruction_source(name)
+            source_files = {"AGENTS.md": payload}
+        elif component_type == "command":
+            entry = "command.md"
+            payload = _text_source(name, "command")
+            source_files = {entry: payload}
+        elif component_type == "agent":
+            entry = "agent.toml" if rule is not None and rule.relative == "agents" else "agent.md"
+            payload = (
+                _agent_native(name) if entry.endswith(".toml") else _text_source(name, "agent")
+            )
+            source_files = {"agent.md": _text_source(name, "agent")}
         else:
-            entry = "settings.json" if component_type == "setting" else f"{name}.md"
-            root = {
-                "instruction": "instructions",
-                "command": "commands",
-                "agent": "agents",
-                "setting": "settings",
-            }[component_type]
-            managed = f"{root}/{entry}" if rule is None else f"{rule.relative}/{entry}"
-        payload = (
-            _setting_payload(entry)
-            if component_type == "setting"
-            else f"# {name}\n\nDescribe the bounded {component_type} behavior.\n".encode()
+            entry = PurePosixPath(rule.relative).name
+            payload = _setting_payload(entry)
+            source_files = {"settings.json": payload}
+        if rule is None:
+            native = {}
+            managed = (
+                ("instructions" if component_type == "instruction" else "commands") + f"/{name}.md",
+            )
+            projection = "native_files"
+        elif rule.shape == "file":
+            native = {rule.relative: payload}
+            managed = (rule.relative,)
+            projection = rule.projection_kind
+        else:
+            path = (
+                f"{rule.relative}/{name}/{entry}"
+                if component_type == "skill"
+                else f"{rule.relative}/{entry}"
+            )
+            native = {path: payload}
+            managed = (path,)
+            projection = rule.projection_kind
+        return native, (entry,), managed, projection, source_files
+
+    if component_type == "skill":
+        payload = _skill_source(name)
+        source_files = {"SKILL.md": payload}
+        if rule is None:
+            return {}, ("SKILL.md",), (f"skills/{name}",), "native_files", source_files
+        if rule.shape == "directory":
+            path = f"{rule.relative}/{name}/SKILL.md"
+            return (
+                {path: payload},
+                ("SKILL.md",),
+                (f"{rule.relative}/{name}",),
+                rule.projection_kind,
+                source_files,
+            )
+        return (
+            {rule.relative: payload},
+            (PurePosixPath(rule.relative).name,),
+            (rule.relative,),
+            rule.projection_kind,
+            source_files,
         )
-        projection = "native_files" if rule is None else rule.projection_kind
-        return {entry: payload}, entry, managed, projection, {}
 
-    entry = (
-        _program_entry(name, descriptor.language) if descriptor.language != "none" else "SKILL.md"
-    )
-    native = _generic_native_files(name, descriptor, entry)
-    if rule is None:
-        managed = "mcp.json" if component_type == "mcp" else f"skills/{name}"
-        projection = "native_files"
-    elif rule.shape == "file":
-        managed = rule.relative
-        projection = rule.projection_kind
-    else:
-        managed = f"{rule.relative}/{name}"
-        projection = rule.projection_kind
-    return native, entry, managed, projection, {}
+    if component_type == "mcp":
+        suffix = PurePosixPath(_program_entry(name, descriptor.language)).suffix.removeprefix(".")
+        server = f"servers/{name}/server.{suffix}"
+        source_files = {server: _mcp_program(name, descriptor.language, descriptor.framework)}
+        if descriptor.language == "rust":
+            runner = f"servers/{name}/run.py"
+            source_files[runner] = _rust_runner(server)
+        if rule is None:
+            return {}, (server,), (f"servers/{name}",), "native_files", source_files
+        command, args = _runtime_command(server, descriptor.language, name)
+        config = _mcp_config(name, rule.relative, rule.declared_key, command, args)
+        native = {rule.relative: config}
+        native.update(source_files)
+        managed = (rule.relative, f"servers/{name}")
+        return native, (server,), managed, rule.projection_kind, source_files
+
+    raise _failure(f"unsupported component type: {component_type}")
 
 
-def _generic_native_files(
-    name: str, descriptor: ComponentTemplateDescriptor, entry: str
-) -> dict[str, bytes]:
-    if descriptor.language == "none":
-        return {entry: f"# {name}\n\nDescribe the bounded skill behavior.\n".encode()}
-    return {entry: _program(name, descriptor.language, "handle_request")}
+def _text_source(name: str, component_type: str) -> bytes:
+    return (
+        f"# {name}\n\n{DRAFT} replace this bounded {component_type} behavior "
+        "with a tested contract.\n"
+    ).encode()
+
+
+def _instruction_source(name: str) -> bytes:
+    return (
+        f"# {name}\n\n{DRAFT} replace with repository-wide instructions.\n\n"
+        "## Scope\n\nState when these instructions apply.\n\n"
+        "## Invariants\n\n- Keep changes minimal and verifiable.\n"
+    ).encode()
+
+
+def _skill_source(name: str) -> bytes:
+    return (
+        f"---\nname: {name}\ndescription: {DRAFT} replace with a concise bounded "
+        "description.\n---\n\n"
+        f"# {name}\n\n{DRAFT} replace with one focused skill workflow.\n\n"
+        "## Inputs\n\n- Define required inputs and their safe bounds.\n\n"
+        "## Steps\n\n1. Validate inputs.\n"
+        "2. Perform the smallest deterministic action.\n"
+        "3. Report the result and failures.\n"
+    ).encode()
+
+
+def _agent_native(name: str) -> bytes:
+    return (
+        f'name = "{name}"\n'
+        f'description = "{DRAFT} replace with the agent role."\n'
+        'prompt = "Describe the bounded agent behavior."\n'
+    ).encode()
 
 
 def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str:
@@ -596,22 +700,8 @@ def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str
 
 
 def _program(name: str, language: str, symbol: str) -> bytes:
-    del name
-    stub = "STUB: replace before publication. A generated no-op is not a product."
-    symbol = {
-        "python": f"# {stub}\ndef {symbol}() -> int:\n    return 0\n",
-        "typescript": f"// {stub}\nexport const {symbol} = (): number => 0;\n",
-        "javascript": f"// {stub}\nexport const {symbol} = () => 0;\n",
-        "rust": (
-            f"// {stub}\nfn {symbol}() -> i32 {{ 0 }}\n\nfn main() {{ let _ = {symbol}(); }}\n"
-        ),
-        "go": (
-            f"package main\n\n// {stub}\nfunc {symbol}() int {{ return 0 }}\n\n"
-            f"func main() {{ _ = {symbol}() }}\n"
-        ),
-        "dart-flutter": f"// {stub}\nint {symbol}() => 0;\n",
-    }[language]
-    return symbol.encode()
+    del symbol
+    return _mcp_program(name, language, "none")
 
 
 def _hook_program(language: str) -> bytes:
@@ -624,25 +714,28 @@ def _hook_program(language: str) -> bytes:
             "if __name__ == '__main__':\n    raise SystemExit(main())\n"
         ),
         "typescript": (
-            "import { readFileSync } from 'node:fs';\n"
-            "const event: unknown = JSON.parse(readFileSync(0, 'utf8'));\n"
-            "if (typeof event !== 'object' || event === null) process.exit(2);\n"
+            "const { readFileSync } = require('node:fs');\n"
+            "const event = JSON.parse(readFileSync(0, 'utf8'));\n"
+            "if (typeof event !== 'object' || event === null || "
+            "Array.isArray(event)) process.exit(2);\n"
         ),
         "javascript": (
             "import { readFileSync } from 'node:fs';\n"
             "const event = JSON.parse(readFileSync(0, 'utf8'));\n"
-            "if (typeof event !== 'object' || event === null) process.exit(2);\n"
+            "if (typeof event !== 'object' || event === null || "
+            "Array.isArray(event)) process.exit(2);\n"
         ),
         "rust": (
             "use std::io::{self, Read};\n"
             "fn main() { let mut input = String::new(); "
-            "io::stdin().read_to_string(&mut input).unwrap(); "
-            "if input.trim().is_empty() { std::process::exit(2); } }\n"
+            "if io::stdin().read_to_string(&mut input).is_err() { std::process::exit(2); } "
+            "let value = input.trim(); "
+            "if !(value.starts_with('{') && value.ends_with('}')) { std::process::exit(2); } }\n"
         ),
         "go": (
-            'package main\n\nimport ("encoding/json"; "os")\n\n'
+            'package main\n\nimport (\n\t"encoding/json"\n\t"os"\n)\n\n'
             "func main() { var event map[string]any; "
-            "if json.NewDecoder(os.Stdin).Decode(&event) != nil { os.Exit(2) } }\n"
+            "if json.NewDecoder(os.Stdin).Decode(&event) != nil || event == nil { os.Exit(2) } }\n"
         ),
         "dart-flutter": (
             "import 'dart:convert';\nimport 'dart:io';\n"
@@ -653,20 +746,154 @@ def _hook_program(language: str) -> bytes:
     return sources[language].encode()
 
 
-def _hook_command_path(root: str, name: str, entry: str, nested: bool) -> str:
-    target = f"{root}/{name}/{entry}" if nested else f"{PurePosixPath(root).parent}/{entry}"
-    target = target.lstrip("./")
+def _command_for_file(target: str, language: str) -> str:
     executable = {
         ".py": "python",
         ".js": "node",
         ".ts": "node",
-        ".rs": "",
-        ".go": "",
+        ".rs": "python",
+        ".go": "go run",
         ".dart": "dart",
-    }[PurePosixPath(entry).suffix]
-    if not executable:
-        raise _failure("this hook language has no directly executable native handler")
+    }[PurePosixPath(target).suffix]
+    if language == "rust":
+        return f"python {PurePosixPath(target).parent.as_posix()}/run.py"
     return f"{executable} {target}"
+
+
+def _runtime_command(target: str, language: str, name: str) -> tuple[str, list[str]]:
+    if language == "python":
+        return "python", [target]
+    if language in {"typescript", "javascript"}:
+        return "node", [target]
+    if language == "go":
+        return "go", ["run", target]
+    if language == "rust":
+        return "python", [f"servers/{name}/run.py"]
+    if language == "dart-flutter":
+        return "dart", [target]
+    raise _failure("the executable language has no runtime command")
+
+
+def _rust_runner(source: str) -> bytes:
+    return (
+        "import os\n"
+        "import subprocess\n"
+        "import sys\n"
+        "import tempfile\n"
+        "from pathlib import Path\n\n"
+        "source = Path(__file__).with_name(" + repr(PurePosixPath(source).name) + ")\n"
+        "suffix = '.exe' if os.name == 'nt' else ''\n"
+        "binary = Path(tempfile.gettempdir()) / ('ai-stp-' + source.stem + suffix)\n"
+        "subprocess.run(['rustc', str(source), '-O', '-o', str(binary)], check=True)\n"
+        "result = subprocess.run([str(binary), *sys.argv[1:]])\n"
+        "raise SystemExit(result.returncode)\n"
+    ).encode()
+
+
+def _mcp_config(name: str, path: str, declared_key: str, command: str, args: list[str]) -> bytes:
+    if path.endswith(".toml"):
+
+        def quoted(value: str) -> str:
+            return json.dumps(value, ensure_ascii=False)
+
+        return (
+            f"[{declared_key or 'mcp_servers'}.{name}]\n"
+            f"command = {quoted(command)}\n"
+            f"args = [{', '.join(quoted(item) for item in args)}]\n"
+        ).encode()
+    key = declared_key or "mcpServers"
+    server = (
+        {"type": "local", "command": [command, *args]}
+        if key == "mcp"
+        else {"command": command, "args": args}
+    )
+    return canonize(cast(JsonValue, {key: {name: server}}))
+
+
+def _mcp_program(name: str, language: str, framework: str) -> bytes:
+    if framework == "fastmcp":
+        return (
+            "from fastmcp import FastMCP\n\n"
+            f"mcp = FastMCP(name={name!r})\n\n"
+            "@mcp.tool\n"
+            "def echo(text: str) -> str:\n"
+            '    """Return the supplied text unchanged."""\n'
+            "    return text\n\n"
+            "if __name__ == '__main__':\n"
+            "    mcp.run()\n"
+        ).encode()
+    if language == "python":
+        return (
+            "import json\nimport sys\n\n"
+            f"SERVER_NAME = {name!r}\n"
+            "def reply(request: dict) -> dict | None:\n"
+            "    method = request.get('method')\n"
+            "    if method == 'notifications/initialized':\n"
+            "        return None\n"
+            "    request_id = request.get('id')\n"
+            "    if method == 'initialize':\n"
+            "        result = {'protocolVersion': '2024-11-05', 'capabilities': {'tools': {}}, 'serverInfo': {'name': SERVER_NAME, 'version': '0.1.0'}}\n"  # noqa: E501
+            "    elif method == 'tools/list':\n"
+            "        result = {'tools': [{'name': 'echo', 'description': 'Return text unchanged.', 'inputSchema': {'type': 'object', 'properties': {'text': {'type': 'string'}}, 'required': ['text']}}]}\n"  # noqa: E501
+            "    elif method == 'tools/call':\n"
+            "        result = {'content': [{'type': 'text', 'text': str(request.get('params', {}).get('arguments', {}).get('text', ''))}]}\n"  # noqa: E501
+            "    else:\n"
+            "        return {'jsonrpc': '2.0', 'id': request_id, 'error': {'code': -32601, 'message': 'method not found'}}\n"  # noqa: E501
+            "    return {'jsonrpc': '2.0', 'id': request_id, 'result': result}\n\n"
+            "for line in sys.stdin:\n"
+            "    try:\n"
+            "        response = reply(json.loads(line))\n"
+            "        if response is not None:\n"
+            "            print(json.dumps(response), flush=True)\n"
+            "    except (json.JSONDecodeError, AttributeError, TypeError):\n"
+            "        print(json.dumps({'jsonrpc': '2.0', 'id': None, 'error': {'code': -32700, 'message': 'parse error'}}), flush=True)\n"  # noqa: E501
+        ).encode()
+    if language in {"typescript", "javascript"}:
+        return (
+            "const readline = require('node:readline');\n"
+            f"const serverName = {name!r};\n"
+            "const rl = readline.createInterface({ input: process.stdin });\n"
+            "function reply(request) {\n"
+            "  const method = request.method;\n"
+            "  if (method === 'notifications/initialized') return null;\n"
+            "  let result;\n"
+            "  if (method === 'initialize') result = { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: serverName, version: '0.1.0' } };\n"  # noqa: E501
+            "  else if (method === 'tools/list') result = { tools: [{ name: 'echo', description: 'Return text unchanged.', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } }] };\n"  # noqa: E501
+            "  else if (method === 'tools/call') result = { content: [{ type: 'text', text: String(request.params?.arguments?.text ?? '') }] };\n"  # noqa: E501
+            "  else return { jsonrpc: '2.0', id: request.id ?? null, error: { code: -32601, message: 'method not found' } };\n"  # noqa: E501
+            "  return { jsonrpc: '2.0', id: request.id ?? null, result };\n"
+            "}\n"
+            "rl.on('line', line => { try { const response = reply(JSON.parse(line)); if (response) process.stdout.write(JSON.stringify(response) + '\\n'); } catch { process.exitCode = 2; } });\n"  # noqa: E501
+        ).encode()
+    if language == "go":
+        return (
+            'package main\n\nimport ("bufio"; "encoding/json"; "fmt"; "os")\n\n'
+            f"const serverName = {json.dumps(name)}\n\n"
+            'func main() { scanner := bufio.NewScanner(os.Stdin); for scanner.Scan() { var request map[string]any; if json.Unmarshal(scanner.Bytes(), &request) != nil { os.Exit(2) }; method, _ := request["method"].(string); if method == "notifications/initialized" { continue }; id := request["id"]; var result any; switch method { case "initialize": result = map[string]any{"protocolVersion": "2024-11-05", "capabilities": map[string]any{"tools": map[string]any{}}, "serverInfo": map[string]any{"name": serverName, "version": "0.1.0"}}; case "tools/list": result = map[string]any{"tools": []any{map[string]any{"name": "echo", "description": "Return text unchanged.", "inputSchema": map[string]any{"type": "object", "properties": map[string]any{"text": map[string]any{"type": "string"}}, "required": []string{"text"}}}}}; case "tools/call": result = map[string]any{"content": []any{map[string]any{"type": "text", "text": "echo"}}}; default: result = map[string]any{"error": "method not found"} }; response := map[string]any{"jsonrpc": "2.0", "id": id, "result": result}; data, _ := json.Marshal(response); fmt.Println(string(data)) } }\n'  # noqa: E501
+        ).encode()
+    if language == "rust":
+        return (
+            "use std::io::{self, BufRead};\n\n"
+            f"fn main() {{ for line in io::stdin().lock().lines().flatten() {{ "
+            'if line.contains("notifications/initialized") { continue; } '
+            'let id = line.split("\\"id\\":").nth(1) '
+            ".and_then(|v| v.split(',').next()).unwrap_or(\"null\"); "
+            f'let body = if line.contains("initialize") {{ '
+            f'r#"{{"protocolVersion":"2024-11-05","capabilities":{{"tools":{{}}}},'
+            f'"serverInfo":{{"name":"{name}","version":"0.1.0"}}}}"#.to_string() '
+            ' } else if line.contains("tools/list") { '
+            'r#"{"tools":[{"name":"echo","description":"Return text unchanged."}]}"#.to_string() '
+            ' } else if line.contains("tools/call") { '
+            'r#"{"content":[{"type":"text","text":"echo"}]}"#.to_string() '
+            ' } else { r#"{"error":{"code":-32601,"message":"method not found"}}"#.to_string() }; '
+            'println!(r#"{{"jsonrpc":"2.0","id":{},"result":{}}}"#, id.trim(), body); } }\n'
+        ).encode()
+    if language == "dart-flutter":
+        return (
+            b"import 'dart:convert';\nimport 'dart:io';\n\n"
+            b"void main() { stdin.transform(utf8.decoder).transform(const LineSplitter()).listen((line) { final request = jsonDecode(line) as Map<String, dynamic>; if (request['method'] == 'notifications/initialized') return; stdout.writeln(jsonEncode({'jsonrpc': '2.0', 'id': request['id'], 'result': {'content': [{'type': 'text', 'text': 'echo'}]}})); }); }\n"  # noqa: E501
+        )
+    raise _failure("the executable language has no MCP runtime template")
 
 
 def _setting_payload(name: str) -> bytes:

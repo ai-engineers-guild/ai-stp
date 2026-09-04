@@ -2,6 +2,8 @@
 
 import json
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -19,7 +21,7 @@ from ai_stp_contracts.evaluation import SetupEvalProfile
 from ai_stp_foundation.canonical import from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
 
-SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v3.json"
+SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v4.json"
 HISTORICAL_V2_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v2.json"
 REFERENCE_CASES = {
     "instruction-none-portable": ("instruction", "none", "portable"),
@@ -49,6 +51,8 @@ REFERENCE_CASES = {
 #: owned host of that shape, so its refusal stands for its own reason rather
 #: than by sharing a row.
 UNSUPPORTED_NATIVE_KINDS = {
+    "portable": {"setting"},
+    "claude-code": {"mcp"},
     "codex": {"plugin"},
     "pi": {"hook", "agent"},
     "opencode": {"hook"},
@@ -186,7 +190,10 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
         and language not in {"javascript", "typescript"}
     )
     if unsupported:
-        with pytest.raises(CliFailure, match=r"cannot be projected|JavaScript or TypeScript"):
+        with pytest.raises(
+            CliFailure,
+            match=r"cannot be projected|JavaScript or TypeScript|concrete harness",
+        ):
             authoring.scaffold_plan(
                 component_type=component_type,
                 name="review-kit",
@@ -215,12 +222,13 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     )
     assert plan.publication_ready is False
     assert plan.requires_exact_source_before_publication is True
-    assert plan.descriptor.template_version == "component-scaffold/3"
-    assert plan.descriptor.generator_version == "ai-stp/3"
-    assert any(path.startswith("projections/") for path in files)
+    assert plan.descriptor.template_version == "component-scaffold/4"
+    assert plan.descriptor.generator_version == "ai-stp/4"
+    assert any(path.startswith("projections/") for path in files) is (harness != "portable")
     assert all(not path.startswith("native/") for path in files)
     assert "component.json" in files
-    assert "source/authoring-template.md" in files
+    assert ".gitignore" in files
+    assert "source/authoring-template.md" not in files
     ComponentPassportPatch.model_validate(from_json_bytes(files["component-passport.json"]))
     profile = SetupEvalProfile.model_validate(from_json_bytes(files["eval-profile.json"]))
     assert profile.component_types == [component_type]
@@ -235,7 +243,7 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
         ("agent", "go"),
         ("command", "python"),
         ("mcp", "none"),
-        ("hook", "go"),
+        ("hook", "none"),
         ("plugin", "none"),
     ],
 )
@@ -358,20 +366,27 @@ def test_scaffold_skill_declares_the_projection_root_not_the_entry_file(tmp_path
 
 
 @pytest.mark.parametrize(
-    ("harness", "command", "managed"),
+    ("harness", "command", "manifest", "managed"),
     [
-        ("codex", "python hooks/handler.py", "hooks.json"),
-        ("cursor", "python hooks/handler.py", "hooks.json"),
-        ("antigravity", "python config/hooks/handler.py", "config/hooks.json"),
+        ("claude-code", "python hooks/review-kit/handler.py", "settings.json", "settings.json"),
+        ("codex", "python hooks/review-kit/handler.py", "hooks.json", "hooks.json"),
+        ("cursor", "python hooks/review-kit/handler.py", "hooks.json", "hooks.json"),
+        (
+            "antigravity",
+            "python config/hooks/review-kit/handler.py",
+            "config/hooks.json",
+            "config/hooks.json",
+        ),
         (
             "grok-build",
-            "python hooks/review-kit/hooks/handler.py",
+            "python hooks/review-kit/handler.py",
+            "hooks/review-kit/hooks.json",
             "hooks/review-kit",
         ),
     ],
 )
 def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
-    tmp_path: Path, harness: str, command: str, managed: str
+    tmp_path: Path, harness: str, command: str, manifest: str, managed: str
 ) -> None:
     _plan, files = authoring.scaffold_plan(
         component_type="hook",
@@ -382,8 +397,8 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
     )
 
     source = json.loads(files["source/hook-source.json"])
-    manifest = json.loads(files[f"projections/{harness}/hooks.json"])
-    projected = manifest["hooks"][source["event"]]
+    native_manifest = json.loads(files[f"projections/{harness}/{manifest}"])
+    projected = native_manifest["hooks"][source["event"]]
     assert source == {
         "schema_version": 1,
         "event": "PreToolUse",
@@ -392,10 +407,161 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
         "handler": {"command": command},
     }
     assert projected[0]["hooks"] == [{"type": "command", "command": command}]
-    assert "handle_event" not in files[f"projections/{harness}/hooks/handler.py"].decode()
+    handler_path = (
+        "config/hooks/review-kit/handler.py"
+        if harness == "antigravity"
+        else "hooks/review-kit/handler.py"
+    )
+    assert "handle_event" not in files[f"projections/{harness}/{handler_path}"].decode()
     passport = json.loads(files["component-passport.json"])
-    assert passport["managed_paths"] == [managed]
-    assert passport["entry_points"] == ["hooks/handler.py"]
+    managed_root = (
+        managed
+        if harness == "grok-build"
+        else "config/hooks/review-kit"
+        if harness == "antigravity"
+        else "hooks/review-kit"
+    )
+    assert passport["managed_paths"] == (
+        [managed_root] if harness == "grok-build" else [manifest, managed_root]
+    )
+    assert passport["entry_points"] == [handler_path]
+
+
+def test_fastmcp_is_explicit_and_has_a_real_server_entrypoint(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="mcp",
+        name="weather",
+        language="python",
+        harness_variant="codex",
+        framework="fastmcp",
+        output=tmp_path / "weather",
+    )
+
+    descriptor = json.loads(files["component.json"])
+    assert descriptor["framework"] == "fastmcp"
+    server = files["source/servers/weather/server.py"].decode()
+    assert "from fastmcp import FastMCP" in server
+    assert "@mcp.tool" in server
+    passport = json.loads(files["component-passport.json"])
+    assert passport["runtime_requirements"] == ["python-package:fastmcp>=2"]
+    with pytest.raises(ValueError, match="fastmcp requires"):
+        ComponentTemplateDescriptor(
+            component_type="mcp",
+            language="go",
+            harness_variant="codex",
+            executable=True,
+            framework="fastmcp",
+        )
+
+
+@pytest.mark.parametrize("language", ("python", "typescript", "javascript", "rust", "go"))
+def test_generated_hook_handlers_really_process_json(tmp_path: Path, language: str) -> None:
+    if language == "go" and shutil.which("go") is None:
+        pytest.skip("Go toolchain is not installed")
+    if (
+        language == "rust"
+        and subprocess.run(["rustc", "--version"], capture_output=True, check=False).returncode != 0
+    ):
+        pytest.skip("Rust toolchain is not configured")
+    plan, files = authoring.scaffold_plan(
+        component_type="hook",
+        name="review-kit",
+        language=language,
+        harness_variant="codex",
+        output=tmp_path / "review-kit",
+    )
+    projection = tmp_path / "projection"
+    projection.mkdir()
+    prefix = "projections/codex/"
+    for path, payload in files.items():
+        if path.startswith(prefix):
+            target = projection / path.removeprefix(prefix)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(payload)
+    suffix = {
+        "python": ".py",
+        "typescript": ".ts",
+        "javascript": ".js",
+        "rust": ".rs",
+        "go": ".go",
+    }[language]
+    handler = f"hooks/review-kit/handler{suffix}"
+    command = (
+        ["python", handler]
+        if language == "python"
+        else ["node", handler]
+        if language in {"typescript", "javascript"}
+        else ["python", "hooks/review-kit/run.py"]
+        if language == "rust"
+        else ["go", "run", handler]
+    )
+    valid = subprocess.run(
+        command,
+        cwd=projection,
+        input='{"tool":"read"}\n',
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    invalid = subprocess.run(
+        command,
+        cwd=projection,
+        input="[]\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    assert valid.returncode == 0, valid.stderr
+    assert invalid.returncode == 2, invalid.stderr
+    assert plan.descriptor.language == language
+
+
+@pytest.mark.parametrize("language", ("python", "javascript"))
+def test_generated_mcp_stdio_server_handles_core_requests(tmp_path: Path, language: str) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="mcp",
+        name="echo-server",
+        language=language,
+        harness_variant="portable",
+        output=tmp_path / "echo-server",
+    )
+    suffix = ".py" if language == "python" else ".js"
+    source = tmp_path / f"server{suffix}"
+    source.write_bytes(files[f"source/servers/echo-server/server{suffix}"])
+    command = ["python", str(source)] if language == "python" else ["node", str(source)]
+    requests = (
+        "\n".join(
+            [
+                json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize"}),
+                json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+                json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 3,
+                        "method": "tools/call",
+                        "params": {"arguments": {"text": "ok"}},
+                    }
+                ),
+            ]
+        )
+        + "\n"
+    )
+    result = subprocess.run(
+        command,
+        input=requests,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    responses = [json.loads(line) for line in result.stdout.splitlines()]
+    assert [item["id"] for item in responses] == [1, 2, 3]
+    assert responses[1]["result"]["tools"][0]["name"] == "echo"
+    assert responses[2]["result"]["content"][0]["text"] == "ok"
 
 
 def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path) -> None:
@@ -476,8 +642,8 @@ def test_scaffold_fails_before_writing_when_native_semantics_do_not_exist(
 
 def test_versioned_reference_scaffolds_match_the_reviewed_golden(tmp_path: Path) -> None:
     golden = json.loads(SCAFFOLD_GOLDEN.read_text(encoding="utf-8"))
-    assert golden["template_version"] == "component-scaffold/3"
-    assert golden["generator_version"] == "ai-stp/3"
+    assert golden["template_version"] == "component-scaffold/4"
+    assert golden["generator_version"] == "ai-stp/4"
     observed: dict[str, dict[str, str]] = {}
     for case, (component_type, language, harness) in REFERENCE_CASES.items():
         plan, _files = authoring.scaffold_plan(
@@ -504,6 +670,7 @@ def test_historical_scaffold_descriptor_versions_remain_validatable() -> None:
         ("component-scaffold/1", "ai-stp/1"),
         ("component-scaffold/2", "ai-stp/2"),
         ("component-scaffold/3", "ai-stp/3"),
+        ("component-scaffold/4", "ai-stp/4"),
     ):
         ComponentTemplateDescriptor.model_validate(
             {
@@ -580,4 +747,4 @@ def test_every_offered_harness_variant_can_actually_be_scaffolded(
     )
 
     assert files, f"{variant} produced no scaffold bytes"
-    assert any(item.path.endswith("authoring-template.md") for item in plan.files)
+    assert any(item.path == "source/SKILL.md" for item in plan.files)

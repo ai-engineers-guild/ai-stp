@@ -71,6 +71,15 @@
         "component_type": {
           "$ref": "#/$defs/ComponentType"
         },
+        "framework": {
+          "default": "none",
+          "enum": [
+            "none",
+            "fastmcp"
+          ],
+          "title": "Framework",
+          "type": "string"
+        },
         "language": {
           "enum": [
             "none",

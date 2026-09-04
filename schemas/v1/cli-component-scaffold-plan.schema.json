@@ -4,7 +4,8 @@
       "enum": [
         "ai-stp/1",
         "ai-stp/2",
-        "ai-stp/3"
+        "ai-stp/3",
+        "ai-stp/4"
       ],
       "type": "string"
     },
@@ -54,9 +55,18 @@
           "title": "Executable",
           "type": "boolean"
         },
+        "framework": {
+          "default": "none",
+          "enum": [
+            "none",
+            "fastmcp"
+          ],
+          "title": "Framework",
+          "type": "string"
+        },
         "generator_version": {
           "$ref": "#/$defs/ComponentGeneratorVersion",
-          "default": "ai-stp/3"
+          "default": "ai-stp/4"
         },
         "harness_variant": {
           "anyOf": [
@@ -91,7 +101,7 @@
         },
         "template_version": {
           "$ref": "#/$defs/ComponentTemplateVersion",
-          "default": "component-scaffold/3"
+          "default": "component-scaffold/4"
         }
       },
       "required": [
@@ -107,7 +117,8 @@
       "enum": [
         "component-scaffold/1",
         "component-scaffold/2",
-        "component-scaffold/3"
+        "component-scaffold/3",
+        "component-scaffold/4"
       ],
       "type": "string"
     },

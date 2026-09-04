@@ -133,6 +133,7 @@ def setup_scaffold_files(descriptor: SetupTemplateDescriptor) -> dict[str, bytes
             language=member.language,
             harness_variant=harness,
             executable=member.component_type not in DECLARATIVE_COMPONENT_TYPES,
+            framework=member.framework,
         )
         nested = component_scaffold_files(member.name, component)
         member_files.update(
@@ -201,15 +202,25 @@ def _parse_members(raw: str | None) -> tuple[SetupMemberDescriptor, ...]:
     for item in raw.split(","):
         token = item.strip()
         if not token:
-            raise _fail("a setup member must be type:name or type:name:language")
+            raise _fail(
+                "a setup member must be type:name, type:name:language, or "
+                "type:name:language:framework"
+            )
         parts = token.split(":")
         if len(parts) == 2:
             component_type, name = parts
             language = "none"
         elif len(parts) == 3:
             component_type, name, language = parts
+        elif len(parts) == 4:
+            component_type, name, language, framework = parts
         else:
-            raise _fail("a setup member must be type:name or type:name:language")
+            raise _fail(
+                "a setup member must be type:name, type:name:language, or "
+                "type:name:language:framework"
+            )
+        if len(parts) < 4:
+            framework = "none"
         if component_type not in TYPES or not _NAME.fullmatch(name):
             raise _fail("the component type or lowercase bounded name is invalid")
         allowed = TYPE_LANGUAGE_MATRIX[cast(ComponentType, component_type)]
@@ -218,6 +229,10 @@ def _parse_members(raw: str | None) -> tuple[SetupMemberDescriptor, ...]:
                 "declarative components require language=none; "
                 "executable components require a language"
             )
+        if framework not in {"none", "fastmcp"}:
+            raise _fail("the setup member framework is unsupported")
+        if framework == "fastmcp" and (component_type != "mcp" or language != "python"):
+            raise _fail("fastmcp requires component_type=mcp and language=python")
         if name in seen:
             raise _fail("setup member names must be unique")
         seen.add(name)
@@ -226,6 +241,7 @@ def _parse_members(raw: str | None) -> tuple[SetupMemberDescriptor, ...]:
                 component_type=component_type,  # pyright: ignore[reportArgumentType]
                 name=name,
                 language=language,  # pyright: ignore[reportArgumentType]
+                framework=framework,  # pyright: ignore[reportArgumentType]
             )
         )
     return tuple(members)
@@ -235,7 +251,8 @@ def _setup_readme(name: str, harness: str, descriptor: SetupTemplateDescriptor) 
     member_lines = "".join(
         f"- `components/{item.name}/` — `{item.component_type}`\n" for item in descriptor.members
     ) or (
-        "- No members yet. Add them with `--components type:name` or by hand under `components/`.\n"
+        "- No members yet. Add them with `--components type:name[:language[:framework]]` "
+        "or by hand under `components/`.\n"
     )
     return (
         f"# {name}\n\n"
@@ -248,6 +265,7 @@ def _setup_readme(name: str, harness: str, descriptor: SetupTemplateDescriptor) 
         f"- `projections/{harness}/` stays empty until a later export command. "
         "Scaffold does not export.\n"
         "- Nested components live under `components/` and share this git root.\n\n"
+        "- Executable members use `type:name:language`; Python MCP may add `:fastmcp`.\n\n"
         "## Members\n\n"
         f"{member_lines}\n"
         "## Boundaries\n\n"

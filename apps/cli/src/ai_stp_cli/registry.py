@@ -612,6 +612,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 ),
             ),
             option(
+                "framework",
+                "string",
+                "Optional MCP framework; fastmcp requires a Python MCP component.",
+                choices=("none", "fastmcp"),
+            ),
+            option(
                 "harness",
                 "string",
                 "Portable base or one concrete harness variant.",
@@ -661,6 +667,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                     "go",
                     "dart-flutter",
                 ),
+            ),
+            option(
+                "framework",
+                "string",
+                "Optional MCP framework; fastmcp requires a Python MCP component.",
+                choices=("none", "fastmcp"),
             ),
             option(
                 "harness",
@@ -2444,7 +2456,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "components",
                 "string",
-                "Optional nested members as type:name or type:name:language, comma-separated.",
+                "Optional nested members as type:name, type:name:language, or "
+                "type:name:language:framework, comma-separated.",
             ),
         ),
         next_actions=("setup scaffold apply",),
@@ -2469,7 +2482,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "components",
                 "string",
-                "Optional nested members as type:name or type:name:language, comma-separated.",
+                "Optional nested members as type:name, type:name:language, or "
+                "type:name:language:framework, comma-separated.",
             ),
             option(
                 "expected-plan-digest",
