@@ -30,7 +30,7 @@ last_verified: "2026-08-03"
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Device passport fields, privacy, and the permitted summary for the server and web. | 2026-08-04 |
-| [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-08-26 |
+| [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-09-03 |
 | [federated-sources.md](federated-sources.md) | Machine contract for shared descriptors used by local ports and metadata adapters. | 2026-08-16 |
 | [fixture-corpus.md](fixture-corpus.md) | Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Machine contract for local GitHub archive evidence and observation history. | 2026-08-15 |
@@ -42,7 +42,7 @@ last_verified: "2026-08-03"
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
 | [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
-| [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-03 |
+| [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |
 | [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-08-08 |
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-08-13 |
 | [selection-impact.md](selection-impact.md) | Machine contract for the local context budget, capability delta, and blast radius. | 2026-08-15 |

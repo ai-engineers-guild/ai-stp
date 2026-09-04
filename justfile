@@ -217,12 +217,13 @@ evidence-provider-scopes setup_systems_root:
 #
 # Строка на харнесс, исход из пяти, и отсутствующая строка — ошибка, а не ноль
 # отказов. `GH_CONFIG_DIR` нужен по той же причине, что и соседу.
-evidence-software tag harness="":
+evidence-software tag harness="" acquire="":
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_software_slice \
         --tag "{{tag}}" \
-        {{ if harness == "" { "" } else { prepend("--harness ", harness) } }}
+        {{ if harness == "" { "" } else { prepend("--harness ", harness) } }} \
+        {{ if acquire == "" { "" } else { "--acquire" } }}
 
 # Третий вопрос той же пары, и единственный про **конфигурацию**.
 # `evidence-providers` спрашивает контракт, `evidence-software` — программу,

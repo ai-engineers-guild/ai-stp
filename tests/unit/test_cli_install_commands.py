@@ -29,6 +29,7 @@ from ai_stp_cli.local import (
     installation,
     passports,
     project_passport,
+    provider_installations,
     provider_releases,
     revisions,
     selection,
@@ -45,6 +46,7 @@ from ai_stp_cli.provider import (
     protocol_v2,
     protocol_v3,
     release,
+    trust,
 )
 from ai_stp_contracts.catalog import CatalogTrust
 from ai_stp_contracts.first_party import FirstPartyVersion
@@ -2722,14 +2724,20 @@ def test_a_missing_managed_provider_is_acquired(
     from types import SimpleNamespace
 
     proposal_id = _confirmed(registry, tmp_path, "P")
-    fetched = _provider(tmp_path, "fetched")
+    provider_root = provider_installations.managed_root() / "claude-code" / "0.0.60"
+    manifest = provider_root / "release.json"
     calls: list[str] = []
+    trust_inputs: list[str] = []
 
     def fetch(*, harness: str, **_kwargs: object) -> SimpleNamespace:
         calls.append(harness)
+        provider_root.mkdir(parents=True)
+        created = Path(_provider(provider_root, "fetched"))
+        manifest.write_text("{}", encoding="utf-8")
         return SimpleNamespace(
             harness_id=harness,
-            artifact=Path(fetched),
+            artifact=created,
+            manifest_path=manifest,
             provider_id="claude-setup-system",
             provider_version="0.0.60",
             tag="0.0.60",
@@ -2737,14 +2745,28 @@ def test_a_missing_managed_provider_is_acquired(
             artifact_digest="sha256:" + "b" * 64,
         )
 
+    def trusted_manifest(
+        connection: sqlite3.Connection,
+        parameters: Mapping[str, object],
+        executable: str,
+        *,
+        recovery_requested: bool,
+    ) -> trust.ReleaseEvidence:
+        del connection, executable, recovery_requested
+        trust_inputs.append(str(parameters.get("provider-manifest") or ""))
+        return trust.ReleaseEvidence(None)
+
     monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    monkeypatch.setattr(trust, "trusted_manifest", trusted_manifest)
     planned = install.plan({"proposal": proposal_id}).payload
     assert planned.state == "planned"
     assert calls == ["claude-code"]
+    assert trust_inputs == [str(manifest)]
     # Remembered: a second plan does not fetch again.
     second = install.plan({"proposal": proposal_id}).payload
     assert second.operation_id == planned.operation_id
     assert calls == ["claude-code"]
+    assert trust_inputs == [str(manifest), str(manifest)]
 
 
 def test_planning_twice_returns_the_same_plan(registry: sqlite3.Connection, tmp_path: Path) -> None:

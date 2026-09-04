@@ -15,6 +15,7 @@ from ai_stp_cli.local import provider_installations as installations
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.provider import acquire
+from ai_stp_foundation.harnesses import HARNESS_IDS
 
 pytestmark = pytest.mark.cli
 
@@ -39,11 +40,14 @@ def _patch_fetch(monkeypatch: pytest.MonkeyPatch, fetch: object) -> None:
     monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
 
 
-def _bound(place: Path) -> SimpleNamespace:
+def _bound(place: Path, harness_id: str = "codex") -> SimpleNamespace:
+    manifest = place.parent / "release.json"
+    manifest.write_text("{}", encoding="utf-8")
     return SimpleNamespace(
-        harness_id="codex",
+        harness_id=harness_id,
         artifact=place,
-        provider_id="codex-setup-system",
+        manifest_path=manifest,
+        provider_id=f"{harness_id}-setup-system",
         provider_version="0.0.60",
         tag="0.0.60",
         commit="a" * 40,
@@ -69,6 +73,42 @@ def test_a_missing_provider_is_acquired_and_remembered(
     assert remembered is not None
     assert remembered.source == installations.SOURCE_CHOSEN
     assert remembered.path == str(fetched)
+
+
+@pytest.mark.parametrize("harness_id", sorted(HARNESS_IDS))
+def test_acquisition_carries_the_verified_manifest_into_the_call(
+    home: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    harness_id: str,
+) -> None:
+    fetched = _executable(tmp_path / harness_id, "fetched")
+
+    def fetch(**_kwargs: object) -> SimpleNamespace:
+        return _bound(fetched, harness_id)
+
+    _patch_fetch(monkeypatch, fetch)
+    with open_registry(configured_path(), create=True) as connection:
+        context = acquire.provider_context(connection, harness_id, {})
+
+    assert Path(context.executable) == fetched.resolve()
+    assert context.parameters["provider-manifest"] == str(fetched.parent / "release.json")
+
+
+def test_a_remembered_managed_provider_reuses_its_verified_manifest(
+    home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fetched = _executable(installations.managed_root() / "codex" / "0.0.60", "provider")
+    manifest = fetched.parent / "release.json"
+    manifest.write_text("{}", encoding="utf-8")
+    with open_registry(configured_path(), create=True) as connection:
+        installations.remember(connection, _installation(fetched))
+        connection.commit()
+
+        context = acquire.provider_context(connection, "codex", {})
+
+    assert Path(context.executable) == fetched.resolve()
+    assert context.parameters["provider-manifest"] == str(manifest)
 
 
 def test_an_explicit_path_is_not_fetched(
@@ -190,3 +230,19 @@ def test_a_discovered_observation_is_not_the_acquired_provider(
         )
     assert Path(found) == fetched.resolve()
     assert Path(found) != observed.resolve()
+
+
+def _installation(place: Path) -> installations.Installation:
+    return installations.Installation(
+        harness_id="codex",
+        path=str(place),
+        source=installations.SOURCE_CHOSEN,
+        state=installations.STATE_INSTALLED,
+        provider_id="codex-setup-system",
+        provider_version="0.0.60",
+        tag="0.0.60",
+        commit="a" * 40,
+        artifact_digest="sha256:" + "b" * 64,
+        checked_at=moment(),
+        source_checked_at=moment(),
+    )

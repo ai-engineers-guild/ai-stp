@@ -301,30 +301,34 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             if held is not None
             else _Pair(_required(parameters, "project"), _required(parameters, "harness"))
         )
-        executable = _executable(parameters, connection=connection, harness_id=pair.harness_id)
+        from ai_stp_cli.provider import acquire
+
+        provider = acquire.provider_context(connection, pair.harness_id, parameters)
+        executable = provider.executable
+        effective_parameters = provider.parameters
         target = installation.target_identity(pair.project_id, pair.harness_id)
-        release_recovery = bool(parameters.get("provider-release-recovery", False))
+        release_recovery = bool(effective_parameters.get("provider-release-recovery", False))
         release_evidence = trust.trusted_manifest(
             connection,
-            parameters,
+            effective_parameters,
             executable,
             recovery_requested=release_recovery,
         )
         trusted_release = release_evidence.manifest
-        protocol_version = _protocol_version(parameters, trusted_release)
-        trust.release_required(parameters, protocol_version, trusted_release)
+        protocol_version = _protocol_version(effective_parameters, trusted_release)
+        trust.release_required(effective_parameters, protocol_version, trusted_release)
         if prepared_ref and protocol_version != protocol_v3.VERSION:
             raise CliFailure(
                 "AI_STP_SCHEMA_UNSUPPORTED",
                 "prepared SetupVersion installation requires provider protocol v3",
                 details={"protocol_version": str(protocol_version)},
             )
-        provider_target = _provider_target(parameters, target, protocol_version)
+        provider_target = _provider_target(effective_parameters, target, protocol_version)
         invoke = invocation.provider_invoker(
             executable,
             provider_target,
             protocol_version,
-            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(trusted_release, effective_parameters),
         )
         info = _object(invoke("provider-info", ()))
         _speaks(info, protocol_version)
@@ -349,7 +353,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         if protocol_version == protocol_v3.VERSION:
             return _plan_v3(
                 connection,
-                parameters=parameters,
+                parameters=effective_parameters,
                 executable=executable,
                 pair=pair,
                 proposal=held,

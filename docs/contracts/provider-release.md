@@ -1,6 +1,6 @@
 ---
 description: "Provider release manifest, trust, verification, and rollback protection."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # Provider release
@@ -120,6 +120,11 @@ remembered or managed provider exists, `install plan` and `install apply`
 acquire the attested OpenNetwork artifact and materialise this JSON through the
 same path as `provider fetch` (`ADR-0146`). `provider fetch` remains the
 explicit repair and preload command when automatic acquisition cannot complete.
+The acquired `release.json` becomes the trust input of that same operation and
+is reused by later operations only when it is a regular sibling of executable
+bytes below the managed provider root. Its location grants no trust:
+`trusted_manifest` still verifies pinned policy, exact bytes and build
+attestation before the first provider spawn.
 
 `provider fetch` materializes this JSON from attested bytes, the exact tag,
 source commit, and executable `provider-info`. Sequence is encoded from the
