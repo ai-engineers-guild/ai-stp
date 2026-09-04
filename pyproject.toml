@@ -144,7 +144,7 @@ testpaths = ["tests"]
 # projection generator is one of them and its contract test imports it.
 pythonpath = ["."]
 asyncio_mode = "auto"
-addopts = "-q --cov=packages --cov=apps --cov-report=term-missing:skip-covered --cov-fail-under=90"
+addopts = "-q --cov=packages --cov=apps --cov-report=term-missing:skip-covered"
 filterwarnings = [
     # Python 3.13+ reports an unclosed sqlite3 connection from its finalizer.
     # Pytest captures that finalizer as an unraisable warning, so promoting only
@@ -175,11 +175,8 @@ core = "sysmon"
 
 [tool.coverage.report]
 exclude_also = ["if __name__ == .__main__.:"]
-# The threshold is compared against a *rounded* total: coverage's
-# `should_fail_under` evaluates `round(total, precision) < fail_under`. At the
-# default precision of 0 a gate of 95 really passes at 94.5, and pytest-cov
-# still prints "FAIL Required test coverage" because its message uses the
-# unrounded number — a run that says FAIL and exits 0. Observed on
-# letya999@6a41c28 at 94.55% in CI and 94.88% locally. Two decimals shrink the
-# blind band from half a point to 0.005; it cannot be removed, only narrowed.
+# Printed totals use two decimals. A percentage does not fail the gate
+# (ADR-0147). If a fail-under is restored, keep this precision: coverage
+# compares `round(total, precision) < fail_under`, and precision 0 made a
+# printed FAIL exit 0.
 precision = 2

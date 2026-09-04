@@ -10,7 +10,7 @@ last_verified: "2026-08-03"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [runbooks/](runbooks/index.md) | Step-by-step recovery for critical CLI and platform operations. | 2026-08-03 |
-| [ci-cd.md](ci-cd.md) | Checks and release order for compatible changes. | 2026-08-25 |
+| [ci-cd.md](ci-cd.md) | Checks and release order for compatible changes. | 2026-09-04 |
 | [configuration.md](configuration.md) | Configuration of the local CLI and server environment. | 2026-09-01 |
 | [infrastructure.md](infrastructure.md) | Target infrastructure for the MVP server mode. | 2026-08-05 |
 | [observability.md](observability.md) | Minimum signals for diagnosing the CLI, sync, publishing, and providers. | 2026-08-29 |

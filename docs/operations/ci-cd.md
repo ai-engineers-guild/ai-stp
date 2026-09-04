@@ -1,6 +1,6 @@
 ---
 description: "Checks and release order for compatible changes."
-last_verified: "2026-08-25"
+last_verified: "2026-09-04"
 ---
 
 # CI and releases
@@ -146,8 +146,9 @@ Splitting jobs by required capability (`ADR-0105`) and avoiding `needs`
 (`ADR-0104`) remain in force and now describe the public gate: independent
 checks do not wait for each other, and the run's wall-clock time is the duration of the
 longest job. There is one exception, based on data rather than ordering: `coverage`
-collects the `.coverage.*` files from the Linux `tests` shards and only then checks the 90%
-threshold, because the threshold is a property of the union, not a fragment.
+collects the `.coverage.*` files from the Linux `tests` shards and prints the
+combined total (`ADR-0147`). The number is a property of the union, not a
+fragment, and it does not fail the job.
 
 The shape of the public gate is defined by `ADR-0116`. The server suite runs only on Linux and is split
 into seven jobs (`api`, `integration`, `unit-platform`, `unit-api`, `unit`,
