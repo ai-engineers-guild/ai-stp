@@ -1,6 +1,6 @@
 ---
 description: "Build, verify, publish, yank, and recover a Python release."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # Python package release
@@ -55,8 +55,9 @@ Before adding or enabling a publish job, the repository owner separately confirm
    performs no checkout (`ADR-0048`);
 3. the `pypi-cli` environment is protected by required reviewers and rejects
    arbitrary branches; there are **two** reviewers, otherwise publication stops
-   when one person is unavailable. Historical `pypi` / `pypi-*` environments stay
-   until a successful unified release, then may be removed;
+   when one person is unavailable. After the unified `0.0.17` release, the
+   obsolete `pypi` / `pypi-*` GitHub environments are removed; only `pypi-cli`
+   remains;
 4. the PyPI Trusted Publisher for `ai-stp-cli` pins the owner, repository, exact
    `publish-pypi.yml` workflow name, and environment `pypi-cli`;
 5. exact-SHA `just check`, Linux x86_64 install evidence, SBOM, checksums, and
@@ -120,20 +121,28 @@ No upload token exists here, on the host, or in repository or organization secre
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
 
-Live index on 2026-09-02: five projects are published as `0.0.15` (candidate
-`33585264747`, tag `v0.0.15`, commit `2af9122b`), by `publish_pypi.py` unattended;
-the wheel's attestation verifies against `release-candidate.yml@refs/tags/v0.0.15`
-and a random file is refused.
+Live index on 2026-09-04: `ai-stp-cli==0.0.17` from candidate `33850604873`,
+tag `v0.0.17`, commit `9e03ab27`, GitHub Release
+`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.17`. A clean
+`uv tool install --python 3.14 --no-cache ai-stp-cli==0.0.17` installs one
+first-party distribution. `provider fetch --harness pi` bound OpenNetwork
+`0.0.61` at `trust_level=verified_publisher`. Wheel digest
+`sha256:94e6f1a41b2f9b6bb9fba0c16bf6c7c2306bcaf6327b7eae35d7b751ccdbf9fb`
+matches PyPI.
 
-**`0.0.17` publishes only `ai-stp-cli`.** Former internal projects stay on the
-index as historical `0.0.16` artifacts. `ai-stp-sources` is deleted only after
-an independent clean install of `ai-stp-cli==0.0.17` and provider-acquisition
-evidence pass. Do not delete it earlier: `ai-stp-cli==0.0.16` still requires it.
-Earlier: `0.0.6` from candidate `33020095240`, `0.0.5` from `33008640398`.
+**Former internal projects are no longer part of the install.** They remain
+on the index as `0.0.16` artifacts until their PyPI owners delete those
+projects in the web UI with password confirmation: `ai-stp-sources` is
+`rldyourmnd`; `ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`,
+and `ai-stp-contracts` are `artemletya`. There is no upload token and no
+deletion API. Do not delete them before `0.0.17` is on the simple index;
+`ai-stp-cli==0.0.16` still requires them. Earlier: `0.0.6` from candidate
+`33020095240`, `0.0.5` from `33008640398`.
 
 Verified **with PyPI**, not from a green run:
 
-- one project, `ai-stp-cli`, with a wheel and sdist; historical `0.0.16` internals remain on the index as artifacts;
+- one project, `ai-stp-cli`, with a wheel and sdist; historical `0.0.16`
+  internals remain on the index until their owners delete those projects;
 - attestation of the published wheel succeeds and names its source—workflow
   `release-candidate.yml@refs/tags/v0.0.5`, commit `6514a36b…`. The negative
   control (random bytes) returns 404, so the check distinguishes them;
@@ -184,9 +193,9 @@ Every shipped module was byte-identical; `uv` stamps its version into
 but nobody told the developer's machine.
 
 This is now pinned: `.uv-version` and failure on `just release-candidate`, following
-the `bun` model. **With pinned `uv`, a clean worktree on the tag rebuilds all ten
-distributions with digests identical to those served by PyPI**—the build was always
-reproducible; uv's version was the only unpinned input.
+the `bun` model. **With pinned `uv`, a clean worktree on the tag rebuilds the
+`ai-stp-cli` wheel and sdist with digests identical to those served by PyPI**—the
+build was always reproducible; uv's version was the only unpinned input.
 
 The correct check for a received artifact is `gh attestation verify`, not a rebuild
 and diff. A rebuild answers "did my toolchain match?"; attestation answers "where
@@ -195,8 +204,8 @@ did these bytes come from?"
 ## Failure and yanking
 
 - PyPI files and versions are immutable; repeating with different bytes is forbidden.
-- After a partial upload, remaining packages must not conceal incompatibility. The
-  fix receives a new coordinated patch version.
+- After a failed upload, do not retry the same version with different bytes. The
+  fix receives a new patch version.
 - A compromised or erroneous release is yanked with a public reason; bytes are not
   deleted and historical checksums are retained.
 - Trusted Publisher/environment access is blocked during investigation; there is

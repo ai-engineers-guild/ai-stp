@@ -4,7 +4,7 @@
 # something equivalent produced a second time.
 #
 # Two independent authorisations, and neither implies the other. `run_id` names
-# one immutable set of bytes; the `pypi` environment holds the upload until a
+# one immutable set of bytes; the `pypi-cli` environment holds the upload until a
 # person approves it. Trusted Publishing then authenticates with an OIDC token
 # naming this repository, this workflow file and that environment, so a token
 # minted anywhere else buys nothing.

@@ -133,15 +133,16 @@ safety-benchmark *args:
 safety-corpus *args:
     {{run}} python scripts/safety/run_adversarial_corpus.py {{args}}
 
-# Собирает, но не публикует, пять публичных Python-пакетов. Рабочее дерево
-# обязано быть чистым; локальная характеризация dirty tree запускается напрямую
-# с явным `--allow-dirty` и никогда не является release evidence.
+# Builds, but does not publish, the public ai-stp-cli candidate. The working
+# tree must be clean; a dirty tree is only for local characterization with
+# explicit `--allow-dirty` and is never release evidence.
 release-candidate:
     {{uvreq}}
     uv run --locked python release_scripts/build_candidate.py --replace
 
-# Устанавливает именно пять wheel текущего candidate, запускает CLI вне checkout
-# и удаляет tool. Public index используется только для внешних зависимостей.
+# Installs the current candidate's ai-stp-cli wheel outside checkout, runs
+# the CLI, and removes the tool. The public index is used only for third-party
+# dependencies.
 release-candidate-install:
     uv run --locked python -m release_scripts.verify_candidate_install \
         dist/release-candidate \

@@ -34,7 +34,7 @@ plans are not continued literally after the implementation changes.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities, and five complete launch capabilities |
-| Release | Published line is `0.0.16` as six distributions; the next candidate is one public `ai-stp-cli` wheel (`ADR-0146`, `#100`) and is not yet on the index; GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
+| Release | Published line is `0.0.17` as one `ai-stp-cli` wheel (`ADR-0146`, tag `v0.0.17`); GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
 ## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut
@@ -302,7 +302,13 @@ closed or forbade. Those findings are not re-opened here:
 | Scaffold v3 (SCA-001) | Backlog, issue `#79`. |
 | Rust rewrite / new component kinds | Backlog (`D-15`). Historical experiments are not current evidence. |
 
-`#100` stays open until `ai-stp-cli==0.0.17` is published from an immutable candidate, a clean install from the index passes, and `ai-stp-sources` is removed. That publication is a separate confirmation, not this change.
+`#100` published `ai-stp-cli==0.0.17` from candidate `33850604873`, tag `v0.0.17`,
+commit `9e03ab27`. A clean index install and one GitHub-attested provider fetch
+passed. Obsolete GitHub `pypi` / `pypi-*` environments except `pypi-cli` are
+removed. The five former internal PyPI projects remain on the index until their
+owners delete them in the web UI with password confirmation: `ai-stp-sources`
+is `rldyourmnd`; `ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`,
+and `ai-stp-contracts` are `artemletya`. There is no deletion API.
 
 ## Explicitly out of scope for this pass
 
