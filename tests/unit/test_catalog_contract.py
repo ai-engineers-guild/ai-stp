@@ -14,7 +14,6 @@ from ai_stp_contracts.catalog import (
     CatalogTrust,
     CatalogTrustLane,
     CatalogUsageMetrics,
-    SupportOperatingSystem,
     ComponentDetail,
     ComponentListResponse,
     ComponentSearchRequest,
@@ -25,6 +24,7 @@ from ai_stp_contracts.catalog import (
     SetupSearchRequest,
     SetupSummary,
     SetupVersionResponse,
+    SupportOperatingSystem,
     VersionListEntry,
 )
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX, PageInfo
