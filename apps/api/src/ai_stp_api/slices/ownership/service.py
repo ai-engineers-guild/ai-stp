@@ -141,6 +141,7 @@ async def create_claim(
             recipient_account_id=ctx.account_id,
             message=body.reason,
             evidence=body.evidence,
+            validation_snapshot_ids=[],
             idempotency_key=body.idempotency_key,
         ),
     )

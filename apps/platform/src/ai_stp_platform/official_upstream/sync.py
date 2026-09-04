@@ -93,6 +93,9 @@ async def run_sync(
     try:
         snapshot = await resolve_official_snapshot(source, fetch=fetch, now=moment)
     except OfficialUpstreamError as error:
+        cancelled = await fence_attempt(session, source, attempt)
+        if cancelled is not None:
+            return "skipped"
         await _record_sync(
             session,
             source,

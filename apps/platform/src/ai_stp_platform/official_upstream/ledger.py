@@ -72,51 +72,53 @@ async def create_attempt_and_outbox(
     provenance: str,
 ) -> tuple[OfficialUpstreamSync, OfficialSyncOutbox]:
     """Create one desired attempt and its outbox event in the caller transaction."""
-    source = await session.scalar(
+    locked_source: OfficialUpstreamSource | None = await session.scalar(
         select(OfficialUpstreamSource)
         .where(OfficialUpstreamSource.id == source.id)
         .with_for_update()
     )
-    if source is None:
+    if locked_source is None:
         from ai_stp_platform.official_upstream.errors import INVALID_SOURCE, OfficialUpstreamError
 
         raise OfficialUpstreamError(INVALID_SOURCE, "source is missing")
-    if not source_is_schedulable(source):
+    if not source_is_schedulable(locked_source):
         from ai_stp_platform.official_upstream.errors import INVALID_SOURCE, OfficialUpstreamError
 
         raise OfficialUpstreamError(INVALID_SOURCE, "source is not schedulable")
     existing = await session.scalar(
         select(OfficialUpstreamSync).where(
-            OfficialUpstreamSync.source_id == source.id,
+            OfficialUpstreamSync.source_id == locked_source.id,
             OfficialUpstreamSync.trigger_key == trigger_key,
         )
     )
-    identity = await session.get(CatalogIdentity, source.stable_id)
+    identity = await session.get(CatalogIdentity, locked_source.stable_id)
     if existing is not None:
         outbox = None
         if existing.outbox_id:
             outbox = await session.get(OfficialSyncOutbox, existing.outbox_id)
         if outbox is None:
-            outbox = await _new_outbox(session, source, existing, trigger_key)
+            outbox = await _new_outbox(session, locked_source, existing, trigger_key)
             existing.outbox_id = outbox.id
         return existing, outbox
     attempt = OfficialUpstreamSync(
-        source_id=source.id,
+        source_id=locked_source.id,
         utc_day=utc_day.date(),
         trigger_key=trigger_key,
         result="publication_started",
         state="desired",
         attempt_count=0,
-        expected_owner_account_id=source.owner_account_id,
+        expected_owner_account_id=locked_source.owner_account_id,
         expected_ownership_revision_id=(
-            identity.ownership_revision_id if identity is not None else source.ownership_revision_id
+            identity.ownership_revision_id
+            if identity is not None
+            else locked_source.ownership_revision_id
         ),
-        manifest_digest=source.manifest_digest,
+        manifest_digest=locked_source.manifest_digest,
         provenance=provenance,
     )
     session.add(attempt)
     await session.flush()
-    outbox = await _new_outbox(session, source, attempt, trigger_key)
+    outbox = await _new_outbox(session, locked_source, attempt, trigger_key)
     attempt.outbox_id = outbox.id
     await session.flush()
     return attempt, outbox
@@ -142,7 +144,7 @@ async def _new_outbox(
 
 async def dispatch_outbox(session: AsyncSession, outbox: OfficialSyncOutbox) -> Job:
     """Insert one idempotent worker job and mark the outbox dispatched."""
-    source = await session.scalar(
+    source: OfficialUpstreamSource | None = await session.scalar(
         select(OfficialUpstreamSource)
         .where(OfficialUpstreamSource.id == outbox.source_id)
         .with_for_update()
@@ -221,15 +223,15 @@ async def fence_attempt(
     session: AsyncSession, source: OfficialUpstreamSource, attempt: OfficialUpstreamSync | None
 ) -> str | None:
     """Return a cancellation code when the attempt may not mutate the catalog."""
-    source = await session.scalar(
+    locked_source: OfficialUpstreamSource | None = await session.scalar(
         select(OfficialUpstreamSource)
         .where(OfficialUpstreamSource.id == source.id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    if source is None:
+    if locked_source is None:
         return await _cancel_transferred(attempt)
-    if not source.enabled or (source.inventory_state or "enabled") != "enabled":
+    if not locked_source.enabled or (locked_source.inventory_state or "enabled") != "enabled":
         if attempt is not None:
             attempt.state = "cancelled_transferred"
             attempt.result = "failed"
@@ -240,22 +242,29 @@ async def fence_attempt(
         return "cancelled_transferred"
     identity = await session.scalar(
         select(CatalogIdentity)
-        .where(CatalogIdentity.stable_id == source.stable_id)
+        .where(CatalogIdentity.stable_id == locked_source.stable_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    expected_owner = attempt.expected_owner_account_id if attempt else source.owner_account_id
-    if expected_owner != OFFICIAL_ACCOUNT_ID or source.owner_account_id != OFFICIAL_ACCOUNT_ID:
+    expected_owner = (
+        attempt.expected_owner_account_id if attempt else locked_source.owner_account_id
+    )
+    if (
+        expected_owner != OFFICIAL_ACCOUNT_ID
+        or locked_source.owner_account_id != OFFICIAL_ACCOUNT_ID
+    ):
         return await _cancel_transferred(attempt)
     if identity is not None and identity.owner_account_id != OFFICIAL_ACCOUNT_ID:
         return await _cancel_transferred(attempt)
     expected_revision = (
         attempt.expected_ownership_revision_id
         if attempt is not None
-        else source.ownership_revision_id
+        else locked_source.ownership_revision_id
     )
     current_revision = (
-        identity.ownership_revision_id if identity is not None else source.ownership_revision_id
+        identity.ownership_revision_id
+        if identity is not None
+        else locked_source.ownership_revision_id
     )
     if (
         expected_revision is not None

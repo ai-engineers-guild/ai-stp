@@ -52,6 +52,10 @@ def _clean_skill_engines(monkeypatch: pytest.MonkeyPatch) -> None:
         "ai_stp_platform.safety.adapters.skill_gate.run_cli",
         lambda *_args, **_kwargs: (0, "{}", "", {}),
     )
+    monkeypatch.setattr(
+        "ai_stp_platform.safety.adapters.gitleaks.run_cli",
+        lambda *_args, **_kwargs: (0, "", "", 0),
+    )
 
 
 def test_planner_setup_does_not_union_rescan() -> None:

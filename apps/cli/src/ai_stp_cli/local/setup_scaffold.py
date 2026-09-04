@@ -200,6 +200,7 @@ def _parse_members(raw: str | None) -> tuple[SetupMemberDescriptor, ...]:
     members: list[SetupMemberDescriptor] = []
     seen: set[str] = set()
     for item in raw.split(","):
+        framework = "none"
         token = item.strip()
         if not token:
             raise _fail(
@@ -219,8 +220,6 @@ def _parse_members(raw: str | None) -> tuple[SetupMemberDescriptor, ...]:
                 "a setup member must be type:name, type:name:language, or "
                 "type:name:language:framework"
             )
-        if len(parts) < 4:
-            framework = "none"
         if component_type not in TYPES or not _NAME.fullmatch(name):
             raise _fail("the component type or lowercase bounded name is invalid")
         allowed = TYPE_LANGUAGE_MATRIX[cast(ComponentType, component_type)]

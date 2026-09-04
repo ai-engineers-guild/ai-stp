@@ -216,7 +216,7 @@ class _Parser:
             and field in _FIELDS
             and (self.current.kind == TokenKind.COLON or self.keyword("IN") or self.keyword("NOT"))
         ):
-            return self.parse_predicate(cast(PredicateField, field), token.offset)
+            return self.parse_predicate(field, token.offset)
         if token.kind == TokenKind.WORD and field in _KEYWORDS:
             raise QuerySyntaxError(
                 "operator has no left operand", offset=token.offset, expected="term"

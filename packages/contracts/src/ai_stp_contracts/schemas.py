@@ -109,7 +109,6 @@ from ai_stp_contracts.identity import (
     DeviceRevokeResponse,
     DeviceSummary,
 )
-from ai_stp_contracts.official_manifest import OfficialManifest, OfficialManifestEntry
 from ai_stp_contracts.impact import (
     AccountSelectionImpactQuery,
     AccountSelectionImpactReport,
@@ -193,6 +192,7 @@ from ai_stp_contracts.machine_help import (
     VersionLine,
     VersionReport,
 )
+from ai_stp_contracts.official_manifest import OfficialManifest, OfficialManifestEntry
 from ai_stp_contracts.openapi import render as render_openapi
 from ai_stp_contracts.owner import (
     CliOwnerObjectDetailView,

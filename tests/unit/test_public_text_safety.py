@@ -12,12 +12,13 @@ from ai_stp_contracts.text_safety import validate_public_text
 
 def test_public_text_accepts_unicode_letters_and_digits() -> None:
     profile = ProfileFields(display_name="Алиса 2", bio="Создаю ИИ-сервисы 24/7.")
-    presentation = OwnerPresentationUpdateRequest(bio="Компонент для Python 3.")
+    presentation = OwnerPresentationUpdateRequest(bio="Компонент для Python 3.", media=[])
     component = ComponentPassportPatch(description="Компонент для Python 3.")
     service = OwnerExternalProductCreateRequest(
         name="Сервис 2",
         primary_url="https://example.com",
         description="Платформа для команд.",
+        country_codes=[],
     )
     request = ServiceRequest(
         name="Сервис 2",
@@ -25,6 +26,7 @@ def test_public_text_accepts_unicode_letters_and_digits() -> None:
         description_ru="Описание 2.",
         description_en="Service for teams.",
         source_url="https://example.com/source",
+        country_codes=[],
     )
     country = CountryRequest(code="RU", name_ru="Россия", name_en="Russia")
 
@@ -99,7 +101,7 @@ def test_public_text_rejects_typography_invisible_characters_and_prohibited_cont
 
 def test_public_text_rejects_markup_and_blank_descriptions() -> None:
     with pytest.raises(ValidationError):
-        OwnerPresentationUpdateRequest(bio="**bold**")
+        OwnerPresentationUpdateRequest(bio="**bold**", media=[])
     with pytest.raises(ValidationError):
         ComponentPassportPatch(description="**bold**")
     with pytest.raises(ValidationError):

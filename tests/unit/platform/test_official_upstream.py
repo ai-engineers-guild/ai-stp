@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 import pytest
 from tests.support.component_passports import adaptation_fields
 
+from ai_stp_contracts.official_manifest import load_official_manifest
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
@@ -71,6 +72,36 @@ def _tar(files: dict[str, bytes | str], *, prefix: str = "tool-aaaaaaaa/") -> by
             info.size = len(payload)
             archive.addfile(info, io.BytesIO(payload))
     return buffer.getvalue()
+
+
+def test_checked_in_official_inventory_is_complete_and_unique() -> None:
+    manifest = load_official_manifest()
+    names = {entry.canonical_name for entry in manifest.entries}
+    assert len(manifest.entries) == 52
+    assert len(names) == len(manifest.entries)
+    assert {
+        "ai-stp-skill",
+        "caveman",
+        "context7-mcp",
+        "grill-me",
+        "ponytail",
+        "semble",
+        "serena-mcp",
+    } <= names
+    assert not {"context7", "context-mode", "serena"} & names
+    assert not {"ctxt-mcp", "linear-mcp", "vercel-mcp"} & {
+        entry.source_id for entry in manifest.entries
+    }
+    by_source = {entry.source_id: entry for entry in manifest.entries}
+    assert by_source["addyosmani-agent-skills"].component_type == "skill"
+    assert by_source["andrej-karpathy-skills"].component_type == "skill"
+    assert by_source["anthropic-cybersecurity-skills"].component_type == "skill"
+    assert by_source["bmad-method"].component_type == "plugin"
+    assert by_source["openai-docs-mcp"].component_type == "skill"
+    assert by_source["openspec"].component_type == "skill"
+    assert by_source["slack-mcp"].component_type == "plugin"
+    assert by_source["figma-mcp"].repository_url == "https://github.com/figma/mcp-server-guide"
+    assert by_source["keenable-mcp"].repository_url == "https://github.com/keenableai/keenable-mcp"
 
 
 def test_source_rejects_unsafe_coordinates_and_non_official_owner() -> None:

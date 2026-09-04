@@ -15,6 +15,8 @@ In dev and prod compose, the publication worker is built from
 `Dockerfile.worker-safety` (target `worker-safety`) with:
 
 - `AI_STP_SAFETY_EXTERNAL_CLI=1`
+- `AI_STP_SAFETY_CACHE_TTL_SECONDS` (default 900) and
+  `AI_STP_SAFETY_ASSESSMENT_GENERATION` (bump when assessment inputs change)
 - volume `osv_offline` → `/var/lib/ai_stp/osv`
 - `AI_STP_OSV_OFFLINE_DIR` and `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY` (one path;
   osv-scanner reads offline packs from the second variable)

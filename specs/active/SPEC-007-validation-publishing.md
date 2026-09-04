@@ -1,6 +1,6 @@
 ---
 description: "SPEC-007: Tests, evidence and publication."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-007: Validation, evidence, and publication
@@ -67,6 +67,7 @@ The proof source accepts exactly five values, and they are not combined into one
 - `REQ-728`: Local optional quality profile applies only deterministic mechanical checks `safety`, `clarity`, `reusability`, `completeness`, `actionability` with type-specific rules for all eight types of components; the result is a read-only author hint and explicitly does not affect publication readiness, `component_verified`, or trust line.
 - `REQ-729`: The public result of a failed check shows a limited structured summary: number of hits, maximum severity, canonical rule IDs, and safe relative paths. Raw payload, source code lines, scanner stdout/stderr, absolute paths, secret values ​​and arbitrary external tool messages are not published; exceeding the limit is clearly indicated.
 - `REQ-730`: The transition of a version to `deprecated` and back is carried out by its author, not staff: obsolescence is a statement about the future of one's own object, and not about its acceptability, and moderation actions are closed `SPEC-026` `REQ-2617`. The basis is the author's explicit action with the reason and `AuditEvent`; the observation about archiving the source (`SPEC-044`) remains a proposal and does not change the state itself. `deprecated` does not limit what is already allowed: the version remains readable, its bytes remain accessible, and it is exactly as published - because the published `X.Y` is immutable, consumers pin the exact versions, and the setup pins its components according to the exact digest. Denying bytes would break every pin already allowed, which is disproportionately more than "don't select this next time." The restrictions are `blocked` and `hidden`. Selection and recommendation sites have the right not to offer an outdated version: this is the meaning of the mark. The transition can be reversed using the same route; The author cannot exit from `blocked` and `hidden`.
+- `REQ-731`: In-process safety results are reusable only while a bounded cache TTL and assessment-context fingerprint (scanner versions, policy assets, vulnerability database state, and configured generation) still match; unavailable, transient, degraded, and unfinished evidence is not reusable as a completed assessment. Concurrent requests for one exact subject share one in-flight scan, while different subjects remain independent, and cancellation or failure releases the in-flight entry.
 
 ## States and errors
 
@@ -114,3 +115,4 @@ Versions of the validation scheme, tools, and policies are recorded. Re-checking
 | `REQ-728` | A parameterized test builds a profile for each type of component, checks stable codes and type-specific action surface, absence of records and models; an incomplete passport retains publication blockers regardless of `hint`, and machine result contains three obvious negative trust/readiness signs. |
 | `REQ-729` | Contract, platform and web tests show rule IDs and relative paths, discard payload, absolute and traversal paths and indicate bounded summary truncation. |
 | `REQ-730` | The author translates his own published version into `deprecated` and back with reason and audit; reading the version and loading its artifact continues to respond, but `blocked` and `hidden` do not; from `blocked`/`hidden` the transition fails. |
+| `REQ-731` | Platform regressions cover unavailable evidence followed by availability, temporary fetch failure, TTL and generation expiry, valid cache hits, three-way same-subject singleflight, waiter/owner cancellation, scanner failure, cleanup, and different-subject concurrency. |

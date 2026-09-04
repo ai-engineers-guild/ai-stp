@@ -38,7 +38,14 @@ _SOURCE_ID_RE = r"^[a-z][a-z0-9-]{0,62}$"
 _TRAVERSAL = r"(^|/)\.\.(/|$)"
 _TAG_RE = TAG_PATTERN
 BASELINE_CANONICAL_NAMES: Final[frozenset[str]] = frozenset(
-    {"ponytail", "caveman", "grill-me", "context7-mcp", "serena-mcp", "ai-stp-skill"}
+    {
+        "ponytail",
+        "caveman",
+        "grill-me",
+        "context7-mcp",
+        "serena-mcp",
+        "ai-stp-skill",
+    }
 )
 MANIFEST_DIGEST_DOMAIN: Final[str] = "ai-stp:official-manifest:v1"
 

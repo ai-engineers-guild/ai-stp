@@ -29,7 +29,7 @@ from ai_stp_contracts.http import (
     strict_request_object,
 )
 from ai_stp_foundation.harnesses import HarnessId
-from ai_stp_foundation.identity import HANDLE_PATTERN, submitted_display_name, normalize_handle
+from ai_stp_foundation.identity import HANDLE_PATTERN, normalize_handle, submitted_display_name
 
 #: A device is either accepted for cloud work or it is not. Revocation is
 #: forward-acting: it stops future sync and attestation and leaves local reads

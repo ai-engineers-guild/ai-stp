@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from urllib.parse import parse_qs, urlparse
+from typing import cast
+from urllib.parse import ParseResult, parse_qs, urlparse
 
 from ai_stp_contracts.content import CONTENT_BODY_MAX
 from ai_stp_platform.content.errors import ContentError
@@ -14,7 +15,7 @@ _FORBIDDEN_TAGS = frozenset(
 )
 _ILLUSTRATION_PREFIX = "/content/illustrations/"
 _HTTPS_PREFIX = "https://"
-_VIDEO = re.compile(r"@\[(youtube|vimeo)\]\((https://[^)\s]+)\)", re.IGNORECASE)
+_VIDEO: re.Pattern[str] = re.compile(r"@\[(youtube|vimeo)\]\((https://[^)\s]+)\)", re.IGNORECASE)
 
 
 def validate_article_body(source: str) -> str:
@@ -36,8 +37,8 @@ def validate_article_body(source: str) -> str:
                 raise ContentError("AI_STP_CONTENT_INVALID", "credential-bearing url rejected")
             continue
         raise ContentError("AI_STP_CONTENT_INVALID", "link must be https, fragment or illustration")
-    for kind, dest in _VIDEO.findall(source):
-        parsed = urlparse(dest)
+    for kind, dest in cast(list[tuple[str, str]], _VIDEO.findall(source)):
+        parsed: ParseResult = urlparse(dest)
         host = (parsed.hostname or "").lower()
         if kind.lower() == "youtube":
             video_id = (

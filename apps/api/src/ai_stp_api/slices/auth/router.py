@@ -36,9 +36,9 @@ from ai_stp_api.slices.auth.service import (
 )
 from ai_stp_contracts.auth import LegalOnboardingCompleteRequest
 from ai_stp_contracts.identity import AccountIdentityUpdate, AccountPrivacyUpdate
-from ai_stp_platform.identity import IdentityError, set_account_identity
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_platform.identity import IdentityError, set_account_identity
 from ai_stp_platform.logging import get_logger
 from ai_stp_platform.models import Account, Device, OAuthIdentity
 

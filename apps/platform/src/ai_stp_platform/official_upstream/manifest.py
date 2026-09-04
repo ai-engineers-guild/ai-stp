@@ -32,15 +32,19 @@ from ai_stp_platform.official_upstream.errors import (
 from ai_stp_platform.official_upstream.source import SourceUpsert, upsert_source
 
 
+def _empty_strings() -> list[str]:
+    return []
+
+
 @dataclass
 class ManifestReconcileReport:
     digest: str
-    added: list[str] = field(default_factory=list)
-    changed: list[str] = field(default_factory=list)
-    disabled: list[str] = field(default_factory=list)
-    removed: list[str] = field(default_factory=list)
-    preserved: list[str] = field(default_factory=list)
-    unchanged: list[str] = field(default_factory=list)
+    added: list[str] = field(default_factory=_empty_strings)
+    changed: list[str] = field(default_factory=_empty_strings)
+    disabled: list[str] = field(default_factory=_empty_strings)
+    removed: list[str] = field(default_factory=_empty_strings)
+    preserved: list[str] = field(default_factory=_empty_strings)
+    unchanged: list[str] = field(default_factory=_empty_strings)
 
 
 def _entry_command(entry: OfficialManifestEntry) -> SourceUpsert:
@@ -169,6 +173,13 @@ async def reconcile_official_manifest(
         )
         identity.canonical_name = entry.canonical_name
         identity.canonical_name_normalized = entry.canonical_name
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            raise OfficialUpstreamError(
+                MANIFEST_MISMATCH,
+                f"manifest identity conflicts with an existing catalog line: {entry.source_id}",
+            ) from exc
         locale_rows = list(
             (
                 await session.scalars(

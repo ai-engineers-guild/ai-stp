@@ -7,7 +7,7 @@ import unicodedata
 
 _ALLOWED_PUNCTUATION = frozenset(".,!?;:'\"()-/+&#%=\n\r ")
 _UNSAFE_URI = re.compile(r"(?i)(?<![\w])(?:javascript|data|vbscript):")
-_BLOCKED_WORDS = (
+_BLOCKED_WORDS: tuple[str, ...] = (
     # Profanity and slurs.
     "бля",
     "блядь",
@@ -318,7 +318,7 @@ _BLOCKED_CONTENT = re.compile(
 def validate_public_text(value: str, *, allow_empty: bool = False) -> str:
     """Normalize and validate user-authored public text without reflecting it."""
 
-    if not isinstance(value, str):
+    if not isinstance(value, str):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("text must be a string")
     normalized = unicodedata.normalize("NFC", value)
     try:

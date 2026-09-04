@@ -587,6 +587,7 @@ def _native_source(
             )
             source_files = {"agent.md": _text_source(name, "agent")}
         else:
+            assert rule is not None
             entry = PurePosixPath(rule.relative).name
             payload = _setting_payload(entry)
             source_files = {"settings.json": payload}

@@ -115,7 +115,7 @@ Remove the tool names and keep the mechanics: the same problems repeat.
 Keys sit directly in the code:
 
 ```python
-DATABASE_URL = "postgresql://postgres:supersecret@prod-db/app"
+DATABASE_URL = "postgresql://postgres:<PASSWORD>@prod-db/app"
 OPENAI_API_KEY = "sk-live-..."
 ```
 
