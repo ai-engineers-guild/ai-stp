@@ -147,6 +147,7 @@ last_verified: "2026-08-03"
 | [ADR-0146-one-public-cli-distribution-acquires-its-provider.md](ADR-0146-one-public-cli-distribution-acquires-its-provider.md) | Decision to ship the user-facing CLI as one Python distribution that acquires its attested provider. | 2026-09-04 |
 | [ADR-0147-the-test-gate-does-not-fail-on-a-coverage-percentage.md](ADR-0147-the-test-gate-does-not-fail-on-a-coverage-percentage.md) | Decision that Python coverage is reported by the gate and does not fail a run on a percentage. | 2026-09-04 |
 | [ADR-0148-authoring-source-projections-and-setup-scaffold.md](ADR-0148-authoring-source-projections-and-setup-scaffold.md) | Decision to scaffold components as source/ plus projections/<harness>/, initialize git as an apply side-effect, and add a physical setup authoring tree distinct from compose and install. | 2026-09-04 |
+| [ADR-0149-control-plane-skill-is-an-installed-package.md](ADR-0149-control-plane-skill-is-an-installed-package.md) | Decision that the control-plane Skill is installed as a portable package whose harness projections carry the procedure. | 2026-09-04 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

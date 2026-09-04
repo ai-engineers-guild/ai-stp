@@ -3140,6 +3140,12 @@ class SkillDelivery(BaseModel):
     #: The harness projection installed, or `None` for the canonical Skill.
     harness: str | None = None
 
+    #: `en` or `ru` when this installation wrote a locale, else `None`.
+    locale: str | None = None
+
+    #: Owned relative paths of the installed package. Empty when absent.
+    files: list[str] = Field(default_factory=list[str])
+
     #: Every harness this build ships a native projection for.
     available_harnesses: list[str]
 

@@ -33,7 +33,7 @@ know the directory, ask the harness documentation, not this CLI.
 reads its native skill from. There is no configured fallback. The CLI
 does not guess the harness's skill directory.
 
-`remove` is `apply`, not `destructive`. It takes back a file this
+`remove` is `apply`, not `destructive`. It takes back the package this
 installation wrote. It does not discard identity or the local
 registry.
 
@@ -98,18 +98,18 @@ Install the canonical Agent Skill at a named destination.
 ai-stp skill install --target <dir> --json
 ```
 
-Writes one file and its ownership record. It refuses to replace a
-skill this installation did not write (`foreign`) and refuses to
-overwrite a file that was edited after this installation wrote it
-(`stale`).
+Writes a package (`SKILL.md` plus `references/`) and its ownership
+record. It refuses to replace a skill this installation did not write
+(`foreign`) and refuses to overwrite a package that was edited after
+this installation wrote it (`stale`).
 
-Idempotent on an `owned` destination: installing the same text again
+Idempotent on an `owned` destination: installing the same package again
 rewrites the same bytes and the answer is unchanged.
 
-A `--harness` option exists in machine help to install the native
-projection for one harness instead of the canonical skill. It is not
-required. If you pass it, the value must be a harness this build
-ships a projection for. Read the descriptor before adding it.
+`--harness` installs the native projection for one harness instead of
+the canonical map. The projection still carries the procedure; it does
+not point at a repository path. `--locale ru` installs the Russian
+procedure. Read the descriptor before adding either option.
 
 ## `skill remove`
 
@@ -135,8 +135,10 @@ All three commands return the same result shape in `data`:
 | --- | --- |
 | `state` | `absent`, `owned`, `foreign`, or `stale` |
 | `target` | the destination directory, as displayed |
-| `digest` | the skill file digest, or `null` |
+| `digest` | the package digest, or `null` |
 | `harness` | the projection that was installed, or `null` for canonical |
+| `locale` | `en` or `ru` when this installation wrote the package |
+| `files` | owned relative paths of the package |
 | `available_harnesses` | harnesses this build can project for |
 | `schema_version` | the schema major of this report |
 

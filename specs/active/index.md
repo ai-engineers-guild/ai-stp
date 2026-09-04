@@ -19,7 +19,7 @@ last_verified: "2026-08-03"
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-04 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-08-04 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Server platform and API. | 2026-08-28 |
-| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-08-29 |
+| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-09-04 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Uninstallation, full cleanup, and recovery. | 2026-08-03 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: User data governance. | 2026-09-01 |
 | [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Managed toolchain and bootstrap. | 2026-08-04 |

@@ -23,6 +23,13 @@
       "default": null,
       "title": "Digest"
     },
+    "files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Files",
+      "type": "array"
+    },
     "harness": {
       "anyOf": [
         {
@@ -34,6 +41,18 @@
       ],
       "default": null,
       "title": "Harness"
+    },
+    "locale": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Locale"
     },
     "schema_version": {
       "const": 1,
@@ -60,7 +79,9 @@
   "required": [
     "available_harnesses",
     "digest",
+    "files",
     "harness",
+    "locale",
     "schema_version",
     "state",
     "target"

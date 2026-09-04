@@ -2907,8 +2907,8 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="Install the canonical Agent Skill at a named destination.",
         result_schema="urn:ai-stp:schema:v1:cli-skill-delivery",
         handler="skill:install",
-        # Writes one file and its ownership record, and refuses to replace a
-        # skill this installation did not write.
+        # Writes the Skill package and its ownership record, and refuses to
+        # replace a skill this installation did not write.
         mutability="apply",
         parameters=(
             option(
@@ -2928,6 +2928,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "harness",
                 "string",
                 "Install the native projection for this harness instead of the canonical skill.",
+            ),
+            option(
+                "locale",
+                "string",
+                "Install the English or Russian procedure (`en` or `ru`).",
             ),
         ),
         next_actions=("skill status",),
