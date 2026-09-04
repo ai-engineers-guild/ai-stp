@@ -117,8 +117,8 @@ def grant(
     if scope not in SCOPES:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"consent scope must be one of {', '.join(sorted(SCOPES))}",
-            details={"scope": scope},
+            "that consent scope is not one this contract defines",
+            details={"scope": scope, "allowed": ", ".join(sorted(SCOPES))},
         )
     if not target:
         raise CliFailure(

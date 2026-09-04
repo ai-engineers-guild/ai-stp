@@ -342,9 +342,9 @@ def test_a_structured_filter_names_a_declared_field(
     registry: sqlite3.Connection, corpus: tuple[search.Candidate, ...]
 ) -> None:
     assert len(search.search(registry, corpus, field="name", value="reviewer").local) == 1
-    with pytest.raises(CliFailure, match="must name one of"):
+    with pytest.raises(CliFailure, match="must name one of the declared fields"):
         search.search(registry, corpus, field="owner_id", value=OWNER)
-    with pytest.raises(CliFailure, match="must name one of"):
+    with pytest.raises(CliFailure, match="must name one of the declared fields"):
         search.search(registry, (), field="owner_id", value=OWNER)
 
 

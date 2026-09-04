@@ -89,7 +89,7 @@ when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
 
 ```text
-review-pack/                       # component-scaffold/5
+review-pack/                       # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

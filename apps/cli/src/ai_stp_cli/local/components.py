@@ -963,8 +963,8 @@ def adopt(
     if item.component_type not in COMPONENT_TYPES:  # pragma: no cover - guarded below
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"unknown component type: {item.component_type}",
-            details={"source_path": item.source_path},
+            "unknown component type",
+            details={"source_path": item.source_path, "component_type": item.component_type},
         )
 
     adopted = _read(item.absolute)
@@ -1680,8 +1680,8 @@ def _read(place: Path) -> ComponentContent:
     except OSError as error:
         raise CliFailure(
             "AI_STP_NOT_FOUND",
-            f"the component could not be read: {type(error).__name__}",
-            details={"source_path": redact_home(place)},
+            "the component could not be read",
+            details={"source_path": redact_home(place), "exception": type(error).__name__},
         ) from error
 
 

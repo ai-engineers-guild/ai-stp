@@ -561,9 +561,10 @@ def test_a_second_passport_of_a_singleton_kind_is_refused(registry: sqlite3.Conn
     owner, at = new_id("account"), passports.moment()
     revisions.commit(registry, _content(new_id("developer"), owner, at), device_id=DEVICE)
 
-    with pytest.raises(CliFailure, match="already has a different developer passport") as raised:
+    with pytest.raises(CliFailure, match="already has a different passport of that kind") as raised:
         revisions.commit(registry, _content(new_id("developer"), owner, at), device_id=DEVICE)
     assert raised.value.code == "AI_STP_CONFLICT"
+    assert raised.value.details["kind"] == "developer"
 
     counted = registry.execute("SELECT COUNT(*) FROM entity WHERE kind = 'developer'").fetchone()
     assert counted[0] == 1

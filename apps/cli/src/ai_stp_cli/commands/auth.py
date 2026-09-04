@@ -149,8 +149,8 @@ def _provider(raw: object) -> OAuthProvider:
     if value not in PROVIDERS:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"unknown sign-in provider: {value}",
-            details={"allowed": ", ".join(PROVIDERS)},
+            "unknown sign-in provider",
+            details={"allowed": ", ".join(PROVIDERS), "provider": value},
         )
     return value  # pyright: ignore[reportReturnType]
 

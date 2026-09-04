@@ -86,7 +86,7 @@ Cursor внутри доказанного pack: `skills`, `agents`, `commands` 
 а не всё дерево.
 
 ```text
-review-pack/                       # component-scaffold/5
+review-pack/                       # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

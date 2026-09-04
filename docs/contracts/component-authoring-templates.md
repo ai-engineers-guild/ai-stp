@@ -32,22 +32,24 @@ because the provider does not perform a hidden source build. The variant is `por
 or one of the harnesses in the closed registry. If the selected harness has no
 independent native form for the type, the plan fails closed before any write.
 
-The current `component-scaffold/5` directory contains `.ai-stp-template.json`,
+The current `component-scaffold/6` directory contains `.ai-stp-template.json`,
 `.gitignore`, `component-passport.json`, `eval-profile.json`, README, and editable
 source under `source/`. A concrete harness also receives a generated native layout
 under `projections/<harness>/`; a portable scaffold has no projection directory.
-The current `setup-scaffold/4` wrapper embeds that `/5` component tree for one
-concrete harness; `/1`–`/3` remain validatable historical descriptors.
+The current `setup-scaffold/5` wrapper embeds that `/6` component tree for one
+concrete harness; `/1`–`/4` remain validatable historical descriptors.
 An `instruction` canon is `source/AGENTS.md`; Claude Code projections use
-`CLAUDE.md`. The `/3` and `/4` descriptors remain accepted as historical data,
-but their old wrapper bytes are never emitted under the `/5` identity.
+`CLAUDE.md`. The `/3`, `/4`, and `/5` descriptors remain accepted as historical
+data, but their old wrapper bytes are never emitted under the `/6` identity.
 The passport is a local patch: it contains
 no invented source, secrets, tags, or permission to redistribute. The author continues via
 `component passport validate`, local registration, and publication plan commands.
 
 For a hook, canonical `source/hook-source.json` stores the event, order, blocking failure
-policy, and handler command; the strict schema prohibits extra fields. It
-deterministically produces `projections/<harness>/hooks.json` and an adjacent executable handler.
+policy, and handler command; the strict schema prohibits extra fields. A concrete
+harness derives `hooks.json` and an adjacent executable handler under
+`projections/<harness>/`. A portable scaffold writes those derived bytes under
+`source/` so discover and adopt of `source/` see a closed-set manifest.
 Manifest-directory plugins receive a product manifest. OpenCode and Pi receive a
 single JS/TS module without an invented manifest. Marketplace registration is not a
 plugin package: it is a separate `setting` that owns an entire native settings file.

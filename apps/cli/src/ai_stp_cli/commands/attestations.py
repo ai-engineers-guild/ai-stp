@@ -39,7 +39,11 @@ def _required(parameters: Mapping[str, object], name: str) -> str:
 def _repeated(parameters: Mapping[str, object], name: str) -> list[str]:
     value = parameters.get(name, ())
     if not isinstance(value, tuple | list):
-        raise CliFailure("AI_STP_VALIDATION_ERROR", f"--{name} must be repeatable text")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option must be repeatable text",
+            details={"option": f"--{name}"},
+        )
     return [str(item) for item in cast(tuple[object, ...] | list[object], value)]
 
 

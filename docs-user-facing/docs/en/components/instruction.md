@@ -72,7 +72,7 @@ when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
 
 ```text
-project-conventions/                 # component-scaffold/5
+project-conventions/                 # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

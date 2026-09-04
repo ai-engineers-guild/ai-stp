@@ -6,7 +6,8 @@
         "ai-stp/2",
         "ai-stp/3",
         "ai-stp/4",
-        "ai-stp/5"
+        "ai-stp/5",
+        "ai-stp/6"
       ],
       "type": "string"
     },
@@ -16,7 +17,8 @@
         "component-scaffold/2",
         "component-scaffold/3",
         "component-scaffold/4",
-        "component-scaffold/5"
+        "component-scaffold/5",
+        "component-scaffold/6"
       ],
       "type": "string"
     },
@@ -41,7 +43,7 @@
     },
     "generator_version": {
       "$ref": "#/$defs/ComponentGeneratorVersion",
-      "default": "ai-stp/5"
+      "default": "ai-stp/6"
     },
     "git_commit": {
       "anyOf": [
@@ -94,7 +96,7 @@
     },
     "template_version": {
       "$ref": "#/$defs/ComponentTemplateVersion",
-      "default": "component-scaffold/5"
+      "default": "component-scaffold/6"
     }
   },
   "required": [

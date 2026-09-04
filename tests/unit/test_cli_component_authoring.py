@@ -198,8 +198,8 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     )
     assert plan.publication_ready is False
     assert plan.requires_exact_source_before_publication is True
-    assert plan.descriptor.template_version == "component-scaffold/5"
-    assert plan.descriptor.generator_version == "ai-stp/5"
+    assert plan.descriptor.template_version == "component-scaffold/6"
+    assert plan.descriptor.generator_version == "ai-stp/6"
     assert any(path.startswith("projections/") for path in files) is (harness != "portable")
     assert all(not path.startswith("native/") for path in files)
     assert ".ai-stp-template.json" in files
@@ -266,7 +266,7 @@ def test_scaffold_commands_require_exact_plan_and_never_overwrite(tmp_path: Path
     ).payload
     assert result.output == str(output)
     assert result.files_written == len(plan.files)
-    assert result.template_version == "component-scaffold/5"
+    assert result.template_version == "component-scaffold/6"
     if os.name != "nt":
         assert all(
             path.stat().st_mode & 0o777 == 0o600
@@ -386,8 +386,39 @@ def test_hook_scaffold_preserves_source_event_order_and_failure_in_native_form(
     }
     assert projected[0]["hooks"] == [{"type": "command", "command": command}]
     assert "handle_event" not in files[f"projections/{harness}/hooks/handler.py"].decode()
+    assert "source/hooks.json" not in files
+    assert "source/hooks/handler.py" not in files
     passport = json.loads(files["component-passport.json"])
     assert passport["managed_paths"] == [managed]
+    assert passport["entry_points"] == ["hooks/handler.py"]
+
+
+def test_portable_hook_scaffold_includes_runnable_handler_in_source(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="hook",
+        name="review-kit",
+        language="python",
+        harness_variant="portable",
+        output=tmp_path / "review-kit",
+    )
+
+    source = json.loads(files["source/hook-source.json"])
+    manifest = json.loads(files["source/hooks.json"])
+    assert source == {
+        "schema_version": 1,
+        "event": "PreToolUse",
+        "order": 0,
+        "failure": "block",
+        "handler": {"command": "python hooks/handler.py"},
+    }
+    assert manifest["hooks"][source["event"]][0]["hooks"] == [
+        {"type": "command", "command": "python hooks/handler.py"}
+    ]
+    assert "source/hooks/handler.py" in files
+    assert "handle_event" not in files["source/hooks/handler.py"].decode()
+    assert all(not path.startswith("projections/") for path in files)
+    passport = json.loads(files["component-passport.json"])
+    assert passport["managed_paths"] == ["hooks.json"]
     assert passport["entry_points"] == ["hooks/handler.py"]
 
 
@@ -492,6 +523,7 @@ def test_historical_scaffold_descriptor_versions_remain_validatable() -> None:
         ("component-scaffold/3", "ai-stp/3"),
         ("component-scaffold/4", "ai-stp/4"),
         ("component-scaffold/5", "ai-stp/5"),
+        ("component-scaffold/6", "ai-stp/6"),
     ):
         ComponentTemplateDescriptor.model_validate(
             {

@@ -206,8 +206,8 @@ def _snapshot(root: Path, adapter: str) -> Snapshot:
     if adapter not in {"sx", "apm"}:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"unknown setup-store adapter: {adapter}",
-            details={"allowed": "sx, apm"},
+            "unknown setup-store adapter",
+            details={"adapter": adapter, "allowed": "sx, apm"},
         )
     relative = "sx.toml" if adapter == "sx" else "apm.lock.yaml"
     manifest = root / relative
@@ -253,7 +253,8 @@ def _snapshot(root: Path, adapter: str) -> Snapshot:
     except (UnicodeDecodeError, tomllib.TOMLDecodeError, yaml.YAMLError, ValueError) as error:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"the {adapter.upper()} manifest is not unambiguous UTF-8 data",
+            "the setup-store manifest is not unambiguous UTF-8 data",
+            details={"adapter": adapter},
         ) from error
     return Snapshot(
         descriptor=StorePortDescriptor(
@@ -755,5 +756,7 @@ def _omitted(identity: str, external_type: str, reason: str) -> StorePortMapping
 
 def _bounded(subject: str) -> CliFailure:
     return CliFailure(
-        "AI_STP_VALIDATION_ERROR", f"{subject} exceeds the bounded setup-store port limit"
+        "AI_STP_VALIDATION_ERROR",
+        "this input exceeds the bounded setup-store port limit",
+        details={"subject": subject},
     )

@@ -522,12 +522,19 @@ def _native_source(
             else (rule.relative if rule.shape == "file" else f"{rule.relative}/{name}")
         )
         projection = "native_files" if rule is None else rule.projection_kind
+        authoring = {
+            "hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json"))),
+        }
+        if rule is None:
+            # Portable has no projections/. Discover/adopt copy source/, so the
+            # closed-set manifest and runnable handler have to live there.
+            authoring.update(native)
         return (
             native,
             entry,
             managed,
             projection,
-            {"hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json")))},
+            authoring,
         )
     if component_type == "mcp":
         if rule is None:

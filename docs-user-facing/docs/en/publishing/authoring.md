@@ -49,7 +49,7 @@ independent native form for the type, the plan fails closed before any write.
 destination is not already inside a worktree; git is not part of the plan
 digest.
 
-The `component-scaffold/5` directory contains:
+The `component-scaffold/6` directory contains:
 
 ```text
 playwright-checks/
@@ -62,8 +62,10 @@ playwright-checks/
 └── projections/<harness>/   # only when --harness is concrete
 ```
 
-A hook also gets `source/hook-source.json` (event, order, blocking failure, handler)
-and a projected native manifest. Manifest-directory plugins get a product
+A hook also gets `source/hook-source.json` (event, order, blocking failure, handler).
+A portable hook writes the derived `hooks.json` and runnable handler under
+`source/`; a concrete harness projects them under `projections/<harness>/`.
+Manifest-directory plugins get a product
 manifest and a `skills/` note, not an `activate_plugin` stub. OpenCode and Pi
 plugins are a single JS/TS module, not an invented manifest. A setting
 requires a concrete harness.

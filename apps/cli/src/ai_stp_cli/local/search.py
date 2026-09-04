@@ -180,8 +180,8 @@ def matches(
         if field not in QUERYABLE_FIELDS:
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
-                f"a structured filter must name one of: {', '.join(sorted(QUERYABLE_FIELDS))}",
-                details={"field": field},
+                "a structured filter must name one of the declared fields",
+                details={"field": field, "allowed": ", ".join(sorted(QUERYABLE_FIELDS))},
             )
         if normalise(str(candidate.fields.get(field, ""))) != normalise(value):
             return False
@@ -194,8 +194,8 @@ def validate_query(*, prefix: str, phrase: str, field: str, value: str) -> None:
     if field and field not in QUERYABLE_FIELDS:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"a structured filter must name one of: {', '.join(sorted(QUERYABLE_FIELDS))}",
-            details={"field": field},
+            "a structured filter must name one of the declared fields",
+            details={"field": field, "allowed": ", ".join(sorted(QUERYABLE_FIELDS))},
         )
 
 

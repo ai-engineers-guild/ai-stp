@@ -90,7 +90,7 @@ github-issues/                     # пакет сервера TypeScript
 Claude Code `mcp` отклоняется: у provider нет собственной MCP-поверхности.
 
 ```text
-github-issues/                     # component-scaffold/5
+github-issues/                     # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

@@ -77,8 +77,8 @@ def _required(parameters: Mapping[str, object], name: str) -> str:
     if not value:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"--{name} is required",
-            details={"parameter": name},
+            "a required option was not supplied",
+            details={"option": f"--{name}"},
         )
     return value
 
@@ -94,8 +94,8 @@ def _directory(parameters: Mapping[str, object], name: str) -> Path:
     if not place.is_absolute():
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"--{name} must be an absolute path",
-            details={name: str(place)},
+            "a required option must be an absolute path",
+            details={"option": f"--{name}", "path": str(place)},
         )
     return place
 
@@ -1064,8 +1064,13 @@ def _assert_same(
         if given and Path(given).expanduser() != Path(stored) and given != stored:
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",
-                f"this operation was planned against a different --{name}",
-                details={"operation": held.operation_id, "given": given, "planned": stored},
+                "this operation was planned against a different option",
+                details={
+                    "operation": held.operation_id,
+                    "option": f"--{name}",
+                    "given": given,
+                    "planned": stored,
+                },
                 next_actions=[f"harness resume --operation {held.operation_id} --json"],
             )
 

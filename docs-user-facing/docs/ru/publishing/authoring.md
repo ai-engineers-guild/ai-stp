@@ -49,7 +49,7 @@ ai-stp component scaffold apply \
 записи. `setting` требует конкретный харнесс. Apply инициализирует git,
 если каталог ещё не внутри worktree; git не входит в digest плана.
 
-Каталог `component-scaffold/5` содержит:
+Каталог `component-scaffold/6` содержит:
 
 ```text
 playwright-checks/
@@ -63,9 +63,10 @@ playwright-checks/
 ```
 
 У hook дополнительно есть `source/hook-source.json` (событие, порядок, блокирующий
-failure, handler) и спроецированный нативный манифест. Plugin с каталогом
-манифеста получает продуктовый манифест и заметку `skills/`, без заглушки
-`activate_plugin`. Plugin для OpenCode и Pi — один модуль JS/TS, без
+failure, handler). Portable hook пишет производные `hooks.json` и запускаемый
+handler в `source/`; конкретный харнесс проецирует их в `projections/<harness>/`.
+Plugin с каталогом манифеста получает продуктовый манифест и заметку `skills/`,
+без заглушки `activate_plugin`. Plugin для OpenCode и Pi — один модуль JS/TS, без
 выдуманного манифеста. `setting` требует конкретный харнесс.
 
 `discover` / `adopt` переносят `source/` для portable и

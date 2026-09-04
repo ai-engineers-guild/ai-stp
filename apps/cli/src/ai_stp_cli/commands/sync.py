@@ -224,7 +224,8 @@ def _confirmed(parameters: Mapping[str, object], action: str) -> None:
     if parameters.get("confirm") is not True:
         raise CliFailure(
             "AI_STP_USER_DECISION_REQUIRED",
-            f"sync {action} requires explicit confirmation",
+            "this action requires explicit confirmation",
+            details={"action": f"sync {action}"},
             next_actions=[f"sync {action} --confirm --json"],
         )
 

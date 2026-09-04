@@ -64,13 +64,15 @@ are refused: the provider does not perform a hidden source build.
 
 The portable native layout is a `hooks.json` manifest plus a handler.
 The authoring directory holds `source/hook-source.json` (event, order,
-blocking failure, handler). A concrete harness also receives generated
-`hooks.json` and a handler under `projections/<harness>/`. `discover` /
-`adopt` transfer `source/` when portable and `projections/<harness>/`
-when a harness was selected, not the whole tree.
+blocking failure, handler). A portable scaffold also writes those derived
+bytes under `source/` so discover/adopt of `source/` sees a closed-set
+manifest. A concrete harness receives generated `hooks.json` and a handler
+under `projections/<harness>/`. `discover` / `adopt` transfer `source/`
+when portable and `projections/<harness>/` when a harness was selected,
+not the whole tree.
 
 ```text
-pre-tool-check/                    # component-scaffold/5
+pre-tool-check/                    # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md
@@ -296,8 +298,9 @@ A hook can also be an embedded member of a compose manifest. See
 1. Scaffold with `--type hook` and a directly runnable `--language`
    (`python`, `typescript`, `javascript`, or `dart-flutter`).
 2. Fill `source/hook-source.json` with the event, order, blocking
-   failure, and handler command. For a concrete harness, generated
-   `hooks.json` and the handler live under `projections/<harness>/`.
+   failure, and handler command. A portable scaffold keeps the derived
+   `hooks.json` and handler under `source/`. For a concrete harness they
+   live under `projections/<harness>/`.
 3. Declare what the handler does, what it reads, and how to disable it
    in the passport. No secrets.
 4. Run `ai-stp component discover --root . --json` and read

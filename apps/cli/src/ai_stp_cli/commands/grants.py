@@ -23,7 +23,11 @@ from ai_stp_contracts.grants import (
 def _required(parameters: Mapping[str, object], name: str) -> str:
     value = str(parameters.get(name) or "")
     if not value:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", f"--{name} is required")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option was not supplied",
+            details={"option": f"--{name}"},
+        )
     return value
 
 
@@ -39,7 +43,11 @@ def _integer(parameters: Mapping[str, object], name: str, default: int) -> int:
     try:
         return default if value is None else int(str(value))
     except ValueError as error:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", f"--{name} must be an integer") from error
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option must be an integer",
+            details={"option": f"--{name}"},
+        ) from error
 
 
 def _session(purpose: str) -> session.Session:
@@ -50,7 +58,8 @@ def _confirmed(parameters: Mapping[str, object], action: str) -> None:
     if parameters.get("confirm") is not True:
         raise CliFailure(
             "AI_STP_USER_DECISION_REQUIRED",
-            f"{action} requires explicit confirmation",
+            "this action requires explicit confirmation",
+            details={"action": action},
             next_actions=[f"{action} --confirm --json"],
         )
 

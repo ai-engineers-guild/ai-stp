@@ -262,8 +262,8 @@ def update_developer(
             )
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"unknown developer passport field: {unknown[0]}",
-            details={"allowed": ", ".join(DEVELOPER_FIELDS)},
+            "unknown developer passport field",
+            details={"field": unknown[0], "allowed": ", ".join(DEVELOPER_FIELDS)},
         )
 
     stable_id = developer_stable_id(connection)

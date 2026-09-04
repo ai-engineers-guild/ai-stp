@@ -167,8 +167,8 @@ def _kind(raw: object) -> CatalogKind:
     if value not in KINDS:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"unknown catalogue kind: {value}",
-            details={"allowed": ", ".join(KINDS)},
+            "unknown catalogue kind",
+            details={"allowed": ", ".join(KINDS), "kind": value},
         )
     return value  # pyright: ignore[reportReturnType]
 
@@ -191,9 +191,12 @@ def _limit(value: object) -> int | None:
     if not 1 <= found <= PAGE_SIZE_MAX:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"--limit must be between 1 and {PAGE_SIZE_MAX}; "
-            "walk the pages with --cursor to read more",
-            details={"limit": str(found)},
+            "--limit is outside the contract bound",
+            details={
+                "limit": str(found),
+                "minimum": "1",
+                "maximum": str(PAGE_SIZE_MAX),
+            },
         )
     return found
 

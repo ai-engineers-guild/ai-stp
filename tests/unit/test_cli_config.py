@@ -78,20 +78,21 @@ def test_a_file_that_is_not_a_mapping_is_a_validation_error() -> None:
 @pytest.mark.parametrize(
     ("document", "expected"),
     [
-        ("catalog:\n  enabled: yes-please\n", "must be a true/false value"),
-        ("search:\n  result_limit: many\n", "must be a whole number"),
-        ("search:\n  result_limit: true\n", "must be a whole number"),
-        ("catalog:\n  url: 8\n", "must be a string"),
-        ("projects:\n  discovery_roots: /srv\n", "must be a list of strings"),
-        ("projects:\n  discovery_roots:\n    - 8\n", "must be a list of strings"),
+        ("catalog:\n  enabled: yes-please\n", "a true/false value"),
+        ("search:\n  result_limit: many\n", "a whole number"),
+        ("search:\n  result_limit: true\n", "a whole number"),
+        ("catalog:\n  url: 8\n", "a string"),
+        ("projects:\n  discovery_roots: /srv\n", "a list of strings"),
+        ("projects:\n  discovery_roots:\n    - 8\n", "a list of strings"),
     ],
 )
 def test_a_value_of_the_wrong_type_names_the_field_and_the_shape(
     document: str, expected: str
 ) -> None:
     _write(document)
-    with pytest.raises(CliFailure, match=expected):
+    with pytest.raises(CliFailure, match="a configuration value has the wrong type") as raised:
         config.effective_config()
+    assert raised.value.details["expected"] == expected
 
 
 def test_the_two_switches_capabilities_reports_come_from_the_same_read() -> None:
@@ -181,16 +182,17 @@ def test_a_list_override_is_split_on_commas_and_drops_blanks() -> None:
 @pytest.mark.parametrize(
     ("path", "text", "expected"),
     [
-        ("catalog.enabled", "maybe", "must be a true/false value"),
-        ("search.result_limit", "many", "must be a whole number"),
+        ("catalog.enabled", "maybe", "a true/false value"),
+        ("search.result_limit", "many", "a whole number"),
     ],
 )
 def test_an_unparseable_override_is_refused_rather_than_coerced(
     path: str, text: str, expected: str
 ) -> None:
     # Falling back to the default here would look like the override applied.
-    with pytest.raises(CliFailure, match=expected):
+    with pytest.raises(CliFailure, match="a configuration value has the wrong type") as raised:
         config.effective_config({path: text})
+    assert raised.value.details["expected"] == expected
 
 
 def test_an_override_of_an_undeclared_key_is_refused() -> None:

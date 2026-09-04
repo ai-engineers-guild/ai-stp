@@ -89,7 +89,7 @@ entry; a discoverable **server** still needs the manifest chain above.
 Claude Code `mcp` is refused: there is no provider-owned MCP surface.
 
 ```text
-github-issues/                     # component-scaffold/5
+github-issues/                     # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

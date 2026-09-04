@@ -225,11 +225,11 @@ adopting someone else's content.
 A single file in a directory-shaped layout needs no manifest—it is the component. This
 is how claude-code agents and commands are authored, and adoption accepts them.
 
-The `component-scaffold/5` scaffold stores authoring metadata next to editable
+The `component-scaffold/6` scaffold stores authoring metadata next to editable
 `source/` and, for a concrete harness, the generated layout under
 `projections/<harness>/`. `discover`/`adopt` transfers that concrete projection;
 a portable scaffold transfers `source/`. Historical `/2` trees still use `native/`,
-and `/3` plus `/4` remain immutable historical wrapper identities.
+and `/3`, `/4`, and `/5` remain immutable historical wrapper identities.
 Single-file OpenCode/Pi JS/TS plugins are adopted as files;
 manifest-directory plugins only through a manifest from the closed set above.
 

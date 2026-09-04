@@ -73,7 +73,7 @@ playwright-checks/
 а не всё дерево.
 
 ```text
-playwright-checks/                 # component-scaffold/5
+playwright-checks/                 # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

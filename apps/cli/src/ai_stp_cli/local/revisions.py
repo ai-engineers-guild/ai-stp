@@ -204,7 +204,7 @@ def commit(
         ):
             raise CliFailure(
                 "AI_STP_CONFLICT",
-                f"this installation already has a different {sealed.kind} passport",
+                "this installation already has a different passport of that kind",
                 details={"stable_id": sealed.stable_id, "kind": sealed.kind},
                 next_actions=["doctor --json"],
             )

@@ -90,5 +90,9 @@ def show(parameters: Mapping[str, object]) -> Answer[SetupEvalResult]:
 def _required(parameters: Mapping[str, object], name: str) -> str:
     value = parameters.get(name)
     if not isinstance(value, str) or not value:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", f"{name} is required")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option was not supplied",
+            details={"option": f"--{name}"},
+        )
     return value

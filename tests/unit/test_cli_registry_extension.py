@@ -270,7 +270,7 @@ def test_an_overlay_provenance_is_written_once_and_never_moved(
 @pytest.mark.parametrize(
     ("kind", "ref", "base", "expected"),
     [
-        ("smuggled", "a", "b", "must be one of"),
+        ("smuggled", "a", "b", "an overlay origin is not one this contract defines"),
         ("local_file", "", "b", "name both its source"),
         ("local_file", "a", "", "name both its source"),
     ],
@@ -507,7 +507,7 @@ def test_re_granting_a_revoked_target_makes_it_active_again(
 @pytest.mark.parametrize(
     ("scope", "target", "expected"),
     [
-        ("everything", "x", "must be one of"),
+        ("everything", "x", "that consent scope is not one this contract defines"),
         # A wildcard target under a valid scope would restore the removed
         # `search.include_unverified` key under another name.
         (consent.SCOPE_PUBLISHER, "", "must name what it covers"),

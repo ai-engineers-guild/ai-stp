@@ -27,7 +27,11 @@ from ai_stp_contracts.publication import (
 def _required(parameters: Mapping[str, object], name: str) -> str:
     value = parameters.get(name)
     if value is None or not str(value):
-        raise CliFailure("AI_STP_VALIDATION_ERROR", f"--{name} is required")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option was not supplied",
+            details={"option": f"--{name}"},
+        )
     return str(value)
 
 
@@ -38,7 +42,11 @@ def _session() -> session.Session:
 def _files(parameters: Mapping[str, object], name: str) -> tuple[Path, ...]:
     value = parameters.get(name, ())
     if not isinstance(value, tuple | list):
-        raise CliFailure("AI_STP_VALIDATION_ERROR", f"--{name} must be repeatable text")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option must be repeatable text",
+            details={"option": f"--{name}"},
+        )
     return tuple(
         Path(str(item)).expanduser() for item in cast(tuple[object, ...] | list[object], value)
     )

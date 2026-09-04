@@ -70,7 +70,7 @@ run-tests/
 а не всё дерево.
 
 ```text
-run-tests/                         # component-scaffold/5
+run-tests/                         # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md

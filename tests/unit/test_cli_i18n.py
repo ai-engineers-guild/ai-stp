@@ -89,16 +89,11 @@ def test_localize_respects_locale(monkeypatch: pytest.MonkeyPatch) -> None:
     assert localize(sample) == sample
 
 
-#: How many `CliFailure` messages are still built by interpolation. Every one of
-#: them is invisible to `localize`, which looks up the exact English source
-#: string, so `AI_STP_LOCALE=ru` prints English for each. Cataloguing them as
-#: rendered would create one key per value and translate nothing.
-#:
-#: A ceiling rather than a ban, because forty-six conversions in one change
-#: would be a worse diff than the debt. It only goes **down**: the variable
-#: belongs in `details`, where a caller already reads it, and the sentence
-#: belongs in the catalog.
-INTERPOLATED_FAILURE_CEILING = 46
+#: `CliFailure` messages built by interpolation cannot be translated:
+#: `localize()` looks up the exact English source string, so an f-string is
+#: never a catalog key. The variable belongs in `details`; the sentence belongs
+#: in the catalog. Zero remaining interpolated sites.
+INTERPOLATED_FAILURE_CEILING = 0
 
 
 def _interpolated_failure_sites() -> list[str]:
@@ -120,16 +115,12 @@ def _interpolated_failure_sites() -> list[str]:
 
 
 def test_interpolated_failure_messages_only_shrink() -> None:
-    """A message built by interpolation cannot be translated, and there are 46.
+    """A message built by interpolation cannot be translated.
 
     `localize()` looks up the exact English source string, so an f-string
     message is never a catalog key and `AI_STP_LOCALE=ru` prints English for it.
-    The four the issue named — the missing option in `attestations`, both
-    unknown-configuration-key sites, and the invalid supplied value — now state
-    one catalogued sentence and put the variable in `details`.
-
-    This asserts the direction rather than the destination. Lower the ceiling
-    with each conversion; never raise it.
+    Remaining sites were catalogued as one English sentence with the variable
+    in `details`. The ceiling is zero and must not rise.
     """
     sites = _interpolated_failure_sites()
     assert len(sites) <= INTERPOLATED_FAILURE_CEILING, (

@@ -159,11 +159,11 @@ def test_auth_help_teaches_both_supported_login_flows(
 @pytest.mark.parametrize(
     ("argv", "message"),
     [
-        (["auth", "login"], "requires --provider with google or github"),
-        (["auth", "login", "--google"], "requires --provider with google or github"),
+        (["auth", "login"], "auth login requires --provider"),
+        (["auth", "login", "--google"], "auth login requires --provider"),
         (
             ["auth", "login", "--provider", "gitlab"],
-            "invalid auth provider; expected google or github",
+            "invalid auth provider",
         ),
         (["auth", "google", "login"], "auth commands start with 'auth login'"),
     ],
@@ -182,6 +182,8 @@ def test_common_auth_spelling_errors_explain_the_exact_correction(
     envelope = _envelope(out)
     assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
     assert message in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+    details = cast(dict[str, object], envelope["error"]["details"])  # pyright: ignore[reportIndexIssue]
+    assert details["allowed"] == "google, github"
     assert envelope["next_actions"] == [  # pyright: ignore[reportIndexIssue]
         "auth login --provider google --json",
         "auth login --provider github --json",

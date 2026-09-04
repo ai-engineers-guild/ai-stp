@@ -44,13 +44,15 @@ Rust и Go отклоняются: provider не делает скрытую с�
 
 Переносимый нативный layout — манифест `hooks.json` плюс handler.
 Авторский каталог держит `source/hook-source.json` (событие, порядок,
-блокирующий failure, handler). Конкретный харнесс дополнительно получает
+блокирующий failure, handler). Portable scaffold также пишет эти
+производные байты в `source/`, чтобы discover/adopt каталога `source/`
+видел манифест из закрытого набора. Конкретный харнесс получает
 сгенерированные `hooks.json` и handler в `projections/<harness>/`.
 `discover` / `adopt` переносят `source/` для portable и
 `projections/<harness>/` для конкретного харнесса, а не всё дерево.
 
 ```text
-pre-tool-check/                    # component-scaffold/5
+pre-tool-check/                    # component-scaffold/6
 ├── .ai-stp-template.json
 ├── .gitignore
 ├── README.md
@@ -274,8 +276,9 @@ Hook может быть embedded-членом compose-манифеста. См.
    `--language` (`python`, `typescript`, `javascript` или
    `dart-flutter`).
 2. Заполните `source/hook-source.json`: событие, порядок, блокирующий
-   failure и команда handler. Для конкретного харнесса сгенерированные
-   `hooks.json` и handler живут в `projections/<harness>/`.
+   failure и команда handler. Portable scaffold держит производные
+   `hooks.json` и handler в `source/`. Для конкретного харнесса они
+   живут в `projections/<harness>/`.
 3. Объявите в паспорте, что делает handler, что он читает и как его
    отключить. Секретов нет.
 4. Запустите `ai-stp component discover --root . --json` и прочитайте

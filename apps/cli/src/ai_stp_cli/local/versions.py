@@ -94,7 +94,7 @@ def record(
     except VersionError as error:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            f"a published version must be X.Y: {version}",
+            "a published version must be X.Y",
             details={"version": version},
         ) from error
 
@@ -118,7 +118,7 @@ def record(
             return existing
         raise CliFailure(
             "AI_STP_CONFLICT",
-            f"version {version} already stands for different content",
+            "that version already stands for different content",
             details={
                 "stable_id": stable_id,
                 "version": version,

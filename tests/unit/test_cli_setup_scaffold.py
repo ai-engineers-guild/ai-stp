@@ -37,7 +37,7 @@ def test_setup_scaffold_nests_members_without_a_nested_git(tmp_path: Path) -> No
         "components": "skill:review-kit,instruction:conventions",
     }
     plan = setup_scaffold_commands.plan(parameters).payload
-    assert plan.descriptor.template_version == "setup-scaffold/4"
+    assert plan.descriptor.template_version == "setup-scaffold/5"
     assert plan.descriptor.harness_id == "codex"
     assert {member.name for member in plan.descriptor.members} == {"review-kit", "conventions"}
     assert any(item.path == "setup.json" for item in plan.files)
@@ -73,3 +73,26 @@ def test_setup_scaffold_nests_members_without_a_nested_git(tmp_path: Path) -> No
     else:
         assert result.git_reason in {"existing_worktree", "git_unavailable"}
         assert not (output / ".git").exists()
+    assert result.template_version == "setup-scaffold/5"
+
+
+def test_historical_setup_descriptor_versions_remain_validatable() -> None:
+    from ai_stp_contracts.authoring import SetupTemplateDescriptor
+
+    for template, generator in (
+        ("setup-scaffold/1", "ai-stp/1"),
+        ("setup-scaffold/2", "ai-stp/2"),
+        ("setup-scaffold/3", "ai-stp/3"),
+        ("setup-scaffold/4", "ai-stp/4"),
+        ("setup-scaffold/5", "ai-stp/5"),
+    ):
+        SetupTemplateDescriptor.model_validate(
+            {
+                "schema_version": 1,
+                "template_version": template,
+                "generator_version": generator,
+                "harness_id": "codex",
+                "setup_name": "review-pack",
+                "members": [],
+            }
+        )

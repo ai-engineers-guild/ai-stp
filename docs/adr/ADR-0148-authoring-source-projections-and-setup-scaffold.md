@@ -52,7 +52,7 @@ SQLite, and keeps install as a public provider write.
 
 ## Decision
 
-1. **Component wrapper.** The current writer (`component-scaffold/5`) writes `README.md`,
+1. **Component wrapper.** The current writer (`component-scaffold/6`) writes `README.md`,
    `component-passport.json`, `eval-profile.json`, `.ai-stp-template.json`,
    `.gitignore`, `source/`, and, when the variant is a concrete harness,
    `projections/<harness>/`. It does not write `native/`,
@@ -63,7 +63,9 @@ SQLite, and keeps install as a public provider write.
    `projections/<harness>/` is the native layout for one harness. Portable
    variants have no `projections/` directory. Discover and adopt transfer
    `source/` when portable and `projections/<harness>/` when a harness was
-   selected, not the whole authoring tree.
+   selected, not the whole authoring tree. A portable hook therefore writes
+   the derived closed-set manifest and runnable handler under `source/`
+   next to `hook-source.json`; `/5` left those bytes only in a projection.
 
 3. **Kind-specific native forms** follow the projection registry in
    `composition.py`, including ADR-0129 contributions into an owned file.
@@ -109,14 +111,17 @@ SQLite, and keeps install as a public provider write.
 
 ## Consequences
 
-- Template version `component-scaffold/5` and generator `ai-stp/5` are
-  current for components. `/4` named the first source/projection wrapper after
+- Template version `component-scaffold/6` and generator `ai-stp/6` are
+  current for components. `/5` is the last identity whose portable hook
+  `source/` held only `hook-source.json`; putting the derived handler and
+  closed-set manifest there required a new identity rather than silently
+  redefining `/5`. `/4` named the first source/projection wrapper after
   the merge collision; remaining ADR bytes (instruction canon, refusals, draft
   passport, plugin note, Codex agent TOML) required a new identity rather than
   silently redefining `/4`. The merged tree had already assigned `/3` to the
   older wrapper containing `component.json`, the safety/publication wrapper files, and
   `adaptations/<harness>/`; those historical bytes are not silently redefined.
-  `setup-scaffold/4` embeds the `/5` component wrapper and names each nested
+  `setup-scaffold/5` embeds the `/6` component wrapper and names each nested
   member's generated projection plus managed paths so compose can freeze a
   canonical adaptation after draft markers are replaced. Earlier descriptor
   versions remain validatable against their schemas.
