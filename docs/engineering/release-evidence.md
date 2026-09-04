@@ -1,6 +1,6 @@
 ---
 description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-09-01"
+last_verified: "2026-09-04"
 ---
 
 # Release evidence
@@ -18,19 +18,23 @@ x86_64, an offline path, removal and reinstallation, reference JSON, and verific
 that no secrets are present are required. Under `ADR-0062`, macOS is not part of the
 current support matrix.
 
-The Python candidate additionally carries aligned versions of five public packages,
-byte-for-byte reproduced wheel/sdist artifacts, package metadata and LICENSE, a
-deterministic CycloneDX SBOM, `release-manifest.json`, `SHA256SUMS`, and provenance for
-the exact SHA. A dirty candidate, skipped attestation, or a workflow that exists but
-has not run successfully receives `not_verified`.
+The Python candidate is one `ai-stp-cli` wheel and sdist: first-party modules
+ship inside that wheel, metadata has no `Requires-Dist` for former internal
+`ai-stp-*` projects, and the artifact is reproduced byte-for-byte with package
+metadata, LICENSE, a deterministic CycloneDX SBOM, `release-manifest.json`,
+`SHA256SUMS`, and provenance for the exact SHA (`ADR-0146`). A dirty candidate,
+skipped attestation, or a workflow that exists but has not run successfully
+receives `not_verified`.
 
-Installation evidence additionally records the PEP 610 provenance of all five internal
-wheels supplied from direct sources. Installing only the CLI wheel with `--find-links`
-is insufficient: matching internal versions might have resolved through the public
-index. The check runs machine commands outside the source tree and confirms removal of
-the program. Each row of the Python matrix must use a job-local
-`UV_PROJECT_ENVIRONMENT` and verify the actual Python version from the installed CLI's
-response; one persistent `.venv` is not evidence for two versions.
+Installation evidence records the PEP 610 provenance of that CLI wheel as a
+direct source and proves the bundled modules are present as modules, not extra
+distributions. `--find-links` without a direct binding is insufficient: a
+matching version might resolve from the public index. The check runs machine
+commands outside the source tree and confirms removal of the program. Each row
+of the Python matrix must use a job-local `UV_PROJECT_ENVIRONMENT` and verify
+the actual Python version from the installed CLI's response; one persistent
+`.venv` is not evidence for two versions. The publication procedure lives in
+[`docs/operations/runbooks/pypi-release.md`](../operations/runbooks/pypi-release.md).
 
 ## Platform
 
@@ -55,7 +59,7 @@ release network or on a deployed environment being reachable.
 |---|---|
 | `just evidence-live` | the deployed catalogue, anonymously, with no credential |
 | `just evidence-providers <tag>` | does the projection table still agree with the providers **as released** |
-| `just evidence-software <tag>` | can a consumer drive a released provider through `harness install/status/update/remove` |
+| `just evidence-software <tag>` | can a consumer drive a released provider through `harness install/status/update/remove`; pass `acquire=1` to omit provider paths and prove transparent attested acquisition plus reuse |
 | `just evidence-config <tag>` | can a native surface be captured, installed into a target, observed and removed again — one row per harness; `from_import=1` captures the whole root through `setup import` instead of `component adopt`, and both paths must end in the same observed target; `scope=project` seeds the indexed workspace instead of the harness home and installs with `--scope project`, and `scope=user_root` seeds the shared `~/.agents/skills` and installs with `--scope user_root`, each for the harnesses whose released provider declares a rule at that scope |
 | `just evidence-contribution <tag>` | `#54`'s acceptance: one MCP component in each of its three native forms, and the refusal that is also an answer; each installed form is then removed again, and the owned-file form must leave the host file behind with the person's own key — the target's `config.toml` is seeded with that key before the install, so the removal has something to keep |
 | `just evidence-citations` | is every source link the harness catalogue cites still alive |
@@ -65,8 +69,12 @@ release network or on a deployed environment being reachable.
 `software-evidence` and `config-evidence` are the two workflows that run their
 slice on all six native legs (`ubuntu-24.04`, `ubuntu-24.04-arm`,
 `macos-15-intel`, `macos-15`, `windows-2025`, `windows-11-arm`). They are
-`workflow_dispatch` only and take the exact provider tag as input;
-`config-evidence` also takes `from_import` to drive the import capture path.
+`workflow_dispatch` only and take the exact provider tag as input.
+`software-evidence` takes `transparent_acquisition` to make `harness install`
+acquire and remember the attested release while every later lifecycle command
+omits `--provider` and `--provider-manifest`; the report verifies that the
+managed release retained the requested exact tag. `config-evidence` also takes
+`from_import` to drive the import capture path.
 
 ## First public catalog
 

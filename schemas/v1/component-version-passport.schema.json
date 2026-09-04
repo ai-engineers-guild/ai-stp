@@ -22,9 +22,103 @@
       "title": "ArtifactRef",
       "type": "object"
     },
+    "BoundedNativeId": {
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f]+$",
+      "type": "string"
+    },
     "CapabilityId": {
       "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
       "type": "string"
+    },
+    "ComponentAdaptation": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "transform": {
+                "type": "null"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "implementation_mode": {
+                "const": "derived"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "transform": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "transform"
+            ]
+          }
+        }
+      ],
+      "description": "One immutable harness-native implementation of a logical component.",
+      "properties": {
+        "adaptation_id": {
+          "pattern": "^adaptation_[0-9a-f]{64}$",
+          "title": "Adaptation Id",
+          "type": "string"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "implementation_mode": {
+          "$ref": "#/$defs/ImplementationMode"
+        },
+        "logical_component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "scope_adaptations": {
+          "items": {
+            "$ref": "#/$defs/ScopeAdaptation"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Scope Adaptations",
+          "type": "array"
+        },
+        "source_artifact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TransformRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "adaptation_id",
+        "harness_id",
+        "implementation_mode",
+        "logical_component_type",
+        "scope_adaptations"
+      ],
+      "title": "ComponentAdaptation",
+      "type": "object"
     },
     "ComponentRef": {
       "additionalProperties": false,
@@ -268,6 +362,13 @@
       ],
       "type": "string"
     },
+    "ImplementationMode": {
+      "enum": [
+        "derived",
+        "native"
+      ],
+      "type": "string"
+    },
     "JsonValue": {},
     "LicenseInfo": {
       "additionalProperties": false,
@@ -289,8 +390,44 @@
       "title": "LicenseInfo",
       "type": "object"
     },
+    "NonEmptyArtifactRef": {
+      "additionalProperties": false,
+      "description": "Content-addressed bytes for an artifact that must contain a projection.",
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "size_bytes": {
+          "maximum": 67108864,
+          "minimum": 1,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "digest",
+        "size_bytes"
+      ],
+      "title": "NonEmptyArtifactRef",
+      "type": "object"
+    },
+    "OwnershipMode": {
+      "enum": [
+        "whole",
+        "contribution"
+      ],
+      "type": "string"
+    },
     "PassportDigest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "PermissionClaim": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f]+$",
       "type": "string"
     },
     "Permissions": {
@@ -299,28 +436,157 @@
       "properties": {
         "filesystem": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Filesystem",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "network": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Network",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "process": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Process",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         }
       },
       "title": "Permissions",
       "type": "object"
+    },
+    "ProjectedMember": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "content_artifact": {
+                "type": "null"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "object_type": {
+                "const": "file"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "content_artifact": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "content_artifact"
+            ]
+          }
+        }
+      ],
+      "description": "One canonical projected path and the provider semantics it requires.",
+      "properties": {
+        "content_artifact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "content_format": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Content Format",
+          "type": "string"
+        },
+        "mode": {
+          "maximum": 511,
+          "minimum": 0,
+          "title": "Mode",
+          "type": "integer"
+        },
+        "native_ids": {
+          "items": {
+            "$ref": "#/$defs/BoundedNativeId"
+          },
+          "title": "Native Ids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "object_type": {
+          "$ref": "#/$defs/ProjectedObjectType"
+        },
+        "ownership": {
+          "$ref": "#/$defs/OwnershipMode"
+        },
+        "ownership_key": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ownership Key"
+        },
+        "parser_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parser Id"
+        },
+        "path": {
+          "$ref": "#/$defs/RelativeProjectionPath"
+        },
+        "withdrawal_semantics": {
+          "$ref": "#/$defs/WithdrawalSemantics"
+        },
+        "write_semantics": {
+          "$ref": "#/$defs/WriteSemantics"
+        }
+      },
+      "required": [
+        "path",
+        "object_type",
+        "mode",
+        "content_format",
+        "ownership",
+        "write_semantics",
+        "withdrawal_semantics"
+      ],
+      "title": "ProjectedMember",
+      "type": "object"
+    },
+    "ProjectedObjectType": {
+      "enum": [
+        "file",
+        "directory"
+      ],
+      "type": "string"
     },
     "ProjectionKind": {
       "enum": [
@@ -331,8 +597,179 @@
       ],
       "type": "string"
     },
+    "ProviderSurfaceRef": {
+      "additionalProperties": false,
+      "description": "Exact provider capability identity required by one projection scope.",
+      "properties": {
+        "bundle_format": {
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$",
+          "title": "Bundle Format",
+          "type": "string"
+        },
+        "profile_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Profile Digest",
+          "type": "string"
+        },
+        "profile_id": {
+          "pattern": "^[a-z0-9][a-z0-9._/-]*$",
+          "title": "Profile Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "profile_digest",
+        "bundle_format"
+      ],
+      "title": "ProviderSurfaceRef",
+      "type": "object"
+    },
+    "RelativeProjectionPath": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\\\)(?!.*[\\u0000-\\u001f])[^/].*[^/]$|^[^/\\\\.\\u0000-\\u001f]$",
+      "type": "string"
+    },
     "RevisionId": {
       "pattern": "^revision_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "ScopeAdaptation": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "technical_support_reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "technical_support_reason"
+            ]
+          },
+          "if": {
+            "properties": {
+              "technical_support": {
+                "const": "supported"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "technical_support_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "description": "All native facts for one adaptation at one projection scope.",
+      "properties": {
+        "members": {
+          "items": {
+            "$ref": "#/$defs/ProjectedMember"
+          },
+          "maxItems": 8192,
+          "minItems": 1,
+          "title": "Members",
+          "type": "array"
+        },
+        "permissions": {
+          "$ref": "#/$defs/Permissions"
+        },
+        "projection_artifact": {
+          "$ref": "#/$defs/NonEmptyArtifactRef"
+        },
+        "projection_format": {
+          "const": "ai-stp-adaptation-projection/1",
+          "title": "Projection Format",
+          "type": "string"
+        },
+        "projection_kind": {
+          "$ref": "#/$defs/ProjectionKind"
+        },
+        "provider_component_kind": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "required_surface": {
+          "$ref": "#/$defs/ProviderSurfaceRef"
+        },
+        "scope": {
+          "$ref": "#/$defs/TargetScope"
+        },
+        "semantic_losses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Semantic Losses",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "supported_arch": {
+          "items": {
+            "$ref": "#/$defs/SupportedArch"
+          },
+          "title": "Supported Arch",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "supported_harness_versions": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[^\\s\\x00-\\x1f]+$",
+            "type": "string"
+          },
+          "title": "Supported Harness Versions",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "supported_os": {
+          "items": {
+            "$ref": "#/$defs/SupportedOs"
+          },
+          "title": "Supported Os",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "technical_support": {
+          "$ref": "#/$defs/TechnicalSupport"
+        },
+        "technical_support_reason": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technical Support Reason"
+        }
+      },
+      "required": [
+        "scope",
+        "projection_format",
+        "projection_artifact",
+        "provider_component_kind",
+        "projection_kind",
+        "required_surface",
+        "members",
+        "technical_support"
+      ],
+      "title": "ScopeAdaptation",
+      "type": "object"
+    },
+    "SupportedArch": {
+      "enum": [
+        "x86_64",
+        "arm64"
+      ],
       "type": "string"
     },
     "SupportedOs": {
@@ -347,12 +784,68 @@
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "type": "string"
     },
+    "TargetScope": {
+      "enum": [
+        "global",
+        "user_root",
+        "project"
+      ],
+      "type": "string"
+    },
+    "TechnicalSupport": {
+      "enum": [
+        "unsupported",
+        "experimental",
+        "supported"
+      ],
+      "type": "string"
+    },
     "Timestamp": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
       "type": "string"
     },
+    "TransformRef": {
+      "additionalProperties": false,
+      "description": "Exact deterministic transform used by one derived adaptation.",
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "transform_id": {
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Transform Id",
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "transform_id",
+        "version",
+        "digest"
+      ],
+      "title": "TransformRef",
+      "type": "object"
+    },
     "Version": {
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    },
+    "WithdrawalSemantics": {
+      "enum": [
+        "remove_path",
+        "preserve_unowned"
+      ],
+      "type": "string"
+    },
+    "WriteSemantics": {
+      "enum": [
+        "replace",
+        "merge"
+      ],
       "type": "string"
     }
   },
@@ -361,6 +854,15 @@
   "additionalProperties": true,
   "description": "Immutable component version passport.",
   "properties": {
+    "adaptations": {
+      "items": {
+        "$ref": "#/$defs/ComponentAdaptation"
+      },
+      "maxItems": 7,
+      "minItems": 1,
+      "title": "Adaptations",
+      "type": "array"
+    },
     "artifact": {
       "$ref": "#/$defs/ArtifactRef"
     },
@@ -399,17 +901,6 @@
       "title": "Facts",
       "type": "object"
     },
-    "harness_id": {
-      "$ref": "#/$defs/HarnessId"
-    },
-    "harness_ids": {
-      "items": {
-        "$ref": "#/$defs/HarnessId"
-      },
-      "maxItems": 7,
-      "title": "Harness Ids",
-      "type": "array"
-    },
     "kind": {
       "const": "component",
       "default": "component",
@@ -419,23 +910,20 @@
     "license": {
       "$ref": "#/$defs/LicenseInfo"
     },
-    "managed_paths": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Managed Paths",
-      "type": "array"
-    },
     "name": {
       "title": "Name",
       "type": "string"
     },
-    "native_ids": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Native Ids",
-      "type": "array"
+    "origin_harness_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HarnessId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "owner_id": {
       "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -451,9 +939,6 @@
     },
     "permissions": {
       "$ref": "#/$defs/Permissions"
-    },
-    "projection_kind": {
-      "$ref": "#/$defs/ProjectionKind"
     },
     "provides_capabilities": {
       "items": {
@@ -522,13 +1007,6 @@
       "title": "Stable Id",
       "type": "string"
     },
-    "supported_os": {
-      "items": {
-        "$ref": "#/$defs/SupportedOs"
-      },
-      "title": "Supported Os",
-      "type": "array"
-    },
     "tags": {
       "items": {
         "$ref": "#/$defs/TagId"
@@ -537,19 +1015,6 @@
       "minItems": 1,
       "title": "Tags",
       "type": "array"
-    },
-    "variant_id": {
-      "anyOf": [
-        {
-          "pattern": "^variant_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Variant Id"
     },
     "version": {
       "$ref": "#/$defs/Version"
@@ -565,6 +1030,7 @@
     }
   },
   "required": [
+    "adaptations",
     "artifact",
     "compatibility_evidence_refs",
     "component_type",
@@ -573,17 +1039,13 @@
     "description",
     "external_endpoints",
     "facts",
-    "harness_id",
-    "harness_ids",
     "kind",
     "license",
-    "managed_paths",
     "name",
-    "native_ids",
+    "origin_harness_id",
     "owner_id",
     "parent_revision_ids",
     "permissions",
-    "projection_kind",
     "provides_capabilities",
     "required_env",
     "requires_authorization",
@@ -594,9 +1056,7 @@
     "schema_version",
     "source",
     "stable_id",
-    "supported_os",
     "tags",
-    "variant_id",
     "version",
     "visibility"
   ],

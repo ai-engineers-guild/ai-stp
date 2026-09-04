@@ -128,6 +128,7 @@ def _materialize(stable_id: str, version: str) -> str:
                 revision_id=stored.revision_id,
                 at=AT,
             )
+    assert isinstance(setup.passport, SetupVersionPassport)
     return setup.passport.harness_id
 
 

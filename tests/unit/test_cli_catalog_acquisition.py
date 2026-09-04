@@ -236,7 +236,14 @@ def test_beta_base_setup_graphs_acquire_and_compile_to_exact_native_surfaces(
         if item.kind == "component"
         and item.passport.stable_id in {ref.stable_id for ref in setup.passport.components}
     ]
-    roots = {path for item in members for path in getattr(item.passport, "managed_paths", ())}
+    roots = {
+        member.path
+        for item in members
+        if isinstance(item.passport, ComponentVersionPassport)
+        for adaptation in item.passport.adaptations
+        for scope in adaptation.scope_adaptations
+        for member in scope.members
+    }
     assert roots
     compiled_paths = {item.path for item in compiled.files}
     assert compiled_paths
@@ -315,13 +322,12 @@ def test_acquire_version_seals_published_bytes_not_a_model_dump(
 ) -> None:
     """A historical passport omitting later defaults must still acquire.
 
-    `verify_revision_id` dumps the validated model, which injects empty
-    `harness_ids` / `supported_os` and is not the published seal.
+    `verify_revision_id` dumps the validated model, which injects an optional
+    provenance field and is not the published seal.
     """
     (component, *_rest), _setup = _grok()
     published = component.passport.model_dump(mode="json")
-    published.pop("harness_ids", None)
-    published.pop("supported_os", None)
+    published.pop("origin_harness_id", None)
     published["revision_id"] = derive_revision_id(published)
     assert not verify_revision_id(ComponentVersionPassport.model_validate(published))
 

@@ -433,6 +433,7 @@ def test_a_bundle_over_the_declared_limits_is_refused_by_name() -> None:
     def _bundle(files: tuple[bundle_module.FileEntry, ...], archive: bytes) -> bundle_module.Bundle:
         return bundle_module.Bundle(
             manifest={
+                "bundle_format": "ai-stp-bundle/1",
                 "conversion_report": {
                     "entries": [
                         {
@@ -441,7 +442,7 @@ def test_a_bundle_over_the_declared_limits_is_refused_by_name() -> None:
                             "native_surface": "AGENTS.md",
                         }
                     ]
-                }
+                },
             },
             files=files,
             digest="sha256:" + "1" * 64,

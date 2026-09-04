@@ -1,6 +1,6 @@
 ---
 description: "SPEC-056: Curated GitHub component snapshots published by AI STP Official."
-last_verified: "2026-09-02"
+last_verified: "2026-09-03"
 ---
 
 # SPEC-056: Official upstream components
@@ -25,7 +25,8 @@ owns the shared resolver, embedded components, and explicit transfer claim.
 
 - `Official upstream source` — an operator-managed record identifying one public
   GitHub repository, tracked ref, safe relative component subpath and type,
-  reviewed description, AI STP Official owner, and enabled state.
+  reviewed description, AI STP Official owner, explicit target scope, projection
+  root and projection shape, and enabled state.
 - `Upstream snapshot` — the exact commit, archive bytes, component-root bytes,
   digest, license observation, and fetch time used for one publication attempt.
 
@@ -35,7 +36,9 @@ owns the shared resolver, embedded components, and explicit transfer claim.
   identified official upstream sources directly in PostgreSQL without a public HTTP endpoint. It
   rejects non-HTTPS GitHub repositories, credentials, an empty or traversing
   subpath, unknown component types, a non-Official owner, and missing reviewed
-  attribution text. The write is audited and idempotent.
+  attribution text. It also rejects any implicit or unsafe projection target:
+  the scope, safe relative root and `file` or `tree` shape are required. The
+  write is audited and idempotent.
 - `REQ-5602`: A scheduler enqueues at most one `official_upstream_sync` job per
   enabled source and UTC day. The job payload contains only the source ID; GitHub
   credentials and mutable descriptive text do not enter the queue payload. The
@@ -57,10 +60,12 @@ owns the shared resolver, embedded components, and explicit transfer claim.
   remain rejected. A branch or tag is never persisted as version provenance
   without its resolved commit.
 - `REQ-5604`: Unchanged component bytes produce a successful no-op. Changed bytes
-  create the next unused minor version in the source's stable component line and
-  proceed through the shared plan, bind, validate, and publish jobs from
-  SPEC-026. No source-specific path writes catalog metadata, verification axes,
-  object bytes, or publication lifecycle directly.
+  are materialized as the source's declared canonical projection, bound to an
+  explicit adaptation and provider profile, create the next unused minor version
+  in the source's stable component line, and proceed through the shared plan,
+  bind, validate, and publish jobs from SPEC-026. A raw component-tree archive is
+  not a publishable projection. No source-specific path writes catalog metadata,
+  verification axes, object bytes, or publication lifecycle directly.
 - `REQ-5605`: Each published description begins with the upstream project name,
   public repository, license, and maintainer attribution and ends with a stable
   notice that AI STP publishes the snapshot for discovery, does not claim
@@ -98,19 +103,21 @@ URL. Server validation independently checks the materialized bytes.
 
 ## Compatibility and migration
 
-Additive tables and the new job type follow SPEC-018 and SPEC-020. Existing
-catalog objects, first-party launch publication, and experimental seed behavior
-do not change. Rollback disables scheduling and source rows remain readable by a
-previous deployment; immutable catalog versions are not rewritten.
+Additive tables and the new job type follow SPEC-018 and SPEC-020. Projection
+target columns are nullable only for migration safety; a pre-migration row is
+not synchronized until an operator upserts its explicit projection target.
+Existing catalog objects, first-party launch publication, and experimental seed
+behavior do not change. Rollback disables scheduling; immutable catalog versions
+are not rewritten.
 
 ## Acceptance criteria
 
 | Requirement | Executable verification |
 |---|---|
-| `REQ-5601` | Command/integration tests idempotently upsert two independently identified sources and reject each unsafe coordinate and non-Official owner. |
+| `REQ-5601` | Command/integration tests idempotently upsert two independently identified sources and reject each unsafe coordinate, projection target, and non-Official owner. |
 | `REQ-5602` | Two scheduler runs in one UTC day create one job; the next day creates one more; a same-day operator force creates a second audited job with a distinct key; a disabled or missing `--id` is rejected; payload inspection finds only the source ID. |
 | `REQ-5603` | A mocked GitHub archive resolves a ref to a commit and records exact digests; redirect, traversal, link, secret, binary, oversize, and missing-root fixtures fail closed; `.env.example` is accepted while `.env` and `.env.local` are rejected; a skill tree keeps every committed path under the component root, including scripts, assets, docs, tests, and CI. |
-| `REQ-5604` | An unchanged snapshot is a no-op; a changed snapshot enters the existing publication flow, publishes once after accepted validation, and a redelivery has no second effect or skipped barrier. |
+| `REQ-5604` | An unchanged snapshot is a no-op; a changed snapshot produces the declared canonical projection and explicit adaptation, enters the existing publication flow, publishes once after accepted validation, and a redelivery has no second effect or skipped barrier. |
 | `REQ-5605` | The published passport fixture contains the required leading attribution and trailing ownership notice and preserves them on exact-version read. |
 | `REQ-5606` | Fetch and validation failures leave the prior version readable; disabling or deleting the source prevents a later enqueue without deleting published versions, audit, or sync history. |
 | `REQ-5607` | Catalog API/web tests present publisher and upstream attribution separately and do not label AI STP as upstream author. |

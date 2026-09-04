@@ -46,11 +46,13 @@ Different objects use different domains:
 
 ```text
 ai-stp:artifact:v1
+ai-stp:component-adaptation:v1
 ai-stp:passport:v1
 ai-stp:revision:v1
 ai-stp:plan:v1
 ai-stp:scaffold-plan:v1
 ai-stp:setup-scaffold-plan:v1
+ai-stp:multi-root-transaction:v1
 ai-stp:bundle:v1
 ai-stp:attestation:v1
 ai-stp:native-discovery:v1

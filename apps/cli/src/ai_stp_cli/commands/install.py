@@ -7,9 +7,11 @@ a single command that did them all would take the user's approval for a plan
 they had not seen.
 
 **`ai_stp` never writes the target.** Every effect goes through the provider
-executable named by the caller, started under the frozen boundary of
-`provider.protocol`. This module records what happened and refuses to record
-what cannot have happened; it does not touch a harness configuration.
+executable, started under the frozen boundary of `provider.protocol`. The
+caller may name one; otherwise a configured, remembered, discovered or
+automatically acquired attested provider is used (`REQ-853`). This module
+records what happened and refuses to record what cannot have happened; it
+does not touch a harness configuration.
 
 **A provider result is mapped, never trusted verbatim.** `protocol.operation_state`
 refuses a state it does not know rather than writing it into the journal, because
@@ -22,8 +24,9 @@ import platform
 import re
 import sqlite3
 import subprocess
-from collections.abc import Mapping
-from contextlib import closing
+from collections.abc import Generator, Mapping
+from contextlib import closing, contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -41,6 +44,7 @@ from ai_stp_cli.local import (
     installation,
     journal,
     managed_diff,
+    multi_root,
     project_passport,
     provider_releases,
     revisions,
@@ -97,10 +101,32 @@ PLAN_TTL_SECONDS: int = 900
 _UNFINISHED: Final[frozenset[str]] = frozenset(
     {installation.STATE_APPLYING, installation.STATE_APPLIED_UNVERIFIED}
 )
+_TRANSACTION_CHILD_ACCESS: ContextVar[bool] = ContextVar(
+    "ai_stp_transaction_child_access", default=False
+)
 
 #: The passport contract owns the syntax. Reusing it here prevents a status
 #: override from accepting a value that the persisted passport would refuse.
 _ENV_NAME: Final[re.Pattern[str]] = re.compile(ENV_NAME_PATTERN)
+
+
+@contextmanager
+def transaction_child_access() -> Generator[None]:
+    """Allow the coordinator, and no CLI parameter, to drive its owned children."""
+    token = _TRANSACTION_CHILD_ACCESS.set(True)
+    try:
+        yield
+    finally:
+        _TRANSACTION_CHILD_ACCESS.reset(token)
+
+
+def _require_independent_operation(connection: sqlite3.Connection, operation_id: str) -> None:
+    if multi_root.child_is_owned(connection, operation_id) and not _TRANSACTION_CHILD_ACCESS.get():
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "an active multi-root transaction owns this child operation",
+            details={"operation_id": operation_id},
+        )
 
 
 def _prepared_setup_source(
@@ -219,7 +245,6 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     under the lock, so a target that moves between the two is caught instead of
     being written over.
     """
-    executable = _executable(parameters)
     proposal_id = str(parameters.get("proposal") or "")
     prepared_ref = str(parameters.get("setup") or "")
     action = str(parameters.get("action") or "install")
@@ -276,29 +301,34 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             if held is not None
             else _Pair(_required(parameters, "project"), _required(parameters, "harness"))
         )
+        from ai_stp_cli.provider import acquire
+
+        provider = acquire.provider_context(connection, pair.harness_id, parameters)
+        executable = provider.executable
+        effective_parameters = provider.parameters
         target = installation.target_identity(pair.project_id, pair.harness_id)
-        release_recovery = bool(parameters.get("provider-release-recovery", False))
+        release_recovery = bool(effective_parameters.get("provider-release-recovery", False))
         release_evidence = trust.trusted_manifest(
             connection,
-            parameters,
+            effective_parameters,
             executable,
             recovery_requested=release_recovery,
         )
         trusted_release = release_evidence.manifest
-        protocol_version = _protocol_version(parameters, trusted_release)
-        trust.release_required(parameters, protocol_version, trusted_release)
+        protocol_version = _protocol_version(effective_parameters, trusted_release)
+        trust.release_required(effective_parameters, protocol_version, trusted_release)
         if prepared_ref and protocol_version != protocol_v3.VERSION:
             raise CliFailure(
                 "AI_STP_SCHEMA_UNSUPPORTED",
                 "prepared SetupVersion installation requires provider protocol v3",
                 details={"protocol_version": str(protocol_version)},
             )
-        provider_target = _provider_target(parameters, target, protocol_version)
+        provider_target = _provider_target(effective_parameters, target, protocol_version)
         invoke = invocation.provider_invoker(
             executable,
             provider_target,
             protocol_version,
-            unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
+            unisolated_reason=trust.unisolated_reason(trusted_release, effective_parameters),
         )
         info = _object(invoke("provider-info", ()))
         _speaks(info, protocol_version)
@@ -323,7 +353,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         if protocol_version == protocol_v3.VERSION:
             return _plan_v3(
                 connection,
-                parameters=parameters,
+                parameters=effective_parameters,
                 executable=executable,
                 pair=pair,
                 proposal=held,
@@ -349,17 +379,18 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 details={"action": action, "protocol_version": str(protocol_version)},
                 next_actions=["install plan --protocol-version 3 ..."],
             )
-        _supports_bundle(info, held.harness_id, bundle.BUNDLE_FORMAT)
         # The installing machine's target, because a component contributing a
         # key to an owned file needs that file's current bytes and they exist
         # only here (`ADR-0129`).
         compiled = select_command.compile_harness_bundle(
             connection, proposal_id, held.harness_id, Path(provider_target)
         )
+        compiled_format = str(compiled.manifest.get("bundle_format") or "")
+        _supports_bundle(info, held.harness_id, compiled_format)
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
         bound_bundle = bundle_protocol.binding(
             bundle_path,
-            bundle_format=bundle.BUNDLE_FORMAT,
+            bundle_format=compiled_format,
             bundle_digest=compiled.digest,
             artifact_digest=compiled.artifact_digest,
             bundle_size=len(compiled.archive),
@@ -440,7 +471,7 @@ def _plan_v3(
     trusted_release: release.ReleaseManifest | None,
 ) -> InstallationView:
     """Plan the existing installation state machine through protocol v3."""
-    capabilities = _v3_capabilities(info, pair.harness_id, bundle.BUNDLE_FORMAT)
+    capabilities = _v3_capabilities(info, pair.harness_id, "")
     operation = _v3_operation(action)
     try:
         capabilities.require(operation)
@@ -513,11 +544,12 @@ def _plan_v3(
             scope=str(parameters.get("scope") or "global"),
         )
         planned_scope = _v3_profile_accepts(capabilities, compiled).scope
+        compiled_format = str(compiled.manifest.get("bundle_format") or "")
         status_tail = operation_v3.status_arguments(capabilities, planned_scope)
         bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
         bound_bundle = bundle_protocol.binding(
             bundle_path,
-            bundle_format=bundle.BUNDLE_FORMAT,
+            bundle_format=compiled_format,
             bundle_digest=compiled.digest,
             artifact_digest=compiled.artifact_digest,
             bundle_size=len(compiled.archive),
@@ -552,7 +584,7 @@ def _plan_v3(
             bundle_path = cache.store_raw_artifact_bytes(compiled.archive, compiled.artifact_digest)
             bound_bundle = bundle_protocol.binding(
                 bundle_path,
-                bundle_format=bundle.BUNDLE_FORMAT,
+                bundle_format=str(compiled.manifest.get("bundle_format") or ""),
                 bundle_digest=compiled.digest,
                 artifact_digest=compiled.artifact_digest,
                 bundle_size=len(compiled.archive),
@@ -695,6 +727,7 @@ def approve(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         )
 
     with closing(open_registry(configured_path(), create=True)) as connection:
+        _require_independent_operation(connection, operation_id)
         installation.approve(connection, operation_id, plan_digest=digest, at=moment())
         return Answer(_view(connection, installation._require(connection, operation_id)))  # pyright: ignore[reportPrivateUsage]
 
@@ -710,11 +743,13 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     An interrupted provider call is recorded as `partial`, never as a failure:
     a call that timed out does not prove nothing happened.
     """
-    executable = _executable(parameters)
     operation_id = _operation(parameters)
 
     def work(connection: sqlite3.Connection) -> InstallationView:
+        _require_independent_operation(connection, operation_id)
         held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
+        _, harness_id = installation.target_pair(held.target_id)
+        executable = _executable(parameters, connection=connection, harness_id=harness_id)
         trusted_release = _verify_bound_release(connection, held, executable)
         invoke = invocation.provider_invoker(
             executable,
@@ -983,6 +1018,7 @@ def cancel(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     """
     operation_id = _operation(parameters)
     with closing(open_registry(configured_path(), create=True)) as connection:
+        _require_independent_operation(connection, operation_id)
         installation.cancel(
             connection,
             operation_id,
@@ -1036,11 +1072,13 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
     `partial` rather than `failed`: after the call was made, "nothing was done"
     is a claim nobody is in a position to make.
     """
-    executable = _executable(parameters)
     operation_id = _operation(parameters)
 
     def work(connection: sqlite3.Connection) -> InstallationView:
+        _require_independent_operation(connection, operation_id)
         held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
+        _, harness_id = installation.target_pair(held.target_id)
+        executable = _executable(parameters, connection=connection, harness_id=harness_id)
         # From the journal, not from the plan: the plan records what was going
         # to be done and never moves, and "where did this stop" is a question
         # only the journal can answer.
@@ -1642,6 +1680,25 @@ def _v3_profile_accepts(
     # and re-deriving it from the kinds would answer a settled question again.
     compiled_for = str(compiled.manifest.get("target_scope") or "global")
     profile = _profile_for_graph(capabilities, component_kinds, compiled_for)
+    compiled_format = str(compiled.manifest.get("bundle_format") or "")
+    if compiled_format not in profile.bundle_formats:
+        raise CliFailure(
+            "AI_STP_SCHEMA_UNSUPPORTED",
+            "the provider does not support the exact HarnessBundle format",
+            details={"required": compiled_format},
+        )
+    if compiled_format == bundle.BUNDLE_FORMAT_V2:
+        binding = compiled.manifest.get("projection_profile")
+        expected_binding = {
+            "profile_id": profile.profile_id,
+            "profile_digest": profile.digest,
+            "target_scope": profile.scope,
+        }
+        if binding != expected_binding:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the compiled bundle profile differs from the provider profile",
+            )
     try:
         protocol_v3.validate_profile_for_components(profile, component_kinds)
     except ValueError as error:
@@ -1939,13 +1996,22 @@ def _provider_target(parameters: Mapping[str, object], logical: str, version: in
     return str(place.resolve())
 
 
-def _executable(parameters: Mapping[str, object]) -> str:
+def _executable(
+    parameters: Mapping[str, object],
+    *,
+    connection: sqlite3.Connection | None = None,
+    harness_id: str = "",
+) -> str:
+    if connection is not None and harness_id:
+        from ai_stp_cli.provider import acquire
+
+        return acquire.ensure_provider(connection, harness_id, parameters)
     given = str(parameters.get("provider") or "")
     if not given:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "the provider executable must be named; ai_stp never writes a target itself",
-            next_actions=["provider conformance --harness <id> --executable <path> --json"],
+            next_actions=["provider fetch --harness <id> --json"],
         )
     place = Path(given).expanduser()
     try:

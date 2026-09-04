@@ -53,6 +53,8 @@ PLATFORM_VERSION_FACTS = {
     "checks",
     "requirements_count",
     "harness_ids",
+    "harness_id",
+    "projection_kind",
 }
 
 SUPPORT_MISSING = CatalogSupport(

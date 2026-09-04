@@ -54,6 +54,67 @@ def test_a_plain_composition_compiles() -> None:
     assert compiled.archive.startswith(b"PK\x03\x04")
 
 
+def _v2_binding(*, paths: tuple[str, ...] = ("skills/a.md",)) -> bundle.ComponentAdaptationBinding:
+    return bundle.ComponentAdaptationBinding(
+        stable_id="component_a",
+        version="1.0",
+        passport_digest="sha256:" + "1" * 64,
+        adaptation_id="adaptation_" + "2" * 64,
+        projection_artifact_digest="sha256:" + "3" * 64,
+        projection_artifact_size=128,
+        provider_component_kind="skill",
+        projection_kind="native_files",
+        member_paths=paths,
+    )
+
+
+def test_bundle_v2_binds_profile_and_every_component_adaptation() -> None:
+    profile = bundle.ProjectionProfileBinding(
+        profile_id="claude/native-files/2",
+        profile_digest="sha256:" + "4" * 64,
+        target_scope="global",
+    )
+    compiled = _compile(
+        (bundle.Source("skills/a.md", b"first", "component_a"),),
+        bundle_format=bundle.BUNDLE_FORMAT_V2,
+        projection_profile=profile,
+        adaptation_bindings=(_v2_binding(),),
+    )
+
+    assert compiled.compiled
+    assert compiled.manifest["bundle_format"] == "ai-stp-bundle/2"
+    assert compiled.manifest["projection_profile"] == profile.as_json()
+    assert compiled.manifest["component_adaptations"] == [_v2_binding().as_json()]
+
+
+def test_bundle_v2_refuses_missing_scope_and_file_closure_bindings() -> None:
+    source = (bundle.Source("skills/a.md", b"first", "component_a"),)
+    assert _codes(_compile(source, bundle_format=bundle.BUNDLE_FORMAT_V2)) == (
+        "adaptation_binding_missing",
+    )
+    profile = bundle.ProjectionProfileBinding(
+        profile_id="claude/native-files/project/1",
+        profile_digest="sha256:" + "4" * 64,
+        target_scope="project",
+    )
+    mismatched = _compile(
+        source,
+        bundle_format=bundle.BUNDLE_FORMAT_V2,
+        projection_profile=profile,
+        adaptation_bindings=(_v2_binding(paths=("skills/other.md",)),),
+    )
+    assert _codes(mismatched) == (
+        "adaptation_binding_mismatch",
+        "projection_profile_mismatch",
+    )
+
+
+def test_bundle_v1_does_not_silently_gain_v2_fields() -> None:
+    compiled = _compile((bundle.Source("skills/a.md", b"first", "component_a"),))
+    assert "projection_profile" not in compiled.manifest
+    assert "component_adaptations" not in compiled.manifest
+
+
 def test_the_archive_contains_the_complete_contract_layout_and_exact_bytes() -> None:
     source = bundle.Source("skills/café.md", b"exact bytes\n", "component_a")
     compiled = _compile((source,))

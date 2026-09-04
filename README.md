@@ -87,13 +87,16 @@ native surface. The matrix is `ai-stp toolchain harness-capabilities`.
 
 An unknown harness is `undefined`. Automatic install is refused.
 
-## Strategic direction: Rust and a Pi-inspired plugin architecture
+## Current direction: complete the first supported alpha
 
-**By 31 December 2026, `ai-stp` will be rewritten in Rust and migrated to a
-plugin-first architecture inspired by Pi.** The migration will preserve the
-public CLI and API contracts while separating a lightweight, deterministic
-core from versioned plugins for harnesses, components, projections, and
-provider-specific integrations.
+`0.0.16` is the first supported alpha contract. `0.0.17` continues it as one
+public `ai-stp-cli` wheel (`ADR-0146`). The current program finishes verified
+provider delivery — GitHub attested releases by default, PyPI provenance as a
+second path (`ADR-0141`) — the consumer-owned recoverable multi-root install
+over unchanged provider v3 (`ADR-0145`), and one exact estate release record.
+`main` is not branch-protected: the gate proves the tree (`ADR-0115`). Rust and
+new component kinds are deferred; there is no calendar promise for a language
+rewrite.
 
 Phase status belongs to
 [`docs/engineering/implementation-roadmap.md`](docs/engineering/implementation-roadmap.md):

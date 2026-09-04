@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
 import pytest
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
@@ -52,6 +53,9 @@ def _command(**overrides: object) -> SourceUpsert:
         "reviewed_description": "Reviewed component body.",
         "reviewed_license": "MIT",
         "harness_id": "claude-code",
+        "target_scope": "global",
+        "projection_root": "skills/demo",
+        "projection_shape": "tree",
         "tags": ("code-review",),
     }
     payload.update(overrides)
@@ -89,6 +93,7 @@ def test_source_rejects_unsafe_coordinates_and_non_official_owner() -> None:
         {"component_subpath": ""},
         {"component_subpath": "../escape"},
         {"component_type": "marketplace"},
+        {"harness_id": "claude-code", "target_scope": "user_root"},
         {"owner_account_id": "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"},
         {"upstream_project_name": " "},
         {"reviewed_description": ""},
@@ -414,9 +419,7 @@ def test_catalog_projection_separates_publisher_from_upstream_attribution() -> N
             "path": "skills/demo",
         },
         "artifact": {"digest": "sha256:" + "b" * 64, "size_bytes": 12},
-        "harness_id": "claude-code",
-        "harness_ids": [],
-        "supported_os": [],
+        **adaptation_fields(digest="sha256:" + "b" * 64, size=12),
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -424,8 +427,6 @@ def test_catalog_projection_separates_publisher_from_upstream_attribution() -> N
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
         "component_type": "skill",
-        "projection_kind": "native_files",
-        "variant_id": None,
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -437,8 +438,6 @@ def test_catalog_projection_separates_publisher_from_upstream_attribution() -> N
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [],
-        "native_ids": [],
     }
     passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]
     published_at = datetime(2026, 9, 1, tzinfo=UTC)
@@ -512,9 +511,7 @@ def test_catalog_projection_keeps_verification_axes_independent() -> None:
             "path": "skills/demo",
         },
         "artifact": {"digest": "sha256:" + "b" * 64, "size_bytes": 12},
-        "harness_id": "claude-code",
-        "harness_ids": [],
-        "supported_os": [],
+        **adaptation_fields(digest="sha256:" + "b" * 64, size=12),
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -522,8 +519,6 @@ def test_catalog_projection_keeps_verification_axes_independent() -> None:
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
         "component_type": "skill",
-        "projection_kind": "native_files",
-        "variant_id": None,
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -535,8 +530,6 @@ def test_catalog_projection_keeps_verification_axes_independent() -> None:
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [],
-        "native_ids": [],
     }
     passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]
     published_at = datetime(2026, 9, 1, tzinfo=UTC)

@@ -53,6 +53,7 @@ def _fail_upstream(*_args: object, **_kwargs: object) -> object:
 def _mixed_setup(
     components: tuple[FirstPartyVersion, ...], setup: FirstPartyVersion
 ) -> tuple[bytes, dict[str, JsonValue]]:
+    assert isinstance(setup.passport, SetupVersionPassport)
     catalog_refs = tuple(
         ComponentRef(
             stable_id=item.passport.stable_id,
@@ -83,6 +84,7 @@ def _mixed_setup(
                 description="Embedded skill used for offline acquisition.",
                 license_spdx="MIT",
                 harness_id=setup.passport.harness_id,
+                target_scope="global",
                 stable_id=EMBEDDED_ID,
                 managed_paths=("skills/embedded-offline/SKILL.md",),
             ),
@@ -221,6 +223,7 @@ def test_mixed_v2_setup_acquires_and_compiles_with_upstream_unavailable(
     )
 
     with closing(open_readonly(configured_path())) as connection:
+        assert isinstance(setup.passport, SetupVersionPassport)
         compiled = compile_setup_version_bundle(
             connection,
             str(document["stable_id"]),
@@ -279,6 +282,7 @@ def test_definition_version_1_catalog_setup_still_acquires_offline(
     document = cast(dict[str, JsonValue], from_json_bytes(setup.artifact))
     assert document.get("format") == DEFINITION_V1
     assert "embedded" not in document
+    assert isinstance(setup.passport, SetupVersionPassport)
     with closing(open_readonly(configured_path())) as connection:
         compiled = compile_setup_version_bundle(
             connection,

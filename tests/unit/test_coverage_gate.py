@@ -1,10 +1,8 @@
-"""The coverage gate must compare at the precision it claims.
+"""Coverage is printed. A percentage does not fail the Python gate.
 
-A threshold is a promise about a number. `coverage` keeps that promise only to
-the precision it was configured with, and its default silently widens the gate
-by half a point — a run then prints its own failure and exits zero. The tests
-here pin the configuration that closes that gap, and state the mechanism
-executably so a change in `coverage` fails here rather than in a release.
+`precision = 2` stays because a restored fail-under at coverage's default
+precision reprints FAIL and can still exit 0. The tests pin that mechanism
+and the current absence of fail-under.
 """
 
 from __future__ import annotations
@@ -51,19 +49,25 @@ def test_the_repository_pins_a_precision_that_makes_the_threshold_mean_itself() 
     assert precision >= 2
 
 
-def test_the_recipe_rereads_the_recorded_data_with_an_explicit_precision() -> None:
-    """`pytest`'s exit code is not the only thing the gate rests on.
+def test_the_gate_does_not_fail_on_a_coverage_percentage() -> None:
+    """ADR-0147: coverage is printed. A percentage does not fail the run.
 
-    The second call reads the data that was actually written and refuses on its
-    own. It carries `--precision` explicitly because a bare `--fail-under`
-    would inherit the same default that caused the incident.
+    The second call still rereads the data pytest-cov wrote so the local log
+    matches CI's combined report. `--precision=2` stays because a restored
+    fail-under at precision 0 reprints FAIL and can still exit 0.
     """
     recipe = (ROOT / "justfile").read_text(encoding="utf-8")
-    assert "coverage report --precision=2 --fail-under=90" in recipe
+    assert "coverage report --precision=2" in recipe
+    assert "--fail-under" not in recipe
 
     addopts = _pyproject()["tool"]["pytest"]["ini_options"]["addopts"]
     assert isinstance(addopts, str)
-    assert "--cov-fail-under=90" in addopts
+    assert "--cov-fail-under" not in addopts
+
+    workflow = (ROOT / ".github/workflows/check.yml").read_text(encoding="utf-8")
+    assert "coverage report --precision=2" in workflow
+    assert "--fail-under" not in workflow
+    assert "--cov-fail-under" not in workflow
 
 
 def test_sysmon_is_not_disabled_by_greenlet_concurrency() -> None:

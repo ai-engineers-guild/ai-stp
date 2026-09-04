@@ -735,7 +735,15 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
             if wants_major
             else versions.next_minor(connection, stable_id)
         )
-        document = cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json"))
+        released_at = moment()
+        current, _warning = identity.load_or_create()
+        passport, revision_id = component_passports.materialize_version_passport(
+            connection,
+            stable_id,
+            number,
+            device_id=current.device_id,
+            at=released_at,
+        )
         versions.record(
             connection,
             stable_id=stable_id,
@@ -743,9 +751,9 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
             # The catalogue's own digest, computed by the one function that
             # knows how: a second way of hashing a passport would verify against
             # nothing and look like a corrupted download.
-            passport_digest=cache.digest_of(cast(JsonValue, document)),
-            revision_id=stored.revision_id,
-            at=moment(),
+            passport_digest=cache.digest_of(cast(JsonValue, passport.model_dump(mode="json"))),
+            revision_id=revision_id,
+            at=released_at,
         )
         return VersionLine(
             stable_id=stable_id,

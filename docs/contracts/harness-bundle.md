@@ -48,6 +48,17 @@ bundle's paths are relative to a workspace root and a `user_root` bundle's to
 the shared `~/.agents` root; the plan that installs either hands the provider
 that root as its target and the scope as `--target-scope`.
 
+`ai-stp-bundle/2` additionally requires one `projection_profile` and a sorted
+`component_adaptations` array. The profile binds its exact ID, digest and target
+scope. Each component binding carries stable ID, version, passport digest,
+`adaptation_id`, projection artifact digest and size, provider-native kind,
+projection kind and exact member paths. Every bundled file owner must have one
+binding and every owned file path must occur in that binding. Missing bindings,
+a profile for another scope, an unbound owner or a file outside its adaptation
+fail before archive serialization. During the staged provider rollout `/1`
+remains byte-identical and carries none of these fields; it is removed from the
+first supported release after every provider advertises `/2`.
+
 A file record contains a normalized relative path, SHA-256, size, permitted mode, and surface owner. The contents of `files/` must match the manifest exactly.
 
 ## Determinism
@@ -108,6 +119,9 @@ The rejection set is closed. Each rejection has a stable code that does not chan
 | `bundle_too_large` | bundle exceeds the resource limit |
 | `too_many_files` | file count exceeds the resource limit |
 | `setup_passport_mismatch` | SetupVersion passport does not match the exact reference by stable ID or digest |
+| `adaptation_binding_missing` | Bundle v2 lacks its exact profile or component adaptation bindings |
+| `adaptation_binding_mismatch` | Bundle files do not close over the declared component owners and member paths |
+| `projection_profile_mismatch` | Bundle format or selected profile scope differs from the requested target |
 
 `path_too_long` limits the relative path and segment but **does not** check the
 Windows 260-character limit; this is a decision, not an omission. `MAX_PATH`

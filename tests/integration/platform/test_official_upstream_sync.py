@@ -16,6 +16,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ai_stp_passports.projections import PROJECTION_FORMAT
 from ai_stp_platform.models import (
     Account,
     AccountAuthorVerification,
@@ -27,7 +28,6 @@ from ai_stp_platform.models import (
     PublicProfile,
 )
 from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID, SOURCE_ID
-from ai_stp_platform.official_upstream.artifact import COMPONENT_TREE_FORMAT
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.errors import (
     CHANGED_REPOSITORY_IDENTITY,
@@ -85,6 +85,9 @@ def _command(**overrides: object) -> SourceUpsert:
         "reviewed_description": "Reviewed component body.",
         "reviewed_license": "MIT",
         "harness_id": "claude-code",
+        "target_scope": "global",
+        "projection_root": "skills/demo",
+        "projection_shape": "tree",
         "tags": ("code-review",),
     }
     payload.update(overrides)
@@ -283,7 +286,7 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         assert published.version == "1.0"
         assert published.owner_account_id == OFFICIAL_ACCOUNT_ID
         passport = dict(published.passport_document or {})
-        assert passport.get("artifact_format") == COMPONENT_TREE_FORMAT
+        assert passport.get("artifact_format") == PROJECTION_FORMAT
         assert str(passport.get("description", "")).startswith(
             "Demo is maintained by Acme Maintainers at https://github.com/acme/tool under MIT."
         )
@@ -317,7 +320,7 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         assert repaired_metadata.version == "1.1"
         assert (
             dict(repaired_metadata.passport_document or {}).get("artifact_format")
-            == COMPONENT_TREE_FORMAT
+            == PROJECTION_FORMAT
         )
         changed = _fetch(_tar("# Demo changed\n"))
         started = await run_sync(

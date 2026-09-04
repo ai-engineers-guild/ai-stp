@@ -70,7 +70,7 @@ The verbs are identical within each group, so there is no command list to memori
 
 ### PostgreSQL for platform tests
 
-Platform integration and ASGI tests (`tests/api/platform`, `tests/integration/platform`) require a live PostgreSQL 16 instance. Without `AI_STP_TEST_DB_URL`, they are **skipped**, and the `--cov-fail-under=90` coverage threshold usually fails.
+Platform integration and ASGI tests (`tests/api/platform`, `tests/integration/platform`) require a live PostgreSQL 16 instance. Without `AI_STP_TEST_DB_URL`, they are **skipped**.
 
 Locally (a separate container with a port exposed on the host; dev-compose exposes Postgres only to the internal network):
 

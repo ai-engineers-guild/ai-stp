@@ -13,10 +13,10 @@
 # credential is a secret somebody has to keep safe forever, and Trusted
 # Publishing replaces it with an identity PyPI verifies for each run.
 #
-# The candidate carries five distributions plus an SBOM, a release manifest and
-# `SHA256SUMS`. Only the distributions are uploaded, and only after their
-# digests are checked against those sums — uploading whatever the directory
-# happened to contain would make the download the only real check.
+# The candidate carries one `ai-stp-cli` distribution plus an SBOM, a release
+# manifest and `SHA256SUMS`. Only the distributions are uploaded, and only after
+# their digests are checked against those sums — uploading whatever the
+# directory happened to contain would make the download the only real check.
 name: publish-pypi
 
 on:
@@ -35,11 +35,6 @@ on:
         required: true
         type: choice
         options:
-          - foundation
-          - passports
-          - assurance
-          - contracts
-          - sources
           - cli
 
 permissions:
@@ -55,8 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
-      name: ${{ inputs.package == 'foundation' && 'pypi' || format('pypi-{0}', inputs.package) }}
-      url: https://pypi.org/project/ai-stp-${{ inputs.package }}/
+      name: pypi-cli
+      url: https://pypi.org/project/ai-stp-cli/
     permissions:
       contents: read
       id-token: write

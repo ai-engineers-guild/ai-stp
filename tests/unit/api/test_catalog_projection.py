@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -65,19 +66,19 @@ def _row_from_seed() -> PublicVersionRow:
     )
 
 
-def test_component_summary_projects_every_named_harness() -> None:
+def test_component_summary_projects_explicit_adaptation_facts() -> None:
     row = _row_from_seed()
-    primary = str(row.passport["harness_id"])
-    extra = "codex" if primary != "codex" else "claude-code"
-    variant = _row_with_passport_variant(
-        harness_ids=[primary, extra],
-        supported_os=["linux", "macos", "windows"],
-    )
-    summary = component_summary(variant)
+    adaptations = cast(list[object], row.passport["adaptations"])
+    assert isinstance(adaptations, list)
+    adaptation = adaptations[0]
+    assert isinstance(adaptation, dict)
+    adaptation_document = cast(dict[str, object], adaptation)
+    primary = str(adaptation_document["harness_id"])
+    summary = component_summary(row)
     assert summary.latest_harness_id == primary
-    assert list(summary.latest_harness_ids) == [primary, extra]
-    passport = ComponentVersionPassport.model_validate(variant.passport)
-    assert list(passport.supported_os) == ["linux", "macos", "windows"]
+    assert list(summary.latest_harness_ids) == [primary]
+    passport = ComponentVersionPassport.model_validate(row.passport)
+    assert list(passport.adaptations[0].scope_adaptations[0].supported_os) == []
 
 
 def test_latest_fields_map_from_passport() -> None:
@@ -85,9 +86,10 @@ def test_latest_fields_map_from_passport() -> None:
     summary = component_summary(row)
     assert summary.latest_name == row.passport["name"]
     assert summary.latest_description == row.passport["description"]
-    assert summary.latest_harness_id == row.passport["harness_id"]
+    adaptation = row.passport["adaptations"][0]
+    assert summary.latest_harness_id == adaptation["harness_id"]
     assert summary.latest_component_type == row.passport["component_type"]
-    assert summary.latest_projection_kind == row.passport["projection_kind"]
+    assert summary.latest_projection_kind == adaptation["scope_adaptations"][0]["projection_kind"]
     assert list(summary.latest_tags) == list(row.passport["tags"])
     assert summary.latest_version == row.passport["version"]
 
@@ -150,11 +152,12 @@ def test_project_trust_downgrades_inconsistent_authoritative() -> None:
 def test_passport_matches_filters_harness_tags_and_type() -> None:
     row = _row_from_seed()
     passport = dict(row.passport)
+    adaptation = cast(dict[str, object], cast(list[object], passport["adaptations"])[0])
     assert passport_matches_filters(
         passport,
         q=None,
         tags=list(passport.get("tags") or []),
-        harness_id=str(passport["harness_id"]),
+        harness_id=str(adaptation["harness_id"]),
         component_type=str(passport["component_type"]),
     )
     assert not passport_matches_filters(
@@ -352,13 +355,12 @@ def test_verify_passport_integrity_accepts_stored_bytes_without_later_defaults()
     """A published component may omit fields the model later grew with defaults.
 
     Prod 2026-08-24: every public component failed the revision seal because
-    `model_dump` injected empty `harness_ids` and `supported_os` that were not
+    `model_dump` injected optional fields that were not
     in the stored document. The digest over the stored bytes still matched.
     """
     row = _row_from_seed()
     passport = dict(row.passport)
-    passport.pop("harness_ids", None)
-    passport.pop("supported_os", None)
+    passport.pop("origin_harness_id", None)
     passport["revision_id"] = derive_revision_id(passport)
     stored = PublicVersionRow(
         metadata=row.metadata,
@@ -376,7 +378,8 @@ def test_verify_passport_integrity_accepts_stored_bytes_without_later_defaults()
     verify_passport_integrity(stored)
     summary = component_summary(stored)
     assert summary.stable_id == row.stable_id
-    assert list(summary.latest_harness_ids) == [row.passport["harness_id"]]
+    adaptation = cast(dict[str, object], cast(list[object], row.passport["adaptations"])[0])
+    assert list(summary.latest_harness_ids) == [adaptation["harness_id"]]
 
 
 def test_version_response_wires_stored_passport_not_model_defaults() -> None:
@@ -387,8 +390,7 @@ def test_version_response_wires_stored_passport_not_model_defaults() -> None:
     """
     row = _row_from_seed()
     passport = dict(row.passport)
-    passport.pop("harness_ids", None)
-    passport.pop("supported_os", None)
+    passport.pop("origin_harness_id", None)
     passport["revision_id"] = derive_revision_id(passport)
     digest = digest_bytes(PASSPORT_DIGEST_DOMAIN, canonize(passport))
     stored = PublicVersionRow(
@@ -406,10 +408,10 @@ def test_version_response_wires_stored_passport_not_model_defaults() -> None:
     )
     payload = component_version_response(stored).model_dump(mode="json")
     assert payload["passport"] == passport
-    assert "harness_ids" not in payload["passport"]
+    assert "origin_harness_id" not in payload["passport"]
     assert payload["passport_digest"] == digest
     dumped = ComponentVersionPassport.model_validate(passport).model_dump(mode="json")
-    assert "harness_ids" in dumped
+    assert "origin_harness_id" in dumped
     assert dumped != payload["passport"]
 
 
@@ -422,7 +424,7 @@ def test_verify_passport_integrity_rejects_unparsable_passport() -> None:
     """
     row = _row_from_seed()
     broken = dict(row.passport)
-    del broken["harness_id"]
+    del broken["adaptations"]
     bad = PublicVersionRow(
         metadata=row.metadata,
         passport=broken,

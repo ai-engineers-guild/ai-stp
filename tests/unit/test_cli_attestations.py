@@ -16,6 +16,7 @@ from ai_stp_cli.cloud import session
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import component_passports, versions
 from ai_stp_cli.local.cache import digest_of
+from ai_stp_contracts.first_party import versions as first_party_versions
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports import ComponentVersionPassport
@@ -24,11 +25,11 @@ ACCOUNT = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
 
 
 def _passport() -> ComponentVersionPassport:
-    raw = cast(
-        dict[str, JsonValue],
-        json.loads(Path("tests/golden/passports/component-version.json").read_text("utf-8")),
+    return next(
+        item.passport
+        for item in first_party_versions()
+        if isinstance(item.passport, ComponentVersionPassport)
     )
-    return ComponentVersionPassport.model_validate(raw["value"])
 
 
 def test_sign_writes_one_owner_only_full_record_and_load_verifies(
@@ -95,7 +96,7 @@ def test_sign_writes_one_owner_only_full_record_and_load_verifies(
             "check-id": "credentials",
             "policy-version": "1",
             "tool-version": ("runner=2.0",),
-            "harness-id": passport.harness_id,
+            "harness-id": passport.adaptations[0].harness_id,
             "harness-version": "1.2.3",
             "provider-version": "1.0.0",
             "test-case-id": ("credential-smoke",),

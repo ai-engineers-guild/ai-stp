@@ -3,7 +3,7 @@ description: "Decision to scaffold components as source/ plus projections/<harne
 last_verified: "2026-09-03"
 ---
 
-# ADR-0142: Authoring trees are source and projections, and a setup is its own git project
+# ADR-0148: Authoring trees are source and projections, and a setup is its own git project
 
 Status: accepted.
 

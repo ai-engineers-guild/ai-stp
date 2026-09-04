@@ -24,6 +24,7 @@ from ai_stp_contracts.safety_checks import (
 )
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
+from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.markdown import project_safe_markdown
@@ -330,10 +331,12 @@ def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> 
         latest_version=passport.version,  # type: ignore[arg-type]
         latest_name=passport.name,
         latest_description=_card_excerpt(row.metadata.presentation_bio or passport.description),
-        latest_harness_id=passport.harness_id,
+        latest_harness_id=cast(
+            HarnessId, sorted(item.harness_id for item in passport.adaptations)[0]
+        ),
         latest_harness_ids=named_harness_ids(passport.model_dump(mode="json")),  # type: ignore[arg-type]
         latest_component_type=passport.component_type,
-        latest_projection_kind=passport.projection_kind,
+        latest_projection_kind=passport.adaptations[0].scope_adaptations[0].projection_kind,
         latest_tags=list(passport.tags),  # type: ignore[arg-type]
         latest_lifecycle=row.lifecycle,  # type: ignore[arg-type]
         latest_trust=project_trust(row),

@@ -10,12 +10,16 @@ from typing import Any, cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes
+from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.provider_surfaces import TargetScope, provider_surface
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_foundation.versioning import format_version, parse_version
+from ai_stp_passports import ScopeAdaptation, build_projection, seal_adaptation
 from ai_stp_passports.envelope import derive_revision_id
-from ai_stp_passports.versions import ComponentVersionPassport
+from ai_stp_passports.versions import ComponentType, ComponentVersionPassport
 from ai_stp_platform.artifact_bind import bind_plan_artifact
 from ai_stp_platform.models import (
     CatalogMetadata,
@@ -23,10 +27,6 @@ from ai_stp_platform.models import (
     OfficialUpstreamSource,
     OfficialUpstreamSync,
     PublicationPlan,
-)
-from ai_stp_platform.official_upstream.artifact import (
-    COMPONENT_TREE_FORMAT,
-    package_component_tree,
 )
 from ai_stp_platform.official_upstream.attribution import build_description
 from ai_stp_platform.official_upstream.errors import (
@@ -94,7 +94,7 @@ async def run_sync(
             error_code=error.code,
         )
         raise error
-    artifact = package_component_tree(snapshot.files)
+    artifact, adaptation = _projection(source, snapshot)
     component_digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, artifact)
     if await _already_published(session, source.stable_id, component_digest):
         _store_identity(source, snapshot, component_digest)
@@ -122,6 +122,7 @@ async def run_sync(
             source,
             snapshot,
             artifact=artifact,
+            adaptation=adaptation,
             component_digest=component_digest,
             store=owned_store,
             now=moment,
@@ -153,6 +154,98 @@ async def run_sync(
     return "publication_started"
 
 
+def _projection(
+    source: OfficialUpstreamSource, snapshot: SourceSnapshot
+) -> tuple[bytes, JsonValue]:
+    """Materialize one operator-declared native projection without path inference."""
+    target_scope = source.target_scope or ""
+    projection_root = source.projection_root or ""
+    projection_shape = source.projection_shape or ""
+    if not projection_root or projection_shape not in {"file", "tree"}:
+        raise OfficialUpstreamError(
+            FAILED_VALIDATION, "official source has no supported explicit projection target"
+        )
+    try:
+        surface = provider_surface(
+            cast(HarnessId, source.harness_id), cast(TargetScope, target_scope)
+        )
+    except KeyError as error:
+        raise OfficialUpstreamError(
+            FAILED_VALIDATION, "official source harness is unsupported"
+        ) from error
+    ordered = sorted(snapshot.files.items())
+    if not ordered or (projection_shape == "file" and len(ordered) != 1):
+        raise OfficialUpstreamError(FAILED_VALIDATION, "official source projection shape differs")
+    source_prefix = (source.component_subpath or "").strip("/")
+    projected: dict[str, bytes] = {}
+    for source_path, content in ordered:
+        relative = source_path.strip("/")
+        if source_prefix and relative.startswith(f"{source_prefix}/"):
+            relative = relative[len(source_prefix) + 1 :]
+        target_path = (
+            projection_root
+            if projection_shape == "file"
+            else f"{projection_root.rstrip('/')}/{relative}"
+        )
+        projected[target_path] = content
+    members: list[JsonValue] = [
+        {
+            "path": path,
+            "object_type": "file",
+            "mode": 0o644,
+            "content_artifact": {
+                "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, content),
+                "size_bytes": len(content),
+            },
+            "native_ids": [],
+            "content_format": "application/octet-stream",
+            "parser_id": None,
+            "ownership": "whole",
+            "ownership_key": None,
+            "write_semantics": "replace",
+            "withdrawal_semantics": "remove_path",
+        }
+        for path, content in projected.items()
+    ]
+    scope_document: dict[str, JsonValue] = {
+        "scope": target_scope,
+        "projection_format": "ai-stp-adaptation-projection/1",
+        "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
+        "provider_component_kind": source.component_type,
+        "projection_kind": source.projection_kind,
+        "required_surface": {
+            "profile_id": surface.profile_id,
+            "profile_digest": surface.profile_digest,
+            "bundle_format": surface.bundle_format,
+        },
+        "permissions": {"filesystem": [], "network": [], "process": []},
+        "members": members,
+        "supported_harness_versions": [],
+        "supported_os": [],
+        "supported_arch": [],
+        "technical_support": "experimental",
+        "technical_support_reason": "operator-reviewed official upstream projection",
+        "semantic_losses": [],
+    }
+    provisional = ScopeAdaptation.model_validate(scope_document)
+    projection = build_projection(provisional, projected)
+    scope_document["projection_artifact"] = {
+        "digest": digest_bytes(ARTIFACT_DIGEST_DOMAIN, projection),
+        "size_bytes": len(projection),
+    }
+    adaptation = seal_adaptation(
+        {
+            "harness_id": source.harness_id,
+            "implementation_mode": "native",
+            "source_artifact": None,
+            "transform": None,
+            "logical_component_type": cast(ComponentType, source.component_type),
+            "scope_adaptations": [scope_document],
+        }
+    )
+    return projection, cast(JsonValue, adaptation.model_dump(mode="json"))
+
+
 def _store_identity(
     source: OfficialUpstreamSource, snapshot: SourceSnapshot, component_digest: str
 ) -> None:
@@ -177,7 +270,8 @@ async def _already_published(session: AsyncSession, stable_id: str, digest: str)
         )
     ).all()
     return any(
-        isinstance(passport, dict) and passport.get("artifact_format") == COMPONENT_TREE_FORMAT
+        isinstance(passport, dict)
+        and passport.get("artifact_format") == "ai-stp-adaptation-projection/1"
         for passport in passports
     )
 
@@ -188,6 +282,7 @@ async def _start_publication(
     snapshot: SourceSnapshot,
     *,
     artifact: bytes,
+    adaptation: JsonValue,
     component_digest: str,
     store: ImmutableObjectStore,
     now: datetime,
@@ -223,6 +318,7 @@ async def _start_publication(
         description=description,
         license_spdx=license_spdx,
         created_at=format_timestamp(now),
+        adaptation=adaptation,
     )
     model, invalid = validate_publication_passport(
         passport,
@@ -357,6 +453,7 @@ def _passport(
     description: str,
     license_spdx: str,
     created_at: str,
+    adaptation: JsonValue,
 ) -> dict[str, object]:
     source_links = source_links_for_snapshot(snapshot)
     passport: dict[str, object] = {
@@ -395,10 +492,7 @@ def _passport(
         "tags": list(source.tags),
         "source": _git_source_fields(source, snapshot),
         "artifact": {"digest": component_digest, "size_bytes": size_bytes},
-        "artifact_format": COMPONENT_TREE_FORMAT,
-        "harness_id": source.harness_id,
-        "harness_ids": [],
-        "supported_os": [],
+        "artifact_format": "ai-stp-adaptation-projection/1",
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -406,8 +500,8 @@ def _passport(
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
         "component_type": source.component_type,
-        "projection_kind": source.projection_kind,
-        "variant_id": None,
+        "origin_harness_id": source.harness_id,
+        "adaptations": [adaptation],
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -419,8 +513,6 @@ def _passport(
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [],
-        "native_ids": [],
     }
     passport["revision_id"] = derive_revision_id(cast(Any, passport))
     sealed = cast(

@@ -1578,13 +1578,8 @@ def _ran(code: int, out: str):
     return _run_cli
 
 
-def test_a_real_component_tree_keeps_its_skill_below_the_root() -> None:
-    """The layout that caused all of this, pinned against the real corpus.
-
-    A `component-tree` artefact carries `component.json` beside a `files/`
-    directory, so the artefact root is never itself a skill package. Both
-    engines load a package, and handing them the root is what refused
-    ninety-six components for content nothing had read.
+def test_a_real_projection_keeps_its_skill_below_the_root() -> None:
+    """A canonical projection exposes the native skill package, not its ZIP root.
 
     Asserted against a published first-party artefact rather than a fixture:
     a fixture agreeing with the code proves only that they agree.
@@ -1598,7 +1593,7 @@ def test_a_real_component_tree_keeps_its_skill_below_the_root() -> None:
         document = passport.model_dump(mode="json") if passport is not None else {}
         return (
             document.get("kind") == "component"
-            and document.get("artifact_format") == "ai-stp-component-tree/1"
+            and document.get("artifact_format") == "ai-stp-adaptation-projection/1"
             and document.get("component_type") == "skill"
         )
 
@@ -1608,7 +1603,7 @@ def test_a_real_component_tree_keeps_its_skill_below_the_root() -> None:
         tree = materialize_artifact(workdir, item.artifact)
         packages = skill_gate._packages(tree)
 
-        assert packages, "a skill component tree must carry a SKILL.md somewhere"
+        assert packages, "a skill projection must carry a SKILL.md somewhere"
         assert tree not in packages, "the artefact root is not a skill package"
         assert all((package / "SKILL.md").is_file() for package in packages)
 

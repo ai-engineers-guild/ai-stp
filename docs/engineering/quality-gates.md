@@ -1,6 +1,6 @@
 ---
 description: "Required checks and release evidence."
-last_verified: "2026-08-29"
+last_verified: "2026-09-04"
 ---
 
 # Quality gates
@@ -43,10 +43,11 @@ must be able to describe what it replaced.
 Since Phase 1, `just check` has included Ruff format/check and Pyright in one
 `back-static` run (strict for `packages/`, `apps/`, and `tests/`, basic for
 `docs_scripts/` until the validators are fully typed), pytest with unit, property,
-contract, and golden checks (`back-test`), the coverage threshold for `packages/`
-and `apps/` (see below), byte parity between `schemas/v1` and the models and the
-freshness of Skill projections (both in `back-static`), and installation of the
-built wheel into a clean environment (`back-regress`).
+contract, and golden checks (`back-test`), a coverage report for `packages/`
+and `apps/` that does not fail on a percentage (`ADR-0147`, see below), byte
+parity between `schemas/v1` and the models and the freshness of Skill projections
+(both in `back-static`), and installation of the built wheel into a clean
+environment (`back-regress`).
 
 ### Font redistribution conditions
 
@@ -84,45 +85,28 @@ behalf. `--strict` returns a non-zero code and is intended for the release gate
 after the decision is made. `fonttools` is supplied through `uv run --with` and is
 not part of the project lockfile.
 
-### The coverage threshold is compared with the rounded value
+### Coverage is reported, not a fail gate
 
-`--cov-fail-under=90` is set in `pyproject.toml`, as is `precision = 2`, and
-`back-test` additionally rereads the recorded data with a separate
-`coverage report --precision=2 --fail-under` call. The tracing core is `sysmon`
+Coverage is collected on `packages/` and `apps/`, combined from the Linux
+shards, and printed at `precision = 2`. A percentage does not fail
+`just back-test` or public `check`
+(`docs/adr/ADR-0147-the-test-gate-does-not-fail-on-a-coverage-percentage.md`).
+The tracing core is `sysmon`
 (`docs/adr/ADR-0117-the-test-run-does-not-repeat-expensive-work.md`);
 `concurrency` must not contain `greenlet`, or coverage silently falls back to
 `ctrace`.
 
-The 90% threshold is a project-owner decision. The `95` and `94.55` figures below
-are retained because they reproduce the incident, not because they are current
-settings.
+The historical 90% fail-under compared a rounded total. That is why
+`precision = 2` stays on the printed report if a floor is restored:
+coverage's `should_fail_under` evaluates `round(total, precision) < fail_under`.
+At the former default `precision = 0`, a threshold of `95` accepted `94.55`.
+pytest-cov printed `FAIL Required test coverage of 95% not reached` and still
+exited 0 (`letya999@6a41c28`). Two decimals narrow that band from half a percent
+to `0.005`.
 
-The reason for this construction is mechanical and verified. `coverage` decides as
-follows:
-
-```python
-return round(total, precision) < fail_under
-```
-
-With the former default `precision = 0`, a threshold of `95` actually accepted
-`94.55` and `94.88`: rounding produced `95`, making `95 < 95` false. At the same
-time, `pytest-cov` printed its failure line using the unrounded value, so the run
-reported `FAIL Required test coverage of 95% not reached. Total coverage: 94.55%`
-and still succeeded at step, job, and run level. The green check meant not that the
-threshold passed, but that the result fell into a half-percent band immediately
-below it.
-
-This was reproduced at `letya999@6a41c28`: `just check` returned `0` while printing
-the failure at `94.88%`. The same run without `AI_STP_TEST_DB_URL` produced `87.38%`
-and correctly returned `1`; the difference was not the test set, but entry into the
-band.
-
-`precision = 2` narrows the band from half a percent to `0.005`. It cannot remove
-the band entirely because the comparison is rounded by design. Therefore the
-second call remains: it reads the recorded data and fails independently, with the
-same explicit precision. Neither half can be removed: one sets comparison
-precision, while the other prevents the gate from depending only on pytest's exit
-code.
+`back-test` still rereads the recorded data with
+`coverage report --precision=2` so the local log matches the combined CI
+report. It does not pass `--fail-under`.
 
 The mandatory `back-resource` promotes both a direct `ResourceWarning` and a
 `PytestUnraisableExceptionWarning` to errors: the SQLite finalizer in Python 3.13+
@@ -134,9 +118,8 @@ long-running agent process, not only the ordinary short-lived CLI process. Share
 whole Python workspace.
 
 Platform tests with PostgreSQL (`tests/api/platform`, `tests/integration/platform`)
-read `AI_STP_TEST_DB_URL`. Without it they skip; coverage falls below the threshold.
-The local DSN and container are in `QUICKSTART.md`; CI starts `postgres:16` and sets
-the same URL.
+read `AI_STP_TEST_DB_URL`. Without it they skip. The local DSN and container are in
+`QUICKSTART.md`; CI starts `postgres:16` and sets the same URL.
 
 Test isolation is defined by the repository, not by a test author's memory.
 `tests/conftest.py` redirects XDG directories into a temporary tree and replaces
@@ -246,7 +229,7 @@ Each group uses the same verbs, so commands are derived rather than memorized:
 |---|---|---|---|
 | `gen` — rewrite machine text | indexes and tables | `ruff format`, `schemas/v1`, Skill projections | `prettier --write`, typed client from the contract |
 | `static` — read source without running it | doc linters, Markdown, YAML, index divergence | `ruff format --check`, `ruff check`, `pyright`, schema and projection parity | ESLint, Prettier check, TypeScript 7 |
-| `test` — run tests | validator unit tests | `pytest` with coverage threshold | Vitest with coverage thresholds |
+| `test` — run tests | validator unit tests | `pytest` with coverage report | Vitest with coverage thresholds |
 | `build` — build an artifact | `mkdocs build --strict` | all package wheels in `dist/` | `next build` |
 | `regress` — run the built artifact in the real engine | Mermaid diagram rendering | wheel installation in a clean venv and through `uv tool` | Playwright over the production build |
 | `check` — group aggregate | `static`, `test`, `build`, `regress` | same | same |

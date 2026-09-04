@@ -121,6 +121,10 @@ security:
     {{bunreq}}
     cd apps/web && bun run audit
 
+# Offline check of one `ai-stp-estate-release/1` record (`docs/contracts/estate-release.md`).
+estate-validate path:
+    {{run}} python -m release_scripts.validate_estate_record "{{path}}"
+
 # Deterministic safety evidence; the script disables external CLI and network.
 safety-benchmark *args:
     {{run}} python scripts/safety/benchmark_offline.py {{args}}
@@ -197,6 +201,14 @@ evidence-providers tag harness="":
         --tag "{{tag}}" \
         {{ if harness == "" { "" } else { prepend("--harness ", harness) } }}
 
+# Drives every non-global provider profile through a mutating disposable-target
+# lifecycle with a consumer-produced adaptation-bound bundle v2. This is local
+# source evidence before release; `evidence-providers` remains the released-byte
+# proof after attestation and publication.
+evidence-provider-scopes setup_systems_root:
+    uv run --locked python -m release_scripts.verify_scoped_provider_slice \
+        --setup-systems-root "{{setup_systems_root}}"
+
 # Вторая половина того же вопроса: `evidence-providers` доказывает контракт и
 # байты, а этот срез ведёт каждый выпущенный провайдер через **потребительский**
 # путь — `harness install/status/update/remove` вызовами самого `ai-stp`.
@@ -209,12 +221,13 @@ evidence-providers tag harness="":
 #
 # Строка на харнесс, исход из пяти, и отсутствующая строка — ошибка, а не ноль
 # отказов. `GH_CONFIG_DIR` нужен по той же причине, что и соседу.
-evidence-software tag harness="":
+evidence-software tag harness="" acquire="":
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_software_slice \
         --tag "{{tag}}" \
-        {{ if harness == "" { "" } else { prepend("--harness ", harness) } }}
+        {{ if harness == "" { "" } else { prepend("--harness ", harness) } }} \
+        {{ if acquire == "" { "" } else { "--acquire" } }}
 
 # Третий вопрос той же пары, и единственный про **конфигурацию**.
 # `evidence-providers` спрашивает контракт, `evidence-software` — программу,
@@ -389,19 +402,11 @@ back-static:
     {{run}} python release_scripts/provider_kit.py --check provider-kit/v3
     {{py}} {{scripts}}/skill_projections.py --check
 
-# Порог покрытия задан в pyproject и является частью этого рецепта.
+# Coverage is printed, not a fail-under (ADR-0147). The second call reads
+# the data pytest-cov wrote so the local log matches CI's combined report.
 back-test:
     {{run}} python -m pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}}
-    # Порог проверяется второй раз, по записанным данным покрытия. Причина не
-    # теоретическая: прогон CI на letya999@6a41c28 напечатал ровно строку
-    # `FAIL Required test coverage of 95% not reached. Total coverage: 94.55%`,
-    # продолжил следующим рецептом и завершился успехом на уровне step, job и
-    # run. Локально та же цепочка на тех же закреплённых версиях (pytest 9.1.1,
-    # pytest-cov 7.1.0, coverage 7.15.3) корректно возвращает 1, поэтому
-    # механизм расхождения не воспроизведён. Пока он неизвестен, гейт не должен
-    # зависеть только от кода возврата pytest: этот вызов перечитывает данные и
-    # отказывает сам.
-    {{run}} python -m coverage report --precision=2 --fail-under=90
+    {{run}} python -m coverage report --precision=2
 
 # Итерационный прогон без покрытия. Сбор покрытия стоит около трети времени
 # гейта (ADR-0104: 325 с с ним против 252 с без), и в петле правка-запуск он не

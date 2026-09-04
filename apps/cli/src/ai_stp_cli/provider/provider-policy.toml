@@ -66,3 +66,52 @@ verified_publisher = true
 repository = "github.com/NDDev-OpenNetwork/antigravity-setup-system"
 signer_workflow = "NDDev-OpenNetwork/antigravity-setup-system/.github/workflows/release.yml"
 verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "claude-setup-system"
+repository = "NDDev-OpenNetwork/claude-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "codex-setup-system"
+repository = "NDDev-OpenNetwork/codex-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "cursor-setup-system"
+repository = "NDDev-OpenNetwork/cursor-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "grok-setup-system"
+repository = "NDDev-OpenNetwork/grok-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "pi-setup-system"
+repository = "NDDev-OpenNetwork/pi-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "opencode-setup-system"
+repository = "NDDev-OpenNetwork/opencode-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+
+[[index_publishers]]
+pypi_project = "antigravity-setup-system"
+repository = "NDDev-OpenNetwork/antigravity-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true

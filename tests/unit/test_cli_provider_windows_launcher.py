@@ -14,13 +14,14 @@ probe.
 
 from __future__ import annotations
 
+import json
 import os
 import platform
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import pytest
 
@@ -188,36 +189,58 @@ launcher.run(
 
 
 def _children_of(pid: int) -> list[int]:
-    found = subprocess.run(
-        [
-            "powershell",
-            "-NoProfile",
-            "-Command",
-            f"Get-CimInstance Win32_Process -Filter 'ParentProcessId={pid}' "
-            "| Select-Object -ExpandProperty ProcessId",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=60,
-    )
-    return [int(line) for line in found.stdout.split() if line.strip().isdigit()]
+    """Read the process tree from Toolhelp without the runner's WMI service."""
+    import ctypes
+    from ctypes import wintypes
+
+    class ProcessEntry(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD),
+            ("cntUsage", wintypes.DWORD),
+            ("th32ProcessID", wintypes.DWORD),
+            ("th32DefaultHeapID", ctypes.c_size_t),
+            ("th32ModuleID", wintypes.DWORD),
+            ("cntThreads", wintypes.DWORD),
+            ("th32ParentProcessID", wintypes.DWORD),
+            ("pcPriClassBase", wintypes.LONG),
+            ("dwFlags", wintypes.DWORD),
+            ("szExeFile", wintypes.WCHAR * 260),
+        ]
+
+    load_library: Any = vars(ctypes)["WinDLL"]
+    kernel: Any = load_library("kernel32", use_last_error=True)
+    snapshot = kernel.CreateToolhelp32Snapshot(0x00000002, 0)
+    if snapshot == ctypes.c_void_p(-1).value:
+        return []
+    entry = ProcessEntry()
+    entry.dwSize = ctypes.sizeof(entry)
+    children: list[int] = []
+    try:
+        present = kernel.Process32FirstW(snapshot, ctypes.byref(entry))
+        while present:
+            if int(entry.th32ParentProcessID) == pid:
+                children.append(int(entry.th32ProcessID))
+            present = kernel.Process32NextW(snapshot, ctypes.byref(entry))
+    finally:
+        kernel.CloseHandle(snapshot)
+    return children
 
 
 def _alive(pid: int) -> bool:
-    found = subprocess.run(
-        [
-            "powershell",
-            "-NoProfile",
-            "-Command",
-            f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}') -ne $null",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=60,
-    )
-    return found.stdout.strip().casefold() == "true"
+    import ctypes
+    from ctypes import wintypes
+
+    load_library: Any = vars(ctypes)["WinDLL"]
+    kernel: Any = load_library("kernel32", use_last_error=True)
+    handle = kernel.OpenProcess(0x1000, False, pid)
+    if not handle:
+        return False
+    exit_code = wintypes.DWORD()
+    try:
+        queried = kernel.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+        return bool(queried) and exit_code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel.CloseHandle(handle)
 
 
 @pytest.mark.skipif(not WINDOWS, reason="exercises the real job object and the grant lease")
@@ -259,6 +282,23 @@ def test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it(
         assert grandchildren, "the parent never started its isolated child"
         child = grandchildren[0]
         assert _alive(child)
+        lease = windows_launcher._lease_path()  # pyright: ignore[reportPrivateUsage]
+        leased = time.monotonic() + 30
+        target_text = str(target.resolve())
+        while time.monotonic() < leased:
+            try:
+                paths = {
+                    json.loads(line).get("path")
+                    for line in lease.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                }
+                if target_text in paths:
+                    break
+            except (OSError, ValueError, AttributeError):
+                pass
+            time.sleep(0.25)
+        else:
+            pytest.fail("the grant was not durably leased before the parent kill")
     finally:
         parent.kill()
         parent.wait(timeout=60)
@@ -269,4 +309,4 @@ def test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it(
     assert not _alive(child), "the isolated child outlived its parent"
 
     swept = windows_launcher.sweep_abandoned_grants()
-    assert str(target.resolve()) in swept, swept
+    assert target_text in swept, swept

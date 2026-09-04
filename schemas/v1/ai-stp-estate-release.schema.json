@@ -1,0 +1,349 @@
+{
+  "$defs": {
+    "EstateConsumer": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Commit",
+          "type": "string"
+        },
+        "release_url": {
+          "default": "",
+          "title": "Release Url",
+          "type": "string"
+        },
+        "repository": {
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        },
+        "tag": {
+          "default": "",
+          "title": "Tag",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "commit"
+      ],
+      "title": "EstateConsumer",
+      "type": "object"
+    },
+    "EstateDistribution": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "filename": {
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "filename",
+        "digest"
+      ],
+      "title": "EstateDistribution",
+      "type": "object"
+    },
+    "EstateEvidenceRow": {
+      "additionalProperties": false,
+      "properties": {
+        "arch": {
+          "minLength": 1,
+          "title": "Arch",
+          "type": "string"
+        },
+        "consumer_commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Consumer Commit",
+          "type": "string"
+        },
+        "os": {
+          "minLength": 1,
+          "title": "Os",
+          "type": "string"
+        },
+        "provider_tag": {
+          "minLength": 1,
+          "title": "Provider Tag",
+          "type": "string"
+        },
+        "result": {
+          "enum": [
+            "passed",
+            "failed",
+            "skipped",
+            "inconclusive"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "run_id": {
+          "default": "",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "slice": {
+          "minLength": 1,
+          "title": "Slice",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slice",
+        "os",
+        "arch",
+        "consumer_commit",
+        "provider_tag",
+        "result"
+      ],
+      "title": "EstateEvidenceRow",
+      "type": "object"
+    },
+    "EstateNativeArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "filename": {
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filename",
+        "digest"
+      ],
+      "title": "EstateNativeArtifact",
+      "type": "object"
+    },
+    "EstateProvider": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Commit",
+          "type": "string"
+        },
+        "native_artifacts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EstateNativeArtifact"
+          },
+          "title": "Native Artifacts",
+          "type": "array"
+        },
+        "repository": {
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        },
+        "tag": {
+          "minLength": 1,
+          "title": "Tag",
+          "type": "string"
+        },
+        "wheels": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EstateDistribution"
+          },
+          "title": "Wheels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "repository",
+        "commit",
+        "tag"
+      ],
+      "title": "EstateProvider",
+      "type": "object"
+    },
+    "EstateProviderKit": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "digest"
+      ],
+      "title": "EstateProviderKit",
+      "type": "object"
+    },
+    "EstateWeb": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Commit",
+          "type": "string"
+        },
+        "image_digest": {
+          "default": "",
+          "title": "Image Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "commit"
+      ],
+      "title": "EstateWeb",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:ai-stp-estate-release",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One cut of the consumer bound to exact provider evidence.",
+  "properties": {
+    "checksums_digest": {
+      "default": "",
+      "title": "Checksums Digest",
+      "type": "string"
+    },
+    "consumer": {
+      "$ref": "#/$defs/EstateConsumer"
+    },
+    "created_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "distributions": {
+      "items": {
+        "$ref": "#/$defs/EstateDistribution"
+      },
+      "title": "Distributions",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EstateEvidenceRow"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "known_limitations": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Known Limitations",
+      "type": "array"
+    },
+    "provider_kit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EstateProviderKit"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "providers": {
+      "items": {
+        "$ref": "#/$defs/EstateProvider"
+      },
+      "title": "Providers",
+      "type": "array"
+    },
+    "record_id": {
+      "minLength": 1,
+      "title": "Record Id",
+      "type": "string"
+    },
+    "record_provenance": {
+      "default": "",
+      "title": "Record Provenance",
+      "type": "string"
+    },
+    "required_slices": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Slices",
+      "type": "array"
+    },
+    "sbom_digest": {
+      "default": "",
+      "title": "Sbom Digest",
+      "type": "string"
+    },
+    "schema_id": {
+      "const": "ai-stp-estate-release/1",
+      "title": "Schema Id",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "complete",
+        "incomplete",
+        "failed"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "web": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EstateWeb"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema_id",
+    "record_id",
+    "created_at",
+    "consumer",
+    "distributions",
+    "providers",
+    "evidence",
+    "verdict"
+  ],
+  "title": "EstateRelease",
+  "type": "object"
+}

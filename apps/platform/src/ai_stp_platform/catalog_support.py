@@ -13,6 +13,7 @@ from ai_stp_contracts.catalog import (
 )
 from ai_stp_foundation.harnesses import SUPPORT_TIERS
 from ai_stp_foundation.timestamps import TimestampError, parse_timestamp
+from ai_stp_platform.catalog_query_language import named_harness_ids
 from ai_stp_platform.catalog_read import CatalogIntegrityError
 
 _NOT_VERIFIED_RESULTS = frozenset({"warning", "failed", "degraded", "not_run"})
@@ -41,8 +42,11 @@ def project_support(
     The stored JSON is treated as untrusted input. Invalid provenance never
     becomes a successful support claim.
     """
-    raw_harness = passport.get("harness_id")
-    tier = support_tier_for_harness(str(raw_harness))
+    harnesses = named_harness_ids(passport)
+    if not harnesses:
+        raise CatalogIntegrityError("catalog passport names no supported harness")
+    tiers = [support_tier_for_harness(harness_id) for harness_id in harnesses]
+    tier: SupportTier = "beta" if "beta" in tiers else "primary"
     rows: list[CatalogSupportEvidence] = []
     invalid_evidence = False
     seen_contexts: dict[tuple[str, ...], CatalogSupportEvidence] = {}

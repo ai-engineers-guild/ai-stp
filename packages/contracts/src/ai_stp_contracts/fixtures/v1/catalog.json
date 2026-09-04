@@ -271,7 +271,7 @@
         "versions": [
           {
             "version": "1.0",
-            "passport_digest": "sha256:5e4b23e230936350a53ab8bdcdcc83b5abe5b6b4cad55ab5063cfe18970b8712",
+            "passport_digest": "sha256:50b6bdc506a595ad182822793d10870247d4cb4654a4294124fae4cbb72b0e2e",
             "lifecycle": "active",
             "trust": {
               "trust_lane": "experimental",
@@ -289,7 +289,7 @@
           },
           {
             "version": "1.2",
-            "passport_digest": "sha256:4df65c32960d9722726bb70b5154837e5d145966575bbdaa56fc6616fb61b2f4",
+            "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
             "lifecycle": "active",
             "trust": {
               "trust_lane": "experimental",
@@ -456,7 +456,7 @@
           "schema_version": 1,
           "kind": "component",
           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-          "revision_id": "revision_96370e726c35370359c21a99c5aff141f4fc69a9a536699ff91370fb1403263a",
+          "revision_id": "revision_14c0776d573f024fde2407db9dad40cce3320c07ff2ca19f454fbb88e0db5c90",
           "parent_revision_ids": [],
           "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "created_at": "2026-08-05T00:00:00.000Z",
@@ -474,7 +474,6 @@
             "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "size_bytes": 1024
           },
-          "harness_id": "claude-code",
           "required_env": [],
           "requires_credentials": false,
           "requires_authorization": "none",
@@ -490,8 +489,65 @@
           },
           "compatibility_evidence_refs": [],
           "component_type": "skill",
-          "projection_kind": "native_files",
-          "variant_id": null,
+          "origin_harness_id": "claude-code",
+          "adaptations": [
+            {
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "harness_id": "claude-code",
+              "implementation_mode": "native",
+              "source_artifact": null,
+              "transform": null,
+              "logical_component_type": "skill",
+              "scope_adaptations": [
+                {
+                  "scope": "global",
+                  "projection_format": "ai-stp-adaptation-projection/1",
+                  "projection_artifact": {
+                    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "size_bytes": 1024
+                  },
+                  "provider_component_kind": "skill",
+                  "projection_kind": "native_files",
+                  "required_surface": {
+                    "profile_id": "claude-code/fixture/1",
+                    "profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "bundle_format": "ai-stp-bundle/1"
+                  },
+                  "permissions": {
+                    "filesystem": [],
+                    "network": [],
+                    "process": []
+                  },
+                  "members": [
+                    {
+                      "path": "fixtures/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "object_type": "file",
+                      "mode": 420,
+                      "content_artifact": {
+                        "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                        "size_bytes": 1024
+                      },
+                      "native_ids": [
+                        "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                      ],
+                      "content_format": "application/octet-stream",
+                      "parser_id": null,
+                      "ownership": "whole",
+                      "ownership_key": null,
+                      "write_semantics": "replace",
+                      "withdrawal_semantics": "remove_path"
+                    }
+                  ],
+                  "supported_harness_versions": [],
+                  "supported_os": [],
+                  "supported_arch": [],
+                  "technical_support": "experimental",
+                  "technical_support_reason": "synthetic catalog seed",
+                  "semantic_losses": []
+                }
+              ]
+            }
+          ],
           "provides_capabilities": [],
           "requires_components": [],
           "requires_capabilities": [],
@@ -502,13 +558,9 @@
             "mcp": [],
             "agents": [],
             "plugins": []
-          },
-          "managed_paths": [],
-          "native_ids": [],
-          "harness_ids": [],
-          "supported_os": []
+          }
         },
-        "passport_digest": "sha256:4df65c32960d9722726bb70b5154837e5d145966575bbdaa56fc6616fb61b2f4",
+        "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
         "lifecycle": "active",
         "trust": {
           "trust_lane": "experimental",
@@ -544,7 +596,7 @@
           "schema_version": 1,
           "kind": "component",
           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-          "revision_id": "revision_c2ef2e74d79879bda31bcebee4f0f9d71031750f1f8d682d59d42845c248fc6f",
+          "revision_id": "revision_8261a24bf74bc47154db5cb194b721fa429e20afb6c5fce0c66c2b6075ce7ee6",
           "parent_revision_ids": [],
           "owner_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "created_at": "2026-08-05T00:00:00.000Z",
@@ -562,7 +614,6 @@
             "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "size_bytes": 1024
           },
-          "harness_id": "claude-code",
           "required_env": [],
           "requires_credentials": false,
           "requires_authorization": "none",
@@ -578,8 +629,65 @@
           },
           "compatibility_evidence_refs": [],
           "component_type": "skill",
-          "projection_kind": "native_files",
-          "variant_id": null,
+          "origin_harness_id": "claude-code",
+          "adaptations": [
+            {
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "harness_id": "claude-code",
+              "implementation_mode": "native",
+              "source_artifact": null,
+              "transform": null,
+              "logical_component_type": "skill",
+              "scope_adaptations": [
+                {
+                  "scope": "global",
+                  "projection_format": "ai-stp-adaptation-projection/1",
+                  "projection_artifact": {
+                    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "size_bytes": 1024
+                  },
+                  "provider_component_kind": "skill",
+                  "projection_kind": "native_files",
+                  "required_surface": {
+                    "profile_id": "claude-code/fixture/1",
+                    "profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "bundle_format": "ai-stp-bundle/1"
+                  },
+                  "permissions": {
+                    "filesystem": [],
+                    "network": [],
+                    "process": []
+                  },
+                  "members": [
+                    {
+                      "path": "fixtures/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "object_type": "file",
+                      "mode": 420,
+                      "content_artifact": {
+                        "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                        "size_bytes": 1024
+                      },
+                      "native_ids": [
+                        "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                      ],
+                      "content_format": "application/octet-stream",
+                      "parser_id": null,
+                      "ownership": "whole",
+                      "ownership_key": null,
+                      "write_semantics": "replace",
+                      "withdrawal_semantics": "remove_path"
+                    }
+                  ],
+                  "supported_harness_versions": [],
+                  "supported_os": [],
+                  "supported_arch": [],
+                  "technical_support": "experimental",
+                  "technical_support_reason": "synthetic catalog seed",
+                  "semantic_losses": []
+                }
+              ]
+            }
+          ],
           "provides_capabilities": [],
           "requires_components": [],
           "requires_capabilities": [],
@@ -590,11 +698,9 @@
             "mcp": [],
             "agents": [],
             "plugins": []
-          },
-          "managed_paths": [],
-          "native_ids": []
+          }
         },
-        "passport_digest": "sha256:a0b29e900e8e1f0a5269a5094500cebc1829dc346b1f0147c5e6603eeddb79c5",
+        "passport_digest": "sha256:1d0c7a5437939d2b984300d8070b2e5a13b11a86c5f7d4227bd29c08bb5ef986",
         "lifecycle": "active",
         "trust": {
           "trust_lane": "experimental",

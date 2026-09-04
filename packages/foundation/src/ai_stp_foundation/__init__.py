@@ -6,6 +6,11 @@ machine output envelope. Normative sources: SPEC-015, docs/contracts/
 canonical-data.md and docs/contracts/cli-json.md.
 """
 
+from ai_stp_foundation.adaptations import (
+    ADAPTATION_ID_PATTERN,
+    adaptation_id,
+    is_valid_adaptation_id,
+)
 from ai_stp_foundation.canonical import CanonicalizationError, canonize, from_json_bytes
 from ai_stp_foundation.digests import (
     DIGEST_DOMAINS,
@@ -45,6 +50,7 @@ from ai_stp_foundation.versioning import (
 )
 
 __all__ = [
+    "ADAPTATION_ID_PATTERN",
     "DIGEST_DOMAINS",
     "ERROR_CODES",
     "ID_PREFIXES",
@@ -61,6 +67,7 @@ __all__ = [
     "SuccessEnvelopeReader",
     "TimestampError",
     "VersionError",
+    "adaptation_id",
     "canonize",
     "compare_versions",
     "digest_bytes",
@@ -72,6 +79,7 @@ __all__ = [
     "from_json_bytes",
     "is_digest",
     "is_registered_code",
+    "is_valid_adaptation_id",
     "is_valid_id",
     "is_valid_revision_id",
     "is_valid_timestamp",

@@ -1,6 +1,6 @@
 ---
 description: "Provider release manifest, trust, verification, and rollback protection."
-last_verified: "2026-08-25"
+last_verified: "2026-09-04"
 ---
 
 # Provider release
@@ -54,6 +54,15 @@ GitHub attestation verification, the level becomes `verified_publisher`, not
 through the attestation path; `provider-build-attestation` remains an explicit
 form of the same choice. An empty `releases` list still installs nothing through
 the Ed25519 path: OpenNetwork bytes are not added there.
+
+The same seven providers are also pinned as `[[index_publishers]]` tables:
+`pypi_project`, PEP 740 `repository` (`owner/name`), `workflow`, `environment`,
+and `verified_publisher`. That pin does not change the default acquire path.
+`provider fetch` still binds a GitHub release unless `--source index` is named.
+Empty `index_publishers` is the rollback: every wheel-delivered provider stays
+`unverified` (`REQ-851`). Cryptographic verification of a PEP 740 bundle uses
+`pypi-attestations` the way GitHub verification uses `gh`; its absence is
+`AI_STP_DEPENDENCY_UNAVAILABLE`, not a trusted level.
 
 ## Trust policy
 
@@ -115,9 +124,16 @@ constraint.
 Protocol v3 is installed from a release with a manifest: either Ed25519-signed
 or attested for a repository in `build_attestations`. An `install plan` with
 `protocol-version = 3` and no `provider-manifest` is rejected unless the caller
-explicitly specifies `unverified-provider`. Subsequent actions name
-`provider fetch` as the way to obtain a closed manifest when the publisher did
-not supply one.
+explicitly specifies `unverified-provider`. When no explicit, configured,
+remembered or managed provider exists, `install plan` and `install apply`
+acquire the attested OpenNetwork artifact and materialise this JSON through the
+same path as `provider fetch` (`ADR-0146`). `provider fetch` remains the
+explicit repair and preload command when automatic acquisition cannot complete.
+The acquired `release.json` becomes the trust input of that same operation and
+is reused by later operations only when it is a regular sibling of executable
+bytes below the managed provider root. Its location grants no trust:
+`trusted_manifest` still verifies pinned policy, exact bytes and build
+attestation before the first provider spawn.
 
 `provider fetch` materializes this JSON from attested bytes, the exact tag,
 source commit, and executable `provider-info`. Sequence is encoded from the

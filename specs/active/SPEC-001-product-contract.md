@@ -1,6 +1,6 @@
 ---
 description: "SPEC-001: MVP product contract."
-last_verified: "2026-08-24"
+last_verified: "2026-09-03"
 ---
 
 # SPEC-001: MVP Product Contract
@@ -15,11 +15,10 @@ The MVP includes a local registry, anonymous reads from the public registry, pri
 
 Real payments, the enterprise landscape, a sophisticated web editor, and claims of an object's absolute safety are out of scope.
 
-Windows is supported and implemented (`SPEC-014` `REQ-1419`), but its evidence is deferred: the mandatory release-evidence profile is Linux x86_64 under `ADR-0062`, while a Windows run requires free GitHub-hosted runners, which become available after the repository is made public (`#188`). The evidence, not support, is deferred.
-
-The current mandatory release-evidence profile is Linux x86_64 under `ADR-0062`.
-macOS remains a future portability line and is not described as supported without real-host
-evidence.
+The first supported alpha line is `0.0.16` under `ADR-0142`. `0.0.17` continues
+that line as one public Python distribution under `ADR-0146`. Release evidence
+covers Linux, macOS and Windows on `x86_64` and `arm64`; a missing, skipped or
+inconclusive required row does not support a release claim.
 
 ## Terms
 
@@ -43,9 +42,10 @@ evidence.
 - `REQ-112`: After successful initial setup, the local path works without a network connection, while operations that require a network are declared separately and return a typed reason.
 - `REQ-113`: The seven harnesses are the complete MVP support set (`ADR-0120`); a new official `harness_id` appears only through the platform promotion process under `ADR-0033`, and user-defined adapters are not published as official support.
 - `REQ-114`: The first release is additionally blocked by an incomplete first-party launch catalog under `docs/engineering/release-evidence.md`; catalog completeness is a release barrier, not a schema invariant.
-- `REQ-115`: The public CLI release consists of aligned versions of foundation, passports, assurance, contracts, and CLI; wheel and sdist artifacts are reproducible, include metadata/LICENSE, and are accompanied by an SBOM, checksums, and provenance for the exact SHA; the install smoke pins all five internal packages to exact candidate wheels and runs outside the checkout.
-- `REQ-116`: PyPI publication is performed only manually through a protected environment and Trusted Publishing OIDC after separate authorization; ordinary CI/deploy jobs and local machines have no PyPI token or publish authority.
-- `REQ-117`: The first release is proven on Linux x86_64; macOS is not part of the current support matrix, does not block the release, and receives `not_verified` until separate real-host evidence exists.
+- `REQ-115`: The public CLI release is one distribution `ai-stp-cli`; its wheel and sdist contain the runtime modules of foundation, passports, assurance, contracts and sources, are reproducible, include metadata/LICENSE, and are accompanied by an SBOM, checksums, and provenance for the exact SHA; wheel metadata has no `Requires-Dist` for those former internal distributions; install smoke installs only that candidate wheel and runs outside the checkout.
+- `REQ-116`: After one-time Trusted Publisher bootstrap for this repository, workflow `publish-pypi.yml` and environment `pypi-cli`, an immutable release plan bound to an exact main SHA publishes the single `ai-stp-cli` distribution. An existing version is continued only when every remote artifact digest equals the candidate; ordinary CI/deploy jobs and local machines have no long-lived PyPI credential or publish authority.
+- `REQ-117`: The supported alpha release is proven on Linux, macOS and Windows on `x86_64` and `arm64`; every mandatory row is present and conclusive.
+- `REQ-118`: `0.0.16` is the first supported alpha contract. Earlier published alpha bytes and history remain immutable evidence but are not runtime compatibility obligations; the HTTP namespace remains `/v1`, while a changed canonical machine form receives an explicit schema and hash-domain identity.
 
 ## States and errors
 
@@ -79,6 +79,7 @@ The CLI, API, schemas, and provider protocol have independent versions. Supporte
 | `REQ-112` | A check with the network disabled completes declared offline operations and produces a typed reason for networked operations. |
 | `REQ-113` | An enumeration check rejects an eighth value without a new ADR and schema version, while an inventory finds no path for publishing a user-defined adapter as official support. |
 | `REQ-114` | The release checklist includes a launch catalog inventory, and missing or expired evidence for any object in it blocks the release. |
-| `REQ-115` | The candidate builder builds the five wheel/sdist artifacts twice, compares bytes, verifies metadata, and creates deterministic SBOM, manifest, and checksums; a separate smoke verifies PEP 610 provenance for all five exact wheels, machine commands, and uninstall outside the checkout; the public workflow publishes provenance. |
-| `REQ-116` | Environment/Trusted Publisher settings and a negative workflow audit prove that PR, CI, and deploy jobs have no publish authority; an actual upload requires manual approval. |
-| `REQ-117` | The release matrix contains a mandatory Linux x86_64 row, contains no mandatory macOS row, and does not publish a macOS classifier without separate evidence. |
+| `REQ-115` | The candidate builder builds one `ai-stp-cli` wheel/sdist pair twice, compares bytes, verifies metadata, bundled first-party modules, the absence of internal `ai-stp-*` requirements, and creates deterministic SBOM, manifest, and checksums; a separate smoke verifies PEP 610 provenance for that exact wheel, machine commands, and uninstall outside the checkout; the public workflow publishes provenance. |
+| `REQ-116` | Publication of `ai-stp-cli` uses one Trusted Publisher identity and proves that ordinary CI/deploy jobs hold no long-lived publication credential; an already-published version resumes only after exact remote-digest comparison. |
+| `REQ-117` | The release matrix contains conclusive Linux, macOS and Windows rows for both architectures and rejects a missing, skipped or inconclusive row. |
+| `REQ-118` | Contract vectors reject silent reinterpretation of an earlier content-addressed alpha object while the current `/v1` client and server agree on the first supported schema set. |

@@ -838,6 +838,75 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         ),
         down=("DROP TABLE sync_abandoned_event",),
     ),
+    Migration(
+        version=29,
+        summary="recoverable consumer-owned multi-root installation transactions",
+        up=(
+            """
+            CREATE TABLE installation_transaction (
+                transaction_id      TEXT PRIMARY KEY,
+                idempotency_key     TEXT NOT NULL UNIQUE,
+                transaction_digest TEXT NOT NULL UNIQUE,
+                setup_stable_id     TEXT NOT NULL,
+                setup_version       TEXT NOT NULL,
+                harness_id          TEXT NOT NULL,
+                state               TEXT NOT NULL CHECK (
+                    state IN (
+                        'planned', 'applying', 'compensating',
+                        'recovery_required', 'verified', 'rolled_back'
+                    )
+                ),
+                approved_digest     TEXT,
+                created_at          TEXT NOT NULL,
+                updated_at          TEXT NOT NULL
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_child (
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                position       INTEGER NOT NULL,
+                scope          TEXT NOT NULL CHECK (
+                    scope IN ('global', 'user_root', 'project')
+                ),
+                operation_id   TEXT NOT NULL UNIQUE
+                    REFERENCES operation_plan(operation_id),
+                target_id      TEXT NOT NULL,
+                plan_digest    TEXT NOT NULL,
+                state          TEXT NOT NULL,
+                backup_ref     TEXT,
+                PRIMARY KEY (transaction_id, position),
+                UNIQUE (transaction_id, scope),
+                UNIQUE (transaction_id, target_id)
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_target (
+                target_id      TEXT PRIMARY KEY,
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id)
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_event (
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                sequence       INTEGER NOT NULL,
+                at             TEXT NOT NULL,
+                state_before   TEXT NOT NULL,
+                state_after    TEXT NOT NULL,
+                result         TEXT NOT NULL,
+                PRIMARY KEY (transaction_id, sequence)
+            ) STRICT
+            """,
+        ),
+        down=(
+            "DROP TABLE installation_transaction_event",
+            "DROP TABLE installation_transaction_target",
+            "DROP TABLE installation_transaction_child",
+            "DROP TABLE installation_transaction",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested
@@ -847,7 +916,10 @@ _SAVEPOINTS: Final[Iterator[int]] = count()
 
 #: How long a statement waits for another process to finish writing. Bootstrap
 #: writes take milliseconds; this is generous enough that a wait means trouble.
-BUSY_TIMEOUT_MILLISECONDS: Final[int] = 5000
+# The third measured Windows runner contention held a first-open migration lock
+# for 6439 ms in run 33790300140. Fifteen seconds is more than twice that
+# observed maximum while remaining a bounded refusal.
+BUSY_TIMEOUT_MILLISECONDS: Final[int] = 15_000
 
 #: How long to keep trying to switch the journal mode while another opener
 #: holds the lock. Short: the switch itself takes microseconds.

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.provider_surfaces import TargetScope, provider_surface
 from ai_stp_passports.markdown import validate_safe_markdown
 from ai_stp_passports.versions import TAG_PATTERN
 from ai_stp_platform.github_metadata import canonical_github_source
@@ -41,6 +43,9 @@ class SourceUpsert:
     reviewed_license: str
     harness_id: str
     tags: tuple[str, ...]
+    target_scope: str
+    projection_root: str
+    projection_shape: str
     source_id: str = SOURCE_ID
     kind: str = "git"
     repository_url: str = ""
@@ -70,6 +75,23 @@ def _common_fields(command: SourceUpsert) -> None:
         raise OfficialUpstreamError(INVALID_SOURCE, "harness_id is unknown")
     if command.projection_kind not in {"marketplace", "plugin", "native_files", "package"}:
         raise OfficialUpstreamError(INVALID_SOURCE, "projection_kind is unknown")
+    if command.target_scope not in {"global", "user_root", "project"}:
+        raise OfficialUpstreamError(INVALID_SOURCE, "target_scope is unknown")
+    try:
+        provider_surface(command.harness_id, cast(TargetScope, command.target_scope))
+    except KeyError as error:
+        raise OfficialUpstreamError(
+            INVALID_SOURCE, "target_scope is unsupported for this harness"
+        ) from error
+    if command.projection_shape not in {"file", "tree"}:
+        raise OfficialUpstreamError(INVALID_SOURCE, "projection_shape is unknown")
+    root = command.projection_root
+    if (
+        not root
+        or root.startswith(("/", "~"))
+        or any(part in {"", ".", ".."} for part in root.split("/"))
+    ):
+        raise OfficialUpstreamError(INVALID_SOURCE, "projection_root is unsafe")
     for field_name, value in (
         ("name", command.name),
         ("upstream_project_name", command.upstream_project_name),
@@ -152,6 +174,9 @@ async def upsert_source(session: AsyncSession, command: SourceUpsert) -> Officia
     source.component_type = command.component_type
     source.projection_kind = command.projection_kind
     source.harness_id = command.harness_id
+    source.target_scope = command.target_scope
+    source.projection_root = command.projection_root
+    source.projection_shape = command.projection_shape
     source.owner_account_id = command.owner_account_id
     source.name = command.name.strip()
     source.upstream_project_name = command.upstream_project_name.strip()
@@ -171,6 +196,9 @@ async def upsert_source(session: AsyncSession, command: SourceUpsert) -> Officia
                 "repository_url": repository,
                 "tracked_ref": command.tracked_ref.strip() or None,
                 "component_subpath": subpath,
+                "target_scope": command.target_scope,
+                "projection_root": command.projection_root,
+                "projection_shape": command.projection_shape,
                 "ecosystem": source.ecosystem,
                 "package_name": source.package_name,
                 "enabled": command.enabled,

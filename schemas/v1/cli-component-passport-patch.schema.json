@@ -193,30 +193,39 @@
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
     },
+    "PermissionClaim": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f]+$",
+      "type": "string"
+    },
     "Permissions": {
       "additionalProperties": false,
       "description": "Declared file, network and process permissions.",
       "properties": {
         "filesystem": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Filesystem",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "network": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Network",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "process": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PermissionClaim"
           },
           "title": "Process",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         }
       },
       "title": "Permissions",
@@ -228,6 +237,21 @@
         "plugin",
         "native_files",
         "package"
+      ],
+      "type": "string"
+    },
+    "SupportedArch": {
+      "enum": [
+        "x86_64",
+        "arm64"
+      ],
+      "type": "string"
+    },
+    "SupportedOs": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
       ],
       "type": "string"
     },
@@ -539,6 +563,21 @@
       ],
       "default": null
     },
+    "supported_arch": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/SupportedArch"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Supported Arch"
+    },
     "supported_harness_versions": {
       "anyOf": [
         {
@@ -554,6 +593,21 @@
       ],
       "default": null,
       "title": "Supported Harness Versions"
+    },
+    "supported_os": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/SupportedOs"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Supported Os"
     },
     "tags": {
       "anyOf": [

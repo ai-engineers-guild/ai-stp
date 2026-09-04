@@ -1,15 +1,16 @@
 ---
 description: "Build, verify, publish, yank, and recover a Python release."
-last_verified: "2026-09-01"
+last_verified: "2026-09-03"
 ---
 
 # Python package release
 
 ## Candidate preparation
 
-On a clean exact SHA, all six published `project.version` values must match, and
-their internal `Requires-Dist` entries must pin that exact version. Local checks
-without publication:
+On a clean exact SHA, `apps/cli/pyproject.toml` carries the public version.
+The candidate is one `ai-stp-cli` wheel and sdist; first-party modules ship
+inside that wheel and metadata has no `Requires-Dist` for former internal
+`ai-stp-*` projects (`ADR-0146`). Local checks without publication:
 
 ```bash
 just check
@@ -17,7 +18,7 @@ just release-candidate
 just release-candidate-install
 ```
 
-`dist/release-candidate/` contains twelve distributions, deterministic
+`dist/release-candidate/` contains one wheel, one sdist, deterministic
 `ai-stp-cli.cdx.json`, `release-manifest.json`, and `SHA256SUMS`. The builder creates
 artifacts twice in temporary directories and fails on any mismatch. The archive
 gate normalizes separators and Unicode identically for wheel and sdist, rejecting
@@ -29,8 +30,9 @@ The `--replace` flag replaces only a previously created candidate whose manifest
 `SHA256SUMS` fully cover unchanged regular files. An arbitrary, incomplete, or
 modified directory is not release output and is not removed.
 
-`release-candidate-install` runs outside the source tree, passes all six internal
-wheels as direct sources, checks their URLs through PEP 610 and SHA-256, runs
+`release-candidate-install` runs outside the source tree, installs only the
+`ai-stp-cli` wheel as a direct source, checks its URL through PEP 610 and SHA-256,
+proves bundled first-party modules are present and not extra distributions, runs
 `version`, `capabilities`, and `help --agent`, then removes the program.
 `--find-links` without a direct binding is not evidence: with a matching version,
 the resolver may take a package with the same name from the public index. The exact
@@ -51,14 +53,12 @@ Before adding or enabling a publish job, the repository owner separately confirm
 2. both `release-candidate` jobs run on standard GitHub-hosted `ubuntu-latest`
    runners with different executors: the build receives no OIDC, and attestation
    performs no checkout (`ADR-0048`);
-3. the `pypi` environment (the `foundation` package) and `pypi-{package}` for the
-   other four are protected by required reviewers and reject arbitrary branches;
-   there are **two** reviewers, otherwise publication stops when one person is
-   unavailable;
-4. each project's PyPI Trusted Publisher pins the owner, repository, exact
-   `publish-pypi.yml` workflow name, and its own environment—one OIDC identity per
-   package because Trusted Publisher does not distinguish identities within one
-   environment;
+3. the `pypi-cli` environment is protected by required reviewers and rejects
+   arbitrary branches; there are **two** reviewers, otherwise publication stops
+   when one person is unavailable. Historical `pypi` / `pypi-*` environments stay
+   until a successful unified release, then may be removed;
+4. the PyPI Trusted Publisher for `ai-stp-cli` pins the owner, repository, exact
+   `publish-pypi.yml` workflow name, and environment `pypi-cli`;
 5. exact-SHA `just check`, Linux x86_64 install evidence, SBOM, checksums, and
    provenance are green;
 6. separate explicit permission for the actual publication has been obtained.
@@ -69,21 +69,18 @@ checks the tree, not permission.
 
 ## Publication
 
-The `publish-pypi.yml` workflow publishes (in this tree, the overlay is
-`release_scripts/public_overlay/.github/workflows/publish-pypi.yml`). It is manually
-started (`workflow_dispatch`) for one package per run: `foundation`, `passports`,
-`assurance`, `contracts`, or `cli`. Inputs are the exact version without a leading
+The `publish-pypi.yml` workflow publishes. It is manually started
+(`workflow_dispatch`) for `cli`. Inputs are the exact version without a leading
 `v` and the `run_id` of the `release-candidate` run whose attested bytes are loaded.
 
 There is no repository checkout: the job downloads that run's artifact, verifies
-every `SHA256SUMS` line, selects exactly two distributions for the named package,
+every `SHA256SUMS` line, selects exactly two distributions for `ai-stp-cli`,
 and uploads them through `pypa/gh-action-pypi-publish`. It uses only
 `id-token: write` and the official action pinned to a commit SHA; username,
 password, and API tokens are forbidden.
 
-Environment: `pypi` for `foundation`, `pypi-{package}` for the others. Upload order
-remains foundation → passports → assurance → contracts → CLI because internal
-`Requires-Dist` entries pin the exact version.
+Environment: `pypi-cli`. There is no internal publication order: one project is
+uploaded.
 
 ### Run the script, not the steps by hand
 
@@ -128,21 +125,15 @@ Live index on 2026-09-02: five projects are published as `0.0.15` (candidate
 the wheel's attestation verifies against `release-candidate.yml@refs/tags/v0.0.15`
 and a random file is refused.
 
-**`ai-stp-sources` is the sixth project and does not exist on the index yet.**
-It was added to the workspace on 2026-09-02 and `ai-stp-cli` imports it from ten
-modules, pinned exactly like the rest, so a release cut before the project
-exists would publish a `ai-stp-cli` wheel that cannot resolve. Creating a
-project on PyPI is not something a release run can do for itself: the project
-and its trusted publisher — this repository, `publish-pypi.yml`, environment
-`pypi-sources` — are registered once, by a person, on the index. Until then
-`publish_pypi.py --packages sources` is the step that will fail, and it fails
-before `cli`, which is the order that keeps a broken `ai-stp-cli` off the
-index.
+**`0.0.17` publishes only `ai-stp-cli`.** Former internal projects stay on the
+index as historical `0.0.16` artifacts. `ai-stp-sources` is deleted only after
+an independent clean install of `ai-stp-cli==0.0.17` and provider-acquisition
+evidence pass. Do not delete it earlier: `ai-stp-cli==0.0.16` still requires it.
 Earlier: `0.0.6` from candidate `33020095240`, `0.0.5` from `33008640398`.
 
 Verified **with PyPI**, not from a green run:
 
-- five projects, each with a wheel and sdist (`ai-stp-sources` joins them at the first release cut after its PyPI project exists);
+- one project, `ai-stp-cli`, with a wheel and sdist; historical `0.0.16` internals remain on the index as artifacts;
 - attestation of the published wheel succeeds and names its source—workflow
   `release-candidate.yml@refs/tags/v0.0.5`, commit `6514a36b…`. The negative
   control (random bytes) returns 404, so the check distinguishes them;
@@ -163,14 +154,15 @@ This was observed on `0.0.6`: the JSON API already returned the new version for 
 five, while the simple index showed it only for `foundation` and `cli`. The window
 was narrow—it converged within half a minute—but during it an unpinned installation
 could take the new `cli` and fail to find the same-version `passports`, because
-`cli` pins the other four exactly.
+that `cli` pinned the other four exactly. `0.0.17` has no internal pins, so that
+particular window cannot recur; the simple index can still lag the JSON API.
 
-Therefore the verification order is: wait until **all five** appear in the simple
+Therefore the verification order is: wait until `ai-stp-cli` appears in the simple
 index, then install. `--no-cache` does not solve this; the issue is which index
 answers, not the uv cache.
 
 ```sh
-for p in foundation passports assurance contracts cli; do
+for p in cli; do
   curl -sS -H 'Accept: application/vnd.pypi.simple.v1+json' \
     "https://pypi.org/simple/ai-stp-$p/" | grep -c '0\.0\.X'
 done

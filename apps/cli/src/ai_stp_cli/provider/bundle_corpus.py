@@ -91,6 +91,9 @@ def materialized_v3(
     component_kind: str,
     native_surface: str,
     target_path: str,
+    profile_id: str,
+    profile_digest: str,
+    target_scope: str,
 ) -> Generator[Corpus]:
     """Create a semantically valid v3 literal for one declared native route."""
     with tempfile.TemporaryDirectory(prefix="ai-stp-provider-conformance-v3-") as held:
@@ -119,6 +122,8 @@ def materialized_v3(
         }
         payload = b"safe provider v3 conformance literal\n"
         setup_digest = digest_canonical(bundle.PASSPORT_DOMAIN, passport)
+        passport_digest = "sha256:" + "4" * 64
+        projection_digest = "sha256:" + "5" * 64
         compiled = bundle.compile_bundle(
             (bundle.Source(target_path, payload, stable_id),),
             setup_stable_id=str(passport["stable_id"]),
@@ -130,6 +135,26 @@ def materialized_v3(
             composition_report=composition,
             conversion_report=conversion,
             input_digest="sha256:" + "3" * 64,
+            target_scope=target_scope,
+            bundle_format=bundle.BUNDLE_FORMAT_V2,
+            projection_profile=bundle.ProjectionProfileBinding(
+                profile_id=profile_id,
+                profile_digest=profile_digest,
+                target_scope=target_scope,
+            ),
+            adaptation_bindings=(
+                bundle.ComponentAdaptationBinding(
+                    stable_id=stable_id,
+                    version=str(component["version"]),
+                    passport_digest=passport_digest,
+                    adaptation_id="adaptation_" + "6" * 64,
+                    projection_artifact_digest=projection_digest,
+                    projection_artifact_size=len(payload),
+                    provider_component_kind=component_kind,
+                    projection_kind="native_files",
+                    member_paths=(target_path,),
+                ),
+            ),
         )
         if not compiled.compiled:  # pragma: no cover - construction is constant
             raise RuntimeError("the v3 conformance bundle did not compile")
@@ -319,6 +344,11 @@ def _malicious(
     if not members:
         members.append((f"files/{record['path']}", content, _regular()))
 
+    if name in {"path_escapes_target", "path_not_relative", "unknown_native_surface"}:
+        raw_bindings = manifest.get("component_adaptations")
+        if isinstance(raw_bindings, list) and raw_bindings and isinstance(raw_bindings[0], dict):
+            binding = cast(dict[str, JsonValue], raw_bindings[0])
+            binding["member_paths"] = [record["path"]]
     manifest["files"] = [record]
     manifest["managed_paths"] = [record["path"]]
     return _store(root, name, _with_digest(manifest), tuple(members))
@@ -345,7 +375,7 @@ def _store(
     logical = str(manifest["bundle_digest"])
     return bundle_protocol.binding(
         path,
-        bundle_format=bundle.BUNDLE_FORMAT,
+        bundle_format=str(manifest["bundle_format"]),
         bundle_digest=logical,
         artifact_digest=artifact_digest,
         bundle_size=len(archive),

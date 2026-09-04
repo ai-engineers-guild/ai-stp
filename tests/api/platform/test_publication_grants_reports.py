@@ -13,6 +13,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_STATUS, ErrorCategory
@@ -153,13 +154,9 @@ def _passport(
         "permissions": {"filesystem": [], "network": [], "process": []},
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
-        "harness_id": "claude-code",
-        "harness_ids": [],
-        "supported_os": [],
+        **adaptation_fields(digest=digest, size=len(payload)),
         "required_env": [],
         "component_type": "skill",
-        "projection_kind": "native_files",
-        "variant_id": None,
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -171,8 +168,6 @@ def _passport(
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [],
-        "native_ids": [],
     }
     passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]
     return passport

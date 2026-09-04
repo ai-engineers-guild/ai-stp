@@ -89,12 +89,15 @@ These four are what you run individually while working, invoked through `just`:
 
 - `just docs-check` — documentation, specifications, contract lint, and links;
 - `just back-static` — formatting, Ruff, Pyright, and generated-source drift;
-- `just back-test` — tests with the coverage threshold;
+- `just back-test` — tests; coverage is printed, not a fail-under (`ADR-0147`);
 - `just web-check` — build, types, unit, E2E, and function profiles.
 
 They are not the gate's composition. `just check` is wider — `back-check` alone expands into five recipes, and `security` appears in none of the lines above. Ask the owner rather than this page: `just --show check` prints its dependencies and the `justfile` prints theirs. A second copy of that list here would go stale the first time one moved.
 
-The two paths reach the same verdict by different routes, which matters when a local number surprises you: CI shards the suite across jobs with the per-run threshold disabled and enforces coverage once after `coverage combine`, while `just back-test` runs it whole with the threshold inline. Measured on the same tree, both answer 90.89%.
+The two paths reach the same verdict by different routes: CI shards the suite
+across jobs and prints coverage after `coverage combine`, while `just back-test`
+runs it whole and prints the same report locally. A percentage does not fail
+either path (`ADR-0147`).
 
 Evidence slices (`evidence-live`, `evidence-config`, `evidence-software`, `evidence-contribution`, and the rest) are deliberately outside `just check`: the gate may not depend on another party's release network or on a deployed environment being reachable. Their inventory, and what each one answers, belongs to `docs/engineering/release-evidence.md`.
 

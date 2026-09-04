@@ -1206,8 +1206,12 @@ def _component_content(
     content_format: str,
     source_name: str,
 ) -> dict[str, JsonValue]:
+    rule = composition.rule_for(candidate.component_type, inspection.harness_id)
+    if rule is None:
+        raise CliFailure("AI_STP_CONFLICT", "an imported component has no declared projection kind")
     facts = {
         "component_type": _fact(candidate.component_type, at),
+        "projection_kind": _fact(rule.projection_kind, at),
         "native_role": _fact(candidate.native_role, at),
         "harness_id": _fact(inspection.harness_id, at),
         # Global by construction: an import inspects one configuration root,

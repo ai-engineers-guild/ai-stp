@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact package version expected in every public workspace member
+        description: Exact ai-stp-cli version expected in the candidate
         required: true
         type: string
 

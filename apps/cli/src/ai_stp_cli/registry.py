@@ -1889,7 +1889,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=tuple(sorted(HARNESS_IDS)),
             ),
             option(
-                "provider", "string", "The provider executable that owns the target.", required=True
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses a configured, remembered "
+                "or managed provider, or acquires the attested OpenNetwork release.",
             ),
             option(
                 "provider-manifest",
@@ -1997,6 +2000,110 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("install apply",),
     ),
     Declaration(
+        path=["install", "transaction", "plan"],
+        summary="Plan one exact SetupVersion across every required provider root.",
+        result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
+        handler="install_transaction:plan",
+        mutability="plan",
+        parameters=(
+            option("setup", "string", "Exact SetupVersion as <stable_id>@<X.Y>.", required=True),
+            option("project", "string", "Local project root binding the setup.", required=True),
+            option(
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI acquires the attested OpenNetwork release.",
+            ),
+            option(
+                "scope-target",
+                "string",
+                "Repeated scope=/absolute/target pair; at least two distinct scopes.",
+                required=True,
+                repeatable=True,
+            ),
+            option("provider-manifest", "string", "Exact trusted provider release manifest."),
+            option("provider-build-attestation", "boolean", "Verify pinned build attestation."),
+            option("provider-attestation-bundle", "string", "Offline attestation bundle."),
+            option(
+                "unverified-provider", "boolean", "Explicitly use an unverified local provider."
+            ),
+            option("provider-release-recovery", "boolean", "Use a previously verified release."),
+        ),
+        next_actions=("install transaction approve",),
+    ),
+    Declaration(
+        path=["install", "transaction", "approve"],
+        summary="Approve one multi-root transaction and all exact child plans.",
+        result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
+        handler="install_transaction:approve",
+        mutability="apply",
+        confirmation="plan_digest",
+        parameters=(
+            option("transaction", "string", "Transaction being approved.", required=True),
+            option(
+                "transaction-digest",
+                "string",
+                "Exact aggregate digest shown by transaction plan.",
+                required=True,
+            ),
+        ),
+        next_actions=("install transaction apply",),
+    ),
+    Declaration(
+        path=["install", "transaction", "apply"],
+        summary="Apply every scope or compensate verified child effects in reverse order.",
+        result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
+        handler="install_transaction:apply",
+        mutability="apply",
+        confirmation="plan_digest",
+        parameters=(
+            option("transaction", "string", "Approved transaction to apply.", required=True),
+            option(
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
+            ),
+            option("provider-manifest", "string", "Exact trusted provider release manifest."),
+            option("provider-build-attestation", "boolean", "Verify pinned build attestation."),
+            option("provider-attestation-bundle", "string", "Offline attestation bundle."),
+            option(
+                "unverified-provider", "boolean", "Explicitly use an unverified local provider."
+            ),
+            option("provider-release-recovery", "boolean", "Use a previously verified release."),
+        ),
+        next_actions=("install transaction status",),
+    ),
+    Declaration(
+        path=["install", "transaction", "recover"],
+        summary="Settle unknown child results and complete reverse compensation.",
+        result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
+        handler="install_transaction:recover",
+        mutability="apply",
+        parameters=(
+            option("transaction", "string", "Transaction requiring recovery.", required=True),
+            option(
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
+            ),
+            option("provider-manifest", "string", "Exact trusted provider release manifest."),
+            option("provider-build-attestation", "boolean", "Verify pinned build attestation."),
+            option("provider-attestation-bundle", "string", "Offline attestation bundle."),
+            option(
+                "unverified-provider", "boolean", "Explicitly use an unverified local provider."
+            ),
+            option("provider-release-recovery", "boolean", "Use a previously verified release."),
+        ),
+        next_actions=("install transaction status",),
+    ),
+    Declaration(
+        path=["install", "transaction", "status"],
+        summary="Read one multi-root transaction without invoking a provider.",
+        result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
+        handler="install_transaction:status",
+        parameters=(option("transaction", "string", "Transaction to read.", required=True),),
+        next_actions=("install transaction recover",),
+    ),
+    Declaration(
         path=["install", "apply"],
         summary="Carry out one approved plan through its provider and record what happened.",
         result_schema="urn:ai-stp:schema:v1:cli-installation",
@@ -2006,7 +2113,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("operation", "string", "The approved operation to apply.", required=True),
             option(
-                "provider", "string", "The provider executable that owns the target.", required=True
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses a configured, remembered "
+                "or managed provider, or acquires the attested OpenNetwork release.",
             ),
         ),
         next_actions=("install status",),
@@ -2307,7 +2417,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="install:resume",
         parameters=(
             option("operation", "string", "The interrupted operation.", required=True),
-            option("provider", "string", "The provider executable to ask.", required=True),
+            option(
+                "provider",
+                "string",
+                "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
+            ),
         ),
         next_actions=("target status",),
     ),
@@ -2728,7 +2842,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "attestation-bundle",
                 "string",
-                "Optional local GitHub attestation bundle for offline verification.",
+                "Optional local GitHub attestation bundle or PEP 740 provenance "
+                "for offline verification.",
+            ),
+            option(
+                "source",
+                "string",
+                "github (default) binds a GitHub release; index binds a PEP 740 wheel.",
+                choices=("github", "index"),
             ),
         ),
         next_actions=("install plan", "provider trust"),

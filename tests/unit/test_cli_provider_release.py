@@ -557,6 +557,38 @@ def test_policy_unknown_fields_and_allowed_keys_without_material_are_refused() -
     assert missing_material.value.details["field"] == "public_keys"
 
 
+def test_a_closed_index_publisher_rule_loads() -> None:
+    extra = """
+[[index_publishers]]
+pypi_project = "pi-setup-system"
+repository = "NDDev-OpenNetwork/pi-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+"""
+    policy = release.load_policy(VALID_POLICY_TEXT + extra)
+    rule = policy.index_publishers["pi-setup-system"]
+    assert rule.repository == "NDDev-OpenNetwork/pi-setup-system"
+    assert rule.workflow == "publish-pypi.yml"
+    assert rule.environment == "pypi"
+    assert rule.verified_publisher is True
+
+
+def test_an_index_publisher_rule_must_be_a_closed_table() -> None:
+    extra = """
+[[index_publishers]]
+pypi_project = "pi-setup-system"
+repository = "NDDev-OpenNetwork/pi-setup-system"
+workflow = "publish-pypi.yml"
+environment = "pypi"
+verified_publisher = true
+extra = true
+"""
+    with pytest.raises(CliFailure) as raised:
+        release.load_policy(VALID_POLICY_TEXT + extra)
+    assert raised.value.details["field"] == "index_publishers"
+
+
 def test_pinned_releases_are_closed_unique_and_exact() -> None:
     one = f'{{ {_PIN_FIELDS}, artifact_digest = "{_DIGEST_A}" }}'
     policy = release.load_policy(VALID_POLICY_TEXT.replace("releases = []", f"releases = [{one}]"))
@@ -636,6 +668,8 @@ def test_the_trust_command_reports_what_actually_makes_an_install_possible() -> 
     )
     assert all(rule.verified_publisher for rule in view.build_attestations)
     assert all(rule.signer_workflow for rule in view.build_attestations)
+    assert [rule.pypi_project for rule in view.index_publishers] == sorted(policy.index_publishers)
+    assert all(rule.verified_publisher for rule in view.index_publishers)
 
 
 def test_the_trust_command_checks_a_named_manifest(tmp_path: Path) -> None:

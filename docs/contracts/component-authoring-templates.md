@@ -8,7 +8,7 @@ last_verified: "2026-09-03"
 The portable mustache syntax belongs to `SPEC-005` REQ-528, while the complete
 scaffold lifecycle belongs to
 [`SPEC-041`](../../specs/active/SPEC-041-component-scaffold-framework.md) and
-[`ADR-0142`](../adr/ADR-0142-authoring-source-projections-and-setup-scaffold.md).
+[`ADR-0148`](../adr/ADR-0148-authoring-source-projections-and-setup-scaffold.md).
 Neither path publishes an object or writes the final harness state.
 
 ## Commands

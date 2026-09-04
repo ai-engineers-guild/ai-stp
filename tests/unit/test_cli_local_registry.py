@@ -590,12 +590,11 @@ def test_two_threads_opening_a_clean_registry_both_succeed(tmp_path: Path) -> No
     first occurrence concluded, and not a code path. Two occurrences in six
     days, both Windows, none elsewhere.
 
-    The budget is still not the thing to raise: the previous note asked, on a
-    recurrence, for how long the *winner* holds the write lock rather than how
-    long the loser waits, and that number did not exist because nothing
-    measured it. It does now — each thread times its own open and a failure
-    prints both against the budget, so the third occurrence arrives with the
-    evidence instead of another request for it. A green run prints nothing.
+    **Recurred a third time on 2026-09-03** (run 33790300140) after migration
+    29. The measured opens took 6439 ms and 6041 ms, exceeding the 5000 ms
+    budget under a heavily loaded runner. The budget is now 15000 ms: more
+    than twice the measured maximum, still bounded, and tied to this
+    observation rather than an unexplained round-number increase.
     """
     import concurrent.futures
     import threading

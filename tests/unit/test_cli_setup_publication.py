@@ -21,7 +21,14 @@ import pytest
 
 from ai_stp_cli.commands import setup_publication
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import content, publication_sets, revisions, setup_versions, versions
+from ai_stp_cli.local import (
+    component_passports,
+    content,
+    publication_sets,
+    revisions,
+    setup_versions,
+    versions,
+)
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_contracts.machine_help import PublicationSetMemberView
 from ai_stp_foundation.canonical import JsonValue
@@ -118,7 +125,7 @@ def _fact(value: JsonValue) -> JsonValue:
     return {"value": value, "origin": "observed", "confirmation": "none", "observed_at": AT}
 
 
-def _release_component(connection: sqlite3.Connection, index: int, owner: str) -> str:
+def _release_component(connection: sqlite3.Connection, index: int, owner: str) -> tuple[str, str]:
     """One released component version, in the shape publication reads.
 
     Built through the local path rather than lifted from the first-party corpus:
@@ -143,6 +150,7 @@ def _release_component(connection: sqlite3.Connection, index: int, owner: str) -
         "source_revision": _fact("a" * 40),
         "source_subpath": _fact(f"skills/component-{index}"),
         "source_name": _fact(f"component-{index}"),
+        "managed_paths": _fact([f".agents/skills/component-{index}"]),
         "content_format": _fact("ai-stp-component-file/1"),
         "content_digest": _fact(digest_bytes("ai-stp:artifact:v1", payload)),
         "byte_length": _fact(len(payload)),
@@ -157,28 +165,38 @@ def _release_component(connection: sqlite3.Connection, index: int, owner: str) -
         "parent_revision_ids": [],
         "facts": facts,
     }
-    stored = revisions.commit(connection, draft, device_id="device_test")
+    revisions.commit(connection, draft, device_id="device_test")
+    passport, revision_id = component_passports.materialize_version_passport(
+        connection,
+        stable_id,
+        "1.0",
+        device_id="device_test",
+        at=AT,
+    )
+    passport_digest = digest_canonical("ai-stp:passport:v1", passport.model_dump(mode="json"))
     versions.record(
         connection,
         stable_id=stable_id,
         version="1.0",
-        passport_digest=digest_canonical("ai-stp:passport:v1", {"id": stable_id}),
-        revision_id=stored.revision_id,
+        passport_digest=passport_digest,
+        revision_id=revision_id,
         at=AT,
     )
-    return stable_id
+    return stable_id, passport_digest
 
 
 def _materialize() -> tuple[str, ...]:
     """A released setup pinning released components, all built locally."""
     owner = new_id("account")
     with closing(open_registry(configured_path(), create=True)) as connection:
-        pins = tuple(_release_component(connection, index, owner) for index in range(PIN_COUNT))
+        released = tuple(_release_component(connection, index, owner) for index in range(PIN_COUNT))
+        pins = tuple(item[0] for item in released)
+        digests = dict(released)
         members = tuple(
             setup_versions.MemberRef(
                 stable_id=stable_id,
                 version="1.0",
-                passport_digest=digest_canonical("ai-stp:passport:v1", {"id": stable_id}),
+                passport_digest=digests[stable_id],
             )
             for stable_id in pins
         )

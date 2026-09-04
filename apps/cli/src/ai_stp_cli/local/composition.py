@@ -114,6 +114,13 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     # Citation is the provider's own baseline row rather than elimination:
     # `references/claude-code-baseline.json:100`.
     Rule("setting", "settings.json", "file", "claude-code"),
+    Rule(
+        "instruction",
+        "CLAUDE.md",
+        "file",
+        "claude-code",
+        target_scope="project",
+    ),
     # `ADR-0129`: the landing is a key inside a file the provider already
     # owns, so this compiles into a contribution to that file and the
     # provider is told `setting` — the kind it declares. The passport keeps
@@ -206,6 +213,8 @@ PROVIDER_RULES: Final[tuple[Rule, ...]] = (
     Rule("agent", "agents", "directory", "codex"),
     Rule("hook", "hooks.json", "file", "codex"),
     Rule("command", "prompts", "directory", "codex"),
+    Rule("instruction", "AGENTS.md", "file", "codex", target_scope="project"),
+    Rule("hook", ".codex/hooks.json", "file", "codex", target_scope="project"),
     # No `agent/` prefix: these are relative to the target, and Pi's target
     # already is `~/.pi/agent`. The segment belongs to the home, not inside it,
     # and prefixing it landed every Pi projection in `~/.pi/agent/agent/`.
@@ -705,7 +714,7 @@ def adopted_covers(item: Found) -> tuple[str, ...]:
         name = PurePosixPath(item.provenance.subpath).name
     if not name:
         name = item.absolute.name
-    return covers(item.component_type, item.harness_id, name)
+    return covers(item.component_type, item.harness_id, name, scope=item.scope)
 
 
 def covers(

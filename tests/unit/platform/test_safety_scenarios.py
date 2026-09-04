@@ -14,6 +14,7 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
@@ -94,9 +95,7 @@ def _passport(
             "path": "skills/demo",
         },
         "artifact": {"digest": digest, "size_bytes": size},
-        "harness_id": "claude-code",
-        "harness_ids": [],
-        "supported_os": [],
+        **adaptation_fields(digest=digest, size=size, component_type=component_type),
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -104,8 +103,6 @@ def _passport(
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
         "component_type": component_type,
-        "projection_kind": "native_files",
-        "variant_id": None,
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -117,8 +114,6 @@ def _passport(
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [],
-        "native_ids": [],
     }
     passport.update(overrides)
     passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]

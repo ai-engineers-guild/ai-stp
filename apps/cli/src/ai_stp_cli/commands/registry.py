@@ -54,7 +54,12 @@ from ai_stp_contracts.store_ports import (
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
-from ai_stp_passports.versions import ArtifactRef, ComponentVersionPassport, SetupVersionPassport
+from ai_stp_passports.versions import (
+    ArtifactRef,
+    ComponentVersionPassport,
+    SetupVersionPassport,
+    adaptation_for,
+)
 from ai_stp_sources.definition import (
     DEFINITION_V2,
     decode_embedded_artifact,
@@ -345,12 +350,14 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
                 },
             )
         assert isinstance(item.passport, ComponentVersionPassport)
-        if item.passport.harness_id != setup.passport.harness_id:
+        try:
+            adaptation_for(item.passport, setup.passport.harness_id)
+        except ValueError as error:
             raise CliFailure(
                 "AI_STP_CATALOG_INTEGRITY",
-                "a component in the setup graph belongs to another harness",
-                details={"stable_id": reference.stable_id},
-            )
+                "the component has no adaptation for the requested harness",
+                details={"stable_id": reference.stable_id, "code": "adaptation_unavailable"},
+            ) from error
         acquired[reference.stable_id] = item
         pending.extend(item.passport.requires_components)
 
@@ -590,6 +597,8 @@ def _validate_setup_definition(acquired: AcquiredCatalogVersion) -> dict[str, Js
 def _require_definition_identity(
     acquired: AcquiredCatalogVersion, document: dict[str, JsonValue]
 ) -> None:
+    if not isinstance(acquired.passport, SetupVersionPassport):
+        raise CliFailure("AI_STP_CATALOG_INTEGRITY", "the setup definition has no setup passport")
     expected_refs = acquired.view.passport.get("components")
     if (
         canonize(cast(JsonValue, document)) != acquired.artifact

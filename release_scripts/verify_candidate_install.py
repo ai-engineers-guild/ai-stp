@@ -1,9 +1,10 @@
-"""Install and execute only the exact internal wheels from a release candidate.
+"""Install and execute only the exact ``ai-stp-cli`` wheel from a release candidate.
 
 The public index remains available for third-party dependencies, as it will be
-for a real user install. Every ``ai-stp-*`` distribution is passed as a direct
-wheel source and its PEP 610 provenance is checked after installation; a
-same-version package from an index therefore cannot make this smoke test green.
+for a real user install. The CLI wheel is passed as a direct source and its
+PEP 610 provenance is checked after installation; a same-version package from
+an index therefore cannot make this smoke test green. Bundled first-party
+modules must arrive inside that wheel, not as extra ``ai-stp-*`` distributions.
 """
 
 from __future__ import annotations
@@ -91,7 +92,34 @@ def _candidate_wheels(
         if row.get("sha256") != digest or row.get("size_bytes") != path.stat().st_size:
             raise InstallVerificationError(f"candidate manifest does not describe {name}")
         wheels[package] = path.resolve()
+    extras = [name for name in rows if name.endswith(".whl") and not name.startswith("ai_stp_cli-")]
+    if extras:
+        raise InstallVerificationError(
+            f"candidate contains wheels beyond ai-stp-cli: {', '.join(sorted(extras))}"
+        )
     return wheels
+
+
+def _require_bundled_modules(tool_root: Path) -> None:
+    """First-party modules ship inside the CLI wheel, not as extra distributions."""
+    site_packages = [
+        *tool_root.glob("ai-stp-cli/lib/python*/site-packages"),
+        *tool_root.glob("ai-stp-cli/Lib/site-packages"),
+    ]
+    if len(site_packages) != 1:
+        raise InstallVerificationError("installed tool has no unique site-packages directory")
+    site = site_packages[0]
+    for module in build_candidate.BUNDLED_MODULES:
+        init = site / module / "__init__.py"
+        if not init.is_file():
+            raise InstallVerificationError(f"installed CLI is missing bundled module {module}")
+        if module == "ai_stp_cli":
+            continue
+        leaked = list(site.glob(f"{module}-*.dist-info"))
+        if leaked:
+            raise InstallVerificationError(
+                f"bundled module {module} was installed as its own distribution"
+            )
 
 
 def _direct_wheel_provenance(tool_root: Path, wheels: dict[str, Path]) -> dict[str, str]:
@@ -212,11 +240,15 @@ def verify_install(
             "PYTHONNOUSERSITE": "1",
         }
         cli_wheel = wheels["ai-stp-cli"]
-        internal = [wheels[name] for name in build_candidate.PUBLISHABLE if name != "ai-stp-cli"]
-        install: list[str] = [uv, "tool", "install", "--no-config", "--python", python]
-        for wheel in internal:
-            install.extend(("--with", str(wheel)))
-        install.append(str(cli_wheel))
+        install = [
+            uv,
+            "tool",
+            "install",
+            "--no-config",
+            "--python",
+            python,
+            str(cli_wheel),
+        ]
         _run(install, cwd=root, environment=environment)
 
         executable = bin_root / ("ai-stp.exe" if os.name == "nt" else "ai-stp")
@@ -243,6 +275,7 @@ def verify_install(
                 encoding="utf-8",
             )
         provenance = _direct_wheel_provenance(tool_root, wheels)
+        _require_bundled_modules(tool_root)
 
         # Re-read every checksum after installation so a concurrent replacement
         # cannot turn a verified pre-install snapshot into false evidence.

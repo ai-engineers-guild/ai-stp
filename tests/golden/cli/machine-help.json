@@ -2477,9 +2477,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "The provider executable that owns the target.",
+          "summary": "Provider executable. Omitted, the CLI uses a configured, remembered or managed provider, or acquires the attested OpenNetwork release.",
           "choices": []
         }
       ],
@@ -2614,9 +2614,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "The provider executable that owns the target.",
+          "summary": "Provider executable. Omitted, the CLI uses a configured, remembered or managed provider, or acquires the attested OpenNetwork release.",
           "choices": []
         },
         {
@@ -2825,9 +2825,9 @@
           "name": "provider",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "The provider executable to ask.",
+          "summary": "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
           "choices": []
         }
       ],
@@ -2850,6 +2850,325 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-installation-status",
       "next_actions": [
         "install recover"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "transaction",
+        "apply"
+      ],
+      "summary": "Apply every scope or compensate verified child effects in reverse order.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "transaction",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Approved transaction to apply.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact trusted provider release manifest.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Verify pinned build attestation.",
+          "choices": []
+        },
+        {
+          "name": "provider-attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Offline attestation bundle.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly use an unverified local provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-recovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use a previously verified release.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
+      "next_actions": [
+        "install transaction status"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "transaction",
+        "approve"
+      ],
+      "summary": "Approve one multi-root transaction and all exact child plans.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "transaction",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Transaction being approved.",
+          "choices": []
+        },
+        {
+          "name": "transaction-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact aggregate digest shown by transaction plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
+      "next_actions": [
+        "install transaction apply"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "transaction",
+        "plan"
+      ],
+      "summary": "Plan one exact SetupVersion across every required provider root.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact SetupVersion as <stable_id>@<X.Y>.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Local project root binding the setup.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider executable. Omitted, the CLI acquires the attested OpenNetwork release.",
+          "choices": []
+        },
+        {
+          "name": "scope-target",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": true,
+          "summary": "Repeated scope=/absolute/target pair; at least two distinct scopes.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact trusted provider release manifest.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Verify pinned build attestation.",
+          "choices": []
+        },
+        {
+          "name": "provider-attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Offline attestation bundle.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly use an unverified local provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-recovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use a previously verified release.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
+      "next_actions": [
+        "install transaction approve"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "transaction",
+        "recover"
+      ],
+      "summary": "Settle unknown child results and complete reverse compensation.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "transaction",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Transaction requiring recovery.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact trusted provider release manifest.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Verify pinned build attestation.",
+          "choices": []
+        },
+        {
+          "name": "provider-attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Offline attestation bundle.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly use an unverified local provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-recovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use a previously verified release.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
+      "next_actions": [
+        "install transaction status"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "transaction",
+        "status"
+      ],
+      "summary": "Read one multi-root transaction without invoking a provider.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "transaction",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Transaction to read.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
+      "next_actions": [
+        "install transaction recover"
       ]
     },
     {
@@ -3395,8 +3714,20 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "Optional local GitHub attestation bundle for offline verification.",
+          "summary": "Optional local GitHub attestation bundle or PEP 740 provenance for offline verification.",
           "choices": []
+        },
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "github (default) binds a GitHub release; index binds a PEP 740 wheel.",
+          "choices": [
+            "github",
+            "index"
+          ]
         }
       ],
       "parameter_rules": [],

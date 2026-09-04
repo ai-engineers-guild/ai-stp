@@ -36,7 +36,13 @@ from ai_stp_contracts.impact import (
 )
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
-from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport, verify_revision_id
+from ai_stp_passports import (
+    ComponentVersionPassport,
+    SetupVersionPassport,
+    adaptation_for,
+    verify_projection,
+    verify_revision_id,
+)
 
 #: Re-exported from the owner rather than restated. It lived here first, back
 #: when `impact` was the only reader that had been taught the format.
@@ -254,7 +260,13 @@ def _graph(connection: sqlite3.Connection, stable_id: str, version: str) -> _Gra
         raise CliFailure("AI_STP_CONFLICT", "the setup passport no longer matches its digest")
     content.get(connection, setup.artifact.digest)
     loaded = tuple(
-        _component(connection, ref.stable_id, str(ref.version), ref.passport_digest)
+        _component(
+            connection,
+            ref.stable_id,
+            str(ref.version),
+            ref.passport_digest,
+            setup.harness_id,
+        )
         for ref in setup.components
     )
     return _Graph(
@@ -265,7 +277,11 @@ def _graph(connection: sqlite3.Connection, stable_id: str, version: str) -> _Gra
 
 
 def _component(
-    connection: sqlite3.Connection, stable_id: str, version: str, expected: str | None
+    connection: sqlite3.Connection,
+    stable_id: str,
+    version: str,
+    expected: str | None,
+    harness_id: str | None = None,
 ) -> tuple[ExactCoordinate, _ComponentFacts, bytes]:
     recorded = versions.held(connection, stable_id, version)
     if recorded is None or (expected is not None and recorded.passport_digest != expected):
@@ -294,6 +310,7 @@ def _component(
     # strictly weaker than installing it, with `AI_STP_CONFLICT` for a state
     # that conflicted with nothing (`#66`). The facts are read for what they
     # are, and the one thing a report cannot do without is named when absent.
+    public_scope = None
     try:
         passport = ComponentVersionPassport.model_validate(document)
     except ValidationError:
@@ -301,8 +318,15 @@ def _component(
     else:
         if not verify_revision_id(passport):
             raise CliFailure("AI_STP_CONFLICT", "a component passport no longer matches its digest")
-        facts = _public_facts(passport)
+        facts = _public_facts(passport, harness_id)
+        selected = (
+            passport.adaptations if harness_id is None else [adaptation_for(passport, harness_id)]  # type: ignore[arg-type]
+        )
+        if len(selected) == 1 and len(selected[0].scope_adaptations) == 1:
+            public_scope = selected[0].scope_adaptations[0]
     payload = content.get(connection, facts.artifact_digest)
+    if public_scope is not None:
+        verify_projection(public_scope, payload)
     content_format = facts.content_format or (
         components.COMPONENT_TREE_FORMAT
         if zipfile.is_zipfile(io.BytesIO(payload))
@@ -315,10 +339,20 @@ def _component(
     )
 
 
-def _public_facts(passport: ComponentVersionPassport) -> _ComponentFacts:
+def _public_facts(passport: ComponentVersionPassport, harness_id: str | None) -> _ComponentFacts:
+    adaptations = (
+        passport.adaptations if harness_id is None else [adaptation_for(passport, harness_id)]  # type: ignore[arg-type]
+    )
+    native_ids = tuple(
+        native_id
+        for adaptation in adaptations
+        for scope in adaptation.scope_adaptations
+        for member in scope.members
+        for native_id in member.native_ids
+    )
     return _ComponentFacts(
         component_type=passport.component_type,
-        native_ids=tuple(passport.native_ids),
+        native_ids=native_ids,
         external_endpoints=tuple(passport.external_endpoints),
         requires_credentials=passport.requires_credentials,
         required_env=tuple(item.name for item in passport.required_env),
@@ -326,7 +360,7 @@ def _public_facts(passport: ComponentVersionPassport) -> _ComponentFacts:
         network=tuple(passport.permissions.network),
         process=tuple(passport.permissions.process),
         artifact_digest=passport.artifact.digest,
-        content_format="",
+        content_format=components.PROJECTION_FORMAT,
     )
 
 

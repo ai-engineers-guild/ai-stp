@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-01"
+last_verified: "2026-09-04"
 ---
 
 # Current status and plan
@@ -34,7 +34,7 @@ plans are not continued literally after the implementation changes.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities, and five complete launch capabilities |
-| Release | All five Python packages published through Trusted Publishing (the exact version is in the snapshot below); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
+| Release | Published line is `0.0.16` as six distributions; the next candidate is one public `ai-stp-cli` wheel (`ADR-0146`, `#100`) and is not yet on the index; GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
 ## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut
@@ -79,7 +79,7 @@ plans are not continued literally after the implementation changes.
   remove` through `ai-stp` itself — is green on **all six native legs** against
   `0.0.53`, seven harnesses each. The one-leg limitation this document carried
   since August is closed.
-- Package OS classifiers are Linux, macOS and Windows in all five distributions;
+- Package OS classifiers are Linux, macOS and Windows on the published `ai-stp-cli` distribution;
   the evidence that gated them exists.
 - The first-party corpus is published whole: 99 of 99 objects, zero blockers,
   and `just evidence-live` exits 0 against the served generation.
@@ -286,6 +286,23 @@ beside `ADR-0103` rather than a bigger wait.
 4. Every evidence script has a recipe that names it. A script nobody can invoke
    is not a check; `verify_contribution_slice` sat unreferenced for a day and its
    first real run found three defects in itself.
+
+## Architecture-alignment dispositions
+
+An older architecture-alignment audit named workstreams that later ADRs already
+closed or forbade. Those findings are not re-opened here:
+
+| Finding | Disposition |
+|---|---|
+| Protect `ai-stp/main` (GOV-001) | Refused by `ADR-0115`: the gate proves the tree; branch protection would block the agent that writes `main`. |
+| Six-package publication (REL-002) | Superseded by `ADR-0146`: one public `ai-stp-cli` wheel. Historical six-package artifacts stay immutable. |
+| Provider-owned multi-root commit (LAY-002) | Superseded by `ADR-0145` / SPEC-058: the consumer owns a recoverable transaction over unchanged provider v3 (one target). |
+| PyPI as the default provider channel (PYP-002) | Not claimed. GitHub attested releases remain the default until six-leg evidence exists for the index path. |
+| Public provider disclosure (PUB-001/002) | Owned by the setup-systems estate, not this consumer. |
+| Scaffold v3 (SCA-001) | Backlog, issue `#79`. |
+| Rust rewrite / new component kinds | Backlog (`D-15`). Historical experiments are not current evidence. |
+
+`#100` stays open until `ai-stp-cli==0.0.17` is published from an immutable candidate, a clean install from the index passes, and `ai-stp-sources` is removed. That publication is a separate confirmation, not this change.
 
 ## Explicitly out of scope for this pass
 

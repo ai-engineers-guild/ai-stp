@@ -23,11 +23,13 @@ from ai_stp_cli.commands import registry as registry_commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     cache,
+    component_passports,
     components,
     content,
     installation,
     passports,
     project_passport,
+    provider_installations,
     provider_releases,
     revisions,
     selection,
@@ -44,6 +46,7 @@ from ai_stp_cli.provider import (
     protocol_v2,
     protocol_v3,
     release,
+    trust,
 )
 from ai_stp_contracts.catalog import CatalogTrust
 from ai_stp_contracts.first_party import FirstPartyVersion
@@ -151,7 +154,7 @@ def _provider(
             "harness_id": "claude-code",
             "provider_version": "1.0.0",
             "supported_actions": list(protocol.COMMANDS),
-            "bundle_formats": ["ai-stp-bundle/1"],
+            "bundle_formats": ["ai-stp-bundle/1", "ai-stp-bundle/2"],
             "supported_os": [os_name],
             "supported_arch": [architecture],
             "limits": {},
@@ -261,44 +264,67 @@ def _confirmed(
                 "confirmation": "none",
                 "observed_at": MOMENT,
             },
+            "source_path": {
+                "value": "skills/component.md",
+                "origin": "observed",
+                "confirmation": "none",
+                "observed_at": MOMENT,
+            },
+            "scope": {
+                "value": "global",
+                "origin": "observed",
+                "confirmation": "none",
+                "observed_at": MOMENT,
+            },
+            "projection_kind": {
+                "value": "native_files",
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+                "observed_at": MOMENT,
+            },
+            "name": {
+                "value": "fixture",
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "description": {
+                "value": "A formal install fixture.",
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "tags": {
+                "value": ["tests"],
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "license": {
+                "value": {"spdx_id": "MIT", "redistribution_allowed": False},
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "managed_paths": {
+                "value": ["skills/component.md"],
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "requires_authorization": {
+                "value": requires_authorization,
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
         },
     }
-    if requires_authorization != "none":
-        document.update(
-            {
-                "name": "authorization-fixture",
-                "description": "A formal component with external authorization.",
-                "version": "1.0",
-                "tags": ["tests"],
-                "source": None,
-                "artifact": {"digest": "sha256:" + "8" * 64, "size_bytes": 8},
-                "harness_id": harness_id,
-                "required_env": [],
-                "requires_credentials": False,
-                "requires_authorization": requires_authorization,
-                "permissions": {"filesystem": [], "network": [], "process": []},
-                "external_endpoints": [],
-                "license": {"spdx_id": "MIT", "redistribution_allowed": False},
-                "compatibility_evidence_refs": [],
-                "component_type": component_type,
-                "projection_kind": "native_files",
-                "variant_id": None,
-                "provides_capabilities": [],
-                "requires_components": [],
-                "requires_capabilities": [],
-                "conflicts": {},
-                "managed_paths": [],
-                "native_ids": [],
-            }
-        )
-    stored = revisions.commit(registry, document, device_id=DEVICE)
-    digest = cache.digest_of(stored.envelope.model_dump(mode="json"))
+    revisions.commit(registry, document, device_id=DEVICE)
+    passport, revision_id = component_passports.materialize_version_passport(
+        registry, stable_id, "1.0", device_id=DEVICE, at=MOMENT
+    )
+    digest = cache.digest_of(passport.model_dump(mode="json"))
     versions.record(
         registry,
         stable_id=stable_id,
         version="1.0",
         passport_digest=digest,
-        revision_id=stored.revision_id,
+        revision_id=revision_id,
         at=MOMENT,
     )
 
@@ -357,7 +383,7 @@ def test_a_plan_is_computed_and_changes_nothing(
     assert view.plan_digest.startswith("sha256:")
     assert view.effects, "a plan enumerates what it will do"
     assert view.expected_target_digest == TARGET
-    assert view.bundle_format == "ai-stp-bundle/1"
+    assert view.bundle_format == "ai-stp-bundle/2"
     assert view.bundle_digest.startswith("sha256:")
     assert view.bundle_artifact_digest.startswith("sha256:")
     assert view.bundle_size > 0
@@ -820,12 +846,17 @@ def _v3_test_invoker(
     """Install a deterministic in-process v3 provider boundary for lifecycle tests."""
     os_name, architecture = install._release_platform().split("/", 1)  # pyright: ignore[reportPrivateUsage]
     profile: dict[str, JsonValue] = {
-        "profile_id": "claude-code/test-v3",
-        "component_kinds": cast(list[JsonValue], ["skill"]),
-        "projection_kinds": cast(list[JsonValue], ["native_files"]),
-        "native_namespaces": cast(list[JsonValue], ["skills"]),
-        "bundle_formats": cast(list[JsonValue], ["ai-stp-bundle/1"]),
-        "max_files": 2000,
+        "profile_id": "claude/native-and-marketplace/1",
+        "component_kinds": cast(
+            list[JsonValue], ["instruction", "skill", "agent", "command", "setting", "plugin"]
+        ),
+        "projection_kinds": cast(list[JsonValue], ["native_files", "marketplace", "plugin"]),
+        "native_namespaces": cast(
+            list[JsonValue],
+            ["CLAUDE.md", "settings.json", "skills", "agents", "commands", "rules", "workflows"],
+        ),
+        "bundle_formats": cast(list[JsonValue], ["ai-stp-bundle/2"]),
+        "max_files": 8192,
         "max_bytes": 64 * 1024 * 1024,
     }
     projection_digest = digest_canonical(protocol_v3.PROJECTION_DOMAIN, profile)
@@ -1526,6 +1557,18 @@ def _acquire_first_party_setup(
             "AI_STP_PI_PROVIDER_V3_MANIFEST",
             ("", ""),
         ),
+        (
+            "cursor",
+            "AI_STP_CURSOR_PROVIDER_V3",
+            "AI_STP_CURSOR_PROVIDER_V3_MANIFEST",
+            ("", ""),
+        ),
+        (
+            "antigravity",
+            "AI_STP_ANTIGRAVITY_PROVIDER_V3",
+            "AI_STP_ANTIGRAVITY_PROVIDER_V3_MANIFEST",
+            ("", ""),
+        ),
     ],
 )
 def test_real_first_party_base_setup_profiles_use_one_exact_bundle_lifecycle(
@@ -1539,8 +1582,8 @@ def test_real_first_party_base_setup_profiles_use_one_exact_bundle_lifecycle(
 ) -> None:
     executable = os.environ.get(provider_environment)
     manifest = os.environ.get(manifest_environment)
-    if executable is None or manifest is None:
-        pytest.skip(f"set {provider_environment} and {manifest_environment} for base setup E2E")
+    if executable is None:
+        pytest.skip(f"set {provider_environment} for base setup E2E")
     project_id = _project_context(registry, tmp_path)
     setup = _acquire_first_party_setup(harness_id, "nddev-builder", monkeypatch)
     assert isinstance(setup.passport, SetupVersionPassport)
@@ -1555,17 +1598,20 @@ def test_real_first_party_base_setup_profiles_use_one_exact_bundle_lifecycle(
                 "setup": reference,
                 "project": str(tmp_path),
                 "provider": executable,
-                "provider-manifest": manifest,
                 "protocol-version": 3,
                 "target": str(target),
                 "action": action,
             }
+            if manifest is None:
+                parameters["unverified-provider"] = True
+            else:
+                parameters["provider-manifest"] = manifest
             if profile:
                 parameters["permission-profile"] = profile
             if backup_ref:
                 parameters["backup-ref"] = backup_ref
             planned = install.plan(parameters).payload
-            assert planned.provider_release_trusted is True
+            assert planned.provider_release_trusted is (manifest is not None)
             install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
             completed = install.apply(
                 {"operation": planned.operation_id, "provider": executable}
@@ -2372,7 +2418,7 @@ def test_v2_lifecycle_uses_the_phase_invoker_bound_into_the_plan(
                 "harness_id": "claude-code",
                 "provider_version": "2.0.0",
                 "supported_actions": list(protocol_v2.COMMANDS),
-                "bundle_formats": ["ai-stp-bundle/1"],
+                "bundle_formats": ["ai-stp-bundle/1", "ai-stp-bundle/2"],
                 "supported_os": [os_name],
                 "supported_arch": [architecture],
                 "limits": {},
@@ -2471,7 +2517,7 @@ def test_resume_only_observes_and_never_reapplies_the_bundle(
                     "harness_id": "claude-code",
                     "provider_version": "1.0.0",
                     "supported_actions": list(protocol.COMMANDS),
-                    "bundle_formats": ["ai-stp-bundle/1"],
+                    "bundle_formats": ["ai-stp-bundle/1", "ai-stp-bundle/2"],
                     "supported_os": [install._release_platform().split("/", 1)[0]],  # pyright: ignore[reportPrivateUsage]
                     "supported_arch": [install._release_platform().split("/", 1)[1]],  # pyright: ignore[reportPrivateUsage]
                 }
@@ -2662,17 +2708,65 @@ def test_a_provider_with_no_target_digest_cannot_anchor_a_plan(
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
 
 
-def test_a_provider_that_is_not_there_is_not_found(tmp_path: Path) -> None:
+def test_a_provider_that_is_not_there_is_not_found(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    proposal_id = _confirmed(registry, tmp_path, "N")
     with pytest.raises(CliFailure) as raised:
-        install.plan({"proposal": "proposal_x", "provider": str(tmp_path / "absent")})
+        install.plan({"proposal": proposal_id, "provider": str(tmp_path / "absent")})
     assert raised.value.code == "AI_STP_NOT_FOUND"
 
 
-def test_the_provider_must_be_named(tmp_path: Path) -> None:
-    """`ai_stp` never writes a target itself, so there is nothing to default to."""
-    with pytest.raises(CliFailure) as raised:
-        install.plan({"proposal": "proposal_x"})
-    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+def test_a_missing_managed_provider_is_acquired(
+    registry: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Omitted `--provider` binds the attested OpenNetwork artifact and continues."""
+    from types import SimpleNamespace
+
+    proposal_id = _confirmed(registry, tmp_path, "P")
+    provider_root = provider_installations.managed_root() / "claude-code" / "0.0.60"
+    manifest = provider_root / "release.json"
+    calls: list[str] = []
+    trust_inputs: list[str] = []
+
+    def fetch(*, harness: str, **_kwargs: object) -> SimpleNamespace:
+        calls.append(harness)
+        provider_root.mkdir(parents=True)
+        created = Path(_provider(provider_root, "fetched"))
+        manifest.write_text("{}", encoding="utf-8")
+        return SimpleNamespace(
+            harness_id=harness,
+            artifact=created,
+            manifest_path=manifest,
+            provider_id="claude-setup-system",
+            provider_version="0.0.60",
+            tag="0.0.60",
+            commit="a" * 40,
+            artifact_digest="sha256:" + "b" * 64,
+        )
+
+    def trusted_manifest(
+        connection: sqlite3.Connection,
+        parameters: Mapping[str, object],
+        executable: str,
+        *,
+        recovery_requested: bool,
+    ) -> trust.ReleaseEvidence:
+        del connection, executable, recovery_requested
+        trust_inputs.append(str(parameters.get("provider-manifest") or ""))
+        return trust.ReleaseEvidence(None)
+
+    monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    monkeypatch.setattr(trust, "trusted_manifest", trusted_manifest)
+    planned = install.plan({"proposal": proposal_id}).payload
+    assert planned.state == "planned"
+    assert calls == ["claude-code"]
+    assert trust_inputs == [str(manifest)]
+    # Remembered: a second plan does not fetch again.
+    second = install.plan({"proposal": proposal_id}).payload
+    assert second.operation_id == planned.operation_id
+    assert calls == ["claude-code"]
+    assert trust_inputs == [str(manifest), str(manifest)]
 
 
 def test_planning_twice_returns_the_same_plan(registry: sqlite3.Connection, tmp_path: Path) -> None:

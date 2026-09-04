@@ -31,32 +31,19 @@ from typing import Any, Final, cast
 ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 REPOSITORY: Final[str] = "https://github.com/ai-engineers-guild/ai-stp"
 PUBLISHABLE: Final[dict[str, Path]] = {
-    "ai-stp-foundation": ROOT / "packages" / "foundation" / "pyproject.toml",
-    "ai-stp-passports": ROOT / "packages" / "passports" / "pyproject.toml",
-    "ai-stp-assurance": ROOT / "packages" / "assurance" / "pyproject.toml",
-    "ai-stp-contracts": ROOT / "packages" / "contracts" / "pyproject.toml",
-    "ai-stp-sources": ROOT / "packages" / "sources" / "pyproject.toml",
     "ai-stp-cli": ROOT / "apps" / "cli" / "pyproject.toml",
 }
 INTERNAL_DEPENDENCIES: Final[dict[str, frozenset[str]]] = {
-    "ai-stp-foundation": frozenset(),
-    "ai-stp-passports": frozenset({"ai-stp-foundation"}),
-    "ai-stp-assurance": frozenset({"ai-stp-foundation", "ai-stp-passports"}),
-    "ai-stp-contracts": frozenset({"ai-stp-assurance", "ai-stp-foundation", "ai-stp-passports"}),
-    "ai-stp-sources": frozenset({"ai-stp-foundation", "ai-stp-passports"}),
-    # `ai-stp-assurance` and `ai-stp-sources` were both absent here while the
-    # manifest required them, so neither pin was ever checked. A dependency the
-    # map does not name is a dependency the release does not verify.
-    "ai-stp-cli": frozenset(
-        {
-            "ai-stp-assurance",
-            "ai-stp-contracts",
-            "ai-stp-foundation",
-            "ai-stp-passports",
-            "ai-stp-sources",
-        }
-    ),
+    "ai-stp-cli": frozenset(),
 }
+BUNDLED_MODULES: Final[tuple[str, ...]] = (
+    "ai_stp_cli",
+    "ai_stp_foundation",
+    "ai_stp_passports",
+    "ai_stp_assurance",
+    "ai_stp_contracts",
+    "ai_stp_sources",
+)
 
 
 class CandidateError(RuntimeError):
@@ -197,7 +184,12 @@ def _metadata_fields(text: str, *, expected_name: str, expected_version: str) ->
     urls = metadata.get_all("Project-URL", [])
     if not any(REPOSITORY in value for value in urls):
         raise CandidateError(f"{expected_name} metadata does not name the source repository")
-    requirements = metadata.get_all("Requires-Dist", [])
+    requirements = metadata.get_all("Requires-Dist", []) or []
+    internals = [item for item in requirements if item.startswith("ai-stp-")]
+    if internals:
+        raise CandidateError(
+            f"{expected_name} release metadata requires unpublished internals: {internals}"
+        )
     for dependency in INTERNAL_DEPENDENCIES[expected_name]:
         exact = f"{dependency}=={expected_version}"
         if exact not in requirements:
@@ -221,6 +213,11 @@ def _validate_wheel(path: Path, *, name: str, version: str) -> None:
         if len(metadata_names) != 1 or len(license_names) != 1:
             raise CandidateError(f"{path.name} must carry one METADATA and one LICENSE")
         text = archive.read(metadata_names[0]).decode("utf-8")
+        for module in BUNDLED_MODULES:
+            if not any(member.startswith(f"{module}/") for member in names):
+                raise CandidateError(f"{path.name} is missing bundled module {module}")
+            if f"{module}/py.typed" not in names:
+                raise CandidateError(f"{path.name} is missing {module}/py.typed")
     _metadata_fields(text, expected_name=name, expected_version=version)
 
 
@@ -239,6 +236,10 @@ def _validate_sdist(path: Path, *, name: str, version: str) -> None:
         if stream is None:
             raise CandidateError(f"{path.name} PKG-INFO is not readable")
         text = stream.read().decode("utf-8")
+        for module in BUNDLED_MODULES:
+            marker = f"/{module}/"
+            if not any(marker in member.name for member in members):
+                raise CandidateError(f"{path.name} is missing bundled module {module}")
     _metadata_fields(text, expected_name=name, expected_version=version)
 
 

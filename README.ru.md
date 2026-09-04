@@ -90,13 +90,16 @@ harness-capabilities`.
 Неизвестный харнесс — `undefined`. Автоматическая установка для него
 отказывается.
 
-## Стратегическое направление: Rust и plugin-архитектура в духе Pi
+## Текущее направление: завершить первую поддерживаемую alpha-версию
 
-**By 31 December 2026, `ai-stp` will be rewritten in Rust and migrated to a
-plugin-first architecture inspired by Pi.** The migration will preserve the
-public CLI and API contracts while separating a lightweight, deterministic
-core from versioned plugins for harnesses, components, projections, and
-provider-specific integrations.
+`0.0.16` — первая поддерживаемая alpha-линия. `0.0.17` продолжает её как одно
+публичное колесо `ai-stp-cli` (`ADR-0146`). Текущая программа завершает
+проверенную доставку provider — по умолчанию attested GitHub-релизы, PEP 740
+с индекса как второй путь (`ADR-0141`) — восстанавливаемую многокорневую
+установку на стороне потребителя над неизменным provider v3 (`ADR-0145`) и одну
+точную запись релиза всего estate. `main` не защищён правилами ветки: дерево
+доказывает гейт (`ADR-0115`). Rust и новые виды компонентов отложены;
+календарного обещания переписать систему на другом языке нет.
 
 Статус фазы принадлежит
 [`docs/engineering/implementation-roadmap.md`](docs/engineering/implementation-roadmap.md):

@@ -18,9 +18,14 @@ from ai_stp_foundation.schemas import EXPORTED_MODELS as FOUNDATION_MODELS
 from ai_stp_foundation.schemas import ExportedSchema
 from ai_stp_passports.envelope import PassportEnvelope
 from ai_stp_passports.facts import Fact
-from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_passports.versions import (
+    ComponentAdaptation,
+    ComponentVersionPassport,
+    SetupVersionPassport,
+)
 
 PASSPORT_MODELS: Final[dict[str, ExportedSchema]] = {
+    "component-adaptation": ComponentAdaptation,
     "component-version-passport": ComponentVersionPassport,
     "fact": Fact,
     "passport-envelope": PassportEnvelope,

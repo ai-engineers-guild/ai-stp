@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from tests.support.component_passports import adaptation_fields
 
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.grants.service import (
@@ -82,9 +83,7 @@ def _passport(**overrides: object) -> dict[str, object]:
         "tags": ["test"],
         "source": {"repository": "https://example.test/repo", "commit": "a" * 40, "path": "."},
         "artifact": {"digest": DIGEST, "size_bytes": 1},
-        "harness_id": "claude-code",
-        "harness_ids": [],
-        "supported_os": [],
+        **adaptation_fields(digest=DIGEST, size=1),
         "required_env": [],
         "requires_credentials": False,
         "requires_authorization": "none",
@@ -92,8 +91,6 @@ def _passport(**overrides: object) -> dict[str, object]:
         "external_endpoints": [],
         "compatibility_evidence_refs": [],
         "component_type": "skill",
-        "projection_kind": "native_files",
-        "variant_id": None,
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -105,8 +102,6 @@ def _passport(**overrides: object) -> dict[str, object]:
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [],
-        "native_ids": [],
     }
     passport.update(overrides)
     passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]

@@ -112,7 +112,7 @@ PROVIDER_ANSWERS: dict[str, object] = {
         "harness_id": HARNESS,
         "provider_version": "1.0.0",
         "supported_actions": list(protocol.COMMANDS),
-        "bundle_formats": ["ai-stp-bundle/1"],
+        "bundle_formats": ["ai-stp-bundle/1", "ai-stp-bundle/2"],
         # Host platform included so Windows and Linux CI both pass the OS gate.
         "supported_os": ["linux", "macos", "windows"],
         "supported_arch": ["x86_64", "arm64"],
@@ -272,6 +272,8 @@ def warm(tmp_path_factory: pytest.TempPathFactory) -> Warm:
     home, work = root / "home", root / "work"
     (work / ".git").mkdir(parents=True)
     home.mkdir()
+    (home / ".claude").mkdir()
+    (home / ".claude" / "CLAUDE.md").write_text("# Global rules\n\nBe careful.\n", encoding="utf-8")
     (work / "pyproject.toml").write_text('[project]\nname = "thing"\n', encoding="utf-8")
     (work / "CLAUDE.md").write_text("# Project rules\n\nBe careful.\n", encoding="utf-8")
     (work / "src").mkdir()
@@ -298,13 +300,36 @@ def warm(tmp_path_factory: pytest.TempPathFactory) -> Warm:
         "component",
         "adopt",
         "--path",
-        str(work / "CLAUDE.md"),
-        "--root",
-        str(work),
+        str(home / ".claude" / "CLAUDE.md"),
         "--json",
         home=home,
     )
     component_id = str(component["stable_id"])
+    component_patch = root / "component-patch.json"
+    component_patch.write_text(
+        json.dumps(
+            {
+                "name": "project-rules",
+                "description": "Project instructions used by the offline closure.",
+                "tags": ["offline"],
+                "license": {"spdx_id": "MIT", "redistribution_allowed": True},
+            }
+        ),
+        encoding="utf-8",
+    )
+    _ok(
+        "component",
+        "passport",
+        "update",
+        "--id",
+        component_id,
+        "--expected-revision",
+        str(component["revision_id"]),
+        "--from",
+        str(component_patch),
+        "--json",
+        home=home,
+    )
     released = _ok("component", "version", "release", "--id", component_id, "--json", home=home)
 
     # Compiled once here so that the offline compile has something exact to be

@@ -1,6 +1,6 @@
 ---
 description: "Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes."
-last_verified: "2026-08-26"
+last_verified: "2026-09-03"
 ---
 
 # Mechanical constraints and rejection reasons
@@ -52,17 +52,27 @@ and tests.
 | Code | When it occurs |
 |---|---|
 | `harness_mismatch` | the object declares another harness |
+| `adaptation_unavailable` | the object names adaptations and none of them is the requested harness |
 
-The declared harness is read from the stored passport in the same way as the
-composition surface: first from the document field, otherwise from
-`facts.harness_id`. A passport of an exact catalog version carries `harness_id`
-at the top level and need not duplicate it as a fact.
+Compatibility starts from explicit adaptations (`SPEC-006` REQ-631, `ADR-0143`).
+A provider-native route is consulted only after an exact adaptation for the
+requested harness exists; a route never creates support.
 
-A component that names no harness is portable — a repository-root `AGENTS.md`
-is one convention several products read, not one surface per product — and is
-compatible with every harness whose released provider declares a native
-surface for its kind; where none does, the refusal is
-`provider_surface_unavailable`, the same code a harness-bound object of that
+The first supported component form has no component-level `harness_id`. Its
+compatibility set is the harnesses named by `adaptations`. Absence of an
+adaptation for the requested harness is `adaptation_unavailable`, not
+portability and not `harness_mismatch`. `origin_harness_id` records provenance
+only and is not an eligibility input.
+
+Historical objects without adaptations keep the earlier reading: the declared
+harness is taken from the document field, otherwise from `facts.harness_id`.
+A named mismatch of that field is `harness_mismatch`.
+
+A component that names no harness and no adaptations is portable — a
+repository-root `AGENTS.md` is one convention several products read, not one
+surface per product — and is compatible with every harness whose released
+provider declares a native surface for its kind; where none does, the refusal
+is `provider_surface_unavailable`, the same code a harness-bound object of that
 kind receives. A setup always names exactly one harness.
 | `harness_version_unsupported` | the detected harness version is outside the declared range |
 | `harness_version_unknown` | a range is declared, but the harness version on the target could not be read |

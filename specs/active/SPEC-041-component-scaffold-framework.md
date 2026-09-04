@@ -18,7 +18,7 @@ The framework creates a local authoring catalog and a private passport patch.
 It does not register the object, invent a public source, license, or
 authorization, invoke a package manager, execute generated code, compose a
 setup into SQLite, export a harness tree, or write a provider target.
-`ADR-0142` records the architecture boundary between authoring git, native
+`ADR-0148` records the architecture boundary between authoring git, native
 projections, compose, and install.
 
 ## Terms
@@ -68,7 +68,7 @@ projections, compose, and install.
   the marker `TODO(ai-stp-scaffold):`. Safety declarations belong in the
   passport, not a sibling markdown file.
 - `REQ-4106`: Apply rebuilds the plan from the same explicit inputs, requires its
-  exact digest and `--confirm`, creates owner-only files, rolls back its own
+  exact digest, creates owner-only files, rolls back its own
   incomplete result, and fails closed for an existing target, a symlink, or a
   missing parent.
 - `REQ-4107`: The eval skeleton contains a local deterministic check, while
@@ -154,7 +154,7 @@ their own schema.
 | `REQ-4103` | A repeated preview matches, every digest is recomputed from the actual bytes, and no planned path is under `.git`. |
 | `REQ-4104` | For every matrix row, the passport and eval profile pass their respective schemas, `source/` is present, `native/` is absent, and `projections/<harness>/` is present exactly when the variant is a concrete harness. |
 | `REQ-4105` | Fixtures contain no secret values, public source claims, invented tags, or permission to distribute; skill passport description matches SKILL.md YAML. |
-| `REQ-4106` | Without confirm, with a stale digest, an existing target, a symlink, or a missing parent, the operation is rejected without modifying files. |
+| `REQ-4106` | Without the exact plan digest, with a stale digest, an existing target, a symlink, or a missing parent, the operation is rejected without modifying files. |
 | `REQ-4107` | The eval profile contains deterministic and model-assisted checks; the shared runner confirms an accurate `not_run`. |
 | `REQ-4108` | Fixtures for native instruction/command/agent/setting components match the registry; a Codex agent is TOML; an unsupported pair is rejected without writing files. |
 | `REQ-4109` | Hook fixtures preserve the event, order, failure policy, and command in `source/hook.json`; malformed source is rejected by the strict schema. |

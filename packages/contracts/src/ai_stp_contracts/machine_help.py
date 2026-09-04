@@ -1887,7 +1887,7 @@ class HarnessBundle(BaseModel):
     #: The projection scope the package was compiled for: the harness home
     #: (`global`) or a workspace root (`project`), chosen at `select bundle`.
     target_scope: Literal["global", "project", "user_root"] = "global"
-    bundle_format: Literal["ai-stp-bundle/1"] = "ai-stp-bundle/1"
+    bundle_format: Literal["ai-stp-bundle/1", "ai-stp-bundle/2"] = "ai-stp-bundle/1"
 
     #: Domain-separated over the manifest, which covers every file by content.
     #: Nothing that varies between machines is inside it — no build time, no
@@ -2052,6 +2052,19 @@ class TrustedBuildAttestation(BaseModel):
     verified_publisher: bool = False
 
 
+class TrustedIndexPublisher(BaseModel):
+    """One PyPI project whose PEP 740 publisher this machine will bind (`ADR-0141`)."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    pypi_project: Annotated[str, Field(min_length=1)]
+    repository: Annotated[str, Field(min_length=1)]
+    workflow: Annotated[str, Field(min_length=1)]
+    environment: Annotated[str, Field(min_length=1)]
+    verified_publisher: bool = False
+
+
 class ProviderTrust(BaseModel):
     """What this machine will accept from a provider, and why (`SPEC-008` REQ-811).
 
@@ -2087,6 +2100,10 @@ class ProviderTrust(BaseModel):
     #: repositories are trusted. Reporting the empty halves alone told an agent
     #: that nothing was installable, which was the opposite of the truth.
     build_attestations: list[TrustedBuildAttestation] = []
+
+    #: PyPI projects whose PEP 740 publisher triple may bind a wheel. Empty is
+    #: the rollback: every index-delivered provider stays `unverified`.
+    index_publishers: list[TrustedIndexPublisher] = []
 
     #: Present only when a manifest was given to check. `null` means the policy
     #: was reported and nothing was verified, which is not the same as accepted.
@@ -2420,6 +2437,44 @@ class InstallationStatus(BaseModel):
 
     schema_version: Literal[1] = 1
     stopped: list[RecoveryView] = []
+
+
+class MultiRootChildView(BaseModel):
+    """One scope-specific operation owned by a multi-root transaction."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    scope: Literal["global", "user_root", "project"]
+    operation_id: Annotated[str, Field(min_length=1)]
+    target_id: Annotated[str, Field(min_length=1)]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    state: Annotated[str, Field(min_length=1)]
+    backup_ref: str | None = None
+
+
+class MultiRootTransactionView(BaseModel):
+    """One recoverable decision spanning several provider-owned roots."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    transaction_id: Annotated[str, Field(min_length=1)]
+    transaction_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    setup_stable_id: Annotated[str, Field(min_length=1)]
+    setup_version: Annotated[str, Field(min_length=1)]
+    harness_id: HarnessId
+    state: Literal[
+        "planned",
+        "applying",
+        "compensating",
+        "recovery_required",
+        "verified",
+        "rolled_back",
+    ]
+    approved: bool
+    children: Annotated[list[MultiRootChildView], Field(min_length=2, max_length=3)]
+    next_actions: list[str] = []
 
 
 class ImportedFile(BaseModel):
