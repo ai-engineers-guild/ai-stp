@@ -194,3 +194,38 @@ def test_the_offline_command_rejects_a_lying_verdict(tmp_path: Path) -> None:
     problems = validate(place)
     assert problems
     assert "verdict" in problems[0]
+
+
+def test_builder_writes_an_honest_incomplete_one_wheel_record(tmp_path: Path) -> None:
+    checksums = tmp_path / "SHA256SUMS"
+    checksums.write_text(f"{'b' * 64}  ai_stp_cli-0.0.17-py3-none-any.whl\n", encoding="utf-8")
+    output = tmp_path / "estate.json"
+    from release_scripts.build_estate_record import main
+
+    assert (
+        main(
+            [
+                "--version",
+                "0.0.17",
+                "--commit",
+                _COMMIT,
+                "--tag",
+                "v0.0.17",
+                "--checksums",
+                str(checksums),
+                "--output",
+                str(output),
+                "--required-slice",
+                "software",
+                "--limitation",
+                "six-leg matrix was not run on this consumer SHA",
+                "--created-at",
+                "2026-09-04T00:00:00.000Z",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["verdict"] == "incomplete"
+    assert payload["distributions"][0]["name"] == "ai-stp-cli"
+    assert validate(output) == []

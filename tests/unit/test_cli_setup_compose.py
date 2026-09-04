@@ -175,3 +175,59 @@ def test_cli_plan_and_apply_resolve_a_local_component(tmp_path: Path) -> None:
     ).payload
     assert result.setup_id == preview.setup_id
     assert result.definition_digest == preview.definition_digest
+
+
+def test_export_writes_a_review_tree_and_not_a_harness_tree(tmp_path: Path) -> None:
+    hook = tmp_path / "hooks" / "check"
+    hook.mkdir(parents=True)
+    (hook / "check.py").write_text("print('ok')\n", encoding="utf-8")
+    manifest = tmp_path / "setup.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "name": "Frontend developer",
+                "description": "A mixed frontend setup.",
+                "harness_id": "codex",
+                "tags": ["frontend"],
+                "components": [
+                    {
+                        "source": {"kind": "path", "relative_path": "hooks/check"},
+                        "component_type": "hook",
+                        "name": "check",
+                        "description": "Locally authored validation hook.",
+                        "license_spdx": "MIT",
+                        "redistribution_allowed": True,
+                        "managed_paths": ["hooks/check.py"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    preview = command.plan({"manifest": str(manifest), "root": str(tmp_path)}).payload
+    applied = command.apply(
+        {
+            "manifest": str(manifest),
+            "root": str(tmp_path),
+            "id": preview.setup_id,
+            "created-at": preview.created_at,
+            "expected-plan-digest": preview.plan_digest,
+            "confirm": True,
+        }
+    ).payload
+    destination = tmp_path / "exported-setup"
+    result = command.export(
+        {"id": applied.setup_id, "version": applied.version, "output": str(destination)}
+    ).payload
+    assert result.result == "local_setup_definition"
+    assert result.storage == "local_registry"
+    assert result.physical_target_tree_created is False
+    assert result.definition_digest == applied.definition_digest
+    assert (destination / "setup-passport.json").is_file()
+    assert (destination / "setup-definition.json").is_file()
+    readme = (destination / "README.md").read_text(encoding="utf-8")
+    assert "physical harness tree is not created" in readme
+    assert "Native harness state is not written" in readme
+    with pytest.raises(CliFailure, match="must not already exist"):
+        command.export({"id": applied.setup_id, "output": str(destination)})

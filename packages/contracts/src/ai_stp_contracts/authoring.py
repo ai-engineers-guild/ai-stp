@@ -1,4 +1,4 @@
-"""Versioned component and setup scaffold descriptors, plans, and applied results."""
+"""Versioned component scaffold descriptors, plans, and applied results."""
 
 from __future__ import annotations
 
@@ -117,7 +117,6 @@ class ComponentScaffoldFile(BaseModel):
             or "\\" in value
             or any(part in {"", ".", ".."} for part in path.parts)
             or any(ord(character) < 32 for character in value)
-            or path.parts[0] == ".git"
         ):
             raise ValueError("scaffold file path must be relative POSIX without traversal")
         return path.as_posix()
@@ -157,9 +156,6 @@ class ComponentScaffoldResult(BaseModel):
     files_written: Annotated[int, Field(ge=6)]
     template_version: ComponentTemplateVersion = "component-scaffold/3"
     generator_version: ComponentGeneratorVersion = "ai-stp/3"
-    git_initialized: bool
-    git_commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40,64}$")] | None = None
-    git_reason: GitInitReason | None = None
 
 
 class SetupMemberDescriptor(BaseModel):

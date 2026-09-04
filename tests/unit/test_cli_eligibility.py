@@ -640,3 +640,7 @@ def test_select_reads_adaptation_harnesses_from_the_passport() -> None:
     )
     assert held == frozenset({"claude-code", "cursor"})
     assert select_commands._adaptation_harnesses({}) == frozenset()  # pyright: ignore[reportPrivateUsage]
+
+
+def test_origin_harness_is_not_an_eligibility_input() -> None:
+    assert "origin_harness_id" not in eligibility.CandidateFacts.__dataclass_fields__

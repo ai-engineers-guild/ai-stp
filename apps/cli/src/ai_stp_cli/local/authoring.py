@@ -12,8 +12,7 @@ from pathlib import Path, PurePosixPath
 from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import composition, harness_catalog
-from ai_stp_cli.local.components import Rule
+from ai_stp_cli.local import harness_catalog
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import (
     AUTHORING_LANGUAGES,
@@ -56,9 +55,6 @@ LANGUAGES = AUTHORING_LANGUAGES
 VARIANTS = AUTHORING_VARIANTS
 TYPE_LANGUAGE_MATRIX = AUTHORING_TYPE_LANGUAGE_MATRIX
 DRAFT: Final[str] = "TODO(ai-stp-scaffold):"
-SKILL_DESCRIPTION: Final[str] = (
-    f"{DRAFT} replace with a third-person sentence that says when this skill is used."
-)
 GITIGNORE: Final[bytes] = (
     b".DS_Store\n"
     b"Thumbs.db\n"
@@ -73,15 +69,6 @@ GITIGNORE: Final[bytes] = (
     b".env.*\n"
     b"!.env.example\n"
 )
-_GIT_TIMEOUT: Final[int] = 30
-_COMMIT_MESSAGE: Final[str] = "Initial ai-stp scaffold"
-
-
-@dataclass(frozen=True)
-class Rendered:
-    content: str
-    component_root: str
-    placeholders: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -92,13 +79,10 @@ class GitSideEffect:
 
 
 @dataclass(frozen=True)
-class KindTree:
-    source: dict[str, bytes]
-    projections: dict[str, bytes]
-    entry: str
-    managed: str
-    projection_kind: str
-    description: str | None = None
+class Rendered:
+    content: str
+    component_root: str
+    placeholders: tuple[str, ...]
 
 
 def scaffold(component_type: str, name: str) -> str:
@@ -148,7 +132,7 @@ def scaffold_plan(
         harness_variant=harness_variant,  # pyright: ignore[reportArgumentType]
         executable=not declarative,
     )
-    files = component_scaffold_files(name, descriptor)
+    files = _scaffold_files(name, descriptor)
     entries = [
         ComponentScaffoldFile(
             path=path,
@@ -200,21 +184,6 @@ def apply_scaffold(
             "AI_STP_PRECONDITION_FAILED",
             "the scaffold bytes no longer match the exact plan",
         )
-    write_new_tree(destination, files)
-    git = initialize_authoring_git(destination)
-    return ComponentScaffoldResult(
-        plan_id=plan.plan_id,
-        plan_digest=plan.plan_digest,
-        output=str(destination),
-        files_written=len(files),
-        git_initialized=git.initialized,
-        git_commit=git.commit,
-        git_reason=git.reason,
-    )
-
-
-def write_new_tree(destination: Path, files: dict[str, bytes]) -> None:
-    """Create exactly these files in a new directory, rolling back on failure."""
     directories = sorted(
         {
             parent
@@ -258,44 +227,149 @@ def write_new_tree(destination: Path, files: dict[str, bytes]) -> None:
             with suppress(OSError):
                 directory.rmdir()
         raise
-
-
-def initialize_authoring_git(destination: Path) -> GitSideEffect:
-    """Init and optionally commit after a successful write. Never part of the plan."""
-    if _inside_worktree(destination):
-        return GitSideEffect(False, None, "existing_worktree")
-    init = _git(["init"], destination)
-    if init is None or init.returncode != 0:
-        return GitSideEffect(False, None, "git_unavailable")
-    if not _git_identity(destination):
-        return GitSideEffect(True, None, "missing_identity")
-    added = _git(["add", "-A"], destination)
-    if added is None or added.returncode != 0:
-        return GitSideEffect(True, None, "git_unavailable")
-    committed = _git(["commit", "-m", _COMMIT_MESSAGE], destination)
-    if committed is None or committed.returncode != 0:
-        text = "" if committed is None else f"{committed.stdout}\n{committed.stderr}"
-        if "user.name" in text or "user.email" in text or "who you are" in text:
-            return GitSideEffect(True, None, "missing_identity")
-        return GitSideEffect(True, None, "git_unavailable")
-    head = _git(["rev-parse", "HEAD"], destination)
-    if head is None or head.returncode != 0:
-        return GitSideEffect(True, None, "git_unavailable")
-    sha = head.stdout.strip()
-    if not re.fullmatch(r"[0-9a-f]{40,64}", sha):
-        return GitSideEffect(True, None, "git_unavailable")
-    return GitSideEffect(True, sha, None)
+    return ComponentScaffoldResult(
+        plan_id=plan.plan_id,
+        plan_digest=plan.plan_digest,
+        output=str(destination),
+        files_written=len(files),
+    )
 
 
 def component_scaffold_files(
     name: str, descriptor: ComponentTemplateDescriptor
 ) -> dict[str, bytes]:
-    """Return the planned regular files for one component wrapper, without git."""
-    tree = _kind_tree(name, descriptor)
+    """Compatibility wrapper for setup scaffolds embedding component trees."""
+    files = _scaffold_files(name, descriptor)
+    if descriptor.component_type == "skill":
+        projection = files.get(f"projections/{descriptor.harness_variant}/SKILL.md")
+        if projection is not None:
+            files["source/SKILL.md"] = projection
+    return files
+
+
+def write_new_tree(destination: Path, files: dict[str, bytes]) -> None:
+    """Write a new tree without replacing an existing path."""
+    directories = sorted(
+        {
+            parent
+            for relative in files
+            for parent in PurePosixPath(relative).parents
+            if str(parent) != "."
+        },
+        key=lambda item: (len(item.parts), item.as_posix()),
+    )
+    created_files: list[Path] = []
+    created_directories: list[Path] = []
+    try:
+        destination.mkdir(mode=0o700)
+        created_directories.append(destination)
+        for relative in directories:
+            directory = destination / relative.as_posix()
+            directory.mkdir(mode=0o700)
+            created_directories.append(directory)
+        for relative, payload in files.items():
+            target = destination / relative
+            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            created_files.append(target)
+            try:
+                os.write(descriptor, payload)
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+    except BaseException:
+        for target in reversed(created_files):
+            with suppress(OSError):
+                target.unlink()
+        for directory in reversed(created_directories):
+            with suppress(OSError):
+                directory.rmdir()
+        raise
+
+
+def initialize_authoring_git(destination: Path) -> GitSideEffect:
+    """Initialize a standalone scaffold tree when a usable Git identity exists."""
+    try:
+        inside = subprocess.run(
+            ["git", "-C", str(destination), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return GitSideEffect(False, None, "git_unavailable")
+    if inside.returncode == 0:
+        return GitSideEffect(False, None, "existing_worktree")
+    try:
+        init = subprocess.run(
+            ["git", "init"],
+            cwd=destination,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if init.returncode != 0:
+            return GitSideEffect(False, None, "git_unavailable")
+        identity = all(
+            subprocess.run(
+                ["git", "config", key],
+                cwd=destination,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            ).returncode
+            == 0
+            for key in ("user.name", "user.email")
+        )
+        if not identity:
+            return GitSideEffect(True, None, "missing_identity")
+        for command in (("git", "add", "-A"), ("git", "commit", "-m", "Initial ai-stp scaffold")):
+            result = subprocess.run(
+                list(command),
+                cwd=destination,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            if result.returncode != 0:
+                return GitSideEffect(True, None, "git_unavailable")
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=destination,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        commit = head.stdout.strip()
+        return (
+            GitSideEffect(True, commit, None)
+            if head.returncode == 0 and re.fullmatch(r"[0-9a-f]{40,64}", commit)
+            else GitSideEffect(True, None, "git_unavailable")
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return GitSideEffect(True, None, "git_unavailable")
+
+
+def _unused_destination(destination: Path) -> None:
+    if destination.is_symlink() or destination.exists():
+        raise _failure("the scaffold destination must not already exist")
+    if not destination.parent.is_dir() or destination.parent.is_symlink():
+        raise _failure("the scaffold destination parent must be an existing regular directory")
+
+
+def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[str, bytes]:
+    component_type = descriptor.component_type
+    native, entry, managed, projection, authoring_source = _native_source(name, descriptor)
     patch_input: dict[str, JsonValue] = {
-        "name": name,
-        "component_type": descriptor.component_type,
-        "projection_kind": tree.projection_kind,  # pyright: ignore[reportArgumentType]
+        "name": name.replace("-", " ").title(),
+        "description": f"Authoring draft for the {name} {component_type} component.",
+        "tags": ["devops"],
+        "component_type": component_type,
+        "projection_kind": projection,
         "provides_capabilities": [],
         "requires_components": [],
         "requires_capabilities": [],
@@ -313,412 +387,200 @@ def component_scaffold_files(
             "agents": [],
             "plugins": [],
         },
-        "managed_paths": [tree.managed],
+        "managed_paths": [managed],
         "native_ids": [name],
-        "entry_points": [tree.entry],
+        "entry_points": [entry],
         "runtime_requirements": [],
         "harness_variants": [descriptor.harness_variant],
         "supported_harness_versions": [],
     }
-    if tree.description is not None:
-        patch_input["description"] = tree.description
     if descriptor.harness_variant != "portable":
         patch_input["harness_id"] = descriptor.harness_variant
     patch = ComponentPassportPatch.model_validate(patch_input)
     from ai_stp_cli.local.evaluation import reference_profile
 
+    variant = descriptor.harness_variant
+    projection_root = f"projections/{variant}"
+    adaptation_root = f"adaptations/{variant}"
+    adaptation: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "harness_variant": variant,
+        "implementation_mode": "native",
+        "logical_type": component_type,
+        "projection_kind": projection,
+    }
+    if variant != "portable":
+        adaptation["harness_id"] = variant
     files: dict[str, bytes] = {
-        ".ai-stp-template.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
-        ".gitignore": GITIGNORE,
+        "component.json": canonize(cast(JsonValue, descriptor.model_dump(mode="json"))),
+        "source/authoring-template.md": scaffold(component_type, name).encode(),
         "component-passport.json": canonize(
             cast(JsonValue, patch.model_dump(mode="json", exclude_none=True))
         ),
         "eval-profile.json": canonize(
-            cast(JsonValue, reference_profile((descriptor.component_type,)).model_dump(mode="json"))
+            cast(JsonValue, reference_profile((component_type,)).model_dump(mode="json"))
         ),
-        "README.md": _readme(name, descriptor),
+        "README.md": (
+            f"# {name}\n\n{component_type} scaffold generated from "
+            f"`{descriptor.template_version}`.\n\n"
+            "Authoring source lives under `source/`. Native bytes under "
+            f"`{projection_root}/` are a generated projection, not the source of truth.\n"
+        ).encode(),
+        "SAFETY.md": (
+            b"# Safety\n\nDeclare bounded filesystem, network, process, credential and "
+            b"authorization needs before evaluation.\n"
+        ),
+        "PUBLICATION.md": (
+            b"# Publication checklist\n\n- [ ] Add exact public GitHub source commit and path.\n"
+            b"- [ ] Replace NOASSERTION with a reviewed redistributable license.\n"
+            b"- [ ] Replace generated stub programs. A no-op that returns 0 is not "
+            b"publication-ready.\n"
+            b"- [ ] Run passport validation and the exact SetupEvalProfile.\n"
+        ),
+        f"{adaptation_root}/adaptation.json": canonize(cast(JsonValue, adaptation)),
+        f"{projection_root}/GENERATED.md": (
+            b"# Generated projection\n\n"
+            b"Native bytes in this directory are produced by `ai-stp/3` from `source/`.\n"
+            b"Do not treat them as the source of truth.\n"
+        ),
     }
-    files.update({f"source/{path}": payload for path, payload in tree.source.items()})
-    if descriptor.harness_variant != "portable":
-        prefix = f"projections/{descriptor.harness_variant}"
-        files.update({f"{prefix}/{path}": payload for path, payload in tree.projections.items()})
+    files.update({f"{projection_root}/{path}": payload for path, payload in native.items()})
+    files.update({f"source/{path}": payload for path, payload in authoring_source.items()})
     return files
 
 
-def _unused_destination(destination: Path) -> None:
-    if destination.is_symlink() or destination.exists():
-        raise _failure("the scaffold destination must not already exist")
-    if not destination.parent.is_dir() or destination.parent.is_symlink():
-        raise _failure("the scaffold destination parent must be an existing regular directory")
+def _native_source(
+    name: str, descriptor: ComponentTemplateDescriptor
+) -> tuple[dict[str, bytes], str, str, str, dict[str, bytes]]:
+    """Build one exact native artifact and the portable source that produced it."""
+    from ai_stp_cli.local import composition
 
-
-def _kind_tree(name: str, descriptor: ComponentTemplateDescriptor) -> KindTree:
     component_type = descriptor.component_type
     harness = descriptor.harness_variant
-    language = descriptor.language
-    if component_type == "setting" and harness == "portable":
-        raise _failure("setting cannot be projected without a concrete harness")
-    if (
-        component_type == "plugin"
-        and harness in {"opencode", "pi"}
-        and language not in {"javascript", "typescript"}
-    ):
-        raise _failure(f"{harness} plugins are JavaScript or TypeScript modules")
     rule = None if harness == "portable" else composition.rule_for(component_type, harness)
-    if harness != "portable" and rule is None:
+    if harness != "portable" and rule is None and component_type != "mcp":
         raise _failure(
             f"{component_type} cannot be projected to {harness} without losing semantics"
         )
-    if component_type == "plugin":
-        return _plugin_tree(name, descriptor, rule)
-    if component_type == "hook":
-        return _hook_tree(name, descriptor, rule)
-    if component_type == "mcp":
-        return _mcp_tree(name, descriptor, rule)
-    if component_type == "skill":
-        return _skill_tree(name, rule)
-    if component_type == "instruction":
-        return _instruction_tree(name, harness, rule)
-    if component_type == "command":
-        return _command_tree(name, rule)
-    if component_type == "agent":
-        return _agent_tree(name, harness, rule)
-    return _setting_tree(name, harness, rule)
-
-
-def _skill_tree(name: str, rule: Rule | None) -> KindTree:
-    payload = _skill_markdown(name)
-    return KindTree(
-        source={"SKILL.md": payload},
-        projections={"SKILL.md": payload},
-        entry="SKILL.md",
-        managed=_managed_directory("skills", name, rule),
-        projection_kind=_projection_kind(rule, "native_files"),
-        description=SKILL_DESCRIPTION,
-    )
-
-
-def _instruction_tree(name: str, harness: str, rule: Rule | None) -> KindTree:
-    canon = _instruction_markdown(name)
-    if harness == "claude-code":
-        native_name, native = "CLAUDE.md", canon
-    elif harness == "cursor":
-        native_name, native = f"rules/{name}.mdc", _cursor_rule(name)
-    else:
-        native_name, native = "AGENTS.md", canon
-    if rule is not None and rule.shape == "directory":
-        managed = (
-            f"{rule.relative}/{name}.mdc" if harness == "cursor" else f"{rule.relative}/{name}"
-        )
-    elif rule is not None:
-        managed = rule.relative
-    else:
-        managed = "AGENTS.md"
-    return KindTree(
-        source={"AGENTS.md": canon},
-        projections={native_name: native},
-        entry="AGENTS.md" if harness != "cursor" else f"{name}.mdc",
-        managed=managed,
-        projection_kind=_projection_kind(rule, "native_files"),
-    )
-
-
-def _command_tree(name: str, rule: Rule | None) -> KindTree:
-    payload = _command_markdown(name)
-    entry = f"{name}.md"
-    return KindTree(
-        source={entry: payload},
-        projections={entry: payload},
-        entry=entry,
-        managed=_managed_directory("commands", entry, rule),
-        projection_kind=_projection_kind(rule, "native_files"),
-    )
-
-
-def _agent_tree(name: str, harness: str, rule: Rule | None) -> KindTree:
-    if harness == "codex":
-        entry = f"{name}.toml"
-        payload = _agent_toml(name)
-    else:
-        entry = f"{name}.md"
-        payload = _agent_markdown(name)
-    return KindTree(
-        source={entry: payload},
-        projections={entry: payload},
-        entry=entry,
-        managed=_managed_directory("agents", entry, rule),
-        projection_kind=_projection_kind(rule, "native_files"),
-    )
-
-
-def _plugin_tree(name: str, descriptor: ComponentTemplateDescriptor, rule: Rule | None) -> KindTree:
-    harness = descriptor.harness_variant
-    language = descriptor.language
-    if harness in {"opencode", "pi"}:
-        suffix = ".js" if language == "javascript" else ".ts"
+    if component_type == "plugin" and harness in {"opencode", "pi"}:
+        if descriptor.language not in {"javascript", "typescript"}:
+            raise _failure(f"{harness} plugins are JavaScript or TypeScript modules")
+        suffix = ".js" if descriptor.language == "javascript" else ".ts"
         entry = f"{name}{suffix}"
-        payload = _plugin_module(language)
-        relative = rule.relative if rule is not None else "plugins"
-        return KindTree(
-            source={entry: payload},
-            projections={entry: payload},
-            entry=entry,
-            managed=f"{relative}/{entry}",
-            projection_kind=_projection_kind(
-                rule, "plugin" if harness == "opencode" else "package"
+        native = {entry: _program(name, descriptor.language, "activate_plugin")}
+        managed = f"{rule.relative}/{entry}" if rule is not None else f"plugins/{entry}"
+        projection = rule.projection_kind if rule is not None else "native_files"
+        return native, entry, managed, projection, {}
+    if component_type == "plugin":
+        entry = _program_entry(name, descriptor.language)
+        manifest = {
+            "claude-code": ".claude-plugin/plugin.json",
+            "cursor": ".cursor-plugin/plugin.json",
+        }.get(harness, "plugin.json")
+        native = {
+            manifest: canonize(
+                cast(
+                    JsonValue,
+                    {
+                        "name": name,
+                        "version": "0.1.0",
+                        "description": f"Native {harness} plugin {name}",
+                    },
+                )
             ),
-        )
-    manifest = _plugin_manifest(name)
-    note = (f"{DRAFT} add nested SKILL.md packages here, or delete this file.\n").encode()
-    source = {"plugin.json": manifest, "skills/README.md": note}
-    native_manifest = {
-        "claude-code": ".claude-plugin/plugin.json",
-        "cursor": ".cursor-plugin/plugin.json",
-    }.get(harness, "plugin.json")
-    if rule is not None and rule.shape == "directory":
-        managed = f"{rule.relative}/{name}"
-        projection = rule.projection_kind or "plugin"
-    else:
-        managed = f"plugins/{name}"
-        projection = "plugin"
-    return KindTree(
-        source=source,
-        projections={native_manifest: manifest, "skills/README.md": note},
-        entry="plugin.json",
-        managed=managed,
-        projection_kind=projection,
-    )
-
-
-def _hook_tree(name: str, descriptor: ComponentTemplateDescriptor, rule: Rule | None) -> KindTree:
-    entry = _program_entry(name, descriptor.language, prefix="hooks/handler")
-    native_root = "hooks" if rule is None else rule.relative
-    nested = rule is not None and rule.shape == "directory"
-    command_path = _hook_command_path(native_root, name, entry, nested)
-    source_model = PortableHookSource(
-        event="PreToolUse",
-        order=0,
-        failure="block",
-        handler=PortableHookHandler(command=command_path),
-    )
-    handler = _hook_program(descriptor.language)
-    inner = {
-        "hooks": {
-            source_model.event: [
-                {
-                    "matcher": "*",
-                    "hooks": [{"type": "command", "command": source_model.handler.command}],
-                }
-            ]
+            entry: _program(name, descriptor.language, "activate_plugin"),
         }
-    }
-    if descriptor.harness_variant == "claude-code":
-        projected_name, projected = "settings.json", canonize(cast(JsonValue, inner))
-    elif nested:
-        projected_name, projected = f"{name}.json", canonize(cast(JsonValue, inner))
-    else:
-        projected_name, projected = "hooks.json", canonize(cast(JsonValue, inner))
+        managed = f"plugins/{name}" if rule is None else f"{rule.relative}/{name}"
+        projection = "plugin" if rule is None else rule.projection_kind
+        return native, entry, managed, projection, {}
+    if component_type == "hook":
+        entry = _program_entry(name, descriptor.language, prefix="hooks/handler")
+        manifest = "hooks.json"
+        native_root = "hooks" if rule is None else rule.relative
+        command_path = _hook_command_path(
+            native_root,
+            name,
+            entry,
+            rule is not None and rule.shape == "directory",
+        )
+        source = PortableHookSource(
+            event="PreToolUse",
+            order=0,
+            failure="block",
+            handler=PortableHookHandler(command=command_path),
+        )
+        native = {
+            manifest: canonize(
+                {
+                    "hooks": {
+                        source.event: [
+                            {
+                                "matcher": "*",
+                                "hooks": [{"type": "command", "command": source.handler.command}],
+                            }
+                        ]
+                    }
+                }
+            ),
+            entry: _hook_program(descriptor.language),
+        }
+        managed = (
+            "hooks.json"
+            if rule is None
+            else (rule.relative if rule.shape == "file" else f"{rule.relative}/{name}")
+        )
+        projection = "native_files" if rule is None else rule.projection_kind
+        return (
+            native,
+            entry,
+            managed,
+            projection,
+            {"hook-source.json": canonize(cast(JsonValue, source.model_dump(mode="json")))},
+        )
+
+    if component_type in {"instruction", "command", "agent", "setting"}:
+        if rule is not None and rule.shape == "file":
+            entry = PurePosixPath(rule.relative).name
+            managed = rule.relative
+        else:
+            entry = "settings.json" if component_type == "setting" else f"{name}.md"
+            root = {
+                "instruction": "instructions",
+                "command": "commands",
+                "agent": "agents",
+                "setting": "settings",
+            }[component_type]
+            managed = f"{root}/{entry}" if rule is None else f"{rule.relative}/{entry}"
+        payload = (
+            _setting_payload(entry)
+            if component_type == "setting"
+            else f"# {name}\n\nDescribe the bounded {component_type} behavior.\n".encode()
+        )
+        projection = "native_files" if rule is None else rule.projection_kind
+        return {entry: payload}, entry, managed, projection, {}
+
+    entry = (
+        _program_entry(name, descriptor.language) if descriptor.language != "none" else "SKILL.md"
+    )
+    native = _generic_native_files(name, descriptor, entry)
     if rule is None:
-        managed = "hooks.json"
+        managed = "mcp.json" if component_type == "mcp" else f"skills/{name}"
         projection = "native_files"
     elif rule.shape == "file":
         managed = rule.relative
-        projection = rule.projection_kind or "native_files"
+        projection = rule.projection_kind
     else:
         managed = f"{rule.relative}/{name}"
-        projection = rule.projection_kind or "native_files"
-    return KindTree(
-        source={
-            "hook.json": canonize(cast(JsonValue, source_model.model_dump(mode="json"))),
-            entry: handler,
-        },
-        projections={projected_name: projected, entry: handler},
-        entry=entry,
-        managed=managed,
-        projection_kind=projection,
-    )
+        projection = rule.projection_kind
+    return native, entry, managed, projection, {}
 
 
-def _mcp_tree(name: str, descriptor: ComponentTemplateDescriptor, rule: Rule | None) -> KindTree:
-    entry = _program_entry(name, descriptor.language)
-    command, args = _mcp_invocation(descriptor.language, entry)
-    manifest = canonize(cast(JsonValue, {"name": name, "command": command, "args": args}))
-    program = _mcp_program(descriptor.language)
-    source = {"mcp.json": manifest, entry: program}
-    harness = descriptor.harness_variant
-    declared_key = rule.declared_key if rule is not None else ""
-    if harness == "pi":
-        relative = rule.relative if rule is not None else "extensions"
-        projections = {entry: program}
-        managed = f"{relative}/{name}"
-        projection = _projection_kind(rule, "package")
-    elif declared_key == "mcp_servers":
-        projections = {"config.toml": _mcp_toml(name, command, args)}
-        managed = rule.relative if rule is not None else "config.toml"
-        projection = _projection_kind(rule, "native_files")
-    elif declared_key == "mcp":
-        projections = {
-            "opencode.json": canonize(
-                cast(JsonValue, {"mcp": {name: {"command": [command, *args]}}})
-            )
-        }
-        managed = rule.relative if rule is not None else "opencode.json"
-        projection = _projection_kind(rule, "native_files")
-    elif harness == "cursor":
-        projections = {
-            "mcp.json": canonize(
-                cast(JsonValue, {"mcpServers": {name: {"command": command, "args": args}}})
-            )
-        }
-        managed = rule.relative if rule is not None else "mcp.json"
-        projection = _projection_kind(rule, "native_files")
-    elif harness == "antigravity":
-        projections = {
-            "mcp_config.json": canonize(
-                cast(JsonValue, {"mcpServers": {name: {"command": command, "args": args}}})
-            )
-        }
-        managed = rule.relative if rule is not None else "mcp_config.json"
-        projection = _projection_kind(rule, "native_files")
-    else:
-        projections = {"mcp.json": manifest, entry: program}
-        managed = "mcp.json"
-        projection = "native_files"
-    return KindTree(
-        source=source,
-        projections=projections,
-        entry=entry,
-        managed=managed,
-        projection_kind=projection,
-    )
-
-
-def _setting_tree(name: str, harness: str, rule: Rule | None) -> KindTree:
-    del name, harness
-    relative = rule.relative if rule is not None else "settings.json"
-    filename = PurePosixPath(relative).name
-    payload = _setting_payload(filename)
-    return KindTree(
-        source={filename: payload},
-        projections={filename: payload},
-        entry=filename,
-        managed=relative,
-        projection_kind=_projection_kind(rule, "native_files"),
-    )
-
-
-def _managed_directory(default_root: str, leaf: str, rule: Rule | None) -> str:
-    if rule is None:
-        return f"{default_root}/{leaf}"
-    if rule.shape == "file":
-        return rule.relative
-    return f"{rule.relative}/{leaf}"
-
-
-def _projection_kind(rule: Rule | None, default: str) -> str:
-    if rule is None:
-        return default
-    return rule.projection_kind or default
-
-
-def _skill_markdown(name: str) -> bytes:
-    return (
-        f'---\nname: {name}\ndescription: "{SKILL_DESCRIPTION}"\n---\n\n'
-        f"# {name}\n\n{DRAFT} replace this body with the skill instructions.\n"
-    ).encode()
-
-
-def _instruction_markdown(name: str) -> bytes:
-    return (
-        f"# {name}\n\n{DRAFT} replace this body with the instruction the agent should follow.\n"
-    ).encode()
-
-
-def _cursor_rule(name: str) -> bytes:
-    del name
-    return (
-        f"---\ndescription: {DRAFT} one-line rule purpose\nalwaysApply: true\n---\n\n"
-        f"{DRAFT} replace this body with the instruction.\n"
-    ).encode()
-
-
-def _command_markdown(name: str) -> bytes:
-    return (
-        f"---\ndescription: {DRAFT} one-line command purpose\n---\n\n"
-        f"# {name}\n\n{DRAFT} replace this body with the command instructions.\n"
-    ).encode()
-
-
-def _agent_markdown(name: str) -> bytes:
-    return (
-        f"---\nname: {name}\ndescription: {DRAFT} one-line agent purpose\n---\n\n"
-        f"{DRAFT} replace this body with the agent instructions.\n"
-    ).encode()
-
-
-def _agent_toml(name: str) -> bytes:
-    return (
-        f'name = "{name}"\n'
-        f'description = "{DRAFT} one-line agent purpose"\n'
-        'developer_instructions = """\n'
-        f"{DRAFT} replace with the agent developer instructions.\n"
-        '"""\n'
-    ).encode()
-
-
-def _plugin_manifest(name: str) -> bytes:
-    return canonize(
-        cast(
-            JsonValue,
-            {
-                "name": name,
-                "version": "0.1.0",
-                "description": f"{DRAFT} one-line plugin purpose",
-            },
-        )
-    )
-
-
-def _plugin_module(language: str) -> bytes:
-    if language == "typescript":
-        return f"// {DRAFT} replace with the plugin module.\nexport default {{}};\n".encode()
-    return f"// {DRAFT} replace with the plugin module.\nexport default {{}};\n".encode()
-
-
-def _mcp_invocation(language: str, entry: str) -> tuple[str, list[str]]:
-    runner = {
-        "python": "python",
-        "javascript": "node",
-        "typescript": "node",
-        "dart-flutter": "dart",
-        "rust": "replace-me",
-        "go": "replace-me",
-    }[language]
-    return runner, [entry]
-
-
-def _mcp_toml(name: str, command: str, args: list[str]) -> bytes:
-    quoted = ", ".join(f'"{item}"' for item in args)
-    return (f'[mcp_servers.{name}]\ncommand = "{command}"\nargs = [{quoted}]\n').encode()
-
-
-def _mcp_program(language: str) -> bytes:
-    comment = f"{DRAFT} replace this file with the MCP server entry."
-    sources = {
-        "python": f"# {comment}\ndef handle_request() -> int:\n    return 0\n",
-        "typescript": f"// {comment}\nexport const handle_request = (): number => 0;\n",
-        "javascript": f"// {comment}\nexport const handle_request = () => 0;\n",
-        "rust": (
-            f"// {comment}\nfn handle_request() -> i32 {{ 0 }}\n"
-            "fn main() { let _ = handle_request(); }\n"
-        ),
-        "go": (
-            f"package main\n\n// {comment}\nfunc handle_request() int {{ return 0 }}\n"
-            "func main() { _ = handle_request() }\n"
-        ),
-        "dart-flutter": f"// {comment}\nint handle_request() => 0;\n",
-    }
-    return sources[language].encode()
+def _generic_native_files(
+    name: str, descriptor: ComponentTemplateDescriptor, entry: str
+) -> dict[str, bytes]:
+    if descriptor.language == "none":
+        return {entry: f"# {name}\n\nDescribe the bounded skill behavior.\n".encode()}
+    return {entry: _program(name, descriptor.language, "handle_request")}
 
 
 def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str:
@@ -731,6 +593,25 @@ def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str
         "go": f"{prefix}.go",
         "dart-flutter": f"{prefix}-{stem}.dart",
     }[language]
+
+
+def _program(name: str, language: str, symbol: str) -> bytes:
+    del name
+    stub = "STUB: replace before publication. A generated no-op is not a product."
+    symbol = {
+        "python": f"# {stub}\ndef {symbol}() -> int:\n    return 0\n",
+        "typescript": f"// {stub}\nexport const {symbol} = (): number => 0;\n",
+        "javascript": f"// {stub}\nexport const {symbol} = () => 0;\n",
+        "rust": (
+            f"// {stub}\nfn {symbol}() -> i32 {{ 0 }}\n\nfn main() {{ let _ = {symbol}(); }}\n"
+        ),
+        "go": (
+            f"package main\n\n// {stub}\nfunc {symbol}() int {{ return 0 }}\n\n"
+            f"func main() {{ _ = {symbol}() }}\n"
+        ),
+        "dart-flutter": f"// {stub}\nint {symbol}() => 0;\n",
+    }[language]
+    return symbol.encode()
 
 
 def _hook_program(language: str) -> bytes:
@@ -752,6 +633,17 @@ def _hook_program(language: str) -> bytes:
             "const event = JSON.parse(readFileSync(0, 'utf8'));\n"
             "if (typeof event !== 'object' || event === null) process.exit(2);\n"
         ),
+        "rust": (
+            "use std::io::{self, Read};\n"
+            "fn main() { let mut input = String::new(); "
+            "io::stdin().read_to_string(&mut input).unwrap(); "
+            "if input.trim().is_empty() { std::process::exit(2); } }\n"
+        ),
+        "go": (
+            'package main\n\nimport ("encoding/json"; "os")\n\n'
+            "func main() { var event map[string]any; "
+            "if json.NewDecoder(os.Stdin).Decode(&event) != nil { os.Exit(2) } }\n"
+        ),
         "dart-flutter": (
             "import 'dart:convert';\nimport 'dart:io';\n"
             "void main() { final event = jsonDecode(stdin.readLineSync() ?? ''); "
@@ -768,133 +660,21 @@ def _hook_command_path(root: str, name: str, entry: str, nested: bool) -> str:
         ".py": "python",
         ".js": "node",
         ".ts": "node",
+        ".rs": "",
+        ".go": "",
         ".dart": "dart",
     }[PurePosixPath(entry).suffix]
+    if not executable:
+        raise _failure("this hook language has no directly executable native handler")
     return f"{executable} {target}"
 
 
-def _setting_payload(filename: str) -> bytes:
-    if filename.endswith((".json", ".jsonc")):
+def _setting_payload(name: str) -> bytes:
+    if name.endswith((".json", ".jsonc")):
         return canonize(cast(JsonValue, {}))
-    if filename.endswith(".toml"):
-        return f"# {DRAFT} add the exact owned settings for this component.\n".encode()
+    if name.endswith(".toml"):
+        return b"# Add the exact owned settings for this component.\n"
     raise _failure("the setting surface has no supported deterministic syntax")
-
-
-def _readme(name: str, descriptor: ComponentTemplateDescriptor) -> bytes:
-    component_type = descriptor.component_type
-    harness = descriptor.harness_variant
-    version = descriptor.template_version
-    if harness == "portable":
-        layout = (
-            f"- `source/` is the canonical `{component_type}` tree. Edit here.\n"
-            "- Portable scaffolds have no `projections/` directory; "
-            "add one when targeting a harness.\n"
-        )
-        adopt = "`source/`"
-    else:
-        layout = (
-            f"- `source/` is the canonical `{component_type}` tree. Edit here.\n"
-            f"- `projections/{harness}/` is the native layout for `{harness}`. "
-            "It is generated; do not treat it as a second source of truth.\n"
-        )
-        adopt = f"`projections/{harness}/`"
-    notes = _readme_notes(component_type, harness)
-    return (
-        f"# {name}\n\n"
-        f"{DRAFT} replace this README with a consumer description of the {component_type}.\n\n"
-        f"This directory is a draft `{component_type}` component (`{version}`).\n\n"
-        "## Layout\n\n"
-        f"{layout}"
-        "- `component-passport.json` is a local draft. It is not publication-ready.\n"
-        "- `eval-profile.json` is the evaluation skeleton. The scaffold does not run it.\n\n"
-        f"{notes}"
-        "## Replace before publication\n\n"
-        f"- Every `{DRAFT}` marker.\n"
-        "- License `NOASSERTION` and `redistribution_allowed: false` "
-        "after a reviewed license decision.\n"
-        "- An exact public GitHub commit and path in the passport.\n\n"
-        "## Publication checklist\n\n"
-        "- [ ] Replace draft markers with real behavior.\n"
-        "- [ ] Pin exact public GitHub source commit and path.\n"
-        "- [ ] Replace NOASSERTION with a reviewed redistributable license.\n"
-        "- [ ] Run `component passport validate` and the exact SetupEvalProfile.\n\n"
-        "## Next\n\n"
-        f"`discover` / `adopt` transfer {adopt}, not the whole authoring tree. "
-        "`setup compose` records a local SQLite version and is not install. "
-        "Only a public provider writes harness state.\n"
-    ).encode()
-
-
-def _readme_notes(component_type: str, harness: str) -> str:
-    notes = {
-        "skill": (
-            "The YAML `description` on `source/SKILL.md` is the activation contract. "
-            "It must stay identical to the passport `description`.\n\n"
-        ),
-        "instruction": (
-            "`source/AGENTS.md` is the canon. Claude Code projections use `CLAUDE.md`; "
-            "Cursor uses `rules/<name>.mdc`.\n\n"
-        ),
-        "plugin": (
-            "This package is a manifest plus optional nested skills, not an "
-            "`activate_plugin` stub. Marketplace registration is a separate `setting`.\n\n"
-        ),
-        "hook": (
-            "`source/hook.json` pins the event, order, failure policy, and handler. "
-            "The native manifest is derived from it.\n\n"
-        ),
-        "mcp": (
-            "`source/mcp.json` is the portable server identity. Some harnesses install "
-            "this as a contribution to an owned settings file, not as its own surface.\n\n"
-        ),
-        "agent": (
-            "Codex agents are TOML with `name`, `description`, and `developer_instructions`. "
-            "Other harnesses use Markdown with `name` and `description`.\n\n"
-        ),
-        "setting": (
-            "A setting is one harness-native file. Safety and permissions live in the passport.\n\n"
-        ),
-        "command": (
-            "Keep the Markdown `description` field; harnesses use it as the command summary.\n\n"
-        ),
-    }
-    del harness
-    return notes.get(component_type, "")
-
-
-def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str] | None:
-    environment = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"}
-    try:
-        return subprocess.run(
-            ["git", *args],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=_GIT_TIMEOUT,
-            env=environment,
-            check=False,
-        )
-    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
-        return None
-
-
-def _inside_worktree(path: Path) -> bool:
-    current = path.resolve(strict=False)
-    return any((candidate / ".git").exists() for candidate in (current, *current.parents))
-
-
-def _git_identity(cwd: Path) -> bool:
-    name = _git(["config", "--get", "user.name"], cwd)
-    email = _git(["config", "--get", "user.email"], cwd)
-    return (
-        name is not None
-        and email is not None
-        and name.returncode == 0
-        and email.returncode == 0
-        and bool(name.stdout.strip())
-        and bool(email.stdout.strip())
-    )
 
 
 def render(source: str, *, harness_id: str, component_name: str, component_root: str) -> Rendered:

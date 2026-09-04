@@ -15,14 +15,6 @@
         "component-scaffold/3"
       ],
       "type": "string"
-    },
-    "GitInitReason": {
-      "enum": [
-        "existing_worktree",
-        "missing_identity",
-        "git_unavailable"
-      ],
-      "type": "string"
     }
   },
   "$id": "urn:ai-stp:schema:v1:cli-component-scaffold-result",
@@ -38,34 +30,6 @@
     "generator_version": {
       "$ref": "#/$defs/ComponentGeneratorVersion",
       "default": "ai-stp/3"
-    },
-    "git_commit": {
-      "anyOf": [
-        {
-          "pattern": "^[0-9a-f]{40,64}$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Git Commit"
-    },
-    "git_initialized": {
-      "title": "Git Initialized",
-      "type": "boolean"
-    },
-    "git_reason": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/GitInitReason"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
     },
     "output": {
       "minLength": 1,
@@ -97,8 +61,7 @@
     "plan_id",
     "plan_digest",
     "output",
-    "files_written",
-    "git_initialized"
+    "files_written"
   ],
   "title": "ComponentScaffoldResult",
   "type": "object"

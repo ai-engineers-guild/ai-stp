@@ -5,13 +5,6 @@ description: "How ai_stp assembles a complete setup from exact component version
 
 # Setups
 
-A setup is the final configuration of one harness. It pins exact component
-versions and is applied only through that harness's public provider.
-
-A published setup version is immutable and has the form `X.Y`, not SemVer.
-There is no patch number. Replacing one component, disabling a hook, or
-changing a setting produces a new `X.Y`.
-
 ## Compose from catalog and external sources
 
 `setup compose` creates one exact setup from catalog components and embedded
@@ -64,6 +57,7 @@ Plan first, then pass the returned setup id, timestamp, and plan digest to apply
 ```text
 ai-stp setup compose plan --manifest setup.json --root . --json
 ai-stp setup compose apply --manifest setup.json --root . --id <setup_id> --created-at <created_at> --expected-plan-digest <digest> --confirm --json
+ai-stp setup export --id <setup_id> --version 1.0 --output ./exported-setup --json
 ai-stp setup publish plan --id <setup_id> --version 1.0 --json
 ```
 
@@ -72,42 +66,13 @@ local paths stay within `--root`. Apply repeats resolution and refuses changed
 bytes. Embedded members are published only inside the setup; catalog members
 retain their existing publisher and identity.
 
-## Setup update
+`setup export` writes a review tree of that recorded definition: passport,
+definition artifact, and a README that says the local registry remains storage
+and that no physical harness tree was created. It refuses an occupied
+destination. Native harness state is not written.
 
-Compose freezes a graph. Update replaces **one embedded member** with a newer
-exact snapshot and creates a new immutable setup version. It does not pick a
-"latest" tag for you.
-
-```bash
-ai-stp setup update plan \
-  --id <setup_id> \
-  --version 1.0 \
-  --component-id <component_id> \
-  --harness codex \
-  --source git:https://github.com/example/context7 \
-  --commit <40-char-sha> \
-  --json
-
-ai-stp setup update apply \
-  --id <setup_id> \
-  --version 1.0 \
-  --component-id <component_id> \
-  --harness codex \
-  --source git:https://github.com/example/context7 \
-  --commit <40-char-sha> \
-  --expected-plan-digest <digest> \
-  --confirm \
-  --json
-```
-
-`--component-id` is the exact embedded identifier, never a display name.
-`--source` is `git:…`, `package:ecosystem:name@version`, or `path:relative`.
-A Git source may add `--commit` and `--subpath`. Catalog pins are not
-rewritten by this command: change those through a new compose or a new
-select confirmation.
-
-The current setup version stays selected until you confirm a new one. Apply
-creates the new `X.Y`; it does not write the harness target.
+A setup is the final configuration of one harness. It pins exact component
+versions and is applied only through that harness's public provider.
 
 ## How a setup is assembled
 
@@ -124,9 +89,7 @@ candidates from the catalog and the local registry
 ```
 
 The agent helps choose what goes in, but it does not get around the
-compatibility, access and safety checks. The assembler validates the graph
-and builds the native package. The provider is the only writer of the
-target. See [concepts](../concepts/index.md).
+compatibility, access and safety checks.
 
 | Stage | Who is responsible | What must be visible |
 | --- | --- | --- |
@@ -139,23 +102,50 @@ target. See [concepts](../concepts/index.md).
 ## Installation
 
 Before changing the target, the provider builds a plan, takes a backup, and
-applies the change only after confirmation. The commands live on
-[Install](../cli/install.md): `install plan`, `install approve`,
-`install apply`. Daily state of the pair is [Target](../cli/target.md).
+applies the change only after confirmation.
 
 A running agent does not modify its own active target in place. A new setup is
 checked separately, and the switch happens after that check.
 
-## Backup and rollback
+## Rollback
 
 If applying fails, recovery goes through the provider and the operation
 journal. Do not delete backups by hand before recovery has finished.
 
-The command path is owned by the CLI pages, not this one:
+### A deliberate rollback from a backup you took
 
-- take a copy, restore from a copy, approve and apply: [Install](../cli/install.md);
-- list copies, name the previous confirmed version, read status and diff:
-  [Target](../cli/target.md).
+This is a different path from recovering after a failure. Here you take a copy
+of the target ahead of time, change the setup later, and return to that copy
+later still.
+
+The copy first:
+
+```console
+$ ai-stp install plan --action backup --project <id> --harness <id> \
+    --provider <exe> --provider-manifest <path> --protocol-version 3 \
+    --target <dir> --json
+$ ai-stp install approve --operation <id> --plan-digest <exact> --json
+$ ai-stp install apply --operation <id> --provider <exe> --json
+```
+
+You do not have to remember the copy afterwards — a command lists them:
+
+```console
+ai-stp target backups --project <id> --harness <id> --json
+```
+
+The answer carries the `backup_ref`, the operation that took it, and the setup
+version installed at that moment. From there it is the ordinary plan, approve
+and apply:
+
+```console
+$ ai-stp install plan --action rollback --backup-ref <exact> \
+    --provider <exe> --provider-manifest <path> --protocol-version 3 \
+    --target <dir> --json
+$ ai-stp install approve --operation <id> --plan-digest <exact> --json
+$ ai-stp install apply --operation <id> --provider <exe> --json
+$ ai-stp target status --project <id> --harness <id> --json
+```
 
 Three differences worth holding on to:
 
@@ -167,27 +157,7 @@ Three differences worth holding on to:
 - restoring returns the target **as a whole**. A single component cannot be
   restored, and asking for that is refused.
 
-```bash
-ai-stp target backups --project <id> --harness <id> --json
-ai-stp target rollback --project <id> --harness <id> --json
-ai-stp install status --json
-ai-stp install recover --operation <id> --json
-```
-
 ??? tip "How to think about a setup version"
     A setup is not a folder of current files; it is a pinned composition. If
     you updated one `skill`, disabled a `hook` or changed a `setting`, that is
     already a new version of the setup.
-
-Related: [Publishing](../publishing/index.md),
-[Setup commands](../cli/setup.md).
-
-## Related pages
-
-- [Concepts](../concepts/index.md) — a setup belongs to one harness.
-- [Components](../components/index.md) — what a setup pins.
-- [Select](../cli/select.md) — eligibility and a proposal.
-- [Install](../cli/install.md) — plan, approve, apply.
-- [Catalog](../catalog/index.md) — how to read a public setup card.
-- [Trust and safety](../trust-and-safety/index.md) — consent before experimental
-  pins.

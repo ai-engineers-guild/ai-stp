@@ -1,121 +1,157 @@
 {
-  "template_version": "component-scaffold/3",
-  "generator_version": "ai-stp/3",
   "cases": {
-    "instruction-none-portable": {
-      ".ai-stp-template.json": "sha256:7419590aa15a50e441106bc0d68cd2c06012e6383266ebd0ab76ff8d89502d73",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:3177c735de5fc18337e8af9b052a5c9d95d62bd88a819d9e20e3d737d7887951",
-      "component-passport.json": "sha256:b69ffbf2a21aadbb721c6b1b41d2362da248c84777cf80008e62b0515c6ad058",
-      "eval-profile.json": "sha256:1624133139d2a554a3f72151d858ac4e6c33b206a7fc3d7511017c1ad927f8d0",
-      "source/AGENTS.md": "sha256:438e3394860c8c3b35598d1839951e4844f2533d0ae839a2d38c3c9c761f41af"
-    },
-    "skill-none-codex": {
-      ".ai-stp-template.json": "sha256:e19f5856ca86c452813d567eea54807f3fce1a0f87712c287443c387a23ea207",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:977d320e1f69c4b53de86bfbe181705ba23b2a48f26a0950656c64ca0eabf118",
-      "component-passport.json": "sha256:4ea9e236bf0b9f994f089302a3c8a2ee46e78039546ebee604402521fb88ac97",
-      "eval-profile.json": "sha256:e80fd5b259b8040498885949ff1d2d33847e204d10863f43f361ba5b461b7585",
-      "projections/codex/SKILL.md": "sha256:c59e50b32aa7d045fc2cbb1c1dc23987a2d7c85451dbaca47b8914be78dc7e3c",
-      "source/SKILL.md": "sha256:c59e50b32aa7d045fc2cbb1c1dc23987a2d7c85451dbaca47b8914be78dc7e3c"
-    },
     "agent-none-claude-code": {
-      ".ai-stp-template.json": "sha256:1445368ea5032d9dd62e9fc5cf5769d4b210c1898eb37941b3cab32ec3999ca2",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:4f1c587fe76cf475a0c3b655335608a1b0aea1981ddcf7ad8ad9ff14f88c76e9",
-      "component-passport.json": "sha256:52a5d677200361667ce89bf3f9c9011f817f9be448ab470e29a62db58c095c6c",
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:1cf03a618579ddf20c0cc009ffab467f2a7fe382fe145055fa1fd4d9e6fccdc1",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/claude-code/adaptation.json": "sha256:ebcff961d4ec0779dc75002fb3ea6bcf5784c6c475c2bb20e2b1afe4799dc242",
+      "component-passport.json": "sha256:2ab73f96745688dbcdcc916bb1542977cd88d8c3af8a90c367344fa82cf7abe2",
+      "component.json": "sha256:1445368ea5032d9dd62e9fc5cf5769d4b210c1898eb37941b3cab32ec3999ca2",
       "eval-profile.json": "sha256:754c21124328f454b2b9b94a11971d43523f2fe0c57ed4b99fd1d1878999b109",
-      "projections/claude-code/reference-component.md": "sha256:64f8f2ce1737e4729bd8060b827309b34d1698e9c843ae42c111d058fbdb551a",
-      "source/reference-component.md": "sha256:64f8f2ce1737e4729bd8060b827309b34d1698e9c843ae42c111d058fbdb551a"
-    },
-    "setting-none-grok-build": {
-      ".ai-stp-template.json": "sha256:11675aa260025ed4eb7f687822699beb8d29cb28e7c9a55ac2df37a3f7e4954a",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:03f01fc1f486731f37d78d2b0cc15e3cfbf25a2366398b4c231c16da71bdeb75",
-      "component-passport.json": "sha256:9c44b5c6690b95a09a4dff4a209eee0f4ff042442362376f1a8b9f9904a092bd",
-      "eval-profile.json": "sha256:f1cded74b474644392a256e83ac3567e9a6497bf9af6fcfe447a1a52aaac0ad0",
-      "projections/grok-build/config.toml": "sha256:03b85c68315041530d925604ab6c7caab9b606249ee66144a6027afae410db9b",
-      "source/config.toml": "sha256:03b85c68315041530d925604ab6c7caab9b606249ee66144a6027afae410db9b"
-    },
-    "mcp-python-portable": {
-      ".ai-stp-template.json": "sha256:f49c53992e11ee0ca924a0e64af324fac9d20a5edc65efd3ecebf933632df58f",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:95aefcb7752c36e6a9bed1033e5f646636ca5e9b6d4bf944cececef5dab46c66",
-      "component-passport.json": "sha256:e31c82115e8a7e8cb632712b2f8b4a217e935b93860d0da12af26f948582c6e4",
-      "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
-      "source/mcp.json": "sha256:759ae46898f9cdc5c8baab353eb917b388fb49d2d06620815f0001a790a2a5eb",
-      "source/src/main.py": "sha256:e735c194a9feeb45c1c4c3fd59b6f34a9f4dd8596f8107df02e7f5e81d9f45f1"
-    },
-    "mcp-javascript-codex": {
-      ".ai-stp-template.json": "sha256:4a18b1bf42e986193f2f6559a2cf73d14939506712510de8518342f70c3d44cf",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:66b05c421a3268673500430816b557c9b2a12aec5b48f9c4fdea2c00ac5931dc",
-      "component-passport.json": "sha256:8eea32834e306f780e1c910058e20ef9da7b5141cca41b6a99be44b17d4258f2",
-      "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
-      "projections/codex/config.toml": "sha256:2e69c5fe9a4c0b369780b201d6b65ffcd3a1a19eaa39a36401434230245c744f",
-      "source/mcp.json": "sha256:330f18d97d85784076b8d37ec8eec60fffd2563b76ba86e41b8c48bfd3e1a432",
-      "source/src/main.js": "sha256:e9d6ced79776b4e7a800b954459e11c62a268c3d75c35552f028dc1bb0af5893"
-    },
-    "hook-typescript-codex": {
-      ".ai-stp-template.json": "sha256:70e9fc30472aa35fb6ffc068b2beb40540b640af821864eca3650311bb6d6736",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:21e3a30cb7b8171b2daafd724820ce07c4c43bb494b87e2d9a0546e999a01fe8",
-      "component-passport.json": "sha256:ff6e92630cb158d99632963b6d5075d9e336991e6f82309fff7ca175ad64bf91",
-      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
-      "projections/codex/hooks.json": "sha256:70b26f2ed3ee46f242873a27c0ed5e1e9c558f73961584e51fecca2060e69c5e",
-      "projections/codex/hooks/handler.ts": "sha256:4808f35ceb56b0b0a5f87f15927af2c41e7c7bb8c4cb09572780edfe5966d68b",
-      "source/hook.json": "sha256:0cfa7a7fb3f3d0def04d935867a43735d9504e167e7792ff91d60c6ee6655b4e",
-      "source/hooks/handler.ts": "sha256:4808f35ceb56b0b0a5f87f15927af2c41e7c7bb8c4cb09572780edfe5966d68b"
-    },
-    "hook-javascript-cursor": {
-      ".ai-stp-template.json": "sha256:4f3a1419a234ef1ce323bb7e2b854d406f145b9df6da0c6f7ba28ae32caa4490",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:198e0025d09df862f01b2aa00779ff4947b006d26d236b8cd6f75d9e8f25dfd0",
-      "component-passport.json": "sha256:00f371a8d82ef4575ac7da91a63264496a333309273d428b932b6c222a549f3b",
-      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
-      "projections/cursor/hooks.json": "sha256:af66474beb4d027172fafe7196676cc9d2416678320f04f93591b1794721071e",
-      "projections/cursor/hooks/handler.js": "sha256:0d7638f43bf4d85661ac2da2128ccf245520b9945aaa7bc90f0a4024b57d573b",
-      "source/hook.json": "sha256:fb1e007a7e5d2bfb8f56c2bd82c7a73858a59573746a8f6b8230863facefab8d",
-      "source/hooks/handler.js": "sha256:0d7638f43bf4d85661ac2da2128ccf245520b9945aaa7bc90f0a4024b57d573b"
+      "projections/claude-code/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/claude-code/reference-component.md": "sha256:6152db32d129e8aee46acda57fd8a63bddc87cfcf580f9bd3d99e6ab542a7225",
+      "source/authoring-template.md": "sha256:b88d03a0367439b24800f440da0369d7323b20d01114e6bfd5c6131b63e63eab"
     },
     "command-none-portable": {
-      ".ai-stp-template.json": "sha256:a773ee7861cf10511814031ee35cc5398bb91742d262ba40b8754aabb463af7e",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:86f29f22a343248caf8e3d7738f3c2128c932d010db02d695aefe1c42b15ada9",
-      "component-passport.json": "sha256:cd9336188a84db4f02a97c0ba6da17b88318b11db658a4e4dff69433b0dfe48e",
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:de2baefc2d031ceb5d6e990d06101a2d53cc85c616d7b94caac81b244c885b0d",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/portable/adaptation.json": "sha256:b294ce4fa03c4c93d67aead953fdb7dd76302e44c911718fad4f6e87fd19ad76",
+      "component-passport.json": "sha256:477fa8505477a52c437268531d89d72b877138ae2a80ef8a33be4872385a84d9",
+      "component.json": "sha256:a773ee7861cf10511814031ee35cc5398bb91742d262ba40b8754aabb463af7e",
       "eval-profile.json": "sha256:c1f8f722a16afa1fc1d64c14edc5c771d8eecc259e7e8aa87f8f1283329fc710",
-      "source/reference-component.md": "sha256:35fea486380cadf927ba16e0b2290f15538c4165a8fa633f2b2c970ef180ce5a"
+      "projections/portable/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/portable/reference-component.md": "sha256:4e68de3361d8a5a7812a32086dfecc57199ef7d91e940090ce9787e3e7bc794d",
+      "source/authoring-template.md": "sha256:e54804dd06c02e0bd5d30ed5e69ef70abc85b94dd750e51c05df2b6d5d9b4a51"
     },
-    "plugin-dart-flutter-grok-build": {
-      ".ai-stp-template.json": "sha256:a8271dc7839f74a4aeee903b73f15617d515e28adc53d8b581eb8a49382799e7",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:59af7a676938e2548cde095407d1575dfb9a926993188469ad9034a53bd7dd5b",
-      "component-passport.json": "sha256:030c478fcae891604c1d7eae46d77db8dee01ca3caf7397f752a57c9b902a482",
-      "eval-profile.json": "sha256:fca75730526ba8dd5f187c9302a8d08a7baaa5fcebcc558328d95c813bc1e21c",
-      "projections/grok-build/plugin.json": "sha256:1125f92eb3fa3c0faba27cad72af718516f5f301c7ed796c1e7c67b2905fd47a",
-      "projections/grok-build/skills/README.md": "sha256:2e610f2383bbb1a92d29a6be4e5eacc9e0a90b68c01ece35979bd46853147a27",
-      "source/plugin.json": "sha256:1125f92eb3fa3c0faba27cad72af718516f5f301c7ed796c1e7c67b2905fd47a",
-      "source/skills/README.md": "sha256:2e610f2383bbb1a92d29a6be4e5eacc9e0a90b68c01ece35979bd46853147a27"
-    },
-    "skill-none-cursor": {
-      ".ai-stp-template.json": "sha256:c072c315abe087352dc2f553ef69484c883f2ca6577e8b9ad0d554f5c5e83ecb",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:a5eef5282b9625c83b74a692b3fef2b9a21fac6a6d8da51bf13c7dfb3c077a5e",
-      "component-passport.json": "sha256:b15faa446de4acd289a2594f6f00fcdc8f9367b443808b99f3adbeee32ee6c79",
-      "eval-profile.json": "sha256:e80fd5b259b8040498885949ff1d2d33847e204d10863f43f361ba5b461b7585",
-      "projections/cursor/SKILL.md": "sha256:c59e50b32aa7d045fc2cbb1c1dc23987a2d7c85451dbaca47b8914be78dc7e3c",
-      "source/SKILL.md": "sha256:c59e50b32aa7d045fc2cbb1c1dc23987a2d7c85451dbaca47b8914be78dc7e3c"
+    "hook-javascript-cursor": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:a767e93935db587c3a381d08924c1938346c414a322b1dd109e555a606387f63",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/cursor/adaptation.json": "sha256:3c48309eaac5c0a00abce305dda4f5640b607857927bbd4c4a895b546059ea09",
+      "component-passport.json": "sha256:3e0ac4c81d565704ff10d3a7e5e80b197fa87af417fa1b0460e4a909e6caeede",
+      "component.json": "sha256:4f3a1419a234ef1ce323bb7e2b854d406f145b9df6da0c6f7ba28ae32caa4490",
+      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/cursor/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/cursor/hooks.json": "sha256:af66474beb4d027172fafe7196676cc9d2416678320f04f93591b1794721071e",
+      "projections/cursor/hooks/handler.js": "sha256:0d7638f43bf4d85661ac2da2128ccf245520b9945aaa7bc90f0a4024b57d573b",
+      "source/authoring-template.md": "sha256:30283419ab9af67ddcb7e174fa5db8fe81d7739b54e3886d3d39a609fa53c6b2",
+      "source/hook-source.json": "sha256:fb1e007a7e5d2bfb8f56c2bd82c7a73858a59573746a8f6b8230863facefab8d"
     },
     "hook-python-antigravity": {
-      ".ai-stp-template.json": "sha256:5b38bc88b6d16890252dabd83e9039821746aa261ad06a152d402ba05a12d44a",
-      ".gitignore": "sha256:cd2e9d6362f7817464ad7e576e528bcb316ffa7270f79b9fa623d90d6eb26e00",
-      "README.md": "sha256:6fe10242db218d22eaed6ea9c3ace502e780ae781acfb45eb9cdfc6eab52a1fd",
-      "component-passport.json": "sha256:33e771cdad5f43817e298f5cda2173af4bab613f9ee13f2f455371291371a3aa",
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:3d2fe101e850b5818f3780a7e31b9eb896fd3e18eed3a2938ef03374c89e2d7a",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/antigravity/adaptation.json": "sha256:f2596b71317f7c01d6a1e8820053b3bc0f736414dea76a164dd650bb7deb6812",
+      "component-passport.json": "sha256:dee6d91f6fc8afabc121c50788b867cf17d80bd5784e38b9f3128ed0c640716a",
+      "component.json": "sha256:5b38bc88b6d16890252dabd83e9039821746aa261ad06a152d402ba05a12d44a",
       "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/antigravity/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
       "projections/antigravity/hooks.json": "sha256:4acaa0e655d62b6c45051161a5f3a1e78661fd7dec5be8aeb55ed3a475c0bce6",
       "projections/antigravity/hooks/handler.py": "sha256:e12025ea99345f03fd3904d9f8b77649663279704a9ef31d5c2d4c4e71cc87a1",
-      "source/hook.json": "sha256:5a22942565822cd08561f04dab846003975a20f18dc816807da26531be40afe5",
-      "source/hooks/handler.py": "sha256:e12025ea99345f03fd3904d9f8b77649663279704a9ef31d5c2d4c4e71cc87a1"
+      "source/authoring-template.md": "sha256:30283419ab9af67ddcb7e174fa5db8fe81d7739b54e3886d3d39a609fa53c6b2",
+      "source/hook-source.json": "sha256:5a22942565822cd08561f04dab846003975a20f18dc816807da26531be40afe5"
+    },
+    "hook-typescript-codex": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:9e278fea8e88e1b69a6289a11db2f9e281aed1e45cb97894ff0dd28f3e5525f5",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/codex/adaptation.json": "sha256:abe063f9793cf206b6bc47a3c98c65fc65d795074481d796d7b3131a229f8401",
+      "component-passport.json": "sha256:2311dbc24db801489208c4d65bf02bdbabcf0a4afa6df3be4a2fdfd219f646e8",
+      "component.json": "sha256:70e9fc30472aa35fb6ffc068b2beb40540b640af821864eca3650311bb6d6736",
+      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/codex/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/codex/hooks.json": "sha256:70b26f2ed3ee46f242873a27c0ed5e1e9c558f73961584e51fecca2060e69c5e",
+      "projections/codex/hooks/handler.ts": "sha256:4808f35ceb56b0b0a5f87f15927af2c41e7c7bb8c4cb09572780edfe5966d68b",
+      "source/authoring-template.md": "sha256:30283419ab9af67ddcb7e174fa5db8fe81d7739b54e3886d3d39a609fa53c6b2",
+      "source/hook-source.json": "sha256:0cfa7a7fb3f3d0def04d935867a43735d9504e167e7792ff91d60c6ee6655b4e"
+    },
+    "instruction-none-portable": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:39a4f19383fd6a32cf3d1c0d2a97baf3b61ece18cc8feed8b8164198b027c19e",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/portable/adaptation.json": "sha256:36c5bb65f91b379b1830e5e24501884cfa03e5d015be31cc8698d658256301e2",
+      "component-passport.json": "sha256:09fccbe4f220972f6b858b9e9f8f6a78f566c96ce731d2264827cf6ce19e1078",
+      "component.json": "sha256:7419590aa15a50e441106bc0d68cd2c06012e6383266ebd0ab76ff8d89502d73",
+      "eval-profile.json": "sha256:1624133139d2a554a3f72151d858ac4e6c33b206a7fc3d7511017c1ad927f8d0",
+      "projections/portable/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/portable/reference-component.md": "sha256:b5d49715789d851f7e168dd79d8041deec4f076961d329de77d7dca97a98b9c3",
+      "source/authoring-template.md": "sha256:f12d932c831295c523166ffd78cbd627a4e639e325aed5f0e9661ab1aefe29bb"
+    },
+    "mcp-javascript-codex": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:05f6e2adefee5324a18b1a7078909003eac278c591a6e11f1755e497930a02f9",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/codex/adaptation.json": "sha256:6c15412fbafd2bb1119bd45fd43a5b38230b1e9638901bb172bd9355f0ac1267",
+      "component-passport.json": "sha256:76aa6b939b924f0af42c0666e14788544effe583a4564ea8e9d242c5ae5171ec",
+      "component.json": "sha256:4a18b1bf42e986193f2f6559a2cf73d14939506712510de8518342f70c3d44cf",
+      "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
+      "projections/codex/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/codex/src/main.js": "sha256:a63e2746841ce9250035d0eda5076d536f6ab2eae9f2340fc464b9aba35b3236",
+      "source/authoring-template.md": "sha256:5ab902a4a6dfc6d03941561b05e58ae7772aa55e62cb7858d39ea186434fdc36"
+    },
+    "mcp-python-portable": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:eb32d7bb189c71f69cc44b2e30724a48b959ea9406f93629b1592dc39feeeb03",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/portable/adaptation.json": "sha256:25a9d27279ee42fdb237bd1bf4542ff4fadf27fe12ee22a2552a3d23efae675d",
+      "component-passport.json": "sha256:8291d2ff96eff45f224b2d7a122381238b2ff40f43612dcff92ded7f5e93c309",
+      "component.json": "sha256:f49c53992e11ee0ca924a0e64af324fac9d20a5edc65efd3ecebf933632df58f",
+      "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
+      "projections/portable/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/portable/src/main.py": "sha256:2096dc3f45bc7c21f29b0314aa82cd6869e101d7186fee4731c237e8ac54e577",
+      "source/authoring-template.md": "sha256:5ab902a4a6dfc6d03941561b05e58ae7772aa55e62cb7858d39ea186434fdc36"
+    },
+    "plugin-dart-flutter-grok-build": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:035453406d5a4ed8b2a02bb34b45a14954ee5951f99a544adc833abe38cac011",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/grok-build/adaptation.json": "sha256:4a490dce49e3a0cfe58beaf471fc109b80bcafec25315d97577473d8623cb121",
+      "component-passport.json": "sha256:3ed733f38ceb7cef5d588b289692d36404c0b3e118a8ab0d64be71d2e5faeeb6",
+      "component.json": "sha256:a8271dc7839f74a4aeee903b73f15617d515e28adc53d8b581eb8a49382799e7",
+      "eval-profile.json": "sha256:fca75730526ba8dd5f187c9302a8d08a7baaa5fcebcc558328d95c813bc1e21c",
+      "projections/grok-build/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/grok-build/plugin.json": "sha256:910547aab8848605ac3bcdb3eeb8504f69d1505169372038782c979cf04b7cd8",
+      "projections/grok-build/src/main-reference_component.dart": "sha256:202c4ed1e05db8d63fb4166fd21a3b542a642bc7cf174d0acf6e963e19cd2624",
+      "source/authoring-template.md": "sha256:aca9606d7064439760e1c8874288e58616689eec769197784cfd9339c58f7207"
+    },
+    "setting-none-grok-build": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:d5e0238603c4a045c82ff445814041596a3f6394d78d910876e7af17efc5e31f",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/grok-build/adaptation.json": "sha256:91f037384ac36c46992f4dbd00eb3cf237c145cb626ed25a734d193cba8766fb",
+      "component-passport.json": "sha256:871ce90d3947f7e3baa1d3b46f10caef5a1cf489a7713de7cf20def8247964c1",
+      "component.json": "sha256:11675aa260025ed4eb7f687822699beb8d29cb28e7c9a55ac2df37a3f7e4954a",
+      "eval-profile.json": "sha256:f1cded74b474644392a256e83ac3567e9a6497bf9af6fcfe447a1a52aaac0ad0",
+      "projections/grok-build/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/grok-build/config.toml": "sha256:1cc5b8f811262ef4c0979d1d3b562b77037597e5eb35c6099339ebe12a9544d5",
+      "source/authoring-template.md": "sha256:98a67ddcfdd14c4cf1baba1faebdb5c8b8a0ef17ee2acb3be7bb4d63705378f3"
+    },
+    "skill-none-codex": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:be672fb3ba65eff7418a8b6ae00f38628364f2367f9474e501d41e6690ccce1b",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/codex/adaptation.json": "sha256:704e2161e2326a1f2eb26d4568cf9d857fe1b8d8cc90332c6d1b175ae7a69c96",
+      "component-passport.json": "sha256:83eff12cadf30a07f23056eb32b636717a5f734196a0124aa97de195266c8d95",
+      "component.json": "sha256:e19f5856ca86c452813d567eea54807f3fce1a0f87712c287443c387a23ea207",
+      "eval-profile.json": "sha256:e80fd5b259b8040498885949ff1d2d33847e204d10863f43f361ba5b461b7585",
+      "projections/codex/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/codex/SKILL.md": "sha256:479cf169ba0b4a9809e167b3fad25896fc05451f32c9dda62ff3aebc5aa87f1d",
+      "source/authoring-template.md": "sha256:d4069df2f26c80fa1b7e72ceefabcfd3daa6c6bd1754e492ce8fd40d343d6103"
+    },
+    "skill-none-cursor": {
+      "PUBLICATION.md": "sha256:771c2fc3dbd937cfb47999596544fc4c1512ca7fa9e8bf82c8905368bb183bc8",
+      "README.md": "sha256:4be74b5331594571c10cf8eb884022e5d30ebc77f7e8f943e23b6ec9a034fa53",
+      "SAFETY.md": "sha256:18560bb9b5816df43bcf781b165cb3791b0a3442a4938c8b53283c793b2879fb",
+      "adaptations/cursor/adaptation.json": "sha256:c6aa390197b65776c2b6ebdb38663052159133c887f631081b16595b6a469c99",
+      "component-passport.json": "sha256:669da4ef30fe51ae74659589f1b41c5a4ca52b403ccbd6383f966dae5a57ff54",
+      "component.json": "sha256:c072c315abe087352dc2f553ef69484c883f2ca6577e8b9ad0d554f5c5e83ecb",
+      "eval-profile.json": "sha256:e80fd5b259b8040498885949ff1d2d33847e204d10863f43f361ba5b461b7585",
+      "projections/cursor/GENERATED.md": "sha256:d46552da2cc88b8e03dc02c7e9f3f3df5a78b30b0d26c8c513180e9ad1c04a4b",
+      "projections/cursor/SKILL.md": "sha256:479cf169ba0b4a9809e167b3fad25896fc05451f32c9dda62ff3aebc5aa87f1d",
+      "source/authoring-template.md": "sha256:d4069df2f26c80fa1b7e72ceefabcfd3daa6c6bd1754e492ce8fd40d343d6103"
     }
-  }
+  },
+  "generator_version": "ai-stp/3",
+  "template_version": "component-scaffold/3"
 }

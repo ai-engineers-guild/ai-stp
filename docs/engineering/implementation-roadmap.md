@@ -34,10 +34,13 @@ plans are not continued literally after the implementation changes.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities, and five complete launch capabilities |
-| Release | Published line is `0.0.16` as six distributions; the next candidate is one public `ai-stp-cli` wheel (`ADR-0146`, `#100`) and is not yet on the index; GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
+| Release | Published line is `0.0.17` as one `ai-stp-cli` wheel (`ADR-0146`, tag `v0.0.17`); GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
 
 ## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut
+
+The published consumer line is now `0.0.17` as one `ai-stp-cli` wheel; the
+package list in this snapshot is historical.
 
 - The canonical development checkout is `ai-engineers-guild/ai-stp`. The private
   underscore tree is an archive: it runs no workflows, promotes nothing, and its
@@ -298,11 +301,20 @@ closed or forbade. Those findings are not re-opened here:
 | Six-package publication (REL-002) | Superseded by `ADR-0146`: one public `ai-stp-cli` wheel. Historical six-package artifacts stay immutable. |
 | Provider-owned multi-root commit (LAY-002) | Superseded by `ADR-0145` / SPEC-058: the consumer owns a recoverable transaction over unchanged provider v3 (one target). |
 | PyPI as the default provider channel (PYP-002) | Not claimed. GitHub attested releases remain the default until six-leg evidence exists for the index path. |
-| Public provider disclosure (PUB-001/002) | Owned by the setup-systems estate, not this consumer. |
-| Scaffold v3 (SCA-001) | Backlog, issue `#79`. |
+| Public provider disclosure (PUB-001/002) | Owned by the setup-systems estate, not this consumer ([setup-systems#287](https://github.com/NDDev-it-com/setup-systems/issues/287)). |
+| Persist adaptation assessments (CMP-003) | Platform work, not CLI: filed as `#111`. |
+| Catalog/web per-harness matrix (CMP-004) | Platform/web work, not CLI: filed as `#112`. |
+| Scaffold v3 (SCA-001) | Done in the consumer CLI: `component-scaffold/3` writes `source/`, `adaptations/<harness>/`, and generated `projections/<harness>/`. Issue `#79` tracks remaining authoring polish. |
+| Setup export (SCA-003) | Done: `setup export` writes a review tree of the recorded passport and definition. |
 | Rust rewrite / new component kinds | Backlog (`D-15`). Historical experiments are not current evidence. |
 
-`#100` stays open until `ai-stp-cli==0.0.17` is published from an immutable candidate, a clean install from the index passes, and `ai-stp-sources` is removed. That publication is a separate confirmation, not this change.
+`#100` published `ai-stp-cli==0.0.17` from candidate `33850604873`, tag `v0.0.17`,
+commit `9e03ab27`. A clean index install and one GitHub-attested provider fetch
+passed. Obsolete GitHub `pypi` / `pypi-*` environments except `pypi-cli` are
+removed. The five former internal PyPI projects remain on the index until their
+owners delete them in the web UI with password confirmation: `ai-stp-sources`
+is `rldyourmnd`; `ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`,
+and `ai-stp-contracts` are `artemletya`. There is no deletion API.
 
 ## Explicitly out of scope for this pass
 

@@ -17,7 +17,7 @@ from ai_stp_cli.commands import registry as registry_commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, setup_compose
 from ai_stp_cli.local.database import configured_path, open_registry
-from ai_stp_contracts.machine_help import SetupComposePlan, SetupComposeResult
+from ai_stp_contracts.machine_help import SetupComposePlan, SetupComposeResult, SetupExportResult
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.refs import ComponentRef
@@ -64,6 +64,24 @@ def apply(parameters: Mapping[str, object]) -> Answer[SetupComposeResult]:
                 device_id=current.device_id,
                 publisher_id=passports.owner().account_id,
                 at=created_at,
+            )
+        )
+
+
+def export(parameters: Mapping[str, object]) -> Answer[SetupExportResult]:
+    """Write a review tree of one recorded local setup. Writes no harness state."""
+    setup_id = str(parameters.get("id") or "")
+    output = str(parameters.get("output") or "")
+    if not setup_id or not output:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "setup export requires --id and --output")
+    version = str(parameters.get("version") or "") or None
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        return Answer(
+            setup_compose.export_tree(
+                connection,
+                setup_id=setup_id,
+                version=version,
+                output=Path(output),
             )
         )
 

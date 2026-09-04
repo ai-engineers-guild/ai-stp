@@ -5330,6 +5330,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-compose-result",
       "next_actions": [
+        "setup export",
         "setup publish plan",
         "select session"
       ]
@@ -5376,6 +5377,50 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-compose-plan",
       "next_actions": [
         "setup compose apply"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "export"
+      ],
+      "summary": "Write a review tree of one recorded local setup. Does not create a harness tree.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the recorded setup.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y version. Omitted, the newest recorded version.",
+          "choices": []
+        },
+        {
+          "name": "output",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "New directory that must not already exist.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-export-result",
+      "next_actions": [
+        "install plan",
+        "setup publish plan"
       ]
     },
     {

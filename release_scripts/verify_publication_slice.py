@@ -267,13 +267,14 @@ def _seed_local_release(home: Path, *, python: str) -> tuple[str, str]:
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         shutil.rmtree(target)
-    # The portable skill scaffold's adoptable package is `source/`. Same defect
-    # and same fix as the sync slice: the first real-account run refused with
-    # "this directory holds no manifest to adopt", and the refusal was correct.
-    native = scaffold / "source"
+    # The scaffold emits an authoring workspace; the adoptable native component
+    # is its `projections/<harness>/` half. Same defect and same fix as the sync
+    # slice: the first real-account run refused with "this directory holds no
+    # manifest to adopt", and the refusal was correct.
+    native = scaffold / "projections" / "portable"
     if not native.is_dir():
-        raise EvidenceError(f"the scaffold at {scaffold} has no source/ half to adopt")
-    shutil.copytree(native, target)
+        raise EvidenceError(f"the scaffold at {scaffold} has no projections/portable half to adopt")
+    shutil.copytree(native, target, ignore=shutil.ignore_patterns("GENERATED.md"))
     adopted = data(
         cli(
             ["component", "adopt", "--path", str(target), "--root", str(project)],

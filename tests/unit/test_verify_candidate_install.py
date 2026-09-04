@@ -30,6 +30,50 @@ def test_direct_provenance_accepts_posix_and_windows_site_packages(
     assert set(observed) == {"ai-stp-cli"}
 
 
+def test_installed_help_parity_refuses_a_confirm_flag_on_scaffold_apply() -> None:
+    capabilities = {
+        "ok": True,
+        "data": {"command_paths": ["component scaffold apply", "version"]},
+    }
+    help_answer = {
+        "ok": True,
+        "data": {
+            "commands": [
+                {
+                    "path": ["component", "scaffold", "apply"],
+                    "parameters": [
+                        {"name": "expected-plan-digest"},
+                        {"name": "confirm"},
+                    ],
+                },
+                {"path": ["version"], "parameters": []},
+            ]
+        },
+    }
+    with pytest.raises(verify_candidate_install.InstallVerificationError, match="--confirm"):
+        verify_candidate_install.require_installed_help_parity(capabilities, help_answer)
+
+
+def test_installed_help_parity_accepts_matching_paths() -> None:
+    capabilities = {
+        "ok": True,
+        "data": {"command_paths": ["component scaffold apply", "version"]},
+    }
+    help_answer = {
+        "ok": True,
+        "data": {
+            "commands": [
+                {
+                    "path": ["component", "scaffold", "apply"],
+                    "parameters": [{"name": "expected-plan-digest"}],
+                },
+                {"path": ["version"], "parameters": []},
+            ]
+        },
+    }
+    verify_candidate_install.require_installed_help_parity(capabilities, help_answer)
+
+
 def test_direct_provenance_refuses_an_ambiguous_environment(tmp_path: Path) -> None:
     (tmp_path / "ai-stp-cli/lib/python3.14/site-packages").mkdir(parents=True)
     (tmp_path / "ai-stp-cli/Lib/site-packages").mkdir(parents=True)

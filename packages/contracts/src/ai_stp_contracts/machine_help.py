@@ -1246,6 +1246,23 @@ class SetupComposeResult(BaseModel):
     created: bool
 
 
+class SetupExportResult(BaseModel):
+    """A review tree of one already-recorded local setup. Not a harness tree."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    setup_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    definition_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    output: Annotated[str, Field(min_length=1)]
+    files_written: Annotated[int, Field(ge=1)]
+    result: Literal["local_setup_definition"] = "local_setup_definition"
+    storage: Literal["local_registry"] = "local_registry"
+    physical_target_tree_created: Literal[False] = False
+
+
 class ComponentScaffoldView(BaseModel):
     """One safely created component authoring template."""
 

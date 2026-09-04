@@ -241,6 +241,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("select",): "Choose components and compile them into one setup.",
     ("setup",): "Whole setups: import one, or publish one with its pins.",
     ("setup", "compose"): "Freeze a new setup from catalog and embedded sources.",
+    ("setup", "export"): "Write a review tree of one recorded local setup.",
     ("setup", "import"): "Bring an existing configuration in as a setup.",
     ("setup", "publish"): "Publish a setup together with the components it pins.",
     ("setup", "scaffold"): "Start a new setup from a declared harness layout.",
