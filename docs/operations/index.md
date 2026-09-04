@@ -15,6 +15,6 @@ last_verified: "2026-08-03"
 | [infrastructure.md](infrastructure.md) | Target infrastructure for the MVP server mode. | 2026-08-05 |
 | [observability.md](observability.md) | Minimum signals for diagnosing the CLI, sync, publishing, and providers. | 2026-08-29 |
 | [production-readiness.md](production-readiness.md) | Operator procedure for evidence-gated production readiness and optional OpenObserve. | 2026-08-28 |
-| [provider-integration-state.md](provider-integration-state.md) | Public compatibility snapshot for seven provider systems and ai_stp. | 2026-09-01 |
+| [provider-integration-state.md](provider-integration-state.md) | Public compatibility snapshot for seven provider systems and ai_stp. | 2026-09-04 |
 
 <!-- END CONTENTS -->

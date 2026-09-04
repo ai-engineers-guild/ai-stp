@@ -142,7 +142,9 @@ def test_ambiguity_is_not_fetched(
     ):
         acquire.ensure_provider(connection, "codex", {})
     assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
-    assert any("provider fetch" in item for item in raised.value.next_actions)
+    assert any("provider check" in item for item in raised.value.next_actions)
+    assert any("--provider <path>" in item for item in raised.value.next_actions)
+    assert not any("provider fetch" in item for item in raised.value.next_actions)
 
 
 def test_unverified_without_a_path_is_not_fetched(

@@ -105,8 +105,29 @@ def _runnable(place: Path) -> bool:
     the same one that makes the containment checks resolve: what a link points
     at can change after it was inspected, and the inspection is what the trust
     verdict was attached to.
+
+    A `.backup` named by digest is the recovery copy `provider update` leaves
+    beside the executable. It is runnable by construction and is not a second
+    provider: treating it as one made the harness the update had just replaced
+    unresolvable.
     """
-    return not place.is_symlink() and is_executable_file(place)
+    return (
+        not place.is_symlink() and is_executable_file(place) and not _is_replacement_backup(place)
+    )
+
+
+def _is_replacement_backup(place: Path) -> bool:
+    """Whether this name is a digest-named recovery copy, not a provider."""
+    stem, marker, leftover = place.name.rpartition(".backup")
+    if leftover or marker != ".backup" or not stem:
+        return False
+    _name, separator, digest = stem.rpartition(".")
+    return (
+        bool(_name)
+        and separator == "."
+        and len(digest) == 16
+        and set(digest) <= set("0123456789abcdef")
+    )
 
 
 def validated(path: str, *, harness_id: str) -> Path:

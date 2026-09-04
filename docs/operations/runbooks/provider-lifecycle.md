@@ -1,6 +1,6 @@
 ---
 description: "Discovery, version checking, updating, and reinstalling a setup-system provider."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # Setup-system provider lifecycle
@@ -142,6 +142,9 @@ Afterward, configuration and discovery decide—as before the first update.
 The backup is stored beside the replaced file and named by the digest of the previous
 bytes, not by time: two runs replacing the same bytes write the same
 copy, so repeating an update cannot overwrite the one needed for rollback.
+Discovery ignores that digest-named `.backup`: it is a recovery copy, not a
+second provider. The sibling `release.json` is rewritten to cover the new
+bytes, so `provider check` can name the version without spawning the file.
 
 ```bash
 cp <path>.<digest>.backup <path>

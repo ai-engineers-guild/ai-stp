@@ -261,3 +261,23 @@ def test_discovery_ignores_a_symlink_and_a_plain_file(
     assert not paths.is_executable_file(plain)
 
     assert installations.discover("codex") == (real,)
+
+
+def test_discovery_ignores_a_replacement_backup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`provider update` leaves a digest-named copy beside the executable.
+
+    That file is runnable on purpose so `cp <path>.<digest>.backup <path>`
+    restores it. Discovery that counted it as a second provider made the
+    harness the update had just replaced unresolvable.
+    """
+    root = tmp_path / "providers"
+    monkeypatch.setattr(installations, "managed_root", lambda: root)
+    real = _executable(root / "codex" / "0.0.33" / "provider")
+    backup = real.with_name(f"{real.name}.{'ab' * 8}.backup")
+    backup.write_bytes(real.read_bytes())
+    if paths.POSIX:
+        backup.chmod(backup.stat().st_mode | stat.S_IXUSR)
+    assert paths.is_executable_file(backup)
+    assert installations.discover("codex") == (real,)

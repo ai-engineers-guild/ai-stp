@@ -99,3 +99,58 @@ def test_an_unremembered_path_outside_the_store_stays_foreign(
     place = _executable(tmp_path, b"#!/bin/sh\nexit 0\n")
 
     assert provider_commands._is_managed(registry, place) is False  # pyright: ignore[reportPrivateUsage]
+
+
+def test_an_in_place_replacement_rewrites_the_sibling_manifest(tmp_path: Path) -> None:
+    """`provider check` identifies a managed provider from sibling release.json.
+
+    Replacing only the executable left the old digest in that file, so the
+    just-updated provider was reported unmanaged and never asked for a newer
+    tag.
+    """
+    from ai_stp_cli.provider import attested_bind
+    from ai_stp_cli.provider.release import ReleaseManifest
+
+    place = _executable(tmp_path, b"new-bytes\n")
+    (tmp_path / "release.json").write_text("stale", encoding="utf-8")
+    digest, size = release.artifact_identity(place)
+    bound = attested_bind.BoundRelease(
+        harness_id="claude-code",
+        repository="github.com/NDDev-OpenNetwork/claude-setup-system",
+        tag="0.0.65",
+        commit="a" * 40,
+        provider_id="claude-setup-system",
+        provider_version="0.0.65",
+        protocol_version=3,
+        sequence=65,
+        artifact=place,
+        manifest_path=tmp_path / "staging-release.json",
+        artifact_digest=digest,
+        artifact_url="https://example.invalid/artifact",
+        trust_level="verified_publisher",
+        manifest=ReleaseManifest(
+            provider_id="claude-setup-system",
+            provider_version="0.0.65",
+            protocol_version=3,
+            repository="github.com/NDDev-OpenNetwork/claude-setup-system",
+            commit="a" * 40,
+            license="AGPL-3.0-or-later",
+            artifact_url="https://example.invalid/artifact",
+            artifact_size=size,
+            artifact_digest=digest,
+            entry_point=place.name,
+            supported_os=frozenset({"linux"}),
+            supported_arch=frozenset({"x86_64"}),
+            sequence=65,
+            policy_id="nddev/provider/1",
+            publisher="nddev-opennetwork",
+            signing_key="attested",
+            signature_subject="ai-stp:provider-release-manifest:v1",
+            signature="",
+        ),
+    )
+    provider_commands._write_bound_manifest(place, bound)  # pyright: ignore[reportPrivateUsage]
+    identity = provider_commands._manifest_identity(place)  # pyright: ignore[reportPrivateUsage]
+    assert identity is not None
+    assert identity.provider_version == "0.0.65"
+    assert identity.provider_id == "claude-setup-system"

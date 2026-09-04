@@ -71,7 +71,7 @@ def provider_context(
             details={"harness": harness_id, "candidates": ", ".join(found.candidates)},
             next_actions=[
                 "provider check --json",
-                f"provider fetch --harness {harness_id} --json",
+                f"install plan --harness {harness_id} --provider <path> --json",
             ],
         )
     if found.path:
