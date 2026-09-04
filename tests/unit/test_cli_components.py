@@ -607,6 +607,25 @@ def test_adoption_registers_the_component_and_stores_its_bytes(
     assert "global instruction" not in str(facts)
 
 
+def test_adopting_the_same_source_twice_keeps_one_stable_id(
+    registry: sqlite3.Connection, harness_home: Path
+) -> None:
+    found = next(
+        item
+        for item in components.discover()
+        if item.component_type == "instruction" and item.harness_id == "claude-code"
+    )
+    first = components.adopt(registry, found, device_id="device_test")
+    second = components.adopt(registry, found, device_id="device_test")
+    assert second.stable_id == first.stable_id
+    assert second.revision_id == first.revision_id
+    found.absolute.write_bytes(b"# global instruction changed\n")
+    rediscovered = next(item for item in components.discover() if item.absolute == found.absolute)
+    third = components.adopt(registry, rediscovered, device_id="device_test")
+    assert third.stable_id == first.stable_id
+    assert third.revision_id != first.revision_id
+
+
 def test_an_adopted_passport_carries_only_the_allowlist(
     registry: sqlite3.Connection, harness_home: Path
 ) -> None:

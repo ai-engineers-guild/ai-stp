@@ -167,6 +167,56 @@ def test_active_targets_are_locked_until_a_proven_terminal_state(
     assert not multi_root.child_is_owned(registry, children[0].operation_id)
 
 
+def test_cancel_releases_targets_and_can_be_replanned(
+    registry: sqlite3.Connection,
+) -> None:
+    children = (_child(registry, "A", "global"), _child(registry, "C", "project"))
+    planned = multi_root.propose(
+        registry,
+        setup_stable_id="setup_01J0000000000000000000000A",
+        setup_version="1.0",
+        harness_id="claude-code",
+        children=children,
+        idempotency_key="cancel-first",
+        at=AT,
+    )
+    cancelled = multi_root.cancel(
+        registry,
+        planned.transaction_id,
+        at=LATER,
+        reason="strategy changed",
+    )
+    assert cancelled.state == "cancelled"
+    again = multi_root.cancel(
+        registry,
+        planned.transaction_id,
+        at=LATER,
+        reason="already gone",
+    )
+    assert again.transaction_id == cancelled.transaction_id
+    replacements = (_child(registry, "D", "global"), _child(registry, "E", "project"))
+    second = multi_root.propose(
+        registry,
+        setup_stable_id=planned.setup_stable_id,
+        setup_version=planned.setup_version,
+        harness_id=planned.harness_id,
+        children=replacements,
+        idempotency_key="cancel-second",
+        at=LATER,
+    )
+    assert second.state == "planned"
+    applying = multi_root.move(
+        registry,
+        second.transaction_id,
+        expected=frozenset({"planned"}),
+        state="applying",
+        result="started",
+        at=LATER,
+    )
+    with pytest.raises(CliFailure, match="unapplied"):
+        multi_root.cancel(registry, applying.transaction_id, at=LATER, reason="too late")
+
+
 def test_coordinator_never_claims_success_before_every_child_is_verified(
     registry: sqlite3.Connection,
 ) -> None:

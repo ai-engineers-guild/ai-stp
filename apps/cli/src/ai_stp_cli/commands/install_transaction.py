@@ -48,11 +48,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
             _copy_trust(parameters, child_parameters)
             view = install.plan(child_parameters).payload
             planned_ids.append(view.operation_id)
-            target_digest = digest_canonical(
-                multi_root.TRANSACTION_DOMAIN,
-                {"scope": scope, "target": str(target)},
-            )
-            target_token = f"{scope}:{target_digest}"
+            target_token = _physical_target_id(target)
             children.append(
                 multi_root.Child(
                     cast(multi_root.Scope, scope),
@@ -179,6 +175,18 @@ def status(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]
         return Answer(_view(multi_root.get(connection, transaction_id)))
 
 
+def cancel(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
+    """Abandon an unapplied multi-root plan and release every reserved target."""
+    transaction_id = _required(parameters, "transaction")
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        held = Coordinator(connection).cancel(
+            transaction_id,
+            at=moment(),
+            reason=str(parameters.get("reason") or "cancelled by the agent"),
+        )
+        return Answer(_view(held))
+
+
 def _compensate(
     coordinator: Coordinator,
     transaction_id: str,
@@ -225,25 +233,51 @@ def _compensate(
             continue
         original = installation.plan(coordinator.connection, child.operation_id)
         project, harness = installation.target_pair(original.target_id)
-        rollback_parameters: dict[str, object] = {
-            "project": project,
-            "harness": harness,
-            "provider": provider,
-            "protocol-version": 3,
-            "target": original.provider_target,
-            "scope": child.scope,
-            "action": "rollback",
-            "backup-ref": backup_ref,
-        }
-        _copy_trust(parameters, rollback_parameters)
-        try:
-            rollback = install.plan(rollback_parameters).payload
-            install.approve(
-                {"operation": rollback.operation_id, "plan-digest": rollback.plan_digest}
+        undo_id = child.undo_operation_id
+        if undo_id is None:
+            rollback_parameters: dict[str, object] = {
+                "project": project,
+                "harness": harness,
+                "provider": provider,
+                "protocol-version": 3,
+                "target": original.provider_target,
+                "scope": child.scope,
+                "action": "rollback",
+                "backup-ref": backup_ref,
+            }
+            _copy_trust(parameters, rollback_parameters)
+            try:
+                rollback = install.plan(rollback_parameters).payload
+            except CliFailure:
+                return _recovery_required(
+                    coordinator, transaction_id, "provider compensation did not verify"
+                )
+            undo_id = rollback.operation_id
+            coordinator.record_undo(
+                transaction_id,
+                child.operation_id,
+                undo_operation_id=undo_id,
+                at=moment(),
             )
-            restored = install.apply(
-                {"operation": rollback.operation_id, "provider": provider}
-            ).payload
+            try:
+                install.approve({"operation": undo_id, "plan-digest": rollback.plan_digest})
+            except CliFailure:
+                return _recovery_required(
+                    coordinator, transaction_id, "provider compensation did not verify"
+                )
+        try:
+            with install.transaction_child_access():
+                current_undo = journal.get(coordinator.connection, undo_id)
+                if current_undo is not None and current_undo.state in {
+                    installation.STATE_APPLYING,
+                    installation.STATE_APPLIED_UNVERIFIED,
+                    installation.STATE_PARTIAL,
+                }:
+                    restored = install.resume({"operation": undo_id, "provider": provider}).payload
+                elif current_undo is not None and current_undo.state == installation.STATE_VERIFIED:
+                    restored = current_undo
+                else:
+                    restored = install.apply({"operation": undo_id, "provider": provider}).payload
         except CliFailure:
             return _recovery_required(
                 coordinator, transaction_id, "provider compensation did not verify"
@@ -292,7 +326,15 @@ def _scope_targets(parameters: Mapping[str, object]) -> tuple[tuple[str, Path], 
                 "AI_STP_VALIDATION_ERROR",
                 "scope-target must be a supported scope and existing absolute directory",
             )
-        found.append((scope, path.resolve()))
+        resolved = path.resolve()
+        for held_scope, held_path in found:
+            if _paths_overlap(held_path, resolved):
+                raise CliFailure(
+                    "AI_STP_CONFLICT",
+                    "scope-target values name overlapping physical roots",
+                    details={"scope": scope, "other_scope": held_scope},
+                )
+        found.append((scope, resolved))
     if len(found) < 2:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
@@ -303,6 +345,19 @@ def _scope_targets(parameters: Mapping[str, object]) -> tuple[tuple[str, Path], 
     return tuple(
         sorted(found, key=lambda item: multi_root.SCOPE_ORDER[cast(multi_root.Scope, item[0])])
     )
+
+
+def _physical_target_id(target: Path) -> str:
+    """Identify a reservation by the physical root, not by the scope label."""
+    return digest_canonical(
+        multi_root.TRANSACTION_DOMAIN,
+        {"resource": str(target.resolve())},
+    )
+
+
+def _paths_overlap(left: Path, right: Path) -> bool:
+    first, second = left.resolve(), right.resolve()
+    return first == second or first in second.parents or second in first.parents
 
 
 def _copy_trust(source: Mapping[str, object], target: dict[str, object]) -> None:
@@ -328,23 +383,23 @@ def _cancel_unowned(operation_ids: list[str]) -> None:
 
 def _view(value: multi_root.MultiRootTransaction) -> MultiRootTransactionView:
     active = value.state not in multi_root.TERMINAL
-    next_actions = (
-        [
+    next_actions: list[str] = []
+    if value.state == "planned" and value.approved_digest is None:
+        next_actions.append(
             "install transaction approve "
             f"--transaction {value.transaction_id} "
             f"--transaction-digest {value.digest} --json"
-        ]
-        if value.state == "planned" and value.approved_digest is None
-        else (
-            [
-                "install transaction recover "
-                f"--transaction {value.transaction_id} "
-                "--provider <executable> --json"
-            ]
-            if value.state == "recovery_required"
-            else []
         )
-    )
+    if value.state == "planned":
+        next_actions.append(
+            f"install transaction cancel --transaction {value.transaction_id} --json"
+        )
+    if value.state == "recovery_required":
+        next_actions.append(
+            "install transaction recover "
+            f"--transaction {value.transaction_id} "
+            "--provider <executable> --json"
+        )
     return MultiRootTransactionView(
         transaction_id=value.transaction_id,
         transaction_digest=value.digest,

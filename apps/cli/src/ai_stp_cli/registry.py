@@ -2104,6 +2104,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("install transaction recover",),
     ),
     Declaration(
+        path=["install", "transaction", "cancel"],
+        summary="Abandon an unapplied multi-root plan and release reserved targets.",
+        result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
+        handler="install_transaction:cancel",
+        mutability="apply",
+        parameters=(
+            option("transaction", "string", "Unapplied transaction to abandon.", required=True),
+            option("reason", "string", "Why it is being abandoned."),
+        ),
+        next_actions=("install transaction plan",),
+    ),
+    Declaration(
         path=["install", "apply"],
         summary="Carry out one approved plan through its provider and record what happened.",
         result_schema="urn:ai-stp:schema:v1:cli-installation",

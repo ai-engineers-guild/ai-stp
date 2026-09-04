@@ -58,6 +58,7 @@ ai-stp:multi-root-transaction:v1
 ai-stp:bundle:v1
 ai-stp:attestation:v1
 ai-stp:native-discovery:v1
+ai-stp:component-source-binding:v1
 ai-stp:project-index:v1
 ai-stp:project-toolchain:v1
 ai-stp:project-configuration:v1

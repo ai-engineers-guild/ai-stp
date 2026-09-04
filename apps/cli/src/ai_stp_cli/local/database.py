@@ -907,6 +907,218 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "DROP TABLE installation_transaction",
         ),
     ),
+    Migration(
+        version=30,
+        summary="cancel unapplied multi-root transactions and bind local component sources",
+        up=(
+            """
+            CREATE TABLE installation_transaction_v30 (
+                transaction_id      TEXT PRIMARY KEY,
+                idempotency_key     TEXT NOT NULL UNIQUE,
+                transaction_digest TEXT NOT NULL UNIQUE,
+                setup_stable_id     TEXT NOT NULL,
+                setup_version       TEXT NOT NULL,
+                harness_id          TEXT NOT NULL,
+                state               TEXT NOT NULL CHECK (
+                    state IN (
+                        'planned', 'applying', 'compensating',
+                        'recovery_required', 'verified', 'rolled_back',
+                        'cancelled'
+                    )
+                ),
+                approved_digest     TEXT,
+                created_at          TEXT NOT NULL,
+                updated_at          TEXT NOT NULL
+            ) STRICT
+            """,
+            """
+            INSERT INTO installation_transaction_v30
+            SELECT * FROM installation_transaction
+            """,
+            """
+            CREATE TABLE installation_transaction_child_hold (
+                transaction_id TEXT NOT NULL,
+                position       INTEGER NOT NULL,
+                scope          TEXT NOT NULL,
+                operation_id   TEXT NOT NULL,
+                target_id      TEXT NOT NULL,
+                plan_digest    TEXT NOT NULL,
+                state          TEXT NOT NULL,
+                backup_ref     TEXT,
+                PRIMARY KEY (transaction_id, position)
+            ) STRICT
+            """,
+            """
+            INSERT INTO installation_transaction_child_hold
+            SELECT * FROM installation_transaction_child
+            """,
+            """
+            CREATE TABLE installation_transaction_target_hold (
+                target_id      TEXT PRIMARY KEY,
+                transaction_id TEXT NOT NULL
+            ) STRICT
+            """,
+            """
+            INSERT INTO installation_transaction_target_hold
+            SELECT * FROM installation_transaction_target
+            """,
+            """
+            CREATE TABLE installation_transaction_event_hold (
+                transaction_id TEXT NOT NULL,
+                sequence       INTEGER NOT NULL,
+                at             TEXT NOT NULL,
+                state_before   TEXT NOT NULL,
+                state_after    TEXT NOT NULL,
+                result         TEXT NOT NULL,
+                PRIMARY KEY (transaction_id, sequence)
+            ) STRICT
+            """,
+            """
+            INSERT INTO installation_transaction_event_hold
+            SELECT * FROM installation_transaction_event
+            """,
+            "DROP TABLE installation_transaction_event",
+            "DROP TABLE installation_transaction_target",
+            "DROP TABLE installation_transaction_child",
+            "DROP TABLE installation_transaction",
+            "ALTER TABLE installation_transaction_v30 RENAME TO installation_transaction",
+            """
+            CREATE TABLE installation_transaction_child (
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                position       INTEGER NOT NULL,
+                scope          TEXT NOT NULL CHECK (
+                    scope IN ('global', 'user_root', 'project')
+                ),
+                operation_id   TEXT NOT NULL UNIQUE
+                    REFERENCES operation_plan(operation_id),
+                target_id      TEXT NOT NULL,
+                plan_digest    TEXT NOT NULL,
+                state          TEXT NOT NULL,
+                backup_ref     TEXT,
+                undo_operation_id TEXT,
+                PRIMARY KEY (transaction_id, position),
+                UNIQUE (transaction_id, scope),
+                UNIQUE (transaction_id, target_id)
+            ) STRICT
+            """,
+            """
+            INSERT INTO installation_transaction_child (
+                transaction_id, position, scope, operation_id,
+                target_id, plan_digest, state, backup_ref
+            )
+            SELECT
+                transaction_id, position, scope, operation_id,
+                target_id, plan_digest, state, backup_ref
+            FROM installation_transaction_child_hold
+            """,
+            "DROP TABLE installation_transaction_child_hold",
+            """
+            CREATE TABLE installation_transaction_target (
+                target_id      TEXT PRIMARY KEY,
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id)
+            ) STRICT
+            """,
+            """
+            INSERT INTO installation_transaction_target
+            SELECT * FROM installation_transaction_target_hold
+            """,
+            "DROP TABLE installation_transaction_target_hold",
+            """
+            CREATE TABLE installation_transaction_event (
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                sequence       INTEGER NOT NULL,
+                at             TEXT NOT NULL,
+                state_before   TEXT NOT NULL,
+                state_after    TEXT NOT NULL,
+                result         TEXT NOT NULL,
+                PRIMARY KEY (transaction_id, sequence)
+            ) STRICT
+            """,
+            """
+            INSERT INTO installation_transaction_event
+            SELECT * FROM installation_transaction_event_hold
+            """,
+            "DROP TABLE installation_transaction_event_hold",
+            """
+            CREATE TABLE component_source_binding (
+                source_key     TEXT PRIMARY KEY,
+                stable_id      TEXT NOT NULL UNIQUE
+                    REFERENCES entity(stable_id),
+                harness_id     TEXT NOT NULL,
+                component_type TEXT NOT NULL,
+                absolute_path  TEXT NOT NULL,
+                created_at     TEXT NOT NULL
+            ) STRICT
+            """,
+        ),
+        down=(
+            "DROP TABLE component_source_binding",
+            "DROP TABLE installation_transaction_event",
+            "DROP TABLE installation_transaction_target",
+            "DROP TABLE installation_transaction_child",
+            "DROP TABLE installation_transaction",
+            """
+            CREATE TABLE installation_transaction (
+                transaction_id      TEXT PRIMARY KEY,
+                idempotency_key     TEXT NOT NULL UNIQUE,
+                transaction_digest TEXT NOT NULL UNIQUE,
+                setup_stable_id     TEXT NOT NULL,
+                setup_version       TEXT NOT NULL,
+                harness_id          TEXT NOT NULL,
+                state               TEXT NOT NULL CHECK (
+                    state IN (
+                        'planned', 'applying', 'compensating',
+                        'recovery_required', 'verified', 'rolled_back'
+                    )
+                ),
+                approved_digest     TEXT,
+                created_at          TEXT NOT NULL,
+                updated_at          TEXT NOT NULL
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_child (
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                position       INTEGER NOT NULL,
+                scope          TEXT NOT NULL CHECK (
+                    scope IN ('global', 'user_root', 'project')
+                ),
+                operation_id   TEXT NOT NULL UNIQUE
+                    REFERENCES operation_plan(operation_id),
+                target_id      TEXT NOT NULL,
+                plan_digest    TEXT NOT NULL,
+                state          TEXT NOT NULL,
+                backup_ref     TEXT,
+                PRIMARY KEY (transaction_id, position),
+                UNIQUE (transaction_id, scope),
+                UNIQUE (transaction_id, target_id)
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_target (
+                target_id      TEXT PRIMARY KEY,
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id)
+            ) STRICT
+            """,
+            """
+            CREATE TABLE installation_transaction_event (
+                transaction_id TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                sequence       INTEGER NOT NULL,
+                at             TEXT NOT NULL,
+                state_before   TEXT NOT NULL,
+                state_after    TEXT NOT NULL,
+                result         TEXT NOT NULL,
+                PRIMARY KEY (transaction_id, sequence)
+            ) STRICT
+            """,
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

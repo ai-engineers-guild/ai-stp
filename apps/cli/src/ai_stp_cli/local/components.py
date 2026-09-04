@@ -989,12 +989,48 @@ def adopt(
         )
     at = moment()
     stored_bytes = content.put(connection, adopted.payload, at=at)
-
-    stable_id = new_id("component")
-    connection.execute(
-        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
-        (stable_id, at),
+    source_key = digest_canonical(
+        "ai-stp:component-source-binding:v1",
+        {
+            "harness_id": item.harness_id,
+            "component_type": item.component_type,
+            "absolute_path": str(item.absolute.resolve()),
+        },
     )
+    bound = connection.execute(
+        "SELECT stable_id FROM component_source_binding WHERE source_key = ?",
+        (source_key,),
+    ).fetchone()
+    parents: list[str] = []
+    if bound is not None:
+        stable_id = str(bound["stable_id"])
+        existing = revisions.head(connection, stable_id)
+        if existing is not None:
+            held = existing.envelope.facts.get("content_digest")
+            if held is not None and held.value == stored_bytes.digest:
+                return existing
+            parents = [existing.revision_id]
+    else:
+        stable_id = new_id("component")
+        connection.execute(
+            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+            (stable_id, at),
+        )
+        connection.execute(
+            """
+            INSERT INTO component_source_binding (
+                source_key, stable_id, harness_id, component_type, absolute_path, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                source_key,
+                stable_id,
+                item.harness_id,
+                item.component_type,
+                str(item.absolute.resolve()),
+                at,
+            ),
+        )
     operation_id = journal.begin(connection, "component.adopt", at)
     try:
         stored = revisions.commit(
@@ -1006,6 +1042,7 @@ def adopt(
                 stored_bytes.digest,
                 len(adopted.payload),
                 at,
+                parents,
             ),
             device_id=device_id,
             operation_id=operation_id,
@@ -1024,6 +1061,7 @@ def _passport(
     digest: str,
     byte_length: int,
     at: str,
+    parents: list[str] | None = None,
 ) -> dict[str, JsonValue]:
     """A passport built from the allowlist, one fact per adopted field."""
     values: dict[str, JsonValue] = {
@@ -1072,7 +1110,7 @@ def _passport(
         "owner_id": owner().account_id,
         "created_at": at,
         "visibility": "private",
-        "parent_revision_ids": [],
+        "parent_revision_ids": list(parents or []),
         "facts": facts,
     }
 

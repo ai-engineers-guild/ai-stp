@@ -44,6 +44,11 @@ class Coordinator:
             at=at,
         )
 
+    def cancel(
+        self, transaction_id: str, *, at: str, reason: str
+    ) -> multi_root.MultiRootTransaction:
+        return multi_root.cancel(self.connection, transaction_id, at=at, reason=reason)
+
     def begin(self, transaction_id: str, *, at: str) -> multi_root.MultiRootTransaction:
         held = multi_root.get(self.connection, transaction_id)
         if held.approved_digest != held.digest:
@@ -75,6 +80,22 @@ class Coordinator:
             operation_id,
             state=current.state,
             backup_ref=installation.backup_reference(self.connection, operation_id),
+            at=at,
+        )
+
+    def record_undo(
+        self,
+        transaction_id: str,
+        operation_id: str,
+        *,
+        undo_operation_id: str,
+        at: str,
+    ) -> multi_root.MultiRootTransaction:
+        return multi_root.record_undo(
+            self.connection,
+            transaction_id,
+            operation_id,
+            undo_operation_id=undo_operation_id,
             at=at,
         )
 
