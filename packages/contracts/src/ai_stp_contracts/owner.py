@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.http import (
     Cursor,
@@ -14,6 +14,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_contracts.text_safety import validate_public_text
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
@@ -31,6 +32,11 @@ class OwnerExternalProductCreateRequest(BaseModel):
     description: Annotated[str, Field(min_length=1, max_length=320)] | None = None
     source_url: Annotated[str, Field(pattern=r"^https://", max_length=512)] | None = None
     country_codes: Annotated[list[CountryCode], Field(max_length=249)] = Field(default_factory=list)
+
+    @field_validator("name", "description")
+    @classmethod
+    def public_text_safe(cls, value: str | None) -> str | None:
+        return None if value is None else validate_public_text(value)
 
 
 class OwnerExternalProductAttachRequest(BaseModel):
@@ -197,6 +203,11 @@ class OwnerPresentationUpdateRequest(BaseModel):
     bio: Annotated[str, Field(max_length=2000)] = ""
     media: Annotated[list[OwnerPresentationMedia], Field(default_factory=list, max_length=5)]
 
+    @field_validator("bio")
+    @classmethod
+    def public_bio_safe(cls, value: str) -> str:
+        return validate_public_text(value, allow_empty=True)
+
 
 class OwnerPresentationResponse(BaseModel):
     """Current mutable component presentation for its owner."""
@@ -252,9 +263,19 @@ class StaffReportSummary(BaseModel):
 
     schema_version: Literal[1] = 1
     case_id: Annotated[str, Field(min_length=8, max_length=64)]
-    object_kind: ObjectKind
-    stable_id: Annotated[str, Field(min_length=8, max_length=64)]
-    version: Version
+    topic: Literal[
+        "object_report",
+        "service_request",
+        "country_request",
+        "component_complaint",
+        "author_complaint",
+        "ownership_transfer",
+        "verification_request",
+        "other",
+    ] = "object_report"
+    object_kind: ObjectKind | Literal[""] = ""
+    stable_id: Annotated[str, Field(max_length=64)] = ""
+    version: Version | Literal[""] = ""
     state: Annotated[str, Field(min_length=1, max_length=32)]
     vulnerability: bool = False
     created_at: Timestamp
@@ -288,15 +309,26 @@ class StaffReportDetail(BaseModel):
 
     schema_version: Literal[1] = 1
     case_id: Annotated[str, Field(min_length=8, max_length=64)]
-    object_kind: ObjectKind
-    stable_id: Annotated[str, Field(min_length=8, max_length=64)]
-    version: Version
+    topic: Literal[
+        "object_report",
+        "service_request",
+        "country_request",
+        "component_complaint",
+        "author_complaint",
+        "ownership_transfer",
+        "verification_request",
+        "other",
+    ] = "object_report"
+    object_kind: ObjectKind | Literal[""] = ""
+    stable_id: Annotated[str, Field(max_length=64)] = ""
+    version: Version | Literal[""] = ""
     state: Annotated[str, Field(min_length=1, max_length=32)]
     vulnerability: bool = False
     created_at: Timestamp
     content_digest: ContentDigest | None = None
     error_code: Annotated[str, Field(default="", max_length=64)] = ""
     harness_id: Annotated[str, Field(default="", max_length=64)] = ""
+    request_payload: dict[str, object] = Field(default_factory=dict)
 
 
 #: What an owner may do to the lifecycle of their own published version.

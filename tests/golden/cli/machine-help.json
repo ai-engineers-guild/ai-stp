@@ -551,7 +551,7 @@
         "passport",
         "update"
       ],
-      "summary": "Add confirmed declared facts as a new content-addressed passport revision.",
+      "summary": "Add confirmed declared facts as a new content-addressed passport revision. Tags: up to 10; lowercase English letters, digits and hyphens; 2 to 32 characters per tag.",
       "mutability": "apply",
       "confirmation": "plan_digest",
       "parameters": [
@@ -579,7 +579,7 @@
           "value_type": "string",
           "required": true,
           "repeatable": false,
-          "summary": "Path to a bounded closed-schema JSON patch.",
+          "summary": "Path to a bounded closed-schema JSON patch; use hyphens instead of spaces in tags.",
           "choices": []
         }
       ],

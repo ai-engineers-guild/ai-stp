@@ -36,7 +36,7 @@ export default async function ServicePage({
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <header className="space-y-2">
         <p className="text-muted-foreground text-sm">{t("externalService")}</p>
-        <h1 className="text-3xl font-medium">{service.name}</h1>
+        <h1 className="text-3xl font-medium">{seo?.profile.title ?? service.name}</h1>
         <a className="underline" href={service.primary_url} rel="noreferrer">
           {service.canonical_domain}
         </a>

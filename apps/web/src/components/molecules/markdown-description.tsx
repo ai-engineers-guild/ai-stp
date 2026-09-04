@@ -15,7 +15,7 @@ export function MarkdownDescription({
   heading = "Description",
   article = false,
 }: MarkdownDescriptionProps) {
-  const rendered = renderMarkdownOnServer(source);
+  const rendered = renderMarkdownOnServer(source, { article });
   return (
     <section className={article ? "article-prose" : "space-y-3"} aria-label={heading}>
       {!article ? (

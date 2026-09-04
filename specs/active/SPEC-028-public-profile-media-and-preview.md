@@ -1,6 +1,6 @@
 ---
 description: "SPEC-028: Author public profile, safe avatars, and preview."
-last_verified: "2026-08-08"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-028: Public profile, media, and preview
@@ -38,9 +38,15 @@ granting access through a profile link.
   profile is absent from the public catalog rather than displayed as an empty
   card.
 - `REQ-2802`: Profile revision fields are strictly limited to `display_name`
-  (1–80 characters), `bio` (0–1500 characters of restricted safe Markdown),
-  `links` (0–8 unique normalized HTTPS URLs with labels of 1–60 characters),
-  and `avatar_asset_id` or no avatar. Bio does not accept HTML or unsafe URIs.
+  (1–80 normalized UTF-8 characters), `bio` (0–1500 normalized UTF-8
+  characters), `links` (0–8 unique normalized HTTPS URLs with labels of 1–60
+  characters), and `avatar_asset_id` or no avatar. Display name and bio accept
+  Unicode letters/digits, whitespace, and basic ASCII punctuation only; they
+  reject invisible/typographic characters, markup, unsafe URIs, profanity,
+  sexual content/services, threats/violence, extremism, and military-action
+  markers.
+  The denylist matches complete words or explicit phrases at word boundaries;
+  it does not match roots or suffixes inside otherwise valid words.
 - `REQ-2803`: The user-facing web flow does not expose a separate draft:
   `Save changes` saves the changes and makes them the current published profile
   through a server revision. The in-form preview is temporary frontend-only
@@ -104,7 +110,7 @@ the generated client is rebuilt only from the contract.
 | Requirement | Executable oracle |
 |---|---|
 | `REQ-2801` | An integration check proves that an account receives at most one PublicProfile and an empty profile does not enter the catalog. |
-| `REQ-2802` | Contract checks accept a safe Markdown bio up to 1500 characters and reject HTML, unsafe URIs, non-HTTPS links, limit violations, and duplicates. |
+| `REQ-2802` | Contract checks accept normalized UTF-8 text up to 1500 characters and reject markup, unsafe URIs, invisible/typographic characters, profanity, sexual content/services, threats/violence, extremism, military-action markers, non-HTTPS links, limit violations, and duplicates. |
 | `REQ-2803` | A web check proves that the in-form preview does not write to the backend and Save changes publishes the current fields. |
 | `REQ-2804` | The contract matrix checks separate owner-profile, draft, preview, and publish scenarios with an idempotency key. |
 | `REQ-2805` | A browser check compares the sanitized preview with public rendering and proves owner-only access. |

@@ -17,7 +17,7 @@ on a route that exists to answer "who am I".
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ai_stp_contracts.auth import AccountId, DeviceId, DisplayName, OAuthProvider
 from ai_stp_contracts.http import (
@@ -29,6 +29,7 @@ from ai_stp_contracts.http import (
     strict_request_object,
 )
 from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.identity import HANDLE_PATTERN, submitted_display_name, normalize_handle
 
 #: A device is either accepted for cloud work or it is not. Revocation is
 #: forward-acting: it stops future sync and attestation and leaves local reads
@@ -174,6 +175,29 @@ class AccountProfile(BaseModel):
     identities: Annotated[list[LinkedIdentity], Field(min_length=1, max_length=8)]
     show_profile_publicly: bool
     allow_publisher_listing: bool
+    handle: Annotated[str, Field(default="", max_length=32)] = ""
+    display_name: Annotated[str, Field(default="", max_length=80)] = ""
+
+
+class AccountIdentityUpdate(BaseModel):
+    """Replace the current account public handle and display name."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    schema_version: Literal[1] = 1
+    handle: Annotated[str, Field(pattern=HANDLE_PATTERN, min_length=1, max_length=32)]
+    display_name: Annotated[str, Field(min_length=1, max_length=80)]
+    idempotency_key: IdempotencyKey
+
+    @field_validator("handle")
+    @classmethod
+    def closed_handle(cls, value: str) -> str:
+        return normalize_handle(value)
+
+    @field_validator("display_name")
+    @classmethod
+    def collapsed_display(cls, value: str) -> str:
+        return submitted_display_name(value)
 
 
 class AccountPrivacyUpdate(BaseModel):

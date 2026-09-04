@@ -463,7 +463,7 @@ def _scaffold_files(name: str, descriptor: ComponentTemplateDescriptor) -> dict[
     if variant != "portable":
         files[f"{projection_root}/GENERATED.md"] = (
             b"# Generated projection\n\n"
-            b"Native bytes in this directory are produced by `ai-stp/4` from `source/`.\n"
+            b"Native bytes in this directory are produced by `ai-stp/5` from `source/`.\n"
             b"Do not treat them as the source of truth.\n"
         )
         files.update({f"{projection_root}/{path}": payload for path, payload in native.items()})
@@ -575,7 +575,7 @@ def _native_source(
         if component_type == "instruction":
             entry = "AGENTS.md" if rule is None or rule.shape == "file" else f"{name}.md"
             payload = _instruction_source(name)
-            source_files = {"AGENTS.md": payload}
+            source_files = {"AGENTS.md": payload, "CLAUDE.md": _claude_instruction_shim()}
         elif component_type == "command":
             entry = "command.md"
             payload = _text_source(name, "command")
@@ -597,8 +597,17 @@ def _native_source(
             )
             projection = "native_files"
         elif rule.shape == "file":
-            native = {rule.relative: payload}
+            native = {
+                rule.relative: (
+                    _claude_instruction_shim()
+                    if component_type == "instruction" and harness == "claude-code"
+                    else payload
+                )
+            }
             managed = (rule.relative,)
+            if component_type == "instruction" and harness == "claude-code":
+                native["AGENTS.md"] = payload
+                managed += ("AGENTS.md",)
             projection = rule.projection_kind
         else:
             path = (
@@ -612,14 +621,16 @@ def _native_source(
         return native, (entry,), managed, projection, source_files
 
     if component_type == "skill":
-        payload = _skill_source(name)
-        source_files = {"SKILL.md": payload}
+        source_files = _skill_files(name)
+        payload = source_files["SKILL.md"]
         if rule is None:
             return {}, ("SKILL.md",), (f"skills/{name}",), "native_files", source_files
         if rule.shape == "directory":
-            path = f"{rule.relative}/{name}/SKILL.md"
+            native = {
+                f"{rule.relative}/{name}/{path}": content for path, content in source_files.items()
+            }
             return (
-                {path: payload},
+                native,
                 ("SKILL.md",),
                 (f"{rule.relative}/{name}",),
                 rule.projection_kind,
@@ -653,37 +664,158 @@ def _native_source(
 
 
 def _text_source(name: str, component_type: str) -> bytes:
+    if component_type == "command":
+        return (
+            f"# {name}\n\n{DRAFT} replace with the command's user-visible outcome.\n\n"
+            "## Purpose\n\nState the one task this command performs.\n\n"
+            "## Usage\n\nDocument the invocation, arguments, defaults, and expected output.\n\n"
+            "## Behavior\n\n"
+            "1. Validate arguments and refuse unsafe or ambiguous input.\n"
+            "2. Perform only the documented deterministic action.\n"
+            "3. Return a concise result with actionable errors.\n\n"
+            "## Exit conditions\n\nDocument success, validation failure, partial failure, "
+            "and recovery.\n"
+        ).encode()
+    if component_type == "agent":
+        return (
+            f"# {name}\n\n{DRAFT} replace with the bounded agent role and outcome.\n\n"
+            "## Role\n\nDescribe the responsibility, scope, and explicit non-goals.\n\n"
+            "## Inputs and tools\n\nList accepted inputs and the minimum "
+            "tools/permissions required.\n\n"
+            "## Workflow\n\n"
+            "1. Inspect relevant context and identify constraints.\n"
+            "2. Plan a small, reversible sequence of actions.\n"
+            "3. Validate the result and report evidence.\n\n"
+            "## Stop conditions\n\nStop on missing authority, unsafe input, conflicting "
+            "instructions, or failed validation.\n\n"
+            "## Output contract\n\nState the artifact, status, checks, and unresolved "
+            "risks the agent must report.\n"
+        ).encode()
     return (
         f"# {name}\n\n{DRAFT} replace this bounded {component_type} behavior "
-        "with a tested contract.\n"
+        "with a tested contract.\n\n"
+        "## Scope\n\nState what this component owns and what it deliberately does not own.\n\n"
+        "## Contract\n\nDocument inputs, outputs, invariants, failure behavior, "
+        "and validation commands.\n"
     ).encode()
 
 
 def _instruction_source(name: str) -> bytes:
     return (
-        f"# {name}\n\n{DRAFT} replace with repository-wide instructions.\n\n"
-        "## Scope\n\nState when these instructions apply.\n\n"
-        "## Invariants\n\n- Keep changes minimal and verifiable.\n"
+        f"# {name}\n\n{DRAFT} replace the purpose with one concrete repository outcome.\n\n"
+        "## Scope and precedence\n\n"
+        "These instructions apply to the repository and its nested directories.\n"
+        "The user request wins; then the nearest applicable `AGENTS.md`; then this file.\n"
+        "Do not invent requirements when a repository file or command can answer them.\n\n"
+        "## Repository map\n\n"
+        "Record the important application, package, test, documentation, and script roots.\n"
+        "Keep ownership boundaries explicit so changes land in the smallest correct area.\n\n"
+        "## Working loop\n\n"
+        "1. Inspect the relevant code, tests, docs, and current git state.\n"
+        "2. Make the smallest reversible change that satisfies the request.\n"
+        "3. Add or update a focused test for changed behavior and failure paths.\n"
+        "4. Run the narrow checks first, then the repository gate when practical.\n"
+        "5. Review the diff for unrelated changes, secrets, generated drift, and missing docs.\n\n"
+        "## Change boundaries\n\n"
+        "- Preserve existing user changes and do not overwrite files without a plan.\n"
+        "- Keep business rules in their owning domain/module; avoid generic dumping grounds.\n"
+        "- Treat generated files as outputs: edit their source and regenerate them.\n"
+        "- Do not add dependencies, network calls, credentials, or permissions without need.\n\n"
+        "## Validation\n\n"
+        "List the exact formatter, linter, type-checker, unit, integration, and "
+        "end-to-end commands.\n"
+        "State which checks are required before commit and what evidence a failure needs.\n\n"
+        "## Security\n\n"
+        "Never expose secrets, tokens, private data, local environment files, or untrusted input.\n"
+        "Review subprocess, filesystem, network, serialization, and permission "
+        "changes explicitly.\n\n"
+        "## Definition of done\n\n"
+        "Behavior is implemented, tests are green or failures are named, docs are current,\n"
+        "generated outputs are synchronized, and the final report states files and checks.\n"
     ).encode()
 
 
-def _skill_source(name: str) -> bytes:
-    return (
-        f"---\nname: {name}\ndescription: {DRAFT} replace with a concise bounded "
-        "description.\n---\n\n"
-        f"# {name}\n\n{DRAFT} replace with one focused skill workflow.\n\n"
-        "## Inputs\n\n- Define required inputs and their safe bounds.\n\n"
-        "## Steps\n\n1. Validate inputs.\n"
-        "2. Perform the smallest deterministic action.\n"
-        "3. Report the result and failures.\n"
-    ).encode()
+def _claude_instruction_shim() -> bytes:
+    return b"# Claude Code instructions\n\n@AGENTS.md\n"
+
+
+def _skill_files(name: str) -> dict[str, bytes]:
+    return {
+        "SKILL.md": (
+            f"---\nname: {name}\n"
+            f"description: {DRAFT} describe what this skill does and when an agent should use it.\n"
+            "compatibility: Requires only the tools and runtime documented in this skill.\n"
+            "---\n\n"
+            f"# {name}\n\n{DRAFT} replace this with one focused, repeatable capability.\n\n"
+            "## When to use\n\n"
+            "Use this skill when the request matches the bounded task described above.\n"
+            "Do not activate it for unrelated work or when a safer standard workflow is enough.\n\n"
+            "## Inputs and preconditions\n\n"
+            "- Identify required files, arguments, permissions, and environment assumptions.\n"
+            "- Validate paths, formats, size limits, and trust boundaries before acting.\n"
+            "- Stop and report a missing or ambiguous precondition; do not guess.\n\n"
+            "## Workflow\n\n"
+            "1. Inspect the smallest relevant context and preserve unrelated changes.\n"
+            "2. Follow the deterministic steps in order.\n"
+            "3. Use `scripts/validate.py` as a starting point for local mechanical checks.\n"
+            "4. Load `references/REFERENCE.md` only when the detailed contract is needed.\n"
+            "5. Use files under `assets/` as examples, never as hidden credentials "
+            "or authority.\n\n"
+            "## Safety and failure handling\n\n"
+            "Never disclose secrets or personal data. Avoid destructive operations "
+            "without a recovery path.\n"
+            "On failure, leave the workspace recoverable, include the exact check "
+            "and cause, and stop.\n\n"
+            "## Examples\n\n"
+            "Input: a bounded task matching this skill's description.\n"
+            "Output: the requested artifact plus the checks that prove it.\n\n"
+            "## Done\n\n"
+            "Report changed files, validation commands, observed results, and any "
+            "unresolved limitation.\n"
+        ).encode(),
+        "references/REFERENCE.md": (
+            f"# {name} reference\n\n"
+            "Keep detailed, stable domain facts here so the main skill stays small.\n\n"
+            "## Contract\n\n"
+            "Document accepted inputs, output shape, invariants, and error semantics.\n\n"
+            "## Decision table\n\n"
+            "| Condition | Action | Evidence |\n"
+            "|---|---|---|\n"
+            "| Input is valid | Continue | Validation output |\n"
+            "| Input is missing or unsafe | Stop | Named error |\n"
+        ).encode(),
+        "scripts/validate.py": (
+            b'"""Validate the bundled example asset without external dependencies."""\n\n'
+            b"import json\n"
+            b"from pathlib import Path\n\n"
+            b"\n"
+            b"def main() -> int:\n"
+            b"    asset = Path(__file__).parents[1] / 'assets' / 'example-input.json'\n"
+            b"    payload = json.loads(asset.read_text(encoding='utf-8'))\n"
+            b"    if not isinstance(payload, dict) or payload.get('status') != 'ok':\n"
+            b"        print('example-input.json: expected an object with status=ok')\n"
+            b"        return 2\n"
+            b"    print('example-input.json: valid')\n"
+            b"    return 0\n\n"
+            b"\n"
+            b"if __name__ == '__main__':\n"
+            b"    raise SystemExit(main())\n"
+        ),
+        "assets/example-input.json": b'{\n  "status": "ok",\n  "items": ["replace-me"]\n}\n',
+    }
 
 
 def _agent_native(name: str) -> bytes:
     return (
         f'name = "{name}"\n'
-        f'description = "{DRAFT} replace with the agent role."\n'
-        'prompt = "Describe the bounded agent behavior."\n'
+        f'description = "{DRAFT} replace with the concise bounded agent role."\n'
+        'prompt = """You are a bounded project agent.\n\n'
+        "Mission: perform one documented outcome within the supplied scope.\n"
+        "Before acting: inspect context, constraints, and available authority.\n"
+        "During acting: make reversible changes, preserve unrelated work, and validate inputs.\n"
+        "Stop on ambiguity, missing authority, unsafe input, or failed checks.\n"
+        "Report changed files, evidence, failures, and remaining risks.\n"
+        '"""\n'
     ).encode()
 
 
@@ -700,8 +832,26 @@ def _program_entry(name: str, language: str, *, prefix: str = "src/main") -> str
 
 
 def _program(name: str, language: str, symbol: str) -> bytes:
-    del symbol
+    if symbol == "activate_plugin":
+        return _plugin_program(name, language)
     return _mcp_program(name, language, "none")
+
+
+def _plugin_program(name: str, language: str) -> bytes:
+    if language in {"javascript", "typescript"}:
+        return (
+            f"const plugin = {{ name: {name!r}, activate(context = {{}}) {{\n"
+            "  return { name: context.name || this.name, status: 'ready' };\n"
+            "} };\n"
+            "module.exports = plugin;\n"
+        ).encode()
+    if language == "python":
+        return (
+            f'"""Minimal plugin entry point for {name}."""\n\n'
+            "def activate(context: dict | None = None) -> dict[str, str]:\n"
+            f"    return {{'name': {name!r}, 'status': 'ready'}}\n"
+        ).encode()
+    return _text_source(name, "plugin")
 
 
 def _hook_program(language: str) -> bytes:

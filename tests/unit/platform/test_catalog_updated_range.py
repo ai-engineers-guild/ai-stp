@@ -7,10 +7,11 @@ from typing import cast
 import pytest
 from pydantic import ValidationError
 
-from ai_stp_api.slices.catalog.service import inclusive_updated_bounds, row_matches_updated_range
+from ai_stp_api.slices.catalog.service import row_matches_updated_range
 from ai_stp_contracts.catalog import ComponentSearchRequest, SetupSearchRequest
 from ai_stp_platform.catalog_cursor import filter_signature
 from ai_stp_platform.catalog_read import PublicVersionRow
+from ai_stp_platform.catalog_search import inclusive_updated_bounds
 
 pytestmark = pytest.mark.platform
 

@@ -52,6 +52,27 @@ export type AccountFreshness = (typeof AccountFreshness)[keyof typeof AccountFre
 
 export type AccountId = string;
 
+/**
+ * AccountIdentityUpdate
+ *
+ * Replace the current account public handle and display name.
+ */
+export type AccountIdentityUpdate = {
+  /**
+   * Display Name
+   */
+  display_name: string;
+  /**
+   * Handle
+   */
+  handle: string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
 export const AccountImpactStatus = {
   READY: "ready",
   PARTIAL: "partial",
@@ -96,6 +117,14 @@ export type AccountProfile = {
    */
   allow_publisher_listing: boolean;
   created_at: Timestamp;
+  /**
+   * Display Name
+   */
+  display_name: string;
+  /**
+   * Handle
+   */
+  handle: string;
   /**
    * Identities
    */
@@ -295,6 +324,8 @@ export type AuthorAttestation = {
     [key: string]: string;
   };
 };
+
+export type BoundedNativeId = string;
 
 /**
  * CapabilityDelta
@@ -655,6 +686,27 @@ export const ComplaintTargetKind = {
 export type ComplaintTargetKind = (typeof ComplaintTargetKind)[keyof typeof ComplaintTargetKind];
 
 /**
+ * ComponentAdaptation
+ *
+ * One immutable harness-native implementation of a logical component.
+ */
+export type ComponentAdaptation = unknown & {
+  /**
+   * Adaptation Id
+   */
+  adaptation_id: string;
+  harness_id: HarnessId;
+  implementation_mode: ImplementationMode;
+  logical_component_type: ComponentType;
+  /**
+   * Scope Adaptations
+   */
+  scope_adaptations: Array<ScopeAdaptation>;
+  source_artifact?: ArtifactRef | null;
+  transform?: TransformRef | null;
+};
+
+/**
  * ComponentContextBudget
  *
  * Context estimate of one visible exact component (SPEC-049).
@@ -903,6 +955,18 @@ export type ComponentSearchRequest = {
  */
 export type ComponentSummary = {
   /**
+   * Canonical Name
+   */
+  canonical_name: string;
+  /**
+   * Display Locale
+   */
+  display_locale: "ru" | "en" | "";
+  /**
+   * Display Name
+   */
+  display_name: string;
+  /**
    * Github Stars
    */
   github_stars: number | null;
@@ -937,6 +1001,14 @@ export type ComponentSummary = {
    * Likes Count
    */
   likes_count: number;
+  /**
+   * Owner Account Id
+   */
+  owner_account_id: string;
+  /**
+   * Owner Handle
+   */
+  owner_handle: string;
   /**
    * Publisher Id
    */
@@ -1001,6 +1073,10 @@ export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType];
  * Immutable component version passport.
  */
 export type ComponentVersionPassport = {
+  /**
+   * Adaptations
+   */
+  adaptations: Array<ComponentAdaptation>;
   artifact: ArtifactRef;
   /**
    * Compatibility Evidence Refs
@@ -1023,28 +1099,16 @@ export type ComponentVersionPassport = {
   facts: {
     [key: string]: Fact;
   };
-  harness_id: HarnessId;
-  /**
-   * Harness Ids
-   */
-  harness_ids: Array<HarnessId>;
   /**
    * Kind
    */
   kind: "component";
   license: LicenseInfo;
   /**
-   * Managed Paths
-   */
-  managed_paths: Array<string>;
-  /**
    * Name
    */
   name: string;
-  /**
-   * Native Ids
-   */
-  native_ids: Array<string>;
+  origin_harness_id: HarnessId | null;
   /**
    * Owner Id
    */
@@ -1054,7 +1118,6 @@ export type ComponentVersionPassport = {
    */
   parent_revision_ids: Array<RevisionId>;
   permissions: Permissions;
-  projection_kind: ProjectionKind;
   /**
    * Provides Capabilities
    */
@@ -1090,17 +1153,9 @@ export type ComponentVersionPassport = {
    */
   stable_id: string;
   /**
-   * Supported Os
-   */
-  supported_os: Array<SupportedOs>;
-  /**
    * Tags
    */
   tags: Array<TagId>;
-  /**
-   * Variant Id
-   */
-  variant_id: string | null;
   version: AiStpFoundationRefsVersion;
   /**
    * Visibility
@@ -1182,6 +1237,8 @@ export type ContentDescription = string;
 export type ContentDetail = {
   body: ContentBody;
   content_digest: DigestValue;
+  cover_alt: ContentImageAlt | null;
+  cover_image: ContentImage | null;
   description: ContentDescription;
   locale: ContentLocale;
   published_at: ContentDate;
@@ -1207,6 +1264,10 @@ export type ContentDetail = {
 };
 
 export type ContentDigest = string;
+
+export type ContentImage = string;
+
+export type ContentImageAlt = string;
 
 /**
  * ContentListResponse
@@ -1328,6 +1389,8 @@ export type ContentSlug = string;
 export type ContentSnapshotEntry = {
   body: ContentBody;
   content_digest: DigestValue;
+  cover_alt?: ContentImageAlt | null;
+  cover_image?: ContentImage | null;
   description: ContentDescription;
   locale: ContentLocale;
   published_at: ContentDate;
@@ -1360,6 +1423,8 @@ export type ContentSourceKind = (typeof ContentSourceKind)[keyof typeof ContentS
  */
 export type ContentSummary = {
   content_digest: DigestValue;
+  cover_alt: ContentImageAlt | null;
+  cover_image: ContentImage | null;
   description: ContentDescription;
   locale: ContentLocale;
   published_at: ContentDate;
@@ -1431,6 +1496,26 @@ export type ContextDelta = {
 export type CountryCode = string;
 
 export type CountryFilterValue = string;
+
+/**
+ * CountryRequest
+ *
+ * Localized ISO country data requested for manual addition.
+ */
+export type CountryRequest = {
+  /**
+   * Code
+   */
+  code: string;
+  /**
+   * Name En
+   */
+  name_en: string;
+  /**
+   * Name Ru
+   */
+  name_ru: string;
+};
 
 export type Cursor = string;
 
@@ -2172,6 +2257,10 @@ export type HarnessId = (typeof HarnessId)[keyof typeof HarnessId];
 
 export type IdempotencyKey = string;
 
+export const ImplementationMode = { DERIVED: "derived", NATIVE: "native" } as const;
+
+export type ImplementationMode = (typeof ImplementationMode)[keyof typeof ImplementationMode];
+
 export const InvitationState = {
   PENDING: "pending",
   ACCEPTED: "accepted",
@@ -2325,6 +2414,22 @@ export type LivenessResponse = {
    */
   status: "alive";
   [key: string]: unknown;
+};
+
+/**
+ * NonEmptyArtifactRef
+ *
+ * Content-addressed bytes for an artifact that must contain a projection.
+ */
+export type NonEmptyArtifactRef = {
+  /**
+   * Digest
+   */
+  digest: string;
+  /**
+   * Size Bytes
+   */
+  size_bytes: number;
 };
 
 /**
@@ -2693,23 +2798,6 @@ export type OwnershipClaimCreateRequest = {
 };
 
 /**
- * OwnershipClaimDecisionRequest
- *
- * POST /v1/staff/ownership-claims/{claim_id}/approve or /deny body.
- */
-export type OwnershipClaimDecisionRequest = {
-  idempotency_key: IdempotencyKey;
-  /**
-   * Reason
-   */
-  reason: string;
-  /**
-   * Schema Version
-   */
-  schema_version?: 1;
-};
-
-/**
  * OwnershipClaimPreview
  *
  * Exact object and major lines that a claim would transfer.
@@ -2799,6 +2887,10 @@ export type OwnershipClaimResponse = {
   [key: string]: unknown;
 };
 
+export const OwnershipMode = { WHOLE: "whole", CONTRIBUTION: "contribution" } as const;
+
+export type OwnershipMode = (typeof OwnershipMode)[keyof typeof OwnershipMode];
+
 /**
  * OwnershipRevisionListResponse
  *
@@ -2829,7 +2921,7 @@ export type OwnershipRevisionView = {
   /**
    * Claim Id
    */
-  claim_id: string;
+  claim_id: string | null;
   created_at: Timestamp;
   /**
    * From Account Id
@@ -2891,6 +2983,8 @@ export type PageSize = number;
 
 export type PassportDigest = string;
 
+export type PermissionClaim = string;
+
 /**
  * Permissions
  *
@@ -2900,15 +2994,15 @@ export type Permissions = {
   /**
    * Filesystem
    */
-  filesystem?: Array<string>;
+  filesystem?: Array<PermissionClaim>;
   /**
    * Network
    */
-  network?: Array<string>;
+  network?: Array<PermissionClaim>;
   /**
    * Process
    */
-  process?: Array<string>;
+  process?: Array<PermissionClaim>;
 };
 
 export type PlanId = string;
@@ -2928,6 +3022,44 @@ export type PlanState = (typeof PlanState)[keyof typeof PlanState];
 
 export type PolicyVersion = string;
 
+/**
+ * ProjectedMember
+ *
+ * One canonical projected path and the provider semantics it requires.
+ */
+export type ProjectedMember = unknown & {
+  content_artifact?: ArtifactRef | null;
+  /**
+   * Content Format
+   */
+  content_format: string;
+  /**
+   * Mode
+   */
+  mode: number;
+  /**
+   * Native Ids
+   */
+  native_ids?: Array<BoundedNativeId>;
+  object_type: ProjectedObjectType;
+  ownership: OwnershipMode;
+  /**
+   * Ownership Key
+   */
+  ownership_key?: string | null;
+  /**
+   * Parser Id
+   */
+  parser_id?: string | null;
+  path: RelativeProjectionPath;
+  withdrawal_semantics: WithdrawalSemantics;
+  write_semantics: WriteSemantics;
+};
+
+export const ProjectedObjectType = { FILE: "file", DIRECTORY: "directory" } as const;
+
+export type ProjectedObjectType = (typeof ProjectedObjectType)[keyof typeof ProjectedObjectType];
+
 export const ProjectionKind = {
   MARKETPLACE: "marketplace",
   PLUGIN: "plugin",
@@ -2936,6 +3068,26 @@ export const ProjectionKind = {
 } as const;
 
 export type ProjectionKind = (typeof ProjectionKind)[keyof typeof ProjectionKind];
+
+/**
+ * ProviderSurfaceRef
+ *
+ * Exact provider capability identity required by one projection scope.
+ */
+export type ProviderSurfaceRef = {
+  /**
+   * Bundle Format
+   */
+  bundle_format: string;
+  /**
+   * Profile Digest
+   */
+  profile_digest: string;
+  /**
+   * Profile Id
+   */
+  profile_id: string;
+};
 
 export type PublicKey = string;
 
@@ -3076,13 +3228,20 @@ export type ReadinessResponse = {
   [key: string]: unknown;
 };
 
+export type RelativeProjectionPath = string;
+
 /**
  * ReportCaseCreateRequest
  *
- * POST /v1/reports body.
+ * POST /v1/requests body; object reports remain accepted at /v1/reports.
  */
 export type ReportCaseCreateRequest = {
-  content_digest: ContentDigest;
+  /**
+   * Author Account Id
+   */
+  author_account_id?: string | null;
+  content_digest?: ContentDigest | null;
+  country?: CountryRequest | null;
   /**
    * Diagnostics
    */
@@ -3096,6 +3255,10 @@ export type ReportCaseCreateRequest = {
    */
   error_code?: string;
   /**
+   * Evidence
+   */
+  evidence?: string;
+  /**
    * Harness Id
    */
   harness_id?: string;
@@ -3104,7 +3267,12 @@ export type ReportCaseCreateRequest = {
    */
   harness_version?: string;
   idempotency_key: IdempotencyKey;
-  object_kind: ObjectKind;
+  locale?: RequestLocale;
+  /**
+   * Message
+   */
+  message?: string;
+  object_kind?: ObjectKind | null;
   /**
    * Operation Id
    */
@@ -3114,18 +3282,28 @@ export type ReportCaseCreateRequest = {
    */
   provider_version?: string;
   /**
+   * Recipient Account Id
+   */
+  recipient_account_id?: string | null;
+  /**
    * Schema Version
    */
   schema_version?: 1;
+  service?: ServiceRequest | null;
   /**
    * Stable Id
    */
-  stable_id: string;
+  stable_id?: string | null;
+  /**
+   * Subject
+   */
+  subject?: string;
+  topic?: RequestTopic;
   /**
    * Validation Snapshot Ids
    */
   validation_snapshot_ids?: Array<string>;
-  version: AiStpContractsReportsVersion;
+  version?: AiStpContractsReportsVersion | null;
   /**
    * Vulnerability
    */
@@ -3160,7 +3338,11 @@ export type ReportCaseResponse = {
    */
   case_id: string;
   created_at: Timestamp;
-  object_kind: ObjectKind;
+  locale: RequestLocale;
+  /**
+   * Object Kind
+   */
+  object_kind: ObjectKind | "";
   /**
    * Schema Version
    */
@@ -3170,7 +3352,11 @@ export type ReportCaseResponse = {
    */
   stable_id: string;
   state: ReportState;
-  version: AiStpContractsReportsVersion;
+  topic: RequestTopic;
+  /**
+   * Version
+   */
+  version: AiStpContractsReportsVersion | "";
   /**
    * Vulnerability
    */
@@ -3190,6 +3376,23 @@ export const ReportState = {
 export type ReportState = (typeof ReportState)[keyof typeof ReportState];
 
 export type RequestId = string;
+
+export const RequestLocale = { RU: "ru", EN: "en" } as const;
+
+export type RequestLocale = (typeof RequestLocale)[keyof typeof RequestLocale];
+
+export const RequestTopic = {
+  OBJECT_REPORT: "object_report",
+  SERVICE_REQUEST: "service_request",
+  COUNTRY_REQUEST: "country_request",
+  COMPONENT_COMPLAINT: "component_complaint",
+  AUTHOR_COMPLAINT: "author_complaint",
+  OWNERSHIP_TRANSFER: "ownership_transfer",
+  VERIFICATION_REQUEST: "verification_request",
+  OTHER: "other",
+} as const;
+
+export type RequestTopic = (typeof RequestTopic)[keyof typeof RequestTopic];
 
 export type RevisionId = string;
 
@@ -3308,6 +3511,49 @@ export type SafetyFindingSummary = {
    */
   truncated: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * ScopeAdaptation
+ *
+ * All native facts for one adaptation at one projection scope.
+ */
+export type ScopeAdaptation = unknown & {
+  /**
+   * Members
+   */
+  members: Array<ProjectedMember>;
+  permissions?: Permissions;
+  projection_artifact: NonEmptyArtifactRef;
+  /**
+   * Projection Format
+   */
+  projection_format: "ai-stp-adaptation-projection/1";
+  projection_kind: ProjectionKind;
+  provider_component_kind: ComponentType;
+  required_surface: ProviderSurfaceRef;
+  scope: TargetScope;
+  /**
+   * Semantic Losses
+   */
+  semantic_losses?: Array<string>;
+  /**
+   * Supported Arch
+   */
+  supported_arch?: Array<SupportedArch>;
+  /**
+   * Supported Harness Versions
+   */
+  supported_harness_versions?: Array<string>;
+  /**
+   * Supported Os
+   */
+  supported_os?: Array<SupportedOs>;
+  technical_support: TechnicalSupport;
+  /**
+   * Technical Support Reason
+   */
+  technical_support_reason?: string | null;
 };
 
 /**
@@ -3728,6 +3974,38 @@ export type SeoSubjectRef = {
    */
   source_revision: string;
   [key: string]: unknown;
+};
+
+/**
+ * ServiceRequest
+ *
+ * Data needed for an operator to add a service manually.
+ */
+export type ServiceRequest = {
+  /**
+   * Country Codes
+   */
+  country_codes?: Array<CountryCode>;
+  /**
+   * Description En
+   */
+  description_en: string;
+  /**
+   * Description Ru
+   */
+  description_ru: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Primary Url
+   */
+  primary_url: string;
+  /**
+   * Source Url
+   */
+  source_url: string;
 };
 
 /**
@@ -4216,31 +4494,6 @@ export type StaffActionResponse = {
 };
 
 /**
- * StaffAuthorVerifiedRequest
- *
- * POST /v1/staff/author-verified body.
- */
-export type StaffAuthorVerifiedRequest = {
-  idempotency_key: IdempotencyKey;
-  /**
-   * Reason
-   */
-  reason: string;
-  /**
-   * Schema Version
-   */
-  schema_version?: 1;
-  /**
-   * Subject Account Id
-   */
-  subject_account_id: string;
-  /**
-   * Verified
-   */
-  verified: boolean;
-};
-
-/**
  * StaffContentPublishRequest
  *
  * Atomic staff publication of one article identity.
@@ -4291,6 +4544,8 @@ export type StaffContentPublishResponse = {
  */
 export type StaffContentTranslation = {
   body: ContentBody;
+  cover_alt?: ContentImageAlt | null;
+  cover_image?: ContentImage | null;
   description: ContentDescription;
   published_at: ContentDate;
   /**
@@ -4392,7 +4647,16 @@ export type StaffReportDetail = {
    * Harness Id
    */
   harness_id: string;
-  object_kind: ObjectKind;
+  /**
+   * Object Kind
+   */
+  object_kind: ObjectKind | "";
+  /**
+   * Request Payload
+   */
+  request_payload: {
+    [key: string]: unknown;
+  };
   /**
    * Schema Version
    */
@@ -4405,7 +4669,22 @@ export type StaffReportDetail = {
    * State
    */
   state: string;
-  version: AiStpContractsOwnerVersion;
+  /**
+   * Topic
+   */
+  topic:
+    | "object_report"
+    | "service_request"
+    | "country_request"
+    | "component_complaint"
+    | "author_complaint"
+    | "ownership_transfer"
+    | "verification_request"
+    | "other";
+  /**
+   * Version
+   */
+  version: AiStpContractsOwnerVersion | "";
   /**
    * Vulnerability
    */
@@ -4457,7 +4736,10 @@ export type StaffReportSummary = {
   case_id: string;
   content_digest: ContentDigest | null;
   created_at: Timestamp;
-  object_kind: ObjectKind;
+  /**
+   * Object Kind
+   */
+  object_kind: ObjectKind | "";
   /**
    * Schema Version
    */
@@ -4470,7 +4752,22 @@ export type StaffReportSummary = {
    * State
    */
   state: string;
-  version: AiStpContractsOwnerVersion;
+  /**
+   * Topic
+   */
+  topic:
+    | "object_report"
+    | "service_request"
+    | "country_request"
+    | "component_complaint"
+    | "author_complaint"
+    | "ownership_transfer"
+    | "verification_request"
+    | "other";
+  /**
+   * Version
+   */
+  version: AiStpContractsOwnerVersion | "";
   /**
    * Vulnerability
    */
@@ -4534,6 +4831,10 @@ export type SupportState = (typeof SupportState)[keyof typeof SupportState];
 export const SupportTier = { PRIMARY: "primary", BETA: "beta" } as const;
 
 export type SupportTier = (typeof SupportTier)[keyof typeof SupportTier];
+
+export const SupportedArch = { X86_64: "x86_64", ARM64: "arm64" } as const;
+
+export type SupportedArch = (typeof SupportedArch)[keyof typeof SupportedArch];
 
 export const SupportedOs = {
   LINUX: "linux",
@@ -4784,6 +5085,22 @@ export type TagId = string;
 
 export type Tags = Array<TagId>;
 
+export const TargetScope = {
+  GLOBAL: "global",
+  USER_ROOT: "user_root",
+  PROJECT: "project",
+} as const;
+
+export type TargetScope = (typeof TargetScope)[keyof typeof TargetScope];
+
+export const TechnicalSupport = {
+  UNSUPPORTED: "unsupported",
+  EXPERIMENTAL: "experimental",
+  SUPPORTED: "supported",
+} as const;
+
+export type TechnicalSupport = (typeof TechnicalSupport)[keyof typeof TechnicalSupport];
+
 export type Timestamp = string;
 
 /**
@@ -4847,6 +5164,23 @@ export type TokenEstimator = {
   schema_version?: 1;
 };
 
+/**
+ * TransformRef
+ *
+ * Exact deterministic transform used by one derived adaptation.
+ */
+export type TransformRef = {
+  /**
+   * Digest
+   */
+  digest: string;
+  /**
+   * Transform Id
+   */
+  transform_id: string;
+  version: AiStpFoundationRefsVersion;
+};
+
 export const TrustLane = { AUTHORITATIVE: "authoritative", EXPERIMENTAL: "experimental" } as const;
 
 export type TrustLane = (typeof TrustLane)[keyof typeof TrustLane];
@@ -4871,6 +5205,17 @@ export type VersionListEntry = {
   version: AiStpContractsCatalogVersion;
   [key: string]: unknown;
 };
+
+export const WithdrawalSemantics = {
+  REMOVE_PATH: "remove_path",
+  PRESERVE_UNOWNED: "preserve_unowned",
+} as const;
+
+export type WithdrawalSemantics = (typeof WithdrawalSemantics)[keyof typeof WithdrawalSemantics];
+
+export const WriteSemantics = { REPLACE: "replace", MERGE: "merge" } as const;
+
+export type WriteSemantics = (typeof WriteSemantics)[keyof typeof WriteSemantics];
 
 export type AiStpContractsCatalogVersion = string;
 
@@ -5196,6 +5541,67 @@ export type UnlinkAccountIdentityResponses = {
 
 export type UnlinkAccountIdentityResponse =
   UnlinkAccountIdentityResponses[keyof UnlinkAccountIdentityResponses];
+
+export type UpdateAccountIdentityData = {
+  body: AccountIdentityUpdate;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/account/identity";
+};
+
+export type UpdateAccountIdentityErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT, AI_STP_HANDLE_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UpdateAccountIdentityError =
+  UpdateAccountIdentityErrors[keyof UpdateAccountIdentityErrors];
+
+export type UpdateAccountIdentityResponses = {
+  /**
+   * Replace the current unique public handle and display name.
+   */
+  200: AccountProfile;
+};
+
+export type UpdateAccountIdentityResponse =
+  UpdateAccountIdentityResponses[keyof UpdateAccountIdentityResponses];
 
 export type UpdateAccountPrivacyData = {
   body: AccountPrivacyUpdate;
@@ -7778,7 +8184,7 @@ export type CreateOwnershipClaimError =
 
 export type CreateOwnershipClaimResponses = {
   /**
-   * Request transfer of an official catalog component to a verified maintainer.
+   * Compatibility entry that records an ownership-transfer request without granting it.
    */
   201: OwnershipClaimResponse;
 };
@@ -8215,6 +8621,173 @@ export type CreateReportCaseResponses = {
 
 export type CreateReportCaseResponse = CreateReportCaseResponses[keyof CreateReportCaseResponses];
 
+export type ListRequestCasesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/requests";
+};
+
+export type ListRequestCasesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListRequestCasesError = ListRequestCasesErrors[keyof ListRequestCasesErrors];
+
+export type ListRequestCasesResponses = {
+  /**
+   * List the caller's own request cases.
+   */
+  200: ReportCaseListResponse;
+};
+
+export type ListRequestCasesResponse = ListRequestCasesResponses[keyof ListRequestCasesResponses];
+
+export type CreateRequestCaseData = {
+  body: ReportCaseCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/requests";
+};
+
+export type CreateRequestCaseErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateRequestCaseError = CreateRequestCaseErrors[keyof CreateRequestCaseErrors];
+
+export type CreateRequestCaseResponses = {
+  /**
+   * Create a private request case for any shared topic.
+   */
+  201: ReportCaseResponse;
+};
+
+export type CreateRequestCaseResponse =
+  CreateRequestCaseResponses[keyof CreateRequestCaseResponses];
+
+export type ReadRequestCaseData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Request case identifier.
+     */
+    case_id: string;
+  };
+  query?: never;
+  url: "/v1/requests/{case_id}";
+};
+
+export type ReadRequestCaseErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadRequestCaseError = ReadRequestCaseErrors[keyof ReadRequestCaseErrors];
+
+export type ReadRequestCaseResponses = {
+  /**
+   * Read one of the caller's own request cases.
+   */
+  200: ReportCaseResponse;
+};
+
+export type ReadRequestCaseResponse = ReadRequestCaseResponses[keyof ReadRequestCaseResponses];
+
 export type ReadSelectionImpactData = {
   body?: never;
   headers?: {
@@ -8625,66 +9198,6 @@ export type RollbackSeoRevisionResponses = {
 export type RollbackSeoRevisionResponse =
   RollbackSeoRevisionResponses[keyof RollbackSeoRevisionResponses];
 
-export type StaffAuthorVerifiedData = {
-  body: StaffAuthorVerifiedRequest;
-  headers: {
-    /**
-     * Wire major the client speaks. An unknown one fails typed.
-     */
-    "X-AI-STP-Schema-Version"?: 1;
-    /**
-     * Client-chosen key; a retry must not become a second effect.
-     */
-    "Idempotency-Key": string;
-  };
-  path?: never;
-  query?: never;
-  url: "/v1/staff/author-verified";
-};
-
-export type StaffAuthorVerifiedErrors = {
-  /**
-   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
-   */
-  400: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
-   */
-  401: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
-   */
-  403: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
-   */
-  404: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
-   */
-  429: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_INTERNAL.
-   */
-  500: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
-   */
-  503: ErrorEnvelope;
-};
-
-export type StaffAuthorVerifiedError = StaffAuthorVerifiedErrors[keyof StaffAuthorVerifiedErrors];
-
-export type StaffAuthorVerifiedResponses = {
-  /**
-   * Issue or revoke author_verified for an account.
-   */
-  200: StaffActionResponse;
-};
-
-export type StaffAuthorVerifiedResponse =
-  StaffAuthorVerifiedResponses[keyof StaffAuthorVerifiedResponses];
-
 export type DeleteStaffContentData = {
   body: StaffContentUnpublishRequest;
   headers: {
@@ -8825,145 +9338,6 @@ export type PutStaffContentResponses = {
 };
 
 export type PutStaffContentResponse = PutStaffContentResponses[keyof PutStaffContentResponses];
-
-export type ApproveOwnershipClaimData = {
-  body: OwnershipClaimDecisionRequest;
-  headers: {
-    /**
-     * Wire major the client speaks. An unknown one fails typed.
-     */
-    "X-AI-STP-Schema-Version"?: 1;
-    /**
-     * Client-chosen key; a retry must not become a second effect.
-     */
-    "Idempotency-Key": string;
-  };
-  path: {
-    /**
-     * Typed operation identifier of the ownership claim.
-     */
-    claim_id: string;
-  };
-  query?: never;
-  url: "/v1/staff/ownership-claims/{claim_id}/approve";
-};
-
-export type ApproveOwnershipClaimErrors = {
-  /**
-   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
-   */
-  400: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
-   */
-  401: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
-   */
-  403: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
-   */
-  404: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_CONFLICT.
-   */
-  409: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
-   */
-  429: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_INTERNAL.
-   */
-  500: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
-   */
-  503: ErrorEnvelope;
-};
-
-export type ApproveOwnershipClaimError =
-  ApproveOwnershipClaimErrors[keyof ApproveOwnershipClaimErrors];
-
-export type ApproveOwnershipClaimResponses = {
-  /**
-   * Approve a verified-maintainer claim without rewriting published passports.
-   */
-  200: OwnershipClaimResponse;
-};
-
-export type ApproveOwnershipClaimResponse =
-  ApproveOwnershipClaimResponses[keyof ApproveOwnershipClaimResponses];
-
-export type DenyOwnershipClaimData = {
-  body: OwnershipClaimDecisionRequest;
-  headers: {
-    /**
-     * Wire major the client speaks. An unknown one fails typed.
-     */
-    "X-AI-STP-Schema-Version"?: 1;
-    /**
-     * Client-chosen key; a retry must not become a second effect.
-     */
-    "Idempotency-Key": string;
-  };
-  path: {
-    /**
-     * Typed operation identifier of the ownership claim.
-     */
-    claim_id: string;
-  };
-  query?: never;
-  url: "/v1/staff/ownership-claims/{claim_id}/deny";
-};
-
-export type DenyOwnershipClaimErrors = {
-  /**
-   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
-   */
-  400: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
-   */
-  401: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
-   */
-  403: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
-   */
-  404: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_CONFLICT.
-   */
-  409: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
-   */
-  429: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_INTERNAL.
-   */
-  500: ErrorEnvelope;
-  /**
-   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
-   */
-  503: ErrorEnvelope;
-};
-
-export type DenyOwnershipClaimError = DenyOwnershipClaimErrors[keyof DenyOwnershipClaimErrors];
-
-export type DenyOwnershipClaimResponses = {
-  /**
-   * Deny a verified-maintainer claim with no catalog effect.
-   */
-  200: OwnershipClaimResponse;
-};
-
-export type DenyOwnershipClaimResponse =
-  DenyOwnershipClaimResponses[keyof DenyOwnershipClaimResponses];
 
 export type ListStaffReportsData = {
   body?: never;

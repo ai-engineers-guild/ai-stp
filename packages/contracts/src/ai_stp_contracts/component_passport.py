@@ -7,10 +7,11 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ai_stp_contracts.text_safety import validate_public_text
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.refs import ComponentRef
-from ai_stp_passports.markdown import validate_safe_markdown
 from ai_stp_passports.versions import (
+    MAX_TAGS,
     CapabilityId,
     ComponentType,
     Conflicts,
@@ -37,7 +38,7 @@ class ComponentPassportPatch(BaseModel):
 
     name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
     description: Annotated[str, Field(min_length=1, max_length=20_000)] | None = None
-    tags: Annotated[list[TagId], Field(min_length=1, max_length=8)] | None = None
+    tags: Annotated[list[TagId], Field(min_length=1, max_length=MAX_TAGS)] | None = None
     source: GitSource | None = None
     harness_id: HarnessId | None = None
     component_type: ComponentType | None = None
@@ -93,7 +94,7 @@ class ComponentPassportPatch(BaseModel):
     @field_validator("description")
     @classmethod
     def safe_description(cls, value: str | None) -> str | None:
-        return None if value is None else validate_safe_markdown(value)
+        return None if value is None else validate_public_text(value)
 
     @model_validator(mode="after")
     def supplied_values_are_explicit_and_safe(self) -> ComponentPassportPatch:

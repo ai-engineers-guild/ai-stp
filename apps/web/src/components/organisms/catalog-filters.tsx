@@ -47,6 +47,9 @@ type CatalogFiltersProps = {
     listView: string;
     refineButton?: string;
     queryCorrection?: string;
+    queryFields?: string;
+    queryOperators?: string;
+    queryLiteralHint?: string;
     updatingLabel?: string;
     updatedFrom?: string;
     updatedTo?: string;
@@ -153,6 +156,11 @@ export function CatalogFilters({
               submitLabel={labels.search}
               defaultValue={query.q}
               correctionLabel={labels.queryCorrection ?? "Did you mean"}
+              fieldsLabel={labels.queryFields ?? "Fields"}
+              operatorsLabel={labels.queryOperators ?? "Operators"}
+              literalHint={
+                labels.queryLiteralHint ?? 'Quotes search a reserved word as text: "AND".'
+              }
             />
             <p className="text-muted-foreground mt-2 max-w-3xl text-xs leading-relaxed">
               {labels.searchHelp}

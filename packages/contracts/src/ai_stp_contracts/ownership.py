@@ -1,4 +1,4 @@
-"""Verified-maintainer ownership claim transfer (SPEC-057 REQ-5717)."""
+"""Ownership transfer request and immutable revision contracts (SPEC-057)."""
 
 from __future__ import annotations
 
@@ -64,16 +64,6 @@ class OwnershipClaimResponse(BaseModel):
     decision_reason: str | None = None
 
 
-class OwnershipClaimDecisionRequest(BaseModel):
-    """POST /v1/staff/ownership-claims/{claim_id}/approve or /deny body."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
-
-    schema_version: Literal[1] = 1
-    reason: Annotated[str, Field(min_length=1, max_length=2000)]
-    idempotency_key: IdempotencyKey
-
-
 class OwnershipRevisionView(BaseModel):
     """One immutable ownership revision. Published version passports are unchanged."""
 
@@ -81,7 +71,7 @@ class OwnershipRevisionView(BaseModel):
 
     schema_version: Literal[1] = 1
     revision_id: Annotated[str, Field(min_length=8, max_length=64)]
-    claim_id: str
+    claim_id: str | None = None
     stable_id: str
     from_account_id: str
     to_account_id: str

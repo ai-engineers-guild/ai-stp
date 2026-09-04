@@ -1,0 +1,2 @@
+Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x00000142EB491550>

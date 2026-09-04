@@ -200,16 +200,26 @@ def test_a_setup_may_declare_no_components() -> None:
     assert empty.components == []
 
 
-def test_tags_are_bounded_one_to_eight() -> None:
+def test_tags_are_bounded_one_to_ten_and_use_ascii_form() -> None:
     with pytest.raises(ValidationError):
         ComponentVersionPassport.model_validate(
             seal_envelope(_component()).model_dump(mode="json") | {"tags": []}
         )
+    accepted = ComponentVersionPassport.model_validate(
+        seal_envelope(_component()).model_dump(mode="json")
+        | {"tags": [f"tag-{index}" for index in range(10)]}
+    )
+    assert len(accepted.tags) == 10
     with pytest.raises(ValidationError):
         ComponentVersionPassport.model_validate(
             seal_envelope(_component()).model_dump(mode="json")
-            | {"tags": [f"tag-{index}" for index in range(9)]}
+            | {"tags": [f"tag-{index}" for index in range(11)]}
         )
+    for invalid in ("a" * 33, "Tag", "тест", "tag name", f"tag{chr(0x2013)}name"):
+        with pytest.raises(ValidationError):
+            ComponentVersionPassport.model_validate(
+                seal_envelope(_component()).model_dump(mode="json") | {"tags": [invalid]}
+            )
 
 
 def test_git_source_rejects_traversal_and_bad_commit() -> None:

@@ -18,6 +18,26 @@
       ],
       "type": "string"
     },
+    "RequestLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "RequestTopic": {
+      "enum": [
+        "object_report",
+        "service_request",
+        "country_request",
+        "component_complaint",
+        "author_complaint",
+        "ownership_transfer",
+        "verification_request",
+        "other"
+      ],
+      "type": "string"
+    },
     "Timestamp": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
       "type": "string"
@@ -41,8 +61,22 @@
     "created_at": {
       "$ref": "#/$defs/Timestamp"
     },
+    "locale": {
+      "$ref": "#/$defs/RequestLocale",
+      "default": "en"
+    },
     "object_kind": {
-      "$ref": "#/$defs/ObjectKind"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        {
+          "const": "",
+          "type": "string"
+        }
+      ],
+      "default": "",
+      "title": "Object Kind"
     },
     "schema_version": {
       "const": 1,
@@ -51,14 +85,29 @@
       "type": "integer"
     },
     "stable_id": {
+      "default": "",
       "title": "Stable Id",
       "type": "string"
     },
     "state": {
       "$ref": "#/$defs/ReportState"
     },
+    "topic": {
+      "$ref": "#/$defs/RequestTopic",
+      "default": "object_report"
+    },
     "version": {
-      "$ref": "#/$defs/Version"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Version"
+        },
+        {
+          "const": "",
+          "type": "string"
+        }
+      ],
+      "default": "",
+      "title": "Version"
     },
     "vulnerability": {
       "default": false,
@@ -69,10 +118,12 @@
   "required": [
     "case_id",
     "created_at",
+    "locale",
     "object_kind",
     "schema_version",
     "stable_id",
     "state",
+    "topic",
     "version",
     "vulnerability"
   ],

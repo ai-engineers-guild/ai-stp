@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { listPublishedContent } from "@/lib/api/content";
@@ -54,6 +55,15 @@ export default async function ContentIndex({ params }: { params: Promise<{ local
             </time>
           </div>
           <div className="max-w-3xl space-y-5">
+            {featured.cover_image ? (
+              <Image
+                src={featured.cover_image}
+                alt={featured.cover_alt ?? featured.title}
+                width={1200}
+                height={630}
+                className="h-auto max-h-[32rem] w-full rounded-xl object-cover"
+              />
+            ) : null}
             <h2 className="text-3xl font-medium tracking-[-0.03em] text-balance sm:text-5xl">
               <Link
                 className="decoration-primary underline-offset-8 hover:underline"
@@ -90,6 +100,15 @@ export default async function ContentIndex({ params }: { params: Promise<{ local
                 <time dateTime={entry.published_at}>{entry.published_at}</time>
               </div>
               <div className="max-w-2xl space-y-2">
+                {entry.cover_image ? (
+                  <Image
+                    src={entry.cover_image}
+                    alt={entry.cover_alt ?? entry.title}
+                    width={640}
+                    height={360}
+                    className="mb-4 h-32 w-full rounded-lg object-cover"
+                  />
+                ) : null}
                 <h3 className="text-2xl font-medium tracking-[-0.02em] text-balance">
                   <Link
                     className="decoration-primary underline-offset-6 group-hover:underline"

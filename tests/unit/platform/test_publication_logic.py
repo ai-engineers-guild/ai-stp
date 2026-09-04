@@ -314,3 +314,19 @@ def test_validate_publication_passport_rejects_field_mismatches() -> None:
     assert "version" in invalid
     assert "artifact.digest" in invalid
     assert "owner_id" in invalid
+
+
+@pytest.mark.parametrize(
+    "tags",
+    ([f"tag-{index}" for index in range(11)], ["a" * 33], ["tag name"], ["тест"]),
+)
+def test_backend_rejects_invalid_component_tags(tags: list[str]) -> None:
+    model, invalid = validate_publication_passport(
+        _passport(tags=tags),
+        object_kind="component",
+        stable_id="component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        version="1.0",
+        content_digest="sha256:" + "b" * 64,
+    )
+    assert model is None
+    assert "tags" in invalid or any(item.startswith("tags.") for item in invalid)

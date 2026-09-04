@@ -52,6 +52,15 @@ class ErrorCategory(StrEnum):
     CONTENT_SOURCE_CONFLICT = "content_source_conflict"
     CONTENT_STALE = "content_stale"
     CONTENT_IMPORT_FORBIDDEN = "content_import_forbidden"
+    HANDLE_CONFLICT = "handle_conflict"
+    ACCOUNT_DISPLAY_NAME_CONFLICT = "account_display_name_conflict"
+    CANONICAL_NAME_CONFLICT = "canonical_name_conflict"
+    LOCALIZED_NAME_CONFLICT = "localized_name_conflict"
+    FOREIGN_LINE_OWNERSHIP = "foreign_line_ownership"
+    STALE_OWNERSHIP_REVISION = "stale_ownership_revision"
+    MIGRATION_CONFLICT = "migration_conflict"
+    MANIFEST_MISMATCH = "manifest_mismatch"
+    SYNC_DELIVERY = "sync_delivery"
 
 
 CATEGORY_CODE: Mapping[ErrorCategory, str] = {
@@ -78,6 +87,15 @@ CATEGORY_CODE: Mapping[ErrorCategory, str] = {
     ErrorCategory.CONTENT_SOURCE_CONFLICT: "AI_STP_CONTENT_SOURCE_CONFLICT",
     ErrorCategory.CONTENT_STALE: "AI_STP_CONTENT_STALE",
     ErrorCategory.CONTENT_IMPORT_FORBIDDEN: "AI_STP_CONTENT_IMPORT_FORBIDDEN",
+    ErrorCategory.HANDLE_CONFLICT: "AI_STP_HANDLE_CONFLICT",
+    ErrorCategory.ACCOUNT_DISPLAY_NAME_CONFLICT: "AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT",
+    ErrorCategory.CANONICAL_NAME_CONFLICT: "AI_STP_CANONICAL_NAME_CONFLICT",
+    ErrorCategory.LOCALIZED_NAME_CONFLICT: "AI_STP_LOCALIZED_NAME_CONFLICT",
+    ErrorCategory.FOREIGN_LINE_OWNERSHIP: "AI_STP_FOREIGN_LINE_OWNERSHIP",
+    ErrorCategory.STALE_OWNERSHIP_REVISION: "AI_STP_STALE_OWNERSHIP_REVISION",
+    ErrorCategory.MIGRATION_CONFLICT: "AI_STP_MIGRATION_CONFLICT",
+    ErrorCategory.MANIFEST_MISMATCH: "AI_STP_MANIFEST_MISMATCH",
+    ErrorCategory.SYNC_DELIVERY: "AI_STP_SYNC_DELIVERY",
 }
 
 CATEGORY_STATUS: Mapping[ErrorCategory, HTTPStatus] = {
@@ -104,6 +122,15 @@ CATEGORY_STATUS: Mapping[ErrorCategory, HTTPStatus] = {
     ErrorCategory.CONTENT_SOURCE_CONFLICT: HTTPStatus.CONFLICT,
     ErrorCategory.CONTENT_STALE: HTTPStatus.CONFLICT,
     ErrorCategory.CONTENT_IMPORT_FORBIDDEN: HTTPStatus.FORBIDDEN,
+    ErrorCategory.HANDLE_CONFLICT: HTTPStatus.CONFLICT,
+    ErrorCategory.ACCOUNT_DISPLAY_NAME_CONFLICT: HTTPStatus.CONFLICT,
+    ErrorCategory.CANONICAL_NAME_CONFLICT: HTTPStatus.CONFLICT,
+    ErrorCategory.LOCALIZED_NAME_CONFLICT: HTTPStatus.CONFLICT,
+    ErrorCategory.FOREIGN_LINE_OWNERSHIP: HTTPStatus.FORBIDDEN,
+    ErrorCategory.STALE_OWNERSHIP_REVISION: HTTPStatus.PRECONDITION_FAILED,
+    ErrorCategory.MIGRATION_CONFLICT: HTTPStatus.CONFLICT,
+    ErrorCategory.MANIFEST_MISMATCH: HTTPStatus.CONFLICT,
+    ErrorCategory.SYNC_DELIVERY: HTTPStatus.SERVICE_UNAVAILABLE,
 }
 
 _RETRYABLE: frozenset[ErrorCategory] = frozenset(

@@ -37,7 +37,7 @@ export default async function CountryPage({
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <header>
         <p className="text-muted-foreground text-sm">{country.code}</p>
-        <h1 className="text-3xl font-medium">{display}</h1>
+        <h1 className="text-3xl font-medium">{seo?.profile.title ?? display}</h1>
       </header>
       <section>
         <h2 className="mb-3 text-xl font-medium">{t("services")}</h2>

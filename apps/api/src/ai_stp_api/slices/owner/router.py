@@ -15,7 +15,6 @@ from ai_stp_api.slices.owner import service
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.owner import (
     OwnerExternalProductAttachRequest,
-    OwnerExternalProductCreateRequest,
     OwnerLifecycleRequest,
     OwnerPresentationUpdateRequest,
     OwnerStartPublicationRequest,
@@ -35,16 +34,6 @@ def _avatar_store(request: Request) -> AvatarObjectStore:
     if store is None:
         raise ApiError(ErrorCategory.DEPENDENCY, "object storage unavailable")
     return cast(AvatarObjectStore, store)
-
-
-@router.post("/owner/external-products", response_model=None)
-async def create_external_product(
-    body: OwnerExternalProductCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
-) -> JSONResponse:
-    del ctx  # authentication is required; products are shared curated metadata
-    return _resource(await service.create_external_product(db, body=body), status_code=201)
 
 
 @router.put("/owner/objects/{object_kind}/{stable_id}/external-products", response_model=None)

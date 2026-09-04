@@ -281,6 +281,16 @@ def test_component_patch_accepts_a_non_github_https_source() -> None:
     assert patch.source.repository == "https://pypi.org/project/example/"
 
 
+def test_component_patch_limits_tags_to_ten_ascii_identifiers() -> None:
+    accepted = ComponentPassportPatch(tags=[f"tag-{index}" for index in range(10)])
+    assert len(accepted.tags or []) == 10
+
+    with pytest.raises(ValidationError):
+        ComponentPassportPatch(tags=[f"tag-{index}" for index in range(11)])
+    with pytest.raises(ValidationError):
+        ComponentPassportPatch(tags=["tag name"])
+
+
 @pytest.mark.parametrize(
     ("component_type", "surface"),
     [

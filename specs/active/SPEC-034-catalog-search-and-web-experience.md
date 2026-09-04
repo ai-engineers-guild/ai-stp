@@ -1,6 +1,6 @@
 ---
 description: "SPEC-034: Powerful catalog search, compact web UX and media profile."
-last_verified: "2026-08-17"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-034: Catalog search and web experience
@@ -159,6 +159,35 @@ Browser editor setups and arbitrary HTML are not included.
   subsequent component pages continue the same list without repeating setups.
   Filters only apply to
   the corresponding object type.
+- `REQ-3431`: Search `q` is trimmed. A blank or whitespace-only `q` is absent:
+  it does not become a distinct match-all query and is omitted from the cursor
+  signature the same way a missing `q` is.
+- `REQ-3432`: Multi-value filters are trimmed, de-duplicated, and sorted before
+  matching and before the cursor signature. Singular `harness_id` and
+  `component_type` merge with `harness_ids` and `component_types` using OR.
+- `REQ-3433`: Latest public version selection, structural filters, relationship
+  filters, Catalog QL, relevance ranking, `updated_at` and `likes` sorts, page
+  totals, and keyset pagination execute as parameterized SQL against one search
+  projection. Cursor keys are the selected sort keys plus `stable_id`.
+- `REQ-3434`: The search projection is one row per `(object_kind, stable_id)`
+  for the latest public `X.Y`, written in the publication transaction, with a
+  deterministic rebuild. It does not relax trust, lifecycle, or public
+  visibility rules.
+- `REQ-3435`: There is no production special case for `q=pytest` or any other
+  fixture needle. A term matches stored name, description, identifiers, tags,
+  or vocabulary aliases only.
+- `REQ-3436`: The closed tag vocabulary is one versioned source exposed as an
+  anonymous machine-readable API. Passports and tag filters use canonical ids;
+  search also matches names and aliases. Duplicate tag identifiers are
+  rejected.
+- `REQ-3437`: Catalog QL recognizes fields and operators only in unquoted word
+  tokens. Single- or double-quoted `AND`, `OR`, `NOT`, `IN`, and field names are
+  literal search text. The local evaluator and PostgreSQL search both use
+  case-folded word-token matching for plain terms.
+- `REQ-3438`: The catalog search control identifies fields and operators in
+  autocomplete, displays a live syntax-highlighted preview, and provides
+  localized field/operator reference and quoting guidance. The input remains a
+  native keyboard- and screen-reader-operable combobox.
 
 ## States and errors
 
@@ -180,10 +209,13 @@ event handlers. Like does not expand the list of account IDs.
 Existing component and setup routes, as well as cursor parameters
 are saved. The page mode is added explicitly and does not change the semantics of the response
 cursor. Old single filters are accepted as a list of one value and
-are normalized along with the list parameters to the search and cursor signature. Meaning
+are normalized along with the list parameters to the search and cursor signature.
+Singular `harness_id`/`component_type` and their list forms share one OR set and
+one signature. Meaning
 `resource=both` is accepted as a general mode. URL without `updated_from` and
-`updated_to` keep the previous output. Rollback disables page mode, language
-requests and like flags without changing published passports.
+`updated_to` keep the previous output. Cursors that lack sort keys are rejected
+as an unsupported version. Rollback drops the search projection and restores
+the previous scan only by reverting the change; published passports stay.
 
 ## Acceptance criteria
 
@@ -219,3 +251,11 @@ requests and like flags without changing published passports.
 | `REQ-3428` | Component test checks menu composition, clipboard, Escape, keyboard, focus return and separate Report titles. |
 | `REQ-3429` | Parser/API tests cover single edge, full range, reverse range, UTC bounds and cursor signature; web test - chip, reset and URL. |
 | `REQ-3430` | Component/unit tests confirm one list, setups then components order, no group sections, independent type sorting, old resource values ​​and bounded page boundaries. |
+| `REQ-3431` | API/unit tests treat whitespace `q` as absent and share the empty-query cursor signature. |
+| `REQ-3432` | Unit tests prove singular+list OR merge, unique sorted multi-value filters, and identical cursor signatures for equivalent forms. |
+| `REQ-3433` | Integration tests walk every sort in cursor mode without duplicates or skips and compile typed QL to SQL; page mode still returns totals. |
+| `REQ-3434` | Migration and rebuild tests keep one latest row per object, including out-of-order `X.Y` publication. |
+| `REQ-3435` | A `q=pytest` probe does not match `fixture-component` unless that needle is in stored text, tags, or aliases. |
+| `REQ-3436` | Contract/API tests serve the versioned vocabulary; alias search hits canonical tags; duplicate tags are rejected. |
+| `REQ-3437` | Parser tests cover quoted reserved words, quoted field names, predicate values, escapes, and evaluator/SQL word-token parity. |
+| `REQ-3438` | Component tests cover categorized autocomplete and syntax preview; RU/EN messages explain quoted literals. |

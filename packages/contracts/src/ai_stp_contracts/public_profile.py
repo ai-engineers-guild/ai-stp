@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ai_stp_contracts.text_safety import validate_public_text
+
 DISPLAY_NAME_MAX: Final = 80
 BIO_MAX: Final = 1500
 LINK_LABEL_MAX: Final = 60
@@ -59,7 +61,7 @@ class ProfileFields(BaseModel):
     def name_bounds(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        text = value.strip()
+        text = validate_public_text(value, allow_empty=True)
         if text == "":
             return None
         if len(text) > DISPLAY_NAME_MAX:
@@ -71,16 +73,10 @@ class ProfileFields(BaseModel):
     def bio_safe(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        # Allow limited Markdown (bold/code/links); reject raw HTML tags and script-like URIs.
-        if re.search(r"<[^>\s]+[^>]*>", value) or re.search(
-            r"javascript:|data:",
-            value,
-            flags=re.IGNORECASE,
-        ):
-            raise ValueError("bio must not contain HTML or unsafe URIs")
-        if len(value) > BIO_MAX:
+        text = validate_public_text(value, allow_empty=True)
+        if len(text) > BIO_MAX:
             raise ValueError("bio too long")
-        return value
+        return text
 
     @field_validator("links")
     @classmethod

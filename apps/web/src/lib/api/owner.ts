@@ -89,17 +89,6 @@ export async function replaceOwnerExternalProducts(
   });
 }
 
-export async function createOwnerExternalProduct(
-  sessionToken: string,
-  input: { name: string; primary_url: string; country_codes: string[] },
-): Promise<ExternalProduct> {
-  return apiRequest("/v1/owner/external-products", {
-    method: "POST",
-    sessionToken,
-    body: { schema_version: 1, ...input },
-  });
-}
-
 export async function readOwnerVersion(
   sessionToken: string,
   objectKind: "component" | "setup",

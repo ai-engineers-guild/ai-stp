@@ -299,6 +299,28 @@
       "additionalProperties": true,
       "description": "Search-result card for a component.\n\nNaming is mechanical rather than a judgement call: a field without a prefix\nidentifies the **object**, and every `latest_` field is a fact of its latest\noffered **version**, copied from that version's passport. There is no\nobject-level passport (ADR-0012), so a card cannot carry an object-level\n`name` or `tags` however stable they look in practice — and a test ties\nevery `latest_` field back to a real passport field so the rule cannot rot.",
       "properties": {
+        "canonical_name": {
+          "default": "",
+          "maxLength": 80,
+          "title": "Canonical Name",
+          "type": "string"
+        },
+        "display_locale": {
+          "default": "",
+          "enum": [
+            "ru",
+            "en",
+            ""
+          ],
+          "title": "Display Locale",
+          "type": "string"
+        },
+        "display_name": {
+          "default": "",
+          "maxLength": 80,
+          "title": "Display Name",
+          "type": "string"
+        },
         "github_stars": {
           "anyOf": [
             {
@@ -382,6 +404,18 @@
           "title": "Likes Count",
           "type": "integer"
         },
+        "owner_account_id": {
+          "default": "",
+          "maxLength": 64,
+          "title": "Owner Account Id",
+          "type": "string"
+        },
+        "owner_handle": {
+          "default": "",
+          "maxLength": 32,
+          "title": "Owner Handle",
+          "type": "string"
+        },
         "publisher_id": {
           "maxLength": 128,
           "minLength": 1,
@@ -413,6 +447,9 @@
         }
       },
       "required": [
+        "canonical_name",
+        "display_locale",
+        "display_name",
         "github_stars",
         "latest_checks",
         "latest_component_type",
@@ -430,6 +467,8 @@
         "latest_trust",
         "latest_version",
         "likes_count",
+        "owner_account_id",
+        "owner_handle",
         "publisher_id",
         "schema_version",
         "stable_id",
@@ -843,6 +882,8 @@
       "type": "string"
     },
     "TagId": {
+      "maxLength": 32,
+      "minLength": 2,
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "type": "string"
     },
@@ -850,7 +891,7 @@
       "items": {
         "$ref": "#/$defs/TagId"
       },
-      "maxItems": 8,
+      "maxItems": 10,
       "minItems": 1,
       "type": "array"
     },

@@ -14,6 +14,16 @@
       "minLength": 1,
       "type": "string"
     },
+    "ContentImage": {
+      "maxLength": 512,
+      "pattern": "^/content/illustrations/[a-z0-9._-]+\\.(?:svg|png|jpg|jpeg|webp|gif)$",
+      "type": "string"
+    },
+    "ContentImageAlt": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
     "ContentTag": {
       "maxLength": 40,
       "minLength": 1,
@@ -32,6 +42,28 @@
   "properties": {
     "body": {
       "$ref": "#/$defs/ContentBody"
+    },
+    "cover_alt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentImageAlt"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "cover_image": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentImage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "description": {
       "$ref": "#/$defs/ContentDescription"

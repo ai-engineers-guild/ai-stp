@@ -1,9 +1,10 @@
 # pyright: reportUnusedFunction=false
-"""API coverage for verified-maintainer claim transfer (SPEC-057 REQ-5717)."""
+"""API coverage for database-bound ownership transfer requests (SPEC-057)."""
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -15,16 +16,22 @@ from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.catalog_transfer import transfer_catalog_line
 from ai_stp_platform.models import (
     Account,
-    AccountAuthorVerification,
-    AuditEvent,
+    CatalogIdentity,
     CatalogMetadata,
     Device,
+    OfficialSyncOutbox,
+    OfficialUpstreamSource,
+    OfficialUpstreamSync,
     OwnershipClaim,
     OwnershipRevision,
+    ReportCase,
 )
 from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID
+from ai_stp_platform.queue.models import Job
+from ai_stp_platform.queue.states import JobState, JobType
 
 pytestmark = pytest.mark.platform
 
@@ -82,23 +89,6 @@ async def _seed_account_device(
         return account.id, device.id, issued.raw_token
 
 
-async def _token_for(sessionmaker: async_sessionmaker[AsyncSession], account_id: str) -> str:
-    async with sessionmaker() as db:
-        device = Device(
-            id=new_id("device"),
-            account_id=account_id,
-            public_key="dGVzdC1wdWJsaWMtc3RhZmYtY2xhaW0=",
-            state="active",
-        )
-        db.add(device)
-        await db.flush()
-        issued = await issue_session(
-            db, account_id=account_id, device_id=device.id, ttl_seconds=3600
-        )
-        await db.commit()
-        return issued.raw_token
-
-
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
@@ -128,22 +118,12 @@ async def _seed_official_component(
         await db.commit()
 
 
-async def _seed_verified(sessionmaker: async_sessionmaker[AsyncSession], account_id: str) -> None:
-    async with sessionmaker() as db:
-        db.add(AccountAuthorVerification(account_id=account_id, verified=True, reason="maintainer"))
-        await db.commit()
-
-
-async def test_claim_preview_staff_approve_deny_audit_and_history(
+async def test_claim_preview_has_no_http_decision_path(
     harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings, str],
 ) -> None:
-    client, sessionmaker, _settings, staff_id = harness
+    client, sessionmaker, _settings, _staff_id = harness
     await _seed_official_component(sessionmaker)
     requester_id, _device, token = await _seed_account_device(sessionmaker)
-    await _seed_verified(sessionmaker, requester_id)
-    staff_token = await _token_for(sessionmaker, staff_id)
-    stranger_id, _sd, stranger_token = await _seed_account_device(sessionmaker)
-    await _seed_verified(sessionmaker, stranger_id)
 
     created = await client.post(
         "/v1/ownership-claims",
@@ -165,7 +145,7 @@ async def test_claim_preview_staff_approve_deny_audit_and_history(
     assert body["preview"]["major_lines"] == [1, 2]
     claim_id = body["claim_id"]
 
-    forbidden = await client.post(
+    decision = await client.post(
         f"/v1/staff/ownership-claims/{claim_id}/approve",
         headers=_auth(token),
         json={
@@ -174,44 +154,7 @@ async def test_claim_preview_staff_approve_deny_audit_and_history(
             "idempotency_key": "approve-key-0000001",
         },
     )
-    assert forbidden.status_code == 403
-
-    denied_other = await client.post(
-        "/v1/ownership-claims",
-        headers=_auth(stranger_token),
-        json={
-            "schema_version": 1,
-            "stable_id": COMPONENT_ID,
-            "reason": "I also maintain it.",
-            "evidence": "https://github.com/example/demo/pulls",
-            "idempotency_key": "claim-key-00000002",
-        },
-    )
-    assert denied_other.status_code == 201, denied_other.text
-    other_claim = denied_other.json()["claim_id"]
-    deny = await client.post(
-        f"/v1/staff/ownership-claims/{other_claim}/deny",
-        headers=_auth(staff_token),
-        json={
-            "schema_version": 1,
-            "reason": "evidence does not match the listed maintainers",
-            "idempotency_key": "deny-key-0000000001",
-        },
-    )
-    assert deny.status_code == 200, deny.text
-    assert deny.json()["state"] == "denied"
-
-    approve = await client.post(
-        f"/v1/staff/ownership-claims/{claim_id}/approve",
-        headers=_auth(staff_token),
-        json={
-            "schema_version": 1,
-            "reason": "upstream maintainers match the claim evidence",
-            "idempotency_key": "approve-key-0000002",
-        },
-    )
-    assert approve.status_code == 200, approve.text
-    assert approve.json()["state"] == "approved"
+    assert decision.status_code == 404
 
     async with sessionmaker() as db:
         rows = list(
@@ -223,58 +166,15 @@ async def test_claim_preview_staff_approve_deny_audit_and_history(
             .scalars()
             .all()
         )
-        assert {row.owner_account_id for row in rows} == {requester_id}
+        assert {row.owner_account_id for row in rows} == {OFFICIAL_ACCOUNT_ID}
         assert all(row.passport_document == dict(PASSPORT, version=row.version) for row in rows)
-        denied_row = await db.get(OwnershipClaim, other_claim)
-        assert denied_row is not None
-        assert denied_row.state == "denied"
-        revisions = list(
-            (
-                await db.execute(
-                    select(OwnershipRevision).where(OwnershipRevision.claim_id == claim_id)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        assert len(revisions) == 1
-        denied_revisions = list(
-            (
-                await db.execute(
-                    select(OwnershipRevision).where(OwnershipRevision.claim_id == other_claim)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        assert denied_revisions == []
-        audits = list(
-            (
-                await db.execute(
-                    select(AuditEvent).where(AuditEvent.target_table == "ownership_claim")
-                )
-            )
-            .scalars()
-            .all()
-        )
-        actions = {event.action for event in audits}
-        assert "ownership.claim_requested" in actions
-        assert "ownership.claim_approved" in actions
-        assert "ownership.claim_denied" in actions
-
-    history = await client.get(
-        f"/v1/owner/objects/component/{COMPONENT_ID}/ownership-revisions",
-        headers=_auth(token),
-    )
-    assert history.status_code == 200, history.text
-    items = history.json()["items"]
-    assert len(items) == 1
-    assert items[0]["from_account_id"] == OFFICIAL_ACCOUNT_ID
-    assert items[0]["to_account_id"] == requester_id
-    assert items[0]["major_lines"] == [1, 2]
+        claim = await db.get(OwnershipClaim, claim_id)
+        assert claim is not None
+        assert claim.requester_account_id == requester_id
+        assert claim.state == "requested"
 
 
-async def test_unverified_account_cannot_claim_official_component(
+async def test_unverified_account_can_request_transfer(
     harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings, str],
 ) -> None:
     client, sessionmaker, _settings, _staff_id = harness
@@ -291,4 +191,165 @@ async def test_unverified_account_cannot_claim_official_component(
             "idempotency_key": "claim-key-unverified1",
         },
     )
-    assert response.status_code == 403
+    assert response.status_code == 201, response.text
+    assert response.json()["state"] == "requested"
+
+
+async def test_database_transfer_fences_official_source_and_approves_legacy_claim(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings, str],
+) -> None:
+    _client, sessionmaker, _settings, operator_id = harness
+    recipient_id, _device, _token = await _seed_account_device(sessionmaker)
+    now = datetime.now(UTC)
+    async with sessionmaker() as db:
+        db.add(
+            CatalogIdentity(
+                stable_id=COMPONENT_ID,
+                owner_account_id=OFFICIAL_ACCOUNT_ID,
+                canonical_name="official-skill",
+                canonical_name_normalized="official-skill",
+                ownership_revision_id="",
+            )
+        )
+        for version in ("1.0", "1.1"):
+            db.add(
+                CatalogMetadata(
+                    owner_account_id=OFFICIAL_ACCOUNT_ID,
+                    object_kind="component",
+                    stable_id=COMPONENT_ID,
+                    version=version,
+                    current_revision_id="revision_" + "0" * 64,
+                    visibility="public",
+                    lifecycle_state="active",
+                    name="official-skill",
+                    passport_document=dict(PASSPORT, version=version),
+                )
+            )
+        source = OfficialUpstreamSource(
+            id="official-transfer-test",
+            slot="official",
+            kind="git",
+            repository_url="https://github.com/acme/tool",
+            tracked_ref="main",
+            component_subpath="skills/demo",
+            component_type="skill",
+            projection_kind="native_files",
+            harness_id="claude-code",
+            target_scope="global",
+            projection_root="skills/demo",
+            projection_shape="tree",
+            owner_account_id=OFFICIAL_ACCOUNT_ID,
+            actor_device_id="device_01JZZK7B8N4M6P2R9T5V0X3Y7Z",
+            stable_id=COMPONENT_ID,
+            name="official-skill",
+            upstream_project_name="Demo",
+            upstream_maintainer="Acme",
+            reviewed_description="Reviewed component body.",
+            reviewed_license="MIT",
+            tags=["code-review"],
+            enabled=True,
+            inventory_state="enabled",
+            update_policy="daily",
+        )
+        db.add(source)
+        await db.flush()
+        attempt = OfficialUpstreamSync(
+            source_id=source.id,
+            utc_day=now.date(),
+            trigger_key=now.date().isoformat(),
+            result="publication_started",
+            state="queued",
+            expected_owner_account_id=OFFICIAL_ACCOUNT_ID,
+            expected_ownership_revision_id="",
+        )
+        db.add(attempt)
+        await db.flush()
+        outbox = OfficialSyncOutbox(
+            id=new_id("outbox"),
+            source_id=source.id,
+            attempt_id=attempt.id,
+            idempotency_key="official-transfer-test-outbox",
+            state="pending",
+        )
+        db.add(outbox)
+        attempt.outbox_id = outbox.id
+        job = Job(
+            job_type=JobType.OFFICIAL_UPSTREAM_SYNC,
+            payload={"source_id": source.id, "attempt_id": attempt.id},
+            state=JobState.QUEUED,
+            idempotency_key="official-transfer-test-job",
+            run_after=now,
+            expires_at=now + timedelta(hours=1),
+        )
+        db.add(job)
+        await db.flush()
+        attempt.job_id = job.id
+        case = ReportCase(
+            id=new_id("report"),
+            reporter_account_id=recipient_id,
+            topic="ownership_transfer",
+            object_kind="component",
+            stable_id=COMPONENT_ID,
+            state="submitted",
+            vulnerability=False,
+            payload={"recipient_account_id": recipient_id},
+            locale="en",
+            group_key=f"ownership_transfer:{COMPONENT_ID}:{recipient_id}",
+            idempotency_key="official-transfer-test-case",
+        )
+        db.add(case)
+        claim = OwnershipClaim(
+            id=new_id("operation"),
+            object_kind="component",
+            stable_id=COMPONENT_ID,
+            requester_account_id=recipient_id,
+            from_account_id=OFFICIAL_ACCOUNT_ID,
+            to_account_id=recipient_id,
+            reason="I maintain this component.",
+            evidence="https://github.com/acme/tool/commits",
+            state="requested",
+            preview={},
+            idempotency_key=case.idempotency_key,
+        )
+        db.add(claim)
+        await db.flush()
+
+        revision = await transfer_catalog_line(
+            db,
+            case_id=case.id,
+            expected_owner_account_id=OFFICIAL_ACCOUNT_ID,
+            expected_ownership_revision_id="",
+            recipient_account_id=recipient_id,
+            reason="upstream maintainer confirmed",
+            evidence="https://github.com/acme/tool/commits",
+            operator_account_id=operator_id,
+        )
+        await db.commit()
+
+        identity = await db.get(CatalogIdentity, COMPONENT_ID)
+        source = await db.get(OfficialUpstreamSource, source.id)
+        attempt = await db.get(OfficialUpstreamSync, attempt.id)
+        outbox = await db.get(OfficialSyncOutbox, outbox.id)
+        job = await db.get(Job, job.id)
+        case = await db.get(ReportCase, case.id)
+        claim = await db.get(OwnershipClaim, claim.id)
+        versions = list(
+            (
+                await db.scalars(
+                    select(CatalogMetadata).where(CatalogMetadata.stable_id == COMPONENT_ID)
+                )
+            ).all()
+        )
+        stored_revision = await db.scalar(
+            select(OwnershipRevision).where(OwnershipRevision.id == revision.id)
+        )
+        assert identity is not None and identity.owner_account_id == recipient_id
+        assert source is not None and not source.enabled and source.inventory_state == "transferred"
+        assert source.update_policy == "disabled" and source.ownership_revision_id == revision.id
+        assert attempt is not None and attempt.state == "cancelled_transferred"
+        assert outbox is not None and outbox.state == "cancelled"
+        assert job is not None and job.state == JobState.CANCELLED
+        assert case is not None and case.state == "resolved"
+        assert claim is not None and claim.state == "approved"
+        assert stored_revision is not None and stored_revision.claim_id == claim.id
+        assert {row.owner_account_id for row in versions} == {recipient_id}

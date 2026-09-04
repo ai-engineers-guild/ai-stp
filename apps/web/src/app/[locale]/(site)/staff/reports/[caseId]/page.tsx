@@ -85,10 +85,16 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
         ) : null}
       </dl>
 
+      {detail.topic !== "object_report" ? (
+        <pre className="overflow-x-auto rounded border p-4 text-xs">
+          {JSON.stringify(detail.request_payload, null, 2)}
+        </pre>
+      ) : null}
+
       <StaffCaseActions
         csrfToken={csrf}
         caseId={detail.case_id}
-        objectKind={detail.object_kind}
+        objectKind={detail.object_kind === "component" || detail.object_kind === "setup" ? detail.object_kind : ""}
         stableId={detail.stable_id}
         version={detail.version}
         labels={{
@@ -98,9 +104,7 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
           block: t("block"),
           hide: t("hide"),
           restore: t("restore"),
-          authorVerifiedIssue: t("authorVerifiedIssue"),
-          authorVerifiedRevoke: t("authorVerifiedRevoke"),
-          subjectAccount: t("subjectAccount"),
+          operatorNote: t("operatorNote"),
           lifecycle: t("lifecycle"),
           referenceId: tc("referenceId"),
           stateTriaged: t("stateTriaged"),

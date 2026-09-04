@@ -34,10 +34,11 @@ server's and the cursor carries the position — that is what makes it opaque.
 """
 
 import re
+from collections.abc import Sequence
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.http import (
     PAGE_SIZE_DEFAULT,
@@ -113,6 +114,36 @@ def reject_reversed_updated_range(updated_from: date | None, updated_to: date | 
     """Refuse a reversed inclusive calendar-day window."""
     if updated_from is not None and updated_to is not None and updated_from > updated_to:
         raise ValueError("updated_from must be on or before updated_to")
+
+
+def normalize_search_text(q: str | None) -> str | None:
+    """Trim `q`. Whitespace-only is absent, not a match-all term."""
+    if q is None:
+        return None
+    stripped = q.strip()
+    return stripped or None
+
+
+def unique_sorted(values: Sequence[str]) -> list[str]:
+    """Trim, drop blanks, de-duplicate, and sort for filters and signatures."""
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for raw in values:
+        token = raw.strip()
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        ordered.append(token)
+    ordered.sort()
+    return ordered
+
+
+def merged_or_values(singular: str | None, values: Sequence[str] | None) -> list[str]:
+    """Union a legacy singular filter with its list form (OR semantics)."""
+    items: list[str] = list(values or [])
+    if singular:
+        items.append(singular)
+    return unique_sorted(items)
 
 
 class ExternalProductObject(BaseModel):
@@ -347,6 +378,11 @@ class ComponentSummary(BaseModel):
     schema_version: Literal[1] = 1
     stable_id: ComponentId
     publisher_id: Annotated[str, Field(min_length=1, max_length=128)]
+    owner_account_id: Annotated[str, Field(default="", max_length=64)] = ""
+    owner_handle: Annotated[str, Field(default="", max_length=32)] = ""
+    canonical_name: Annotated[str, Field(default="", max_length=80)] = ""
+    display_name: Annotated[str, Field(default="", max_length=80)] = ""
+    display_locale: Literal["ru", "en", ""] = ""
     likes_count: Annotated[int, Field(ge=0)] = 0
     github_stars: Annotated[int, Field(ge=0)] | None = None
     latest_requirements_count: Annotated[int, Field(ge=0)] = 0
@@ -509,6 +545,24 @@ class ComponentSearchRequest(BaseModel):
     #: deprecated setups and one active.
     include_deprecated: bool = False
 
+    @field_validator("q", mode="before")
+    @classmethod
+    def _blank_q_is_absent(cls, value: object) -> object:
+        return normalize_search_text(value) if isinstance(value, str) else value
+
+    @field_validator(
+        "tags",
+        "harness_ids",
+        "component_types",
+        "authors",
+        "service_domains",
+        "country_codes",
+        mode="after",
+    )
+    @classmethod
+    def _canonical_multi_value_filters(cls, value: list[str]) -> list[str]:
+        return unique_sorted(value)
+
     @model_validator(mode="after")
     def _updated_range_is_ordered(self) -> "ComponentSearchRequest":
         reject_reversed_updated_range(self.updated_from, self.updated_to)
@@ -563,6 +617,23 @@ class SetupSearchRequest(BaseModel):
     #: questions until 2026-08-30, when the catalogue's first page was 19
     #: deprecated setups and one active.
     include_deprecated: bool = False
+
+    @field_validator("q", mode="before")
+    @classmethod
+    def _blank_q_is_absent(cls, value: object) -> object:
+        return normalize_search_text(value) if isinstance(value, str) else value
+
+    @field_validator(
+        "tags",
+        "harness_ids",
+        "authors",
+        "service_domains",
+        "country_codes",
+        mode="after",
+    )
+    @classmethod
+    def _canonical_multi_value_filters(cls, value: list[str]) -> list[str]:
+        return unique_sorted(value)
 
     @model_validator(mode="after")
     def _updated_range_is_ordered(self) -> "SetupSearchRequest":

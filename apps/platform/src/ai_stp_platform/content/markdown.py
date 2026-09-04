@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
+from urllib.parse import parse_qs, urlparse
 
 from ai_stp_contracts.content import CONTENT_BODY_MAX
 from ai_stp_platform.content.errors import ContentError
@@ -12,6 +14,7 @@ _FORBIDDEN_TAGS = frozenset(
 )
 _ILLUSTRATION_PREFIX = "/content/illustrations/"
 _HTTPS_PREFIX = "https://"
+_VIDEO = re.compile(r"@\[(youtube|vimeo)\]\((https://[^)\s]+)\)", re.IGNORECASE)
 
 
 def validate_article_body(source: str) -> str:
@@ -33,6 +36,29 @@ def validate_article_body(source: str) -> str:
                 raise ContentError("AI_STP_CONTENT_INVALID", "credential-bearing url rejected")
             continue
         raise ContentError("AI_STP_CONTENT_INVALID", "link must be https, fragment or illustration")
+    for kind, dest in _VIDEO.findall(source):
+        parsed = urlparse(dest)
+        host = (parsed.hostname or "").lower()
+        if kind.lower() == "youtube":
+            video_id = (
+                parsed.path.strip("/")
+                if host == "youtu.be"
+                else parse_qs(parsed.query).get("v", [""])[0]
+            )
+            allowed = (
+                host in {"youtube.com", "www.youtube.com", "youtu.be"}
+                and re.fullmatch(r"[A-Za-z0-9_-]{6,}", video_id) is not None
+            )
+        else:
+            video_id = parsed.path.rstrip("/").split("/")[-1]
+            allowed = (
+                host in {"vimeo.com", "www.vimeo.com", "player.vimeo.com"}
+                and re.fullmatch(r"\d{1,12}", video_id) is not None
+            )
+        if not allowed:
+            raise ContentError(
+                "AI_STP_CONTENT_INVALID", "video must be a supported YouTube or Vimeo URL"
+            )
     return source
 
 
@@ -74,26 +100,7 @@ def _has_forbidden_tag(lowered: str) -> bool:
 
 
 def _has_event_handler_attr(lowered: str) -> bool:
-    n = len(lowered)
-    index = 0
-    while index < n:
-        start = lowered.find("on", index)
-        if start < 0:
-            return False
-        cursor = start + 2
-        if cursor < n and _is_word_char(lowered[cursor]):
-            cursor += 1
-            while cursor < n and _is_word_char(lowered[cursor]):
-                cursor += 1
-            skip = cursor
-            while skip < n and lowered[skip].isspace():
-                skip += 1
-            if skip < n and lowered[skip] == "=":
-                return True
-            index = cursor
-            continue
-        index = start + 1
-    return False
+    return re.search(r"(?<![a-z0-9_])on[a-z]+\s*=", lowered) is not None
 
 
 def _markdown_link_destinations(source: str) -> Iterator[str]:

@@ -15,6 +15,9 @@ type PageProps = {
     stable_id?: string;
     version?: string;
     digest?: string;
+    topic?: string;
+    author?: string;
+    recipient?: string;
   }>;
 };
 
@@ -49,7 +52,18 @@ export default async function ReportsPage({ params, searchParams }: PageProps) {
   }
 
   const kind = sp.object_kind === "component" || sp.object_kind === "setup" ? sp.object_kind : "";
-  const hasTarget = Boolean(kind && sp.stable_id && sp.version && sp.digest);
+  const topicValues = {
+    object_report: true,
+    service_request: true,
+    country_request: true,
+    component_complaint: true,
+    author_complaint: true,
+    ownership_transfer: true,
+    verification_request: true,
+    other: true,
+  } as const;
+  const topic =
+    sp.topic && sp.topic in topicValues ? (sp.topic as keyof typeof topicValues) : "object_report";
 
   return (
     <div className="space-y-8">
@@ -58,36 +72,61 @@ export default async function ReportsPage({ params, searchParams }: PageProps) {
         <p className="text-muted-foreground max-w-2xl text-sm">{t("subtitle")}</p>
       </div>
 
-      {hasTarget ? (
-        <ReportForm
-          csrfToken={csrf}
-          defaults={{
-            objectKind: kind,
-            stableId: sp.stable_id ?? "",
-            version: sp.version ?? "",
-            contentDigest: sp.digest ?? "",
-          }}
-          labels={{
-            create: t("create"),
-            submitting: t("submitting"),
-            preview: t("preview"),
-            previewHint: t("previewHint"),
-            consent: t("consent"),
-            diagnostics: t("diagnostics"),
-            vulnerability: t("vulnerability"),
-            objectKind: t("objectKind"),
-            stableId: t("stableId"),
-            version: t("version"),
-            digest: t("digest"),
-            errorCode: t("errorCode"),
-            needPreview: t("needPreview"),
-            created: t("created"),
-            referenceId: tc("referenceId"),
-          }}
-        />
-      ) : (
-        <p className="text-muted-foreground text-sm">{t("missingTarget")}</p>
-      )}
+      <ReportForm
+        csrfToken={csrf}
+        locale={locale === "ru" ? "ru" : "en"}
+        defaults={{
+          topic,
+          objectKind: kind,
+          stableId: sp.stable_id ?? "",
+          version: sp.version ?? "",
+          contentDigest: sp.digest ?? "",
+          authorAccountId: sp.author ?? "",
+          recipientAccountId: sp.recipient ?? "",
+        }}
+        labels={{
+          create: t("create"),
+          submitting: t("submitting"),
+          preview: t("preview"),
+          previewHint: t("previewHint"),
+          consent: t("consent"),
+          diagnostics: t("diagnostics"),
+          vulnerability: t("vulnerability"),
+          objectKind: t("objectKind"),
+          stableId: t("stableId"),
+          version: t("version"),
+          digest: t("digest"),
+          errorCode: t("errorCode"),
+          needPreview: t("needPreview"),
+          created: t("created"),
+          referenceId: tc("referenceId"),
+          topic: t("topic"),
+          subject: t("subject"),
+          message: t("message"),
+          evidence: t("evidence"),
+          author: t("author"),
+          recipient: t("recipient"),
+          serviceName: t("serviceName"),
+          primaryUrl: t("primaryUrl"),
+          descriptionRu: t("descriptionRu"),
+          descriptionEn: t("descriptionEn"),
+          sourceUrl: t("sourceUrl"),
+          countryCodes: t("countryCodes"),
+          countryCode: t("countryCode"),
+          countryNameRu: t("countryNameRu"),
+          countryNameEn: t("countryNameEn"),
+          topics: {
+            object_report: t("topicObjectReport"),
+            service_request: t("topicServiceRequest"),
+            country_request: t("topicCountryRequest"),
+            component_complaint: t("topicComponentComplaint"),
+            author_complaint: t("topicAuthorComplaint"),
+            ownership_transfer: t("topicOwnershipTransfer"),
+            verification_request: t("topicVerificationRequest"),
+            other: t("topicOther"),
+          },
+        }}
+      />
 
       <section className="space-y-3" aria-labelledby="own-cases-heading">
         <h2 id="own-cases-heading" className="text-lg font-medium tracking-tight">

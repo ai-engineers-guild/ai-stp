@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!entry) return {};
   const path = `/${locale}/content/${type}/${slug}`;
   const seo = await readSeoProfile("article", `${type}:${slug}`, locale);
-  return metadataFromSeo(seo, {
+  const metadata = metadataFromSeo(seo, {
     title: entry.title,
     description: entry.description,
     alternates: {
@@ -33,6 +34,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     openGraph: { type: "article", title: entry.title, description: entry.description, url: path },
   });
+  if (!entry.cover_image) return metadata;
+  const image = new URL(entry.cover_image, publicOrigin()).toString();
+  return {
+    ...metadata,
+    openGraph: {
+      ...(metadata.openGraph ?? {}),
+      images: [{ url: image, width: 1200, height: 630, alt: entry.cover_alt ?? entry.title }],
+    },
+    twitter: {
+      ...(metadata.twitter ?? {}),
+      card: "summary_large_image",
+      images: [{ url: image, alt: entry.cover_alt ?? entry.title }],
+    },
+  };
 }
 
 export default async function ContentDetail({ params }: Props) {
@@ -86,6 +101,16 @@ export default async function ContentDetail({ params }: Props) {
           ))}
         </ul>
       </header>
+      {entry.cover_image ? (
+        <Image
+          src={entry.cover_image}
+          alt={entry.cover_alt ?? entry.title}
+          width={1200}
+          height={630}
+          priority
+          className="mx-auto h-auto max-h-[42rem] w-full max-w-4xl rounded-xl object-cover"
+        />
+      ) : null}
       <div className="mx-auto w-full max-w-4xl">
         <MarkdownDescription source={entry.body} heading={t("bodyHeading")} article />
       </div>

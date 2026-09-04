@@ -36,7 +36,7 @@ describe("renderMarkdownOnServer", () => {
     const rendered = renderMarkdownOnServer(
       '## Matrix 🚀\n\n| Harness | State |\n| --- | --- |\n| Codex | Ready |\n\n[Docs](https://example.com/docs "Reference")',
     );
-    expect(rendered.html).toContain("<h3>Matrix 🚀</h3>");
+    expect(rendered.html).toContain('<h3 id="matrix">Matrix 🚀</h3>');
     expect(rendered.html).toContain("<table>");
     expect(rendered.html).toContain("<th>Harness</th>");
     expect(rendered.html).toContain('title="Reference"');
@@ -46,9 +46,9 @@ describe("renderMarkdownOnServer", () => {
     const rendered = renderMarkdownOnServer(
       "# H1\n\n## H2\n\n### H3\n\n#### H4\n\n##### H5\n\n###### H6\n\nplain\nnext\n\n| not | a table |",
     );
-    expect(rendered.html).toContain("<h2>H1</h2>");
-    expect(rendered.html).toContain("<h3>H2</h3>");
-    expect(rendered.html).toContain("<h4>H3</h4>");
+    expect(rendered.html).toContain('<h2 id="h1">H1</h2>');
+    expect(rendered.html).toContain('<h3 id="h2">H2</h3>');
+    expect(rendered.html).toContain('<h4 id="h3">H3</h4>');
     expect(rendered.html).toContain("<p>plain next</p>");
     expect(rendered.html).not.toContain("<table>");
   });
@@ -100,16 +100,55 @@ describe("renderMarkdownOnServer", () => {
       "[Section](#section)\n\n| Left | Right |\n| :--- | ---: |\n| a | b |",
     );
     expect(rendered.html).toContain('href="#section"');
-    expect(rendered.html).toContain("<td>a</td><td>b</td>");
+    expect(rendered.html).toContain('<td style="text-align:left">a</td><td style="text-align:right">b</td>');
     expect(renderMarkdownOnServer("\n\n")).toEqual({ html: "", excerpt: "" });
   });
 
-  it("keeps invalid table separators and mixed list blocks as paragraphs", () => {
+  it("keeps invalid table separators as paragraphs and renders separate lists", () => {
     const rendered = renderMarkdownOnServer(
       "| A | B |\n| -- | nope |\n| x | y |\n\n- list\nplain\n\n1. item\nplain",
     );
     expect(rendered.html).not.toContain("<table>");
-    expect(rendered.html).not.toContain("<ul>");
-    expect(rendered.html).not.toContain("<ol>");
+    expect(rendered.html).toContain("<ul>");
+    expect(rendered.html).toContain("<ol>");
+  });
+
+  it("keeps common editorial structure from imported articles", () => {
+    const rendered = renderMarkdownOnServer(
+      "> A useful warning.\n\n---\n\n<u>important</u> and ~~obsolete~~",
+    );
+    expect(rendered.html).toContain("<blockquote>");
+    expect(rendered.html).toContain("<hr>");
+    expect(rendered.html).toContain("<u>important</u>");
+    expect(rendered.html).toContain("<del>obsolete</del>");
+  });
+
+  it("renders article heading levels, anchors, emphasis, and nested lists", () => {
+    const rendered = renderMarkdownOnServer(
+      "# Title {#intro}\n\n## Subsection\n\n### Detail\n\n#### Note\n\n[Intro](#intro)\n\n**bold** *italic* __bold__ _italic_ <u>under</u> ~~gone~~\n\n- parent\n  - child\n  - **bold child**\n1. first\n   1. nested",
+      { article: true },
+    );
+    expect(rendered.html).toContain('<h1 id="intro">Title</h1>');
+    expect(rendered.html).toContain('<h2 id="subsection">Subsection</h2>');
+    expect(rendered.html).toContain('<h3 id="detail">Detail</h3>');
+    expect(rendered.html).toContain('<h4 id="note">Note</h4>');
+    expect(rendered.html).toContain("<strong>bold</strong>");
+    expect(rendered.html).toContain("<em>italic</em>");
+    expect(rendered.html).toContain("<u>under</u>");
+    expect(rendered.html).toContain("<del>gone</del>");
+    expect(rendered.html).toContain("<ul><li>parent<ul>");
+    expect(rendered.html).toContain("<ol><li>first<ol>");
+    expect(rendered.html).toContain('href="#intro"');
+  });
+
+  it("embeds only supported video hosts and keeps the source link", () => {
+    const rendered = renderMarkdownOnServer(
+      "@[youtube](https://www.youtube.com/watch?v=dQw4w9WgXcQ)\n\n@[vimeo](https://vimeo.com/12345678)",
+      { article: true },
+    );
+    expect(rendered.html).toContain("youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    expect(rendered.html).toContain("player.vimeo.com/video/12345678");
+    expect(rendered.html).toContain('href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"');
+    expect(renderMarkdownOnServer("@[youtube](https://evil.example/video/12345678)").html).not.toContain("<iframe");
   });
 });

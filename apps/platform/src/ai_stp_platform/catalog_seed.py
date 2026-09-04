@@ -808,6 +808,9 @@ async def upsert_seed_version(
     )
     session.add(row)
     await session.flush()
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+    await upsert_catalog_search_projection(session, object_kind=object_kind, stable_id=stable_id)
     return row, True
 
 

@@ -58,8 +58,9 @@ unknown or prohibitive license.
 Installation reads embedded bytes from the acquired setup definition and never
 contacts an upstream source. Updating an external dependency is explicit and
 creates a new immutable setup version. Promotion to a catalog component and
-transfer of an official snapshot to a verified upstream maintainer are explicit,
-audited operations; setup publication never promotes components automatically.
+transfer of an Official snapshot are explicit, audited operations. Any
+authenticated account may request transfer; approval remains a database-bound
+staff decision, and setup publication never promotes components automatically.
 
 Catalog presentation follows the same boundary: a setup has no synthetic safety
 score. It presents the exact members and their individual checks. Catalog members

@@ -38,6 +38,9 @@ transfer between sources without a separate migration operation.
   from one exact repository commit.
 - **Source owner** — the sole authoring source permitted to change an Article's
   active revisions.
+- **Cover image** — an allowlisted local illustration used by the article page
+  and Open Graph/Twitter previews; if omitted, the first local Markdown image
+  is used.
 
 ## Requirements
 
@@ -91,6 +94,19 @@ transfer between sources without a separate migration operation.
 - `REQ-5414`: Import and staff mutation record an AuditEvent containing the
   operation ID, source kind, snapshot/revision digest, outcome, and safe
   counters; public reads remain anonymous and public-cacheable.
+- `REQ-5415`: Article revisions may declare an allowlisted local cover image
+  and accessible alt text. The public list/detail API exposes them, the index
+  renders them, and detail metadata uses them for Open Graph and Twitter
+  previews without fetching arbitrary remote pages.
+- `REQ-5416`: Article Markdown preserves full authored bodies and supports
+  h1–h4, ordered/unordered (including nested) lists, GFM tables, links and
+  heading anchors, italic/bold/underline/strike text, local images, and safe
+  YouTube/Vimeo embeds written as `@[youtube](https://...)` or
+  `@[vimeo](https://...)`. Raw HTML and unsafe media remain rejected.
+- `REQ-5417`: `slug` may be omitted in repository frontmatter. The snapshot
+  derives an ASCII SEO slug from the English sibling title (or the English
+  title itself), while explicit slugs remain supported and route shape stays
+  `/{locale}/content/{type}/{slug}`.
 
 ## States and errors
 
@@ -142,3 +158,6 @@ change after the rollback window.
 | `REQ-5411` | An E2E test publishes a staff article without a rebuild and sees it after the cache identity changes; a repository article appears only after import. |
 | `REQ-5412` | An integration test observes one SEO effect for a new active revision and preserves publication when the SEO worker fails. |
 | `REQ-5413`–`REQ-5414` | A security test verifies scoped credentials, limits, forbidden Markdown, redacted logs, and an AuditEvent without body/token data. |
+| `REQ-5415` | Snapshot, API, metadata, and E2E checks cover derived covers and social preview images. |
+| `REQ-5416` | Renderer and Markdown-validation tests cover full structure, formatting, local images, safe embeds, and rejection of unsafe HTML/media. |
+| `REQ-5417` | Snapshot and E2E checks cover derived ASCII slugs and the stable `/{locale}/content/{type}/{slug}` route. |

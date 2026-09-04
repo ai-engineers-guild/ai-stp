@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import cast
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_foundation.harnesses import HARNESS_IDS
@@ -59,6 +60,11 @@ class SourceUpsert:
     projection_kind: str = "native_files"
     actor_device_id: str | None = None
     enabled: bool = True
+    stable_id: str | None = None
+    canonical_name: str | None = None
+    display_name_en: str | None = None
+    display_name_ru: str | None = None
+    update_policy: str = "daily"
 
 
 def _common_fields(command: SourceUpsert) -> None:
@@ -149,19 +155,37 @@ async def upsert_source(session: AsyncSession, command: SourceUpsert) -> Officia
     if owner is None:
         raise OfficialUpstreamError(INVALID_SOURCE, "official owner account is missing")
     source_id = command.source_id.strip()
-    existing = await session.get(OfficialUpstreamSource, source_id)
+    existing = await session.scalar(
+        select(OfficialUpstreamSource)
+        .where(OfficialUpstreamSource.id == source_id)
+        .with_for_update()
+    )
     if existing is None:
         source = OfficialUpstreamSource(
             id=source_id,
             slot=SOURCE_SLOT if source_id == SOURCE_ID else source_id[:16],
-            stable_id=new_id("component"),
+            stable_id=command.stable_id or new_id("component"),
             actor_device_id=command.actor_device_id or OPERATOR_DEVICE_ID,
         )
         session.add(source)
     else:
         source = existing
+        if source.inventory_state in {"transferred", "removed"}:
+            raise OfficialUpstreamError(
+                INVALID_SOURCE,
+                "a transferred or removed Official source cannot be reactivated",
+            )
+        if source.owner_account_id != OFFICIAL_ACCOUNT_ID:
+            raise OfficialUpstreamError(
+                INVALID_SOURCE,
+                "an Official source cannot be reassigned from another owner",
+            )
         if command.actor_device_id:
             source.actor_device_id = command.actor_device_id
+        if command.stable_id and source.stable_id != command.stable_id:
+            raise OfficialUpstreamError(
+                INVALID_SOURCE, "stable id does not match the projected source"
+            )
     source.kind = command.kind
     source.repository_url = repository
     source.tracked_ref = command.tracked_ref.strip() or None
@@ -185,6 +209,15 @@ async def upsert_source(session: AsyncSession, command: SourceUpsert) -> Officia
     source.reviewed_license = command.reviewed_license.strip()
     source.tags = list(command.tags)
     source.enabled = command.enabled
+    source.inventory_state = "enabled" if command.enabled else "paused"
+    source.update_policy = command.update_policy
+    source.canonical_name = command.canonical_name or source.canonical_name
+    source.display_name_en = (
+        command.display_name_en or source.display_name_en or command.name.strip()
+    )
+    source.display_name_ru = (
+        command.display_name_ru or source.display_name_ru or command.name.strip()
+    )
     session.add(
         AuditEvent(
             actor_account_id=command.owner_account_id,
@@ -212,17 +245,22 @@ async def upsert_source(session: AsyncSession, command: SourceUpsert) -> Officia
 async def disable_source(
     session: AsyncSession, source_id: str = SOURCE_ID
 ) -> OfficialUpstreamSource | None:
-    source = await session.get(OfficialUpstreamSource, source_id)
+    source = await session.scalar(
+        select(OfficialUpstreamSource)
+        .where(OfficialUpstreamSource.id == source_id)
+        .with_for_update()
+    )
     if source is None:
         return None
     source.enabled = False
+    source.inventory_state = "paused"
     session.add(
         AuditEvent(
             actor_account_id=source.owner_account_id,
             action="official_upstream.source_disabled",
             target_table="official_upstream_source",
             target_id=source_id,
-            payload={"enabled": False},
+            payload={"enabled": False, "inventory_state": "paused"},
         )
     )
     await session.flush()
@@ -230,18 +268,22 @@ async def disable_source(
 
 
 async def delete_source(session: AsyncSession, source_id: str = SOURCE_ID) -> bool:
-    source = await session.get(OfficialUpstreamSource, source_id)
+    source = await session.scalar(
+        select(OfficialUpstreamSource)
+        .where(OfficialUpstreamSource.id == source_id)
+        .with_for_update()
+    )
     if source is None:
         return False
-    owner_id = source.owner_account_id
-    await session.delete(source)
+    source.enabled = False
+    source.inventory_state = "removed"
     session.add(
         AuditEvent(
-            actor_account_id=owner_id,
-            action="official_upstream.source_deleted",
+            actor_account_id=source.owner_account_id,
+            action="official_upstream.source_removed",
             target_table="official_upstream_source",
             target_id=source_id,
-            payload={},
+            payload={"inventory_state": "removed"},
         )
     )
     await session.flush()

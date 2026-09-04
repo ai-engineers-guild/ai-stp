@@ -20,8 +20,10 @@ from ai_stp_contracts.reports import (
     CliReportCaseView,
     CliReportListView,
     CliReportPreview,
+    CountryRequest,
     ReportCaseCreateRequest,
     ReportCaseResponse,
+    ServiceRequest,
 )
 
 MAX_DIAGNOSTICS_BYTES = 4_000
@@ -112,11 +114,47 @@ def _diagnostics(parameters: Mapping[str, object]) -> tuple[str, bool]:
 def preview(parameters: Mapping[str, object]) -> Answer[CliReportPreview]:
     diagnostics, previewed = _diagnostics(parameters)
     snapshots = _repeated(parameters, "validation-snapshot-id")
+    topic = _optional(parameters, "topic") or "object_report"
+    service = None
+    country = None
+    if topic == "service_request":
+        service = ServiceRequest(
+            name=_required(parameters, "service-name"),
+            primary_url=_required(parameters, "primary-url"),
+            description_ru=_required(parameters, "description-ru"),
+            description_en=_required(parameters, "description-en"),
+            source_url=_required(parameters, "source-url"),
+            country_codes=[code.upper() for code in _repeated(parameters, "country-code")],
+        )
+    elif topic == "country_request":
+        country_codes = _repeated(parameters, "country-code")
+        if len(country_codes) != 1:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "country_request requires exactly one --country-code",
+            )
+        country = CountryRequest(
+            code=country_codes[0].upper(),
+            name_ru=_required(parameters, "name-ru"),
+            name_en=_required(parameters, "name-en"),
+        )
+    object_topics = {"object_report", "component_complaint", "ownership_transfer"}
     request = ReportCaseCreateRequest(
-        object_kind=_required(parameters, "kind"),  # pyright: ignore[reportArgumentType]
-        stable_id=_required(parameters, "id"),
-        version=_required(parameters, "version"),
-        content_digest=_required(parameters, "content-digest"),
+        topic=topic,  # pyright: ignore[reportArgumentType]
+        object_kind=(_required(parameters, "kind") if topic == "object_report" else None),  # pyright: ignore[reportArgumentType]
+        stable_id=_required(parameters, "id") if topic in object_topics else None,
+        version=_required(parameters, "version") if topic == "object_report" else None,
+        content_digest=(
+            _required(parameters, "content-digest") if topic == "object_report" else None
+        ),
+        service=service,
+        country=country,
+        subject=_optional(parameters, "subject"),
+        message=_optional(parameters, "message"),
+        evidence=_optional(parameters, "evidence"),
+        recipient_account_id=_optional(parameters, "recipient") or None,
+        author_account_id=_optional(parameters, "author") or None,
+        locale=(_optional(parameters, "locale") or "en"),  # pyright: ignore[reportArgumentType]
         harness_id=_optional(parameters, "harness-id"),
         harness_version=_optional(parameters, "harness-version"),
         provider_version=_optional(parameters, "provider-version"),
@@ -184,3 +222,10 @@ def list_all(_parameters: Mapping[str, object]) -> Answer[CliReportListView]:
     held = cloud_auth.required("report listing")
     result = reports.list_all(endpoint(), held.access_token)
     return Answer(CliReportListView.model_validate(result.model_dump(mode="json")))
+
+
+def status(parameters: Mapping[str, object]) -> Answer[CliReportCaseView]:
+    case_id = _required(parameters, "case-id")
+    held = cloud_auth.required("report status")
+    result = reports.read(endpoint(), held.access_token, case_id)
+    return Answer(CliReportCaseView.model_validate(result.model_dump(mode="json")))

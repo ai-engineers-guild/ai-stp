@@ -14,17 +14,20 @@ describe("CatalogQueryField", () => {
         submitLabel="Apply"
         defaultValue=""
         correctionLabel="Did you mean"
+        fieldsLabel="Fields"
+        operatorsLabel="Operators"
+        literalHint={'Quotes search a reserved word as text: "AND".'}
       />,
     );
 
     const input = screen.getByRole("combobox", { name: "Search" });
     await user.type(input, "TA");
-    expect(screen.getByRole("option", { name: "TAGS" })).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "TAGS" }));
+    expect(screen.getByRole("option", { name: "TAGS Fields" })).toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "TAGS Fields" }));
     expect(input).toHaveValue("TAGS");
-    expect(screen.getByRole("option", { name: ":" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "IN" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "AND" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^:/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "IN Operators" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "AND Operators" })).toBeInTheDocument();
 
     await user.clear(input);
     await user.type(input, "harnes:codex");

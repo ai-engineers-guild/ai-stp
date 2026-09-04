@@ -54,6 +54,22 @@ def test_query_language_keeps_ordinary_terms_as_implicit_and() -> None:
     assert not matches(parse_query("python rust"), _PASSPORT, author="nddev", verified=True)
 
 
+@pytest.mark.parametrize("word", ["AND", "OR", "NOT", "IN", "NAME"])
+def test_quoted_reserved_words_are_plain_text(word: str) -> None:
+    expression = parse_query(f'"{word}"')
+    assert expression is not None
+    assert expression.__class__.__name__ == "TextTerm"
+
+
+def test_quoted_field_name_cannot_start_a_predicate() -> None:
+    with pytest.raises(QuerySyntaxError, match="unexpected token"):
+        parse_query('"NAME":tool')
+
+
+def test_reserved_words_remain_valid_predicate_values() -> None:
+    assert matches(parse_query("NAME:AND"), {**_PASSPORT, "name": "AND"}, author="", verified=False)
+
+
 def test_query_language_blank_query_matches_every_passport() -> None:
     assert parse_query(" \n\t") is None
     assert matches(None, {}, author="", verified=False)

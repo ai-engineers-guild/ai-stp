@@ -4,6 +4,40 @@
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
     },
+    "CountryCode": {
+      "pattern": "^[A-Z]{2}$",
+      "type": "string"
+    },
+    "CountryRequest": {
+      "additionalProperties": false,
+      "description": "Localized ISO country data requested for manual addition.",
+      "properties": {
+        "code": {
+          "pattern": "^[A-Z]{2}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "name_en": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name En",
+          "type": "string"
+        },
+        "name_ru": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name Ru",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "name_ru",
+        "name_en"
+      ],
+      "title": "CountryRequest",
+      "type": "object"
+    },
     "IdempotencyKey": {
       "pattern": "^[A-Za-z0-9._~-]{16,128}$",
       "type": "string"
@@ -17,10 +51,42 @@
     },
     "ReportCaseCreateRequest": {
       "additionalProperties": false,
-      "description": "POST /v1/reports body.",
+      "description": "POST /v1/requests body; object reports remain accepted at /v1/reports.",
       "properties": {
+        "author_account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author Account Id"
+        },
         "content_digest": {
-          "$ref": "#/$defs/ContentDigest"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentDigest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "country": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CountryRequest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "diagnostics": {
           "default": "",
@@ -39,6 +105,12 @@
           "title": "Error Code",
           "type": "string"
         },
+        "evidence": {
+          "default": "",
+          "maxLength": 4000,
+          "title": "Evidence",
+          "type": "string"
+        },
         "harness_id": {
           "default": "",
           "maxLength": 64,
@@ -54,8 +126,26 @@
         "idempotency_key": {
           "$ref": "#/$defs/IdempotencyKey"
         },
+        "locale": {
+          "$ref": "#/$defs/RequestLocale",
+          "default": "en"
+        },
+        "message": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Message",
+          "type": "string"
+        },
         "object_kind": {
-          "$ref": "#/$defs/ObjectKind"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "operation_id": {
           "default": "",
@@ -69,17 +159,59 @@
           "title": "Provider Version",
           "type": "string"
         },
+        "recipient_account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recipient Account Id"
+        },
         "schema_version": {
           "const": 1,
           "default": 1,
           "title": "Schema Version",
           "type": "integer"
         },
+        "service": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ServiceRequest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "stable_id": {
-          "maxLength": 64,
-          "minLength": 8,
-          "title": "Stable Id",
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 8,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stable Id"
+        },
+        "subject": {
+          "default": "",
+          "maxLength": 160,
+          "title": "Subject",
           "type": "string"
+        },
+        "topic": {
+          "$ref": "#/$defs/RequestTopic",
+          "default": "object_report"
         },
         "validation_snapshot_ids": {
           "items": {
@@ -90,7 +222,15 @@
           "type": "array"
         },
         "version": {
-          "$ref": "#/$defs/Version"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Version"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "vulnerability": {
           "default": false,
@@ -99,13 +239,82 @@
         }
       },
       "required": [
-        "object_kind",
-        "stable_id",
-        "version",
-        "content_digest",
         "idempotency_key"
       ],
       "title": "ReportCaseCreateRequest",
+      "type": "object"
+    },
+    "RequestLocale": {
+      "enum": [
+        "ru",
+        "en"
+      ],
+      "type": "string"
+    },
+    "RequestTopic": {
+      "enum": [
+        "object_report",
+        "service_request",
+        "country_request",
+        "component_complaint",
+        "author_complaint",
+        "ownership_transfer",
+        "verification_request",
+        "other"
+      ],
+      "type": "string"
+    },
+    "ServiceRequest": {
+      "additionalProperties": false,
+      "description": "Data needed for an operator to add a service manually.",
+      "properties": {
+        "country_codes": {
+          "items": {
+            "$ref": "#/$defs/CountryCode"
+          },
+          "maxItems": 249,
+          "title": "Country Codes",
+          "type": "array"
+        },
+        "description_en": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Description En",
+          "type": "string"
+        },
+        "description_ru": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Description Ru",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "primary_url": {
+          "maxLength": 512,
+          "pattern": "^https://",
+          "title": "Primary Url",
+          "type": "string"
+        },
+        "source_url": {
+          "maxLength": 512,
+          "pattern": "^https://",
+          "title": "Source Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "primary_url",
+        "description_ru",
+        "description_en",
+        "source_url"
+      ],
+      "title": "ServiceRequest",
       "type": "object"
     },
     "Version": {

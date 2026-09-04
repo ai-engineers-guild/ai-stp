@@ -46,9 +46,13 @@ AUTHORING_TYPE_LANGUAGE_MATRIX: Final[dict[ComponentType, tuple[AuthoringLanguag
 }
 
 type ComponentTemplateVersion = Literal[
-    "component-scaffold/1", "component-scaffold/2", "component-scaffold/3", "component-scaffold/4"
+    "component-scaffold/1",
+    "component-scaffold/2",
+    "component-scaffold/3",
+    "component-scaffold/4",
+    "component-scaffold/5",
 ]
-type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4"]
+type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4", "ai-stp/5"]
 type SetupTemplateVersion = Literal["setup-scaffold/1"]
 type SetupGeneratorVersion = Literal["ai-stp/1"]
 type GitInitReason = Literal["existing_worktree", "missing_identity", "git_unavailable"]
@@ -80,8 +84,8 @@ class ComponentTemplateDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    template_version: ComponentTemplateVersion = "component-scaffold/4"
-    generator_version: ComponentGeneratorVersion = "ai-stp/4"
+    template_version: ComponentTemplateVersion = "component-scaffold/5"
+    generator_version: ComponentGeneratorVersion = "ai-stp/5"
     component_type: ComponentType
     language: AuthoringLanguage
     harness_variant: AuthoringVariant
@@ -157,8 +161,8 @@ class ComponentScaffoldResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=6)]
-    template_version: ComponentTemplateVersion = "component-scaffold/4"
-    generator_version: ComponentGeneratorVersion = "ai-stp/4"
+    template_version: ComponentTemplateVersion = "component-scaffold/5"
+    generator_version: ComponentGeneratorVersion = "ai-stp/5"
 
 
 class SetupMemberDescriptor(BaseModel):

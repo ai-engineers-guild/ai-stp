@@ -21,7 +21,7 @@ from ai_stp_contracts.evaluation import SetupEvalProfile
 from ai_stp_foundation.canonical import from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
 
-SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v4.json"
+SCAFFOLD_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v5.json"
 HISTORICAL_V2_GOLDEN = Path(__file__).parents[1] / "golden" / "cli" / "component-scaffold-v2.json"
 REFERENCE_CASES = {
     "instruction-none-portable": ("instruction", "none", "portable"),
@@ -222,8 +222,8 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     )
     assert plan.publication_ready is False
     assert plan.requires_exact_source_before_publication is True
-    assert plan.descriptor.template_version == "component-scaffold/4"
-    assert plan.descriptor.generator_version == "ai-stp/4"
+    assert plan.descriptor.template_version == "component-scaffold/5"
+    assert plan.descriptor.generator_version == "ai-stp/5"
     assert any(path.startswith("projections/") for path in files) is (harness != "portable")
     assert all(not path.startswith("native/") for path in files)
     assert "component.json" in files
@@ -363,6 +363,55 @@ def test_scaffold_skill_declares_the_projection_root_not_the_entry_file(tmp_path
     passport = json.loads(files["component-passport.json"].decode())
     assert passport["managed_paths"] == ["skills/review-kit"]
     assert passport["entry_points"] == ["SKILL.md"]
+    assert {
+        "source/SKILL.md",
+        "source/references/REFERENCE.md",
+        "source/scripts/validate.py",
+        "source/assets/example-input.json",
+    } <= set(files)
+    assert "references/REFERENCE.md" in files["source/SKILL.md"].decode()
+
+
+def test_instruction_keeps_agents_source_and_claude_import_shim(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="instruction",
+        name="review-kit",
+        language="none",
+        harness_variant="claude-code",
+        output=tmp_path / "review-kit",
+    )
+
+    assert "source/AGENTS.md" in files
+    assert files["source/CLAUDE.md"] == b"# Claude Code instructions\n\n@AGENTS.md\n"
+    assert files["projections/claude-code/CLAUDE.md"] == files["source/CLAUDE.md"]
+    assert files["projections/claude-code/AGENTS.md"] == files["source/AGENTS.md"]
+    passport = json.loads(files["component-passport.json"])
+    assert passport["managed_paths"] == ["CLAUDE.md", "AGENTS.md"]
+
+
+def test_skill_example_script_is_runnable_and_assets_are_local(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="skill",
+        name="review-kit",
+        language="none",
+        harness_variant="portable",
+        output=tmp_path / "review-kit",
+    )
+    root = tmp_path / "skill"
+    for path, payload in files.items():
+        if path.startswith("source/"):
+            target = root / path.removeprefix("source/")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(payload)
+    result = subprocess.run(
+        ["python", "scripts/validate.py"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "example-input.json: valid" in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -600,6 +649,34 @@ def test_plugin_scaffold_uses_manifest_packages_and_bare_modules(tmp_path: Path)
         assert "native/settings.json" not in files
 
 
+def test_javascript_plugin_entrypoint_is_loadable(tmp_path: Path) -> None:
+    _plan, files = authoring.scaffold_plan(
+        component_type="plugin",
+        name="review-kit",
+        language="javascript",
+        harness_variant="opencode",
+        output=tmp_path / "plugin",
+    )
+    entry = tmp_path / "review-kit.js"
+    entry.write_bytes(files["projections/opencode/review-kit.js"])
+    script = (
+        "const plugin=require(process.argv[1]); "
+        "if (plugin.activate().status !== 'ready') process.exit(2)"
+    )
+    result = subprocess.run(
+        [
+            "node",
+            "-e",
+            script,
+            str(entry),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_marketplace_registration_belongs_to_setting_not_plugin(tmp_path: Path) -> None:
     _plugin_plan, plugin = authoring.scaffold_plan(
         component_type="plugin",
@@ -642,8 +719,8 @@ def test_scaffold_fails_before_writing_when_native_semantics_do_not_exist(
 
 def test_versioned_reference_scaffolds_match_the_reviewed_golden(tmp_path: Path) -> None:
     golden = json.loads(SCAFFOLD_GOLDEN.read_text(encoding="utf-8"))
-    assert golden["template_version"] == "component-scaffold/4"
-    assert golden["generator_version"] == "ai-stp/4"
+    assert golden["template_version"] == "component-scaffold/5"
+    assert golden["generator_version"] == "ai-stp/5"
     observed: dict[str, dict[str, str]] = {}
     for case, (component_type, language, harness) in REFERENCE_CASES.items():
         plan, _files = authoring.scaffold_plan(
@@ -671,6 +748,7 @@ def test_historical_scaffold_descriptor_versions_remain_validatable() -> None:
         ("component-scaffold/2", "ai-stp/2"),
         ("component-scaffold/3", "ai-stp/3"),
         ("component-scaffold/4", "ai-stp/4"),
+        ("component-scaffold/5", "ai-stp/5"),
     ):
         ComponentTemplateDescriptor.model_validate(
             {

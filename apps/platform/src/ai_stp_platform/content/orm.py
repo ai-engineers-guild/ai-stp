@@ -75,6 +75,8 @@ class ArticleRevision(Base):
     source_kind: Mapped[str] = mapped_column(String(16))
     source_ref: Mapped[str | None] = mapped_column(String(40), nullable=True)
     source_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    cover_image: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    cover_alt: Mapped[str | None] = mapped_column(String(200), nullable=True)
     actor_account_id: Mapped[str | None] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="SET NULL"), nullable=True
     )

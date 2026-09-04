@@ -1,6 +1,6 @@
 ---
 description: "Mutable component presentation in the catalog without changing the version passport."
-last_verified: "2026-08-10"
+last_verified: "2026-09-04"
 ---
 
 # Component presentation
@@ -22,8 +22,14 @@ the immutable passport. Changing the presentation does not create a version or c
 - a missing object and access by another account both produce the same `404`;
 - cookie-authenticated mutating routes require double-submit CSRF.
 
-The request has `schema_version: 1`, a `bio` of up to 2000 characters, and no more
-than five `media` items. An item contains `kind`, `url`, required `alt`, and optional
+The request has `schema_version: 1`, a `bio` of up to 2000 normalized UTF-8
+characters, and no more than five `media` items. Bio text accepts Unicode
+letters/digits, whitespace, and basic ASCII punctuation only; invisible,
+typographic, markup, unsafe-URI, profanity, sexual content/services,
+threat/violence, extremism, and military-action markers are rejected.
+Prohibited-content markers are matched as complete words or explicit phrases at
+word boundaries; roots and suffixes are not matched.
+An item contains `kind`, `url`, required `alt`, and optional
 `caption`. For `youtube`, the `url` field contains an 11-character video ID. For
 `image` and `video`, the following are allowed:
 

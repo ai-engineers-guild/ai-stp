@@ -20,8 +20,9 @@ repository-relative `source_path` below `docs-user-facing/content`; a staff revi
 publish the actor ID.
 
 A localized revision has `revision_id` and `content_digest`. The canonical digest
-covers `type`, `slug`, `locale`, `title`, `description`, `published_at`, ordered
-tags, the Markdown body, and public provenance. The active digest covers the
+The canonical digest covers `type`, `slug`, `locale`, `title`, `description`,
+`published_at`, ordered tags, the Markdown body, cover metadata, and public
+provenance. The active digest covers the
 exact RU/EN revision identifiers of one Article.
 
 ## Shared localized entry
@@ -39,10 +40,22 @@ content_digest   = canonical digest of all public revision fields
 source_kind      = repository | staff
 source_ref       = exact commit for repository, absent for staff
 source_path      = repository-relative path for repository, absent for staff
+cover_image      = /content/illustrations/<safe-file>, or absent
+cover_alt        = 1..200 characters, or absent
 ```
 
 Unknown request fields, duplicate tags, invalid dates, raw HTML, unsafe URLs,
 and locale sets other than the exact `ru` plus `en` pair are rejected.
+
+Repository `slug` may be omitted: import derives the same lowercase ASCII SEO
+slug for both locales from the English sibling title. Explicit slugs remain
+preferred for stable routes.
+
+Article bodies preserve authored Markdown and support h1–h4, nested ordered and
+unordered lists, GFM tables, heading anchors, italic/bold/underline/strike
+text, local images, and safe video markers:
+`@[youtube](https://www.youtube.com/watch?v=...)` and
+`@[vimeo](https://vimeo.com/...)`. Remote page previews are not fetched.
 
 ## Repository snapshot v1
 
@@ -90,7 +103,7 @@ translations            = exact object {ru, en}
 ```
 
 Each translation contains `title`, `description`, `published_at`, `tags`, and
-`body`. The operation creates and activates both localized revisions in one
+`body`, with optional local `cover_image` and `cover_alt`. The operation creates and activates both localized revisions in one
 transaction. The response contains `article_id`, `active_digest`, RU/EN
 `revision_id`, and the public article representation.
 
@@ -114,7 +127,8 @@ ascending article identity.
 The summary response contains `type`, `slug`, `locale`, `title`, `description`,
 `published_at`, `tags`, `revision_id`, `content_digest`, and `source_kind`. Detail
 adds the Markdown `body`; exact `source_ref` and `source_path` are added for
-`repository`. The public response contains no inactive revisions, actor ID, or
+`repository`. Both summary and detail may include `cover_image` and `cover_alt`.
+The public response contains no inactive revisions, actor ID, or
 audit fields.
 
 Both responses have a public `ETag` computed from the active generation/digest

@@ -107,6 +107,41 @@
         "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
         "type": "string"
       },
+      "AccountIdentityUpdate": {
+        "additionalProperties": false,
+        "description": "Replace the current account public handle and display name.",
+        "properties": {
+          "display_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "handle": {
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[a-z](?:[a-z0-9]|-[a-z0-9]){0,31}$",
+            "title": "Handle",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "handle",
+          "display_name",
+          "idempotency_key"
+        ],
+        "title": "AccountIdentityUpdate",
+        "type": "object"
+      },
       "AccountImpactStatus": {
         "enum": [
           "ready",
@@ -156,6 +191,18 @@
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "display_name": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "handle": {
+            "default": "",
+            "maxLength": 32,
+            "title": "Handle",
+            "type": "string"
+          },
           "identities": {
             "items": {
               "$ref": "#/components/schemas/LinkedIdentity"
@@ -180,6 +227,8 @@
           "account_id",
           "allow_publisher_listing",
           "created_at",
+          "display_name",
+          "handle",
           "identities",
           "schema_version",
           "show_profile_publicly"
@@ -1783,7 +1832,7 @@
             "items": {
               "$ref": "#/components/schemas/TagId"
             },
-            "maxItems": 8,
+            "maxItems": 10,
             "title": "Tags",
             "type": "array"
           },
@@ -1822,6 +1871,28 @@
         "additionalProperties": true,
         "description": "Search-result card for a component.\n\nNaming is mechanical rather than a judgement call: a field without a prefix\nidentifies the **object**, and every `latest_` field is a fact of its latest\noffered **version**, copied from that version's passport. There is no\nobject-level passport (ADR-0012), so a card cannot carry an object-level\n`name` or `tags` however stable they look in practice — and a test ties\nevery `latest_` field back to a real passport field so the rule cannot rot.",
         "properties": {
+          "canonical_name": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Canonical Name",
+            "type": "string"
+          },
+          "display_locale": {
+            "default": "",
+            "enum": [
+              "ru",
+              "en",
+              ""
+            ],
+            "title": "Display Locale",
+            "type": "string"
+          },
+          "display_name": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Display Name",
+            "type": "string"
+          },
           "github_stars": {
             "anyOf": [
               {
@@ -1905,6 +1976,18 @@
             "title": "Likes Count",
             "type": "integer"
           },
+          "owner_account_id": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Owner Account Id",
+            "type": "string"
+          },
+          "owner_handle": {
+            "default": "",
+            "maxLength": 32,
+            "title": "Owner Handle",
+            "type": "string"
+          },
           "publisher_id": {
             "maxLength": 128,
             "minLength": 1,
@@ -1936,6 +2019,9 @@
           }
         },
         "required": [
+          "canonical_name",
+          "display_locale",
+          "display_name",
           "github_stars",
           "latest_checks",
           "latest_component_type",
@@ -1953,6 +2039,8 @@
           "latest_trust",
           "latest_version",
           "likes_count",
+          "owner_account_id",
+          "owner_handle",
           "publisher_id",
           "schema_version",
           "stable_id",
@@ -2210,7 +2298,7 @@
             "items": {
               "$ref": "#/components/schemas/TagId"
             },
-            "maxItems": 8,
+            "maxItems": 10,
             "minItems": 1,
             "title": "Tags",
             "type": "array"
@@ -2405,6 +2493,28 @@
           "content_digest": {
             "$ref": "#/components/schemas/DigestValue"
           },
+          "cover_alt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentImageAlt"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "cover_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentImage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "description": {
             "$ref": "#/components/schemas/ContentDescription"
           },
@@ -2470,6 +2580,8 @@
         "required": [
           "body",
           "content_digest",
+          "cover_alt",
+          "cover_image",
           "description",
           "locale",
           "published_at",
@@ -2488,6 +2600,16 @@
       },
       "ContentDigest": {
         "pattern": "^sha256:[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "ContentImage": {
+        "maxLength": 512,
+        "pattern": "^/content/illustrations/[a-z0-9._-]+\\.(?:svg|png|jpg|jpeg|webp|gif)$",
+        "type": "string"
+      },
+      "ContentImageAlt": {
+        "maxLength": 200,
+        "minLength": 1,
         "type": "string"
       },
       "ContentListResponse": {
@@ -2697,6 +2819,28 @@
           "content_digest": {
             "$ref": "#/components/schemas/DigestValue"
           },
+          "cover_alt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentImageAlt"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "cover_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentImage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "description": {
             "$ref": "#/components/schemas/ContentDescription"
           },
@@ -2769,6 +2913,28 @@
           "content_digest": {
             "$ref": "#/components/schemas/DigestValue"
           },
+          "cover_alt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentImageAlt"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "cover_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentImage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "description": {
             "$ref": "#/components/schemas/ContentDescription"
           },
@@ -2810,6 +2976,8 @@
         },
         "required": [
           "content_digest",
+          "cover_alt",
+          "cover_image",
           "description",
           "locale",
           "published_at",
@@ -2904,6 +3072,36 @@
       "CountryFilterValue": {
         "pattern": "^(?:[A-Z]{2}|unspecified)$",
         "type": "string"
+      },
+      "CountryRequest": {
+        "additionalProperties": false,
+        "description": "Localized ISO country data requested for manual addition.",
+        "properties": {
+          "code": {
+            "pattern": "^[A-Z]{2}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "name_en": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name En",
+            "type": "string"
+          },
+          "name_ru": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name Ru",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name_ru",
+          "name_en"
+        ],
+        "title": "CountryRequest",
+        "type": "object"
       },
       "Cursor": {
         "pattern": "^[A-Za-z0-9_-]{1,512}$",
@@ -5103,33 +5301,6 @@
         "title": "OwnershipClaimCreateRequest",
         "type": "object"
       },
-      "OwnershipClaimDecisionRequest": {
-        "additionalProperties": false,
-        "description": "POST /v1/staff/ownership-claims/{claim_id}/approve or /deny body.",
-        "properties": {
-          "idempotency_key": {
-            "$ref": "#/components/schemas/IdempotencyKey"
-          },
-          "reason": {
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Reason",
-            "type": "string"
-          },
-          "schema_version": {
-            "const": 1,
-            "default": 1,
-            "title": "Schema Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "reason",
-          "idempotency_key"
-        ],
-        "title": "OwnershipClaimDecisionRequest",
-        "type": "object"
-      },
       "OwnershipClaimPreview": {
         "additionalProperties": true,
         "description": "Exact object and major lines that a claim would transfer.",
@@ -5332,8 +5503,16 @@
         "description": "One immutable ownership revision. Published version passports are unchanged.",
         "properties": {
           "claim_id": {
-            "title": "Claim Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Claim Id"
           },
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
@@ -5920,10 +6099,42 @@
       },
       "ReportCaseCreateRequest": {
         "additionalProperties": false,
-        "description": "POST /v1/reports body.",
+        "description": "POST /v1/requests body; object reports remain accepted at /v1/reports.",
         "properties": {
+          "author_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Author Account Id"
+          },
           "content_digest": {
-            "$ref": "#/components/schemas/ContentDigest"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentDigest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "country": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CountryRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "diagnostics": {
             "default": "",
@@ -5942,6 +6153,12 @@
             "title": "Error Code",
             "type": "string"
           },
+          "evidence": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Evidence",
+            "type": "string"
+          },
           "harness_id": {
             "default": "",
             "maxLength": 64,
@@ -5957,8 +6174,26 @@
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
+          "locale": {
+            "$ref": "#/components/schemas/RequestLocale",
+            "default": "en"
+          },
+          "message": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Message",
+            "type": "string"
+          },
           "object_kind": {
-            "$ref": "#/components/schemas/ObjectKind"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "operation_id": {
             "default": "",
@@ -5972,17 +6207,59 @@
             "title": "Provider Version",
             "type": "string"
           },
+          "recipient_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recipient Account Id"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
           },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "stable_id": {
-            "maxLength": 64,
-            "minLength": 8,
-            "title": "Stable Id",
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Stable Id"
+          },
+          "subject": {
+            "default": "",
+            "maxLength": 160,
+            "title": "Subject",
             "type": "string"
+          },
+          "topic": {
+            "$ref": "#/components/schemas/RequestTopic",
+            "default": "object_report"
           },
           "validation_snapshot_ids": {
             "items": {
@@ -5993,7 +6270,15 @@
             "type": "array"
           },
           "version": {
-            "$ref": "#/components/schemas/ai_stp_contracts__reports__Version"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ai_stp_contracts__reports__Version"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "vulnerability": {
             "default": false,
@@ -6002,10 +6287,6 @@
           }
         },
         "required": [
-          "object_kind",
-          "stable_id",
-          "version",
-          "content_digest",
           "idempotency_key"
         ],
         "title": "ReportCaseCreateRequest",
@@ -6049,8 +6330,22 @@
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
+          "locale": {
+            "$ref": "#/components/schemas/RequestLocale",
+            "default": "en"
+          },
           "object_kind": {
-            "$ref": "#/components/schemas/ObjectKind"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectKind"
+              },
+              {
+                "const": "",
+                "type": "string"
+              }
+            ],
+            "default": "",
+            "title": "Object Kind"
           },
           "schema_version": {
             "const": 1,
@@ -6059,14 +6354,29 @@
             "type": "integer"
           },
           "stable_id": {
+            "default": "",
             "title": "Stable Id",
             "type": "string"
           },
           "state": {
             "$ref": "#/components/schemas/ReportState"
           },
+          "topic": {
+            "$ref": "#/components/schemas/RequestTopic",
+            "default": "object_report"
+          },
           "version": {
-            "$ref": "#/components/schemas/ai_stp_contracts__reports__Version"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ai_stp_contracts__reports__Version"
+              },
+              {
+                "const": "",
+                "type": "string"
+              }
+            ],
+            "default": "",
+            "title": "Version"
           },
           "vulnerability": {
             "default": false,
@@ -6077,10 +6387,12 @@
         "required": [
           "case_id",
           "created_at",
+          "locale",
           "object_kind",
           "schema_version",
           "stable_id",
           "state",
+          "topic",
           "version",
           "vulnerability"
         ],
@@ -6100,6 +6412,26 @@
       },
       "RequestId": {
         "pattern": "^request_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "RequestLocale": {
+        "enum": [
+          "ru",
+          "en"
+        ],
+        "type": "string"
+      },
+      "RequestTopic": {
+        "enum": [
+          "object_report",
+          "service_request",
+          "country_request",
+          "component_complaint",
+          "author_complaint",
+          "ownership_transfer",
+          "verification_request",
+          "other"
+        ],
         "type": "string"
       },
       "RevisionId": {
@@ -7251,6 +7583,59 @@
         "title": "SeoSubjectRef",
         "type": "object"
       },
+      "ServiceRequest": {
+        "additionalProperties": false,
+        "description": "Data needed for an operator to add a service manually.",
+        "properties": {
+          "country_codes": {
+            "items": {
+              "$ref": "#/components/schemas/CountryCode"
+            },
+            "maxItems": 249,
+            "title": "Country Codes",
+            "type": "array"
+          },
+          "description_en": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Description En",
+            "type": "string"
+          },
+          "description_ru": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Description Ru",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "primary_url": {
+            "maxLength": 512,
+            "pattern": "^https://",
+            "title": "Primary Url",
+            "type": "string"
+          },
+          "source_url": {
+            "maxLength": 512,
+            "pattern": "^https://",
+            "title": "Source Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "primary_url",
+          "description_ru",
+          "description_en",
+          "source_url"
+        ],
+        "title": "ServiceRequest",
+        "type": "object"
+      },
       "SetupComponentChecks": {
         "additionalProperties": true,
         "description": "Checks for one exact component snapshot inside a setup.",
@@ -7706,7 +8091,7 @@
             "items": {
               "$ref": "#/components/schemas/TagId"
             },
-            "maxItems": 8,
+            "maxItems": 10,
             "title": "Tags",
             "type": "array"
           },
@@ -8153,7 +8538,7 @@
             "items": {
               "$ref": "#/components/schemas/TagId"
             },
-            "maxItems": 8,
+            "maxItems": 10,
             "minItems": 1,
             "title": "Tags",
             "type": "array"
@@ -8330,45 +8715,6 @@
         "title": "StaffActionResponse",
         "type": "object"
       },
-      "StaffAuthorVerifiedRequest": {
-        "additionalProperties": false,
-        "description": "POST /v1/staff/author-verified body.",
-        "properties": {
-          "idempotency_key": {
-            "$ref": "#/components/schemas/IdempotencyKey"
-          },
-          "reason": {
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Reason",
-            "type": "string"
-          },
-          "schema_version": {
-            "const": 1,
-            "default": 1,
-            "title": "Schema Version",
-            "type": "integer"
-          },
-          "subject_account_id": {
-            "maxLength": 64,
-            "minLength": 8,
-            "title": "Subject Account Id",
-            "type": "string"
-          },
-          "verified": {
-            "title": "Verified",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "subject_account_id",
-          "verified",
-          "reason",
-          "idempotency_key"
-        ],
-        "title": "StaffAuthorVerifiedRequest",
-        "type": "object"
-      },
       "StaffContentPublishRequest": {
         "additionalProperties": false,
         "description": "Atomic staff publication of one article identity.",
@@ -8456,6 +8802,28 @@
         "properties": {
           "body": {
             "$ref": "#/components/schemas/ContentBody"
+          },
+          "cover_alt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentImageAlt"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "cover_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentImage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "description": {
             "$ref": "#/components/schemas/ContentDescription"
@@ -8650,7 +9018,22 @@
             "type": "string"
           },
           "object_kind": {
-            "$ref": "#/components/schemas/ObjectKind"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectKind"
+              },
+              {
+                "const": "",
+                "type": "string"
+              }
+            ],
+            "default": "",
+            "title": "Object Kind"
+          },
+          "request_payload": {
+            "additionalProperties": true,
+            "title": "Request Payload",
+            "type": "object"
           },
           "schema_version": {
             "const": 1,
@@ -8659,8 +9042,8 @@
             "type": "integer"
           },
           "stable_id": {
+            "default": "",
             "maxLength": 64,
-            "minLength": 8,
             "title": "Stable Id",
             "type": "string"
           },
@@ -8670,8 +9053,33 @@
             "title": "State",
             "type": "string"
           },
+          "topic": {
+            "default": "object_report",
+            "enum": [
+              "object_report",
+              "service_request",
+              "country_request",
+              "component_complaint",
+              "author_complaint",
+              "ownership_transfer",
+              "verification_request",
+              "other"
+            ],
+            "title": "Topic",
+            "type": "string"
+          },
           "version": {
-            "$ref": "#/components/schemas/ai_stp_contracts__owner__Version"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ai_stp_contracts__owner__Version"
+              },
+              {
+                "const": "",
+                "type": "string"
+              }
+            ],
+            "default": "",
+            "title": "Version"
           },
           "vulnerability": {
             "default": false,
@@ -8686,9 +9094,11 @@
           "error_code",
           "harness_id",
           "object_kind",
+          "request_payload",
           "schema_version",
           "stable_id",
           "state",
+          "topic",
           "version",
           "vulnerability"
         ],
@@ -8778,7 +9188,17 @@
             "$ref": "#/components/schemas/Timestamp"
           },
           "object_kind": {
-            "$ref": "#/components/schemas/ObjectKind"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectKind"
+              },
+              {
+                "const": "",
+                "type": "string"
+              }
+            ],
+            "default": "",
+            "title": "Object Kind"
           },
           "schema_version": {
             "const": 1,
@@ -8787,8 +9207,8 @@
             "type": "integer"
           },
           "stable_id": {
+            "default": "",
             "maxLength": 64,
-            "minLength": 8,
             "title": "Stable Id",
             "type": "string"
           },
@@ -8798,8 +9218,33 @@
             "title": "State",
             "type": "string"
           },
+          "topic": {
+            "default": "object_report",
+            "enum": [
+              "object_report",
+              "service_request",
+              "country_request",
+              "component_complaint",
+              "author_complaint",
+              "ownership_transfer",
+              "verification_request",
+              "other"
+            ],
+            "title": "Topic",
+            "type": "string"
+          },
           "version": {
-            "$ref": "#/components/schemas/ai_stp_contracts__owner__Version"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ai_stp_contracts__owner__Version"
+              },
+              {
+                "const": "",
+                "type": "string"
+              }
+            ],
+            "default": "",
+            "title": "Version"
           },
           "vulnerability": {
             "default": false,
@@ -8815,6 +9260,7 @@
           "schema_version",
           "stable_id",
           "state",
+          "topic",
           "version",
           "vulnerability"
         ],
@@ -9410,6 +9856,8 @@
         "type": "object"
       },
       "TagId": {
+        "maxLength": 32,
+        "minLength": 2,
         "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
         "type": "string"
       },
@@ -9417,7 +9865,7 @@
         "items": {
           "$ref": "#/components/schemas/TagId"
         },
-        "maxItems": 8,
+        "maxItems": 10,
         "minItems": 1,
         "type": "array"
       },
@@ -10757,6 +11205,209 @@
           }
         ],
         "summary": "Unlink one OAuth identity. The last linked identity cannot be removed."
+      }
+    },
+    "/v1/account/identity": {
+      "put": {
+        "operationId": "updateAccountIdentity",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountIdentityUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountProfile"
+                }
+              }
+            },
+            "description": "Replace the current unique public handle and display name.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT, AI_STP_HANDLE_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Replace the current unique public handle and display name."
       }
     },
     "/v1/account/privacy": {
@@ -12379,7 +13030,7 @@
               "items": {
                 "$ref": "#/components/schemas/TagId"
               },
-              "maxItems": 8,
+              "maxItems": 10,
               "title": "Tags",
               "type": "array"
             }
@@ -13888,7 +14539,7 @@
               "items": {
                 "$ref": "#/components/schemas/TagId"
               },
-              "maxItems": 8,
+              "maxItems": 10,
               "title": "Tags",
               "type": "array"
             }
@@ -19958,7 +20609,7 @@
                 }
               }
             },
-            "description": "Request transfer of an official catalog component to a verified maintainer.",
+            "description": "Compatibility entry that records an ownership-transfer request without granting it.",
             "headers": {
               "X-Operation-Id": {
                 "description": "Durable operation id of this mutation.",
@@ -20153,7 +20804,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Request transfer of an official catalog component to a verified maintainer."
+        "summary": "Compatibility entry that records an ownership-transfer request without granting it."
       }
     },
     "/v1/ownership-claims/{claim_id}": {
@@ -21776,6 +22427,533 @@
         "summary": "Create a closed report case for one exact version."
       }
     },
+    "/v1/requests": {
+      "get": {
+        "operationId": "listRequestCases",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportCaseListResponse"
+                }
+              }
+            },
+            "description": "List the caller's own request cases.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List the caller's own request cases."
+      },
+      "post": {
+        "operationId": "createRequestCase",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportCaseCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportCaseResponse"
+                }
+              }
+            },
+            "description": "Create a private request case for any shared topic.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create a private request case for any shared topic."
+      }
+    },
+    "/v1/requests/{case_id}": {
+      "get": {
+        "operationId": "readRequestCase",
+        "parameters": [
+          {
+            "description": "Request case identifier.",
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._~-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportCaseResponse"
+                }
+              }
+            },
+            "description": "Read one of the caller's own request cases.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read one of the caller's own request cases."
+      }
+    },
     "/v1/selection/impact": {
       "get": {
         "operationId": "readSelectionImpact",
@@ -23254,231 +24432,6 @@
         "summary": "Point one subject locale at its last valid base SEO revision."
       }
     },
-    "/v1/staff/author-verified": {
-      "post": {
-        "operationId": "staffAuthorVerified",
-        "parameters": [
-          {
-            "description": "Wire major the client speaks. An unknown one fails typed.",
-            "in": "header",
-            "name": "X-AI-STP-Schema-Version",
-            "required": false,
-            "schema": {
-              "const": 1,
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Client-chosen key; a retry must not become a second effect.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "examples": {
-                "staffAuthorVerified.issue": {
-                  "summary": "Staff issues author_verified for an account with a reason.",
-                  "value": {
-                    "idempotency_key": "authorkey00000001",
-                    "reason": "github-org-ownership",
-                    "schema_version": 1,
-                    "subject_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                    "verified": true
-                  }
-                }
-              },
-              "schema": {
-                "$ref": "#/components/schemas/StaffAuthorVerifiedRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "examples": {
-                  "staffAuthorVerified.issue": {
-                    "summary": "Staff issues author_verified for an account with a reason.",
-                    "value": {
-                      "action": "author_verified_issue",
-                      "applied": true,
-                      "schema_version": 1
-                    }
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/StaffActionResponse"
-                }
-              }
-            },
-            "description": "Issue or revoke author_verified for an account.",
-            "headers": {
-              "X-Operation-Id": {
-                "description": "Durable operation id of this mutation.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "X-Request-Id": {
-                "description": "Correlation id, echoed or minted.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Issue or revoke author_verified for an account."
-      }
-    },
     "/v1/staff/content/{type}/{slug}": {
       "delete": {
         "operationId": "deleteStaffContent",
@@ -24041,560 +24994,6 @@
           }
         ],
         "summary": "Publish an exact RU/EN staff article pair."
-      }
-    },
-    "/v1/staff/ownership-claims/{claim_id}/approve": {
-      "post": {
-        "operationId": "approveOwnershipClaim",
-        "parameters": [
-          {
-            "description": "Typed operation identifier of the ownership claim.",
-            "in": "path",
-            "name": "claim_id",
-            "required": true,
-            "schema": {
-              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Wire major the client speaks. An unknown one fails typed.",
-            "in": "header",
-            "name": "X-AI-STP-Schema-Version",
-            "required": false,
-            "schema": {
-              "const": 1,
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Client-chosen key; a retry must not become a second effect.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "examples": {
-                "approveOwnershipClaim.applied": {
-                  "summary": "Staff approval transfers catalog owner columns and records an immutable revision without rewriting published passports.",
-                  "value": {
-                    "idempotency_key": "approvekey00000001",
-                    "reason": "staff-verified",
-                    "schema_version": 1
-                  }
-                }
-              },
-              "schema": {
-                "$ref": "#/components/schemas/OwnershipClaimDecisionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "examples": {
-                  "approveOwnershipClaim.applied": {
-                    "summary": "Staff approval transfers catalog owner columns and records an immutable revision without rewriting published passports.",
-                    "value": {
-                      "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                      "created_at": "2026-08-10T00:00:00.000Z",
-                      "decided_at": "2026-08-10T01:00:00.000Z",
-                      "decision_reason": "staff-verified",
-                      "evidence": "github-commits",
-                      "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
-                      "preview": {
-                        "current_owner_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
-                        "major_lines": [
-                          1,
-                          2
-                        ],
-                        "name": "official-skill",
-                        "object_kind": "component",
-                        "schema_version": 1,
-                        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                        "versions": [
-                          "1.0",
-                          "2.0"
-                        ]
-                      },
-                      "reason": "upstream-maintainer",
-                      "requester_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                      "schema_version": 1,
-                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                      "staff_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8Z",
-                      "state": "approved",
-                      "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-                    }
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/OwnershipClaimResponse"
-                }
-              }
-            },
-            "description": "Approve a verified-maintainer claim without rewriting published passports.",
-            "headers": {
-              "X-Operation-Id": {
-                "description": "Durable operation id of this mutation.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "X-Request-Id": {
-                "description": "Correlation id, echoed or minted.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Approve a verified-maintainer claim without rewriting published passports."
-      }
-    },
-    "/v1/staff/ownership-claims/{claim_id}/deny": {
-      "post": {
-        "operationId": "denyOwnershipClaim",
-        "parameters": [
-          {
-            "description": "Typed operation identifier of the ownership claim.",
-            "in": "path",
-            "name": "claim_id",
-            "required": true,
-            "schema": {
-              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Wire major the client speaks. An unknown one fails typed.",
-            "in": "header",
-            "name": "X-AI-STP-Schema-Version",
-            "required": false,
-            "schema": {
-              "const": 1,
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Client-chosen key; a retry must not become a second effect.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "examples": {
-                "denyOwnershipClaim.denied": {
-                  "summary": "Staff denial records the decision and has no catalog effect.",
-                  "value": {
-                    "idempotency_key": "denykey0000000001",
-                    "reason": "insufficient-evidence",
-                    "schema_version": 1
-                  }
-                }
-              },
-              "schema": {
-                "$ref": "#/components/schemas/OwnershipClaimDecisionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "examples": {
-                  "denyOwnershipClaim.denied": {
-                    "summary": "Staff denial records the decision and has no catalog effect.",
-                    "value": {
-                      "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y8A",
-                      "created_at": "2026-08-10T00:00:00.000Z",
-                      "decided_at": "2026-08-10T01:00:00.000Z",
-                      "decision_reason": "insufficient-evidence",
-                      "evidence": "github-commits",
-                      "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
-                      "preview": {
-                        "current_owner_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
-                        "major_lines": [
-                          1,
-                          2
-                        ],
-                        "name": "official-skill",
-                        "object_kind": "component",
-                        "schema_version": 1,
-                        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                        "versions": [
-                          "1.0",
-                          "2.0"
-                        ]
-                      },
-                      "reason": "upstream-maintainer",
-                      "requester_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                      "schema_version": 1,
-                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                      "staff_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8Z",
-                      "state": "denied",
-                      "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-                    }
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/OwnershipClaimResponse"
-                }
-              }
-            },
-            "description": "Deny a verified-maintainer claim with no catalog effect.",
-            "headers": {
-              "X-Operation-Id": {
-                "description": "Durable operation id of this mutation.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "X-Request-Id": {
-                "description": "Correlation id, echoed or minted.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Correlation id.",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Deny a verified-maintainer claim with no catalog effect."
       }
     },
     "/v1/staff/reports": {

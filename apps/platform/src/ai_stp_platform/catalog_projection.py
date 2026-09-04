@@ -323,6 +323,11 @@ def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> 
     return ComponentSummary(
         stable_id=passport.stable_id,  # type: ignore[arg-type]
         publisher_id=row.metadata.owner_account_id,
+        owner_account_id=row.metadata.owner_account_id,
+        owner_handle=row.owner_handle,
+        canonical_name=row.canonical_name,
+        display_name=row.display_name,
+        display_locale=row.display_locale or "",  # type: ignore[arg-type]
         likes_count=row.metadata.likes_count or 0,
         github_stars=row.github_stars,
         latest_requirements_count=_requirements_count(passport),

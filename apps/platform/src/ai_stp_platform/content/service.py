@@ -80,6 +80,8 @@ def _summary(article: Article, revision: ArticleRevision) -> ContentSummary:
         revision_id=revision.id,
         content_digest=revision.content_digest,
         source_kind=article.source_kind,  # type: ignore[arg-type]
+        cover_image=revision.cover_image,
+        cover_alt=revision.cover_alt,
     )
 
 
@@ -115,6 +117,8 @@ async def _revision_for(
     source_kind: str,
     source_ref: str | None,
     source_path: str | None,
+    cover_image: str | None,
+    cover_alt: str | None,
     actor_account_id: str | None,
     now: datetime,
 ) -> tuple[ArticleRevision, bool]:
@@ -131,6 +135,8 @@ async def _revision_for(
         source_kind=source_kind,
         source_ref=source_ref,
         source_path=source_path,
+        cover_image=cover_image,
+        cover_alt=cover_alt,
     )
     existing = await session.scalar(
         select(ArticleRevision).where(
@@ -154,6 +160,8 @@ async def _revision_for(
         source_kind=source_kind,
         source_ref=source_ref,
         source_path=source_path,
+        cover_image=cover_image,
+        cover_alt=cover_alt,
         actor_account_id=actor_account_id,
         created_at=now,
     )
@@ -283,6 +291,8 @@ async def import_repository_snapshot(
                 source_kind="repository",
                 source_ref=entry.source_ref,
                 source_path=entry.source_path,
+                cover_image=entry.cover_image,
+                cover_alt=entry.cover_alt,
                 actor_account_id=None,
                 now=moment,
             )
@@ -410,6 +420,8 @@ async def publish_staff_article(
             source_kind="staff",
             source_ref=None,
             source_path=None,
+            cover_image=translation.cover_image,
+            cover_alt=translation.cover_alt,
             actor_account_id=actor_account_id,
             now=moment,
         )

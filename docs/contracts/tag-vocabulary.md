@@ -1,13 +1,13 @@
 ---
-description: "Tag vocabulary format, normalization, limit, and search behavior."
-last_verified: "2026-08-04"
+description: "Tag vocabulary format, validation, limit, and search behavior."
+last_verified: "2026-09-04"
 ---
 
 # Tag vocabulary
 
 The decision owner is `ADR-0024`, and the requirements owners are `SPEC-005` and
 `SPEC-007`. This document defines the machine boundary: vocabulary entry form,
-normalization rules, the limit, and what enters a passport.
+validation rules, the limit, and what enters a passport.
 
 ## Vocabulary entry
 
@@ -34,22 +34,23 @@ The `status` field accepts `active` and `deprecated`. A deprecated entry is not 
 during publication but remains valid in already published versions and remains
 searchable. Deleting an entry is prohibited.
 
-## Normalization
+## Validation
 
 A tag identifier:
 
-- is normalized to Unicode NFC;
-- is converted to lowercase;
-- consists of letters, digits, and hyphens;
+- consists only of lowercase English letters (`a-z`), digits (`0-9`), and
+  hyphens (`-`);
 - neither starts nor ends with a hyphen and contains no two consecutive hyphens;
-- is from two to thirty-two characters long.
+- is from two to thirty-two ASCII characters long;
+- uses hyphens instead of spaces.
 
-A value that fails normalization is rejected before comparison with the vocabulary:
-invalid form and unknown value are distinct errors.
+Typography and non-English letters are prohibited. A value that fails this form
+is rejected before comparison with the vocabulary: invalid form and unknown
+value are distinct errors.
 
 ## Limit
 
-One object version declares at least one and at most eight tags. A repeated identifier
+One object version declares at least one and at most ten tags. A repeated identifier
 in the list is rejected. Tag order is insignificant and is canonicalized into ascending
 identifier order.
 
@@ -70,6 +71,7 @@ matched against `name` and `aliases`, but the result is always described by iden
 ## Versioning and distribution
 
 The vocabulary is versioned separately from the passport schema: adding an entry is
-compatible and does not require a new schema version. The CLI and API expose the active
-vocabulary in machine-readable form, so the agent selects tags from the list. Offline
-operation uses the last obtained vocabulary and shows its retrieval time.
+compatible and does not require a new schema version. The single source is
+`ai_stp_contracts.tag_vocabulary`. Anonymous `GET /v1/catalog/tags` returns it.
+The CLI imports the same module. Offline operation uses that in-process copy.
+Web facets are generated from it together with `HARNESS_ID_ORDER`.

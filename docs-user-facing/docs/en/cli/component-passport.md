@@ -70,6 +70,11 @@ ai-stp component passport update \
 `--from` is a path to the patch. Secrets, `.env` bodies, tokens, and
 absolute personal paths do not belong in that file.
 
+When the patch includes `tags`, provide 1–10 unique tags. Each tag is 2–32
+characters of lowercase English letters, digits, and hyphens only. Use a hyphen
+instead of a space; typographic punctuation and non-English letters are not
+accepted.
+
 The answer is a new passport view. `revision_id` changed. The previous head
 is in `parent_revision_ids`. A second call with the old `--expected-revision`
 is refused: the head moved.

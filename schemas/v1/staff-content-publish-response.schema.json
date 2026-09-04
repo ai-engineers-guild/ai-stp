@@ -28,6 +28,28 @@
         "content_digest": {
           "$ref": "#/$defs/DigestValue"
         },
+        "cover_alt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentImageAlt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cover_image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentImage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "description": {
           "$ref": "#/$defs/ContentDescription"
         },
@@ -93,6 +115,8 @@
       "required": [
         "body",
         "content_digest",
+        "cover_alt",
+        "cover_image",
         "description",
         "locale",
         "published_at",
@@ -108,6 +132,16 @@
       ],
       "title": "ContentDetail",
       "type": "object"
+    },
+    "ContentImage": {
+      "maxLength": 512,
+      "pattern": "^/content/illustrations/[a-z0-9._-]+\\.(?:svg|png|jpg|jpeg|webp|gif)$",
+      "type": "string"
+    },
+    "ContentImageAlt": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
     },
     "ContentLocale": {
       "enum": [

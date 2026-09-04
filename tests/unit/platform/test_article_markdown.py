@@ -26,6 +26,17 @@ def test_article_body_allows_https_fragment_and_illustration() -> None:
     assert validate_article_body(source) == source
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "@[youtube](https://www.youtube.com/watch?v=dQw4w9WgXcQ)",
+        "@[vimeo](https://vimeo.com/12345678)",
+    ],
+)
+def test_article_body_allows_supported_video_embed_links(source: str) -> None:
+    assert validate_article_body(source) == source
+
+
 def test_article_body_rejects_script_and_javascript_url() -> None:
     _assert_invalid("Hello <script>alert(1)</script>")
     _assert_invalid("[x](javascript:alert(1))")
@@ -33,6 +44,10 @@ def test_article_body_rejects_script_and_javascript_url() -> None:
 
 def test_article_body_rejects_relative_non_illustration_link() -> None:
     _assert_invalid("[x](/tmp/secret)")
+
+
+def test_article_body_rejects_unsupported_video_embed_host() -> None:
+    _assert_invalid("@[youtube](https://evil.example/video/12345678)")
 
 
 @pytest.mark.parametrize(

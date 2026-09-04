@@ -376,7 +376,10 @@ async def test_failure_and_disable_preserve_history(
         skipped = await enqueue_daily(session, now=now + timedelta(days=2))
         assert skipped == []
         await delete_source(session)
-        assert await session.get(OfficialUpstreamSource, SOURCE_ID) is None
+        removed = await session.get(OfficialUpstreamSource, SOURCE_ID)
+        assert removed is not None
+        assert removed.inventory_state == "removed"
+        assert removed.enabled is False
         remaining = await session.get(CatalogMetadata, published.id)
         assert remaining is not None
         session.expire_all()
@@ -385,7 +388,7 @@ async def test_failure_and_disable_preserve_history(
         assert all(row.source_id == SOURCE_ID for row in history)
         assert {row.result for row in history} >= {"publication_started", "failed"}
         audits = list((await session.scalars(select(AuditEvent))).all())
-        assert "official_upstream.source_deleted" in {item.action for item in audits}
+        assert "official_upstream.source_removed" in {item.action for item in audits}
         later = await enqueue_daily(session, now=now + timedelta(days=3))
         assert later == []
 

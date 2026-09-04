@@ -10,17 +10,19 @@ export type ContentType = (typeof CONTENT_TYPES)[number];
 const contentMetaSchema = z
   .object({
     type: z.enum(CONTENT_TYPES),
-    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120).optional(),
     locale: z.enum(["en", "ru"]),
     title: z.string().min(1).max(160),
     description: z.string().min(1).max(320),
     published_at: z.iso.date(),
     tags: z.array(z.string().min(1).max(40)).max(12),
     draft: z.boolean().default(false),
+    cover_image: z.string().regex(/^\/content\/illustrations\/[a-z0-9._-]+\.(svg|png|jpg|jpeg|webp|gif)$/).nullable().optional(),
+    cover_alt: z.string().min(1).max(200).nullable().optional(),
   })
   .strict();
 
-export type ContentEntry = z.infer<typeof contentMetaSchema> & {
+export type ContentEntry = Omit<z.infer<typeof contentMetaSchema>, "slug"> & { slug: string } & {
   body: string;
 };
 
@@ -28,6 +30,12 @@ function contentRoot(): string {
   return process.env.AI_STP_USER_FACING_ROOT
     ? path.join(process.env.AI_STP_USER_FACING_ROOT, "content")
     : path.resolve(process.cwd(), "..", "..", "docs-user-facing", "content");
+}
+
+function slugify(value: string): string {
+  const transliteration: Record<string, string> = { я: "ya", ю: "yu", э: "e", ь: "", ъ: "", щ: "shch", ш: "sh", ч: "ch", ц: "ts", х: "h", ж: "zh" };
+  const latin = value.toLowerCase().replace(/[а-яё]/g, (char) => transliteration[char] ?? String.fromCharCode(char.charCodeAt(0) - 848));
+  return latin.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 120).replace(/-$/, "") || "article";
 }
 
 function parseFile(file: string): ContentEntry {
@@ -48,7 +56,21 @@ function parseFile(file: string): ContentEntry {
   }
   const body = (match[2] ?? "").trim();
   if (!body) throw new Error(`Content entry body is empty: ${path.basename(file)}`);
-  return { ...parsed.data, body };
+  let slug = parsed.data.slug;
+  if (!slug) {
+    let slugSource = parsed.data.title;
+    if (parsed.data.locale === "ru") {
+      const sibling = file.replace(`${path.sep}ru${path.sep}`, `${path.sep}en${path.sep}`);
+      try {
+        const siblingMeta = load(readFileSync(sibling, "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? "", { json: false, schema: JSON_SCHEMA }) as { slug?: string; title?: string };
+        slugSource = siblingMeta.slug ?? siblingMeta.title ?? slugSource;
+      } catch {
+        // The API snapshot performs the same fallback when the pair is absent.
+      }
+    }
+    slug = slugify(slugSource);
+  }
+  return { ...parsed.data, slug, body };
 }
 
 let cached: ContentEntry[] | null = null;

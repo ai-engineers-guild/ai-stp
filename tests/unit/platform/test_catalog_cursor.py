@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from ai_stp_api.slices.catalog.service import relation_filter_signature
 from ai_stp_platform.catalog_cursor import (
     CursorError,
     CursorKey,
@@ -14,6 +13,7 @@ from ai_stp_platform.catalog_cursor import (
     encode_cursor,
     filter_signature,
 )
+from ai_stp_platform.catalog_search import relation_filter_signature
 
 pytestmark = pytest.mark.platform
 

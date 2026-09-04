@@ -267,9 +267,9 @@ services:
         - -e
         - fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
       interval: 15s
-      timeout: 5s
+      timeout: 30s
       retries: 8
-      start_period: 60s
+      start_period: 5m
     restart: unless-stopped
 
   docs:

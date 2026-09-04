@@ -1,75 +1,49 @@
 ---
 description: "Runbook: operator-managed official GitHub and package upstream component snapshots."
-last_verified: "2026-09-03"
+last_verified: "2026-09-04"
 ---
 
 # Official upstream components
 
 AI STP Official publishes attributed snapshots of curated public GitHub and
-package components. Operators configure independently identified sources
-locally. A daily enqueue creates at most one `official_upstream_sync` job per
+package components. The checked-in manifest at
+`packages/contracts/src/ai_stp_contracts/official/manifest.json` is the only
+production inventory: PostgreSQL is its projection, not a second source of
+truth. A daily enqueue creates at most one `official_upstream_sync` job per
 enabled source. The worker resolves each source through the shared
 `SourceIntent`/`SourceSnapshot` adapters and reuses the existing plan, bind,
 validate, and publish jobs. There is no public management endpoint and no
 automatic ownership transfer, catalog replacement, or identity merge.
 
-## Configure sources
+## Current Official inventory
 
-The normal `seed` startup step idempotently creates the verified public
-`AI STP Official` publisher profile in development and production. Source
-configuration therefore never depends on an operator signing in as that
-service account.
+The normal `seed` startup step idempotently creates the fixed public account:
+ID `account_01KZET6ZKJN7S72T5H4WDV62T0`, handle `ai-stp-official`, display name
+`AI STP Official`. The manifest currently declares these exact source IDs,
+stable component IDs, and displayed names:
 
-From a host that can reach PostgreSQL, upsert one source per component. Omit
-`--id` to update the default `official` row. Additional Git or package sources
-take an explicit identifier:
+| Source ID | Stable component ID | EN display name | RU display name |
+|---|---|---|---|
+| `ponytail` | `component_01M1PBHXMXW2WR8Q16KHJAHVHT` | Ponytail | Ponytail |
+| `caveman` | `component_01M1PBHXMXW2WR8Q16KHJAHVHV` | Caveman | Caveman |
+| `grill-me` | `component_01M1PBHXMXW2WR8Q16KHJAHVHW` | Grill Me | Grill Me |
+| `context7-mcp` | `component_01M1PBHXMXW2WR8Q16KHJAHVHX` | Context7 MCP | Context7 MCP |
+| `serena-mcp` | `component_01M1PBHXMXW2WR8Q16KHJAHVHY` | Serena MCP | Serena MCP |
+| `ai-stp-skill` | `component_01M1PBHXMXW2WR8Q16KHJAHVHZ` | AI STP Skill | Навык AI STP |
+
+The manifest also fixes each repository, ref, component subpath, component
+kind, attribution, exact stable ID, canonical name, and update policy. Add or
+change a source by editing and reviewing that JSON file, then deploy and run
+manifest reconciliation. Do not hand-edit or production-upsert a source row;
+undeclared rows fail reconciliation and transferred/removed rows stay fenced.
+
+Validate or project the inventory from a host that can reach PostgreSQL:
 
 ```sh
-python -m ai_stp_platform.official_upstream upsert \
-  --repository https://github.com/owner/repo \
-  --ref main \
-  --path skills/example \
-  --type skill \
-  --name "Example skill" \
-  --project-name "Example" \
-  --maintainer "Upstream maintainers" \
-  --description "Reviewed summary of the snapshot." \
-  --license MIT \
-  --harness-id claude-code \
-  --target-scope global \
-  --projection-root skills/example \
-  --projection-shape tree
-
-python -m ai_stp_platform.official_upstream upsert \
-  --id npm-example \
-  --kind package \
-  --ecosystem npm \
-  --package-name example \
-  --package-version 1.2.3 \
-  --type skill \
-  --name "Example package" \
-  --project-name "Example" \
-  --maintainer "Upstream maintainers" \
-  --description "Reviewed summary of the snapshot." \
-  --license MIT \
-  --harness-id claude-code \
-  --target-scope global \
-  --projection-root skills/example \
-  --projection-shape tree
+python -m ai_stp_platform.official_upstream validate
+python -m ai_stp_platform.official_upstream reconcile
+python -m ai_stp_platform.official_upstream status
 ```
-
-`--path` is the skill directory, not `SKILL.md` alone. The snapshot is every
-tracked file under that path. Gitignore is the filter; extract does not drop
-tests, CI, or other committed trees.
-
-The owner defaults to the AI STP Official account. Non-HTTPS GitHub URLs,
-embedded credentials, traversing paths, unknown component types, unknown
-package ecosystems, unsafe projection roots, unknown projection shapes, and a
-non-Official owner are rejected. `--projection-shape file` requires the resolved
-component root to contain exactly one file; `tree` preserves every safe relative
-member below `--projection-root`. Repeating the command with the same `--id`
-updates that row only. Rows created before the projection-target migration stay
-disabled at synchronization time until they are upserted with these fields.
 
 ## Daily enqueue
 
@@ -90,11 +64,16 @@ python -m ai_stp_platform.official_upstream.enqueue --force --id ponytail-skill
 ```
 
 One source's failure, disable, or idempotency key does not affect another
-enabled source. Disable or delete a source to stop later enqueue for that row
-without deleting published catalog versions, audit rows, or sync history.
+enabled source. Disable a source to stop later enqueue for that row without
+deleting published catalog versions, audit rows, or sync history. Ownership
+transfer is a database-bound operation: it changes every historical catalog
+row's current owner, appends an ownership revision, marks the source
+`transferred` and `update_policy=disabled`, cancels pending outbox/jobs, and
+fences running attempts. Reconciliation preserves that tombstone and cannot
+reactivate it.
 
 ```sh
-python -m ai_stp_platform.official_upstream disable --id npm-example
+python -m ai_stp_platform.official_upstream disable --id ponytail
 ```
 
 A matching embedded snapshot may produce a dismissible catalog-replacement
@@ -124,6 +103,18 @@ only to `api.github.com`, `github.com`, and `codeload.github.com`. The token
 is never written to job payloads, source rows, logs, or descriptions. In
 local compose it comes from gitignored `.env.dev` (`env_file`); do not set
 an empty override in `environment`, which would wipe that value.
+
+For delivery gaps or a worker crash, inspect the attempt ledger and outbox,
+then run reconciliation. The status output includes attempt state/result,
+retry count, queue and outbox IDs/states, error class/code, manifest digest,
+provenance, plan ID, and timestamps. A failed attempt is retried only through
+the bounded queue policy or an explicit `retry --id`; exhausted work remains
+in the queue DLQ and the domain ledger as `dead_lettered`.
+
+```sh
+python -m ai_stp_platform.official_upstream reconcile-delivery
+python -m ai_stp_platform.official_upstream retry --id ponytail
+```
 
 ## Rollback
 

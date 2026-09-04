@@ -16,9 +16,12 @@ from ai_stp_platform.db import make_engine, make_sessionmaker
 from ai_stp_platform.models import AuditEvent, OfficialUpstreamSource
 from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID
 from ai_stp_platform.official_upstream.errors import INVALID_SOURCE, OfficialUpstreamError
-from ai_stp_platform.queue.engine import enqueue
+from ai_stp_platform.official_upstream.ledger import (
+    create_attempt_and_outbox,
+    dispatch_outbox,
+    source_is_schedulable,
+)
 from ai_stp_platform.queue.models import Job
-from ai_stp_platform.queue.states import JobType
 from ai_stp_platform.settings import DatabaseSettings
 
 
@@ -35,17 +38,15 @@ async def _enabled_sources(
     session: AsyncSession, source_id: str | None
 ) -> list[OfficialUpstreamSource]:
     if source_id is None:
-        return list(
-            (
-                await session.scalars(
-                    select(OfficialUpstreamSource).where(OfficialUpstreamSource.enabled.is_(True))
-                )
-            ).all()
-        )
+        return [
+            source
+            for source in (await session.scalars(select(OfficialUpstreamSource))).all()
+            if source_is_schedulable(source)
+        ]
     source = await session.get(OfficialUpstreamSource, source_id)
     if source is None:
         raise OfficialUpstreamError(INVALID_SOURCE, "source is missing")
-    if not source.enabled:
+    if not source_is_schedulable(source):
         raise OfficialUpstreamError(INVALID_SOURCE, "source is disabled")
     return [source]
 
@@ -62,17 +63,15 @@ async def enqueue_daily(
     utc_day = moment.date().isoformat()
     jobs: list[Job] = []
     for source in await _enabled_sources(session, source_id):
-        key = (
-            manual_idempotency_key(source.id, moment)
-            if force
-            else idempotency_key(source.id, utc_day)
-        )
-        job = await enqueue(
+        trigger = f"manual:{moment.strftime('%Y%m%dT%H%M%S%f')}" if force else utc_day
+        _attempt, outbox = await create_attempt_and_outbox(
             session,
-            job_type=JobType.OFFICIAL_UPSTREAM_SYNC,
-            payload={"source_id": source.id},
-            idempotency_key=key,
+            source,
+            trigger_key=trigger,
+            utc_day=moment,
+            provenance="manual" if force else "daily",
         )
+        job = await dispatch_outbox(session, outbox)
         if force:
             session.add(
                 AuditEvent(
@@ -84,6 +83,7 @@ async def enqueue_daily(
                         "job_id": job.id,
                         "force": True,
                         "utc_day": utc_day,
+                        "attempt_id": _attempt.id,
                     },
                 )
             )

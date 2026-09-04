@@ -61,7 +61,6 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
     "/v1/documents/{slug}": "web content documents",
     "/v1/media/avatars/{asset_id}": "media read path",
     "/v1/media/component/{media_id}": "media read path",
-    "/v1/owner/external-products": "external product ownership (ADR-0088)",
     "/v1/owner/objects/component/{stable_id}/presentation": (
         "component presentation (docs/contracts/component-presentation.md)"
     ),

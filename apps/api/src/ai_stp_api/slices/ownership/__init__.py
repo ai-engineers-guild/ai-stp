@@ -1,1 +1,1 @@
-"""Verified-maintainer ownership claim transfer (SPEC-057 REQ-5717)."""
+"""Ownership transfer requests and immutable revisions (SPEC-057)."""

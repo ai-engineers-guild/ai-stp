@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { createReportCase } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/errors";
 import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
+import type { ReportTopic } from "@/components/organisms/report-form";
 
 async function sessionTokenOrThrow(): Promise<string> {
   const session = await readSession();
@@ -23,6 +24,8 @@ async function sessionTokenOrThrow(): Promise<string> {
 
 export async function createReportAction(input: {
   csrfToken: string;
+  topic: ReportTopic;
+  locale: "ru" | "en";
   objectKind: "component" | "setup";
   stableId: string;
   version: string;
@@ -31,6 +34,20 @@ export async function createReportAction(input: {
   diagnosticsPreviewed: boolean;
   vulnerability: boolean;
   errorCode?: string;
+  subject?: string;
+  message?: string;
+  evidence?: string;
+  authorAccountId?: string;
+  recipientAccountId?: string;
+  service?: {
+    name: string;
+    primary_url: string;
+    description_ru: string;
+    description_en: string;
+    source_url: string;
+    country_codes: string[];
+  };
+  country?: { code: string; name_ru: string; name_en: string };
 }): Promise<{ caseId: string; operationId: string | null }> {
   assertCsrf(input.csrfToken, await readCsrfToken());
   if (!input.diagnosticsPreviewed) {
@@ -40,21 +57,35 @@ export async function createReportAction(input: {
       status: 400,
     });
   }
-  // Size guard and path cleanup before the contract max_length.
   const diagnostics = input.diagnostics
     .replaceAll(/[A-Za-z]:\\[^\s]+/g, "[path]")
     .replaceAll(/\/(?:home|Users|var|tmp)\/[^\s]+/g, "[path]")
     .slice(0, 4000);
   const sessionToken = await sessionTokenOrThrow();
   const result = await createReportCase(sessionToken, {
-    object_kind: input.objectKind,
-    stable_id: input.stableId,
-    version: input.version,
-    content_digest: input.contentDigest,
+    topic: input.topic,
+    locale: input.locale,
+    ...(input.topic === "object_report"
+      ? {
+          object_kind: input.objectKind,
+          stable_id: input.stableId,
+          version: input.version,
+          content_digest: input.contentDigest,
+        }
+      : input.topic === "component_complaint" || input.topic === "ownership_transfer"
+        ? { object_kind: "component" as const, stable_id: input.stableId }
+        : {}),
+    ...(input.topic === "service_request" && input.service ? { service: input.service } : {}),
+    ...(input.topic === "country_request" && input.country ? { country: input.country } : {}),
     diagnostics,
     diagnostics_previewed: true,
     vulnerability: input.vulnerability,
     ...(input.errorCode ? { error_code: input.errorCode } : {}),
+    subject: input.subject ?? "",
+    message: input.message ?? "",
+    evidence: input.evidence ?? "",
+    ...(input.authorAccountId ? { author_account_id: input.authorAccountId } : {}),
+    ...(input.recipientAccountId ? { recipient_account_id: input.recipientAccountId } : {}),
     idempotency_key: randomBytes(16).toString("hex"),
   });
   revalidatePath("/[locale]/reports", "page");

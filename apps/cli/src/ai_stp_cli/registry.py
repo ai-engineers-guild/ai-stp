@@ -33,6 +33,7 @@ from ai_stp_contracts.machine_help import (
     MutabilityClass,
 )
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER, HARNESS_IDS
+from ai_stp_passports.versions import MAX_TAG_LENGTH, MAX_TAGS
 
 type Handler = Callable[[Mapping[str, object]], Answer[BaseModel]]
 
@@ -418,10 +419,39 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="reports:preview",
         mutability="plan",
         parameters=(
-            option("kind", "string", "Object kind.", required=True, choices=("component", "setup")),
-            option("id", "string", "Stable object identifier.", required=True),
-            option("version", "string", "Exact object version.", required=True),
-            option("content-digest", "string", "Exact reported content digest.", required=True),
+            option(
+                "topic",
+                "string",
+                "Request topic.",
+                choices=(
+                    "object_report",
+                    "service_request",
+                    "country_request",
+                    "component_complaint",
+                    "author_complaint",
+                    "ownership_transfer",
+                    "verification_request",
+                    "other",
+                ),
+            ),
+            option("kind", "string", "Object kind.", choices=("component", "setup")),
+            option("id", "string", "Stable object identifier."),
+            option("version", "string", "Exact object version."),
+            option("content-digest", "string", "Exact reported content digest."),
+            option("service-name", "string", "Requested service name."),
+            option("primary-url", "string", "Requested service HTTPS URL."),
+            option("description-ru", "string", "Russian service description."),
+            option("description-en", "string", "English service description."),
+            option("source-url", "string", "Source URL supporting the service description."),
+            option("country-code", "string", "ISO 3166-1 alpha-2 country code.", repeatable=True),
+            option("name-ru", "string", "Russian country name."),
+            option("name-en", "string", "English country name."),
+            option("subject", "string", "Custom subject. Required for topic other."),
+            option("message", "string", "Reason or complaint text."),
+            option("evidence", "string", "Bounded evidence links or notes."),
+            option("recipient", "string", "Recipient account for ownership transfer."),
+            option("author", "string", "Subject account for author or verification topics."),
+            option("locale", "string", "Submitted text locale: ru or en.", choices=("ru", "en")),
             option("harness-id", "string", "Harness identifier, when relevant."),
             option("harness-version", "string", "Harness version, when known."),
             option("provider-version", "string", "Provider version, when known."),
@@ -463,6 +493,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-report-list",
         handler="reports:list_all",
         next_actions=("report preview",),
+    ),
+    Declaration(
+        path=["report", "status"],
+        summary="Read one of the current account's closed request cases.",
+        result_schema="urn:ai-stp:schema:v1:cli-report-case",
+        handler="reports:status",
+        parameters=(option("case-id", "string", "Request case identifier.", required=True),),
+        next_actions=("report list",),
     ),
     Declaration(
         path=["owner", "objects"],
@@ -885,7 +923,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
     ),
     Declaration(
         path=["component", "passport", "update"],
-        summary="Add confirmed declared facts as a new content-addressed passport revision.",
+        summary=(
+            "Add confirmed declared facts as a new content-addressed passport revision. "
+            f"Tags: up to {MAX_TAGS}; lowercase English letters, digits and hyphens; "
+            f"2 to {MAX_TAG_LENGTH} characters per tag."
+        ),
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
         handler="component:passport_update",
         mutability="apply",
@@ -898,7 +940,15 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Exact current revision this patch was prepared against.",
                 required=True,
             ),
-            option("from", "string", "Path to a bounded closed-schema JSON patch.", required=True),
+            option(
+                "from",
+                "string",
+                (
+                    "Path to a bounded closed-schema JSON patch; use hyphens instead of "
+                    "spaces in tags."
+                ),
+                required=True,
+            ),
         ),
         next_actions=("component passport validate", "component passport show"),
     ),

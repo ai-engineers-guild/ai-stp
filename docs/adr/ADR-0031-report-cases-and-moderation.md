@@ -1,6 +1,6 @@
 ---
 description: "Decision to add private report cases from web and CLI with auditable moderation and no automatic public issues."
-last_verified: "2026-08-04"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0031: Private report cases and moderation
@@ -41,6 +41,12 @@ Platform moderators perform triage. After triage, the object author receives a s
 **Report count blocks nothing by itself.** Repeated reports may be grouped, but report count never hides or blocks an object automatically. Hiding, blocking, and restoration remain explicit auditable moderator actions with actor, reason, and time.
 
 **Abuse is constrained mechanically.** Submission requires an account, is rate-limited and idempotent; duplicates are grouped rather than multiplying the signal.
+
+**The same case table accepts catalog proposals.** `topic` distinguishes object
+reports, service proposals, and country proposals. Topic-specific data stays in
+the existing bounded JSON payload. Object coordinates are present only for an
+object report. This reuses moderation and audit controls instead of creating a
+parallel request queue.
 
 ## Consequences
 

@@ -570,6 +570,11 @@ async def test_the_browse_listing_hides_superseded_versions_until_asked(
         )
         for row in rows.all():
             row.lifecycle_state = "deprecated"
+        from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+        await upsert_catalog_search_projection(
+            session, object_kind="setup", stable_id=FIXTURE_SETUP_ID
+        )
         await session.commit()
 
     hidden = await client.get("/v1/catalog/setups", params=browse)

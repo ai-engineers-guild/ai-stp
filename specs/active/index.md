@@ -18,31 +18,31 @@ last_verified: "2026-08-03"
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Tests, evidence and publication. | 2026-09-03 |
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-04 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-08-04 |
-| [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Server platform and API. | 2026-08-28 |
+| [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Server platform and API. | 2026-09-04 |
 | [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-08-29 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Uninstallation, full cleanup, and recovery. | 2026-08-03 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: User data governance. | 2026-09-01 |
 | [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Managed toolchain and bootstrap. | 2026-08-04 |
 | [SPEC-015-canonical-contracts.md](SPEC-015-canonical-contracts.md) | SPEC-015: Canonical data, identifiers, and hashes. | 2026-08-03 |
-| [SPEC-016-reports-moderation.md](SPEC-016-reports-moderation.md) | SPEC-016: Object reports and moderation. | 2026-08-04 |
+| [SPEC-016-reports-moderation.md](SPEC-016-reports-moderation.md) | SPEC-016: Private requests and moderation. | 2026-09-04 |
 | [SPEC-017-runtime-shell-observability.md](SPEC-017-runtime-shell-observability.md) | SPEC-017: Server application shell and observability. | 2026-08-05 |
 | [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Background worker and PostgreSQL job queue. | 2026-08-31 |
 | [SPEC-019-runtime-deployment-operability.md](SPEC-019-runtime-deployment-operability.md) | SPEC-019: Runtime deployment and operation. | 2026-08-10 |
-| [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Server-side storage, PostgreSQL migrations and immutable object storage. | 2026-08-25 |
-| [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Anonymous reading of the public catalog and initial seeding of objects. | 2026-08-25 |
+| [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Server-side storage, PostgreSQL migrations and immutable object storage. | 2026-09-04 |
+| [SPEC-021-anonymous-catalog-read-and-seed.md](SPEC-021-anonymous-catalog-read-and-seed.md) | SPEC-021: Anonymous reading of the public catalog and initial seeding of objects. | 2026-09-04 |
 | [SPEC-022-web-shell-landing-catalog.md](SPEC-022-web-shell-landing-catalog.md) | SPEC-022: Web shell, bilingual landing page and anonymous public catalog. | 2026-08-17 |
 | [SPEC-023-web-login-account-devices.md](SPEC-023-web-login-account-devices.md) | SPEC-023: Web login, account profile and device management. | 2026-08-17 |
 | [SPEC-024-reproducible-deployment.md](SPEC-024-reproducible-deployment.md) | SPEC-024: Reproducible deployment with web tier, health, logs, backups and rollback. | 2026-08-10 |
 | [SPEC-025-private-registry-revision-sync.md](SPEC-025-private-registry-revision-sync.md) | SPEC-025: Private registry and server-side revision synchronization. | 2026-08-15 |
 | [SPEC-026-publication-validation-grants-reports.md](SPEC-026-publication-validation-grants-reports.md) | SPEC-026: Server-side publication, validation jobs, grants, reports, and staff audit. | 2026-08-25 |
 | [SPEC-027-web-publication-access-moderation.md](SPEC-027-web-publication-access-moderation.md) | SPEC-027: Web UI for owned objects, publication, rights, reports, and minimal moderation. | 2026-08-08 |
-| [SPEC-028-public-profile-media-and-preview.md](SPEC-028-public-profile-media-and-preview.md) | SPEC-028: Author public profile, safe avatars, and preview. | 2026-08-08 |
+| [SPEC-028-public-profile-media-and-preview.md](SPEC-028-public-profile-media-and-preview.md) | SPEC-028: Author public profile, safe avatars, and preview. | 2026-09-04 |
 | [SPEC-029-versioned-markdown-descriptions.md](SPEC-029-versioned-markdown-descriptions.md) | SPEC-029: Immutable safe Markdown descriptions for versions. | 2026-08-09 |
 | [SPEC-030-cli-web-deep-links.md](SPEC-030-cli-web-deep-links.md) | SPEC-030: Canonical bidirectional links between CLI and web. | 2026-08-09 |
 | [SPEC-031-public-documents-policies-and-errors.md](SPEC-031-public-documents-policies-and-errors.md) | SPEC-031: Public documents, versioned policies, and error pages. | 2026-08-08 |
 | [SPEC-032-production-readiness-governance.md](SPEC-032-production-readiness-governance.md) | SPEC-032: Evidence-based production readiness, data governance, abuse protection, and recovery. | 2026-08-22 |
 | [SPEC-033-beta-support-evidence-and-labels.md](SPEC-033-beta-support-evidence-and-labels.md) | SPEC-033: Public beta-support labels, evidence, and freshness. | 2026-08-09 |
-| [SPEC-034-catalog-search-and-web-experience.md](SPEC-034-catalog-search-and-web-experience.md) | SPEC-034: Powerful catalog search, compact web UX and media profile. | 2026-08-17 |
+| [SPEC-034-catalog-search-and-web-experience.md](SPEC-034-catalog-search-and-web-experience.md) | SPEC-034: Powerful catalog search, compact web UX and media profile. | 2026-09-04 |
 | [SPEC-035-component-detail-media-and-reactions.md](SPEC-035-component-detail-media-and-reactions.md) | Grouped component page, author media gallery, and reactions. | 2026-08-17 |
 | [SPEC-036-machine-projection-route-and-documents.md](SPEC-036-machine-projection-route-and-documents.md) | SPEC-036: Addressable machine projection web and page machine documents. | 2026-08-16 |
 | [SPEC-037-catalog-navigation-and-onboarding.md](SPEC-037-catalog-navigation-and-onboarding.md) | SPEC-037: Compact catalog, owner/public navigation, and CLI onboarding. | 2026-08-17 |
@@ -67,5 +67,6 @@ last_verified: "2026-08-03"
 | [SPEC-056-official-upstream-components.md](SPEC-056-official-upstream-components.md) | SPEC-056: Curated GitHub component snapshots published by AI STP Official. | 2026-09-03 |
 | [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-09-04 |
 | [SPEC-058-multi-root-installation-transactions.md](SPEC-058-multi-root-installation-transactions.md) | SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots. | 2026-09-03 |
+| [SPEC-059-public-identities-and-catalog-lines.md](SPEC-059-public-identities-and-catalog-lines.md) | SPEC-059: Unique account identities, component names, and owner-fenced catalog lines. | 2026-09-04 |
 
 <!-- END CONTENTS -->

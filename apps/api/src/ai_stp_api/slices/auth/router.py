@@ -35,7 +35,8 @@ from ai_stp_api.slices.auth.service import (
     unlink_identity,
 )
 from ai_stp_contracts.auth import LegalOnboardingCompleteRequest
-from ai_stp_contracts.identity import AccountPrivacyUpdate
+from ai_stp_contracts.identity import AccountIdentityUpdate, AccountPrivacyUpdate
+from ai_stp_platform.identity import IdentityError, set_account_identity
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.logging import get_logger
@@ -596,6 +597,8 @@ async def _account_profile_body(db: AsyncSession, account_id: str) -> dict[str, 
         "identities": identities,
         "show_profile_publicly": account.show_profile_publicly,
         "allow_publisher_listing": account.allow_publisher_listing,
+        "handle": account.handle or "",
+        "display_name": account.display_name or "",
     }
 
 
@@ -626,6 +629,34 @@ async def update_account_privacy(
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
     account.show_profile_publicly = payload.show_profile_publicly
     account.allow_publisher_listing = payload.allow_publisher_listing
+    await db.commit()
+    return JSONResponse(content=await _account_profile_body(db, ctx.account_id))
+
+
+def _identity_api_error(exc: IdentityError) -> ApiError:
+    mapping = {
+        "AI_STP_HANDLE_CONFLICT": ErrorCategory.HANDLE_CONFLICT,
+        "AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT": ErrorCategory.ACCOUNT_DISPLAY_NAME_CONFLICT,
+        "AI_STP_PERMISSION_DENIED": ErrorCategory.PERMISSION,
+        "AI_STP_VALIDATION_ERROR": ErrorCategory.VALIDATION,
+        "AI_STP_NOT_FOUND": ErrorCategory.NOT_FOUND,
+    }
+    return ApiError(mapping.get(exc.code, ErrorCategory.CONFLICT), exc.message)
+
+
+@router.put("/account/identity", response_model=None)
+async def update_account_identity(
+    payload: AccountIdentityUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    """Replace the authenticated account's unique public handle and display name."""
+    try:
+        await set_account_identity(
+            db, ctx.account_id, handle=payload.handle, display_name=payload.display_name
+        )
+    except IdentityError as exc:
+        raise _identity_api_error(exc) from exc
     await db.commit()
     return JSONResponse(content=await _account_profile_body(db, ctx.account_id))
 

@@ -22,11 +22,13 @@ from ai_stp_api.settings import Settings
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_platform.external_catalog_admin import apply_case as apply_catalog_request
 from ai_stp_platform.models import (
     Account,
     AuditEvent,
     CatalogMetadata,
     Device,
+    ExternalProductLocale,
     OAuthIdentity,
     ProfileRevision,
     PublicationPlan,
@@ -782,6 +784,56 @@ async def test_reports_and_staff_lifecycle(
             )
             assert created.status_code == 201, created.text
             case_id = created.json()["case_id"]
+
+            service_request = await client.post(
+                "/v1/requests",
+                headers=_auth(reporter_token),
+                json={
+                    "schema_version": 1,
+                    "topic": "service_request",
+                    "service": {
+                        "name": "Worldwide",
+                        "primary_url": "https://worldwide.example",
+                        "description_ru": "Глобальный сервис",
+                        "description_en": "Global service",
+                        "source_url": "https://worldwide.example/about",
+                        "country_codes": [],
+                    },
+                    "idempotency_key": "service-request-0001",
+                },
+            )
+            assert service_request.status_code == 201, service_request.text
+            assert service_request.json()["topic"] == "service_request"
+            request_id = service_request.json()["case_id"]
+            request_detail = await client.get(
+                f"/v1/staff/reports/{request_id}", headers=_auth(staff_token)
+            )
+            assert request_detail.status_code == 200, request_detail.text
+            assert request_detail.json()["request_payload"]["country_codes"] == []
+            async with app.state.sessionmaker() as db, db.begin():
+                applied_id, topic = await apply_catalog_request(db, request_id)
+                locales = list(
+                    (
+                        await db.execute(
+                            select(ExternalProductLocale).order_by(ExternalProductLocale.locale)
+                        )
+                    ).scalars()
+                )
+                seo_jobs = list(
+                    (
+                        await db.execute(
+                            select(Job).where(
+                                Job.idempotency_key.like("seo-build:service:worldwide.example:%")
+                            )
+                        )
+                    ).scalars()
+                )
+            assert (applied_id, topic) == (request_id, "service_request")
+            assert [row.locale for row in locales] == ["en", "ru"]
+            assert len(seo_jobs) == 2
+            service = await client.get("/v1/catalog/services/worldwide.example")
+            assert service.status_code == 200, service.text
+            assert service.json()["country_codes"] == []
 
             # N reports do not change lifecycle
             async with app.state.sessionmaker() as db:

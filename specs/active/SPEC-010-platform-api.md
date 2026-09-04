@@ -1,6 +1,6 @@
 ---
 description: "SPEC-010: Server platform and API."
-last_verified: "2026-08-28"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-010: Server platform and API
@@ -38,6 +38,7 @@ The mechanics of the execution layer, background worker, and deployment are deta
 - `REQ-1013`: The device page shows only the permitted summary from the closed list in `docs/contracts/device-passport.md`; the full device passport is not exposed through the API or web interface.
 - `REQ-1014`: A report from the web interface or CLI creates one private `ReportCase` through the shared application use case defined by `SPEC-016`; reports do not automatically create public GitHub issues.
 - `REQ-1015`: Single-node HTTP rate limiting consists of two independent sliding windows before the route handler: a process-wide budget (100 requests per 60 seconds by default) and a client-address budget (1,000 requests per 3,600 seconds by default), keyed on the address the edge proxy states in `X-AI-STP-Client-IP` when that parses as an IP and on the transport peer otherwise; the operator configures both through env, absent variables retain these values rather than making them unlimited, and an explicit `0` disables only that dimension; exhaustion of either window responds with `AI_STP_RATE_LIMITED` and does not consume the other; a key with an empty window is evicted, and new keys are not collapsed into a shared overflow bucket; Redis, SlowAPI, a separate proxy, and the edge proxy's own rate limiting are out of scope (`ADR-0128`).
+- `REQ-1016`: Anonymous `GET /v1/catalog/tags` returns the versioned closed tag vocabulary from the single source in `ai_stp_contracts.tag_vocabulary`: identifier, display name, optional description, aliases, and status.
 
 ## States and errors
 
@@ -70,3 +71,4 @@ Database changes use an expand, migrate, switch, and contract sequence. API fiel
 | `REQ-1013` | The golden device response contains only fields from the permitted summary, and a request for the full device passport is rejected. |
 | `REQ-1014` | A contract test proves there is one reporting use case for the web interface and CLI and no integration with public issues. |
 | `REQ-1015` | A clock is injected into the shipped limiter: the 101st request in the shared 60-second window is rejected and the 100th passes; the 1,001st request from one address in 3,600 seconds is rejected while another address passes under the hourly window; many addresses together exhaust the shared budget; rejection by one window does not change the other's counter; settings without env are bounded at 100/minute and 1,000/hour; an explicit `0` disables a dimension. A key with an empty window releases its slot, and there is no shared overflow bucket. With a low limit, the ASGI factory responds with `429` / `AI_STP_RATE_LIMITED` / `Retry-After`. |
+| `REQ-1016` | Contract and API tests serve the vocabulary document and keep web harness facets generated from the same closed harness list. |

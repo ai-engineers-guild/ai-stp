@@ -42,6 +42,15 @@ EXPECTED_HANDLING = {
     "AI_STP_CONTENT_SOURCE_CONFLICT": "reconcile_state",
     "AI_STP_CONTENT_STALE": "reconcile_state",
     "AI_STP_CONTENT_IMPORT_FORBIDDEN": "stop_for_permission",
+    "AI_STP_HANDLE_CONFLICT": "reconcile_state",
+    "AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT": "reconcile_state",
+    "AI_STP_CANONICAL_NAME_CONFLICT": "reconcile_state",
+    "AI_STP_LOCALIZED_NAME_CONFLICT": "reconcile_state",
+    "AI_STP_FOREIGN_LINE_OWNERSHIP": "stop_for_permission",
+    "AI_STP_STALE_OWNERSHIP_REVISION": "reconcile_state",
+    "AI_STP_MIGRATION_CONFLICT": "reconcile_state",
+    "AI_STP_MANIFEST_MISMATCH": "reconcile_state",
+    "AI_STP_SYNC_DELIVERY": "retry_if_retryable",
     "AI_STP_INTERNAL": "report_bug",
 }
 

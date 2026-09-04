@@ -6,8 +6,12 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import {
+  CATALOG_QL_FIELDS,
+  CATALOG_QL_OPERATORS,
+  catalogQlWordKind,
   completeCatalogQlToken,
   correctCatalogQuery,
+  highlightCatalogQuery,
   suggestCatalogQlWords,
 } from "@/lib/catalog-query-assist";
 import { Icon } from "@/theme";
@@ -18,18 +22,25 @@ export function CatalogQueryField({
   submitLabel,
   defaultValue,
   correctionLabel,
+  fieldsLabel,
+  operatorsLabel,
+  literalHint,
 }: {
   label: string;
   placeholder: string;
   submitLabel: string;
   defaultValue: string;
   correctionLabel: string;
+  fieldsLabel: string;
+  operatorsLabel: string;
+  literalHint: string;
 }) {
   const listId = useId();
   const [value, setValue] = useState(defaultValue);
   const [activeIndex, setActiveIndex] = useState(-1);
   const correction = useMemo(() => correctCatalogQuery(value), [value]);
   const suggestions = useMemo(() => suggestCatalogQlWords(value), [value]);
+  const highlighted = useMemo(() => highlightCatalogQuery(value), [value]);
 
   function apply(word: string) {
     setValue((current) => completeCatalogQlToken(current, word));
@@ -107,7 +118,12 @@ export function CatalogQueryField({
                       index === activeIndex ? "bg-muted" : "hover:bg-muted"
                     }`}
                   >
-                    {word}
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="font-medium">{word}</span>
+                      <span className="text-muted-foreground font-sans text-xs">
+                        {catalogQlWordKind(word) === "field" ? fieldsLabel : operatorsLabel}
+                      </span>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -118,6 +134,12 @@ export function CatalogQueryField({
           {submitLabel}
         </Button>
       </div>
+      {value ? <CatalogQueryPreview segments={highlighted} /> : null}
+      <CatalogQlReference
+        fieldsLabel={fieldsLabel}
+        operatorsLabel={operatorsLabel}
+        literalHint={literalHint}
+      />
       <div id="catalog-query-assist" className="min-h-6" aria-live="polite">
         {correction !== value ? (
           <button
@@ -132,5 +154,78 @@ export function CatalogQueryField({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function CatalogQueryPreview({ segments }: { segments: ReturnType<typeof highlightCatalogQuery> }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="border-border bg-muted/40 min-w-0 overflow-x-auto rounded-sm border px-3 py-2 font-mono text-sm whitespace-pre"
+    >
+      {segments.map((segment, index) => (
+        <span
+          key={`${index}-${segment.text}`}
+          className={
+            segment.kind === "field"
+              ? "text-primary font-medium"
+              : segment.kind === "operator"
+                ? "text-foreground decoration-primary/60 font-semibold underline underline-offset-4"
+                : segment.kind === "syntax"
+                  ? "text-primary"
+                  : segment.kind === "quoted"
+                    ? "text-success"
+                    : "text-muted-foreground"
+          }
+        >
+          {segment.text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function CatalogQlReference({
+  fieldsLabel,
+  operatorsLabel,
+  literalHint,
+}: {
+  fieldsLabel: string;
+  operatorsLabel: string;
+  literalHint: string;
+}) {
+  return (
+    <div className="text-muted-foreground flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-xs">
+      <QlTokenGroup label={fieldsLabel} tokens={CATALOG_QL_FIELDS} accent />
+      <QlTokenGroup
+        label={operatorsLabel}
+        tokens={[":", ...CATALOG_QL_OPERATORS, "NOT IN", "( )"]}
+      />
+      <span>{literalHint}</span>
+    </div>
+  );
+}
+
+function QlTokenGroup({
+  label,
+  tokens,
+  accent = false,
+}: {
+  label: string;
+  tokens: readonly string[];
+  accent?: boolean;
+}) {
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <span>{label}</span>
+      {tokens.map((token) => (
+        <code
+          key={token}
+          className={`bg-muted rounded-sm px-1.5 py-0.5 ${accent ? "text-primary" : "text-foreground"}`}
+        >
+          {token}
+        </code>
+      ))}
+    </span>
   );
 }

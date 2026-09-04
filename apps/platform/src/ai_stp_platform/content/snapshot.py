@@ -32,8 +32,72 @@ from ai_stp_platform.content.markdown import validate_article_body
 _FRONTMATTER = re.compile(r"^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$")
 _KEY = re.compile(r"^([a-z_]+):\s*(.*)$")
 _LIST_ITEM = re.compile(r"^  - (.+)$")
+_LOCAL_IMAGE = re.compile(r"^/content/illustrations/[a-z0-9._-]+\.(?:svg|png|jpg|jpeg|webp|gif)$")
+_FIRST_IMAGE = re.compile(
+    r"!\[([^\]]*)\]\((/content/illustrations/[a-z0-9._-]+\.(?:svg|png|jpg|jpeg|webp|gif))\)"
+)
 _ALLOWED_META = frozenset(
-    {"type", "slug", "locale", "title", "description", "published_at", "tags", "draft"}
+    {
+        "type",
+        "slug",
+        "locale",
+        "title",
+        "description",
+        "published_at",
+        "tags",
+        "draft",
+        "cover_image",
+        "cover_alt",
+    }
+)
+
+_RU_ALPHABET = (
+    "\u0430\u0431\u0432\u0433\u0434\u0435\u0451\u0436\u0437\u0438\u0439\u043a\u043b\u043c\u043d"
+    "\u043e\u043f\u0440\u0441\u0442\u0443\u0444\u0445\u0446\u0447\u0448\u0449\u044a\u044b\u044c\u044d\u044e\u044f"
+)
+_LATIN_ALPHABET = (
+    "a",
+    "b",
+    "v",
+    "g",
+    "d",
+    "e",
+    "yo",
+    "zh",
+    "z",
+    "i",
+    "y",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "r",
+    "s",
+    "t",
+    "u",
+    "f",
+    "h",
+    "ts",
+    "ch",
+    "sh",
+    "shch",
+    "",
+    "y",
+    "",
+    "e",
+    "yu",
+    "ya",
+)
+_TRANSLITERATION = str.maketrans(
+    dict(
+        zip(
+            _RU_ALPHABET + _RU_ALPHABET.upper(),
+            _LATIN_ALPHABET + tuple(value.upper() for value in _LATIN_ALPHABET),
+            strict=True,
+        )
+    )
 )
 
 
@@ -78,6 +142,42 @@ def _parse_bool(raw: str) -> bool:
     if raw == "false":
         return False
     raise ContentError("AI_STP_CONTENT_INVALID", "draft must be true or false")
+
+
+def _slugify(value: str) -> str:
+    normalized = value.translate(_TRANSLITERATION).lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
+    return slug[:120].rstrip("-") or "article"
+
+
+def _resolved_slug(meta: Mapping[str, Any], path: Path, hub: Path) -> str:
+    explicit = str(meta.get("slug", "")).strip()
+    if explicit:
+        return explicit
+    title = str(meta.get("title", ""))
+    if str(meta.get("locale", "")) == "ru" and path.parent.name == "ru":
+        sibling = hub / "en" / path.name
+        if sibling.is_file():
+            sibling_meta, _ = parse_frontmatter(sibling.read_text(encoding="utf-8"))
+            sibling_slug = str(sibling_meta.get("slug", "")).strip()
+            title = sibling_slug or str(sibling_meta.get("title", title))
+    return _slugify(title)
+
+
+def _cover_for(meta: Mapping[str, Any], body: str, title: str) -> tuple[str | None, str | None]:
+    cover = str(meta.get("cover_image", "")).strip() or None
+    cover_alt = str(meta.get("cover_alt", "")).strip() or None
+    first = _FIRST_IMAGE.search(body)
+    if cover is None and first is not None:
+        cover = first.group(2)
+        cover_alt = cover_alt or first.group(1).strip() or title
+    if cover is not None and _LOCAL_IMAGE.fullmatch(cover) is None:
+        raise ContentError("AI_STP_CONTENT_INVALID", "cover_image must be a local illustration")
+    if cover is not None and cover_alt is None:
+        cover_alt = title
+    if cover_alt is not None and not (1 <= len(cover_alt) <= 200):
+        raise ContentError("AI_STP_CONTENT_INVALID", "invalid cover_alt")
+    return cover, cover_alt
 
 
 def parse_frontmatter(source: str) -> tuple[dict[str, Any], str]:
@@ -134,12 +234,12 @@ def _entry_from_file(
     if _parse_bool(str(meta.get("draft", "false"))):
         return None
     article_type = str(meta.get("type", ""))
-    slug = str(meta.get("slug", ""))
     locale = str(meta.get("locale", ""))
     title = str(meta.get("title", ""))
     description = str(meta.get("description", ""))
     published_at = parse_published_date(str(meta.get("published_at", "")), today=today)
     tags = sorted(_parse_tags(str(meta.get("tags", "[]"))))
+    slug = _resolved_slug(meta, path, hub)
     if article_type not in CONTENT_TYPES:
         raise ContentError("AI_STP_CONTENT_INVALID", "unknown article type")
     if re.fullmatch(CONTENT_SLUG_PATTERN, slug) is None or len(slug) > 120:
@@ -151,6 +251,7 @@ def _entry_from_file(
     if not (1 <= len(description) <= 320):
         raise ContentError("AI_STP_CONTENT_INVALID", "invalid description")
     validate_article_body(body)
+    cover_image, cover_alt = _cover_for(meta, body, title)
     relative = f"docs-user-facing/content/{path.relative_to(hub).as_posix()}"
     digest = revision_content_digest(
         article_type=article_type,
@@ -164,6 +265,8 @@ def _entry_from_file(
         source_kind="repository",
         source_ref=commit,
         source_path=relative,
+        cover_image=cover_image,
+        cover_alt=cover_alt,
     )
     return ContentSnapshotEntry(
         type=article_type,  # type: ignore[arg-type]
@@ -178,6 +281,8 @@ def _entry_from_file(
         source_kind="repository",
         source_ref=commit,
         source_path=relative,
+        cover_image=cover_image,
+        cover_alt=cover_alt,
     )
 
 
@@ -279,6 +384,8 @@ def verify_snapshot_digests(
             source_kind=entry.source_kind,
             source_ref=entry.source_ref,
             source_path=entry.source_path,
+            cover_image=entry.cover_image,
+            cover_alt=entry.cover_alt,
         )
         if expected != entry.content_digest:
             raise ContentError("AI_STP_CONTENT_INVALID", "article content digest mismatch")

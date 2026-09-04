@@ -1,0 +1,43 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:identity-account-update",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Replace the current account public handle and display name.",
+  "properties": {
+    "display_name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "handle": {
+      "maxLength": 32,
+      "minLength": 1,
+      "pattern": "^[a-z](?:[a-z0-9]|-[a-z0-9]){0,31}$",
+      "title": "Handle",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "handle",
+    "display_name",
+    "idempotency_key"
+  ],
+  "title": "AccountIdentityUpdate",
+  "type": "object"
+}

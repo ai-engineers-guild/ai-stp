@@ -32,14 +32,14 @@ last_verified: "2026-08-03"
 | [ADR-0021-fact-origin-and-confirmation.md](ADR-0021-fact-origin-and-confirmation.md) | Decision to separate fact origin from user confirmation. | 2026-08-04 |
 | [ADR-0022-agent-authored-passports-without-model-api.md](ADR-0022-agent-authored-passports-without-model-api.md) | Decision to leave passport creation to the user's agent and not call a model from ai_stp. | 2026-08-29 |
 | [ADR-0023-public-profile-as-authored-object.md](ADR-0023-public-profile-as-authored-object.md) | Decision to make the public profile a separately authored object rather than a passport projection. | 2026-08-04 |
-| [ADR-0024-closed-tag-vocabulary.md](ADR-0024-closed-tag-vocabulary.md) | Decision to publish tags only from a closed, versioned vocabulary. | 2026-08-04 |
+| [ADR-0024-closed-tag-vocabulary.md](ADR-0024-closed-tag-vocabulary.md) | Decision to publish tags only from a closed, versioned vocabulary. | 2026-09-04 |
 | [ADR-0025-developer-device-project-context-owners.md](ADR-0025-developer-device-project-context-owners.md) | Decision to divide context among developer, device, and project passports. | 2026-08-04 |
 | [ADR-0026-credentialed-evidence-and-complete-publication.md](ADR-0026-credentialed-evidence-and-complete-publication.md) | Decision to accept signed author evidence for credential-dependent checks and prohibit publication with an incomplete mandatory check. | 2026-08-04 |
 | [ADR-0027-proposal-confirmation-setup-version.md](ADR-0027-proposal-confirmation-setup-version.md) | Decision to make composition proposals short-lived and create a SetupVersion only from explicit confirmation. | 2026-08-09 |
 | [ADR-0028-simple-deterministic-mvp-builder.md](ADR-0028-simple-deterministic-mvp-builder.md) | Decision to limit the MVP setup compiler to deterministic operations without semantic merging while retaining an extensible graph. | 2026-08-04 |
 | [ADR-0029-scoped-unverified-consent.md](ADR-0029-scoped-unverified-consent.md) | Decision to remove indefinite global consent to unverified content and introduce exceptions scoped to a publisher and an object's major line. | 2026-08-04 |
 | [ADR-0030-major-line-grants-forks-derived-publication.md](ADR-0030-major-line-grants-forks-derived-publication.md) | Decision to define rights to a major line, recipient forks, derived publication, and revocation consequences. | 2026-08-04 |
-| [ADR-0031-report-cases-and-moderation.md](ADR-0031-report-cases-and-moderation.md) | Decision to add private report cases from web and CLI with auditable moderation and no automatic public issues. | 2026-08-04 |
+| [ADR-0031-report-cases-and-moderation.md](ADR-0031-report-cases-and-moderation.md) | Decision to add private report cases from web and CLI with auditable moderation and no automatic public issues. | 2026-09-04 |
 | [ADR-0032-install-eligibility-from-current-evidence.md](ADR-0032-install-eligibility-from-current-evidence.md) | Decision to derive version installation eligibility from the freshness of mandatory evidence without remotely disabling targets. | 2026-08-04 |
 | [ADR-0033-harness-promotion-from-undefined.md](ADR-0033-harness-promotion-from-undefined.md) | Decision to treat the closed harness set as the MVP set and define platform promotion of a new harness from undefined. | 2026-08-24 |
 | [ADR-0034-first-party-launch-corpus.md](ADR-0034-first-party-launch-corpus.md) | Decision to make the first-party launch catalog a measurable release barrier with a verified Guild namespace. | 2026-08-28 |
@@ -81,7 +81,7 @@ last_verified: "2026-08-03"
 | [ADR-0070-versioned-public-documents-and-policies.md](ADR-0070-versioned-public-documents-and-policies.md) | Decision to store public documents and policies as revisions with repository import. | 2026-08-08 |
 | [ADR-0071-production-readiness-evidence-gate.md](ADR-0071-production-readiness-evidence-gate.md) | Decision on the evidence-based production release barrier: explicit owner approval, data governance, abuse protection, and recovery rehearsals. | 2026-08-08 |
 | [ADR-0072-public-beta-support-evidence-read-model.md](ADR-0072-public-beta-support-evidence-read-model.md) | Decision on the public read-model for beta support, evidence, and freshness. | 2026-08-09 |
-| [ADR-0073-catalog-query-pagination-and-reactions.md](ADR-0073-catalog-query-pagination-and-reactions.md) | Catalog QL, two pagination modes, and isolated reactions. | 2026-08-09 |
+| [ADR-0073-catalog-query-pagination-and-reactions.md](ADR-0073-catalog-query-pagination-and-reactions.md) | Catalog QL, two pagination modes, and isolated reactions. | 2026-09-04 |
 | [ADR-0074-component-type-presentation-registry.md](ADR-0074-component-type-presentation-registry.md) | Client-side presentation registry of component types and the media migration path. | 2026-08-09 |
 | [ADR-0075-component-media-gallery-and-reactions.md](ADR-0075-component-media-gallery-and-reactions.md) | Decision to store component presentation separately from the immutable passport and deliver media securely. | 2026-08-10 |
 | [ADR-0076-machine-projection-as-addressable-route.md](ADR-0076-machine-projection-as-addressable-route.md) | Decision: the web machine projection is an addressable server route and a separate document. | 2026-08-10 |
@@ -94,7 +94,7 @@ last_verified: "2026-08-03"
 | [ADR-0084-single-deployed-environment.md](ADR-0084-single-deployed-environment.md) | Decision to remove the separate staging tier: one deployed environment updated directly from dev, without a pre-production gate. | 2026-08-14 |
 | [ADR-0085-provider-kit-identity-is-its-content-digest.md](ADR-0085-provider-kit-identity-is-its-content-digest.md) | Decision to give the public provider protocol v3 kit a content-addressed identity and a version-bump rule. | 2026-08-15 |
 | [ADR-0086-the-deployed-environment-is-named-prod.md](ADR-0086-the-deployed-environment-is-named-prod.md) | Decision to name the sole deployed environment prod and resolve the renaming boundary left by ADR-0084. | 2026-08-15 |
-| [ADR-0088-external-product-catalog-metadata.md](ADR-0088-external-product-catalog-metadata.md) | Decision to store the external service and countries as mutable catalog metadata outside the passport. | 2026-08-12 |
+| [ADR-0088-external-product-catalog-metadata.md](ADR-0088-external-product-catalog-metadata.md) | Decision to store the external service and countries as mutable catalog metadata outside the passport. | 2026-09-04 |
 | [ADR-0089-build-time-web-feature-profiles.md](ADR-0089-build-time-web-feature-profiles.md) | Decision: web deployment surfaces are controlled by build-time Git/YAML profiles. | 2026-08-12 |
 | [ADR-0090-catalog-refinement-responsive-surfaces.md](ADR-0090-catalog-refinement-responsive-surfaces.md) | Decision to establish catalog-refinement UX invariants instead of rigidly choosing modal/drawer. | 2026-08-14 |
 | [ADR-0091-sync-last-nonempty-page-cursor.md](ADR-0091-sync-last-nonempty-page-cursor.md) | Decision to return a signed cursor on every non-empty sync pull page. | 2026-08-15 |
@@ -147,6 +147,9 @@ last_verified: "2026-08-03"
 | [ADR-0146-one-public-cli-distribution-acquires-its-provider.md](ADR-0146-one-public-cli-distribution-acquires-its-provider.md) | Decision to ship the user-facing CLI as one Python distribution that acquires its attested provider. | 2026-09-04 |
 | [ADR-0147-the-test-gate-does-not-fail-on-a-coverage-percentage.md](ADR-0147-the-test-gate-does-not-fail-on-a-coverage-percentage.md) | Decision that Python coverage is reported by the gate and does not fail a run on a percentage. | 2026-09-04 |
 | [ADR-0148-authoring-source-projections-and-setup-scaffold.md](ADR-0148-authoring-source-projections-and-setup-scaffold.md) | Decision to scaffold components as source/ plus projections/<harness>/, initialize git as an apply side-effect, and add a physical setup authoring tree distinct from compose and install. | 2026-09-03 |
+| [ADR-0149-public-identities-and-owned-catalog-lines.md](ADR-0149-public-identities-and-owned-catalog-lines.md) | Decision to give accounts and catalog component lines unique public identities owned independently of versions. | 2026-09-04 |
+| [ADR-0150-git-owned-official-registry-and-recoverable-sync.md](ADR-0150-git-owned-official-registry-and-recoverable-sync.md) | Decision to own the AI STP Official inventory in Git and reconcile it through a durable outbox, queue, ledger, and transfer fence. | 2026-09-04 |
+| [ADR-0151-postgresql-catalog-search-projection.md](ADR-0151-postgresql-catalog-search-projection.md) | Public catalog search is a PostgreSQL projection compiled from Catalog QL. | 2026-09-04 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

@@ -52,7 +52,7 @@ SQLite, and keeps install as a public provider write.
 
 ## Decision
 
-1. **Component wrapper.** `component-scaffold/4` writes `README.md`,
+1. **Component wrapper.** `component-scaffold/5` writes `README.md`,
    `component-passport.json`, `eval-profile.json`, `.ai-stp-template.json`,
    `.gitignore`, `source/`, and, when the variant is a concrete harness,
    `projections/<harness>/`. It does not write `native/`,
@@ -61,6 +61,9 @@ SQLite, and keeps install as a public provider write.
    TypeScript, JavaScript, Go, and Rust; `fastmcp` is an optional Python MCP
    framework selected explicitly in the descriptor.
    `component template render` and `scaffold()` remain for SPEC-005 REQ-528.
+   Instruction sources always contain `AGENTS.md` as the canonical rules file
+   and a `CLAUDE.md` shim importing `@AGENTS.md`; a Claude projection carries
+   both files so the import resolves after installation.
 
 2. **Canon versus projection.** `source/` is what the author edits.
    `projections/<harness>/` is the native layout for one harness. Portable
@@ -83,6 +86,14 @@ SQLite, and keeps install as a public provider write.
    invented descriptions and tags, keeps `NOASSERTION` with
    `redistribution_allowed: false`, and for `skill` copies the `SKILL.md`
    YAML `description`. Draft text uses the marker `TODO(ai-stp-scaffold):`.
+   Skills follow the Agent Skills directory convention: `SKILL.md` plus
+   focused `references/`, `scripts/`, and `assets/` examples. Concrete skill
+   projections preserve the complete directory tree.
+   The skill layout follows the [Agent Skills specification](https://agentskills.io/specification):
+   required YAML frontmatter in `SKILL.md`, a concise activation document, and
+   on-demand `references/`, `scripts/`, and `assets/` resources. The instruction
+   layout follows the [AGENTS.md open format](https://agents.md/); Claude's
+   `@AGENTS.md` import follows [Claude Code memory imports](https://docs.anthropic.com/en/docs/claude-code/memory).
 
 5. **Git is a setup-apply side-effect.** After the planned setup files exist,
    setup apply runs `git init` when the destination is not already inside a worktree,
@@ -112,7 +123,7 @@ SQLite, and keeps install as a public provider write.
 
 ## Consequences
 
-- Template version `component-scaffold/4` and generator `ai-stp/4` are
+- Template version `component-scaffold/5` and generator `ai-stp/5` are
   current for components. `setup-scaffold/1` is the first setup template.
   Versions `1` and `2` remain validatable against their schemas.
 - `SetupScaffoldResult` reports the git initialization outcome; component

@@ -162,6 +162,13 @@ export default async function PublisherPage({ params }: PageProps) {
                 <Link href="/account/profile">{tAccount("profileEdit")}</Link>
               </Button>
             ) : null}
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/reports?topic=author_complaint&author=${encodeURIComponent(profile.account_id)}`}
+              >
+                {tCatalog("reportAuthorType")}
+              </Link>
+            </Button>
           </div>
           <p className="font-mono text-sm break-all">{profile.account_id}</p>
           {publisherLink ? (

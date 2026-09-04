@@ -100,6 +100,7 @@ from ai_stp_contracts.http import (
     http_status_for,
 )
 from ai_stp_contracts.identity import (
+    AccountIdentityUpdate,
     AccountPrivacyUpdate,
     AccountProfile,
     DeviceListResponse,
@@ -129,7 +130,6 @@ from ai_stp_contracts.owner import (
 )
 from ai_stp_contracts.ownership import (
     OwnershipClaimCreateRequest,
-    OwnershipClaimDecisionRequest,
     OwnershipClaimPreview,
     OwnershipClaimResponse,
     OwnershipRevisionListResponse,
@@ -147,7 +147,6 @@ from ai_stp_contracts.reports import (
     ReportCaseListResponse,
     ReportCaseResponse,
     StaffActionResponse,
-    StaffAuthorVerifiedRequest,
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
@@ -514,6 +513,22 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         errors=("AI_STP_VALIDATION_ERROR",),
     ),
     Operation(
+        method="put",
+        path="/account/identity",
+        operation_id="updateAccountIdentity",
+        summary="Replace the current unique public handle and display name.",
+        response=AccountProfile,
+        body=AccountIdentityUpdate,
+        authenticated=True,
+        idempotent_mutation=True,
+        errors=(
+            "AI_STP_VALIDATION_ERROR",
+            "AI_STP_HANDLE_CONFLICT",
+            "AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT",
+            "AI_STP_PERMISSION_DENIED",
+        ),
+    ),
+    Operation(
         method="delete",
         path="/account/identities/{provider}",
         operation_id="unlinkAccountIdentity",
@@ -771,6 +786,42 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
     ),
     Operation(
         method="post",
+        path="/requests",
+        operation_id="createRequestCase",
+        summary="Create a private request case for any shared topic.",
+        response=ReportCaseResponse,
+        body=ReportCaseCreateRequest,
+        authenticated=True,
+        status=201,
+        idempotent_mutation=True,
+        errors=("AI_STP_VALIDATION_ERROR", "AI_STP_RATE_LIMITED"),
+    ),
+    Operation(
+        method="get",
+        path="/requests",
+        operation_id="listRequestCases",
+        summary="List the caller's own request cases.",
+        response=ReportCaseListResponse,
+        authenticated=True,
+    ),
+    Operation(
+        method="get",
+        path="/requests/{case_id}",
+        operation_id="readRequestCase",
+        summary="Read one of the caller's own request cases.",
+        response=ReportCaseResponse,
+        authenticated=True,
+        path_params=(
+            PathParam(
+                name="case_id",
+                description="Request case identifier.",
+                pattern=r"^[A-Za-z0-9._~-]{8,64}$",
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND",),
+    ),
+    Operation(
+        method="post",
         path="/staff/reports/{case_id}/triage",
         operation_id="staffTriageReport",
         summary="Staff triage of a closed report case.",
@@ -800,20 +851,9 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
     ),
     Operation(
         method="post",
-        path="/staff/author-verified",
-        operation_id="staffAuthorVerified",
-        summary="Issue or revoke author_verified for an account.",
-        response=StaffActionResponse,
-        body=StaffAuthorVerifiedRequest,
-        authenticated=True,
-        idempotent_mutation=True,
-        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
-    ),
-    Operation(
-        method="post",
         path="/ownership-claims",
         operation_id="createOwnershipClaim",
-        summary="Request transfer of an official catalog component to a verified maintainer.",
+        summary="Compatibility entry that records an ownership-transfer request without granting it.",
         response=OwnershipClaimResponse,
         body=OwnershipClaimCreateRequest,
         authenticated=True,
@@ -841,50 +881,6 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         ),
         authenticated=True,
         errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
-    ),
-    Operation(
-        method="post",
-        path="/staff/ownership-claims/{claim_id}/approve",
-        operation_id="approveOwnershipClaim",
-        summary="Approve a verified-maintainer claim without rewriting published passports.",
-        response=OwnershipClaimResponse,
-        body=OwnershipClaimDecisionRequest,
-        path_params=(
-            PathParam(
-                name="claim_id",
-                description="Typed operation identifier of the ownership claim.",
-                pattern=stable_id_pattern("operation"),
-            ),
-        ),
-        authenticated=True,
-        idempotent_mutation=True,
-        errors=(
-            "AI_STP_NOT_FOUND",
-            "AI_STP_PERMISSION_DENIED",
-            "AI_STP_CONFLICT",
-        ),
-    ),
-    Operation(
-        method="post",
-        path="/staff/ownership-claims/{claim_id}/deny",
-        operation_id="denyOwnershipClaim",
-        summary="Deny a verified-maintainer claim with no catalog effect.",
-        response=OwnershipClaimResponse,
-        body=OwnershipClaimDecisionRequest,
-        path_params=(
-            PathParam(
-                name="claim_id",
-                description="Typed operation identifier of the ownership claim.",
-                pattern=stable_id_pattern("operation"),
-            ),
-        ),
-        authenticated=True,
-        idempotent_mutation=True,
-        errors=(
-            "AI_STP_NOT_FOUND",
-            "AI_STP_PERMISSION_DENIED",
-            "AI_STP_CONFLICT",
-        ),
     ),
     Operation(
         method="get",

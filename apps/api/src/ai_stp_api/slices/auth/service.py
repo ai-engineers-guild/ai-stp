@@ -16,6 +16,7 @@ from ai_stp_api.slices.auth.domain import (
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.grant_identity_models import OAuthIdentityAlias
+from ai_stp_platform.identity import allocate_account_identity
 from ai_stp_platform.models import Account, Device, OAuthIdentity
 
 
@@ -86,6 +87,7 @@ async def _create_account(db: AsyncSession) -> Account:
     )
     db.add(account)
     await db.flush()
+    await allocate_account_identity(db, account)
     return account
 
 

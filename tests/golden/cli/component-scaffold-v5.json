@@ -1,0 +1,153 @@
+{
+  "cases": {
+    "agent-none-claude-code": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:7322f85accec17f8289787693ca31e1de22a3a274973f9a3a763ee90a2691462",
+      "adaptations/claude-code/adaptation.json": "sha256:ebcff961d4ec0779dc75002fb3ea6bcf5784c6c475c2bb20e2b1afe4799dc242",
+      "component-passport.json": "sha256:c2a723d44b6dfb51f88f6726a7c36d3e665871f0e19128c4c131e4b863fe05d3",
+      "component.json": "sha256:e3a11ba16089538e2feff53a9e520050ffa534c403b2ef19caa64f189f4c9353",
+      "eval-profile.json": "sha256:754c21124328f454b2b9b94a11971d43523f2fe0c57ed4b99fd1d1878999b109",
+      "projections/claude-code/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/claude-code/agents/agent.toml": "sha256:6fa1686507bfb1e9253378e4a001411e996d28b7ec312eee54f253cfe3a876ee",
+      "source/agent.md": "sha256:6ce0ab836a36b9bbc2cd21da3e5bd22291058067d4b942d5106b5c483e91fa86"
+    },
+    "command-none-portable": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:e8295f7d8e9ab504ffac1f5084bae77e1c0a922da6375f779774f78e8df74431",
+      "adaptations/portable/adaptation.json": "sha256:b294ce4fa03c4c93d67aead953fdb7dd76302e44c911718fad4f6e87fd19ad76",
+      "component-passport.json": "sha256:6079301aca93e54f2d1668b63f6c72443664ff44337bc61f040c9e6f7d8b0887",
+      "component.json": "sha256:d5e9d833a789e031ed37e61f1aae3e086e641aa14d9be0ee61820966690cec0e",
+      "eval-profile.json": "sha256:c1f8f722a16afa1fc1d64c14edc5c771d8eecc259e7e8aa87f8f1283329fc710",
+      "source/command.md": "sha256:37228bdac53fa2d8da1483e65433ab7df61ee094495a6534dbb64df73e0001fb"
+    },
+    "hook-javascript-cursor": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:c504f49976855f619329dff67c450d8c11bac1a1a6c719107760992900d1ee86",
+      "adaptations/cursor/adaptation.json": "sha256:3c48309eaac5c0a00abce305dda4f5640b607857927bbd4c4a895b546059ea09",
+      "component-passport.json": "sha256:3b6d3e02751008f02d5cc75255a7eeef4ed4f2099ec480a205a6cca317b45e10",
+      "component.json": "sha256:cc539f93356873122ed6612b7f06167cbe73f02d991375fef433c537cddbf7ce",
+      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/cursor/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/cursor/hooks.json": "sha256:c8560b3caccd82220f5e03935c9782069dedb76d6c38a0d99dc21de6e0a557a5",
+      "projections/cursor/hooks/reference-component/handler.js": "sha256:6b8315390f229603cc9925dace5d5d5157e3b40b020f18815d4c3ba4e481b3e5",
+      "source/hook-source.json": "sha256:fceb1236e1a4d81b0fe08123345dc5544f0aaf889967f42c533c96418d3d811d",
+      "source/hooks/reference-component/handler.js": "sha256:6b8315390f229603cc9925dace5d5d5157e3b40b020f18815d4c3ba4e481b3e5"
+    },
+    "hook-python-antigravity": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:9cbf2748ab4c28b511ba0d83c0ee8a48822abe19ed6bb4ae65272a50c27b16e8",
+      "adaptations/antigravity/adaptation.json": "sha256:f2596b71317f7c01d6a1e8820053b3bc0f736414dea76a164dd650bb7deb6812",
+      "component-passport.json": "sha256:16aa9649b30221d8f53358bafc165e0db437eca4b8c0e2db7110f7ece47016ae",
+      "component.json": "sha256:03655a516d08868bf98cffd2f276e0d90fd63d2d38d0a0c00b849ce3aae95bbe",
+      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/antigravity/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/antigravity/config/hooks.json": "sha256:9df6cb8aa9aaae3e908f62218d1c90e8ad0aa6f17647ec6309bab406f18e8433",
+      "projections/antigravity/config/hooks/reference-component/handler.py": "sha256:e12025ea99345f03fd3904d9f8b77649663279704a9ef31d5c2d4c4e71cc87a1",
+      "source/config/hooks/reference-component/handler.py": "sha256:e12025ea99345f03fd3904d9f8b77649663279704a9ef31d5c2d4c4e71cc87a1",
+      "source/hook-source.json": "sha256:d0758ab3c051c56c912da14898c1a28c759dff9701019360e01017aa0c32229c"
+    },
+    "hook-typescript-codex": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:b125cb5b5520765348243e82c53196f4673fd4cab40493310dcc0a25671c6e25",
+      "adaptations/codex/adaptation.json": "sha256:abe063f9793cf206b6bc47a3c98c65fc65d795074481d796d7b3131a229f8401",
+      "component-passport.json": "sha256:fbd81c56a9acca4c535d53e31691b3ef2edf22e435be55107628e6888db6ba59",
+      "component.json": "sha256:96bbdd969b82d3eea8d7dd5cf976383c8cca5200960618fd988c4ce338787b8a",
+      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/codex/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/codex/hooks.json": "sha256:0a97c2d165af4559317e12aa330eb214f4bea158d10a428d78c516d273bf35dc",
+      "projections/codex/hooks/reference-component/handler.ts": "sha256:f808cb594922c537c8b30642aab9063541cc13540c114082a83a1d391250fa6c",
+      "source/hook-source.json": "sha256:e2d6cef2305987bdecce28e2cf25564c3ae4009b71790ca4710c6013b78ac2cd",
+      "source/hooks/reference-component/handler.ts": "sha256:f808cb594922c537c8b30642aab9063541cc13540c114082a83a1d391250fa6c"
+    },
+    "instruction-none-portable": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:1a50aa51bbd82a9419d62190eca3194c786e4bf09dd552bd7e8da876b74017a0",
+      "adaptations/portable/adaptation.json": "sha256:36c5bb65f91b379b1830e5e24501884cfa03e5d015be31cc8698d658256301e2",
+      "component-passport.json": "sha256:75ddc0d03fede98124b3732384303a37272a07fe0eefa88b69edccb342fd7015",
+      "component.json": "sha256:63d94e47722a60102544854c82ebcc22da1f94dfc4fafd768a730a1940630087",
+      "eval-profile.json": "sha256:1624133139d2a554a3f72151d858ac4e6c33b206a7fc3d7511017c1ad927f8d0",
+      "source/AGENTS.md": "sha256:1bbc2de4203cc8cb5bfcdb1bfa5cf971060198b94258514e4a49f6c062a9a85a",
+      "source/CLAUDE.md": "sha256:dec8515ad6faca76ae10c6dcd52b0ccf38300a5005e6da3bdbf65e61c717f4ab"
+    },
+    "mcp-javascript-codex": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:a3ae322949b80cdd4441d2373468979ff6ade535cbad0c0bf96896bc2759b54c",
+      "adaptations/codex/adaptation.json": "sha256:6c15412fbafd2bb1119bd45fd43a5b38230b1e9638901bb172bd9355f0ac1267",
+      "component-passport.json": "sha256:01cdabd78074a7997635c964975ca265cd83951c935fd9b99c9feec850015f6c",
+      "component.json": "sha256:34e214a0fa32c49692b9152234eae491ba052c92a4ea6299725cc5f8aa41755b",
+      "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
+      "projections/codex/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/codex/config.toml": "sha256:c075d590ae3005162866bf817f4c596df13107ee28403e964ede2c873e7df72b",
+      "projections/codex/servers/reference-component/server.js": "sha256:e1b3dc94c78f5464354e046b68c87597746bd86a30c7db80810bdc1bfd371a50",
+      "source/servers/reference-component/server.js": "sha256:e1b3dc94c78f5464354e046b68c87597746bd86a30c7db80810bdc1bfd371a50"
+    },
+    "mcp-python-portable": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:3654d68c2674c680cfc16399edaae80d2665169b5fee14cb97f28a312f4f0bc0",
+      "adaptations/portable/adaptation.json": "sha256:25a9d27279ee42fdb237bd1bf4542ff4fadf27fe12ee22a2552a3d23efae675d",
+      "component-passport.json": "sha256:05428fba4290c2c7ac4cf88576904a8b08413d5ced212e72bcd1e047e3063aaa",
+      "component.json": "sha256:25b20dbb8389a2ec32b2b47971084a1cca76cd6d82bfc0f8b5a2bee6e5f56275",
+      "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
+      "source/servers/reference-component/server.py": "sha256:5caea2c2ca03a75f11d87bfd4cc8afbf8282ee4e268934ebf28a1ef6b5a187bc"
+    },
+    "plugin-dart-flutter-grok-build": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:0a5a1d2a5091caef0d672c620e1988d140b7a4c32c10e0b21145646f0e8793b6",
+      "adaptations/grok-build/adaptation.json": "sha256:4a490dce49e3a0cfe58beaf471fc109b80bcafec25315d97577473d8623cb121",
+      "component-passport.json": "sha256:a44b853b11f3535cde174dd775a70dccc7f17f8a75133371f7eeeba81bc24eb0",
+      "component.json": "sha256:a65b627285fd23a354305a9f67758e6ab584882adee19ccfc9fa883ddaa55927",
+      "eval-profile.json": "sha256:fca75730526ba8dd5f187c9302a8d08a7baaa5fcebcc558328d95c813bc1e21c",
+      "projections/grok-build/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/grok-build/plugin.json": "sha256:910547aab8848605ac3bcdb3eeb8504f69d1505169372038782c979cf04b7cd8",
+      "projections/grok-build/src/main-reference_component.dart": "sha256:2c4ad7e7da89a2f144824469d837543cf1f63b9a0de9509c7eb78136f15355ab",
+      "source/src/main-reference_component.dart": "sha256:2c4ad7e7da89a2f144824469d837543cf1f63b9a0de9509c7eb78136f15355ab"
+    },
+    "setting-none-grok-build": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:a5fbba185cd5a5fcf2a1c3e7f263e1c4a92a57b499284aefba8810b9d20cac78",
+      "adaptations/grok-build/adaptation.json": "sha256:91f037384ac36c46992f4dbd00eb3cf237c145cb626ed25a734d193cba8766fb",
+      "component-passport.json": "sha256:9c44b5c6690b95a09a4dff4a209eee0f4ff042442362376f1a8b9f9904a092bd",
+      "component.json": "sha256:a54815e3e8adfd1628288801cbe44b7a60bde0a5f7d29f7cc132e50e4b1de40f",
+      "eval-profile.json": "sha256:f1cded74b474644392a256e83ac3567e9a6497bf9af6fcfe447a1a52aaac0ad0",
+      "projections/grok-build/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/grok-build/config.toml": "sha256:1cc5b8f811262ef4c0979d1d3b562b77037597e5eb35c6099339ebe12a9544d5",
+      "source/settings.json": "sha256:1cc5b8f811262ef4c0979d1d3b562b77037597e5eb35c6099339ebe12a9544d5"
+    },
+    "skill-none-codex": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:80b51319a7286b20905497ec6ae463de62d7dfefd4bbb6c0fcc1ce858dc891af",
+      "adaptations/codex/adaptation.json": "sha256:704e2161e2326a1f2eb26d4568cf9d857fe1b8d8cc90332c6d1b175ae7a69c96",
+      "component-passport.json": "sha256:075e7e0a49d8c0fd5f3ff974d0eed48c1ed4bd62b2f2eb1f877935ac84dbe358",
+      "component.json": "sha256:bfafc46726874537f5083ade86241dd819f6b6153e187dbd0a2ade801647359c",
+      "eval-profile.json": "sha256:e80fd5b259b8040498885949ff1d2d33847e204d10863f43f361ba5b461b7585",
+      "projections/codex/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/codex/skills/reference-component/SKILL.md": "sha256:412d1ebd50ef16937e73b66f18b9c45d07387de7a0e9c888f44b2158d826acac",
+      "projections/codex/skills/reference-component/assets/example-input.json": "sha256:aab1d45d8159dc83179e364729fbdc65364d1973fd442f018595ab063e6e4f39",
+      "projections/codex/skills/reference-component/references/REFERENCE.md": "sha256:d768d616d09f1a8f6102afb2a3e5ad6dfba61e97dd96dff7e63db61e7068cf28",
+      "projections/codex/skills/reference-component/scripts/validate.py": "sha256:0df427152c9b81da8aecba5a9ac7ea26b3727445acff9897781f4791a91f587f",
+      "source/SKILL.md": "sha256:412d1ebd50ef16937e73b66f18b9c45d07387de7a0e9c888f44b2158d826acac",
+      "source/assets/example-input.json": "sha256:aab1d45d8159dc83179e364729fbdc65364d1973fd442f018595ab063e6e4f39",
+      "source/references/REFERENCE.md": "sha256:d768d616d09f1a8f6102afb2a3e5ad6dfba61e97dd96dff7e63db61e7068cf28",
+      "source/scripts/validate.py": "sha256:0df427152c9b81da8aecba5a9ac7ea26b3727445acff9897781f4791a91f587f"
+    },
+    "skill-none-cursor": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:bfef9f208f9cf6a406eddbeda0467cc53496e31ee5cdaa3578113c38ce24bfdc",
+      "adaptations/cursor/adaptation.json": "sha256:c6aa390197b65776c2b6ebdb38663052159133c887f631081b16595b6a469c99",
+      "component-passport.json": "sha256:b10e8fa06384ebfc1e48ad6e28c1757bdff9f68e25a1a86e035567fcec4b8663",
+      "component.json": "sha256:acee33e28134a87da6a393818f621d52e9a71b191b0a0b4479b8a0ed968646cb",
+      "eval-profile.json": "sha256:e80fd5b259b8040498885949ff1d2d33847e204d10863f43f361ba5b461b7585",
+      "projections/cursor/GENERATED.md": "sha256:302b20e405d4724d64936595f22acfa170013354be66dcd35d73489113dd9096",
+      "projections/cursor/skills/reference-component/SKILL.md": "sha256:412d1ebd50ef16937e73b66f18b9c45d07387de7a0e9c888f44b2158d826acac",
+      "projections/cursor/skills/reference-component/assets/example-input.json": "sha256:aab1d45d8159dc83179e364729fbdc65364d1973fd442f018595ab063e6e4f39",
+      "projections/cursor/skills/reference-component/references/REFERENCE.md": "sha256:d768d616d09f1a8f6102afb2a3e5ad6dfba61e97dd96dff7e63db61e7068cf28",
+      "projections/cursor/skills/reference-component/scripts/validate.py": "sha256:0df427152c9b81da8aecba5a9ac7ea26b3727445acff9897781f4791a91f587f",
+      "source/SKILL.md": "sha256:412d1ebd50ef16937e73b66f18b9c45d07387de7a0e9c888f44b2158d826acac",
+      "source/assets/example-input.json": "sha256:aab1d45d8159dc83179e364729fbdc65364d1973fd442f018595ab063e6e4f39",
+      "source/references/REFERENCE.md": "sha256:d768d616d09f1a8f6102afb2a3e5ad6dfba61e97dd96dff7e63db61e7068cf28",
+      "source/scripts/validate.py": "sha256:0df427152c9b81da8aecba5a9ac7ea26b3727445acff9897781f4791a91f587f"
+    }
+  },
+  "generator_version": "ai-stp/5",
+  "template_version": "component-scaffold/5"
+}
