@@ -139,15 +139,27 @@ def setup_scaffold_files(descriptor: SetupTemplateDescriptor) -> dict[str, bytes
             {f"components/{member.name}/{path}": payload for path, payload in nested.items()}
         )
         types.append(member.component_type)
+        projection_prefix = f"projections/{harness}/"
+        native_paths = tuple(
+            sorted(
+                path.removeprefix(projection_prefix)
+                for path in nested
+                if path.startswith(projection_prefix) and path.rsplit("/", 1)[-1] != "GENERATED.md"
+            )
+        )
         compose_members.append(
             {
-                "source": {"kind": "path", "relative_path": f"components/{member.name}"},
+                "source": {
+                    "kind": "path",
+                    "relative_path": f"components/{member.name}/projections/{harness}",
+                },
                 "component_type": member.component_type,
                 "name": member.name,
                 "description": f"{DRAFT} replace with the component purpose.",
                 "license_spdx": "NOASSERTION",
                 "redistribution_allowed": False,
                 "version": "0.1",
+                "managed_paths": list(native_paths),
             }
         )
         passport_members.append(

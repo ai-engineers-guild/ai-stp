@@ -36,6 +36,8 @@ The current `component-scaffold/5` directory contains `.ai-stp-template.json`,
 `.gitignore`, `component-passport.json`, `eval-profile.json`, README, and editable
 source under `source/`. A concrete harness also receives a generated native layout
 under `projections/<harness>/`; a portable scaffold has no projection directory.
+The current `setup-scaffold/4` wrapper embeds that `/5` component tree for one
+concrete harness; `/1`–`/3` remain validatable historical descriptors.
 An `instruction` canon is `source/AGENTS.md`; Claude Code projections use
 `CLAUDE.md`. The `/3` and `/4` descriptors remain accepted as historical data,
 but their old wrapper bytes are never emitted under the `/5` identity.
@@ -71,6 +73,13 @@ another type.
 5. Record and release an exact version, then use `publication plan` and
    `publication confirm`. The publication checklist is not authorization: source,
    license, evidence, and server-side validation remain mandatory separate boundaries.
+   `component version release` and `setup compose` refuse any remaining
+   `TODO(ai-stp-scaffold):` marker: a draft is not a canonical adaptation.
+6. A `setup scaffold` writes `setup.json` members at
+   `components/<name>/projections/<harness>` with `managed_paths` taken from that
+   generated native layout. Compose freezes those files into a content-addressed
+   `ComponentAdaptation` bound to the exact provider surface. Empty tags and
+   draft descriptions fail before any setup version is recorded.
 
 `component template render` reads one regular file of no more than 64 KiB without
 following a symlink and returns a validated projection in machine output. The source

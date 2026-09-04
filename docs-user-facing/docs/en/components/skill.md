@@ -124,7 +124,7 @@ format constraints.
 Validate the installed package shape, not the authoring tree:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/native --json
+ai-stp component skill validate --path ./playwright-checks/source --json
 ```
 
 The command is read-only. It names every deviation with a `SKxxx` code. It

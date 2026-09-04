@@ -116,7 +116,9 @@ SQLite, and keeps install as a public provider write.
   silently redefining `/4`. The merged tree had already assigned `/3` to the
   older wrapper containing `component.json`, the safety/publication wrapper files, and
   `adaptations/<harness>/`; those historical bytes are not silently redefined.
-  `setup-scaffold/3` embeds the `/5` component wrapper. Earlier descriptor
+  `setup-scaffold/4` embeds the `/5` component wrapper and names each nested
+  member's generated projection plus managed paths so compose can freeze a
+  canonical adaptation after draft markers are replaced. Earlier descriptor
   versions remain validatable against their schemas.
 - `ComponentScaffoldResult` gains `git_initialized`, `git_commit`, and
   `git_reason` because the result schema forbids extra fields.

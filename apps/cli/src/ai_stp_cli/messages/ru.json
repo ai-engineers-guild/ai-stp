@@ -233,6 +233,8 @@
   "registration requires confirmation of the exact import plan digest": "регистрация требует подтверждения точного digest плана импорта",
   "removing a harness program requires explicit confirmation": "удаление программы харнесса требует явного подтверждения",
   "removing a managed tool requires explicit confirmation": "удаление управляемого инструмента требует явного подтверждения",
+  "replace every TODO(ai-stp-scaffold) marker before compose": "замените каждый маркер TODO(ai-stp-scaffold) перед compose",
+  "replace every TODO(ai-stp-scaffold) marker before release": "замените каждый маркер TODO(ai-stp-scaffold) перед выпуском",
   "report submission requires confirmation of the exact preview digest": "отправка жалобы требует подтверждения точного digest предпросмотра",
   "required environment entries must be uppercase variable names, never NAME=value": "записи required environment должны быть именами переменных в верхнем регистре, никогда NAME=value",
   "resetting the device identity discards its key and cannot be undone": "сброс идентичности устройства уничтожает её ключ и необратим",

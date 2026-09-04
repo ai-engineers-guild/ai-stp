@@ -23,6 +23,7 @@ from pydantic import ValidationError
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import components, content, journal, revisions
 from ai_stp_cli.local.passports import moment
+from ai_stp_contracts.authoring import AUTHORING_DRAFT_MARKER
 from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_foundation.canonical import JsonValue, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
@@ -690,6 +691,12 @@ def materialize_version_passport(
             "AI_STP_VALIDATION_ERROR",
             "the component draft is not ready to release",
             details={"fields": ", ".join(missing)},
+        )
+    if AUTHORING_DRAFT_MARKER in str(values.get("description") or ""):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "replace every TODO(ai-stp-scaffold) marker before release",
+            details={"fields": "description"},
         )
     harness_id = cast(HarnessId, values["harness_id"])
     component_type = cast(ComponentType, values["component_type"])

@@ -62,7 +62,7 @@ playwright-checks/
 └── projections/<harness>/   # только если --harness конкретный
 ```
 
-У hook дополнительно есть `source/hook.json` (событие, порядок, блокирующий
+У hook дополнительно есть `source/hook-source.json` (событие, порядок, блокирующий
 failure, handler) и спроецированный нативный манифест. Plugin с каталогом
 манифеста получает продуктовый манифест и заметку `skills/`, без заглушки
 `activate_plugin`. Plugin для OpenCode и Pi — один модуль JS/TS, без
@@ -75,8 +75,10 @@ failure, handler) и спроецированный нативный маниф�
 `setup scaffold plan` / `apply` создают физический каталог сетапа для одного
 харнесса: черновик `setup.json`, черновик `setup-passport.json`, вложенные
 `components/<member>/` с одним git-корнем и пустой `projections/<harness>/`
-до отдельной команды экспорта. `setup compose` по-прежнему пишет SQLite.
-Compose — это не install.
+до отдельной команды экспорта. Вложенные члены указывают на сгенерированную
+проекцию и задают `managed_paths`. Перед `setup compose` замените каждый
+маркер `TODO(ai-stp-scaffold):` и добавьте tags: compose отказывает черновику.
+Compose пишет SQLite. Compose — это не install.
 
 ## Паспорт
 
@@ -143,7 +145,7 @@ ai-stp component source evidence refresh --id <stable_id> --version 1.0 --json
 **пакет** (каталог с `SKILL.md` в корне), а не всё авторское дерево:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/native --json
+ai-stp component skill validate --path ./playwright-checks/source --json
 ```
 
 Эта команда — не [`ai-stp skill install`](../cli/skill.md). Последняя

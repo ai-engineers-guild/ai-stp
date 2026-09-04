@@ -123,7 +123,7 @@ frontmatter на формат не проверяется: спецификац�
 Проверяйте форму установленного пакета, а не авторское дерево:
 
 ```bash
-ai-stp component skill validate --path ./playwright-checks/native --json
+ai-stp component skill validate --path ./playwright-checks/source --json
 ```
 
 Команда только читает. Она называет каждое отклонение кодом `SKxxx`. Она

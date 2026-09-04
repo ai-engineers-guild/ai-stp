@@ -12,7 +12,8 @@
       "enum": [
         "ai-stp/1",
         "ai-stp/2",
-        "ai-stp/3"
+        "ai-stp/3",
+        "ai-stp/4"
       ],
       "type": "string"
     },
@@ -20,7 +21,8 @@
       "enum": [
         "setup-scaffold/1",
         "setup-scaffold/2",
-        "setup-scaffold/3"
+        "setup-scaffold/3",
+        "setup-scaffold/4"
       ],
       "type": "string"
     }
@@ -37,7 +39,7 @@
     },
     "generator_version": {
       "$ref": "#/$defs/SetupGeneratorVersion",
-      "default": "ai-stp/3"
+      "default": "ai-stp/4"
     },
     "git_commit": {
       "anyOf": [
@@ -90,7 +92,7 @@
     },
     "template_version": {
       "$ref": "#/$defs/SetupTemplateVersion",
-      "default": "setup-scaffold/3"
+      "default": "setup-scaffold/4"
     }
   },
   "required": [

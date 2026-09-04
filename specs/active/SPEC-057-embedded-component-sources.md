@@ -62,6 +62,8 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   component identity, builds a complete component passport, writes exact
   `ComponentRef` values to the setup passport, and uses
   `ai-stp-setup-definition/2` only when the embedded index is non-empty.
+  A local-path member whose description still carries `TODO(ai-stp-scaffold):`
+  is refused before any setup version is recorded.
 - `REQ-5706`: Definition version 2 is bounded canonical JSON containing the
   version 1 fields plus sorted embedded passport, snapshot, and base64url artifact
   records. Passport and artifact digests and sizes are independently verified;
@@ -168,7 +170,7 @@ version 2 bytes and published setup history.
 | `REQ-5702` | Git fixtures resolve branch/tag to commit and reject floating frozen provenance, changed repository identity, unsafe redirect, and subpath escape. |
 | `REQ-5703` | Adapter tests contact only each allowlisted endpoint, pin exact artifacts and dependency evidence, and label registry metadata as observation. |
 | `REQ-5704` | Ecosystem fixtures cover npm scripts/lock, PyPI file ambiguity/platform, crates checksum/lock, Go checksum, and pub archive/lock. |
-| `REQ-5705` | A mixed authoring fixture freezes to exact refs and a version 2 definition; a catalog-only setup remains byte-compatible version 1. |
+| `REQ-5705` | A mixed authoring fixture freezes to exact refs and a version 2 definition; a catalog-only setup remains byte-compatible version 1; a scaffold draft still containing `TODO(ai-stp-scaffold):` is refused. |
 | `REQ-5706` | Golden and negative tests verify canonical bytes, ordering, digests, bounds, collisions, mismatches, and incomplete records. |
 | `REQ-5707` | Passport tests cover all eight kinds, ownership/upstream attribution separation, dependencies, and absence from catalog search. |
 | `REQ-5708` | Private Git/package/local fixtures pass; public fixtures fail for unknown/prohibitive licenses and foreign local bytes. |

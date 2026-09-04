@@ -305,6 +305,7 @@ closed or forbade. Those findings are not re-opened here:
 | Persist adaptation assessments (CMP-003) | Platform work, not CLI: filed as `#111`. |
 | Catalog/web per-harness matrix (CMP-004) | Platform/web work, not CLI: filed as `#112`. |
 | Scaffold v5 (SCA-001) | Done: the consumer CLI preserves `/3` and `/4` as historical and emits `component-scaffold/5`: `source/AGENTS.md` canon, generated `projections/<harness>/` in the native layout, no speculative adaptation document, no invented passport tags, and one reported Git root. |
+| Authoring freeze (SCA-004) | Done: `setup-scaffold/4` points nested members at `projections/<harness>` with `managed_paths`; compose and `component version release` refuse `TODO(ai-stp-scaffold):` markers and freeze a content-addressed `ComponentAdaptation` on the exact provider surface. |
 | Setup export (SCA-003) | Done: `setup export` writes a separate `ai-stp-setup-export/1` review tree whose manifest binds the recorded passport, definition, and every exported file; it mutates neither authoring nor harness state. |
 | Rust rewrite / new component kinds | Backlog (`D-15`). Historical experiments are not current evidence. |
 

@@ -1,5 +1,6 @@
-"""Physical setup authoring trees (SPEC-041 REQ-4112 / REQ-4113)."""
+"""Physical setup authoring trees (SPEC-041 REQ-4111 / REQ-4112)."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -36,7 +37,7 @@ def test_setup_scaffold_nests_members_without_a_nested_git(tmp_path: Path) -> No
         "components": "skill:review-kit,instruction:conventions",
     }
     plan = setup_scaffold_commands.plan(parameters).payload
-    assert plan.descriptor.template_version == "setup-scaffold/3"
+    assert plan.descriptor.template_version == "setup-scaffold/4"
     assert plan.descriptor.harness_id == "codex"
     assert {member.name for member in plan.descriptor.members} == {"review-kit", "conventions"}
     assert any(item.path == "setup.json" for item in plan.files)
@@ -44,6 +45,14 @@ def test_setup_scaffold_nests_members_without_a_nested_git(tmp_path: Path) -> No
     assert any(
         item.path.startswith("components/conventions/projections/codex/") for item in plan.files
     )
+    document = json.loads(setup_scaffold.setup_scaffold_files(plan.descriptor)["setup.json"])
+    skill = next(item for item in document["components"] if item["name"] == "review-kit")
+    instruction = next(item for item in document["components"] if item["name"] == "conventions")
+    assert skill["source"]["relative_path"] == "components/review-kit/projections/codex"
+    assert skill["managed_paths"] == ["skills/review-kit/SKILL.md"]
+    assert instruction["source"]["relative_path"] == "components/conventions/projections/codex"
+    assert "GENERATED.md" not in instruction["managed_paths"]
+    assert instruction["managed_paths"]
     assert not any(item.path.startswith(".git/") for item in plan.files)
 
     result = setup_scaffold_commands.apply(

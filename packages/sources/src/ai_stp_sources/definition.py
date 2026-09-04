@@ -327,7 +327,11 @@ def _safe_public_https(value: str | None) -> bool:
 
 def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
     """Build the exact native artifact and adaptation for one embedded draft."""
-    source_files = sorted(draft.snapshot.files.items())
+    source_files = sorted(
+        (name, content)
+        for name, content in draft.snapshot.files.items()
+        if name.rsplit("/", 1)[-1] != "GENERATED.md"
+    )
     if len(draft.managed_paths) != len(source_files) or not source_files:
         raise SourceError(
             INCOMPLETE_PASSPORT,

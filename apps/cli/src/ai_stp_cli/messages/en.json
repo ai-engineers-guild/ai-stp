@@ -233,6 +233,8 @@
   "registration requires confirmation of the exact import plan digest": "registration requires confirmation of the exact import plan digest",
   "removing a harness program requires explicit confirmation": "removing a harness program requires explicit confirmation",
   "removing a managed tool requires explicit confirmation": "removing a managed tool requires explicit confirmation",
+  "replace every TODO(ai-stp-scaffold) marker before compose": "replace every TODO(ai-stp-scaffold) marker before compose",
+  "replace every TODO(ai-stp-scaffold) marker before release": "replace every TODO(ai-stp-scaffold) marker before release",
   "report submission requires confirmation of the exact preview digest": "report submission requires confirmation of the exact preview digest",
   "required environment entries must be uppercase variable names, never NAME=value": "required environment entries must be uppercase variable names, never NAME=value",
   "resetting the device identity discards its key and cannot be undone": "resetting the device identity discards its key and cannot be undone",

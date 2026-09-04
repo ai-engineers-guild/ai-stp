@@ -20,6 +20,7 @@ from ai_stp_cli.local import cache, content, revisions, versions
 from ai_stp_cli.local.composition import rule_for
 from ai_stp_cli.local.database import transaction
 from ai_stp_cli.paths import redact_home
+from ai_stp_contracts.authoring import AUTHORING_DRAFT_MARKER
 from ai_stp_contracts.machine_help import (
     SetupComposeMember,
     SetupComposePlan,
@@ -123,9 +124,19 @@ class ResolvedComposition:
     created_at: str
 
 
+def _reject_authoring_draft(manifest: ComposeManifest) -> None:
+    """Compose freezes bytes; a scaffold TODO is not a completed member."""
+    texts = (manifest.description, *(item.description or "" for item in manifest.components))
+    if any(AUTHORING_DRAFT_MARKER in text for text in texts):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "replace every TODO(ai-stp-scaffold) marker before compose",
+        )
+
+
 def parse_manifest(document: object) -> ComposeManifest:
     try:
-        return ComposeManifest.model_validate(document)
+        manifest = ComposeManifest.model_validate(document)
     except ValidationError as exc:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
@@ -134,6 +145,8 @@ def parse_manifest(document: object) -> ComposeManifest:
                 "fields": ",".join(".".join(str(part) for part in e["loc"]) for e in exc.errors())
             },
         ) from exc
+    _reject_authoring_draft(manifest)
+    return manifest
 
 
 def source_intent(component: ComposeComponent) -> SourceIntent:
@@ -154,6 +167,7 @@ def compose(
 ) -> ResolvedComposition:
     if not is_valid_id(setup_id, "setup"):
         raise CliFailure("AI_STP_VALIDATION_ERROR", "a valid setup id is required")
+    _reject_authoring_draft(manifest)
     catalog_refs = tuple(item.ref for item in catalog)
     embedded = tuple(
         EmbeddedDraft(

@@ -55,9 +55,12 @@ type ComponentTemplateVersion = Literal[
     "component-scaffold/5",
 ]
 type ComponentGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4", "ai-stp/5"]
-type SetupTemplateVersion = Literal["setup-scaffold/1", "setup-scaffold/2", "setup-scaffold/3"]
-type SetupGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3"]
+type SetupTemplateVersion = Literal[
+    "setup-scaffold/1", "setup-scaffold/2", "setup-scaffold/3", "setup-scaffold/4"
+]
+type SetupGeneratorVersion = Literal["ai-stp/1", "ai-stp/2", "ai-stp/3", "ai-stp/4"]
 type GitInitReason = Literal["existing_worktree", "missing_identity", "git_unavailable"]
+AUTHORING_DRAFT_MARKER: Final[str] = "TODO(ai-stp-scaffold):"
 
 
 class PortableHookHandler(BaseModel):
@@ -181,8 +184,8 @@ class SetupTemplateDescriptor(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    template_version: SetupTemplateVersion = "setup-scaffold/3"
-    generator_version: SetupGeneratorVersion = "ai-stp/3"
+    template_version: SetupTemplateVersion = "setup-scaffold/4"
+    generator_version: SetupGeneratorVersion = "ai-stp/4"
     harness_id: HarnessId
     setup_name: Annotated[str, Field(min_length=1, max_length=64)]
     members: list[SetupMemberDescriptor] = Field(default_factory=list[SetupMemberDescriptor])
@@ -220,8 +223,8 @@ class SetupScaffoldResult(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     output: Annotated[str, Field(min_length=1)]
     files_written: Annotated[int, Field(ge=6)]
-    template_version: SetupTemplateVersion = "setup-scaffold/3"
-    generator_version: SetupGeneratorVersion = "ai-stp/3"
+    template_version: SetupTemplateVersion = "setup-scaffold/4"
+    generator_version: SetupGeneratorVersion = "ai-stp/4"
     git_initialized: bool
     git_commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40,64}$")] | None = None
     git_reason: GitInitReason | None = None

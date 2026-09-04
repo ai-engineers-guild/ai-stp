@@ -16,6 +16,7 @@ from ai_stp_cli.local import harness_catalog
 from ai_stp_cli.local.components import Rule
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.authoring import (
+    AUTHORING_DRAFT_MARKER,
     AUTHORING_LANGUAGES,
     AUTHORING_TYPE_LANGUAGE_MATRIX,
     AUTHORING_VARIANTS,
@@ -55,7 +56,7 @@ _PLACEHOLDERS: Final[frozenset[str]] = frozenset(
 LANGUAGES = AUTHORING_LANGUAGES
 VARIANTS = AUTHORING_VARIANTS
 TYPE_LANGUAGE_MATRIX = AUTHORING_TYPE_LANGUAGE_MATRIX
-DRAFT: Final[str] = "TODO(ai-stp-scaffold):"
+DRAFT: Final[str] = AUTHORING_DRAFT_MARKER
 GITIGNORE: Final[bytes] = (
     b".DS_Store\n"
     b"Thumbs.db\n"
