@@ -4,6 +4,8 @@ type MarkdownDescriptionProps = {
   source: string;
   heading?: string;
   article?: boolean;
+  articleTitle?: string;
+  articleCoverImage?: string | null;
 };
 
 /**
@@ -14,8 +16,14 @@ export function MarkdownDescription({
   source,
   heading = "Description",
   article = false,
+  articleTitle,
+  articleCoverImage,
 }: MarkdownDescriptionProps) {
-  const rendered = renderMarkdownOnServer(source, { article });
+  const rendered = renderMarkdownOnServer(source, {
+    article,
+    ...(articleTitle === undefined ? {} : { title: articleTitle }),
+    ...(articleCoverImage === undefined ? {} : { coverImage: articleCoverImage }),
+  });
   return (
     <section className={article ? "article-prose" : "space-y-3"} aria-label={heading}>
       {!article ? (

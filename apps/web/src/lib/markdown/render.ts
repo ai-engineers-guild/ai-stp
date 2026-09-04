@@ -11,7 +11,7 @@ const HEADING_ID = /^[a-z0-9][a-z0-9_-]*$/i;
 const TOKEN = "\u0000";
 
 export type RenderedMarkdown = { html: string; excerpt: string };
-type RenderOptions = { article?: boolean };
+type RenderOptions = { article?: boolean; title?: string; coverImage?: string | null };
 
 function escapeHtml(text: string): string {
   return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -183,6 +183,27 @@ function isBlockStart(line: string): boolean {
   return /^(?:#{1,6}\s+|```|~~~|>\s?|[-*+]\s+|\d+[.)]\s+|\|.*\|\s*$|@\[(?:youtube|vimeo)\]\()/u.test(line.trim());
 }
 
+function stripArticleChrome(source: string, options: RenderOptions): string {
+  if (!options.article || !options.title) return source;
+
+  const normalize = (value: string) => value.replace(/[`*_~]/g, "").trim().toLocaleLowerCase();
+  const lines = source.replaceAll("\r\n", "\n").split("\n");
+  let index = 0;
+  while (index < lines.length && !lines[index]?.trim()) index += 1;
+
+  const heading = lines[index]?.trim().match(/^#\s+(.+?)(?:\s+\{#[^\s}]+\})?\s*$/u);
+  if (!heading || normalize(heading[1] ?? "") !== normalize(options.title)) return source;
+  index += 1;
+  while (index < lines.length && !lines[index]?.trim()) index += 1;
+
+  const image = lines[index]?.trim().match(/^!\[[^\]]*\]\(([^)\s]+)\)$/u);
+  if (options.coverImage && image?.[1] === options.coverImage) {
+    index += 1;
+    while (index < lines.length && !lines[index]?.trim()) index += 1;
+  }
+  return lines.slice(index).join("\n");
+}
+
 // eslint-disable-next-line complexity -- block grammar is intentionally kept in one safe parser.
 function renderBlocks(lines: string[], ids: Set<string>, article: boolean): string {
   const blocks: string[] = [];
@@ -276,7 +297,8 @@ function renderBlocks(lines: string[], ids: Set<string>, article: boolean): stri
 export function renderMarkdownOnServer(source: string, options: RenderOptions = {}): RenderedMarkdown {
   const excerpt = excerptFromSource(source);
   if (FORBIDDEN.test(source)) return { html: excerpt ? `<p>${escapeHtml(excerpt)}</p>` : "", excerpt };
-  return { html: renderBlocks(source.replaceAll("\r\n", "\n").split("\n"), new Set(), options.article ?? false), excerpt };
+  const renderSource = stripArticleChrome(source, options);
+  return { html: renderBlocks(renderSource.replaceAll("\r\n", "\n").split("\n"), new Set(), options.article ?? false), excerpt };
 }
 
 export function excerptMarkdown(source: string): string {

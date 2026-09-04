@@ -141,6 +141,18 @@ describe("renderMarkdownOnServer", () => {
     expect(rendered.html).toContain('href="#intro"');
   });
 
+  it("omits shell-owned article title and cover from the body", () => {
+    const rendered = renderMarkdownOnServer(
+      "# Codex\n\n![(Codex) profile](/content/illustrations/setup-codex.jpg)\n\nIntro\n\n## Native surface",
+      { article: true, title: "Codex", coverImage: "/content/illustrations/setup-codex.jpg" },
+    );
+
+    expect(rendered.html).not.toContain('<h1 id="codex">Codex</h1>');
+    expect(rendered.html).not.toContain("setup-codex.jpg");
+    expect(rendered.html).toContain("<p>Intro</p>");
+    expect(rendered.html).toContain('<h2 id="native-surface">Native surface</h2>');
+  });
+
   it("embeds only supported video hosts and keeps the source link", () => {
     const rendered = renderMarkdownOnServer(
       "@[youtube](https://www.youtube.com/watch?v=dQw4w9WgXcQ)\n\n@[vimeo](https://vimeo.com/12345678)",

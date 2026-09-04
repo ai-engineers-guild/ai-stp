@@ -112,7 +112,13 @@ export default async function ContentDetail({ params }: Props) {
         />
       ) : null}
       <div className="mx-auto w-full max-w-4xl">
-        <MarkdownDescription source={entry.body} heading={t("bodyHeading")} article />
+        <MarkdownDescription
+          source={entry.body}
+          heading={t("bodyHeading")}
+          article
+          articleTitle={entry.title}
+          articleCoverImage={entry.cover_image}
+        />
       </div>
     </article>
   );
