@@ -25,10 +25,17 @@ from ai_stp_contracts.safety_checks import (
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.provider_surfaces import provider_surface
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.markdown import project_safe_markdown
-from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_passports.versions import (
+    ArtifactRef,
+    ComponentVersionPassport,
+    ScopeAdaptation,
+    SetupVersionPassport,
+    seal_adaptation,
+)
 from ai_stp_platform.catalog_query_language import Expression, named_harness_ids, parse_query
 from ai_stp_platform.catalog_query_language import matches as query_matches
 from ai_stp_platform.catalog_read import CatalogIntegrityError, PublicVersionRow
@@ -296,8 +303,12 @@ def verify_passport_integrity(row: PublicVersionRow) -> bytes:
     # a masked answer for the checks below and an unhandled 500 for this line.
     model = ComponentVersionPassport if row.object_kind == "component" else SetupVersionPassport
     try:
-        passport = model.model_validate(row.passport)
-    except ValidationError as exc:
+        passport = (
+            _component_passport(row.passport)
+            if row.object_kind == "component"
+            else model.model_validate(row.passport)
+        )
+    except (CatalogIntegrityError, ValidationError) as exc:
         raise CatalogIntegrityError("passport does not validate against its schema") from exc
     # Seal is over the stored document. Round-tripping through the model injects
     # fields added later with defaults (`harness_ids`, `supported_os`) and would
@@ -313,10 +324,88 @@ def verify_passport_integrity(row: PublicVersionRow) -> bytes:
     return payload
 
 
+def _component_passport(passport: dict[str, JsonValue]) -> ComponentVersionPassport:
+    """Read old flat component passports without changing their stored bytes."""
+    if "adaptations" in passport:
+        return ComponentVersionPassport.model_validate(passport)
+    legacy = dict(passport)
+    harness_id = legacy.get("harness_id")
+    component_type = legacy.get("component_type")
+    if not isinstance(harness_id, str) or not isinstance(component_type, str):
+        raise CatalogIntegrityError("legacy component passport is incomplete")
+    artifact = ArtifactRef.model_validate(legacy.get("artifact"))
+    try:
+        surface = provider_surface(cast(HarnessId, harness_id), "global")
+        projection_kind = legacy.get("projection_kind", "native_files")
+        if projection_kind not in {"marketplace", "plugin", "native_files", "package"}:
+            projection_kind = "native_files"
+        scope = ScopeAdaptation.model_validate(
+            {
+                "scope": "global",
+                "projection_format": "ai-stp-adaptation-projection/1",
+                "projection_artifact": {
+                    "digest": artifact.digest,
+                    "size_bytes": max(1, artifact.size_bytes),
+                },
+                "provider_component_kind": component_type,
+                "projection_kind": projection_kind,
+                "required_surface": surface._asdict(),
+                "members": [
+                    {
+                        "path": f"legacy/{legacy['stable_id']}",
+                        "object_type": "file",
+                        "mode": 0o644,
+                        "content_artifact": artifact.model_dump(mode="json"),
+                        "native_ids": list(
+                            dict.fromkeys(
+                                item
+                                for item in cast(list[object], legacy.get("native_ids", []))
+                                if isinstance(item, str)
+                            )
+                        ),
+                        "content_format": "application/octet-stream",
+                        "parser_id": None,
+                        "ownership": "whole",
+                        "ownership_key": None,
+                        "write_semantics": "replace",
+                        "withdrawal_semantics": "remove_path",
+                    }
+                ],
+                "technical_support": "experimental",
+                "technical_support_reason": "historical passport before explicit adaptations",
+            }
+        )
+        adaptation = seal_adaptation(
+            {
+                "harness_id": harness_id,
+                "implementation_mode": "native",
+                "source_artifact": None,
+                "transform": None,
+                "logical_component_type": component_type,
+                "scope_adaptations": [cast(JsonValue, scope.model_dump(mode="json"))],
+            }
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CatalogIntegrityError("legacy component passport is invalid") from exc
+    for field in (
+        "harness_id",
+        "harness_ids",
+        "managed_paths",
+        "native_ids",
+        "projection_kind",
+        "supported_os",
+        "variant_id",
+    ):
+        legacy.pop(field, None)
+    legacy["origin_harness_id"] = harness_id
+    legacy["adaptations"] = [cast(JsonValue, adaptation.model_dump(mode="json"))]
+    return ComponentVersionPassport.model_validate(legacy)
+
+
 def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> ComponentSummary:
     """Card projection: latest_* fields from the version passport (REQ-2103)."""
     verify_passport_integrity(row)
-    passport = ComponentVersionPassport.model_validate(row.passport)
+    passport = _component_passport(row.passport)
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
@@ -432,7 +521,11 @@ def version_list_entry(row: PublicVersionRow, *, now: datetime | None = None) ->
     passport_model = (
         ComponentVersionPassport if row.object_kind == "component" else SetupVersionPassport
     )
-    passport = passport_model.model_validate(row.passport)
+    passport = (
+        _component_passport(row.passport)
+        if row.object_kind == "component"
+        else passport_model.model_validate(row.passport)
+    )
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
@@ -474,7 +567,7 @@ def component_version_response(
     row: PublicVersionRow, *, now: datetime | None = None
 ) -> ComponentVersionResponse:
     verify_passport_integrity(row)
-    passport = ComponentVersionPassport.model_validate(row.passport)
+    passport = _component_passport(row.passport)
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
