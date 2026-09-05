@@ -41,6 +41,7 @@ last_verified: "2026-08-03"
 | [offline-capability.md](offline-capability.md) | What works without the network after initial setup and what requires connectivity. | 2026-08-13 |
 | [operation.md](operation.md) | States, plan, journal, and recovery of a mutating operation. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |
+| [path-inventory.md](path-inventory.md) | Machine contract for passport-first inventory of one explicit authoring root. | 2026-09-05 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
 | [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |

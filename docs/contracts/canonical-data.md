@@ -59,6 +59,7 @@ ai-stp:multi-root-transaction:v1
 ai-stp:bundle:v1
 ai-stp:attestation:v1
 ai-stp:native-discovery:v1
+ai-stp:path-inventory:v1
 ai-stp:component-source-binding:v1
 ai-stp:project-index:v1
 ai-stp:project-toolchain:v1
@@ -90,6 +91,11 @@ The `article-revision`, `article-active`, and `article-snapshot` domains belong 
 article publication under `article-publication.md`: canonical localized revision,
 active RU/EN pair, and complete repository snapshot. `article-body` remains the SEO body
 hash and does not replace a revision's `content_digest`.
+
+The `path-inventory` domain belongs to explicit-root inventory under
+`path-inventory.md`: relation, origin, and relative path of one classified
+object. Equal native-discovery bytes do not produce an interchangeable
+identifier.
 
 The `standard-inventory` domain belongs to the coordinated family inventory under
 `standard-family.md`: family id, axis identities, and exported schema `$id`s.

@@ -1340,9 +1340,42 @@ class NativeComponents(BaseModel):
 
     schema_version: Literal[1] = 1
 
-    #: The project searched beside the global harness roots, when one was named.
+    #: The explicit project root. When set, discovery does not add global homes.
     project: str | None = None
     components: list[NativeComponent]
+    diagnostics: list[NativeDiscoveryDiagnostic] = Field(
+        default_factory=list[NativeDiscoveryDiagnostic]
+    )
+
+
+class PathInventoryObject(BaseModel):
+    """One logical object in an explicit-root inventory (`SPEC-005` REQ-534)."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    object_kind: Literal["component", "setup"]
+    relation: Literal["independent", "embedded_member", "generated_projection", "duplicate"]
+    origin: Literal["passport", "native"]
+    object_id: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    relative_path: Annotated[str, Field(min_length=1, max_length=2048)]
+    component_type: ComponentType | None = None
+    name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    harness_id: str | None = None
+    passport_path: Annotated[str, Field(min_length=1, max_length=2048)] | None = None
+    generated_from: Annotated[str, Field(min_length=1, max_length=2048)] | None = None
+    stable_id: Annotated[str, Field(min_length=1, max_length=128)] | None = None
+
+
+class PathInventory(BaseModel):
+    """Passport-first inventory of one explicit root. Observation only (`REQ-518`)."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    root: Annotated[str, Field(min_length=1)]
+    complete: bool
+    objects: list[PathInventoryObject]
     diagnostics: list[NativeDiscoveryDiagnostic] = Field(
         default_factory=list[NativeDiscoveryDiagnostic]
     )

@@ -22,7 +22,7 @@ def _snapshot(root: Path) -> dict[str, bytes | None]:
     }
 
 
-def test_real_cli_combines_project_layout_and_global_github_provenance(tmp_path: Path) -> None:
+def test_real_cli_named_root_does_not_import_global_github_provenance(tmp_path: Path) -> None:
     home = tmp_path / "home"
     project = tmp_path / "project"
     extension = project / ".pi" / "extensions" / "review.ts"
@@ -127,7 +127,24 @@ review-mcp = "review_mcp.server:main"
     envelope = cast(dict[str, object], json.loads(result.stdout))
     data = cast(dict[str, object], envelope["data"])
     found = cast(list[dict[str, object]], data["components"])
-    github = next(item for item in found if item["component_type"] == "plugin")
+    assert all(item.get("scope") != "global" for item in found)
+    assert not any(
+        str(item["source_path"]).endswith("plugins/cache/acme/reviewer/1.0.0") for item in found
+    )
+    global_result = subprocess.run(
+        [sys.executable, "-m", "ai_stp_cli", "component", "discover", "--json"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=environment,
+        check=False,
+    )
+    assert global_result.returncode == 0, global_result.stderr
+    global_found = cast(
+        list[dict[str, object]],
+        cast(dict[str, object], json.loads(global_result.stdout)["data"])["components"],
+    )
+    github = next(item for item in global_found if item["component_type"] == "plugin")
     provenance = cast(dict[str, object], github["provenance"])
     assert provenance["kind"] == "github"
     assert provenance["state"] == "exact"

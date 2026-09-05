@@ -46,7 +46,8 @@ The executable is `ai-stp`. The PyPI package is `ai-stp-cli`.
 | `ai-stp auth logout` | `apply` | `none` | [auth.md](auth.md) | End the cloud session on the server and here, keeping all local data. |
 | `ai-stp auth status` | `read` | `none` | [auth.md](auth.md) | Report the platform relationship: local-only, authenticated, expired or revoked. |
 | `ai-stp capabilities` | `read` | `none` | [observe.md](observe.md) | Report what this installation can do right now. |
-| `ai-stp component discover` | `read` | `none` | [component-discover.md](component-discover.md) | List native components in the harness roots and one project. Changes nothing. |
+| `ai-stp component discover` | `read` | `none` | [component-discover.md](component-discover.md) | List native components in one project or the harness roots. Changes nothing. |
+| `ai-stp component inventory` | `read` | `none` | [component-discover.md](component-discover.md) | Passport-first inventory of one explicit authoring tree. Changes nothing. |
 | `ai-stp component scaffold plan` | `plan` | `none` | [component-discover.md](component-discover.md) | Preview exact files and digests for one versioned component scaffold. |
 | `ai-stp component scaffold apply` | `apply` | `plan_digest` | [component-discover.md](component-discover.md) | Create exactly the confirmed component scaffold without overwriting a path. |
 | `ai-stp component template render` | `read` | `none` | [component-discover.md](component-discover.md) | Render and validate a portable template for one concrete harness. |

@@ -603,11 +603,32 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
     ),
     Declaration(
         path=["component", "discover"],
-        summary="List native components in the harness roots and one project. Changes nothing.",
+        summary="List native components in one project or the harness roots. Changes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-native-components",
         handler="component:discover",
-        parameters=(option("root", "string", "Project root to look inside, beside the roots."),),
-        next_actions=("component adopt",),
+        parameters=(
+            option(
+                "root",
+                "string",
+                "Project root to look inside. Does not scan global harness homes.",
+            ),
+        ),
+        next_actions=("component inventory", "component adopt"),
+    ),
+    Declaration(
+        path=["component", "inventory"],
+        summary="Passport-first inventory of one explicit authoring tree. Changes nothing.",
+        result_schema="urn:ai-stp:schema:v1:cli-path-inventory",
+        handler="component:inventory",
+        parameters=(
+            option(
+                "root",
+                "string",
+                "Directory to inventory. Does not scan global harness homes.",
+                required=True,
+            ),
+        ),
+        next_actions=("component discover", "component adopt"),
     ),
     Declaration(
         path=["component", "scaffold", "plan"],

@@ -26,6 +26,7 @@ from ai_stp_cli.local import (
     external_sources,
     github_evidence,
     lifecycle,
+    path_inventory,
     revisions,
     search,
     skill_package,
@@ -55,6 +56,7 @@ from ai_stp_contracts.machine_help import (
     NativeComponents,
     NativeDiscoveryDiagnostic,
     PassportView,
+    PathInventory,
     RecordedVersion,
     SearchHit,
     SkillPackageFinding,
@@ -266,8 +268,9 @@ def _view(stored: revisions.StoredRevision) -> PassportView:
 
 
 def discover(parameters: Mapping[str, object]) -> Answer[NativeComponents]:
-    """List native components in the harness roots and, if named, one project.
+    """List native components in harness roots, or only in a named project.
 
+    An explicit `--root` is the path workflow: it does not add global homes.
     Reads no file's content and writes nothing at all. A path whose *name* says
     it holds a credential is listed and flagged, never opened: opening it to
     find out whether it holds a secret is the harm the rule exists to prevent.
@@ -319,6 +322,11 @@ def discover(parameters: Mapping[str, object]) -> Answer[NativeComponents]:
     )
 
 
+def inventory(parameters: Mapping[str, object]) -> Answer[PathInventory]:
+    """Passport-first inventory of one explicit root. Changes nothing."""
+    return Answer(path_inventory.inventory_root(Path(str(parameters["root"]))))
+
+
 def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:
     """Register one discovered component, by the exact path discovery reported.
 
@@ -345,7 +353,11 @@ def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:
         if named is not None
         else (wanted.parent if wanted.parent.is_dir() else None)
     )
-    matches = [item for item in components.discover(project=project) if item.absolute == wanted]
+    matches = [
+        item
+        for item in components.discover(project=project, include_global=True)
+        if item.absolute == wanted
+    ]
     if not matches:
         raise CliFailure(
             "AI_STP_NOT_FOUND",

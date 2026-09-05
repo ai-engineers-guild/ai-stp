@@ -742,6 +742,7 @@ def discover(
     *,
     project: Path | None = None,
     environment: dict[str, str] | None = None,
+    include_global: bool | None = None,
 ) -> tuple[Found, ...]:
     """List native components. Writes nothing and reads no file's content.
 
@@ -749,94 +750,105 @@ def discover(
     harness survey cannot disagree about where a harness keeps its files. Sizes
     are read from the directory entry, not by opening anything.
     """
-    return discover_report(project=project, environment=environment).components
+    return discover_report(
+        project=project, environment=environment, include_global=include_global
+    ).components
 
 
 def discover_report(
     *,
     project: Path | None = None,
     environment: dict[str, str] | None = None,
+    include_global: bool | None = None,
 ) -> Discovery:
-    """List components and explain optional source-adapter failures safely."""
+    """List components and explain optional source-adapter failures safely.
+
+    A named project is the path workflow (`REQ-534`) and does not add global
+    homes unless `include_global` is true. Adoption looks up an already
+    discovered path and therefore asks for both.
+    """
     found: list[Found] = []
     diagnostics: list[component_sources.Diagnostic] = []
-    held = environment if environment is not None else None
-    home = Path((held or {}).get("HOME", "~")).expanduser() if held is not None else Path.home()
-    for rule in GLOBAL_RULES:
-        if rule.root == "home":
-            base = home
-        elif rule.root == "cursor_config":
-            base = cursor_config_root(environment, home)
-        else:
-            detector = next(
-                (item for item in harnesses.DETECTORS if item.harness_id == rule.harness_id), None
-            )
-            if detector is None:  # pragma: no cover - guarded by the checker
-                continue
-            base = harnesses.config_root(detector, environment)
-        found.extend(_at(base / rule.relative, rule, SCOPE_GLOBAL))
+    scan_global = project is None if include_global is None else include_global
+    if scan_global:
+        held = environment if environment is not None else None
+        home = Path((held or {}).get("HOME", "~")).expanduser() if held is not None else Path.home()
+        for rule in GLOBAL_RULES:
+            if rule.root == "home":
+                base = home
+            elif rule.root == "cursor_config":
+                base = cursor_config_root(environment, home)
+            else:
+                detector = next(
+                    (item for item in harnesses.DETECTORS if item.harness_id == rule.harness_id),
+                    None,
+                )
+                if detector is None:  # pragma: no cover - guarded by the checker
+                    continue
+                base = harnesses.config_root(detector, environment)
+            found.extend(_at(base / rule.relative, rule, SCOPE_GLOBAL))
 
-    global_imported = interop_sources.discover_skill_lock(home)
-    diagnostics.extend(global_imported.diagnostics)
-    found = _merge_interop(found, global_imported.candidates, SCOPE_GLOBAL)
+        global_imported = interop_sources.discover_skill_lock(home)
+        diagnostics.extend(global_imported.diagnostics)
+        found = _merge_interop(found, global_imported.candidates, SCOPE_GLOBAL)
 
-    claude = next(item for item in harnesses.DETECTORS if item.harness_id == "claude-code")
-    sourced = component_sources.claude_plugins(harnesses.config_root(claude, environment))
-    diagnostics.extend(sourced.diagnostics)
-    plugin_rule = Rule(
-        "plugin",
-        "plugins/cache",
-        "directory",
-        "claude-code",
-        "code.claude.com/docs/en/plugin-marketplaces",
-    )
-    for item in sourced.candidates:
-        found.append(
-            _describe(
-                item.absolute,
-                plugin_rule,
-                SCOPE_GLOBAL,
-                provenance=Provenance(
-                    kind=item.kind,
-                    state=item.state,
-                    repository=item.repository,
-                    revision=item.revision,
-                    subpath=item.subpath,
-                    package_name=item.package_name,
-                    package_version=item.package_version,
-                    evidence=item.evidence,
-                ),
-            )
+        claude = next(item for item in harnesses.DETECTORS if item.harness_id == "claude-code")
+        sourced = component_sources.claude_plugins(harnesses.config_root(claude, environment))
+        diagnostics.extend(sourced.diagnostics)
+        plugin_rule = Rule(
+            "plugin",
+            "plugins/cache",
+            "directory",
+            "claude-code",
+            "code.claude.com/docs/en/plugin-marketplaces",
         )
-
-    pi = next(item for item in harnesses.DETECTORS if item.harness_id == "pi")
-    pi_packages = component_sources.pi_git_packages(harnesses.config_root(pi, environment))
-    diagnostics.extend(pi_packages.diagnostics)
-    pi_package_rule = Rule(
-        "plugin",
-        "git",
-        "directory",
-        "pi",
-        "pi.dev/docs/latest/packages",
-    )
-    for item in pi_packages.candidates:
-        found.append(
-            _describe(
-                item.absolute,
-                pi_package_rule,
-                SCOPE_GLOBAL,
-                provenance=Provenance(
-                    kind=item.kind,
-                    state=item.state,
-                    repository=item.repository,
-                    revision=item.revision,
-                    subpath=item.subpath,
-                    package_name=item.package_name,
-                    package_version=item.package_version,
-                    evidence=item.evidence,
-                ),
+        for item in sourced.candidates:
+            found.append(
+                _describe(
+                    item.absolute,
+                    plugin_rule,
+                    SCOPE_GLOBAL,
+                    provenance=Provenance(
+                        kind=item.kind,
+                        state=item.state,
+                        repository=item.repository,
+                        revision=item.revision,
+                        subpath=item.subpath,
+                        package_name=item.package_name,
+                        package_version=item.package_version,
+                        evidence=item.evidence,
+                    ),
+                )
             )
+
+        pi = next(item for item in harnesses.DETECTORS if item.harness_id == "pi")
+        pi_packages = component_sources.pi_git_packages(harnesses.config_root(pi, environment))
+        diagnostics.extend(pi_packages.diagnostics)
+        pi_package_rule = Rule(
+            "plugin",
+            "git",
+            "directory",
+            "pi",
+            "pi.dev/docs/latest/packages",
         )
+        for item in pi_packages.candidates:
+            found.append(
+                _describe(
+                    item.absolute,
+                    pi_package_rule,
+                    SCOPE_GLOBAL,
+                    provenance=Provenance(
+                        kind=item.kind,
+                        state=item.state,
+                        repository=item.repository,
+                        revision=item.revision,
+                        subpath=item.subpath,
+                        package_name=item.package_name,
+                        package_version=item.package_version,
+                        evidence=item.evidence,
+                    ),
+                )
+            )
 
     if project is not None:
         for rule in PROJECT_RULES:
