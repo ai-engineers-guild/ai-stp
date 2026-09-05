@@ -36,7 +36,7 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
 - `REQ-807`: A backup is created before the first change, and the unmanaged state is retained by contract.
 - `REQ-808`: The new target directory remains inactive until verified, ready to run, and status checked.
 - `REQ-809`: The states of `applied_unverified`, `verified`, `partial` and `failed` differ as a result of the provider and durable operation; Only `verified` is called success.
-- `REQ-810`: The current agent session does not overwrite its own active target directory in place.
+- `REQ-810`: The current agent session does not half-update its own active target directory in place. A change of the running environment is staged, recorded as a handoff, switched, and confirmed after restart (`ADR-0150`).
 - `REQ-811`: The provider's release is accepted only after checking the committed trust policy, signature, source, artifact hash, whether the release belongs to the committed list of approved releases, and the rollback protection sequence. The list is secured by digest together with `provider_id` and `repository`, who have the right to present it; an empty list does not allow anything.
 - `REQ-812`: Rekeying and revocation changes release validity without rewriting historical evidence or automatically deleting the target; recovery requires a separate verified plan, an exact digest from the local verified history and does not go below the policy floor.
 - `REQ-813`: Import of an existing configuration is performed in the order of inspection without modification, backup of the provider, clearing of secrets and inventory, creation of a personal setup with a passport, exact file hashes and origin, local verification and fixation in the registry.
@@ -106,7 +106,7 @@ The version of the contract is agreed upon before the operation. The old provide
 | `REQ-807` | Failure checks confirm pre-write backup and retention of unmanaged data. |
 | `REQ-808` | A status or ready to run error does not toggle the active pointer. |
 | `REQ-809` | The failure matrix checks all long-lived states of the result. |
-| `REQ-810` | End-to-end verification confirms the current session until the next launch. |
+| `REQ-810` | A staged replacement and restart leave the previous target recoverable until the new environment is confirmed. |
 | `REQ-811` | Benchmark signature and manifest checks reject unknown key, policy mismatch, modification of any signed field, exact executable bytes mismatch, and rollback; a correctly signed release outside the assigned list and approved bytes under someone else's `provider_id` are rejected by the code `release_not_pinned` before the first launch of the provider; trusted plan repeats the check before apply and atomically advances history only with `verified`. |
 | `REQ-812` | Fixtures for changing and revoking keys check overlap and blocking; recovery only accepts a separate confirmed plan for exact digest from verified history and does not reduce floor. |
 | `REQ-813` | The fixture of an existing target undergoes inspection, copy, cleaning, inventory, passport, verification and fixation without changing the target. |

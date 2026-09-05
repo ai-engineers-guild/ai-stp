@@ -146,7 +146,7 @@ async def test_fresh_support_evidence_is_exposed_on_detail_and_version(
                 "provider_id": "nddev-provider",
                 "provider_version": "2.4.0",
                 "release_reference": "a" * 40,
-                "operating_system": "ubuntu",
+                "operating_system": "linux",
                 "architecture": "x86_64",
                 "mandatory": True,
                 "observed_at": "2026-08-09T10:00:00.000Z",

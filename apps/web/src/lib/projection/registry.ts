@@ -45,8 +45,10 @@ import {
 } from "@/lib/projection/regional-presenters";
 import {
   componentFactsFromLoaders,
+  componentPassportFactsInput,
   countryPublicFacts,
   servicePublicFacts,
+  summaryFactsFromComponentPassport,
 } from "@/lib/projection/page-facts";
 import { isExternalCatalogEnabled } from "@/lib/projection/inventory";
 import { orNotFound } from "@/lib/projection/not-found";
@@ -192,7 +194,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
             countryCodes: relations.country_codes,
             services: relations.services.map((item) => item.canonical_domain),
           },
-          passport: latest?.passport ?? null,
+          passport: latest == null ? null : componentPassportFactsInput(latest.passport),
           publishedAt: latest?.published_at ?? detail.summary.latest_published_at,
           versions: detail.versions.map((item) => item.version),
           github,
@@ -221,21 +223,13 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       ).catch(() => ({ stars: null, archived: null }));
       return presentComponentVersion({
         facts: componentFactsFromLoaders({
-          summary: {
-            stable_id: componentId,
-            publisher_id: passport.owner_id,
-            latest_name: passport.name,
-            latest_description: passport.description,
-            latest_version: passport.version,
-            latest_harness_id: harnessId,
-            latest_component_type: passport.component_type,
-            latest_lifecycle: response.lifecycle,
-            latest_tags: passport.tags,
-            latest_trust: response.trust,
-            latest_projection_kind: projectionKind,
-          },
+          summary: summaryFactsFromComponentPassport(passport, {
+            componentId,
+            lifecycle: response.lifecycle,
+            trust: response.trust,
+          }),
           digest: response.passport_digest,
-          passport,
+          passport: componentPassportFactsInput(passport),
           publishedAt: response.published_at,
           versions: [passport.version],
           github,

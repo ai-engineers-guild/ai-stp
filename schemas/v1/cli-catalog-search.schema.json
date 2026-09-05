@@ -874,8 +874,9 @@
     },
     "SupportOperatingSystem": {
       "enum": [
-        "ubuntu",
-        "macos"
+        "linux",
+        "macos",
+        "windows"
       ],
       "type": "string"
     },

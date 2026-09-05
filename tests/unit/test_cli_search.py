@@ -220,6 +220,49 @@ def test_a_durable_consent_on_the_major_line_shows_a_candidate(
     assert "object_major" in found.experimental[0].reason
 
 
+def test_a_narrower_refusal_is_not_overruled_by_a_broader_grant(
+    registry: sqlite3.Connection,
+) -> None:
+    unproven = _register(registry, "40", name="narrow")
+    consent.grant(
+        registry,
+        consent_id="request_01J00000000000000000000041",
+        scope=consent.SCOPE_OBJECT_MAJOR,
+        target=f"{unproven.stable_id}@1",
+        fingerprint=consent.ceiling_of((unproven.fields,)),
+        observed=(unproven.stable_id,),
+        decided_by=OWNER,
+        origin="registry search",
+        at=MOMENT,
+    )
+    consent.revoke(
+        registry,
+        scope=consent.SCOPE_OBJECT_MAJOR,
+        target=f"{unproven.stable_id}@1",
+        at=MOMENT,
+    )
+    consent.grant(
+        registry,
+        consent_id="request_01J00000000000000000000042",
+        scope=consent.SCOPE_PUBLISHER,
+        target=OWNER,
+        fingerprint=consent.ceiling_of((unproven.fields,)),
+        observed=(unproven.stable_id,),
+        decided_by=OWNER,
+        origin="registry search",
+        at=MOMENT,
+    )
+    verdict = consent.consulted(
+        registry,
+        stable_id=unproven.stable_id,
+        owner_id=OWNER,
+        version="1.0",
+        capabilities=unproven.fields,
+    )
+    assert verdict.covered is False
+    assert "withdrawn" in verdict.reason
+
+
 def test_a_consent_recorded_with_nothing_observed_covers_nothing(
     registry: sqlite3.Connection,
 ) -> None:

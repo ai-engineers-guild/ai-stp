@@ -104,8 +104,8 @@ compatibility, access and safety checks.
 Before changing the target, the provider builds a plan, takes a backup, and
 applies the change only after confirmation.
 
-A running agent does not modify its own active target in place. A new setup is
-checked separately, and the switch happens after that check.
+A running agent does not half-update its own active target in place. A new
+setup is staged, checked, and switched after that check (`ADR-0150`).
 
 ## Rollback
 

@@ -2078,7 +2078,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider-release-recovery", "boolean", "Use a previously verified release."),
         ),
-        next_actions=("install transaction approve",),
+        next_actions=("install transaction approve", "install transaction cancel"),
     ),
     Declaration(
         path=["install", "transaction", "approve"],
@@ -2152,6 +2152,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="install_transaction:status",
         parameters=(option("transaction", "string", "Transaction to read.", required=True),),
         next_actions=("install transaction recover",),
+    ),
+    Declaration(
+        path=["install", "transaction", "cancel"],
+        summary="Abandon an unapplied multi-root plan and release reserved targets.",
+        result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
+        handler="install_transaction:cancel",
+        mutability="apply",
+        parameters=(
+            option("transaction", "string", "Unapplied transaction to abandon.", required=True),
+            option("reason", "string", "Why it is being abandoned."),
+        ),
+        next_actions=("install transaction plan",),
     ),
     Declaration(
         path=["install", "apply"],

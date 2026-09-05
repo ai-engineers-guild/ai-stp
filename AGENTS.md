@@ -39,7 +39,7 @@ Domain rules—`X.Y` immutability, exact-version pinning, independence of `autho
 
 - `ai_stp` does not call model interfaces and does not require a model key. This is checked through dependency closure in `just back-regress`.
 - Only a harness's public provider writes its final state.
-- A running agent does not modify its own active target in place.
+- A running agent does not half-update its own active target in place. Active-environment change is a staged replacement, a durable handoff, and a restart (`ADR-0150`).
 - Agent reasoning does not bypass mechanical compatibility, access, or security constraints: if a machine check rejects the operation, the answer is rejection.
 - Secrets, passwords, tokens, `.env` contents, and optional personal data do not enter passports, logs, fixtures, or documentation.
 - Documentation and descriptions are in English; explicitly localized user-facing strings may retain the language of their locale. Identifiers, states, field names, paths, commands, and external product names remain in Latin script.
@@ -49,15 +49,16 @@ Domain rules—`X.Y` immutability, exact-version pinning, independence of `autho
 
 The user's task defines the scope of authority. Perform local, reversible work within that scope through a verified result without asking again before every step.
 
-A separate user decision is required only when an action has no path back or expands access (`ADR-0118`):
+A separate user decision is required only when an action has no path back or expands access (`ADR-0118`, `ADR-0150`):
 
 - deleting data, a target, or backups without a recovery path;
 - linking **someone else's** account or new third-party credentials;
 - elevating system privileges;
-- installing an unverified object;
 - changing an existing object's visibility or access rights.
 
-Everything else is within the task's authority. Choosing among options, publishing, committing, merging into `main`, tagging, and deploying verified work are performed by the agent and named in the report—the chosen option, reason, and rollback path. Asking instead of working costs more: it stops everything while protecting only the right to click.
+Installing an unverified object is within task authority when the task authorizes it. It stays labeled unverified. Authority is not verification (`ADR-0150`).
+
+Everything else is within the task's authority. Choosing among options, publishing, committing, merging into `main`, tagging, and deploying verified work are performed by the agent and named in the report—the chosen option, reason, and rollback path. Uncertainty triggers more code, a test, or a reversible experiment, not a permission question. Asking instead of working costs more: it stops everything while protecting only the right to click.
 
 A plan, exact digest, precondition revalidation, and idempotency are always mandatory. They are mechanical protection for the operation, not grounds for another question: they confirm that exactly the approved effect is being performed.
 

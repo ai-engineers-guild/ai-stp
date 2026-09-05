@@ -1,4 +1,4 @@
-"""Git-owned Official inventory contract (SPEC-056, ADR-0150)."""
+"""Git-owned Official inventory contract (SPEC-056, ADR-0153)."""
 
 from __future__ import annotations
 

@@ -262,6 +262,7 @@
           "backup",
           "restore",
           "remove",
+          "reset",
           "software_install",
           "software_update",
           "software_remove",

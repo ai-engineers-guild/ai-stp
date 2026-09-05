@@ -6,7 +6,7 @@ last_verified: "2026-09-04"
 # Official Registry, Identity, and Requests Implementation Plan
 
 Normative owners: `SPEC-059`, `SPEC-056`, `SPEC-057`, `SPEC-016`,
-`SPEC-038`, `ADR-0152`, and `ADR-0150`. This plan sequences their delivery and
+`SPEC-038`, `ADR-0152`, and `ADR-0153`. This plan sequences their delivery and
 does not replace their requirements.
 
 ## 1. Freeze contracts and inventory

@@ -2490,6 +2490,7 @@ class MultiRootTransactionView(BaseModel):
         "recovery_required",
         "verified",
         "rolled_back",
+        "cancelled",
     ]
     approved: bool
     children: Annotated[list[MultiRootChildView], Field(min_length=2, max_length=3)]

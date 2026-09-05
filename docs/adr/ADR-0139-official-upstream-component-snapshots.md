@@ -34,7 +34,7 @@ A reviewed allowlist names a public GitHub repository, tracked ref, component
 subpath and type, reviewed description, and AI STP Official owner. A scheduled
 sync resolves the ref to a full commit, downloads exact bytes, records their
 digest and upstream identity, and uses the existing plan, bind, validate, and
-publish path. It never writes a published version directly. ADR-0150 supersedes
+publish path. It never writes a published version directly. ADR-0153 supersedes
 the storage and delivery part of this decision by making that allowlist a Git
 manifest reconciled through a durable outbox and ledger.
 
@@ -48,7 +48,7 @@ affiliation.
 
 Official synchronization consumes the shared `SourceIntent`/`SourceSnapshot`
 resolver for multiple GitHub and package source rows. SPEC-057 owns explicit
-ownership requests; ADR-0150 owns the atomic database transfer and source fence.
+ownership requests; ADR-0153 owns the atomic database transfer and source fence.
 No public source-management endpoint, automatic claim approval, catalog
 replacement, or identity merge is added.
 

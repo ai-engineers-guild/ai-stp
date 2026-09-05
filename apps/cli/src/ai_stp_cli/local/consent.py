@@ -312,17 +312,11 @@ def consulted(
     if not tried:
         return Consultation(False, "no durable consent record covers this candidate")
 
-    refusal: Consultation | None = None
-    for scope, record in tried:
-        verdict = covers(record, capabilities, major=major)
-        if verdict.covered:
-            return Consultation(True, verdict.reason, f"{scope}:{record.target}")
-        if refusal is None:
-            refusal = Consultation(
-                False, verdict.reason, f"{scope}:{record.target}", verdict.changed
-            )
-    assert refusal is not None
-    return refusal
+    scope, record = tried[0]
+    verdict = covers(record, capabilities, major=major)
+    if verdict.covered:
+        return Consultation(True, verdict.reason, f"{scope}:{record.target}")
+    return Consultation(False, verdict.reason, f"{scope}:{record.target}", verdict.changed)
 
 
 def _as_set(value: JsonValue) -> frozenset[str]:

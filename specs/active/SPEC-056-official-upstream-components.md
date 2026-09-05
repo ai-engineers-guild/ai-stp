@@ -21,7 +21,7 @@ acquisition, reviewed attribution, reconciliation, transfer fencing, and reuse
 of the existing publication pipeline. Excluded: public source-management
 endpoints, automatic source discovery, automatic claim approval, and bypasses
 for validation or publication. ADR-0139 owns the exception to ADR-0034;
-ADR-0150 owns desired-state and delivery architecture; SPEC-057 owns the shared
+ADR-0153 owns desired-state and delivery architecture; SPEC-057 owns the shared
 resolver, embedded components, and explicit transfer request.
 
 ## Terms

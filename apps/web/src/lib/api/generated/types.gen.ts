@@ -4814,7 +4814,11 @@ export type SupportEvidenceResult =
 
 export type SupportEvidenceSource = "provider_release_evidence";
 
-export const SupportOperatingSystem = { UBUNTU: "ubuntu", MACOS: "macos" } as const;
+export const SupportOperatingSystem = {
+  LINUX: "linux",
+  MACOS: "macos",
+  WINDOWS: "windows",
+} as const;
 
 export type SupportOperatingSystem =
   (typeof SupportOperatingSystem)[keyof typeof SupportOperatingSystem];

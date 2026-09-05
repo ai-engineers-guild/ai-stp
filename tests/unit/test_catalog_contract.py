@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from ai_stp_contracts.catalog import (
     USAGE_METRICS_ENABLED_BY_DEFAULT,
     CatalogSupport,
+    CatalogSupportEvidence,
     CatalogTrust,
     CatalogTrustLane,
     CatalogUsageMetrics,
@@ -23,6 +24,7 @@ from ai_stp_contracts.catalog import (
     SetupSearchRequest,
     SetupSummary,
     SetupVersionResponse,
+    SupportOperatingSystem,
     VersionListEntry,
 )
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX, PageInfo
@@ -159,6 +161,41 @@ def test_hidden_is_not_representable_on_the_public_wire() -> None:
     assert literal_values(PublicLifecycle) == {"active", "deprecated", "blocked"}
     with pytest.raises(ValidationError):
         component_summary(latest_lifecycle="hidden")
+
+
+def test_shared_catalog_os_family_is_linux_macos_windows() -> None:
+    assert literal_values(SupportOperatingSystem) == {"linux", "macos", "windows"}
+    CatalogSupportEvidence.model_validate(
+        {
+            "check_id": "provider-startup",
+            "policy_version": "support-v1",
+            "result": "passed",
+            "source": "provider_release_evidence",
+            "provider_id": "opencode",
+            "provider_version": "1.0.0",
+            "release_reference": "a" * 40,
+            "operating_system": "windows",
+            "architecture": "x86_64",
+            "mandatory": True,
+            "observed_at": "2026-08-07T12:00:00.000Z",
+        }
+    )
+    with pytest.raises(ValidationError):
+        CatalogSupportEvidence.model_validate(
+            {
+                "check_id": "provider-startup",
+                "policy_version": "support-v1",
+                "result": "passed",
+                "source": "provider_release_evidence",
+                "provider_id": "opencode",
+                "provider_version": "1.0.0",
+                "release_reference": "a" * 40,
+                "operating_system": "ubuntu",
+                "architecture": "x86_64",
+                "mandatory": True,
+                "observed_at": "2026-08-07T12:00:00.000Z",
+            }
+        )
 
 
 def test_deprecated_and_blocked_stay_visible_and_distinct() -> None:

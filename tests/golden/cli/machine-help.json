@@ -2971,6 +2971,41 @@
       "path": [
         "install",
         "transaction",
+        "cancel"
+      ],
+      "summary": "Abandon an unapplied multi-root plan and release reserved targets.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "transaction",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Unapplied transaction to abandon.",
+          "choices": []
+        },
+        {
+          "name": "reason",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Why it is being abandoned.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
+      "next_actions": [
+        "install transaction plan"
+      ]
+    },
+    {
+      "path": [
+        "install",
+        "transaction",
         "plan"
       ],
       "summary": "Plan one exact SetupVersion across every required provider root.",
@@ -3062,7 +3097,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
       "next_actions": [
-        "install transaction approve"
+        "install transaction approve",
+        "install transaction cancel"
       ]
     },
     {

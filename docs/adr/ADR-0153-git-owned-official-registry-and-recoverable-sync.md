@@ -3,7 +3,7 @@ description: "Decision to own the AI STP Official inventory in Git and reconcile
 last_verified: "2026-09-04"
 ---
 
-# ADR-0150: Git-owned Official registry and recoverable synchronization
+# ADR-0153: Git-owned Official registry and recoverable synchronization
 
 Status: proposed.
 

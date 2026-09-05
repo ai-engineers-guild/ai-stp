@@ -1,6 +1,6 @@
 ---
 description: "SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots."
-last_verified: "2026-09-03"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-058: Multi-root installation transactions
@@ -31,8 +31,10 @@ locks outside the selected roots, and automatic privilege expansion.
 
 - `REQ-5801`: Planning resolves at least two distinct supported scopes, compiles
   one bundle and obtains one pure provider plan per scope before creating a
-  transaction. The canonical order is global, user_root, project; duplicate
-  scope or target identities are rejected.
+  transaction. The canonical order is global, user_root, project. Duplicate
+  scopes are rejected. Targets are identified by canonical physical root, not
+  by scope label: the same directory, a symlink or case alias of it, and an
+  ancestor or descendant of it are overlapping and refused.
 - `REQ-5802`: The transaction digest binds the exact setup passport, ordered
   scopes, canonical targets, bundle identities, provider release identities,
   provider plan digests, expected target digests, effects and rollback actions.
@@ -49,24 +51,28 @@ locks outside the selected roots, and automatic privilege expansion.
   settles its provider journal and compensates every possibly changed child in
   reverse order using its exact target-bound BackupRef. Compensation is
   idempotent.
-- `REQ-5806`: Terminal outcomes are verified and rolled_back. recovery_required
-  is non-terminal and lists every unsettled child with its last accurate state
-  and next action. No failed or rolled_back outcome is emitted while a root may
-  still contain an unverified effect.
+- `REQ-5806`: Terminal outcomes are verified, rolled_back, and cancelled.
+  recovery_required is non-terminal and lists every unsettled child with its
+  last accurate state and next action. No failed or rolled_back outcome is
+  emitted while a root may still contain an unverified effect. cancelled means
+  no native effect was made.
 - `REQ-5807`: While a transaction is active, its children cannot be independently
   approved, cancelled, applied, or resumed through the public command surface.
-  Status remains read-only. A new transaction overlapping an active target is
-  rejected before provider planning.
+  Status remains read-only. A new transaction whose physical roots overlap an
+  active reservation — same root, alias, ancestor, or descendant — is rejected
+  before provider planning. Two processes opening the same registry cannot both
+  hold overlapping roots.
 - `REQ-5808`: Transaction records contain no target bytes, BackupRef bytes,
   credentials, environment values, or absolute paths in ordinary machine output.
   Providers remain the sole writers and backup owners.
 
 ## States and errors
 
-States are planned, applying, compensating, recovery_required, verified, and
-rolled_back. Typed refusals distinguish incomplete scope coverage, duplicate
-target, stale child plan, active target transaction, unsettled provider journal,
-compensation failure, and corrupt transaction state.
+States are planned, applying, compensating, recovery_required, verified,
+rolled_back, and cancelled. Typed refusals distinguish incomplete scope
+coverage, duplicate or physically overlapping target, stale child plan, active
+target transaction, unsettled provider journal, compensation failure, and
+corrupt transaction state.
 
 ## Security and privacy
 
@@ -86,13 +92,13 @@ transactions must be recovered before downgrade.
 
 | Requirement | Executable verification |
 |---|---|
-| `REQ-5801` | A three-scope fixture proves all plans precede confirmation or mutation, canonical ordering, and duplicate rejection. |
+| `REQ-5801` | A three-scope fixture proves all plans precede confirmation or mutation, canonical ordering, and duplicate rejection. Same-root, symlink-alias, and ancestor/descendant fixtures are refused; sibling directories that only share a name prefix are accepted. |
 | `REQ-5802` | Field-by-field mutation changes the transaction digest; identical planning replays one record. |
 | `REQ-5803` | Confirmation atomically binds every child; expiry, staleness and independent child mutation produce no provider apply call. |
 | `REQ-5804` | Trace and process-kill tests prove ordered apply, durable progress, all-child postconditions and no blind retry. |
 | `REQ-5805` | Failure injection at each child restores changed roots in reverse order and repeating recovery makes no second effect. |
 | `REQ-5806` | Every interruption point reports only an accurate terminal or recovery state and names unsettled children. |
-| `REQ-5807` | Public child mutation commands and overlapping plans are rejected while status remains available. |
+| `REQ-5807` | Public child mutation commands and overlapping plans are rejected while status remains available. A second process cannot reserve a descendant of an active root. |
 | `REQ-5808` | Secret and path fixtures find neither bytes nor absolute paths in SQLite records, logs, or JSON output. |
 
 ## Required checks

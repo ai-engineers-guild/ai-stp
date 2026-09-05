@@ -92,7 +92,7 @@ type SupportEvidenceResult = Literal[
     "passed", "warning", "failed", "degraded", "not_run", "expired"
 ]
 type SupportEvidenceSource = Literal["provider_release_evidence"]
-type SupportOperatingSystem = Literal["ubuntu", "macos"]
+type SupportOperatingSystem = Literal["linux", "macos", "windows"]
 type SupportArchitecture = Literal["x86_64", "arm64"]
 type CatalogSort = Literal["relevance", "updated_at", "likes"]
 type CatalogSortDirection = Literal["asc", "desc"]
