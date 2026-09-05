@@ -1,6 +1,6 @@
 ---
 description: "SPEC-011: CLI, machine help and agent skill."
-last_verified: "2026-09-04"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-011: CLI, machine help, and agent skill
@@ -25,7 +25,7 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
 - `REQ-1101`: The CLI is installed by a published command via `uv` in the user environment without the required `sudo`.
 - `REQ-1102`: Machine output uses one strong versioned JSON object on standard output and robust completion and error classes; machine help publishes a separate `handling` for each error code, because the common exit class does not define the agent action.
 - `REQ-1103`: A sensitive change has an immutable plan and a separate apply step using an exact hash.
-- `REQ-1104`: Automatic code work does not remove confirmation from publication, release a major version, install an unverified object, escalate privileges, perform full cleanup, delete a target or backup, perform an external Git action, or deploy.
+- `REQ-1104`: Automatic code work does not remove the remaining stops named by `skills/canonical/ai-stp/references/decisions.md` (`ADR-0150`, `ADR-0159`). Unverified install under task authority, Git promotion, and deploy of requested verified work are not remaining stops. Unverified stays labeled unverified.
 - `REQ-1105`: One canonical agent skill creates testable native projections for seven harnesses. A projection delivers the procedure as an installed package (`SKILL.md` plus `references/`) with harness metadata; it is not a pointer at a repository path.
 - `REQ-1106`: The skill obtains parameters, schemas, and error handling from machine help, rather than copying flags, exit codes, or error disposition manually. Command **paths** that exist in the registry may be named; flags other than the bootstrap pair (`doctor --json`, `help --agent --json`) are forbidden in Skill text.
 - `REQ-1107`: The control skill is not deleted or overwritten by a custom setup. Installation, update, or removal of a user setup must not remove this package.
@@ -67,7 +67,7 @@ Machine JSON, help and skill projection have versions. Unknown optional fields a
 | `REQ-1101` | A clean install on Linux x86_64 runs the published command without administrator rights; an unverified macOS line is not called supported. |
 | `REQ-1102` | Benchmark checks for JSON, completion codes and the full error registry check standard flows, different handling for conflict/user-decision of the same class and unknown fields. |
 | `REQ-1103` | A changed or outdated plan will block application. |
-| `REQ-1104` | Interaction policy checks require a user decision for each sensitive class. |
+| `REQ-1104` | Authority-surface scan of this specification matches the canonical remaining stops; a planted unverified-install confirmation stop is detected. |
 | `REQ-1105` | Reference projections cover Claude Code, Codex, Pi, OpenCode, Grok Build, Cursor and Antigravity; each installed package contains the procedure and `references/`, and none points at a repository path. |
 | `REQ-1106` | The contract skill check receives parameters and error handling only from `help --agent --json` and does not contain a manual exit classes table; flags other than the bootstrap pair are absent from the package. |
 | `REQ-1107` | End-to-end check of setup switching preserves control skill. |
