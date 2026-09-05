@@ -231,7 +231,7 @@ ai-stp harness status --harness codex --prefix <prefix> --json
 | [Provider](provider.md) | бинарный файл, пишущий нативное состояние |
 | [Install](install.md) | применение сетапа через этот провайдер |
 | [Target](target.md) | текущее состояние проекта и harness |
-| [Harnesses](../harnesses.md) | основная и бета-поддержка |
+| [Harnesses](../harnesses.md) | семь харнессов открытой беты |
 | [Agent Skill CLI](skill.md) | skill, который программа будет читать |
 | [Быстрый старт для человека](../quickstart/human.md) | первый запуск, когда программа отсутствует |
 

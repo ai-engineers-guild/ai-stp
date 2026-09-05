@@ -51,7 +51,7 @@ There is no `component inspect`, no `setup show`, and no `ai-stp contact`. Flags
 
 ## Limits that remain
 
-Pi, OpenCode, Cursor and Antigravity are beta. Claude Code, Codex and Grok Build are the primary path. `undefined` is a limited row of portable conventions, not a harness you auto-install into.
+All seven shipped harnesses are the open-beta line. `undefined` is a limited row of portable conventions, not a harness you auto-install into.
 
 There is no team shared working setup. There is no model API inside ai_stp. There are no ratings or public discussions. There is no absolute promise that a published object is harmless.
 

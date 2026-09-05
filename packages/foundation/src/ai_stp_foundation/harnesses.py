@@ -37,18 +37,20 @@ type SupportTier = Literal["primary", "beta"]
 #: This is a product decision, not a claim about evidence. SPEC-033 keeps the
 #: two apart on purpose: `REQ-3306` says evidence never raises a tier, and
 #: `REQ-3307` says a line without a recorded run is reported honestly as
-#: `not_verified` without blocking a release. So a harness is `primary` because
-#: it is supported as a first-class target, and whether its end-to-end run has
-#: been recorded is answered by support *state*, separately.
+#: `not_verified` without blocking a release.
+#:
+#: Open beta ships every harness as `beta`. `primary` remains a valid later
+#: generally-available label; it currently has no members. Evidence state
+#: (`verified` / `not_verified` / `missing` / `stale`) is the other axis.
 #:
 #: It lives here, next to `HarnessId`, because it was previously written twice —
 #: in the platform catalog projection and in the CLI harness catalog. The copies
 #: agreed while nobody changed them, which is the only state in which duplicated
 #: facts ever agree.
 SUPPORT_TIERS: Final[dict[HarnessId, SupportTier]] = {
-    "claude-code": "primary",
-    "codex": "primary",
-    "grok-build": "primary",
+    "claude-code": "beta",
+    "codex": "beta",
+    "grok-build": "beta",
     "pi": "beta",
     "opencode": "beta",
     "cursor": "beta",

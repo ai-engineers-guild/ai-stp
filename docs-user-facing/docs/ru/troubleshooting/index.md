@@ -133,7 +133,7 @@ ai-stp toolchain harness-capabilities --json
 ai-stp doctor --json
 ```
 
-Оставайтесь на основном харнессе (Claude Code, Codex, Grok Build) или
+Выберите любой из семи выпускаемых харнессов или
 импортируйте и просматривайте локально без apply:
 
 ```bash

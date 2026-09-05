@@ -13,8 +13,8 @@ two of them as if they were the same object, the sentence is wrong.
 A harness is the CLI environment a coding agent runs in. `ai_stp` does not
 replace it and does not call models.
 
-Primary support: Claude Code, Codex, Grok Build. Beta: Pi, OpenCode, Cursor,
-Antigravity. Unknown: limited `undefined`.
+Open beta ships all seven: Claude Code, Codex, Grok Build, Pi, OpenCode,
+Cursor, Antigravity. Unknown: limited `undefined`.
 
 More: [supported harnesses](../harnesses.md).
 
@@ -173,7 +173,7 @@ Details: [Project](../cli/project.md).
 - [Quickstart for people](../quickstart/human.md) — install and first catalog
   read.
 - [Quickstart for agents](../quickstart/agent.md) — session ritual.
-- [Supported harnesses](../harnesses.md) — primary, beta, `undefined`.
+- [Supported harnesses](../harnesses.md) — seven open-beta harnesses and `undefined`.
 - [Components](../components/index.md) — the closed kinds.
 - [Setups](../setups/index.md) — exact pins, one harness.
 - [CLI](../cli/index.md) — envelopes and command groups.

@@ -211,7 +211,7 @@ named in their sections. Every envelope also carries `ok`, `warnings`,
 | [Observe](observe.md) | `doctor` after a tool is missing |
 | [Harness program](harness.md) | the harness binary, not the tool |
 | [Provider](provider.md) | the binary that writes native state |
-| [Harnesses](../harnesses.md) | primary vs beta support |
+| [Harnesses](../harnesses.md) | the seven open-beta harnesses |
 | [Agent Skill CLI](skill.md) | a different missing-first-run object |
 | [Quickstart for people](../quickstart/human.md) | the toolchain tab of first run |
 

@@ -23,7 +23,7 @@ inconclusive required row does not support a release claim.
 ## Terms
 
 - **Primary support** — the complete end-to-end scenario and release evidence for harnesses marked `primary` in `SUPPORT_TIERS`; blocks the first MVP release.
-- **Beta support** — the same safe lifecycle, but native harness surfaces marked `beta` may have incomplete support; the line advances independently and does not block the first release.
+- **Beta support** — the shipping open-beta line: the same safe lifecycle for every harness marked `beta` in `SUPPORT_TIERS`. Incomplete evidence is `not_verified` and does not drop a harness from the product.
 - **`undefined`** — an unknown harness. It and its native configurations are recorded as an observation so the user can see what they have; managed objects are not created for it, and application is impossible.
 
 ## Requirements
@@ -36,7 +36,7 @@ inconclusive required row does not support a release claim.
 - `REQ-106`: Harnesses at the `primary` tier complete the primary end-to-end scenario; harnesses at the `beta` tier complete the beta scenario without weakening plan, backup, or restore. Tier membership belongs to `SUPPORT_TIERS` and `SPEC-033`, not to this requirement.
 - `REQ-107`: The primary creation, compilation, and installation path does not require switching to the web interface.
 - `REQ-108`: Payments and the enterprise landscape are excluded from the MVP. Windows is not excluded: it is implemented and declared as a requirement by `SPEC-014` `REQ-1419`; what is missing is recorded run evidence, not support, and its absence does not raise the claimed support level under `REQ-110`.
-- `REQ-109`: The first MVP release is blocked by incomplete product requirements and by the absence of complete end-to-end evidence for Claude Code and Codex across the declared matrix; incomplete beta lines do not block the release.
+- `REQ-109`: The first public cut is open beta. It is blocked by incomplete product requirements and by the absence of complete end-to-end evidence for every harness in `SUPPORT_TIERS` across the declared OS/arch matrix. A harness without a recorded run is `not_verified`; it is not omitted from the product.
 - `REQ-110`: The claimed support level does not exceed the observed evidence; a line without a run receives `not_verified`.
 - `REQ-111`: A missing required environment variable does not block installation, but changes launch readiness to `needs_configuration` until it is provided.
 - `REQ-112`: After successful initial setup, the local path works without a network connection, while operations that require a network are declared separately and return a typed reason.
@@ -73,7 +73,7 @@ The CLI, API, schemas, and provider protocol have independent versions. Supporte
 | `REQ-106` | Recorded E2E tests complete install, launch, status, and restore across the support matrix. |
 | `REQ-107` | The primary E2E test for creation, compilation, and installation runs only through the CLI and provider, without browser automation. |
 | `REQ-108` | A scope check and dependency search confirm the absence of billing and enterprise runtime paths; Windows paths are expected, and their presence is not a defect. |
-| `REQ-109` | The release checklist is blocked by missing Claude Code and Codex evidence and is not blocked by missing beta evidence. |
+| `REQ-109` | The OBT checklist is blocked by missing evidence for any harness in `SUPPORT_TIERS` on the declared matrix; a missing run is `not_verified` and does not drop the harness. |
 | `REQ-110` | The support status generator does not assign a verified level to a beta line without a recorded run. |
 | `REQ-111` | A fixture with a missing named variable permits installation and produces `needs_configuration` at launch. |
 | `REQ-112` | A check with the network disabled completes declared offline operations and produces a typed reason for networked operations. |

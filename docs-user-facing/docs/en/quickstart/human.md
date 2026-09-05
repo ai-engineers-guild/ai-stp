@@ -136,7 +136,7 @@ are separate, digest-bound paths:
 | `ai-stp` not found | the tool is missing or not on `PATH` | reinstall with `uv tool install ai-stp-cli`, then check `uv tool list` |
 | doctor reports no device | identity was never created | `ai-stp device init --json` |
 | search returns cache | the platform was not reached | read `checked_at`; do not treat it as a live catalog |
-| capabilities omit a harness | this build cannot drive that target | stay on a primary harness, or read [Harnesses](../harnesses.md) |
+| capabilities omit a harness | this build cannot drive that target | pick a shipped harness, or read [Harnesses](../harnesses.md) |
 
 ## Related pages
 

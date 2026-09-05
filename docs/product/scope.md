@@ -1,6 +1,6 @@
 ---
 description: "Required MVP capabilities, harness statuses, and explicit exclusions."
-last_verified: "2026-08-25"
+last_verified: "2026-09-05"
 ---
 
 # MVP scope
@@ -17,11 +17,10 @@ Implementation follows `docs/engineering/implementation-roadmap.md` and does not
 
 | Status | Harnesses |
 |---|---|
-| Primary support | Claude Code, Codex, Grok Build |
-| Beta | Pi, OpenCode, Cursor, Antigravity |
+| Beta | Claude Code, Codex, Grok Build, Pi, OpenCode, Cursor, Antigravity |
 | Unknown | `undefined` without automatic installation |
 
-Only primary support and completeness of the product requirements block the first release. Beta lines advance independently.
+Open beta ships all seven harnesses. Completeness of the product requirements and recorded evidence for every declared harness on the OS/arch matrix block the cut. A missing run is `not_verified`, not a reason to drop the harness. `primary` is reserved for a later generally-available line.
 
 ## Required
 

@@ -78,9 +78,9 @@ native surface. The matrix is `ai-stp toolchain harness-capabilities`.
 
 | Harness | Status | instruction | skill | mcp | hook | command | agent | plugin | setting | cli |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Claude Code | Primary | full | full | partial | full | full | full | partial | full | — |
-| Codex | Primary | full | partial | full | partial | full | full | — | full | — |
-| Grok Build | Primary | full | full | full | full | — | partial | full | full | — |
+| Claude Code | Beta | full | full | partial | full | full | full | partial | full | — |
+| Codex | Beta | full | partial | full | partial | full | full | — | full | — |
+| Grok Build | Beta | full | full | full | full | — | partial | full | full | — |
 | Pi | Beta | full | full | partial | — | full | — | full | full | — |
 | OpenCode | Beta | full | full | full | — | full | full | full | full | — |
 | Cursor | Beta | full | full | full | full | full | full | full | full | — |

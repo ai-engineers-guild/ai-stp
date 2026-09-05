@@ -311,7 +311,7 @@ def test_setup_detail_uses_setup_passports_for_version_entries() -> None:
 
     detail = setup_detail(rows)
     assert detail.summary.latest_harness_id == "claude-code"
-    assert detail.versions[0].support.tier == "primary"
+    assert detail.versions[0].support.tier == "beta"
 
 
 def test_verify_passport_integrity_rejects_digest_mismatch() -> None:
