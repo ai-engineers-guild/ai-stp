@@ -2,8 +2,8 @@
 
 The builder does not fetch GitHub, PyPI, or the host. Provider tags and
 commits are supplied as inputs. The stored verdict is always the recomputed
-value; this script will not write `complete` for a six-package cut or an
-empty evidence matrix.
+value; this script will not write `complete` for a six-package cut, an
+empty evidence matrix, a missing launch cell, or a skipped launch cell.
 """
 
 from __future__ import annotations

@@ -82,6 +82,11 @@
           "title": "Os",
           "type": "string"
         },
+        "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+        },
         "provider_tag": {
           "minLength": 1,
           "title": "Provider Tag",
