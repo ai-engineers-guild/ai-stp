@@ -17,6 +17,7 @@ from ai_stp_contracts.reports import (
     ReportCaseListResponse,
     ReportCaseResponse,
     StaffActionResponse,
+    StaffAuthorVerificationRequest,
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
@@ -390,3 +391,27 @@ async def staff_lifecycle(
     )
     await db.flush()
     return StaffActionResponse(schema_version=1, applied=True, action=body.action)
+
+
+async def staff_author_verification(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    staff_ids: frozenset[str],
+    body: StaffAuthorVerificationRequest,
+) -> StaffActionResponse:
+    await require_staff(ctx, staff_ids)
+    from ai_stp_platform.catalog_transfer import apply_author_verification
+
+    await apply_author_verification(
+        db,
+        subject_account_id=body.subject_account_id,
+        verified=body.verified,
+        reason=body.reason,
+        operator_account_id=ctx.account_id,
+    )
+    return StaffActionResponse(
+        schema_version=1,
+        applied=True,
+        action="author_verified_issued" if body.verified else "author_verified_revoked",
+    )

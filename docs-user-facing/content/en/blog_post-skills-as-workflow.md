@@ -25,7 +25,7 @@ The main trick is that the real thing is not only `SKILL.md`, but the Skill + Ag
 
 An agent should not keep the entire corporate knowledge library in its context. At first it sees only `name` + `description`, then, after selection, it loads `SKILL.md`, and only after that it reads `references/`, `assets/`, `examples/`, or runs `scripts/`.
 
-That is exactly why a skill is better than a giant 3,000-line `AGENTS.md`. `AGENTS.md` is always-on background; a skill is an on-demand capability. Codex describes this [here](https://developers.openai.com/codex/skills), and Claude Code [here](https://code.claude.com/docs/en/skills).
+That is exactly why a skill is better than a giant 3,000-line `AGENTS.md`. `AGENTS.md` is always-on background; a skill is an on-demand capability. Codex describes this in its [skills documentation](https://developers.openai.com/codex/skills), and Claude Code documents the same model in its [skills guide](https://code.claude.com/docs/en/skills).
 
 Practical advice: keep the procedure short in `SKILL.md`, and move long policies, API docs, JQL references, report templates, and examples into `references/`, `assets/`, or `examples/`. If `SKILL.md` has swollen into a treatise, you have written a new Confluence.
 

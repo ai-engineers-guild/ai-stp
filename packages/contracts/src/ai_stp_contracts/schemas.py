@@ -234,6 +234,7 @@ from ai_stp_contracts.reports import (
     ReportCaseListResponse,
     ReportCaseResponse,
     StaffActionResponse,
+    StaffAuthorVerificationRequest,
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
@@ -333,6 +334,7 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "report-case-list-response": ReportCaseListResponse,
     "staff-triage-request": StaffTriageRequest,
     "staff-lifecycle-request": StaffLifecycleRequest,
+    "staff-author-verification-request": StaffAuthorVerificationRequest,
     "staff-action-response": StaffActionResponse,
     "owner-object-list-query": OwnerObjectListQuery,
     "owner-object-list-response": OwnerObjectListResponse,

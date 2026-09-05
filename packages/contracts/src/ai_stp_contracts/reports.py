@@ -239,6 +239,18 @@ class StaffLifecycleRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
+class StaffAuthorVerificationRequest(BaseModel):
+    """POST /v1/staff/author-verified body."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    schema_version: Literal[1] = 1
+    subject_account_id: Annotated[str, Field(pattern=stable_id_pattern("account"))]
+    verified: bool
+    reason: Annotated[str, Field(min_length=1, max_length=500)]
+    idempotency_key: IdempotencyKey
+
+
 class StaffActionResponse(BaseModel):
     """Generic staff mutation outcome."""
 

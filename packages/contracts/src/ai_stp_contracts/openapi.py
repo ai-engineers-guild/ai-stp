@@ -147,6 +147,7 @@ from ai_stp_contracts.reports import (
     ReportCaseListResponse,
     ReportCaseResponse,
     StaffActionResponse,
+    StaffAuthorVerificationRequest,
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
@@ -848,6 +849,17 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         authenticated=True,
         idempotent_mutation=True,
         errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="post",
+        path="/staff/author-verified",
+        operation_id="staffAuthorVerification",
+        summary="Staff grant or revoke manual author verification.",
+        response=StaffActionResponse,
+        body=StaffAuthorVerificationRequest,
+        authenticated=True,
+        idempotent_mutation=True,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
     ),
     Operation(
         method="post",

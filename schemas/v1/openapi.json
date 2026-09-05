@@ -8715,6 +8715,44 @@
         "title": "StaffActionResponse",
         "type": "object"
       },
+      "StaffAuthorVerificationRequest": {
+        "additionalProperties": false,
+        "description": "POST /v1/staff/author-verified body.",
+        "properties": {
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "subject_account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Subject Account Id",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "subject_account_id",
+          "verified",
+          "reason",
+          "idempotency_key"
+        ],
+        "title": "StaffAuthorVerificationRequest",
+        "type": "object"
+      },
       "StaffContentPublishRequest": {
         "additionalProperties": false,
         "description": "Atomic staff publication of one article identity.",
@@ -13154,51 +13192,7 @@
                   "searchComponents.experimentalOnConsent": {
                     "summary": "With consent the experimental candidates arrive in their own section, never interleaved into items (SPEC-006 REQ-603). Sprint 1 has no validation pipeline, so nothing can honestly claim component_verified and the authoritative lane is legitimately empty.",
                     "value": {
-                      "experimental": [
-                        {
-                          "canonical_name": "fixture-component",
-                          "display_locale": "en",
-                          "display_name": "Fixture Component",
-                          "github_stars": null,
-                          "latest_checks": null,
-                          "latest_component_type": "skill",
-                          "latest_description": "fixture-component-description",
-                          "latest_harness_id": "claude-code",
-                          "latest_harness_ids": [
-                            "claude-code"
-                          ],
-                          "latest_lifecycle": "active",
-                          "latest_name": "fixture-component",
-                          "latest_projection_kind": "native_files",
-                          "latest_published_at": "2026-08-05T00:00:00.000Z",
-                          "latest_requirements_count": 0,
-                          "latest_requires_credentials": false,
-                          "latest_support": {
-                            "evidence": [],
-                            "schema_version": 1,
-                            "state": "missing",
-                            "tier": "primary"
-                          },
-                          "latest_tags": [
-                            "python",
-                            "tests"
-                          ],
-                          "latest_trust": {
-                            "author_verified": false,
-                            "component_verified": false,
-                            "trust_lane": "experimental"
-                          },
-                          "latest_version": "1.2",
-                          "likes_count": 0,
-                          "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                          "owner_handle": "fixture-owner",
-                          "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                          "schema_version": 1,
-                          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                          "updated_at": "2026-08-05T00:00:00.000Z",
-                          "usage_metrics": null
-                        }
-                      ],
+                      "experimental": [],
                       "items": [],
                       "page": {
                         "next_cursor": null,
@@ -24550,6 +24544,231 @@
           }
         ],
         "summary": "Point one subject locale at its last valid base SEO revision."
+      }
+    },
+    "/v1/staff/author-verified": {
+      "post": {
+        "operationId": "staffAuthorVerification",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "staffAuthorVerification.issue": {
+                  "summary": "Staff records the manual author verification decision through the shared moderation boundary.",
+                  "value": {
+                    "idempotency_key": "authorverify00001",
+                    "reason": "identity reviewed",
+                    "schema_version": 1,
+                    "subject_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "verified": true
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StaffAuthorVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "staffAuthorVerification.issue": {
+                    "summary": "Staff records the manual author verification decision through the shared moderation boundary.",
+                    "value": {
+                      "action": "author_verified_issued",
+                      "applied": true,
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StaffActionResponse"
+                }
+              }
+            },
+            "description": "Staff grant or revoke manual author verification.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Staff grant or revoke manual author verification."
       }
     },
     "/v1/staff/content/{type}/{slug}": {

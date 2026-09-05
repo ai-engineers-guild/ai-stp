@@ -634,12 +634,19 @@ async def _record_sync(
             )
         )
     if row is None:
+        identity = await session.get(CatalogIdentity, source.stable_id)
         row = OfficialUpstreamSync(
             source_id=source.id,
             utc_day=utc_day,
             trigger_key=utc_day.isoformat(),
             result=result,
             state=state or "desired",
+            expected_owner_account_id=source.owner_account_id,
+            expected_ownership_revision_id=(
+                identity.ownership_revision_id
+                if identity is not None
+                else source.ownership_revision_id
+            ),
         )
         session.add(row)
     row.result = result

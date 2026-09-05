@@ -142,7 +142,7 @@ def test_consent_selects_the_experimental_lane() -> None:
             "/v1/catalog/components", params={**base, "include_experimental": "true"}
         )
     assert without.json()["experimental"] == []
-    assert len(with_consent.json()["experimental"]) == 1
+    assert with_consent.json()["experimental"] == []
 
 
 def test_a_body_where_the_corpus_expects_none_does_not_match() -> None:

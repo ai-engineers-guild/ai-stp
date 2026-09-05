@@ -133,7 +133,7 @@ async def current_author_verification(
     verified_rows = with_current_author_verification(rows, dict(result.tuples().all()))
     repositories = {repository for row in verified_rows if (repository := _repository(row))}
     if not repositories:
-        return verified_rows
+        return await _with_catalog_identity(session, verified_rows)
     metrics = await session.execute(
         select(RepositoryMetric.repository, RepositoryMetric.github_stars).where(
             RepositoryMetric.repository.in_(repositories)

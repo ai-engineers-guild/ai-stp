@@ -180,8 +180,10 @@ async def test_scheduler_enqueues_one_job_per_utc_day(
         assert first and second and next_day
         assert first[0].id == second[0].id
         assert next_day[0].id != first[0].id
-        assert first[0].payload == {"source_id": SOURCE_ID}
-        assert next_day[0].payload == {"source_id": SOURCE_ID}
+        assert first[0].payload["source_id"] == SOURCE_ID
+        assert first[0].payload["attempt_id"]
+        assert next_day[0].payload["source_id"] == SOURCE_ID
+        assert next_day[0].payload["attempt_id"]
         assert first[0].job_type == JobType.OFFICIAL_UPSTREAM_SYNC
         jobs = list((await session.scalars(select(Job))).all())
         assert len(jobs) == 2
@@ -200,7 +202,8 @@ async def test_operator_force_enqueues_audited_retry_without_replacing_daily_key
         again = await enqueue_daily(session, now=now)
         assert daily[0].id == again[0].id
         assert forced[0].id != daily[0].id
-        assert forced[0].payload == {"source_id": SOURCE_ID}
+        assert forced[0].payload["source_id"] == SOURCE_ID
+        assert forced[0].payload["attempt_id"]
         assert forced[0].idempotency_key.startswith(f"official-upstream-sync:{SOURCE_ID}:manual:")
         audits = list(
             (
@@ -215,6 +218,7 @@ async def test_operator_force_enqueues_audited_retry_without_replacing_daily_key
             "job_id": forced[0].id,
             "force": True,
             "utc_day": "2026-09-01",
+            "attempt_id": forced[0].payload["attempt_id"],
         }
         with pytest.raises(OfficialUpstreamError) as missing:
             await enqueue_daily(session, now=now, force=True, source_id="missing-source")

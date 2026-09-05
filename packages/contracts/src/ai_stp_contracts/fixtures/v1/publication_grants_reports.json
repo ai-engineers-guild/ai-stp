@@ -427,6 +427,27 @@
       }
     },
     {
+      "case_id": "staffAuthorVerification.issue",
+      "operation_id": "staffAuthorVerification",
+      "kind": "positive",
+      "why": "Staff records the manual author verification decision through the shared moderation boundary.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "subject_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "verified": true,
+          "reason": "identity reviewed",
+          "idempotency_key": "authorverify00001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "applied": true,
+        "action": "author_verified_issued"
+      }
+    },
+    {
       "case_id": "listOwnerObjects.empty",
       "operation_id": "listOwnerObjects",
       "kind": "positive",

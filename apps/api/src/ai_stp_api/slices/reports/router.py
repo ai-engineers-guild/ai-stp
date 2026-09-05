@@ -15,6 +15,7 @@ from ai_stp_api.slices.reports import service
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.reports import (
     ReportCaseCreateRequest,
+    StaffAuthorVerificationRequest,
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
@@ -132,4 +133,17 @@ async def staff_version_lifecycle(
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.staff_lifecycle(db, ctx=ctx, staff_ids=_staff_ids(request), body=body)
+    return _resource(result)
+
+
+@router.post("/staff/author-verified", response_model=None)
+async def staff_author_verification(
+    body: StaffAuthorVerificationRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    result = await service.staff_author_verification(
+        db, ctx=ctx, staff_ids=_staff_ids(request), body=body
+    )
     return _resource(result)

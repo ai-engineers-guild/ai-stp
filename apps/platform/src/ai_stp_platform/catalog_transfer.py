@@ -130,7 +130,7 @@ async def transfer_catalog_line(
     versions = [row.version for row in catalog_versions]
     now = datetime.now(UTC)
     revision = OwnershipRevision(
-        id=new_id("ownership_revision"),
+        id=new_id("operation"),
         claim_id=claim.id if claim is not None else None,
         case_id=case.id,
         stable_id=stable_id,

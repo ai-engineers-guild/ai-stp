@@ -138,51 +138,7 @@
       "body": {
         "schema_version": 1,
         "items": [],
-        "experimental": [
-          {
-            "schema_version": 1,
-            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-            "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-            "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-            "owner_handle": "fixture-owner",
-            "canonical_name": "fixture-component",
-            "display_name": "Fixture Component",
-            "display_locale": "en",
-            "likes_count": 0,
-            "github_stars": null,
-            "updated_at": "2026-08-05T00:00:00.000Z",
-            "latest_version": "1.2",
-            "latest_name": "fixture-component",
-            "latest_description": "fixture-component-description",
-            "latest_harness_id": "claude-code",
-            "latest_harness_ids": [
-              "claude-code"
-            ],
-            "latest_component_type": "skill",
-            "latest_projection_kind": "native_files",
-            "latest_tags": [
-              "python",
-              "tests"
-            ],
-            "latest_lifecycle": "active",
-            "latest_requirements_count": 0,
-            "latest_requires_credentials": false,
-            "latest_trust": {
-              "trust_lane": "experimental",
-              "author_verified": false,
-              "component_verified": false
-            },
-            "latest_published_at": "2026-08-05T00:00:00.000Z",
-            "latest_support": {
-              "schema_version": 1,
-              "tier": "primary",
-              "state": "missing",
-              "evidence": []
-            },
-            "latest_checks": null,
-            "usage_metrics": null
-          }
-        ],
+        "experimental": [],
         "page": {
           "schema_version": 1,
           "next_cursor": null,

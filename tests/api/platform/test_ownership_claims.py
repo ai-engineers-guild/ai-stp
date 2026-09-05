@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
@@ -202,6 +202,9 @@ async def test_database_transfer_fences_official_source_and_approves_legacy_clai
     recipient_id, _device, _token = await _seed_account_device(sessionmaker)
     now = datetime.now(UTC)
     async with sessionmaker() as db:
+        if await db.get(Account, OFFICIAL_ACCOUNT_ID) is None:
+            db.add(Account(id=OFFICIAL_ACCOUNT_ID))
+            await db.flush()
         db.add(
             CatalogIdentity(
                 stable_id=COMPONENT_ID,
@@ -279,7 +282,6 @@ async def test_database_transfer_fences_official_source_and_approves_legacy_clai
             state=JobState.QUEUED,
             idempotency_key="official-transfer-test-job",
             run_after=now,
-            expires_at=now + timedelta(hours=1),
         )
         db.add(job)
         await db.flush()
