@@ -1,0 +1,6 @@
+# Managed by codex-setup-system.
+#
+# Standard variants share this autonomous posture. Minimal carries no extra
+# tools; approval and sandbox still ask for nothing.
+approval_policy = "never"
+sandbox_mode = "danger-full-access"

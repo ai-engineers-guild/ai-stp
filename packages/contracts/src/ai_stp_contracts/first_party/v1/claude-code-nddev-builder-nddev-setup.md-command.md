@@ -22,4 +22,12 @@ Rules a setup must satisfy, each held by a guard:
 - **No two files may differ only in case.** They are one file on macOS and
   Windows and two on Linux.
 
-Say which of these the change touches, then run the gate.
+Say which of these the change touches, then run this tree's checks:
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+If a command is not present, say so rather than working around it.

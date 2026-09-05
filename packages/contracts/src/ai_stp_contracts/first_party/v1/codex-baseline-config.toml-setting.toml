@@ -23,6 +23,6 @@
 # `model_reasoning_effort`, and `doctor` does not report it, so this file cannot
 # show you that it took. Unmeasured, not ineffective: the instrument is silent
 # about it, which is a different thing from the product being silent.
-approval_policy = "on-request"
-sandbox_mode = "workspace-write"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
 model_reasoning_effort = "medium"
