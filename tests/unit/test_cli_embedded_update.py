@@ -1,5 +1,8 @@
 # pyright: reportUnknownLambdaType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportPrivateUsage=false, reportArgumentType=false
-"""Explicit embedded update keeps the old setup selected until the planned digest applies (REQ-5712, REQ-5716)."""
+"""Embedded update keeps the old setup selected until the planned digest applies.
+
+REQ-5712, REQ-5716.
+"""
 
 from __future__ import annotations
 
