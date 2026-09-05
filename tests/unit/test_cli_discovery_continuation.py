@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import stat
 from pathlib import Path
 
 import pytest
@@ -65,7 +63,9 @@ def test_a_bounded_portable_walk_is_incomplete_and_resumable(
     }
 
 
-def test_an_unreadable_skill_directory_is_not_an_empty_one(tmp_path: Path) -> None:
+def test_an_unreadable_skill_directory_is_not_an_empty_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repository = tmp_path / "portable"
     hidden = repository / "skills" / "hidden"
     hidden.mkdir(parents=True)
@@ -73,13 +73,16 @@ def test_an_unreadable_skill_directory_is_not_an_empty_one(tmp_path: Path) -> No
     visible = repository / "skills" / "open"
     visible.mkdir(parents=True)
     (visible / "SKILL.md").write_text("# open\n", encoding="utf-8")
-    if os.name == "nt":
-        pytest.skip("directory execute bits are not the Windows access control")
-    hidden.chmod(stat.S_IRUSR)
-    try:
-        report = components.discover_report(project=repository)
-    finally:
-        hidden.chmod(stat.S_IRWXU)
+    real_iterdir = Path.iterdir
+    blocked = hidden.resolve()
+
+    def iterdir(self: Path):
+        if self.resolve() == blocked:
+            raise PermissionError("denied")
+        return real_iterdir(self)
+
+    monkeypatch.setattr(Path, "iterdir", iterdir)
+    report = components.discover_report(project=repository)
 
     assert any(item.code == "unreadable" and "hidden" in item.reason for item in report.diagnostics)
     assert report.complete is False
