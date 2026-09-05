@@ -50,27 +50,33 @@ platform-confirmed.
 
 There is no configuration key that means "include all unverified objects
 forever". Consent is either a request marker for one command, or a durable
-record for one publisher or one object major line.
+record for one publisher, one object major line, or the authorized
+`full-auto` task profile.
 
 ```bash
 ai-stp consent allow --scope publisher --target <publisher_id> --json
 ai-stp consent allow --scope object_major --target <stable_id>@<major> --json
+ai-stp consent allow --scope task --target full-auto --json
 ai-stp consent list --json
 ai-stp consent revoke --scope publisher --target <publisher_id> --json
 ```
 
-`--scope` is `publisher` or `object_major`. No wider form exists. The target
-must already have registered objects: an empty fingerprint is not consent, it
-is no observation.
+`--scope` is `publisher`, `object_major`, or `task`. `task` is the
+authorized profile, not a wildcard. A `publisher` or `object_major`
+target must already have registered objects: an empty fingerprint is
+not consent, it is no observation. `task` / `full-auto` does not need
+a matching object.
 
 Consent admits candidates into the `experimental` lane. It does not move an
 object to `authoritative`, create platform verification, or skip install
 checks.
 
-A record stops covering a version if that version needs new permissions,
-processes, network access, credentials, or native surfaces compared with the
-fingerprint stored at consent time. Revocation takes effect immediately for
-later requests.
+A `publisher` or `object_major` record stops covering a version if that
+version needs new permissions, processes, network access, credentials, or
+native surfaces compared with the fingerprint stored at consent time. An
+active `task` grant still covers that growth. Revocation takes effect
+immediately for later requests. A revoked narrower record excludes the
+target even when `task` is active.
 
 Search can show the experimental lane for one command without recording
 consent:

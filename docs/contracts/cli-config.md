@@ -1,6 +1,6 @@
 ---
 description: "Global CLI configuration fields, defaults, and source precedence."
-last_verified: "2026-08-29"
+last_verified: "2026-09-05"
 ---
 
 # Global CLI configuration
@@ -117,4 +117,4 @@ Offline mode is obtained by disabling `catalog.enabled` and `sync.enabled` and r
 
 ## Consent to unverified content
 
-The configuration has no consent field for the `experimental` trust line: the `search.include_unverified` key was removed by `ADR-0029`, and indefinite global consent to all unverified content is not supported. Consent is an attribute of a command request or session, while durable exceptions by publisher or object mainline are stored as separate records under `unverified-consent.md`, not as a configuration field.
+The configuration has no consent field for the `experimental` trust line: the `search.include_unverified` key was removed by `ADR-0029`, and indefinite global consent to all unverified content is not supported. Consent is an attribute of a command request or session, while durable records by publisher, object mainline, or authorized task profile are stored as separate records under `unverified-consent.md`, not as a configuration field.

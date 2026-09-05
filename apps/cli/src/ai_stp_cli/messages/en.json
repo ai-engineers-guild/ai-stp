@@ -315,6 +315,7 @@
   "that setup version already exists": "that setup version already exists",
   "that setup version is not in the local registry": "that setup version is not in the local registry",
   "that skill was not installed by this installation": "that skill was not installed by this installation",
+  "that task profile is not one this contract defines": "that task profile is not one this contract defines",
   "that version already stands for different content": "that version already stands for different content",
   "the APM lock is not supported version 1 or 2": "the APM lock is not supported version 1 or 2",
   "the GitHub coordinate now resolves to another repository identity": "the GitHub coordinate now resolves to another repository identity",

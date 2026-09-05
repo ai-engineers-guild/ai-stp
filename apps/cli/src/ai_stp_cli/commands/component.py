@@ -598,11 +598,11 @@ def forget(parameters: Mapping[str, object]) -> Answer[PassportView]:
 
 
 def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
-    """Record a durable consent to unverified objects of one publisher or line.
+    """Record a durable consent to unverified objects, or full-task authority.
 
     There is deliberately no form covering everything unverified forever: the
-    `search.include_unverified` key was exactly that and was removed, so the
-    scope is one publisher or one major line and nothing wider.
+    `search.include_unverified` key was exactly that and was removed. `task`
+    names the authorized full-auto profile, not a wildcard publisher.
     """
     scope = parameters.get("scope")
     target = parameters.get("target")
@@ -623,6 +623,23 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
         )
 
     def work(connection: sqlite3.Connection) -> ConsentRecord:
+        if str(scope) == consent.SCOPE_TASK:
+            # Task authority is a named profile, not a fingerprint of objects.
+            # Requiring a matching registration would make the grant unwritable
+            # until an unverified object already existed — the opposite of
+            # authorizing the task that will meet those objects.
+            record = consent.grant(
+                connection,
+                consent_id=new_id("request"),
+                scope=str(scope),
+                target=str(target),
+                fingerprint=consent.fingerprint_of({}),
+                observed=(),
+                decided_by=owner().account_id,
+                origin="component consent allow",
+                at=moment(),
+            )
+            return _record(record)
         # The contract asks for "the fingerprint of the candidate at the moment
         # of consent", so the shape is read from the objects the target
         # actually covers right now. It used to record `fingerprint_of({})`

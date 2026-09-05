@@ -1,6 +1,6 @@
 ---
 title: "Consent"
-description: "Record, list, and withdraw explicit consent for unverified publishers and object major lines."
+description: "Record, list, and withdraw explicit consent for unverified publishers, object major lines, and the authorized task profile."
 ---
 
 # Consent
@@ -9,9 +9,10 @@ An unverified object takes no part in automatic installation without
 the user's explicit consent. This group records that consent, lists
 what is still in force, and withdraws it. It does not install anything.
 
-Consent is scoped. The only scopes this contract defines are
-`publisher` and `object_major`. No wider form exists: there is no
-“everything on this machine” switch.
+Consent is scoped. The scopes this contract defines are
+`publisher`, `object_major`, and `task`. There is no
+“everything on this machine” switch: `task` names the authorized
+`full-auto` profile, not every publisher.
 
 This is not [Install telemetry](telemetry.md) consent. Telemetry is an
 anonymous install ping with its own command. Mixing the two would make
@@ -21,13 +22,13 @@ a catalog-risk decision look like a traffic preference.
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp consent allow` | `apply` | `none` | Record consent to unverified objects of one publisher or major line. |
+| `ai-stp consent allow` | `apply` | `none` | Record consent to unverified objects of one publisher, major line, or the authorized task profile. |
 | `ai-stp consent revoke` | `apply` | `none` | Withdraw a consent. Takes effect immediately for later requests. |
 | `ai-stp consent list` | `read` | `none` | Every consent still in force, and what each covered when given. |
 
 `confirmation` is `none`. The decision is the command itself, aimed at
-one publisher or one major line. That is narrower than a `--confirm`
-that could cover anything.
+one publisher, one major line, or the authorized `full-auto` profile.
+That is narrower than a `--confirm` that could cover anything.
 
 ## Typical path
 
@@ -43,7 +44,13 @@ ai-stp consent list --json
 To allow one object major line instead:
 
 ```bash
-ai-stp consent allow --scope object_major --target <stable_id> --json
+ai-stp consent allow --scope object_major --target <stable_id>@<major> --json
+```
+
+To record authorized full-task authority:
+
+```bash
+ai-stp consent allow --scope task --target full-auto --json
 ```
 
 To withdraw either form:
@@ -54,27 +61,29 @@ ai-stp consent list --json
 ```
 
 `--scope` and `--target` are the declared options. The handler refuses
-the call if either is missing. `--scope` is `publisher` or
-`object_major`. `--target` is the publisher or the object major line
-the consent covers.
+the call if either is missing. `--scope` is `publisher`,
+`object_major`, or `task`. `--target` is the publisher, the object
+major line, or `full-auto`.
 
 A recorded consent is not permission to skip eligibility, a plan, or
 `--expected-plan-digest`. It only answers the unverified-object gate
 that would otherwise stop a later request.
 
 `publisher` covers unverified objects of one publisher. `object_major`
-covers one object major line. There is no `*` target, no account-wide
-allow, and no “this session only” flag. If you need two publishers,
-you record two consents.
+covers one object major line. `task` / `full-auto` covers unverified
+candidates for the authorized profile without a per-object grant. A
+revoked narrower publisher or object-major record still excludes that
+target. There is no `*` target and no account-wide allow. If you need
+two publishers, you record two consents.
 
-The fingerprint is stored rather than recomputed. A later request that
-needs more than the stored fingerprint is refused with
-`AI_STP_PRECONDITION_FAILED`. That is the mechanism working. Allow
-again only after you have read what grew.
+The fingerprint is stored rather than recomputed for `publisher` and
+`object_major`. A later request that needs more than the stored
+fingerprint is refused unless an active `task` grant covers it. Allow
+the fingerprint scopes again only after you have read what grew.
 
 ## `consent allow`
 
-Record consent to unverified objects of one publisher or major line.
+Record consent to unverified objects of one publisher, major line, or the authorized task profile.
 
 ```bash
 ai-stp consent allow --scope publisher --target <publisher> --json
@@ -126,8 +135,8 @@ error. It means nothing is in force.
 | Field | What it is |
 | --- | --- |
 | `consent_id` | this consent's identifier |
-| `scope` | `publisher` or `object_major` |
-| `target` | the publisher or major line it covers |
+| `scope` | `publisher`, `object_major`, or `task` |
+| `target` | the publisher, major line, or `full-auto` profile it covers |
 | `fingerprint` | what the candidate required when the user agreed |
 | `observed` | what was observed at that moment |
 | `origin` | where the decision was recorded |
@@ -174,7 +183,7 @@ does not flip either flag. It does not move an object onto the
 | What you see | What it means | What to do |
 | --- | --- | --- |
 | `AI_STP_VALIDATION_ERROR` missing scope or target | both are required | pass `--scope` and `--target` |
-| `AI_STP_VALIDATION_ERROR` unknown scope | the word is not `publisher` or `object_major` | use one of those two |
+| `AI_STP_VALIDATION_ERROR` unknown scope | the word is not `publisher`, `object_major`, or `task` | use one of those three |
 | `AI_STP_NOT_FOUND` on `revoke` | that consent was never given, or is already gone | `consent list --json` |
 | `AI_STP_PRECONDITION_FAILED` | the candidate now needs more than the stored fingerprint covers | read `details`; allow again only after reviewing the new risk |
 | an install still refuses | consent is not a plan digest and not eligibility | [Select](select.md) then [Install](install.md) |

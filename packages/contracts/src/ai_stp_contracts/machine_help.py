@@ -1398,8 +1398,9 @@ class ConsentRecord(BaseModel):
     schema_version: Literal[1] = 1
     consent_id: Annotated[str, Field(min_length=1)]
 
-    #: Two forms and no third. "Everything unverified, forever" does not exist.
-    scope: Literal["publisher", "object_major"]
+    #: Three forms and no fourth. "Everything unverified, forever" does not
+    #: exist: `task` names the authorized full-auto profile, not a wildcard.
+    scope: Literal["publisher", "object_major", "task"]
     target: Annotated[str, Field(min_length=1)]
     decided_by: Annotated[str, Field(min_length=1)]
     origin: Annotated[str, Field(min_length=1)]

@@ -61,7 +61,8 @@
         "scope": {
           "enum": [
             "publisher",
-            "object_major"
+            "object_major",
+            "task"
           ],
           "title": "Scope",
           "type": "string"

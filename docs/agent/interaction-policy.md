@@ -1,6 +1,6 @@
 ---
 description: "Confirmations and questions in the configuration workflow."
-last_verified: "2026-08-09"
+last_verified: "2026-09-05"
 ---
 
 # Interaction Policy
@@ -27,7 +27,7 @@ the approved effect is exactly what will be performed. A stale plan is handled
 by building a new one and showing the difference; a new decision is required
 only if the effect itself changed.
 
-Consent to the `experimental` lane applies within a command or session; no permanent global consent setting exists. A durable exception is created only through an explicit user choice and in exactly two scopes—a publisher or the major line of an exact object, as defined by `docs/contracts/unverified-consent.md`. A new major line and any expansion of capabilities, network access, credentials, external endpoints, managed paths, or native surfaces require a new explicit decision.
+Consent to the `experimental` lane applies within a command or session; no permanent global consent setting exists. A durable record is created only through an explicit choice in the scopes defined by `docs/contracts/unverified-consent.md`. Under an authorized `task` / `full-auto` profile (`ADR-0150`, `ADR-0159`) a new major line or capability expansion does not require a new publisher or object-major grant; a revoked narrower record remains an exclusion. Without task authority, a new major line and any expansion of capabilities, network access, credentials, external endpoints, managed paths, or native surfaces require a new explicit publisher or object-major decision.
 
 No question is needed for reading, repeatable local validation, or deterministic regeneration without a semantic change.
 
