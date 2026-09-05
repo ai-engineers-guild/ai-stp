@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_contracts.public_profile import (
+    LINKS_MAX,
     ProfileFields,
     ProfileLink,
     content_digest,
@@ -46,13 +47,44 @@ def _fields_from_revision(row: ProfileRevision) -> ProfileFields:
         label = mapping.get("label")
         url = mapping.get("url")
         if isinstance(label, str) and isinstance(url, str):
-            links.append(ProfileLink(label=label, url=url))
-    return ProfileFields(
-        display_name=row.display_name,
-        bio=row.bio,
-        links=links,
-        avatar_asset_id=row.avatar_asset_id,
-    )
+            try:
+                links.append(ProfileLink(label=label, url=url))
+            except ValidationError:
+                continue
+    try:
+        return ProfileFields(
+            display_name=row.display_name,
+            bio=row.bio,
+            links=links,
+            avatar_asset_id=row.avatar_asset_id,
+        )
+    except ValidationError:
+        # Published revisions are immutable and may predate today's text
+        # policy. Keep valid identity fields visible without re-publishing or
+        # emitting legacy unsafe text.
+        try:
+            display_name = ProfileFields(display_name=row.display_name).display_name
+        except ValidationError:
+            display_name = None
+        try:
+            bio = ProfileFields(bio=row.bio).bio
+        except ValidationError:
+            bio = None
+        unique_links: list[ProfileLink] = []
+        seen_urls: set[str] = set()
+        for link in links:
+            if link.url in seen_urls:
+                continue
+            seen_urls.add(link.url)
+            unique_links.append(link)
+            if len(unique_links) == LINKS_MAX:
+                break
+        return ProfileFields(
+            display_name=display_name,
+            bio=bio,
+            links=unique_links,
+            avatar_asset_id=row.avatar_asset_id,
+        )
 
 
 async def _avatar_url(db: AsyncSession, asset_id: str | None) -> str | None:
