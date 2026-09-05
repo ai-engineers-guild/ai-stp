@@ -1119,6 +1119,23 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             """,
         ),
     ),
+    Migration(
+        version=31,
+        summary="reserve physical resource prefixes so overlapping roots conflict",
+        up=(
+            """
+            CREATE TABLE installation_transaction_resource (
+                resource_digest TEXT NOT NULL,
+                target_id       TEXT NOT NULL,
+                transaction_id  TEXT NOT NULL
+                    REFERENCES installation_transaction(transaction_id),
+                is_exact        INTEGER NOT NULL CHECK (is_exact IN (0, 1)),
+                PRIMARY KEY (resource_digest, target_id)
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE installation_transaction_resource",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested
