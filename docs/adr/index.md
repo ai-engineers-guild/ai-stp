@@ -157,6 +157,7 @@ last_verified: "2026-08-03"
 | [ADR-0156-first-party-catalog-identity.md](ADR-0156-first-party-catalog-identity.md) | Decision that first-party catalog identity is the corpus passport projection, not a weaker id-and-description record. | 2026-09-05 |
 | [ADR-0157-explicit-path-inventory.md](ADR-0157-explicit-path-inventory.md) | Decision that an explicit path is a passport-first inventory and does not import global homes. | 2026-09-05 |
 | [ADR-0158-discovery-continuation.md](ADR-0158-discovery-continuation.md) | Decision that bounded component discovery reports completeness and a resumable cursor. | 2026-09-05 |
+| [ADR-0159-full-task-authority-is-a-consent-scope.md](ADR-0159-full-task-authority-is-a-consent-scope.md) | Decision that authorized full-task authority is consent scope task, not a config wildcard and not a covering grant that beats a narrower exclusion. | 2026-09-05 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

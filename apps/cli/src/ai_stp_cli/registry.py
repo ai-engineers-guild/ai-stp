@@ -1014,13 +1014,25 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
     ),
     Declaration(
         path=["consent", "allow"],
-        summary="Record consent to unverified objects of one publisher or major line.",
+        summary=(
+            "Record consent to unverified objects of one publisher, "
+            "major line, or the authorized task profile."
+        ),
         result_schema="urn:ai-stp:schema:v1:cli-consent-record",
         handler="component:consent_allow",
         mutability="apply",
         parameters=(
-            option("scope", "string", "publisher or object_major. No wider form exists."),
-            option("target", "string", "The publisher or object major line it covers."),
+            option(
+                "scope",
+                "string",
+                "publisher, object_major, or task. "
+                "task is the authorized full-auto profile, not a wildcard.",
+            ),
+            option(
+                "target",
+                "string",
+                "The publisher, object major line, or full-auto task profile it covers.",
+            ),
         ),
         next_actions=("consent list",),
     ),
@@ -1031,8 +1043,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="component:consent_revoke",
         mutability="apply",
         parameters=(
-            option("scope", "string", "publisher or object_major."),
-            option("target", "string", "The publisher or object major line it covers."),
+            option("scope", "string", "publisher, object_major, or task."),
+            option(
+                "target",
+                "string",
+                "The publisher, object major line, or full-auto task profile it covers.",
+            ),
         ),
         next_actions=("consent list",),
     ),

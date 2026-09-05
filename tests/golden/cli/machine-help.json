@@ -1452,7 +1452,7 @@
         "consent",
         "allow"
       ],
-      "summary": "Record consent to unverified objects of one publisher or major line.",
+      "summary": "Record consent to unverified objects of one publisher, major line, or the authorized task profile.",
       "mutability": "apply",
       "confirmation": "none",
       "parameters": [
@@ -1462,7 +1462,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "publisher or object_major. No wider form exists.",
+          "summary": "publisher, object_major, or task. task is the authorized full-auto profile, not a wildcard.",
           "choices": []
         },
         {
@@ -1471,7 +1471,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "The publisher or object major line it covers.",
+          "summary": "The publisher, object major line, or full-auto task profile it covers.",
           "choices": []
         }
       ],
@@ -1511,7 +1511,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "publisher or object_major.",
+          "summary": "publisher, object_major, or task.",
           "choices": []
         },
         {
@@ -1520,7 +1520,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "The publisher or object major line it covers.",
+          "summary": "The publisher, object major line, or full-auto task profile it covers.",
           "choices": []
         }
       ],

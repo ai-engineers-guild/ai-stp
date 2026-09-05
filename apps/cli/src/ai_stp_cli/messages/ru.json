@@ -315,6 +315,7 @@
   "that setup version already exists": "такая версия сетапа уже существует",
   "that setup version is not in the local registry": "этой версии сетапа нет в локальном реестре",
   "that skill was not installed by this installation": "этот скилл установлен не этой установкой",
+  "that task profile is not one this contract defines": "такого профиля задачи нет в этом контракте",
   "that version already stands for different content": "эта версия уже обозначает другое содержимое",
   "the APM lock is not supported version 1 or 2": "lock APM не является поддерживаемой версией 1 или 2",
   "the GitHub coordinate now resolves to another repository identity": "координата GitHub теперь указывает на другую идентичность репозитория",
