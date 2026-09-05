@@ -748,7 +748,8 @@
             "command",
             "agent",
             "plugin",
-            "setting"
+            "setting",
+            "cli"
           ]
         },
         {
@@ -846,7 +847,8 @@
             "command",
             "agent",
             "plugin",
-            "setting"
+            "setting",
+            "cli"
           ]
         },
         {
@@ -1661,7 +1663,8 @@
             "command",
             "agent",
             "plugin",
-            "setting"
+            "setting",
+            "cli"
           ]
         }
       ],

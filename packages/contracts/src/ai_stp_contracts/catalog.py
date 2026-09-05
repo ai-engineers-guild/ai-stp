@@ -500,7 +500,7 @@ class ComponentSearchRequest(BaseModel):
     harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
         default_factory=list[HarnessId]
     )
-    component_types: Annotated[list[ComponentType], Field(max_length=8)] = Field(
+    component_types: Annotated[list[ComponentType], Field(max_length=9)] = Field(
         default_factory=list[ComponentType]
     )
     authors: Annotated[list[str], Field(max_length=20)] = Field(default_factory=list[str])

@@ -9,7 +9,8 @@
         "command",
         "agent",
         "plugin",
-        "setting"
+        "setting",
+        "cli"
       ],
       "type": "string"
     },
@@ -177,7 +178,7 @@
       "items": {
         "$ref": "#/$defs/ComponentType"
       },
-      "maxItems": 8,
+      "maxItems": 9,
       "minItems": 1,
       "title": "Component Types",
       "type": "array"

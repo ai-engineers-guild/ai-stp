@@ -20,7 +20,7 @@ through?" (that is **marketplace** packaging, not a component kind).
 !!! warning "A plugin is not a marketplace"
 
     `marketplace` is native packaging: a collection or ledger a harness
-    uses to distribute plugins. It is **not** one of the eight component
+    uses to distribute plugins. It is **not** one of the closed component
     kinds. Grok `plugins/marketplaces` is a service container, not a
     plugin, and discovery does not return it as a candidate.
 

@@ -37,7 +37,7 @@ FORM: MVP documentation site, category-standard static docs chosen deliberately 
 - [Харнессы](harnesses.md): основная поддержка, beta-линии и `undefined`.
 - [Понятия](concepts/index.md): харнесс, сетап, provider, сборщик, устройство,
   проект и три режима.
-- [Компоненты](components/index.md): восемь видов и чем они отличаются.
+- [Компоненты](components/index.md): закрытые виды и чем они отличаются.
 - [Каталог](catalog/index.md): как читать публичный результат и как CLI его
   ищет.
 - [Доверие и безопасность](trust-and-safety/index.md): почему verified-автор

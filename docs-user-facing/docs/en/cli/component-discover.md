@@ -71,7 +71,7 @@ the files the plan named, and refuses to overwrite a path that already
 exists.
 
 `--type` is one of `instruction`, `skill`, `mcp`, `hook`, `command`,
-`agent`, `plugin`, `setting`. `--language` is `none` for declarative types,
+`agent`, `plugin`, `setting`, `cli`. `--language` is `none` for declarative types,
 or one of `python`, `typescript`, `javascript`, `rust`, `go`,
 `dart-flutter`. `--harness` is `portable` or one concrete harness:
 `claude-code`, `codex`, `pi`, `opencode`, `grok-build`, `cursor`,

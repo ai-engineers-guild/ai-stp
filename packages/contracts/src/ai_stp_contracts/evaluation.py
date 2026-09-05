@@ -59,7 +59,7 @@ class SetupEvalProfile(BaseModel):
     profile_version: Literal["setup-eval/1"] = "setup-eval/1"
     profile_id: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_.-]{2,95}$")]
     scope: EvaluationScope
-    component_types: Annotated[list[ComponentType], Field(min_length=1, max_length=8)]
+    component_types: Annotated[list[ComponentType], Field(min_length=1, max_length=9)]
     preconditions: list[Annotated[str, Field(min_length=1, max_length=240)]]
     checks: Annotated[list[EvaluationCheck], Field(min_length=1, max_length=256)]
     eval_permissions: Permissions

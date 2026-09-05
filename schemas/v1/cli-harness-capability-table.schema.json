@@ -10,23 +10,27 @@
       ],
       "type": "string"
     },
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting",
+        "cli"
+      ],
+      "type": "string"
+    },
     "HarnessCapabilityRow": {
       "additionalProperties": false,
       "description": "One executable row from the closed harness capability catalog.",
       "properties": {
         "component_types": {
           "items": {
-            "enum": [
-              "instruction",
-              "skill",
-              "mcp",
-              "hook",
-              "command",
-              "agent",
-              "plugin",
-              "setting"
-            ],
-            "type": "string"
+            "$ref": "#/$defs/ComponentType"
           },
           "title": "Component Types",
           "type": "array"
@@ -130,21 +134,10 @@
     },
     "HarnessComponentCapability": {
       "additionalProperties": false,
-      "description": "One `(harness, kind)` cell, with native support and projection kept apart.\n\nReading a single list of kinds as \"what can be installed\" is the mistake\nthis exists to remove: the catalogue answers what the *product* reads, and\nthe compiler answers what this build can hand a provider. They are different\nquestions and they disagree on ten of fifty-six cells.\n\n**None of these fields claims a component is active.** Whether an installed\nthing is loaded, parsed and running is a third question, and for at least\none surface it is not answerable from outside the product at all: driven at\na temporary `CODEX_HOME` in four states — valid, malformed, an invented\nevent name, an invented top-level key — codex produced byte-identical\noutput, and identical again with the file absent. A model that reported\n\"active\" would have to invent that answer for codex hooks. Runtime evidence\nis a separate record tied to versions, OS and scope (`#462`, item 8).",
+      "description": "One `(harness, kind)` cell, with native support and projection kept apart.\n\nReading a single list of kinds as \"what can be installed\" is the mistake\nthis exists to remove: the catalogue answers what the *product* reads, and\nthe compiler answers what this build can hand a provider. They are different\nquestions and they disagree on ten of the native-layout cells.\n\n**None of these fields claims a component is active.** Whether an installed\nthing is loaded, parsed and running is a third question, and for at least\none surface it is not answerable from outside the product at all: driven at\na temporary `CODEX_HOME` in four states — valid, malformed, an invented\nevent name, an invented top-level key — codex produced byte-identical\noutput, and identical again with the file absent. A model that reported\n\"active\" would have to invent that answer for codex hooks. Runtime evidence\nis a separate record tied to versions, OS and scope (`#462`, item 8).",
       "properties": {
         "component_type": {
-          "enum": [
-            "instruction",
-            "skill",
-            "mcp",
-            "hook",
-            "command",
-            "agent",
-            "plugin",
-            "setting"
-          ],
-          "title": "Component Type",
-          "type": "string"
+          "$ref": "#/$defs/ComponentType"
         },
         "native_at_owned_scope": {
           "title": "Native At Owned Scope",

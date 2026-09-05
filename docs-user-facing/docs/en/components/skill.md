@@ -50,7 +50,7 @@ Choose `command` when a person or an agent should invoke the work by name.
 
 ## Recommended package structure
 
-Of the eight kinds, `skill` alone has a specification that exists
+Of the closed kinds, `skill` alone has a specification that exists
 independently of this repository: the Agent Skills Specification. `SKILL.md`
 must sit at the **package root**. A `payload/SKILL.md` wrapper is
 nonconforming for any reader that implements the standard rather than a

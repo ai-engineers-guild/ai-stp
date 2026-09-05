@@ -377,6 +377,154 @@
       }
     },
     {
+      "id": "cli-argument-hijacking",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-argument-hijacking",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "tool_argument_hijacking"
+      }
+    },
+    {
+      "id": "cli-clean-https",
+      "kind": "cli",
+      "class": "benign",
+      "path": "cli/cli-clean-https",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "cli-clean-minimal",
+      "kind": "cli",
+      "class": "benign",
+      "path": "cli/cli-clean-minimal",
+      "expected": {
+        "findings": []
+      }
+    },
+    {
+      "id": "cli-download-pipe-shell",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-download-pipe-shell",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "url_pipe_shell"
+      }
+    },
+    {
+      "id": "cli-encoded-shell",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-encoded-shell",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "cli-hidden-comment",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-hidden-comment",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "html_comment_hidden"
+      }
+    },
+    {
+      "id": "cli-image-exfil",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-image-exfil",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "md_image_exfil"
+      }
+    },
+    {
+      "id": "cli-javascript-link",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-javascript-link",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "dangerous_md_scheme"
+      }
+    },
+    {
+      "id": "cli-metadata-endpoint",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-metadata-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "metadata_endpoint"
+      }
+    },
+    {
+      "id": "cli-nested-encoding",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-nested-encoding",
+      "expected": {
+        "check_id": "shell_obfuscation",
+        "rule_id": "b64_decoded_shell"
+      }
+    },
+    {
+      "id": "cli-private-endpoint",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-private-endpoint",
+      "expected": {
+        "check_id": "network_intent",
+        "rule_id": "non_public_endpoint"
+      }
+    },
+    {
+      "id": "cli-prompt-ignore",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-prompt-ignore",
+      "expected": {
+        "check_id": "pi_content_pack",
+        "rule_id": "pi_ignore_previous"
+      }
+    },
+    {
+      "id": "cli-secret-token",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-secret-token",
+      "expected": {
+        "check_id": "secrets_heuristic",
+        "rule_id": "github_personal_access_token"
+      }
+    },
+    {
+      "id": "cli-unsafe-output-shell",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-unsafe-output-shell",
+      "expected": {
+        "check_id": "agentic_behavior",
+        "rule_id": "unsafe_output_to_shell"
+      }
+    },
+    {
+      "id": "cli-zero-width",
+      "kind": "cli",
+      "class": "malicious",
+      "path": "cli/cli-zero-width",
+      "expected": {
+        "check_id": "content_hidden",
+        "rule_id": "zero_width_chars"
+      }
+    },
+    {
       "id": "hook-clean-https",
       "kind": "hook",
       "class": "benign",

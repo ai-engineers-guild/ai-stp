@@ -146,7 +146,8 @@
         "command",
         "agent",
         "plugin",
-        "setting"
+        "setting",
+        "cli"
       ],
       "type": "string"
     },

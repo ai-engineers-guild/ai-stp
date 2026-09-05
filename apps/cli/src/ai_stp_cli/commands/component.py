@@ -1010,7 +1010,7 @@ def _hit(hit: search.Hit) -> SearchHit:
 def skill_validate(parameters: Mapping[str, object]) -> Answer[SkillPackageReport]:
     """Check a skill package against the Agent Skills Specification (`#455`).
 
-    Reads a directory and changes nothing. Of the eight component kinds this is
+    Reads a directory and changes nothing. Of the closed component kinds this is
     the one with a published standard that exists independently of this estate,
     so every limit it enforces is quoted from that document rather than chosen
     here — which is what makes the answer checkable by somebody who does not

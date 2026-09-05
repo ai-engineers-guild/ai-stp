@@ -32,6 +32,8 @@ def _scaffold_is_unsupported(component_type: str, language: str, harness: str) -
     """
     if harness == "portable":
         return component_type == "setting"
+    if component_type == "cli":
+        return True
     if rule_for(component_type, harness) is None:
         return True
     return (
@@ -168,7 +170,10 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     if unsupported:
         with pytest.raises(
             CliFailure,
-            match=r"cannot be projected|JavaScript or TypeScript|concrete harness file",
+            match=(
+                r"cannot be projected|JavaScript or TypeScript|"
+                r"concrete harness file|shared executable"
+            ),
         ):
             authoring.scaffold_plan(
                 component_type=component_type,

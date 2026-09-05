@@ -218,9 +218,10 @@ def test_project_instructions_are_found_at_both_claude_placements(tmp_path: Path
 
 
 def test_every_declared_component_kind_is_discovered_in_one_project(tmp_path: Path) -> None:
-    """All eight kinds, in one tree, through the real CLI.
+    """All native-layout kinds, in one tree, through the real CLI.
 
-    `COMPONENT_TYPES` is a closed vocabulary of eight, and each kind is
+    Native layouts cover eight of the closed kinds; `cli` is portable and
+    has no harness layout. Each native kind is
     declared by its own rules. What nothing asserted is that the eight
     *together* come back from a project that holds all of them — the existing
     coverage checks one adapter, or one placement, at a time.

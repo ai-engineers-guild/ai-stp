@@ -11,7 +11,8 @@
     "command": "Команда",
     "agent": "Агент",
     "plugin": "Плагин",
-    "setting": "Настройка"
+    "setting": "Настройка",
+    "cli": "CLI"
   },
   "nav": {
     "primaryLabel": "Основная навигация",

@@ -132,6 +132,7 @@ _ACTION_SURFACES: Final[dict[ComponentType, tuple[str, ...]]] = {
     "agent": ("native_ids", "managed_paths", "entry_points"),
     "plugin": ("native_ids", "managed_paths", "entry_points"),
     "setting": ("native_ids", "managed_paths"),
+    "cli": ("native_ids", "managed_paths", "entry_points"),
 }
 
 

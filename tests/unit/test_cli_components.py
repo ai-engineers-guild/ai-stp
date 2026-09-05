@@ -105,7 +105,7 @@ def project(tmp_path: Path) -> Path:
 
 
 def test_the_declared_layouts_are_sound() -> None:
-    # Every rule names one of the eight kinds, a harness a detector can find,
+    # Every rule names one of the closed kinds, a harness a detector can find,
     # and the documentation the layout was read from. A rule for a harness
     # nothing detects would never be reached and nothing else would say so.
     assert components.declared_consistently() == ()

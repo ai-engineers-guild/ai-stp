@@ -37,6 +37,7 @@ export const COMPONENT_TYPE_FACETS = [
   "agent",
   "plugin",
   "setting",
+  "cli",
 ] as const;
 
 export type ComponentTypeFacet = (typeof COMPONENT_TYPE_FACETS)[number];

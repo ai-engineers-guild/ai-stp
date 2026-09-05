@@ -15,8 +15,9 @@ plans are not continued literally after the implementation changes.
   install/update/remove; `ai-stp` invokes the same lifecycle mechanically.
 - Existing configuration becomes managed only through explicit adoption with an
   exact plan, never through silent ownership.
-- The current component vocabulary has eight kinds and may be extended by a new
-  specification when a proven native form exists.
+- The current component vocabulary is the closed `component_type` list in
+  `docs/contracts/component-setup-passports.md` and may be extended by a new
+  ADR when a proven native form exists.
 - The release target is Linux, Windows, and macOS on both architectures —
   `x86_64`/`arm64` — with real-product evidence; bundles remain portable between
   operating systems.

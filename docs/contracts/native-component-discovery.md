@@ -1,6 +1,6 @@
 ---
 description: "Machine contract for read-only discovery of native components in supported harnesses."
-last_verified: "2026-09-04"
+last_verified: "2026-09-05"
 ---
 
 # Native component discovery
@@ -124,7 +124,7 @@ CODEX.md is not a documented instruction layout and is returned as a safe
 - `candidate_id` — `sha256:` of a domain hash in `ai-stp:native-discovery:v1`; it
   addresses the discovery result but does not replace the adopted Component's logical
   identifier;
-- `component_type` — a value from the closed eight-type vocabulary;
+- `component_type` — a value from the closed component-type vocabulary;
 - `native_role` — `mcp_client_config` or `mcp_server` for MCP, otherwise `null`;
 - `harness_id` — owner of the native layout, or `null` for a shared convention;
 - `scope` — `global` or `project`;

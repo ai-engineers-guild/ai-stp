@@ -1276,9 +1276,7 @@ class ComponentScaffoldView(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    component_type: Literal[
-        "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
-    ]
+    component_type: ComponentType
     component_name: Annotated[str, Field(min_length=1)]
     output: Annotated[str, Field(min_length=1)]
     byte_length: Annotated[int, Field(gt=0)]
@@ -1311,9 +1309,7 @@ class NativeComponent(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
-    component_type: Literal[
-        "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
-    ]
+    component_type: ComponentType
     native_role: Literal["mcp_client_config", "mcp_server"] | None = None
 
     #: `None` for a cross-harness convention such as a project `AGENTS.md`,
@@ -3022,7 +3018,7 @@ class HarnessComponentCapability(BaseModel):
     Reading a single list of kinds as "what can be installed" is the mistake
     this exists to remove: the catalogue answers what the *product* reads, and
     the compiler answers what this build can hand a provider. They are different
-    questions and they disagree on ten of fifty-six cells.
+    questions and they disagree on ten of the native-layout cells.
 
     **None of these fields claims a component is active.** Whether an installed
     thing is loaded, parsed and running is a third question, and for at least
@@ -3037,9 +3033,7 @@ class HarnessComponentCapability(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    component_type: Literal[
-        "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
-    ]
+    component_type: ComponentType
     #: The product reads this kind somewhere, at any scope.
     native_support: bool
     #: ...and at a scope a provider owns, which is what makes it projectable.
@@ -3074,10 +3068,8 @@ class HarnessCapabilityRow(BaseModel):
     #: Every kind the *product* reads, at any scope. Kept because it is a true
     #: fact about the harness, and no longer the only one reported: read alone
     #: it was taken for effective support, which is `#462`.
-    component_types: list[
-        Literal["instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"]
-    ]
-    #: All eight kinds, each with its own state — present for every kind rather
+    component_types: list[ComponentType]
+    #: Every closed kind, each with its own state — present for every kind rather
     #: than only the interesting ones, because a caller building a matrix should
     #: not have to infer absence from a missing row.
     #:

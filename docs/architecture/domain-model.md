@@ -1,6 +1,6 @@
 ---
 description: "Product entities, their ownership, and core invariants."
-last_verified: "2026-08-29"
+last_verified: "2026-09-05"
 ---
 
 # Domain Model
@@ -35,7 +35,7 @@ last_verified: "2026-08-29"
 
 | Entity | Meaning |
 |---|---|
-| Component | A stable logical component entity with a closed eight-value `component_type`. |
+| Component | A stable logical component entity with a closed `component_type`. |
 | ComponentVariant | A native component implementation for one harness. |
 | ComponentVersion | An immutable `X.Y` version. |
 | Setup | A stable logical setup entity belonging to one harness. |
