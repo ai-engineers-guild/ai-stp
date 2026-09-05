@@ -726,6 +726,24 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("component passport validate", "component adopt"),
     ),
     Declaration(
+        path=["component", "adaptation", "add"],
+        summary="Render a second concrete harness projection into an existing authoring tree.",
+        result_schema="urn:ai-stp:schema:v1:cli-component-scaffold",
+        handler="component:adaptation_add",
+        mutability="apply",
+        parameters=(
+            option("root", "string", "Existing component authoring directory.", required=True),
+            option(
+                "harness",
+                "string",
+                "Concrete harness to add. Portable is refused.",
+                required=True,
+                choices=tuple(HARNESS_ID_ORDER),
+            ),
+        ),
+        next_actions=("component passport validate", "component version release"),
+    ),
+    Declaration(
         path=["component", "template", "render"],
         summary="Render and validate a portable template for one concrete harness.",
         result_schema="urn:ai-stp:schema:v1:cli-component-template",

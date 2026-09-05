@@ -251,6 +251,50 @@
     {
       "path": [
         "component",
+        "adaptation",
+        "add"
+      ],
+      "summary": "Render a second concrete harness projection into an existing authoring tree.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Existing component authoring directory.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Concrete harness to add. Portable is refused.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-scaffold",
+      "next_actions": [
+        "component passport validate",
+        "component version release"
+      ]
+    },
+    {
+      "path": [
+        "component",
         "adopt"
       ],
       "summary": "Register one discovered component in the local registry.",

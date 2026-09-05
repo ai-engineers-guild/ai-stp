@@ -105,6 +105,10 @@ class ComponentTemplateDescriptor(BaseModel):
     #: Absent on historical descriptors. Present on new writes. Never inferred
     #: from `schema_version: 1` — that discriminator already belongs to envelopes.
     standard_family: Literal["ai-stp-standard/1"] | None = None
+    #: Extra concrete harnesses this authoring tree also projects. The primary
+    #: `harness_variant` stays the one the scaffold was created for. Empty on
+    #: historical descriptors and on single-harness trees.
+    additional_harnesses: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def type_language_pair_is_meaningful(self) -> Self:

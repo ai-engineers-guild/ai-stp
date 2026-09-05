@@ -50,6 +50,13 @@
       "additionalProperties": false,
       "description": "Exact generator choice recorded inside every scaffold.",
       "properties": {
+        "additional_harnesses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Additional Harnesses",
+          "type": "array"
+        },
         "component_type": {
           "$ref": "#/$defs/ComponentType"
         },

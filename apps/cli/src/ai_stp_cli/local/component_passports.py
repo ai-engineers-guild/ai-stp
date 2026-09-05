@@ -32,6 +32,7 @@ from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES, provider_surf
 from ai_stp_passports import ScopeAdaptation, build_projection, seal_adaptation
 from ai_stp_passports.envelope import seal_envelope
 from ai_stp_passports.versions import (
+    ComponentAdaptation,
     ComponentType,
     ComponentVersionPassport,
     ProjectionKind,
@@ -700,18 +701,124 @@ def materialize_version_passport(
         )
     harness_id = cast(HarnessId, values["harness_id"])
     component_type = cast(ComponentType, values["component_type"])
-    projection_kind = cast(ProjectionKind, values["projection_kind"])
-    scope_name = cast(TargetScope, values.get("scope") or "")
+    permissions = values.get("permissions") or {"filesystem": [], "network": [], "process": []}
+    frozen: list[ComponentAdaptation] = _freeze_adaptations(
+        connection, values, component_type, at=at
+    )
+    adaptations: list[JsonValue] = [
+        cast(JsonValue, item.model_dump(mode="json")) for item in frozen
+    ]
+    stored_artifact = frozen[0].scope_adaptations[0].projection_artifact
+    body: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "kind": "component",
+        "stable_id": stable_id,
+        "owner_id": document["owner_id"],
+        "created_at": document["created_at"],
+        "visibility": "public",
+        "parent_revision_ids": [],
+        "facts": document.get("facts") or {},
+        "name": values["name"],
+        "description": values["description"],
+        "version": version,
+        "tags": values["tags"],
+        "source": _exact_source(values),
+        "artifact": {"digest": stored_artifact.digest, "size_bytes": stored_artifact.size_bytes},
+        "required_env": values.get("required_env") or [],
+        "requires_credentials": values.get("requires_credentials") or False,
+        "requires_authorization": values.get("requires_authorization") or "none",
+        "permissions": permissions,
+        "external_endpoints": values.get("external_endpoints") or [],
+        "license": values.get("license"),
+        "compatibility_evidence_refs": values.get("compatibility_evidence_refs") or [],
+        "component_type": component_type,
+        "origin_harness_id": harness_id,
+        "adaptations": adaptations,
+        "provides_capabilities": values.get("provides_capabilities") or [],
+        "requires_components": values.get("requires_components") or [],
+        "requires_capabilities": values.get("requires_capabilities") or [],
+        "conflicts": values.get("conflicts") or {},
+        "artifact_format": "ai-stp-adaptation-projection/1",
+        "runtime_requirements": values.get("runtime_requirements") or [],
+    }
+    normalized = ComponentVersionPassport.model_validate(
+        seal_envelope(body).model_dump(mode="json")
+    ).model_dump(mode="json")
+    normalized.pop("revision_id", None)
+    snapshot = revisions.store_snapshot(
+        connection, cast(dict[str, JsonValue], normalized), device_id=device_id
+    )
+    passport = ComponentVersionPassport.model_validate(snapshot.envelope.model_dump(mode="json"))
+    return passport, snapshot.revision_id
+
+
+def _freeze_adaptations(
+    connection: sqlite3.Connection,
+    values: dict[str, JsonValue],
+    component_type: ComponentType,
+    *,
+    at: str,
+) -> list[ComponentAdaptation]:
+    """One adaptation per declared harness source; one when the draft is singular."""
+    raw = values.get("adaptation_contents")
+    sources: list[dict[str, JsonValue]] = []
+    if isinstance(raw, list) and len(raw) >= 2:
+        for item in raw:
+            if not isinstance(item, dict):
+                raise CliFailure(
+                    "AI_STP_VALIDATION_ERROR",
+                    "each adaptation source must be an object",
+                )
+            sources.append(cast(dict[str, JsonValue], item))
+    else:
+        sources = [
+            {
+                "harness_id": values["harness_id"],
+                "content_digest": values.get("content_digest") or "",
+                "content_format": values.get("content_format") or "",
+                "managed_paths": values.get("managed_paths") or [],
+                "scope": values.get("scope") or "",
+                "projection_kind": values.get("projection_kind") or "",
+                "declared_key": values.get("declared_key") or "",
+                "source_locator": values.get("source_locator") or "",
+                "native_ids": values.get("native_ids") or [],
+            }
+        ]
+    harnesses = [str(item.get("harness_id") or "") for item in sources]
+    if len(harnesses) != len(set(harnesses)):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "component adaptations must not repeat a harness",
+        )
+    frozen: list[ComponentAdaptation] = []
+    for item in sources:
+        frozen.append(_freeze_one_adaptation(connection, values, component_type, item, at=at))
+    return frozen
+
+
+def _freeze_one_adaptation(
+    connection: sqlite3.Connection,
+    values: dict[str, JsonValue],
+    component_type: ComponentType,
+    source: Mapping[str, JsonValue],
+    *,
+    at: str,
+) -> ComponentAdaptation:
+    harness_id = cast(HarnessId, str(source.get("harness_id") or values["harness_id"]))
+    projection_kind = cast(
+        ProjectionKind, str(source.get("projection_kind") or values["projection_kind"])
+    )
+    scope_name = cast(TargetScope, str(source.get("scope") or values.get("scope") or ""))
     if (harness_id, scope_name) not in PROVIDER_SURFACES:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "the component draft has no supported explicit harness scope",
         )
-    source_digest = str(values.get("content_digest") or "")
-    source_format = str(values.get("content_format") or "")
-    managed_paths = names_of(values.get("managed_paths"))
-    declared_key = str(values.get("declared_key") or "")
-    source_locator = str(values.get("source_locator") or "")
+    source_digest = str(source.get("content_digest") or "")
+    source_format = str(source.get("content_format") or "")
+    managed_paths = names_of(source.get("managed_paths"))
+    declared_key = str(source.get("declared_key") or "")
+    source_locator = str(source.get("source_locator") or "")
     source_payload = content.get(connection, source_digest)
     expanded = components.expand(source_payload, source_format)
     if (
@@ -737,7 +844,7 @@ def materialize_version_passport(
         )
         projected[path] = member.content
         modes[path] = member.mode
-    native_ids = names_of(values.get("native_ids"))
+    native_ids = names_of(source.get("native_ids") or values.get("native_ids"))
     members: list[JsonValue] = [
         {
             "path": path,
@@ -786,7 +893,7 @@ def materialize_version_passport(
         "digest": stored_artifact.digest,
         "size_bytes": stored_artifact.byte_length,
     }
-    adaptation = seal_adaptation(
+    return seal_adaptation(
         {
             "harness_id": harness_id,
             "implementation_mode": "native",
@@ -796,47 +903,6 @@ def materialize_version_passport(
             "scope_adaptations": [scope_document],
         }
     )
-    body: dict[str, JsonValue] = {
-        "schema_version": 1,
-        "kind": "component",
-        "stable_id": stable_id,
-        "owner_id": document["owner_id"],
-        "created_at": document["created_at"],
-        "visibility": "public",
-        "parent_revision_ids": [],
-        "facts": document.get("facts") or {},
-        "name": values["name"],
-        "description": values["description"],
-        "version": version,
-        "tags": values["tags"],
-        "source": _exact_source(values),
-        "artifact": {"digest": stored_artifact.digest, "size_bytes": stored_artifact.byte_length},
-        "required_env": values.get("required_env") or [],
-        "requires_credentials": values.get("requires_credentials") or False,
-        "requires_authorization": values.get("requires_authorization") or "none",
-        "permissions": permissions,
-        "external_endpoints": values.get("external_endpoints") or [],
-        "license": values.get("license"),
-        "compatibility_evidence_refs": values.get("compatibility_evidence_refs") or [],
-        "component_type": component_type,
-        "origin_harness_id": harness_id,
-        "adaptations": [cast(JsonValue, adaptation.model_dump(mode="json"))],
-        "provides_capabilities": values.get("provides_capabilities") or [],
-        "requires_components": values.get("requires_components") or [],
-        "requires_capabilities": values.get("requires_capabilities") or [],
-        "conflicts": values.get("conflicts") or {},
-        "artifact_format": "ai-stp-adaptation-projection/1",
-        "runtime_requirements": values.get("runtime_requirements") or [],
-    }
-    normalized = ComponentVersionPassport.model_validate(
-        seal_envelope(body).model_dump(mode="json")
-    ).model_dump(mode="json")
-    normalized.pop("revision_id", None)
-    snapshot = revisions.store_snapshot(
-        connection, cast(dict[str, JsonValue], normalized), device_id=device_id
-    )
-    passport = ComponentVersionPassport.model_validate(snapshot.envelope.model_dump(mode="json"))
-    return passport, snapshot.revision_id
 
 
 def _component_head(connection: sqlite3.Connection, stable_id: str) -> revisions.StoredRevision:
