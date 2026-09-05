@@ -10,6 +10,8 @@ from ai_stp_contracts.http import Timestamp
 from ai_stp_foundation.digests import DIGEST_PATTERN
 
 SCHEMA_ID = "ai-stp-estate-release/1"
+SOFTWARE_SLICE = "software"
+LAUNCH_SLICE = "launch"
 _FLOATING = frozenset({"latest", "main", "master", "head"})
 REQUIRED_LEGS: tuple[tuple[str, str], ...] = (
     ("linux", "x86_64"),
@@ -18,6 +20,15 @@ REQUIRED_LEGS: tuple[tuple[str, str], ...] = (
     ("macos", "arm64"),
     ("windows", "x86_64"),
     ("windows", "arm64"),
+)
+REQUIRED_PROVIDERS: tuple[str, ...] = (
+    "github.com/NDDev-OpenNetwork/claude-setup-system",
+    "github.com/NDDev-OpenNetwork/codex-setup-system",
+    "github.com/NDDev-OpenNetwork/cursor-setup-system",
+    "github.com/NDDev-OpenNetwork/grok-setup-system",
+    "github.com/NDDev-OpenNetwork/pi-setup-system",
+    "github.com/NDDev-OpenNetwork/opencode-setup-system",
+    "github.com/NDDev-OpenNetwork/antigravity-setup-system",
 )
 
 
@@ -66,6 +77,7 @@ class EstateEvidenceRow(BaseModel):
     consumer_commit: Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
     provider_tag: Annotated[str, Field(min_length=1)]
     result: Literal["passed", "failed", "skipped", "inconclusive"]
+    provider: str = ""
 
 
 class EstateWeb(BaseModel):
@@ -120,20 +132,41 @@ def computed_verdict(record: EstateRelease) -> Literal["complete", "incomplete",
         return "incomplete"
     if {item.name for item in record.distributions} != {"ai-stp-cli"}:
         return "incomplete"
-    recorded_tags = {item.tag for item in record.providers}
-    wanted = {
-        (slice_name, os_name, arch)
-        for slice_name in record.required_slices
-        for os_name, arch in REQUIRED_LEGS
-    }
-    observed: set[tuple[str, str, str]] = set()
+    if {item.repository for item in record.providers} != set(REQUIRED_PROVIDERS):
+        return "incomplete"
+    if SOFTWARE_SLICE not in record.required_slices:
+        return "incomplete"
+    if LAUNCH_SLICE not in record.required_slices:
+        return "incomplete"
+    tag_by_provider = {item.repository: item.tag for item in record.providers}
+    recorded_tags = set(tag_by_provider.values())
+    wanted: set[tuple[str, ...]] = set()
+    for slice_name in record.required_slices:
+        if slice_name == LAUNCH_SLICE:
+            wanted.update(
+                (LAUNCH_SLICE, repository, os_name, arch)
+                for repository in REQUIRED_PROVIDERS
+                for os_name, arch in REQUIRED_LEGS
+            )
+            continue
+        wanted.update((slice_name, os_name, arch) for os_name, arch in REQUIRED_LEGS)
+    observed: set[tuple[str, ...]] = set()
     for row in record.evidence:
-        key = (row.slice, row.os, row.arch)
+        if row.slice == LAUNCH_SLICE:
+            if not row.provider:
+                continue
+            key: tuple[str, ...] = (row.slice, row.provider, row.os, row.arch)
+        else:
+            key = (row.slice, row.os, row.arch)
         if key not in wanted:
             continue
         if row.consumer_commit != record.consumer.commit:
             return "incomplete"
-        if row.provider_tag not in recorded_tags:
+        if row.slice == LAUNCH_SLICE:
+            expected_tag = tag_by_provider.get(row.provider)
+            if expected_tag is None or row.provider_tag != expected_tag:
+                return "incomplete"
+        elif row.provider_tag not in recorded_tags:
             return "incomplete"
         if row.result != "passed":
             return "incomplete"
