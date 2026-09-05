@@ -32,11 +32,10 @@ from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
+from ai_stp_passports.versions import COMPONENT_TYPES
 
 MAX_TEMPLATE_BYTES: Final[int] = 64 * 1024
-TYPES: Final[frozenset[str]] = frozenset(
-    {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
-)
+TYPES: Final[frozenset[str]] = frozenset(COMPONENT_TYPES)
 HARNESSES: Final[frozenset[str]] = frozenset(HARNESS_ID_ORDER)
 
 #: Every harness that has no line of its own in the scaffold. Derived from the
@@ -90,7 +89,7 @@ class Rendered:
 def scaffold(component_type: str, name: str) -> str:
     """Return a portable authoring template for any closed component type."""
     if component_type not in TYPES:
-        raise _failure("the component type is not in the closed eight-type vocabulary")
+        raise _failure("the component type is not in the closed vocabulary")
     if not _NAME.fullmatch(name):
         raise _failure("the component name must be a lowercase bounded slug")
     return (
@@ -472,6 +471,10 @@ def _native_source(
 
     component_type = descriptor.component_type
     harness = descriptor.harness_variant
+    if component_type == "cli" and harness != "portable":
+        raise _failure(
+            "a cli component is a shared executable; do not copy it into a harness layout"
+        )
     if harness == "portable":
         if component_type == "setting":
             raise _failure("a setting requires a concrete harness file")
@@ -623,7 +626,11 @@ def _native_source(
             rule.projection_kind,
             {entry: program},
         )
-    raise _failure("the component type is not in the closed eight-type vocabulary")
+    if component_type == "cli":
+        entry = _program_entry(name, descriptor.language)
+        program = _program(name, descriptor.language, "main")
+        return {}, entry, f"bin/{name}", "package", {entry: program}
+    raise _failure("the component type is not in the closed vocabulary")
 
 
 def _instruction_native_path(rule: Rule, name: str) -> str:

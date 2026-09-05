@@ -17,7 +17,7 @@ It does not answer "which named shortcut do I type?" ([`command`](command.md)),
 "which standing rule should the agent remember?"
 ([`instruction`](instruction.md)).
 
-A hook is the most sensitive of the eight kinds: it can change state
+A hook is the most sensitive of the closed kinds: it can change state
 while the user is looking at something else.
 
 !!! warning "A harness hook is not a React hook, and not a webhook"

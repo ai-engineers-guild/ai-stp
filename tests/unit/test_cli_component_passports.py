@@ -302,6 +302,7 @@ def test_component_patch_limits_tags_to_ten_ascii_identifiers() -> None:
         ("agent", "entry_points"),
         ("plugin", "native_ids"),
         ("setting", "managed_paths"),
+        ("cli", "entry_points"),
     ],
 )
 def test_quality_profiles_cover_every_component_type_without_changing_the_registry(

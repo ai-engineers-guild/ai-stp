@@ -275,7 +275,7 @@ def test_capabilities_separate_what_the_product_reads_from_what_this_build_route
     `component_types` answers what the *product* natively reads. Nothing beside
     it answered whether this build can hand any of it to a provider, so an agent
     reading the table built a matrix that was wrong wherever the two disagree —
-    and they disagree on ten of the fifty-six cells.
+    and they disagree on ten of the native-layout cells.
 
     Every kind carries a row, including the ones the harness has no surface for:
     a caller building a matrix should not have to infer absence from a missing
@@ -291,7 +291,7 @@ def test_capabilities_separate_what_the_product_reads_from_what_this_build_route
         row = rows[harness_id]
         assert row.components is not None, harness_id
         kinds = [cell.component_type for cell in row.components]
-        assert len(kinds) == len(set(kinds)) == 8, harness_id
+        assert len(kinds) == len(set(kinds)) == 9, harness_id
         for cell in row.components:
             # The state is derivable from the two booleans, so a row that
             # disagrees with itself is worse than either field alone.

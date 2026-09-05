@@ -22,14 +22,10 @@ from ai_stp_foundation.identity import (
     submitted_display_name,
 )
 from ai_stp_foundation.ids import stable_id_pattern
-from ai_stp_passports.versions import TAG_PATTERN
+from ai_stp_passports.versions import TAG_PATTERN, ComponentType, ProjectionKind
 
 type SourceKind = Literal["git", "package"]
-type ComponentType = Literal[
-    "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
-]
 type UpdatePolicy = Literal["daily", "pinned", "disabled"]
-type ProjectionKind = Literal["marketplace", "plugin", "native_files", "package"]
 type TargetScope = Literal["global", "user_root", "project"]
 type ProjectionShape = Literal["file", "tree"]
 type PackageEcosystem = Literal["npm", "pypi", "crates.io", "go", "pub.dev"]

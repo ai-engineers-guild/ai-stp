@@ -7,6 +7,7 @@ import {
   Plug,
   Settings2,
   Sparkles,
+  Terminal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ export const COMPONENT_TYPE_PRESENTATION: Record<ComponentType, ComponentTypeDef
   agent: { icon: Bot, labelKey: "componentTypes.agent" },
   plugin: { icon: Braces, labelKey: "componentTypes.plugin" },
   setting: { icon: Settings2, labelKey: "componentTypes.setting" },
+  cli: { icon: Terminal, labelKey: "componentTypes.cli" },
 };
 
 export function ComponentTypeIcon({

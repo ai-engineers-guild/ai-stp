@@ -11,7 +11,7 @@ outside these hashed bytes per SPEC-005: it never changes the snapshot.
 """
 
 import re
-from typing import Annotated, Final, Literal, cast
+from typing import Annotated, Final, Literal, cast, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -69,10 +69,23 @@ type PermissionClaim = Annotated[
 
 #: The closed component taxonomy (AGENTS.md, "Canonical terms"). Named so
 #: the catalog wire contract reuses this one owner instead of restating the
-#: eight values, which would be two normative copies free to drift apart.
+#: values, which would be two normative copies free to drift apart.
+#: `cli` is a standalone executable (ADR-0155). `command` remains a named
+#: slash invocation. `marketplace` is packaging, never a kind (ADR-0015).
 type ComponentType = Literal[
-    "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
+    "instruction",
+    "skill",
+    "mcp",
+    "hook",
+    "command",
+    "agent",
+    "plugin",
+    "setting",
+    "cli",
 ]
+COMPONENT_TYPES: Final[tuple[ComponentType, ...]] = cast(
+    tuple[ComponentType, ...], get_args(ComponentType.__value__)
+)
 
 #: How a component is packaged natively for its harness. `marketplace` is a
 #: packaging projection, never a component kind (ADR-0015).

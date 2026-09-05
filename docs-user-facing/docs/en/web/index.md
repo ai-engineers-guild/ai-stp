@@ -179,7 +179,7 @@ A 404 never names whether the object is private, draft, or absent.
   trust line.
 - [Catalog (meaning)](../catalog/index.md) — how to read a result before
   you trust it.
-- [Components](../components/index.md) — the eight kinds.
+- [Components](../components/index.md) — the closed kinds.
 - [Setups](../setups/index.md) — composition happens in the CLI.
 - [Trust and safety](../trust-and-safety/index.md) — `author_verified` is
   not `component_verified`.

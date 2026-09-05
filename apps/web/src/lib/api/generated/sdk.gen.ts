@@ -207,6 +207,9 @@ import type {
   SetOwnerVersionLifecycleData,
   SetOwnerVersionLifecycleErrors,
   SetOwnerVersionLifecycleResponses,
+  StaffAuthorVerificationData,
+  StaffAuthorVerificationErrors,
+  StaffAuthorVerificationResponses,
   StaffTriageReportData,
   StaffTriageReportErrors,
   StaffTriageReportResponses,
@@ -1249,6 +1252,26 @@ export const rollbackSeoRevision = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/seo/subjects/{subject_kind}/{subject_id}/rollback",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Staff grant or revoke manual author verification.
+ */
+export const staffAuthorVerification = <ThrowOnError extends boolean = false>(
+  options: Options<StaffAuthorVerificationData, ThrowOnError>,
+): RequestResult<StaffAuthorVerificationResponses, StaffAuthorVerificationErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    StaffAuthorVerificationResponses,
+    StaffAuthorVerificationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/staff/author-verified",
     ...options,
     headers: {
       "Content-Type": "application/json",

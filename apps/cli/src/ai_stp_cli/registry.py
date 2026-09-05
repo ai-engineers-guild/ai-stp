@@ -33,7 +33,7 @@ from ai_stp_contracts.machine_help import (
     MutabilityClass,
 )
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER, HARNESS_IDS
-from ai_stp_passports.versions import MAX_TAG_LENGTH, MAX_TAGS
+from ai_stp_passports.versions import COMPONENT_TYPES, MAX_TAG_LENGTH, MAX_TAGS
 
 type Handler = Callable[[Mapping[str, object]], Answer[BaseModel]]
 
@@ -163,16 +163,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "type",
                 "string",
                 "Limit the reference profile to one component type.",
-                choices=(
-                    "instruction",
-                    "skill",
-                    "mcp",
-                    "hook",
-                    "command",
-                    "agent",
-                    "plugin",
-                    "setting",
-                ),
+                choices=COMPONENT_TYPES,
             ),
         ),
         next_actions=("eval plan",),
@@ -630,16 +621,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "One closed-vocabulary component type.",
                 required=True,
-                choices=(
-                    "instruction",
-                    "skill",
-                    "mcp",
-                    "hook",
-                    "command",
-                    "agent",
-                    "plugin",
-                    "setting",
-                ),
+                choices=COMPONENT_TYPES,
             ),
             option(
                 "language",
@@ -681,16 +663,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "One closed-vocabulary component type.",
                 required=True,
-                choices=(
-                    "instruction",
-                    "skill",
-                    "mcp",
-                    "hook",
-                    "command",
-                    "agent",
-                    "plugin",
-                    "setting",
-                ),
+                choices=COMPONENT_TYPES,
             ),
             option(
                 "language",

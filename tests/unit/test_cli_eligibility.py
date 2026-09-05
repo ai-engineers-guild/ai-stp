@@ -490,7 +490,7 @@ def test_a_kind_the_provider_cannot_project_is_refused_before_selection() -> Non
     projectable = [kind for kind in kinds if native_surface(kind, "claude-code")]
     absent = [kind for kind in kinds if not native_surface(kind, "claude-code")]
 
-    assert len(projectable) + len(absent) == len(kinds) == 8
+    assert len(projectable) + len(absent) == len(kinds) == 9
     assert projectable and absent, "the fixture harness must have both, or this proves nothing"
     # Named, so the partition is the assertion rather than its precondition.
     # `hook` left on 2026-08-31: `ADR-0129` gives it a surface, the `hooks` key
@@ -500,7 +500,7 @@ def test_a_kind_the_provider_cannot_project_is_refused_before_selection() -> Non
     # project file and the user scope lives in `~/.claude.json`, which the
     # provider holds in `never_touch`, so there is no owned host here to
     # contribute to.
-    assert set(absent) == {"mcp"}, absent
+    assert set(absent) == {"mcp", "cli"}, absent
 
     for kind in projectable:
         verdict = eligibility.assess(

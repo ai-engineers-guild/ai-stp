@@ -135,7 +135,7 @@ Related command pages: [Registry](../cli/registry.md),
 - [Web catalog](../web/catalog.md) — the same objects as cards.
 - [Quickstart for people](../quickstart/human.md) — first anonymous search.
 - [Quickstart for agents](../quickstart/agent.md) — a result is a candidate.
-- [Components](../components/index.md) — the eight kinds on a card.
+- [Components](../components/index.md) — the closed kinds on a card.
 - [Setups](../setups/index.md) — composition is not this listing.
 - [Trust and safety](../trust-and-safety/index.md) — trust line and axes.
 - [Security checks](../security-checks.md) — what the percent covers.

@@ -1,5 +1,19 @@
 {
   "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting",
+        "cli"
+      ],
+      "type": "string"
+    },
     "NativeComponent": {
       "additionalProperties": true,
       "description": "One native component found on this machine (`SPEC-005` REQ-517).\n\nReported without its content being read. `holds_secret` is decided from the\npath's *name*: opening a file to learn whether it holds a credential is the\nharm REQ-518 exists to prevent, so the flag says \"named as one\", never\n\"contains one\".",
@@ -22,18 +36,7 @@
           "type": "string"
         },
         "component_type": {
-          "enum": [
-            "instruction",
-            "skill",
-            "mcp",
-            "hook",
-            "command",
-            "agent",
-            "plugin",
-            "setting"
-          ],
-          "title": "Component Type",
-          "type": "string"
+          "$ref": "#/$defs/ComponentType"
         },
         "entry_points": {
           "items": {

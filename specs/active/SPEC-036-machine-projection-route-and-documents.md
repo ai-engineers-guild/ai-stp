@@ -1,6 +1,6 @@
 ---
 description: "SPEC-036: Addressable machine projection web and page machine documents."
-last_verified: "2026-08-16"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-036: Machine projection and machine documents
@@ -64,7 +64,7 @@ Does not include CLI, passports, domain APIs, access rules and color theme
   `.md`-object representations are built by one presenter and do not contain
   independently written descriptions of a single object.
 - `REQ-3609`: Domain presenters exist for landing, directory, page
-  component of each of the eight types, setup page, exact version page,
+  component of each of the closed types, setup page, exact version page,
   public profile, documentation, public legal documents, regional
   services, country and owner-workspace pages. Login forms and others
   static routes use a common page presenter.
@@ -102,9 +102,9 @@ Does not include CLI, passports, domain APIs, access rules and color theme
   It translates between `/{locale}/...` and `/{locale}/ai/...`, preserving the current locale
   route and query string; both projections are constructed from the same source of facts.
 - `REQ-3621`: The machine document of a component is built by one presenter for all
-  eight `component_type`: `instruction`, `skill`, `mcp`, `hook`, `command`,
-  `agent`, `plugin`, `setting`. The `component_type` field is required and only accepts these
-  values; icons and decorative media are not included in the document.
+  closed `component_type` values: `instruction`, `skill`, `mcp`, `hook`, `command`,
+  `agent`, `plugin`, `setting`, `cli`. The `component_type` field is required and only
+  accepts these values; icons and decorative media are not included in the document.
 - `REQ-3622`: Machine route registry covers every human page
   `app` router. The pair is specified by `pattern`, access mode and feature/env gate;
   a page without a pair is a defect.

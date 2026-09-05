@@ -186,7 +186,7 @@ ai-stp link web --json
   линия доверия.
 - [Каталог (смысл)](../catalog/index.md) — как читать результат, прежде
   чем ему доверять.
-- [Компоненты](../components/index.md) — восемь видов.
+- [Компоненты](../components/index.md) — закрытые виды.
 - [Сетапы](../setups/index.md) — состав собирается в CLI.
 - [Доверие и безопасность](../trust-and-safety/index.md) —
   `author_verified` не равен `component_verified`.

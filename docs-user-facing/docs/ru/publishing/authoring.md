@@ -38,11 +38,11 @@ ai-stp component scaffold apply \
   --json
 ```
 
-`--type` — один из восьми видов. Декларативные виды (`instruction`, `skill`,
-`command`, `agent`, `setting`) принимают `--language none`. Исполняемые `mcp`
-и `plugin` принимают `python`, `typescript`, `javascript`, `rust`, `go` или
-`dart-flutter`. `hook` не принимает Rust или Go: provider не делает скрытую
-сборку исходников.
+`--type` — один из закрытых видов. Декларативные виды (`instruction`, `skill`,
+`command`, `agent`, `setting`) принимают `--language none`. Исполняемые `mcp`,
+`plugin` и `cli` принимают `python`, `typescript`, `javascript`, `rust`, `go`
+или `dart-flutter`. `hook` не принимает Rust или Go: provider не делает скрытую
+сборку исходников. Вид `cli` только portable.
 
 `--harness` — `portable` или один конкретный харнесс. Если у харнесса нет
 самостоятельной нативной формы для этого вида, план отклоняется до любой
@@ -142,7 +142,7 @@ ai-stp component source evidence refresh --id <stable_id> --version 1.0 --json
 
 ## Проверка только для skill
 
-Из восьми видов независимая спецификация есть только у `skill`. Проверяйте
+Из закрытых видов независимая спецификация есть только у `skill`. Проверяйте
 **пакет** (каталог с `SKILL.md` в корне), а не всё авторское дерево:
 
 ```bash

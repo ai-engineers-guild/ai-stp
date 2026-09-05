@@ -51,7 +51,7 @@ def _materialize() -> tuple[FirstPartyVersion, FirstPartyVersion]:
 
 @pytest.mark.parametrize(
     "component_type",
-    ["instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"],
+    ["instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting", "cli"],
 )
 def test_reference_profile_covers_every_type_with_separated_methods(
     component_type: str,

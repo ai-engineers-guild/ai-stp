@@ -13,7 +13,8 @@ called by name?**
 
 It does not answer "how should the agent do this class of task?"
 ([`skill`](skill.md)), "what must run automatically on an event?"
-([`hook`](hook.md)), or "which CLI family does `ai-stp` itself expose?"
+([`hook`](hook.md)), "which shared executable can be run as a process?"
+([`cli`](cli.md)), or "which CLI family does `ai-stp` itself expose?"
 (those pages live under [`cli/`](../cli/index.md)).
 
 !!! warning "Kind `command` is not the `ai-stp` CLI"
@@ -45,6 +46,7 @@ It does not answer "how should the agent do this class of task?"
 | `agent` | an agent is a role; a command is a shortcut that role may use |
 | `mcp` | MCP is a tool protocol; a command is not a server |
 | `setting` | a setting holds parameters; a command holds an invocation |
+| `cli` | a `cli` is a standalone process; a command is a named slash invocation |
 
 Choose `command` when a person or an agent should start the work by
 name. Choose `skill` when the agent should recognise the task without a

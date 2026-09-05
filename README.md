@@ -17,14 +17,15 @@ The command is `ai-stp`. The distribution on PyPI is `ai-stp-cli`. The primary
 consumer is the user's agent: every command returns one JSON envelope. `ai-stp`
 does not call a model API and does not require a model key.
 
-## One setup, eight kinds, exact versions
+## One setup, nine kinds, exact versions
 
 <p align="center">
-  <img src="assets/readme/shared/kinds.svg" width="640" alt="Eight kinds: instruction, skill, mcp, hook, command, agent, plugin, setting.">
+  <img src="assets/readme/shared/kinds.svg" width="640" alt="Nine kinds: instruction, skill, mcp, hook, command, agent, plugin, setting, cli.">
 </p>
 
-A **setup** belongs to one harness from creation. The eight kinds are
-`instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`.
+A **setup** belongs to one harness from creation. The closed kinds are
+`instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`,
+`cli`. `command` is a named slash invocation; `cli` is a standalone executable.
 Memory and rules are content of those kinds, not extra kinds. A published
 version pins exact component versions and is immutable.
 
@@ -75,15 +76,15 @@ ai-stp device init --json
 `full` — native surface and a provider route. `partial` — one of those. `—` — no
 native surface. The matrix is `ai-stp toolchain harness-capabilities`.
 
-| Harness | Status | instruction | skill | mcp | hook | command | agent | plugin | setting |
-|---|---|---|---|---|---|---|---|---|---|
-| Claude Code | Primary | full | full | partial | full | full | full | partial | full |
-| Codex | Primary | full | partial | full | partial | full | full | — | full |
-| Grok Build | Primary | full | full | full | full | — | partial | full | full |
-| Pi | Beta | full | full | partial | — | full | — | full | full |
-| OpenCode | Beta | full | full | full | — | full | full | full | full |
-| Cursor | Beta | full | full | full | full | full | full | full | full |
-| Antigravity | Beta | partial | full | full | full | full | full | full | full |
+| Harness | Status | instruction | skill | mcp | hook | command | agent | plugin | setting | cli |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Claude Code | Primary | full | full | partial | full | full | full | partial | full | — |
+| Codex | Primary | full | partial | full | partial | full | full | — | full | — |
+| Grok Build | Primary | full | full | full | full | — | partial | full | full | — |
+| Pi | Beta | full | full | partial | — | full | — | full | full | — |
+| OpenCode | Beta | full | full | full | — | full | full | full | full | — |
+| Cursor | Beta | full | full | full | full | full | full | full | full | — |
+| Antigravity | Beta | partial | full | full | full | full | full | full | full | — |
 
 An unknown harness is `undefined`. Automatic install is refused.
 

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-040: Local functional evaluation profiles for an exact setup."
-last_verified: "2026-08-13"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-040: Setup Evaluation Profiles
@@ -22,7 +22,7 @@ This specification covers a versioned profile, exact coordinates, budgets, isola
 ## Requirements
 
 - `REQ-4001`: `SetupEvalProfile` version `setup-eval/1` defines the scope, component kinds, preconditions, checks, assertions, explicit tolerances, budgets, isolation requirements, and separate eval permissions.
-- `REQ-4002`: The reference profile contains a base check and type-specific tracks for all eight component kinds and separates the `deterministic`, `model_assisted`, and `human_review` methods, each with a compatible runner.
+- `REQ-4002`: The reference profile contains a base check and type-specific tracks for all closed component kinds and separates the `deterministic`, `model_assisted`, and `human_review` methods, each with a compatible runner.
 - `REQ-4003`: An evaluation plan binds the profile to exact setup/component versions, passport and artifact digests, harness/provider/runner versions, and the planning time; a subset may contain only components from the specified setup graph.
 - `REQ-4004`: `eval run` requires the exact plan digest and explicit confirmation; rerunning does not create a second evidence record, and a changed digest results in a fail-closed refusal.
 - `REQ-4005`: Core runs only local deterministic checks; an unavailable model, human, or isolated runner receives `not_run`, never `passed`, and an aggregate containing `not_run` receives `degraded`.
@@ -47,7 +47,7 @@ The profile version is independent of the JSON Schema version. An unknown major 
 | Requirement | Executable Verification Method |
 |---|---|
 | `REQ-4001` | The schema corpus rejects unknown fields, invalid budgets, and an incomplete profile. |
-| `REQ-4002` | A parameterized test requires a reference profile for all eight component kinds and three separate methods. |
+| `REQ-4002` | A parameterized test requires a reference profile for all closed component kinds and three separate methods. |
 | `REQ-4003` | A process fixture builds a plan from an exact first-party setup and rejects a component ID outside the graph. |
 | `REQ-4004` | A run without confirmation or with a stale digest is refused; a rerun returns the same run and a single evidence row. |
 | `REQ-4005` | Local-static checks pass, model/human checks receive `not_run`, and the overall status is `degraded`. |

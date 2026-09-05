@@ -72,7 +72,7 @@ Scaffold — новый каталог авторства. Сначала plan. 
 существует.
 
 `--type` — одно из `instruction`, `skill`, `mcp`, `hook`, `command`,
-`agent`, `plugin`, `setting`. `--language` — `none` для декларативных
+`agent`, `plugin`, `setting`, `cli`. `--language` — `none` для декларативных
 типов или одно из `python`, `typescript`, `javascript`, `rust`, `go`,
 `dart-flutter`. `--harness` — `portable` или конкретный harness:
 `claude-code`, `codex`, `pi`, `opencode`, `grok-build`, `cursor`,

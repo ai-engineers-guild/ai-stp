@@ -2,7 +2,7 @@
 
 Every limit asserted here is quoted from <https://agentskills.io/specification>,
 not chosen in this repository. That is the whole reason `skill` went first of
-the eight kinds: it is the one where the validator can be wrong about something
+the closed kinds: it is the one where the validator can be wrong about something
 other than our own opinion, and these tests are what makes that checkable.
 """
 

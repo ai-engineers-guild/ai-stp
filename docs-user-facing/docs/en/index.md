@@ -37,7 +37,7 @@ harness's own public provider.
 - [Harnesses](harnesses.md): primary support, beta lines, and `undefined`.
 - [Concepts](concepts/index.md): harness, setup, provider, assembler, device,
   project, and the three modes.
-- [Components](components/index.md): the eight kinds and how they differ.
+- [Components](components/index.md): the closed kinds and how they differ.
 - [Catalog](catalog/index.md): how to read a public result and how the CLI
   searches it.
 - [Trust and safety](trust-and-safety/index.md): why a verified author is not

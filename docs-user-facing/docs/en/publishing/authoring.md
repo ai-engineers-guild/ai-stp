@@ -37,11 +37,11 @@ ai-stp component scaffold apply \
   --json
 ```
 
-`--type` is one of the eight kinds. Declarative kinds (`instruction`,
+`--type` is one of the closed kinds. Declarative kinds (`instruction`,
 `skill`, `command`, `agent`, `setting`) take `--language none`. Executable
-`mcp` and `plugin` take `python`, `typescript`, `javascript`, `rust`, `go`,
-or `dart-flutter`. `hook` does not accept Rust or Go: the provider does not
-perform a hidden source build.
+`mcp`, `plugin`, and `cli` take `python`, `typescript`, `javascript`, `rust`,
+`go`, or `dart-flutter`. `hook` does not accept Rust or Go: the provider does
+not perform a hidden source build. Kind `cli` is portable only.
 
 `--harness` is `portable` or one concrete harness. If that harness has no
 independent native form for the type, the plan fails closed before any write.
@@ -141,7 +141,7 @@ or the environment the operator already uses — never in the artifact.
 
 ## Skill-specific check
 
-Of the eight kinds, only `skill` has an independent specification. Validate
+Of the closed kinds, only `skill` has an independent specification. Validate
 the **package** (the directory with `SKILL.md` at its root), not the whole
 authoring tree:
 

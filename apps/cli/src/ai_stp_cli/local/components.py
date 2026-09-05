@@ -50,14 +50,13 @@ from ai_stp_cli.paths import redact_home
 from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
+from ai_stp_passports.versions import COMPONENT_TYPES as PASSPORT_COMPONENT_TYPES
 from ai_stp_passports.versions import ProjectionKind
 
-#: The eight kinds, from `packages/passports`. Restated here only as a guard:
-#: a detector naming something outside this set is a bug in this file, and the
-#: check that catches it is at the bottom of the module.
-COMPONENT_TYPES: Final[frozenset[str]] = frozenset(
-    {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
-)
+#: The closed kinds, from `packages/passports`. A detector naming something
+#: outside this set is a bug in this file, and the check that catches it is
+#: at the bottom of the module.
+COMPONENT_TYPES: Final[frozenset[str]] = frozenset(PASSPORT_COMPONENT_TYPES)
 
 #: Where a component was found. `global` is a harness's own configuration root;
 #: `project` is inside a project the user named.
@@ -2019,7 +2018,7 @@ def declared_consistently() -> tuple[str, ...]:
 
     A function rather than an import-time assertion so the gate reports all of
     them at once instead of the first. Two harnesses are checked: every rule
-    names one of the eight kinds, and every rule names a harness that a detector
+    names one of the closed kinds, and every rule names a harness that a detector
     actually knows how to find — a layout for a harness nothing detects would
     never be reached and nothing else would say so.
     """
