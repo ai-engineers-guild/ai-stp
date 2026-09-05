@@ -74,10 +74,9 @@ def test_an_unreadable_skill_directory_is_not_an_empty_one(
     visible.mkdir(parents=True)
     (visible / "SKILL.md").write_text("# open\n", encoding="utf-8")
     real_iterdir = Path.iterdir
-    blocked = hidden.resolve()
 
     def iterdir(self: Path):
-        if self.resolve() == blocked:
+        if self.name == "hidden" and self.parent.name == "skills":
             raise PermissionError("denied")
         return real_iterdir(self)
 
