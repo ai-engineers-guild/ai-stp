@@ -1104,6 +1104,7 @@ class NativeDiscoveryDiagnostic(BaseModel):
         "invalid_record",
         "missing_source_entry",
         "bounded_limit",
+        "unreadable",
     ]
     source: Annotated[str, Field(min_length=1)]
     reason: Annotated[str, Field(min_length=1)]
@@ -1342,6 +1343,8 @@ class NativeComponents(BaseModel):
 
     #: The explicit project root. When set, discovery does not add global homes.
     project: str | None = None
+    complete: bool
+    continuation: str | None = None
     components: list[NativeComponent]
     diagnostics: list[NativeDiscoveryDiagnostic] = Field(
         default_factory=list[NativeDiscoveryDiagnostic]
@@ -1375,6 +1378,7 @@ class PathInventory(BaseModel):
     schema_version: Literal[1] = 1
     root: Annotated[str, Field(min_length=1)]
     complete: bool
+    continuation: str | None = None
     objects: list[PathInventoryObject]
     diagnostics: list[NativeDiscoveryDiagnostic] = Field(
         default_factory=list[NativeDiscoveryDiagnostic]

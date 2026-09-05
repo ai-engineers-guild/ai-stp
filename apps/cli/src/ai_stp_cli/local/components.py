@@ -36,6 +36,7 @@ from ai_stp_cli.local import (
     component_passports,
     component_sources,
     content,
+    discovery_continuation,
     harness_catalog,
     harnesses,
     interop_sources,
@@ -713,10 +714,12 @@ class Found:
 
 @dataclass(frozen=True)
 class Discovery:
-    """Complete component listing plus safe optional-adapter diagnostics."""
+    """Component listing plus proof of whether the named root was fully examined."""
 
     components: tuple[Found, ...]
     diagnostics: tuple[component_sources.Diagnostic, ...]
+    complete: bool = True
+    continuation: str | None = None
 
 
 def cursor_config_root(environment: dict[str, str] | None, home: Path) -> Path:
@@ -743,6 +746,7 @@ def discover(
     project: Path | None = None,
     environment: dict[str, str] | None = None,
     include_global: bool | None = None,
+    continuation: str | None = None,
 ) -> tuple[Found, ...]:
     """List native components. Writes nothing and reads no file's content.
 
@@ -751,7 +755,10 @@ def discover(
     are read from the directory entry, not by opening anything.
     """
     return discover_report(
-        project=project, environment=environment, include_global=include_global
+        project=project,
+        environment=environment,
+        include_global=include_global,
+        continuation=continuation,
     ).components
 
 
@@ -760,6 +767,7 @@ def discover_report(
     project: Path | None = None,
     environment: dict[str, str] | None = None,
     include_global: bool | None = None,
+    continuation: str | None = None,
 ) -> Discovery:
     """List components and explain optional source-adapter failures safely.
 
@@ -767,8 +775,11 @@ def discover_report(
     homes unless `include_global` is true. Adoption looks up an already
     discovered path and therefore asks for both.
     """
+    if continuation is not None:
+        return _resume_portable(project, continuation)
     found: list[Found] = []
     diagnostics: list[component_sources.Diagnostic] = []
+    remaining: list[tuple[Path, int]] = []
     scan_global = project is None if include_global is None else include_global
     if scan_global:
         held = environment if environment is not None else None
@@ -853,7 +864,7 @@ def discover_report(
     if project is not None:
         for rule in PROJECT_RULES:
             found.extend(_at(project / rule.relative, rule, SCOPE_PROJECT))
-        portable, portable_diagnostics = _portable_skills(project)
+        portable, portable_diagnostics, remaining = _portable_skills(project)
         found.extend(portable)
         diagnostics.extend(portable_diagnostics)
         imported = interop_sources.discover(project)
@@ -896,21 +907,7 @@ def discover_report(
                     evidence_refs=candidate.evidence,
                 )
             )
-    return Discovery(
-        components=tuple(
-            sorted(
-                found,
-                key=lambda item: (
-                    item.scope,
-                    item.harness_id,
-                    item.component_type,
-                    item.source_path,
-                    item.layout_source,
-                ),
-            )
-        ),
-        diagnostics=tuple(diagnostics),
-    )
+    return _discovery(found, diagnostics, project, remaining)
 
 
 def _merge_interop(
@@ -1278,7 +1275,8 @@ def _holds_plugin_manifest(entry: Path) -> bool:
 
 def _portable_skills(
     project: Path,
-) -> tuple[list[Found], list[component_sources.Diagnostic]]:
+    start: list[tuple[Path, int]] | None = None,
+) -> tuple[list[Found], list[component_sources.Diagnostic], list[tuple[Path, int]]]:
     """Find exact portable Skill manifests inside one explicitly named root.
 
     This is not a source-tree search. Only the root manifest and the bounded
@@ -1286,41 +1284,52 @@ def _portable_skills(
     or vendored buckets are skipped, and a depth/directory ceiling makes the
     worst case independent of an untrusted tree's total size.
     """
-    try:
-        project_mode = project.lstat().st_mode
-    except OSError:
-        return [], []
-    if stat.S_ISLNK(project_mode):
-        return [], [
-            component_sources.Diagnostic(
-                code="invalid_record",
-                source="portable-skills",
-                reason="the explicit portable skill root is a link and was not traversed",
-            )
-        ]
-    if not stat.S_ISDIR(project_mode):
-        return [], []
-
     rule = Rule("skill", "SKILL.md", "file", "", PORTABLE_SKILL_SOURCE)
-    found = _at(project / "SKILL.md", rule, SCOPE_PROJECT)
-    collection = project / "skills"
-    try:
-        collection_mode = collection.lstat().st_mode
-    except OSError:
-        return found, []
-    if stat.S_ISLNK(collection_mode):
-        return found, [
-            component_sources.Diagnostic(
-                code="invalid_record",
-                source="portable-skills",
-                reason="the portable skills collection is a link and was not traversed",
-            )
-        ]
-    if not stat.S_ISDIR(collection_mode):
-        return found, []
-
     diagnostics: list[component_sources.Diagnostic] = []
-    stack: list[tuple[Path, int]] = [(collection, 0)]
+    found: list[Found] = []
+    if start is None:
+        try:
+            project_mode = project.lstat().st_mode
+        except OSError:
+            return [], [_unreadable(project, project, "portable skill root")], []
+        if stat.S_ISLNK(project_mode):
+            return (
+                [],
+                [
+                    component_sources.Diagnostic(
+                        code="invalid_record",
+                        source="portable-skills",
+                        reason="the explicit portable skill root is a link and was not traversed",
+                    )
+                ],
+                [],
+            )
+        if not stat.S_ISDIR(project_mode):
+            return [], [], []
+        found = _at(project / "SKILL.md", rule, SCOPE_PROJECT)
+        collection = project / "skills"
+        try:
+            collection_mode = collection.lstat().st_mode
+        except OSError:
+            return found, [_unreadable(project, collection, "portable skills collection")], []
+        if stat.S_ISLNK(collection_mode):
+            return (
+                found,
+                [
+                    component_sources.Diagnostic(
+                        code="invalid_record",
+                        source="portable-skills",
+                        reason="the portable skills collection is a link and was not traversed",
+                    )
+                ],
+                [],
+            )
+        if not stat.S_ISDIR(collection_mode):
+            return found, [], []
+        stack: list[tuple[Path, int]] = [(collection, 0)]
+    else:
+        stack = list(start)
+
     visited = 0
     while stack:
         directory, depth = stack.pop()
@@ -1333,10 +1342,11 @@ def _portable_skills(
                     reason="the portable skill collection exceeded its bounded directory limit",
                 )
             )
-            break
+            return found, diagnostics, [(directory, depth), *stack]
         try:
             entries = sorted(directory.iterdir(), key=lambda item: item.name, reverse=True)
         except OSError:
+            diagnostics.append(_unreadable(project, directory, "portable skill directory"))
             continue
         for entry in entries:
             if entry.name in PORTABLE_SKILL_EXCLUDED_NAMES:
@@ -1344,6 +1354,7 @@ def _portable_skills(
             try:
                 held = entry.lstat()
             except OSError:
+                diagnostics.append(_unreadable(project, entry, "portable skill entry"))
                 continue
             if stat.S_ISLNK(held.st_mode) or not stat.S_ISDIR(held.st_mode):
                 continue
@@ -1355,7 +1366,72 @@ def _portable_skills(
                 found.append(_describe(entry, rule, SCOPE_PROJECT))
             if child_depth < MAX_PORTABLE_SKILL_DEPTH:
                 stack.append((entry, child_depth))
-    return found, diagnostics
+    return found, diagnostics, []
+
+
+def _unreadable(root: Path, place: Path, label: str) -> component_sources.Diagnostic:
+    try:
+        relative = discovery_continuation.relative_to(root, place)
+    except ValueError:
+        relative = place.name
+    return component_sources.Diagnostic(
+        code="unreadable",
+        source="portable-skills",
+        reason=f"the {label} at {relative} could not be listed",
+    )
+
+
+def _resume_portable(project: Path | None, token: str) -> Discovery:
+    if project is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a discovery continuation requires the same --root",
+            next_actions=["component discover --root <path> --json"],
+        )
+    walk, frames, _covered = discovery_continuation.decode(token)
+    if walk != "portable_skills":
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that continuation does not belong to component discover",
+            next_actions=["component inventory --root <path> --json"],
+        )
+    start = [(discovery_continuation.join(project, relative), depth) for relative, depth in frames]
+    found, diagnostics, remaining = _portable_skills(project, start=start)
+    return _discovery(found, diagnostics, project, remaining)
+
+
+def _discovery(
+    found: list[Found],
+    diagnostics: list[component_sources.Diagnostic],
+    project: Path | None,
+    remaining: list[tuple[Path, int]],
+) -> Discovery:
+    continuation = None
+    if remaining and project is not None:
+        frames = [
+            (discovery_continuation.relative_to(project, path), depth) for path, depth in remaining
+        ]
+        continuation = discovery_continuation.encode("portable_skills", frames)
+    complete = continuation is None and not any(
+        item.code in {"bounded_limit", "unreadable"} for item in diagnostics
+    )
+    return Discovery(
+        components=tuple(
+            sorted(
+                found,
+                key=lambda item: (
+                    item.scope,
+                    item.harness_id,
+                    item.component_type,
+                    item.source_path,
+                    item.layout_source,
+                ),
+            )
+        ),
+        diagnostics=tuple(diagnostics),
+        complete=complete,
+        continuation=continuation,
+    )
 
 
 @dataclass(frozen=True)

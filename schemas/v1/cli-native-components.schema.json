@@ -292,7 +292,8 @@
             "unsupported_manifest",
             "invalid_record",
             "missing_source_entry",
-            "bounded_limit"
+            "bounded_limit",
+            "unreadable"
           ],
           "title": "Code",
           "type": "string"
@@ -329,12 +330,28 @@
   "additionalProperties": true,
   "description": "Everything discovery found, and nothing it changed (`REQ-518`).",
   "properties": {
+    "complete": {
+      "title": "Complete",
+      "type": "boolean"
+    },
     "components": {
       "items": {
         "$ref": "#/$defs/NativeComponent"
       },
       "title": "Components",
       "type": "array"
+    },
+    "continuation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Continuation"
     },
     "diagnostics": {
       "items": {
@@ -363,7 +380,9 @@
     }
   },
   "required": [
+    "complete",
     "components",
+    "continuation",
     "diagnostics",
     "project",
     "schema_version"

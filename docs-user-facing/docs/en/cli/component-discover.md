@@ -37,6 +37,9 @@ secret-looking path is flagged from the **name**, not from opening the file.
 `inventory --root` reads authoring passports first, then native layouts, and
 does not treat generated `projections/` as independent sources.
 
+If `complete` is false, pass the returned `continuation` as `--cursor` with the
+same `--root`. Do not treat a truncated listing as exhaustive.
+
 ```bash
 ai-stp component discover --json
 ai-stp component discover --root . --json

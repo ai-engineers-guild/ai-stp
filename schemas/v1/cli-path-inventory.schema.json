@@ -25,7 +25,8 @@
             "unsupported_manifest",
             "invalid_record",
             "missing_source_entry",
-            "bounded_limit"
+            "bounded_limit",
+            "unreadable"
           ],
           "title": "Code",
           "type": "string"
@@ -210,6 +211,18 @@
       "title": "Complete",
       "type": "boolean"
     },
+    "continuation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Continuation"
+    },
     "diagnostics": {
       "items": {
         "$ref": "#/$defs/NativeDiscoveryDiagnostic"
@@ -238,6 +251,7 @@
   },
   "required": [
     "complete",
+    "continuation",
     "diagnostics",
     "objects",
     "root",

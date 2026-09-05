@@ -15,7 +15,7 @@ from typing import Final, Literal, cast
 
 from pydantic import ValidationError
 
-from ai_stp_cli.local import components
+from ai_stp_cli.local import components, discovery_continuation
 from ai_stp_cli.paths import redact_home
 from ai_stp_contracts.component_passport import ComponentPassportPatch
 from ai_stp_contracts.machine_help import (
@@ -38,79 +38,112 @@ Relation = Literal["independent", "embedded_member", "generated_projection", "du
 Origin = Literal["passport", "native"]
 
 
-def inventory_root(root: Path) -> PathInventory:
+def inventory_root(root: Path, cursor: str | None = None) -> PathInventory:
     """Classify every logical object under one named directory. Writes nothing."""
     place = root.expanduser()
     diagnostics: list[NativeDiscoveryDiagnostic] = []
-    try:
-        mode = place.lstat().st_mode
-    except OSError:
-        return _empty(place, diagnostics, complete=False, reason="the root could not be read")
-    if stat.S_ISLNK(mode):
-        return _empty(
-            place,
-            diagnostics,
-            complete=True,
-            code="invalid_record",
-            reason="the explicit inventory root is a link and was not traversed",
-        )
-    if not stat.S_ISDIR(mode):
-        return _empty(
-            place,
-            diagnostics,
-            complete=True,
-            code="invalid_record",
-            reason="the explicit inventory root is not a directory",
-        )
-
-    owner = _generated_owner(place)
-    if owner is not None:
-        generated = _projection_object(place, owner, relative=".")
-        return PathInventory(
-            root=redact_home(place),
-            complete=True,
-            objects=[generated],
-            diagnostics=[],
-        )
+    prior_covered: list[Path] = []
+    stack: list[Path]
+    skip_authoring = False
+    native_cursor: str | None = None
+    if cursor is not None:
+        walk, frames, covered_rel = discovery_continuation.decode(cursor)
+        if walk == "portable_skills":
+            skip_authoring = True
+            native_cursor = cursor
+            stack = []
+        elif walk == "path_inventory":
+            stack = [discovery_continuation.join(place, relative) for relative, _depth in frames]
+            prior_covered = [
+                discovery_continuation.join(place, relative) for relative in covered_rel
+            ]
+        else:
+            stack = [place]
+    else:
+        try:
+            mode = place.lstat().st_mode
+        except OSError:
+            return _empty(place, diagnostics, complete=False, reason="the root could not be read")
+        if stat.S_ISLNK(mode):
+            return _empty(
+                place,
+                diagnostics,
+                complete=True,
+                code="invalid_record",
+                reason="the explicit inventory root is a link and was not traversed",
+            )
+        if not stat.S_ISDIR(mode):
+            return _empty(
+                place,
+                diagnostics,
+                complete=True,
+                code="invalid_record",
+                reason="the explicit inventory root is not a directory",
+            )
+        owner = _generated_owner(place)
+        if owner is not None:
+            generated = _projection_object(place, owner, relative=".")
+            return PathInventory(
+                root=redact_home(place),
+                complete=True,
+                objects=[generated],
+                diagnostics=[],
+            )
+        stack = [place]
 
     complete = True
+    continuation: str | None = None
     trees: list[tuple[Path, Kind]] = []
     visited = 0
-    stack = [place]
-    while stack:
-        directory = stack.pop()
-        visited += 1
-        if visited > MAX_INVENTORY_DIRECTORIES:
-            complete = False
-            diagnostics.append(
-                NativeDiscoveryDiagnostic(
-                    code="bounded_limit",
-                    source="path-inventory",
-                    reason="the explicit inventory exceeded its bounded directory limit",
+    remaining: list[Path] = []
+    if not skip_authoring:
+        while stack:
+            directory = stack.pop()
+            visited += 1
+            if visited > MAX_INVENTORY_DIRECTORIES:
+                complete = False
+                remaining = [directory, *stack]
+                diagnostics.append(
+                    NativeDiscoveryDiagnostic(
+                        code="bounded_limit",
+                        source="path-inventory",
+                        reason="the explicit inventory exceeded its bounded directory limit",
+                    )
                 )
-            )
-            break
-        kind, extra = _classify_directory(directory, place)
-        if extra is not None:
-            diagnostics.append(extra)
-        if kind is not None:
-            trees.append((directory, kind))
-            if kind == "component":
+                break
+            kind, extra = _classify_directory(directory, place)
+            if extra is not None:
+                diagnostics.append(extra)
+            if kind is not None:
+                trees.append((directory, kind))
+                if kind == "component":
+                    continue
+            try:
+                entries = sorted(directory.iterdir(), key=lambda item: item.name, reverse=True)
+            except OSError:
+                diagnostics.append(
+                    NativeDiscoveryDiagnostic(
+                        code="unreadable",
+                        source="path-inventory",
+                        reason=(
+                            "the directory at "
+                            f"{discovery_continuation.relative_to(place, directory)} "
+                            "could not be listed"
+                        ),
+                    )
+                )
+                complete = False
                 continue
-        try:
-            entries = sorted(directory.iterdir(), key=lambda item: item.name, reverse=True)
-        except OSError:
-            continue
-        for entry in entries:
-            if entry.name in EXCLUDED_NAMES or entry.name in SKIP_DESCEND:
-                continue
-            if not _plain_dir(entry):
-                continue
-            stack.append(entry)
+            for entry in entries:
+                if entry.name in EXCLUDED_NAMES or entry.name in SKIP_DESCEND:
+                    continue
+                if not _plain_dir(entry):
+                    continue
+                stack.append(entry)
 
-    setup_roots = [path for path, kind in trees if kind == "setup"]
+    setup_roots = [path for path, kind in trees if kind == "setup"] + list(prior_covered)
     objects: list[PathInventoryObject] = []
-    covered: list[Path] = []
+    covered: list[Path] = list(prior_covered)
     for directory, kind in trees:
         nested = kind == "component" and _under_setup(directory, setup_roots)
         relation: Relation = "embedded_member" if nested else "independent"
@@ -132,8 +165,24 @@ def inventory_root(root: Path) -> PathInventory:
         if kind == "component":
             objects.extend(_projections_of(directory, place, component_type, name, harness_id))
 
+    if remaining:
+        frames = [(discovery_continuation.relative_to(place, path), 0) for path in remaining]
+        held = [discovery_continuation.relative_to(place, path) for path in covered]
+        continuation = discovery_continuation.encode("path_inventory", frames, held)
+        objects = _mark_duplicates(objects)
+        objects.sort(key=lambda item: (item.relation, item.object_kind, item.relative_path))
+        return PathInventory(
+            root=redact_home(place),
+            complete=False,
+            continuation=continuation,
+            objects=objects,
+            diagnostics=diagnostics,
+        )
+
     covered_roots = tuple(covered)
-    native = components.discover_report(project=place, include_global=False)
+    native = components.discover_report(
+        project=place, include_global=False, continuation=native_cursor
+    )
     for item in native.diagnostics:
         diagnostics.append(
             NativeDiscoveryDiagnostic(
@@ -142,8 +191,11 @@ def inventory_root(root: Path) -> PathInventory:
                 reason=item.reason,
             )
         )
-        if item.code == "bounded_limit":
+        if item.code in {"bounded_limit", "unreadable"}:
             complete = False
+    if native.continuation:
+        complete = False
+        continuation = native.continuation
     for item in native.components:
         if _inside(item.absolute, covered_roots):
             continue
@@ -168,6 +220,7 @@ def inventory_root(root: Path) -> PathInventory:
     return PathInventory(
         root=redact_home(place),
         complete=complete,
+        continuation=continuation,
         objects=objects,
         diagnostics=diagnostics,
     )
