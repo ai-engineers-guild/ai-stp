@@ -88,6 +88,16 @@ def test_an_unreadable_skill_directory_is_not_an_empty_one(
     assert visible in _portable(report)
 
 
+def test_an_absent_skills_collection_is_not_an_unreadable_one(tmp_path: Path) -> None:
+    """A named root with no `skills/` finished; it is not a listing we could not read."""
+    repository = tmp_path / "project"
+    repository.mkdir()
+    report = components.discover_report(project=repository)
+    assert not any(item.code == "unreadable" for item in report.diagnostics)
+    assert report.complete is True
+    assert report.continuation is None
+
+
 def test_a_bounded_inventory_walk_is_incomplete_and_resumable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

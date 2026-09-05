@@ -1157,16 +1157,20 @@ def _shape_of(place: Path) -> str:
     """
     try:
         mode = place.stat().st_mode
-    except FileNotFoundError:
-        return "absent"
-    except NotADirectoryError:
-        # A parent in the path is a file, so nothing can exist here either.
-        return "absent"
-    except OSError:
-        return "unreadable"
+    except OSError as error:
+        return "absent" if _is_absent(error) else "unreadable"
     if stat.S_ISREG(mode):
         return "file"
     return "directory" if stat.S_ISDIR(mode) else "absent"
+
+
+def _is_absent(error: OSError) -> bool:
+    """Missing is not unreadable. `_shape_of` and the portable walk share this.
+
+    `NotADirectoryError` is a parent in the path that is a file, so nothing can
+    exist here either.
+    """
+    return isinstance(error, FileNotFoundError | NotADirectoryError)
 
 
 #: Suffix chains a directory layout never offers as a component, and the file
@@ -1290,7 +1294,9 @@ def _portable_skills(
     if start is None:
         try:
             project_mode = project.lstat().st_mode
-        except OSError:
+        except OSError as error:
+            if _is_absent(error):
+                return [], [], []
             return [], [_unreadable(project, project, "portable skill root")], []
         if stat.S_ISLNK(project_mode):
             return (
@@ -1310,7 +1316,9 @@ def _portable_skills(
         collection = project / "skills"
         try:
             collection_mode = collection.lstat().st_mode
-        except OSError:
+        except OSError as error:
+            if _is_absent(error):
+                return found, [], []
             return found, [_unreadable(project, collection, "portable skills collection")], []
         if stat.S_ISLNK(collection_mode):
             return (
@@ -1345,16 +1353,18 @@ def _portable_skills(
             return found, diagnostics, [(directory, depth), *stack]
         try:
             entries = sorted(directory.iterdir(), key=lambda item: item.name, reverse=True)
-        except OSError:
-            diagnostics.append(_unreadable(project, directory, "portable skill directory"))
+        except OSError as error:
+            if not _is_absent(error):
+                diagnostics.append(_unreadable(project, directory, "portable skill directory"))
             continue
         for entry in entries:
             if entry.name in PORTABLE_SKILL_EXCLUDED_NAMES:
                 continue
             try:
                 held = entry.lstat()
-            except OSError:
-                diagnostics.append(_unreadable(project, entry, "portable skill entry"))
+            except OSError as error:
+                if not _is_absent(error):
+                    diagnostics.append(_unreadable(project, entry, "portable skill entry"))
                 continue
             if stat.S_ISLNK(held.st_mode) or not stat.S_ISDIR(held.st_mode):
                 continue
