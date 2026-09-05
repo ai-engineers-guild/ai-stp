@@ -36,6 +36,11 @@ New writes record `standard_family` as `ai-stp-standard/1` on the descriptor
 (`SPEC-060`). Historical descriptors without that field remain validatable and
 are not assigned the family on read.
 
+`component adaptation add` renders a second concrete harness projection under
+`projections/<harness>/` without changing the original `harness_variant`.
+Release freezes every `adaptation_contents` source into the version passport
+(`ADR-0143`); a singular `harness_id` draft still produces one adaptation.
+
 The current `component-scaffold/6` directory contains `.ai-stp-template.json`,
 `.gitignore`, `component-passport.json`, `eval-profile.json`, README, and editable
 source under `source/`. A concrete harness also receives a generated native layout

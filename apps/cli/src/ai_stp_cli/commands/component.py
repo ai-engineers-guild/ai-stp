@@ -44,6 +44,7 @@ from ai_stp_contracts.machine_help import (
     ComponentQualityCheck,
     ComponentQualityDimension,
     ComponentQualityReport,
+    ComponentScaffoldView,
     ComponentTemplateView,
     ConsentRecord,
     ConsentSummary,
@@ -202,6 +203,24 @@ def scaffold_apply(parameters: Mapping[str, object]) -> Answer[ComponentScaffold
         output=output,
     )
     return Answer(authoring.apply_scaffold(plan, files, expected_digest=expected))
+
+
+def adaptation_add(parameters: Mapping[str, object]) -> Answer[ComponentScaffoldView]:
+    """Render one extra concrete harness projection into an existing authoring tree."""
+    import json
+
+    root = Path(_required(parameters, "root", "an authoring directory is required")).expanduser()
+    harness = _required(parameters, "harness", "a concrete harness is required")
+    written = authoring.add_adaptation(root, harness)
+    template = json.loads((root / ".ai-stp-template.json").read_text(encoding="utf-8"))
+    return Answer(
+        ComponentScaffoldView(
+            component_type=template["component_type"],
+            component_name=root.name,
+            output=str(root.resolve()),
+            byte_length=sum(len(payload) for payload in written.values()),
+        )
+    )
 
 
 def template_render(parameters: Mapping[str, object]) -> Answer[ComponentTemplateView]:
