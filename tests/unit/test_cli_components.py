@@ -626,6 +626,51 @@ def test_adopting_the_same_source_twice_keeps_one_stable_id(
     assert third.revision_id != first.revision_id
 
 
+def test_moving_an_adopted_source_keeps_the_stable_id(
+    registry: sqlite3.Connection, harness_home: Path
+) -> None:
+    found = next(
+        item
+        for item in components.discover()
+        if item.component_type == "skill" and item.harness_id == "claude-code"
+    )
+    first = components.adopt(registry, found, device_id="device_test")
+    destination = found.absolute.parent / "reviewing-moved"
+    found.absolute.rename(destination)
+    moved = next(item for item in components.discover() if item.absolute == destination)
+    second = components.adopt(registry, moved, device_id="device_test")
+    assert second.stable_id == first.stable_id
+    row = registry.execute(
+        "SELECT absolute_path FROM component_source_binding WHERE stable_id = ?",
+        (first.stable_id,),
+    ).fetchone()
+    assert row is not None
+    assert Path(row["absolute_path"]) == destination
+
+
+def test_a_copy_at_a_new_path_does_not_steal_the_original_id(
+    registry: sqlite3.Connection, harness_home: Path
+) -> None:
+    found = next(
+        item
+        for item in components.discover()
+        if item.component_type == "skill" and item.harness_id == "claude-code"
+    )
+    first = components.adopt(registry, found, device_id="device_test")
+    destination = found.absolute.parent / "reviewing-copy"
+    destination.mkdir()
+    (destination / "SKILL.md").write_bytes((found.absolute / "SKILL.md").read_bytes())
+    copied = next(item for item in components.discover() if item.absolute == destination)
+    second = components.adopt(registry, copied, device_id="device_test")
+    assert second.stable_id != first.stable_id
+    original = registry.execute(
+        "SELECT absolute_path FROM component_source_binding WHERE stable_id = ?",
+        (first.stable_id,),
+    ).fetchone()
+    assert original is not None
+    assert Path(original["absolute_path"]) == found.absolute
+
+
 def test_an_adopted_passport_carries_only_the_allowlist(
     registry: sqlite3.Connection, harness_home: Path
 ) -> None:
