@@ -75,8 +75,10 @@ another type.
 2. Implement the behavior in `source/` and fill in only confirmed patch facts. For `required_env`,
    record names and purposes, but not values. Add source only after pinning a public
    GitHub commit.
-3. Place the component in a supported native layout, run `component discover` and
-   `component adopt`, then apply the patch through
+3. Inventory the authoring tree with `component inventory --root` before copying
+   anything into a native layout. Generated `projections/` are not independent
+   sources. Then run `component discover --root` and `component adopt`, and apply
+   the patch through
    `component passport update --expected-revision ... --from ... --confirm`.
 4. Run `component passport validate` and the evaluation lifecycle. The saved profile
    shows in advance that core will perform local-static checks, while model/human

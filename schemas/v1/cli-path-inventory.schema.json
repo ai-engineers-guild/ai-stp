@@ -1,0 +1,248 @@
+{
+  "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting",
+        "cli"
+      ],
+      "type": "string"
+    },
+    "NativeDiscoveryDiagnostic": {
+      "additionalProperties": true,
+      "description": "A safe reason an optional provenance adapter could not classify input.",
+      "properties": {
+        "code": {
+          "enum": [
+            "missing_manifest",
+            "invalid_manifest",
+            "unsupported_manifest",
+            "invalid_record",
+            "missing_source_entry",
+            "bounded_limit"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "reason",
+        "schema_version",
+        "source"
+      ],
+      "title": "NativeDiscoveryDiagnostic",
+      "type": "object"
+    },
+    "PathInventoryObject": {
+      "additionalProperties": true,
+      "description": "One logical object in an explicit-root inventory (`SPEC-005` REQ-534).",
+      "properties": {
+        "component_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ComponentType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "generated_from": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generated From"
+        },
+        "harness_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Harness Id"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "object_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Object Id",
+          "type": "string"
+        },
+        "object_kind": {
+          "enum": [
+            "component",
+            "setup"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "passport",
+            "native"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "passport_path": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passport Path"
+        },
+        "relation": {
+          "enum": [
+            "independent",
+            "embedded_member",
+            "generated_projection",
+            "duplicate"
+          ],
+          "title": "Relation",
+          "type": "string"
+        },
+        "relative_path": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stable Id"
+        }
+      },
+      "required": [
+        "component_type",
+        "generated_from",
+        "harness_id",
+        "name",
+        "object_id",
+        "object_kind",
+        "origin",
+        "passport_path",
+        "relation",
+        "relative_path",
+        "schema_version",
+        "stable_id"
+      ],
+      "title": "PathInventoryObject",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-path-inventory",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Passport-first inventory of one explicit root. Observation only (`REQ-518`).",
+  "properties": {
+    "complete": {
+      "title": "Complete",
+      "type": "boolean"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/NativeDiscoveryDiagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "objects": {
+      "items": {
+        "$ref": "#/$defs/PathInventoryObject"
+      },
+      "title": "Objects",
+      "type": "array"
+    },
+    "root": {
+      "minLength": 1,
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "complete",
+    "diagnostics",
+    "objects",
+    "root",
+    "schema_version"
+  ],
+  "title": "PathInventory",
+  "type": "object"
+}

@@ -643,8 +643,13 @@ def test_two_identical_components_share_one_stored_object(
     registry: sqlite3.Connection, harness_home: Path, project: Path
 ) -> None:
     (project / "CLAUDE.md").write_bytes(b"# global instruction\n")
-    found = components.discover(project=project)
-    same = [item for item in found if item.source_path.endswith("CLAUDE.md")]
+    global_copy = [item for item in components.discover() if item.source_path.endswith("CLAUDE.md")]
+    project_copy = [
+        item
+        for item in components.discover(project=project)
+        if item.source_path.endswith("CLAUDE.md")
+    ]
+    same = global_copy + project_copy
     assert len(same) == 2
 
     digests = {
@@ -817,7 +822,7 @@ def test_the_discover_command_reports_the_project_it_searched(
     answer = command.discover({"root": str(project)}).payload
     assert answer.project == str(project)
     assert any(item.scope == "project" for item in answer.components)
-    assert any(item.scope == "global" for item in answer.components)
+    assert all(item.scope == "project" for item in answer.components)
     assert all(item.candidate_id.startswith("sha256:") for item in answer.components)
     assert all(item.layout_source for item in answer.components)
 

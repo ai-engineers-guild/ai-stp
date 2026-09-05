@@ -46,7 +46,8 @@ ai-stp help --agent --json
 | `ai-stp auth logout` | `apply` | `none` | [auth.md](auth.md) | закончить облачную сессию на сервере и здесь, сохранив все локальные данные |
 | `ai-stp auth status` | `read` | `none` | [auth.md](auth.md) | сообщить связь с платформой: только локально, authenticated, expired или revoked |
 | `ai-stp capabilities` | `read` | `none` | [observe.md](observe.md) | сообщить, что эта установка может делать прямо сейчас |
-| `ai-stp component discover` | `read` | `none` | [component-discover.md](component-discover.md) | перечислить нативные компоненты в корнях harness и одном проекте; ничего не меняет |
+| `ai-stp component discover` | `read` | `none` | [component-discover.md](component-discover.md) | перечислить нативные компоненты в названном проекте или в корнях harness, если проект не назван; ничего не меняет |
+| `ai-stp component inventory` | `read` | `none` | [component-discover.md](component-discover.md) | паспорт-первый инвентарь одного явного дерева авторства; ничего не меняет |
 | `ai-stp component scaffold plan` | `plan` | `none` | [component-discover.md](component-discover.md) | предпросмотр точных файлов и дайджестов одного версионированного scaffold компонента |
 | `ai-stp component scaffold apply` | `apply` | `plan_digest` | [component-discover.md](component-discover.md) | создать ровно подтверждённый scaffold компонента, не перезаписывая путь |
 | `ai-stp component template render` | `read` | `none` | [component-discover.md](component-discover.md) | отрендерить и провалидировать переносимый шаблон для одного конкретного harness |
