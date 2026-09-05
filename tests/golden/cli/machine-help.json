@@ -4623,10 +4623,28 @@
       "confirmation": "none",
       "parameters": [
         {
+          "name": "topic",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Request topic.",
+          "choices": [
+            "object_report",
+            "service_request",
+            "country_request",
+            "component_complaint",
+            "author_complaint",
+            "ownership_transfer",
+            "verification_request",
+            "other"
+          ]
+        },
+        {
           "name": "kind",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
           "summary": "Object kind.",
           "choices": [
@@ -4638,7 +4656,7 @@
           "name": "id",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
           "summary": "Stable object identifier.",
           "choices": []
@@ -4647,7 +4665,7 @@
           "name": "version",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
           "summary": "Exact object version.",
           "choices": []
@@ -4656,10 +4674,139 @@
           "name": "content-digest",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
           "summary": "Exact reported content digest.",
           "choices": []
+        },
+        {
+          "name": "service-name",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Requested service name.",
+          "choices": []
+        },
+        {
+          "name": "primary-url",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Requested service HTTPS URL.",
+          "choices": []
+        },
+        {
+          "name": "description-ru",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Russian service description.",
+          "choices": []
+        },
+        {
+          "name": "description-en",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "English service description.",
+          "choices": []
+        },
+        {
+          "name": "source-url",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Source URL supporting the service description.",
+          "choices": []
+        },
+        {
+          "name": "country-code",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "ISO 3166-1 alpha-2 country code.",
+          "choices": []
+        },
+        {
+          "name": "name-ru",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Russian country name.",
+          "choices": []
+        },
+        {
+          "name": "name-en",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "English country name.",
+          "choices": []
+        },
+        {
+          "name": "subject",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Custom subject. Required for topic other.",
+          "choices": []
+        },
+        {
+          "name": "message",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Reason or complaint text.",
+          "choices": []
+        },
+        {
+          "name": "evidence",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Bounded evidence links or notes.",
+          "choices": []
+        },
+        {
+          "name": "recipient",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Recipient account for ownership transfer.",
+          "choices": []
+        },
+        {
+          "name": "author",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Subject account for author or verification topics.",
+          "choices": []
+        },
+        {
+          "name": "locale",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Submitted text locale: ru or en.",
+          "choices": [
+            "ru",
+            "en"
+          ]
         },
         {
           "name": "harness-id",
@@ -4747,6 +4894,31 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-report-preview",
       "next_actions": [
         "report confirm"
+      ]
+    },
+    {
+      "path": [
+        "report",
+        "status"
+      ],
+      "summary": "Read one of the current account's closed request cases.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "case-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Request case identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-report-case",
+      "next_actions": [
+        "report list"
       ]
     },
     {
@@ -6727,6 +6899,12 @@
   ],
   "error_codes": [
     {
+      "code": "AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "the normalized account display name is already assigned"
+    },
+    {
       "code": "AI_STP_AUTHORIZATION_DECLINED",
       "exit_class": 3,
       "handling": "restart_authorization",
@@ -6749,6 +6927,12 @@
       "exit_class": 3,
       "handling": "authenticate",
       "description": "the operation needs a signed-in account"
+    },
+    {
+      "code": "AI_STP_CANONICAL_NAME_CONFLICT",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "the normalized canonical component name is already assigned"
     },
     {
       "code": "AI_STP_CATALOG_INTEGRITY",
@@ -6799,10 +6983,40 @@
       "description": "the device key is revoked for cloud operations"
     },
     {
+      "code": "AI_STP_FOREIGN_LINE_OWNERSHIP",
+      "exit_class": 3,
+      "handling": "stop_for_permission",
+      "description": "the catalog line is owned by another account"
+    },
+    {
+      "code": "AI_STP_HANDLE_CONFLICT",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "the normalized public handle is already assigned"
+    },
+    {
       "code": "AI_STP_INTERNAL",
       "exit_class": 70,
       "handling": "report_bug",
       "description": "unexpected internal error"
+    },
+    {
+      "code": "AI_STP_LOCALIZED_NAME_CONFLICT",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "the normalized localized component display name is already assigned"
+    },
+    {
+      "code": "AI_STP_MANIFEST_MISMATCH",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "production Official source state does not match the Git manifest"
+    },
+    {
+      "code": "AI_STP_MIGRATION_CONFLICT",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "normalized identity collisions block unique-constraint activation"
     },
     {
       "code": "AI_STP_NOT_FOUND",
@@ -6875,6 +7089,18 @@
       "exit_class": 4,
       "handling": "reconcile_state",
       "description": "SEO enrichment answered for a source digest that is no longer current"
+    },
+    {
+      "code": "AI_STP_STALE_OWNERSHIP_REVISION",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "the expected catalog-line ownership revision is no longer current"
+    },
+    {
+      "code": "AI_STP_SYNC_DELIVERY",
+      "exit_class": 5,
+      "handling": "retry_if_retryable",
+      "description": "an Official update handoff is missing, stale, or dead-lettered"
     },
     {
       "code": "AI_STP_TIMEOUT_UNCONFIRMED",

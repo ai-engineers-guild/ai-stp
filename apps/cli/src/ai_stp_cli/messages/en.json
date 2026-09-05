@@ -533,6 +533,7 @@
   "the remote component is too large": "the remote component is too large",
   "the remote component source is unavailable": "the remote component source is unavailable",
   "the report preview digest does not match": "the report preview digest does not match",
+  "country_request requires exactly one --country-code": "country_request requires exactly one --country-code",
   "the requested harness differs from the confirmed composition": "the requested harness differs from the confirmed composition",
   "the requested permission profile is not declared by the provider": "the requested permission profile is not declared by the provider",
   "the required context passport is missing": "the required context passport is missing",

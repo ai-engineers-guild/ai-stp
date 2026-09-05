@@ -336,8 +336,10 @@
       },
       "status": 201,
       "body": {
-        "schema_version": 1,
-        "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "schema_version": 1,
+          "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "topic": "object_report",
+          "locale": "en",
         "object_kind": "component",
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
@@ -359,6 +361,8 @@
           {
             "schema_version": 1,
             "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "topic": "object_report",
+            "locale": "en",
             "object_kind": "component",
             "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "version": "1.0",
@@ -387,8 +391,10 @@
       },
       "status": 200,
       "body": {
-        "schema_version": 1,
-        "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "schema_version": 1,
+          "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "topic": "object_report",
+          "locale": "en",
         "object_kind": "component",
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
@@ -418,27 +424,6 @@
         "schema_version": 1,
         "applied": true,
         "action": "block"
-      }
-    },
-    {
-      "case_id": "staffAuthorVerified.issue",
-      "operation_id": "staffAuthorVerified",
-      "kind": "positive",
-      "why": "Staff issues author_verified for an account with a reason.",
-      "request": {
-        "body": {
-          "schema_version": 1,
-          "subject_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-          "verified": true,
-          "reason": "github-org-ownership",
-          "idempotency_key": "authorkey00000001"
-        }
-      },
-      "status": 200,
-      "body": {
-        "schema_version": 1,
-        "applied": true,
-        "action": "author_verified_issue"
       }
     },
     {
@@ -697,8 +682,17 @@
         "vulnerability": false,
         "created_at": "2026-08-08T00:00:00.000Z",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "error_code": "AI_STP_VALIDATION_ERROR",
-        "harness_id": "claude-code"
+          "error_code": "AI_STP_VALIDATION_ERROR",
+          "harness_id": "claude-code",
+          "topic": "object_report",
+          "locale": "en",
+          "request_payload": {
+            "object_kind": "component",
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "1.0",
+            "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "vulnerability": false
+          }
       }
     },
     {
@@ -778,85 +772,69 @@
       }
     },
     {
-      "case_id": "approveOwnershipClaim.applied",
-      "operation_id": "approveOwnershipClaim",
+      "case_id": "createRequestCase.submitted",
+      "operation_id": "createRequestCase",
       "kind": "positive",
-      "why": "Staff approval transfers catalog owner columns and records an immutable revision without rewriting published passports.",
+      "why": "A shared request topic is recorded as a private request case.",
       "request": {
-        "path_params": {
-          "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-        },
         "body": {
           "schema_version": 1,
-          "reason": "staff-verified",
-          "idempotency_key": "approvekey00000001"
-        }
-      },
-      "status": 200,
-      "body": {
-        "schema_version": 1,
-        "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        "requester_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
-        "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        "reason": "upstream-maintainer",
-        "evidence": "github-commits",
-        "state": "approved",
-        "preview": {
-          "schema_version": 1,
+          "topic": "object_report",
           "object_kind": "component",
           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-          "name": "official-skill",
-          "current_owner_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
-          "versions": ["1.0", "2.0"],
-          "major_lines": [1, 2]
-        },
-        "created_at": "2026-08-10T00:00:00.000Z",
-        "decided_at": "2026-08-10T01:00:00.000Z",
-        "staff_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8Z",
-        "decision_reason": "staff-verified"
+          "version": "1.0",
+          "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "idempotency_key": "requestkey00000001"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "case_id": "request_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "topic": "object_report",
+        "locale": "en",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "state": "submitted",
+        "vulnerability": false,
+        "created_at": "2026-08-08T00:00:00.000Z"
       }
     },
     {
-      "case_id": "denyOwnershipClaim.denied",
-      "operation_id": "denyOwnershipClaim",
+      "case_id": "listRequestCases.one",
+      "operation_id": "listRequestCases",
       "kind": "positive",
-      "why": "Staff denial records the decision and has no catalog effect.",
+      "why": "A reporter can list their own request cases.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": []
+      }
+    },
+    {
+      "case_id": "readRequestCase.one",
+      "operation_id": "readRequestCase",
+      "kind": "positive",
+      "why": "A reporter can read one of their own request cases.",
       "request": {
         "path_params": {
-          "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y8A"
-        },
-        "body": {
-          "schema_version": 1,
-          "reason": "insufficient-evidence",
-          "idempotency_key": "denykey0000000001"
+          "case_id": "request_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
         }
       },
       "status": 200,
       "body": {
         "schema_version": 1,
-        "claim_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y8A",
+        "case_id": "request_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "topic": "object_report",
+        "locale": "en",
+        "object_kind": "component",
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        "requester_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        "from_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
-        "to_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        "reason": "upstream-maintainer",
-        "evidence": "github-commits",
-        "state": "denied",
-        "preview": {
-          "schema_version": 1,
-          "object_kind": "component",
-          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-          "name": "official-skill",
-          "current_owner_account_id": "account_01KZET6ZKJN7S72T5H4WDV62T0",
-          "versions": ["1.0", "2.0"],
-          "major_lines": [1, 2]
-        },
-        "created_at": "2026-08-10T00:00:00.000Z",
-        "decided_at": "2026-08-10T01:00:00.000Z",
-        "staff_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8Z",
-        "decision_reason": "insufficient-evidence"
+        "version": "1.0",
+        "state": "submitted",
+        "vulnerability": false,
+        "created_at": "2026-08-08T00:00:00.000Z"
       }
     },
     {

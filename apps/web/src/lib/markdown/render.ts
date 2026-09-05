@@ -5,8 +5,7 @@
 
 const FORBIDDEN =
   /<\s*(script|style|iframe|object|embed|form|input|img|svg)\b|javascript:|data:|(?<![a-z0-9_])on[a-z]+\s*=/i;
-const LOCAL_CONTENT_IMAGE =
-  /^\/content\/illustrations\/[a-z0-9._-]+\.(svg|png|jpg|jpeg|webp|gif)$/;
+const LOCAL_CONTENT_IMAGE = /^\/content\/illustrations\/[a-z0-9._-]+\.(svg|png|jpg|jpeg|webp|gif)$/;
 const HEADING_ID = /^[a-z0-9][a-z0-9_-]*$/i;
 const TOKEN = "\u0000";
 
@@ -14,7 +13,11 @@ export type RenderedMarkdown = { html: string; excerpt: string };
 type RenderOptions = { article?: boolean; title?: string; coverImage?: string | null };
 
 function escapeHtml(text: string): string {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function excerptFromSource(source: string): string {
@@ -37,7 +40,7 @@ function addToken(tokens: string[], value: string): string {
 function restoreTokens(value: string, tokens: string[]): string {
   return value
     .split(new RegExp(`${TOKEN}(\\d+)${TOKEN}`, "g"))
-    .map((part, index) => (index % 2 ? tokens[Number(part)] ?? "" : escapeHtml(part)))
+    .map((part, index) => (index % 2 ? (tokens[Number(part)] ?? "") : escapeHtml(part)))
     .join("");
 }
 
@@ -48,12 +51,17 @@ function safeLink(href: string): boolean {
 function inline(text: string): string {
   const tokens: string[] = [];
   let value = text;
-  value = value.replace(/`([^`\n]+)`/g, (_match, code: string) => addToken(tokens, `<code>${escapeHtml(code)}</code>`));
+  value = value.replace(/`([^`\n]+)`/g, (_match, code: string) =>
+    addToken(tokens, `<code>${escapeHtml(code)}</code>`),
+  );
   value = value.replace(
     /!\[([^\]]*)\]\((\/content\/illustrations\/[^)\s]+)\)/g,
     (_match, alt: string, src: string) =>
       LOCAL_CONTENT_IMAGE.test(src)
-        ? addToken(tokens, `<img src="${src}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">`)
+        ? addToken(
+            tokens,
+            `<img src="${src}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">`,
+          )
         : escapeHtml(alt),
   );
   value = value.replace(
@@ -61,22 +69,44 @@ function inline(text: string): string {
     (_match, label: string, href: string, title?: string) => {
       if (!safeLink(href)) return escapeHtml(label);
       const titleAttribute = title ? ` title="${escapeHtml(title)}"` : "";
-      return addToken(tokens, `<a href="${escapeHtml(href)}"${titleAttribute} rel="noopener noreferrer">${inline(label)}</a>`);
+      return addToken(
+        tokens,
+        `<a href="${escapeHtml(href)}"${titleAttribute} rel="noopener noreferrer">${inline(label)}</a>`,
+      );
     },
   );
-  value = value.replace(/<(u|b|strong|em)>([\s\S]*?)<\/\1>/gi, (_match, rawTag: string, body: string) => {
-    const tag = rawTag.toLowerCase() === "b" ? "strong" : rawTag.toLowerCase();
-    return addToken(tokens, `<${tag}>${inline(body)}</${tag}>`);
-  });
-  value = value.replace(/\*\*([^*\n]+)\*\*|__([^_\n]+)__/g, (_match, bold?: string, under?: string) => addToken(tokens, `<strong>${escapeHtml(bold ?? under ?? "")}</strong>`));
-  value = value.replace(/~~([^~\n]+)~~/g, (_match, strike: string) => addToken(tokens, `<del>${escapeHtml(strike)}</del>`));
-  value = value.replace(/(?<![\w])([*_])([^*_\n]+)\1(?![\w])/g, (_match, _marker: string, italic: string) => addToken(tokens, `<em>${escapeHtml(italic)}</em>`));
+  value = value.replace(
+    /<(u|b|strong|em)>([\s\S]*?)<\/\1>/gi,
+    (_match, rawTag: string, body: string) => {
+      const tag = rawTag.toLowerCase() === "b" ? "strong" : rawTag.toLowerCase();
+      return addToken(tokens, `<${tag}>${inline(body)}</${tag}>`);
+    },
+  );
+  value = value.replace(
+    /\*\*([^*\n]+)\*\*|__([^_\n]+)__/g,
+    (_match, bold?: string, under?: string) =>
+      addToken(tokens, `<strong>${escapeHtml(bold ?? under ?? "")}</strong>`),
+  );
+  value = value.replace(/~~([^~\n]+)~~/g, (_match, strike: string) =>
+    addToken(tokens, `<del>${escapeHtml(strike)}</del>`),
+  );
+  value = value.replace(
+    /(?<![\w])([*_])([^*_\n]+)\1(?![\w])/g,
+    (_match, _marker: string, italic: string) => addToken(tokens, `<em>${escapeHtml(italic)}</em>`),
+  );
   return restoreTokens(value, tokens);
 }
 
 function headingId(title: string, ids: Set<string>, explicit?: string): string {
-  const clean = title.replace(/[`*_~]/g, "").replace(/<[^>]+>/g, "").toLowerCase().trim();
-  const generated = clean.normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+  const clean = title
+    .replace(/[`*_~]/g, "")
+    .replace(/<[^>]+>/g, "")
+    .toLowerCase()
+    .trim();
+  const generated = clean
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-|-$/g, "");
   const base = explicit && HEADING_ID.test(explicit) ? explicit : generated || "section";
   let id = base;
   let suffix = 2;
@@ -111,13 +141,25 @@ function tableHtml(lines: string[]): string {
   const headers = tableCells(lines[0] ?? "");
   const separators = tableCells(lines[1] ?? "");
   const alignments = separators.map((cell) =>
-    cell.startsWith(":") && cell.endsWith(":") ? "center" : cell.endsWith(":") ? "right" : cell.startsWith(":") ? "left" : "",
+    cell.startsWith(":") && cell.endsWith(":")
+      ? "center"
+      : cell.endsWith(":")
+        ? "right"
+        : cell.startsWith(":")
+          ? "left"
+          : "",
   );
-  const cells = (row: string[], tag: "th" | "td") => headers.map((_header, index) => {
-    const align = alignments[index] ? ` style="text-align:${alignments[index]}"` : "";
-    return `<${tag}${align}>${inline(row[index] ?? "")}</${tag}>`;
-  }).join("");
-  const rows = lines.slice(2).map((line) => `<tr>${cells(tableCells(line), "td")}</tr>`).join("");
+  const cells = (row: string[], tag: "th" | "td") =>
+    headers
+      .map((_header, index) => {
+        const align = alignments[index] ? ` style="text-align:${alignments[index]}"` : "";
+        return `<${tag}${align}>${inline(row[index] ?? "")}</${tag}>`;
+      })
+      .join("");
+  const rows = lines
+    .slice(2)
+    .map((line) => `<tr>${cells(tableCells(line), "td")}</tr>`)
+    .join("");
   return `<div class="article-table"><table><thead><tr>${cells(headers, "th")}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
@@ -127,7 +169,10 @@ function videoHtml(kind: string, href: string): string | null {
     const host = url.hostname.toLowerCase();
     let id = "";
     if (kind === "youtube" && ["youtube.com", "www.youtube.com", "youtu.be"].includes(host)) {
-      id = host === "youtu.be" ? url.pathname.slice(1) : url.searchParams.get("v") ?? url.pathname.split("/").pop() ?? "";
+      id =
+        host === "youtu.be"
+          ? url.pathname.slice(1)
+          : (url.searchParams.get("v") ?? url.pathname.split("/").pop() ?? "");
       if (!/^[A-Za-z0-9_-]{6,}$/u.test(id)) return null;
       return `<figure class="article-video"><div class="article-video__frame"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}" title="Embedded YouTube video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div><figcaption><a href="${escapeHtml(href)}" rel="noopener noreferrer">Open video</a></figcaption></figure>`;
     }
@@ -153,7 +198,8 @@ function renderList(lines: string[], start: number): { html: string; next: numbe
   let index = start;
   while (index < lines.length) {
     const match = lines[index]?.match(/^(\s*)([-*+]\s+|\d+[.)]\s+)(.*)$/u);
-    if (!match || (match[1]?.length ?? 0) !== baseIndent || /^\d/u.test(match[2] ?? "") !== ordered) break;
+    if (!match || (match[1]?.length ?? 0) !== baseIndent || /^\d/u.test(match[2] ?? "") !== ordered)
+      break;
     const content = [match[3] ?? ""];
     index += 1;
     let nested = "";
@@ -180,13 +226,19 @@ function renderList(lines: string[], start: number): { html: string; next: numbe
 }
 
 function isBlockStart(line: string): boolean {
-  return /^(?:#{1,6}\s+|```|~~~|>\s?|[-*+]\s+|\d+[.)]\s+|\|.*\|\s*$|@\[(?:youtube|vimeo)\]\()/u.test(line.trim());
+  return /^(?:#{1,6}\s+|```|~~~|>\s?|[-*+]\s+|\d+[.)]\s+|\|.*\|\s*$|@\[(?:youtube|vimeo)\]\()/u.test(
+    line.trim(),
+  );
 }
 
 function stripArticleChrome(source: string, options: RenderOptions): string {
   if (!options.article || !options.title) return source;
 
-  const normalize = (value: string) => value.replace(/[`*_~]/g, "").trim().toLocaleLowerCase();
+  const normalize = (value: string) =>
+    value
+      .replace(/[`*_~]/g, "")
+      .trim()
+      .toLocaleLowerCase();
   const lines = source.replaceAll("\r\n", "\n").split("\n");
   let index = 0;
   while (index < lines.length && !lines[index]?.trim()) index += 1;
@@ -231,13 +283,20 @@ function renderBlocks(lines: string[], ids: Set<string>, article: boolean): stri
       continue;
     }
     if (trimmed === "<details>") {
-      const close = lines.findIndex((candidate, candidateIndex) => candidateIndex > index && candidate.trim() === "</details>");
+      const close = lines.findIndex(
+        (candidate, candidateIndex) => candidateIndex > index && candidate.trim() === "</details>",
+      );
       const end = close < 0 ? lines.length : close;
       const inner = lines.slice(index + 1, end);
       const summaryIndex = inner.findIndex((candidate) => candidate.trim().startsWith("<summary>"));
-      const summary = summaryIndex >= 0 ? (inner[summaryIndex] ?? "").trim().replace(/^<summary>|<\/summary>$/g, "") : "Details";
+      const summary =
+        summaryIndex >= 0
+          ? (inner[summaryIndex] ?? "").trim().replace(/^<summary>|<\/summary>$/g, "")
+          : "Details";
       const content = summaryIndex >= 0 ? inner.slice(summaryIndex + 1) : inner;
-      blocks.push(`<details><summary>${inline(summary)}</summary>${renderBlocks(content, ids, article)}</details>`);
+      blocks.push(
+        `<details><summary>${inline(summary)}</summary>${renderBlocks(content, ids, article)}</details>`,
+      );
       index = close < 0 ? lines.length : close + 1;
       continue;
     }
@@ -250,7 +309,9 @@ function renderBlocks(lines: string[], ids: Set<string>, article: boolean): stri
     const heading = trimmed.match(/^(#{1,6})\s+(.+?)(?:\s+\{#([^\s}]+)\})?$/u);
     if (heading) {
       const title = heading[2] ?? "";
-      const level = article ? heading[1]?.length ?? 1 : Math.min((heading[1]?.length ?? 1) + 1, 6);
+      const level = article
+        ? (heading[1]?.length ?? 1)
+        : Math.min((heading[1]?.length ?? 1) + 1, 6);
       const id = headingId(title, ids, heading[3]);
       blocks.push(`<h${level} id="${escapeHtml(id)}">${inline(title)}</h${level}>`);
       index += 1;
@@ -270,10 +331,15 @@ function renderBlocks(lines: string[], ids: Set<string>, article: boolean): stri
       blocks.push(`<blockquote>${renderBlocks(quote, ids, article)}</blockquote>`);
       continue;
     }
-    if (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1] ?? "")) {
+    if (
+      index + 1 < lines.length &&
+      line.includes("|") &&
+      isTableSeparator(lines[index + 1] ?? "")
+    ) {
       const table = [line, lines[index + 1] ?? ""];
       index += 2;
-      while (index < lines.length && (lines[index] ?? "").includes("|")) table.push(lines[index++] ?? "");
+      while (index < lines.length && (lines[index] ?? "").includes("|"))
+        table.push(lines[index++] ?? "");
       blocks.push(tableHtml(table));
       continue;
     }
@@ -294,11 +360,22 @@ function renderBlocks(lines: string[], ids: Set<string>, article: boolean): stri
   return blocks.join("");
 }
 
-export function renderMarkdownOnServer(source: string, options: RenderOptions = {}): RenderedMarkdown {
+export function renderMarkdownOnServer(
+  source: string,
+  options: RenderOptions = {},
+): RenderedMarkdown {
   const excerpt = excerptFromSource(source);
-  if (FORBIDDEN.test(source)) return { html: excerpt ? `<p>${escapeHtml(excerpt)}</p>` : "", excerpt };
+  if (FORBIDDEN.test(source))
+    return { html: excerpt ? `<p>${escapeHtml(excerpt)}</p>` : "", excerpt };
   const renderSource = stripArticleChrome(source, options);
-  return { html: renderBlocks(renderSource.replaceAll("\r\n", "\n").split("\n"), new Set(), options.article ?? false), excerpt };
+  return {
+    html: renderBlocks(
+      renderSource.replaceAll("\r\n", "\n").split("\n"),
+      new Set(),
+      options.article ?? false,
+    ),
+    excerpt,
+  };
 }
 
 export function excerptMarkdown(source: string): string {

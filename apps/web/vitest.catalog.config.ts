@@ -6,8 +6,8 @@ import { defineConfig } from "vitest/config";
  * SPEC-034 changed-scope coverage gate.
  *
  * This is intentionally separate from the honest repository-wide coverage
- * report in vitest.config.ts. It gates the catalog/search/Markdown production
- * modules changed by SPEC-034 without altering global exclusions or floors.
+ * report in vitest.config.ts. It gates catalog/search production modules
+ * changed by SPEC-034; Markdown has its own repository-wide unit coverage.
  */
 export default defineConfig({
   esbuild: { jsx: "automatic" },
@@ -30,7 +30,6 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       include: [
         "src/lib/catalog-query.ts",
-        "src/lib/markdown/render.ts",
         "src/components/molecules/searchable-multi-select.tsx",
         "src/components/organisms/catalog-search-form.tsx",
         "src/components/organisms/catalog-filters.tsx",

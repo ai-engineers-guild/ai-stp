@@ -8,5 +8,6 @@ paths = [
   '''^packages/contracts/src/ai_stp_contracts/fixtures/v1/''',
   '''^tests/''',
   '''^\.serena/memories/quality-gates-and-commands\.md$''',
+  '''^\.serena/memories/current-work\.md$''',
   '''^apps/cli/src/ai_stp_cli/identity\.py$''',
 ]

@@ -182,6 +182,26 @@ def test_extract_keeps_the_committed_component_tree() -> None:
     }
 
 
+def test_extract_ignores_unsafe_files_outside_component_root() -> None:
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        selected = b"# Demo\n"
+        info = tarfile.TarInfo("tool-aaaaaaaa/skills/demo/SKILL.md")
+        info.size = len(selected)
+        archive.addfile(info, io.BytesIO(selected))
+        binary = tarfile.TarInfo("tool-aaaaaaaa/assets/logo.bin")
+        binary.size = 2
+        archive.addfile(binary, io.BytesIO(b"\x00\x01"))
+        link = tarfile.TarInfo("tool-aaaaaaaa/docs/latest")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "README.md"
+        archive.addfile(link)
+
+    assert extract_component_files(buffer.getvalue(), subpath="skills/demo") == {
+        "SKILL.md": selected
+    }
+
+
 def test_extract_keeps_env_templates_and_rejects_real_env_files() -> None:
     allowed = _tar(
         {

@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsSetupId } from "@/lib/brands";
+import { namedPassportHarnesses } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { versionPageMetadata } from "@/lib/seo/metadata";
@@ -88,7 +89,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
       <p className="text-muted-foreground break-words">{passport.description}</p>
       <div className="flex flex-wrap gap-2">
         <Badge>{response.trust.trust_lane}</Badge>
-        <Badge variant="outline">{passport.harness_id}</Badge>
+        <Badge variant="outline">{namedPassportHarnesses(passport).join(", ")}</Badge>
       </div>
       <dl className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -101,7 +102,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
-          <dd>{passport.harness_id}</dd>
+          <dd>{namedPassportHarnesses(passport).join(", ")}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("license")}</dt>

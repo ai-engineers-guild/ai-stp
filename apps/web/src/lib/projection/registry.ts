@@ -53,6 +53,7 @@ import { orNotFound } from "@/lib/projection/not-found";
 import { listPublishedContent, readPublishedContent } from "@/lib/api/content";
 import { presentContentEntry, presentContentIndex } from "@/lib/content/presenter";
 import { isFeatureEnabled } from "@/lib/features/gate";
+import { componentPassportPrimary } from "@/lib/catalog-harnesses";
 
 /** Labels shared by every object document (REQ-3610). */
 async function objectLabels() {
@@ -212,6 +213,8 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       );
       if (!response) return null;
       const passport = response.passport;
+      const { harnessId, projectionKind } = componentPassportPrimary(passport);
+      if (!harnessId || !projectionKind) return null;
       const github = await readComponentGithubMetadata(
         componentId,
         asVersionId(segments[4] ?? ""),
@@ -224,12 +227,12 @@ const PUBLIC_ROUTES: MachineRoute[] = [
             latest_name: passport.name,
             latest_description: passport.description,
             latest_version: passport.version,
-            latest_harness_id: passport.harness_id,
+            latest_harness_id: harnessId,
             latest_component_type: passport.component_type,
             latest_lifecycle: response.lifecycle,
             latest_tags: passport.tags,
             latest_trust: response.trust,
-            latest_projection_kind: passport.projection_kind,
+            latest_projection_kind: projectionKind,
           },
           digest: response.passport_digest,
           passport,
@@ -258,9 +261,6 @@ const PUBLIC_ROUTES: MachineRoute[] = [
         // "version: 1.1" beside 1.0's digest the moment any object gained a
         // second version. Every object had exactly one until the catalogue was
         // reseeded, so the two could not disagree and nothing noticed.
-        //
-        // Precise and wrong is worse than absent, which is what
-        // `verify_live_slice._projected_digest` exists to catch — and did.
         passportDigest:
           detail.versions.find((item) => item.version === detail.summary.latest_version)
             ?.passport_digest ?? "",

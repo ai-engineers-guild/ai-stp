@@ -35,6 +35,7 @@ from ai_stp_platform.official_upstream.errors import (
     OfficialUpstreamError,
 )
 from ai_stp_platform.official_upstream.github import GithubHttpResponse
+from ai_stp_platform.official_upstream.ledger import record_queue_outcome
 from ai_stp_platform.official_upstream.source import (
     SourceUpsert,
     delete_source,
@@ -44,7 +45,7 @@ from ai_stp_platform.official_upstream.source import (
 from ai_stp_platform.official_upstream.sync import run_sync
 from ai_stp_platform.publication_logic import execute_publish, execute_validate
 from ai_stp_platform.queue.models import Job
-from ai_stp_platform.queue.states import JobType
+from ai_stp_platform.queue.states import JobState, JobType
 from ai_stp_platform.seed_cli import ensure_official_publisher
 from ai_stp_platform.settings import StorageSettings
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
@@ -225,6 +226,35 @@ async def test_operator_force_enqueues_audited_retry_without_replacing_daily_key
 
 
 @pytest.mark.asyncio
+async def test_legacy_dlq_without_attempt_id_cannot_poison_new_attempt(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    now = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await _owner(session)
+        await upsert_source(session, _command())
+        daily = (await enqueue_daily(session, now=now))[0]
+        daily.state = JobState.DEAD_LETTER
+        daily.attempts = daily.max_attempts
+        daily.payload = {"source_id": SOURCE_ID}
+        await session.flush()
+        forced = (await enqueue_daily(session, now=now, force=True))[0]
+        await record_queue_outcome(session, daily)
+        attempts = list(
+            (
+                await session.scalars(
+                    select(OfficialUpstreamSync)
+                    .where(OfficialUpstreamSync.source_id == SOURCE_ID)
+                    .order_by(OfficialUpstreamSync.id)
+                )
+            ).all()
+        )
+        assert attempts[0].state == "dead_lettered"
+        assert attempts[-1].job_id == forced.id
+        assert attempts[-1].state == "queued"
+
+
+@pytest.mark.asyncio
 async def test_failed_plan_retry_reuses_in_flight_and_fits_idempotency_key(
     db_sessionmaker: async_sessionmaker[AsyncSession],
 ) -> None:
@@ -232,7 +262,7 @@ async def test_failed_plan_retry_reuses_in_flight_and_fits_idempotency_key(
     archive = _tar("# Demo\n")
     fetch = _fetch(archive)
     now = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
-    source_id = "ai-repo-safety"
+    source_id = "anthropic-cybersecurity-skills"
     async with db_sessionmaker() as session, session.begin():
         await _owner(session)
         await upsert_source(session, _command(source_id=source_id))

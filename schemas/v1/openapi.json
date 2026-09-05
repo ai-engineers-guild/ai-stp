@@ -10227,6 +10227,8 @@
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "allow_publisher_listing": true,
                       "created_at": "2026-08-05T00:00:00.000Z",
+                      "display_name": "Fixture User",
+                      "handle": "fixture-user",
                       "identities": [
                         {
                           "avatar_url": null,
@@ -10406,6 +10408,9 @@
                         {
                           "object_kind": "component",
                           "summary": {
+                            "canonical_name": "fixture-component",
+                            "display_locale": "en",
+                            "display_name": "Fixture Component",
                             "github_stars": null,
                             "latest_checks": null,
                             "latest_component_type": "skill",
@@ -10437,6 +10442,8 @@
                             },
                             "latest_version": "1.2",
                             "likes_count": 1,
+                            "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                            "owner_handle": "fixture-owner",
                             "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                             "schema_version": 1,
                             "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -11036,6 +11043,8 @@
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "allow_publisher_listing": true,
                       "created_at": "2026-08-05T00:00:00.000Z",
+                      "display_name": "Fixture User",
+                      "handle": "fixture-user",
                       "identities": [
                         {
                           "avatar_url": null,
@@ -11234,6 +11243,17 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "updateAccountIdentity.changed": {
+                  "summary": "Changing the public handle and display name returns the complete updated account profile.",
+                  "value": {
+                    "display_name": "Fixture User",
+                    "handle": "fixture-user",
+                    "idempotency_key": "identitykey0000001",
+                    "schema_version": 1
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/AccountIdentityUpdate"
               }
@@ -11245,6 +11265,28 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "updateAccountIdentity.changed": {
+                    "summary": "Changing the public handle and display name returns the complete updated account profile.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "allow_publisher_listing": true,
+                      "created_at": "2026-08-05T00:00:00.000Z",
+                      "display_name": "Fixture User",
+                      "handle": "fixture-user",
+                      "identities": [
+                        {
+                          "avatar_url": null,
+                          "display_name": null,
+                          "linked_at": "2026-08-05T00:00:00.000Z",
+                          "provider": "github"
+                        }
+                      ],
+                      "schema_version": 1,
+                      "show_profile_publicly": true
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AccountProfile"
                 }
@@ -11456,6 +11498,8 @@
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "allow_publisher_listing": false,
                       "created_at": "2026-08-05T00:00:00.000Z",
+                      "display_name": "Fixture User",
+                      "handle": "fixture-user",
                       "identities": [
                         {
                           "avatar_url": null,
@@ -13111,6 +13155,9 @@
                     "value": {
                       "experimental": [
                         {
+                          "canonical_name": "fixture-component",
+                          "display_locale": "en",
+                          "display_name": "Fixture Component",
                           "github_stars": null,
                           "latest_checks": null,
                           "latest_component_type": "skill",
@@ -13142,6 +13189,8 @@
                           },
                           "latest_version": "1.2",
                           "likes_count": 0,
+                          "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "owner_handle": "fixture-owner",
                           "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "schema_version": 1,
                           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -13294,6 +13343,9 @@
                       "schema_version": 1,
                       "services": [],
                       "summary": {
+                        "canonical_name": "fixture-component",
+                        "display_locale": "en",
+                        "display_name": "Fixture Component",
                         "github_stars": null,
                         "latest_checks": null,
                         "latest_component_type": "skill",
@@ -13325,6 +13377,8 @@
                         },
                         "latest_version": "1.2",
                         "likes_count": 0,
+                        "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "owner_handle": "fixture-owner",
                         "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "schema_version": 1,
                         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -15877,6 +15931,8 @@
                       "items": [
                         {
                           "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                          "cover_alt": null,
+                          "cover_image": null,
                           "description": "safe-setup-description",
                           "locale": "en",
                           "published_at": "2026-08-12",
@@ -16432,6 +16488,8 @@
                     "value": {
                       "body": "Use exact versions.",
                       "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "cover_alt": null,
+                      "cover_image": null,
                       "description": "safe-setup-description",
                       "locale": "en",
                       "published_at": "2026-08-12",
@@ -22057,10 +22115,12 @@
                         {
                           "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "created_at": "2026-08-08T00:00:00.000Z",
+                          "locale": "en",
                           "object_kind": "component",
                           "schema_version": 1,
                           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "state": "submitted",
+                          "topic": "object_report",
                           "version": "1.0",
                           "vulnerability": false
                         }
@@ -22272,10 +22332,12 @@
                     "value": {
                       "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "created_at": "2026-08-08T00:00:00.000Z",
+                      "locale": "en",
                       "object_kind": "component",
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "submitted",
+                      "topic": "object_report",
                       "version": "1.0",
                       "vulnerability": false
                     }
@@ -22446,6 +22508,15 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "listRequestCases.one": {
+                    "summary": "A reporter can list their own request cases.",
+                    "value": {
+                      "items": [],
+                      "schema_version": 1
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ReportCaseListResponse"
                 }
@@ -22610,6 +22681,20 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "createRequestCase.submitted": {
+                  "summary": "A shared request topic is recorded as a private request case.",
+                  "value": {
+                    "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "idempotency_key": "requestkey00000001",
+                    "object_kind": "component",
+                    "schema_version": 1,
+                    "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "topic": "object_report",
+                    "version": "1.0"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/ReportCaseCreateRequest"
               }
@@ -22621,6 +22706,23 @@
           "201": {
             "content": {
               "application/json": {
+                "examples": {
+                  "createRequestCase.submitted": {
+                    "summary": "A shared request topic is recorded as a private request case.",
+                    "value": {
+                      "case_id": "request_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "created_at": "2026-08-08T00:00:00.000Z",
+                      "locale": "en",
+                      "object_kind": "component",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "submitted",
+                      "topic": "object_report",
+                      "version": "1.0",
+                      "vulnerability": false
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ReportCaseResponse"
                 }
@@ -22796,6 +22898,23 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readRequestCase.one": {
+                    "summary": "A reporter can read one of their own request cases.",
+                    "value": {
+                      "case_id": "request_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "created_at": "2026-08-08T00:00:00.000Z",
+                      "locale": "en",
+                      "object_kind": "component",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "submitted",
+                      "topic": "object_report",
+                      "version": "1.0",
+                      "vulnerability": false
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ReportCaseResponse"
                 }
@@ -24789,6 +24908,8 @@
                         "en": {
                           "body": "Staff body EN.",
                           "content_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                          "cover_alt": null,
+                          "cover_image": null,
                           "description": "staff-description-en",
                           "locale": "en",
                           "published_at": "2026-08-12",
@@ -24807,6 +24928,8 @@
                         "ru": {
                           "body": "Staff body RU.",
                           "content_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+                          "cover_alt": null,
+                          "cover_image": null,
                           "description": "staff-description-ru",
                           "locale": "ru",
                           "published_at": "2026-08-12",
@@ -25231,10 +25354,19 @@
                       "created_at": "2026-08-08T00:00:00.000Z",
                       "error_code": "AI_STP_VALIDATION_ERROR",
                       "harness_id": "claude-code",
+                      "locale": "en",
                       "object_kind": "component",
+                      "request_payload": {
+                        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "object_kind": "component",
+                        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.0",
+                        "vulnerability": false
+                      },
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "submitted",
+                      "topic": "object_report",
                       "version": "1.0",
                       "vulnerability": false
                     }
@@ -25463,10 +25595,12 @@
                     "value": {
                       "case_id": "report_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "created_at": "2026-08-08T00:00:00.000Z",
+                      "locale": "en",
                       "object_kind": "component",
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "triaged",
+                      "topic": "object_report",
                       "version": "1.0",
                       "vulnerability": false
                     }

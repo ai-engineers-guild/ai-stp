@@ -9,7 +9,7 @@ from typing import cast
 from urllib.parse import quote, urlsplit
 
 from ai_stp_foundation.digests import digest_bytes
-from ai_stp_sources.archive import MAX_ARCHIVE_BYTES, extract_component_files
+from ai_stp_sources.archive import MAX_GIT_ARCHIVE_BYTES, extract_component_files
 from ai_stp_sources.coordinates import COMMIT_RE, canonicalize_source
 from ai_stp_sources.errors import (
     FLOATING_FROZEN_SOURCE,
@@ -26,7 +26,9 @@ API_VERSION = "2022-11-28"
 USER_AGENT = "ai-stp-sources"
 TIMEOUT_SECONDS = 20.0
 MAX_REDIRECTS = 2
-MAX_JSON_BYTES = 1_048_576
+# Commit responses can include a large changed-files section; keep the bound
+# finite while allowing legitimate repositories such as gsd-core to resolve.
+MAX_JSON_BYTES = 2 * 1_048_576
 ALLOWED_HOSTS = frozenset({API_HOST, "github.com", "codeload.github.com"})
 ARTIFACT_DIGEST_DOMAIN = "ai-stp:artifact:v1"
 
@@ -190,10 +192,14 @@ async def resolve_git(
         f"{API_ROOT}/repos/{quote(owner, safe='')}/{quote(name, safe='')}/tarball/{commit}",
         fetch=fetch,
         token=token,
-        max_bytes=MAX_ARCHIVE_BYTES,
+        max_bytes=MAX_GIT_ARCHIVE_BYTES,
     )
     _require_github_ok(archive, "GitHub archive is unavailable")
-    files = extract_component_files(archive.body, subpath=canonical.subpath)
+    files = extract_component_files(
+        archive.body,
+        subpath=canonical.subpath,
+        max_archive_bytes=MAX_GIT_ARCHIVE_BYTES,
+    )
     return SourceSnapshot(
         kind="git",
         canonical_coordinate=(f"git:{canonical.repository_url}@{commit}:{canonical.subpath}"),

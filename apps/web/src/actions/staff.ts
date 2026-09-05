@@ -75,5 +75,3 @@ export async function staffLifecycleAction(input: {
   revalidatePath("/[locale]/staff/reports", "layout");
   return { operationId: result.operationId };
 }
-
-

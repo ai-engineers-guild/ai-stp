@@ -94,7 +94,11 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
       <StaffCaseActions
         csrfToken={csrf}
         caseId={detail.case_id}
-        objectKind={detail.object_kind === "component" || detail.object_kind === "setup" ? detail.object_kind : ""}
+        objectKind={
+          detail.object_kind === "component" || detail.object_kind === "setup"
+            ? detail.object_kind
+            : ""
+        }
         stableId={detail.stable_id}
         version={detail.version}
         labels={{

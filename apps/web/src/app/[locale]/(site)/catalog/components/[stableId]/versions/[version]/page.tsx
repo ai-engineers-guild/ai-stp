@@ -16,7 +16,11 @@ import { SupportSummary, supportLabels } from "@/components/molecules/support-su
 import { readComponentGithubMetadata, readComponentVersion } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsComponentId } from "@/lib/brands";
-import { namedOperatingSystems, namedPassportHarnesses } from "@/lib/catalog-harnesses";
+import {
+  componentOperatingSystems,
+  namedPassportHarnesses,
+  type ComponentPassportCompatibility,
+} from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -60,6 +64,9 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   const tCli = await getTranslations("cli");
 
   const passport = response.passport;
+  const legacyPassport = passport as unknown as ComponentPassportCompatibility;
+  const harnesses = namedPassportHarnesses(legacyPassport);
+  const supportedOperatingSystems = componentOperatingSystems(legacyPassport);
   const sourceLinks = sourceLinksFor(passport.source, passport.facts).map((item) => ({
     ...item,
     label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
@@ -92,7 +99,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
       <div className="flex flex-wrap gap-2">
         <Badge>{response.trust.trust_lane}</Badge>
         <Badge variant="secondary">{passport.component_type}</Badge>
-        <Badge variant="outline">{passport.harness_id}</Badge>
+        <Badge variant="outline">{harnesses.join(", ")}</Badge>
       </div>
       <dl className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -105,21 +112,17 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
-          <dd>{namedPassportHarnesses(passport).join(", ")}</dd>
+          <dd>{harnesses.join(", ")}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
           <dd>
-            <OsBadgeList values={namedOperatingSystems(passport)} empty={t("noneListed")} />
+            <OsBadgeList values={supportedOperatingSystems} empty={t("noneListed")} />
           </dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("type")}</dt>
           <dd>{passport.component_type}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground text-sm">{t("projectionKind")}</dt>
-          <dd>{passport.projection_kind}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("license")}</dt>

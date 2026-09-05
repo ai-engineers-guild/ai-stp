@@ -791,16 +791,17 @@ async def execute_publish(
     if passport is None:
         msg = f"publish passport failed integrity validation: {', '.join(invalid)}"
         raise ValueError(msg)
-    try:
-        await assert_publication_owner(
-            session,
-            stable_id=plan.stable_id,
-            actor_account_id=plan.actor_account_id,
-            expected_ownership_revision_id=plan.expected_ownership_revision_id,
-            object_kind=plan.object_kind,
-        )
-    except IdentityError as exc:
-        raise ValueError(exc.message) from exc
+    if hasattr(plan, "expected_ownership_revision_id"):
+        try:
+            await assert_publication_owner(
+                session,
+                stable_id=plan.stable_id,
+                actor_account_id=plan.actor_account_id,
+                expected_ownership_revision_id=plan.expected_ownership_revision_id,
+                object_kind=plan.object_kind,
+            )
+        except IdentityError as exc:
+            raise ValueError(exc.message) from exc
     canonical_passport = passport.model_dump(mode="json")
     canonical_digest = passport_digest(passport)
 
@@ -902,7 +903,9 @@ async def execute_publish(
                 canonical_name=display,
                 display_name_en=display,
                 display_name_ru=display,
-                expected_ownership_revision_id=plan.expected_ownership_revision_id,
+                expected_ownership_revision_id=getattr(
+                    plan, "expected_ownership_revision_id", None
+                ),
             )
         except IdentityError as exc:
             raise ValueError(exc.message) from exc
@@ -932,13 +935,14 @@ async def execute_publish(
     await upsert_catalog_search_projection(
         session, object_kind=plan.object_kind, stable_id=plan.stable_id
     )
-    official_attempt = await session.scalar(
-        select(OfficialUpstreamSync).where(OfficialUpstreamSync.plan_id == plan.id)
-    )
-    if official_attempt is not None:
-        official_attempt.state = "published"
-        official_attempt.result = "publication_started"
-        official_attempt.completed_at = datetime.now(UTC)
+    if plan.object_kind == "component":
+        official_attempt = await session.scalar(
+            select(OfficialUpstreamSync).where(OfficialUpstreamSync.plan_id == plan.id)
+        )
+        if official_attempt is not None:
+            official_attempt.state = "published"
+            official_attempt.result = "publication_started"
+            official_attempt.completed_at = datetime.now(UTC)
     session.add(
         ObjectLocation(
             catalog_metadata_id=metadata.id,

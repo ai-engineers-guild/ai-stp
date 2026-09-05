@@ -194,7 +194,10 @@ async def record_queue_outcome(session: AsyncSession, job: Job) -> None:
         if isinstance(source_id, str):
             attempt = await session.scalar(
                 select(OfficialUpstreamSync)
-                .where(OfficialUpstreamSync.source_id == source_id)
+                .where(
+                    OfficialUpstreamSync.source_id == source_id,
+                    OfficialUpstreamSync.job_id == job.id,
+                )
                 .order_by(OfficialUpstreamSync.id.desc())
             )
     if attempt is None or attempt.state in {

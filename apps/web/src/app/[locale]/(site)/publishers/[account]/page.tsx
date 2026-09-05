@@ -63,6 +63,7 @@ export default async function PublisherPage({ params }: PageProps) {
   const t = await getTranslations("publisher");
   const tc = await getTranslations("common");
   const tCatalog = await getTranslations("catalog");
+  const tContact = await getTranslations("contact");
   const tAccount = await getTranslations("account");
   const tCli = await getTranslations("cli");
   const session = await readSession();
@@ -166,7 +167,7 @@ export default async function PublisherPage({ params }: PageProps) {
               <Link
                 href={`/reports?topic=author_complaint&author=${encodeURIComponent(profile.account_id)}`}
               >
-                {tCatalog("reportAuthorType")}
+                {tContact("reportAuthorType")}
               </Link>
             </Button>
           </div>

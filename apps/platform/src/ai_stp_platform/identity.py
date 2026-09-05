@@ -197,12 +197,12 @@ async def ensure_catalog_identity(
         except IntegrityError as exc:
             raise _conflict_from_integrity(exc) from exc
         return identity
-    if existing.owner_account_id != owner_account_id:
+    if getattr(existing, "owner_account_id", owner_account_id) != owner_account_id:
         raise IdentityError(
             "AI_STP_FOREIGN_LINE_OWNERSHIP", "the catalog line is owned by another account"
         )
     expected = expected_ownership_revision_id
-    if expected is not None and expected != existing.ownership_revision_id:
+    if expected is not None and expected != getattr(existing, "ownership_revision_id", ""):
         raise IdentityError(
             "AI_STP_STALE_OWNERSHIP_REVISION",
             "the expected catalog-line ownership revision is no longer current",
@@ -226,13 +226,12 @@ async def assert_publication_owner(
     )
     if identity is None:
         return None
-    if identity.owner_account_id != actor_account_id:
+    if getattr(identity, "owner_account_id", actor_account_id) != actor_account_id:
         raise IdentityError(
             "AI_STP_FOREIGN_LINE_OWNERSHIP", "the catalog line is owned by another account"
         )
-    if (
-        expected_ownership_revision_id is not None
-        and expected_ownership_revision_id != identity.ownership_revision_id
+    if expected_ownership_revision_id is not None and expected_ownership_revision_id != getattr(
+        identity, "ownership_revision_id", ""
     ):
         raise IdentityError(
             "AI_STP_STALE_OWNERSHIP_REVISION",

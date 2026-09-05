@@ -14,6 +14,8 @@
         "created_at": "2026-08-05T00:00:00.000Z",
         "show_profile_publicly": true,
         "allow_publisher_listing": true,
+        "handle": "fixture-user",
+        "display_name": "Fixture User",
         "identities": [
           {
             "provider": "github",
@@ -43,6 +45,40 @@
         "created_at": "2026-08-05T00:00:00.000Z",
         "show_profile_publicly": false,
         "allow_publisher_listing": false,
+        "handle": "fixture-user",
+        "display_name": "Fixture User",
+        "identities": [
+          {
+            "provider": "github",
+            "linked_at": "2026-08-05T00:00:00.000Z",
+            "avatar_url": null,
+            "display_name": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "updateAccountIdentity.changed",
+      "operation_id": "updateAccountIdentity",
+      "kind": "positive",
+      "why": "Changing the public handle and display name returns the complete updated account profile.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "handle": "fixture-user",
+          "display_name": "Fixture User",
+          "idempotency_key": "identitykey0000001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "created_at": "2026-08-05T00:00:00.000Z",
+        "show_profile_publicly": true,
+        "allow_publisher_listing": true,
+        "handle": "fixture-user",
+        "display_name": "Fixture User",
         "identities": [
           {
             "provider": "github",
@@ -294,6 +330,8 @@
         "created_at": "2026-08-05T00:00:00.000Z",
         "show_profile_publicly": true,
         "allow_publisher_listing": true,
+        "handle": "fixture-user",
+        "display_name": "Fixture User",
         "identities": [
           {
             "provider": "github",

@@ -124,7 +124,7 @@ export type ComponentPublicExtras = {
 };
 
 export type ComponentPassportFactsInput = {
-  projection_kind: string;
+  projection_kind?: string;
   license: { spdx_id: string };
   requires_credentials: boolean;
   requires_authorization: string;

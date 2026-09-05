@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any, cast
@@ -223,6 +224,24 @@ def _projection(
             FAILED_VALIDATION, "official source harness is unsupported"
         ) from error
     ordered = sorted(snapshot.files.items())
+    if not ordered and source.kind == "package":
+        # Registry packages such as PyPI wheels are intentionally not unpacked
+        # into a native tree. Publish one deterministic descriptor; the sealed
+        # passport retains the exact registry coordinate used for installation.
+        descriptor = json.dumps(
+            {
+                "ecosystem": source.ecosystem,
+                "name": source.package_name,
+                "version": source.package_version,
+                "filename": source.package_filename,
+                "platform": source.package_platform,
+                "coordinate": snapshot.canonical_coordinate,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        ordered = [("package.json", descriptor)]
     if not ordered or (projection_shape == "file" and len(ordered) != 1):
         raise OfficialUpstreamError(FAILED_VALIDATION, "official source projection shape differs")
     source_prefix = (source.component_subpath or "").strip("/")
@@ -382,10 +401,13 @@ async def _start_publication(
             FAILED_VALIDATION, f"passport invalid for publication: {', '.join(invalid)}"
         )
     sealed = model.model_dump(mode="json")
-    plan_key = f"official-upstream:{source.id}:{component_digest}"
+    # publication_plan.idempotency_key is varchar(128). Keep the stable source
+    # prefix and enough digest entropy for retries without allowing long
+    # manifest source ids to overflow the database column.
+    digest_key = component_digest[:39]
+    plan_key = f"official-upstream:{source.id}:{digest_key}"
     used_keys = {plan.idempotency_key for plan in existing_plans}
     if plan_key in used_keys:
-        # publication_plan.idempotency_key is varchar(128); ISO millis overflows.
         retry = now.strftime("%Y%m%dT%H%M%S")
         plan_key = f"{plan_key}:{retry}"
         if plan_key in used_keys:

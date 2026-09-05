@@ -146,15 +146,24 @@ def preview(parameters: Mapping[str, object]) -> Answer[CliReportPreview]:
             name_ru=_required(parameters, "name-ru"),
             name_en=_required(parameters, "name-en"),
         )
+    object_kind = None
+    stable_id = None
+    version = None
+    content_digest = None
     object_topics = {"object_report", "component_complaint", "ownership_transfer"}
+    if topic == "object_report":
+        object_kind = _required(parameters, "kind")
+        stable_id = _required(parameters, "id")
+        version = _required(parameters, "version")
+        content_digest = _required(parameters, "content-digest")
+    elif topic in object_topics:
+        stable_id = _required(parameters, "id")
     request = ReportCaseCreateRequest(
         topic=topic,  # pyright: ignore[reportArgumentType]
-        object_kind=(_required(parameters, "kind") if topic == "object_report" else None),  # pyright: ignore[reportArgumentType]
-        stable_id=_required(parameters, "id") if topic in object_topics else None,
-        version=_required(parameters, "version") if topic == "object_report" else None,
-        content_digest=(
-            _required(parameters, "content-digest") if topic == "object_report" else None
-        ),
+        object_kind=object_kind,  # pyright: ignore[reportArgumentType]
+        stable_id=stable_id,
+        version=version,
+        content_digest=content_digest,
         service=service,
         country=country,
         subject=_optional(parameters, "subject"),

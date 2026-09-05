@@ -304,7 +304,9 @@ def matches(
         ).casefold()
         document_terms = set(re.findall(r"\w+", haystack))
         query_terms = set(re.findall(r"\w+", expression.value.casefold()))
-        return bool(query_terms) and query_terms <= document_terms
+        return bool(query_terms) and all(
+            any(query in term for term in document_terms) for query in query_terms
+        )
     if isinstance(expression, Unary):
         return not matches(expression.operand, passport, author=author, verified=verified)
     if isinstance(expression, Binary):
