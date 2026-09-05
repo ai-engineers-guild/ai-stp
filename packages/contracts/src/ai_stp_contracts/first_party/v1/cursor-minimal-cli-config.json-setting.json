@@ -4,11 +4,5 @@
   "autoAcceptWebSearch": true,
   "sandbox": {
     "mode": "disabled"
-  },
-  "permissions": {
-    "deny": [
-      "Read(.env*)",
-      "Write(**/*.key)"
-    ]
   }
 }

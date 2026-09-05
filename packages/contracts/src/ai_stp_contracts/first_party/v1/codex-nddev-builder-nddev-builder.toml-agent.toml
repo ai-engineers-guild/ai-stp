@@ -164,6 +164,170 @@ Generated from the same rows as the section above, for every harness in this est
 - **Name it once.** Where the product derives identity from the directory   or the filename, the frontmatter `name` is either redundant or a second   place to be wrong. Keep them equal.
 - **Read it back.** After an install, look at the file where the product   reads it, not at the step that put it there.
 
+# The Commands This Program Answers
+
+Use this reference when changing how a target is installed, observed, restored
+or removed.
+
+Ask the binary rather than this file if the two ever disagree:
+`codex-setup-system` with no arguments prints every command it has.
+
+```text
+list                                          every setup this build carries
+status    --target <dir>                      what a target holds, changing nothing
+install   <setup> --target <dir>              write a setup into a target
+select    <setup> --target <dir>              reach a different setup's complete state
+reinstall --target <dir>                      write the applied setup again
+diff      --target <dir>                      what drifted since it was applied
+backups   --target <dir>                      the slots, newest first
+restore   [--backup <ref>] --target <dir>     the last backup, or a named one
+hold      --backup <ref> [--reason <why>] --target <dir>
+release   --backup <ref> --target <dir>
+remove    --target <dir>                      the files this program recorded writing
+software  --prefix <dir>                      which product versions a prefix holds
+rollback  --to <version> --prefix <dir>       point the command at one already there
+```
+
+There is no `--json` on these. JSON is the **provider** surface --
+`provider-info`, `status --target <dir> --json`, `validate-bundle`,
+`plan-operation`, `apply-operation`, `recover-operation` -- and a consumer calls
+those.
+
+## Invariants worth knowing before changing anything
+
+- **The target is named, never guessed.** Absolute, existing, a directory, and
+  its final component not a symbolic link. Nothing is inferred from `$HOME`, the
+  working directory, or the documented configuration home.
+- **A backup is captured before every change**, so `restore` always has
+  somewhere to go. The pool is bounded; a held slot is not reclaimed and is not
+  counted against the bound.
+- **There is one write path.** A human command builds a real plan and calls the
+  same `perform` the wire surface does, so a human command cannot bypass a
+  guarantee the provider owes its consumer.
+- **`remove` withdraws the files this provider recorded writing.** Unrecorded
+  neighbours stay. `reset` is the separately named whole-namespace empty;
+  default install, replace and remove do not take namespaces whole.
+
+## The software half
+
+`software_install`, `software_update` and `software_remove` are the product's
+own program, not its configuration. They live under `--prefix`, never under
+`--target`: one program can serve several targets, and a program inside a target
+would claim a path this build promises not to touch.
+
+Each build pins two versions -- the current one and the one before it -- so an
+update has somewhere to come from and a rollback somewhere to return to. A bump
+moves the current pin into the second slot rather than adding a second choice.
+
+# The ai-stp CLI lifecycle
+
+Native install, select and restore of this provider are the lifecycle section
+of this toolkit. This page is the consumer path: author a component, compose a
+setup, install it, read it back, release an immutable version, and request
+publication.
+
+Resolve every flag from `ai-stp help --agent --json`. Do not invent options.
+Start with `ai-stp doctor --json`.
+
+## Exercise from a blank authoring directory
+
+1. **Scaffold** a real skill with `ai-stp component scaffold plan` then
+   `ai-stp component scaffold apply`. Replace every draft marker before
+   compose or release.
+2. **Passport.** `ai-stp component passport validate` and
+   `ai-stp component skill validate` on the package directory (the directory
+   with `SKILL.md` at its root), not the whole tree.
+3. **Harness semantics.** This harness's surfaces table says where the kind
+   lands. Do not invent a path the declaration does not carry. Adaptations are
+   those native files, not a second copy of the passport.
+4. **Compose a setup.** `ai-stp select propose` then `ai-stp select confirm`,
+   or `ai-stp setup compose plan`. Confirm only the proposal just returned.
+5. **Install and read back.** `ai-stp install plan`, then `ai-stp install apply`
+   with that plan's digest, then `ai-stp target status` with the same provider.
+   Trust `pending_authorization`, not the apply exit code.
+6. **Immutable release.** `ai-stp component version release`.
+7. **Requested publication.** `ai-stp component publish` or
+   `ai-stp setup publish plan`. Publicity is a separate user decision.
+
+## What this page does not name
+
+- Private authoring gates, repository coordinates, or unpublished tools.
+- Flags other than `ai-stp doctor --json` and `ai-stp help --agent --json`.
+
+# Before Handing Off
+
+Run the checks this tree's CI runs, in order, and report what each one said
+rather than that it passed.
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+If a command here is not present, say so rather than working around it.
+
+## A lifecycle smoke test against a disposable target
+
+Never against a live configuration home. A temporary directory outside the
+repository:
+
+```bash
+target="$(mktemp -d)/codex-target"
+mkdir -p "$target"
+codex-setup-system install baseline    --target "$target"
+codex-setup-system status              --target "$target"
+codex-setup-system select full-auto    --target "$target"
+codex-setup-system diff                --target "$target"
+codex-setup-system backups             --target "$target"
+codex-setup-system restore             --target "$target"
+codex-setup-system remove              --target "$target"
+```
+
+The same sequence runs as a test in every published tree, on ubuntu, macos and
+windows, against the binary that tree builds -- so a change that breaks it fails
+before anyone types it.
+
+## Conformance against the consumer
+
+The wire surface is checked by the consumer's own runner, not by anything here.
+Ask `codex-setup-system provider-info` for `harness_id`; that is the value
+`--harness` takes, and it is not always the directory name.
+
+```bash
+ai-stp provider conformance --harness <harness_id> \
+  --executable target/release/codex-setup-system \
+  --target <empty-dir> --protocol-version 3 --json
+```
+
+Report the verdict with the consumer version that gave it. An empty target and a
+populated one are different questions. A defect that only appears against a real
+home is the kind this project has already shipped.
+
+## The rule that does not move
+
+Never weaken an invariant, raise a threshold, silence a check or delete a test
+to buy green.
+
+Every new guard is observed **failing on the defect it describes** before it is
+kept -- and once per branch, not once per guard. A guard whose test has never
+been red proves nothing, and this estate has twice found a new guard's first
+test passing under a mutation because every case it named exercised the same
+branch.
+
+## Classifying a finding is not silencing it
+
+A false positive dismissed with its reasoning recorded is correct. Rewriting
+code until a checker goes quiet is not. The difference is whether the change
+stands on its own merits: if the code was worse for a reason that has nothing to
+do with the checker, fix it; if it was not, dismiss the finding and say why.
+
+## What this toolkit does not do
+
+- It does not push, tag, or release.
+- It does not write a live configuration home.
+- It does not install software or start a product.
+
 # Writing this harness's configuration
 
 ## The file
@@ -284,6 +448,12 @@ The documented user-level skills directory is $HOME/.agents/skills. Relative to 
 **With a control, because a positive without one says nothing.** A second skill was placed at `$HOME/.agents-not-a-root/skills/` -- a sibling root no page names -- and it is absent from the same listing. So the product is reading the documented root rather than scanning `$HOME` broadly, which is the reading a bare positive could not distinguish.
 
 
+Considered under this scope and not owned:
+
+- **`agents`** — No page names a user-level agents directory under the .agents convention. learn.chatgpt.com/docs/build-skills documents skills at $HOME/.agents/skills and says nothing about siblings; a declared kind is a promise of a rollback, and this one would promise a rollback of a directory nothing reads.
+- **`AGENTS.md`** — Instructions at user level are ~/.codex/AGENTS.md, which the global scope already owns. A second copy under the convention root would be a second statement of one fact, and nothing documents Codex reading it there.
+
+
 **A setup cannot carry one of these.** A setup is installed into one
 target and its payload is relative to that target, so a component
 for this scope is installed by the consumer against that root -- not
@@ -316,6 +486,11 @@ Measured by running the digest-verified 0.153.0 binary with `debug prompt-input`
 ### `.codex/hooks.json`, as measured
 
 The project hook manifest retains its .codex parent under the repository root. Trust and handler approval remain product concerns; this provider owns exact bytes and restores them, but does not claim that installing a file grants execution trust.
+
+
+Considered under this scope and not owned:
+
+- **`AGENTS.override.md`** — This is an intentional project-local override. A setup owning it could silently suppress the shared AGENTS.md it installs.
 
 
 **A setup cannot carry one of these.** A setup is installed into one
