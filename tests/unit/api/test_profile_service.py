@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 """Public profile projection compatibility tests."""
 
 from ai_stp_api.slices.profile.service import _fields_from_revision
