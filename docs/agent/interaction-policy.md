@@ -11,15 +11,18 @@ is reached; there is no need to ask again before each one. A request to prepare,
 install, update, or repair a setup already authorizes inspection, planning,
 application, verification, and recovery within that setup.
 
-A separate decision is required when something outside the task arises:
+A separate decision is required only for the remaining stops in
+`skills/canonical/ai-stp/references/decisions.md`:
 
-- a required passport fact is unknown and the alternatives materially change the result;
-- an unresolved conflict cannot be resolved mechanically;
-- consent to the `experimental` lane or selection of an object from an unverified author;
-- a public version, major version line, visibility change, access rights, or invitations;
-- linking credentials or an account, or elevating privileges;
-- complete cleanup or deletion of a target or backup with no recovery path;
-- an external Git or deployment action not requested by the task.
+- visibility or access of an existing object;
+- linking **someone else's** account or new third-party credentials;
+- elevating system privileges;
+- deleting data, a target, or a backup with no recovery path.
+
+Uncertainty is more inspection or a reversible experiment, not a permission
+question. Unverified and `experimental` objects may be used under task
+authority and stay labeled. Publishing, committing, merging, and deploying
+verified work that the task already requested are inside that authority.
 
 Checking the digest, preconditions, idempotency, and plan match is always
 required and is not a question for the user: it is machine confirmation that

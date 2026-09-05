@@ -170,7 +170,6 @@ def test_cli_plan_and_apply_resolve_a_local_component(tmp_path: Path) -> None:
             "id": preview.setup_id,
             "created-at": preview.created_at,
             "expected-plan-digest": preview.plan_digest,
-            "confirm": True,
         }
     ).payload
     assert result.setup_id == preview.setup_id
@@ -213,7 +212,6 @@ def test_export_writes_a_review_tree_and_not_a_harness_tree(tmp_path: Path) -> N
             "id": preview.setup_id,
             "created-at": preview.created_at,
             "expected-plan-digest": preview.plan_digest,
-            "confirm": True,
         }
     ).payload
     destination = tmp_path / "exported-setup"

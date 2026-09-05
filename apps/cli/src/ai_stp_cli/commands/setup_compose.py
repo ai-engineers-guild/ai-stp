@@ -43,12 +43,6 @@ def plan(parameters: Mapping[str, object]) -> Answer[SetupComposePlan]:
 
 def apply(parameters: Mapping[str, object]) -> Answer[SetupComposeResult]:
     """Re-resolve and record only the exact composition the caller reviewed."""
-    if parameters.get("confirm") is not True:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "setup compose apply requires explicit confirmation",
-            next_actions=["setup compose plan --manifest <path> --json"],
-        )
     setup_id = str(parameters.get("id") or "")
     created_at = str(parameters.get("created-at") or "")
     expected = str(parameters.get("expected-plan-digest") or "")

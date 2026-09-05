@@ -2608,7 +2608,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-setup-compose-result",
         handler="setup_compose:apply",
         mutability="apply",
-        confirmation="explicit_flag",
+        confirmation="plan_digest",
         parameters=(
             option("manifest", "string", "JSON composition manifest to resolve.", required=True),
             option("root", "string", "Root that bounds path: sources."),
@@ -2616,9 +2616,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("created-at", "string", "Exact timestamp returned by plan.", required=True),
             option(
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
-            ),
-            option(
-                "confirm", "boolean", "Confirm recording this exact composition.", required=True
             ),
         ),
         next_actions=("setup export", "setup publish plan", "select session"),
@@ -2745,7 +2742,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-setup-update-result",
         handler="setup_update:apply",
         mutability="apply",
-        confirmation="explicit_flag",
+        confirmation="plan_digest",
         parameters=(
             option("id", "string", "Stable identifier of the setup being updated.", required=True),
             option("version", "string", "Exact currently selected X.Y version.", required=True),
@@ -2769,12 +2766,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest",
                 "string",
                 "Exact digest returned by setup update plan.",
-                required=True,
-            ),
-            option(
-                "confirm",
-                "boolean",
-                "Confirm creating this exact new setup version.",
                 required=True,
             ),
         ),

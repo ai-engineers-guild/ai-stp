@@ -111,15 +111,8 @@ def apply(
     expected_plan_digest: str,
     device_id: str,
     at: str,
-    confirm: bool,
 ) -> SetupUpdateResult:
-    """Create one new immutable setup version and pin it only after confirmation."""
-    if confirm is not True:
-        raise CliFailure(
-            "AI_STP_USER_DECISION_REQUIRED",
-            "setup update apply requires explicit confirmation",
-            next_actions=[_UPDATE_PLAN_ACTION],
-        )
+    """Create one new immutable setup version bound to the planned digest."""
     _require_component_id(component_id)
     frozen, from_version, selected = _freeze_replacement(
         connection,
