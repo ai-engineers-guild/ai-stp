@@ -33,6 +33,17 @@ def plan(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
     project = _required(parameters, "project")
     provider = str(parameters.get("provider") or "")
     targets = _scope_targets(parameters)
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        for _scope, target in targets:
+            held = multi_root.overlapping_reservation(
+                connection, multi_root.resource_prefix_digests(target)
+            )
+            if held is not None:
+                raise CliFailure(
+                    "AI_STP_CONFLICT",
+                    "scope-target values name overlapping physical roots",
+                    details={"transaction_id": held},
+                )
     children: list[multi_root.Child] = []
     planned_ids: list[str] = []
     try:
@@ -49,15 +60,15 @@ def plan(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
             _copy_trust(parameters, child_parameters)
             view = install.plan(child_parameters).payload
             planned_ids.append(view.operation_id)
-            target_token = _physical_target_id(target)
             children.append(
                 multi_root.Child(
                     cast(multi_root.Scope, scope),
                     view.operation_id,
-                    target_token,
+                    multi_root.resource_identity(target),
                     view.plan_digest,
                     view.state,
                     view.backup_ref,
+                    resource_prefixes=multi_root.resource_prefix_digests(target),
                 )
             )
     except Exception:
@@ -362,14 +373,19 @@ def _scope_targets(parameters: Mapping[str, object]) -> tuple[tuple[str, Path], 
             not separator
             or scope not in multi_root.SCOPE_ORDER
             or not path.is_absolute()
-            or path.is_symlink()
+            or not path.exists()
             or not path.is_dir()
         ):
             raise CliFailure(
                 "AI_STP_VALIDATION_ERROR",
                 "scope-target must be a supported scope and existing absolute directory",
             )
-        resolved = path.resolve()
+        resolved = multi_root.canonical_resource(path)
+        if not resolved.is_dir():
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "scope-target must be a supported scope and existing absolute directory",
+            )
         for held_scope, held_path in found:
             if _paths_overlap(held_path, resolved):
                 raise CliFailure(
@@ -390,16 +406,8 @@ def _scope_targets(parameters: Mapping[str, object]) -> tuple[tuple[str, Path], 
     )
 
 
-def _physical_target_id(target: Path) -> str:
-    """Identify a reservation by the physical root, not by the scope label."""
-    return digest_canonical(
-        multi_root.TRANSACTION_DOMAIN,
-        {"resource": str(target.resolve())},
-    )
-
-
 def _paths_overlap(left: Path, right: Path) -> bool:
-    first, second = left.resolve(), right.resolve()
+    first, second = multi_root.canonical_resource(left), multi_root.canonical_resource(right)
     return first == second or first in second.parents or second in first.parents
 
 

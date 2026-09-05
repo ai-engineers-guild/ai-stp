@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import multiprocessing
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import closing
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -657,3 +659,271 @@ def test_compensation_reuses_the_bound_undo_after_an_interrupted_acknowledgment(
         multi_root.get(registry, planned.transaction_id).children[0].undo_operation_id
         == plan_ids[0]
     )
+
+
+def _physical_child(
+    registry: sqlite3.Connection,
+    suffix: str,
+    scope: multi_root.Scope,
+    path: Path,
+) -> multi_root.Child:
+    child = _child(registry, suffix, scope)
+    prefixes = multi_root.resource_prefix_digests(path)
+    return replace(child, target_id=prefixes[-1], resource_prefixes=prefixes)
+
+
+def _stub_scope_plans(
+    registry: sqlite3.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+    suffixes: Mapping[str, str],
+) -> list[str]:
+    calls: list[str] = []
+
+    def child_plan(parameters: dict[str, object]) -> Answer[InstallationView]:
+        scope = str(parameters["scope"])
+        calls.append(scope)
+        child = _child(registry, suffixes[scope], cast(multi_root.Scope, scope))
+        held = installation.plan(registry, child.operation_id)
+        return Answer(
+            InstallationView(
+                operation_id=held.operation_id,
+                action="install",
+                state="planned",
+                plan_digest=held.digest,
+                target_id=held.target_id,
+                expected_target_digest=held.expected_target_digest,
+                expires_at=held.expires_at,
+            )
+        )
+
+    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.plan", child_plan)
+    return calls
+
+
+def _propose_overlapping_in_subprocess(
+    registry_path: str,
+    setup_stable_id: str,
+    setup_version: str,
+    harness_id: str,
+    idempotency_key: str,
+    at: str,
+    child_rows: tuple[tuple[str, str, str, str, tuple[str, ...]], ...],
+    result_path: str,
+) -> None:
+    from ai_stp_cli.errors import CliFailure
+    from ai_stp_cli.local.database import open_registry as open_worker_registry
+
+    children = tuple(
+        multi_root.Child(
+            scope=scope,  # type: ignore[arg-type]
+            operation_id=operation_id,
+            target_id=target_id,
+            plan_digest=plan_digest,
+            resource_prefixes=prefixes,
+        )
+        for scope, operation_id, target_id, plan_digest, prefixes in child_rows
+    )
+    try:
+        with closing(open_worker_registry(Path(registry_path))) as connection:
+            multi_root.propose(
+                connection,
+                setup_stable_id=setup_stable_id,
+                setup_version=setup_version,
+                harness_id=harness_id,
+                children=children,
+                idempotency_key=idempotency_key,
+                at=at,
+            )
+        Path(result_path).write_text("accepted", encoding="utf-8")
+    except CliFailure as error:
+        Path(result_path).write_text(f"{error.code}", encoding="utf-8")
+
+
+def test_plan_refuses_two_scopes_on_the_same_physical_root(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    calls = _stub_scope_plans(registry, monkeypatch, {"global": "A", "project": "C"})
+    with pytest.raises(CliFailure, match="overlapping physical roots") as raised:
+        install_transaction.plan(
+            {
+                "setup": "setup_01J0000000000000000000000A@1.0",
+                "project": "project_01J0000000000000000000000A",
+                "provider": "/provider",
+                "scope-target": [f"global={shared}", f"project={shared}"],
+                "unverified-provider": True,
+            }
+        )
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert calls == []
+
+
+def test_plan_refuses_a_symlink_alias_of_another_named_root(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    alias = tmp_path / "alias"
+    alias.symlink_to(real)
+    calls = _stub_scope_plans(registry, monkeypatch, {"global": "A", "project": "C"})
+    with pytest.raises(CliFailure, match="overlapping physical roots") as raised:
+        install_transaction.plan(
+            {
+                "setup": "setup_01J0000000000000000000000A@1.0",
+                "project": "project_01J0000000000000000000000A",
+                "provider": "/provider",
+                "scope-target": [f"global={real}", f"project={alias}"],
+                "unverified-provider": True,
+            }
+        )
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert calls == []
+
+
+def test_plan_refuses_an_ancestor_of_another_named_root(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parent = tmp_path / "parent"
+    nested = parent / "nested"
+    nested.mkdir(parents=True)
+    calls = _stub_scope_plans(registry, monkeypatch, {"global": "A", "project": "C"})
+    with pytest.raises(CliFailure, match="overlapping physical roots") as raised:
+        install_transaction.plan(
+            {
+                "setup": "setup_01J0000000000000000000000A@1.0",
+                "project": "project_01J0000000000000000000000A",
+                "provider": "/provider",
+                "scope-target": [f"global={parent}", f"project={nested}"],
+                "unverified-provider": True,
+            }
+        )
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert calls == []
+
+
+def test_plan_accepts_sibling_roots_that_only_share_a_name_prefix(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    foo = tmp_path / "foo"
+    foobar = tmp_path / "foobar"
+    foo.mkdir()
+    foobar.mkdir()
+    _stub_scope_plans(registry, monkeypatch, {"global": "A", "project": "C"})
+    planned = install_transaction.plan(
+        {
+            "setup": "setup_01J0000000000000000000000A@1.0",
+            "project": "project_01J0000000000000000000000A",
+            "provider": "/provider",
+            "scope-target": [f"global={foo}", f"project={foobar}"],
+            "unverified-provider": True,
+        }
+    ).payload
+    assert planned.state == "planned"
+    assert [child.scope for child in planned.children] == ["global", "project"]
+
+
+def test_a_second_transaction_refuses_a_descendant_of_an_active_reservation(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first_global = tmp_path / "held"
+    first_project = tmp_path / "other"
+    nested = first_global / "nested"
+    spare = tmp_path / "spare"
+    first_global.mkdir()
+    first_project.mkdir()
+    nested.mkdir()
+    spare.mkdir()
+    _stub_scope_plans(registry, monkeypatch, {"global": "A", "project": "C"})
+    held = install_transaction.plan(
+        {
+            "setup": "setup_01J0000000000000000000000A@1.0",
+            "project": "project_01J0000000000000000000000A",
+            "provider": "/provider",
+            "scope-target": [f"global={first_global}", f"project={first_project}"],
+            "unverified-provider": True,
+        }
+    ).payload
+    assert held.state == "planned"
+    later_calls = _stub_scope_plans(registry, monkeypatch, {"global": "D", "project": "E"})
+    with pytest.raises(CliFailure, match="overlapping physical roots") as raised:
+        install_transaction.plan(
+            {
+                "setup": "setup_01J0000000000000000000000A@1.0",
+                "project": "project_01J0000000000000000000000A",
+                "provider": "/provider",
+                "scope-target": [f"global={nested}", f"project={spare}"],
+                "unverified-provider": True,
+            }
+        )
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert later_calls == []
+
+
+def test_another_process_refuses_an_overlapping_physical_root(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+) -> None:
+    parent = tmp_path / "parent"
+    nested = parent / "nested"
+    other = tmp_path / "other"
+    spare = tmp_path / "spare"
+    parent.mkdir()
+    nested.mkdir()
+    other.mkdir()
+    spare.mkdir()
+    first = (
+        _physical_child(registry, "A", "global", parent),
+        _physical_child(registry, "C", "project", other),
+    )
+    multi_root.propose(
+        registry,
+        setup_stable_id="setup_01J0000000000000000000000A",
+        setup_version="1.0",
+        harness_id="claude-code",
+        children=first,
+        idempotency_key="held-physical",
+        at=AT,
+    )
+    challenger = (
+        _physical_child(registry, "D", "global", nested),
+        _physical_child(registry, "E", "project", spare),
+    )
+    result = tmp_path / "overlap-result.txt"
+    child_rows = tuple(
+        (
+            child.scope,
+            child.operation_id,
+            child.target_id,
+            child.plan_digest,
+            child.resource_prefixes,
+        )
+        for child in challenger
+    )
+    process = multiprocessing.get_context("spawn").Process(
+        target=_propose_overlapping_in_subprocess,
+        args=(
+            str(configured_path()),
+            "setup_01J0000000000000000000000A",
+            "1.0",
+            "claude-code",
+            "challenger-physical",
+            LATER,
+            child_rows,
+            str(result),
+        ),
+    )
+    process.start()
+    process.join(timeout=15)
+    assert process.exitcode == 0
+    assert result.read_text(encoding="utf-8") == "AI_STP_CONFLICT"

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final, Literal
 
 from ai_stp_cli.errors import CliFailure
@@ -38,6 +40,7 @@ class Child:
     state: str = installation.STATE_PLANNED
     backup_ref: str | None = None
     undo_operation_id: str | None = None
+    resource_prefixes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -133,6 +136,24 @@ def propose(
                     "a target already belongs to an active multi-root transaction",
                     details={"target_id": child.target_id},
                 )
+            held_transaction = overlapping_reservation(connection, child.resource_prefixes)
+            if held_transaction is not None:
+                raise CliFailure(
+                    "AI_STP_CONFLICT",
+                    "a target already belongs to an active multi-root transaction",
+                    details={
+                        "target_id": child.target_id,
+                        "transaction_id": held_transaction,
+                    },
+                )
+        for index, child in enumerate(ordered):
+            for other in ordered[index + 1 :]:
+                if prefixes_overlap(child.resource_prefixes, other.resource_prefixes):
+                    raise CliFailure(
+                        "AI_STP_CONFLICT",
+                        "a multi-root transaction contains overlapping physical roots",
+                        details={"target_id": child.target_id, "other": other.target_id},
+                    )
         transaction_id = new_id("operation")
         planned = _candidate(
             transaction_id,
@@ -185,6 +206,7 @@ def propose(
                 "VALUES (?, ?)",
                 (child.target_id, transaction_id),
             )
+            _record_resource_prefixes(connection, transaction_id, child)
         _event(connection, transaction_id, "planned", "planned", "all child plans bound", at)
         return planned
 
@@ -230,10 +252,7 @@ def move(
         )
         _event(connection, transaction_id, held.state, state, result, at)
         if state in TERMINAL:
-            connection.execute(
-                "DELETE FROM installation_transaction_target WHERE transaction_id = ?",
-                (transaction_id,),
-            )
+            _release_reservations(connection, transaction_id)
         return get(connection, transaction_id)
 
 
@@ -356,10 +375,7 @@ def cancel(
             "WHERE transaction_id = ?",
             ("cancelled", at, transaction_id),
         )
-        connection.execute(
-            "DELETE FROM installation_transaction_target WHERE transaction_id = ?",
-            (transaction_id,),
-        )
+        _release_reservations(connection, transaction_id)
         _event(connection, transaction_id, held.state, "cancelled", reason, at)
         return get(connection, transaction_id)
 
@@ -477,3 +493,92 @@ def _event(
 
 def _invalid(message: str) -> CliFailure:
     return CliFailure("AI_STP_PRECONDITION_FAILED", message)
+
+
+def canonical_resource(path: Path) -> Path:
+    """The filesystem object `path` names, independent of how it was spelled."""
+    text = str(path.expanduser().resolve())
+    if os.name == "nt":
+        text = os.path.normcase(text)
+    return Path(text)
+
+
+def resource_identity(path: Path) -> str:
+    """Reservation token for one physical root. Scope is not part of identity."""
+    return digest_canonical(TRANSACTION_DOMAIN, {"resource": str(canonical_resource(path))})
+
+
+def resource_prefix_digests(path: Path) -> tuple[str, ...]:
+    """Digests of every ancestor of `path`, ending at the path itself.
+
+    Stored instead of the path string so overlap can be detected without
+    putting absolute locations in the registry (REQ-5808).
+    """
+    canonical = canonical_resource(path)
+    prefixes: list[str] = []
+    accumulated = Path(canonical.anchor) if canonical.anchor else Path(canonical.parts[0])
+    prefixes.append(digest_canonical(TRANSACTION_DOMAIN, {"resource": str(accumulated)}))
+    for part in canonical.parts[1:]:
+        accumulated = accumulated / part
+        prefixes.append(digest_canonical(TRANSACTION_DOMAIN, {"resource": str(accumulated)}))
+    return tuple(prefixes)
+
+
+def prefixes_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
+    """True when two prefix chains name the same root or an ancestor/descendant."""
+    if not left or not right:
+        return False
+    return left[-1] in right or right[-1] in left
+
+
+def overlapping_reservation(
+    connection: sqlite3.Connection, prefixes: tuple[str, ...]
+) -> str | None:
+    """Return the active transaction that already holds an overlapping root."""
+    if not prefixes:
+        return None
+    exact = connection.execute(
+        "SELECT transaction_id FROM installation_transaction_resource "
+        "WHERE resource_digest = ? LIMIT 1",
+        (prefixes[-1],),
+    ).fetchone()
+    if exact is not None:
+        return str(exact["transaction_id"])
+    ancestors = prefixes[:-1]
+    if not ancestors:
+        return None
+    placeholders = ",".join("?" * len(ancestors))
+    held = connection.execute(
+        "SELECT transaction_id FROM installation_transaction_resource "
+        f"WHERE is_exact = 1 AND resource_digest IN ({placeholders}) LIMIT 1",
+        ancestors,
+    ).fetchone()
+    return None if held is None else str(held["transaction_id"])
+
+
+def _record_resource_prefixes(
+    connection: sqlite3.Connection, transaction_id: str, child: Child
+) -> None:
+    if not child.resource_prefixes:
+        return
+    last = len(child.resource_prefixes) - 1
+    for index, digest in enumerate(child.resource_prefixes):
+        connection.execute(
+            """
+            INSERT INTO installation_transaction_resource (
+                resource_digest, target_id, transaction_id, is_exact
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (digest, child.target_id, transaction_id, 1 if index == last else 0),
+        )
+
+
+def _release_reservations(connection: sqlite3.Connection, transaction_id: str) -> None:
+    connection.execute(
+        "DELETE FROM installation_transaction_resource WHERE transaction_id = ?",
+        (transaction_id,),
+    )
+    connection.execute(
+        "DELETE FROM installation_transaction_target WHERE transaction_id = ?",
+        (transaction_id,),
+    )
