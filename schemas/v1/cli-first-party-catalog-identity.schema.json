@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "FirstPartyCatalogMember": {
+      "additionalProperties": false,
+      "description": "One component identity a catalog projection may vendor without minting ids.",
+      "properties": {
+        "adaptation_id": {
+          "title": "Adaptation Id",
+          "type": "string"
+        },
+        "passport_digest": {
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest",
+        "adaptation_id"
+      ],
+      "title": "FirstPartyCatalogMember",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-first-party-catalog-identity",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Compact first-party catalog identity derived from corpus passports (A14).\n\nA provider local catalog historically recorded an id and a description.\nThis object is the identity set a compiled bundle already carries, so the\ntwo channels can agree without inventing identifiers at install time.",
+  "properties": {
+    "component_refs": {
+      "items": {
+        "$ref": "#/$defs/FirstPartyCatalogMember"
+      },
+      "title": "Component Refs",
+      "type": "array"
+    },
+    "harness_id": {
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "posture": {
+      "title": "Posture",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_id": {
+      "title": "Setup Id",
+      "type": "string"
+    },
+    "setup_passport_digest": {
+      "title": "Setup Passport Digest",
+      "type": "string"
+    },
+    "setup_version": {
+      "title": "Setup Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "harness_id",
+    "posture",
+    "setup_id",
+    "setup_version",
+    "setup_passport_digest",
+    "component_refs"
+  ],
+  "title": "FirstPartyCatalogIdentity",
+  "type": "object"
+}

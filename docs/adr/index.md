@@ -154,6 +154,7 @@ last_verified: "2026-08-03"
 | [ADR-0153-git-owned-official-registry-and-recoverable-sync.md](ADR-0153-git-owned-official-registry-and-recoverable-sync.md) | Decision to own the AI STP Official inventory in Git and reconcile it through a durable outbox, queue, ledger, and transfer fence. | 2026-09-04 |
 | [ADR-0154-standard-family-is-not-a-relabel.md](ADR-0154-standard-family-is-not-a-relabel.md) | Decision that the coordinated standard is a new identity, not a rename of HTTP v1, envelope schema_version, kit protocol v3, or generator generations. | 2026-09-05 |
 | [ADR-0155-cli-is-a-component-kind.md](ADR-0155-cli-is-a-component-kind.md) | Decision to add `cli` as a ninth component kind, distinct from a slash `command`. | 2026-09-05 |
+| [ADR-0156-first-party-catalog-identity.md](ADR-0156-first-party-catalog-identity.md) | Decision that first-party catalog identity is the corpus passport projection, not a weaker id-and-description record. | 2026-09-05 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->
