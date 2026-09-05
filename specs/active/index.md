@@ -9,7 +9,7 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: MVP product contract. | 2026-09-03 |
+| [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: MVP product contract. | 2026-09-05 |
 | [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Accounts, OAuth, devices, and access. | 2026-08-13 |
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Developer passport and public projection. | 2026-08-29 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Project index and passport. | 2026-08-03 |
