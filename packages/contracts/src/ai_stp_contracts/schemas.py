@@ -83,6 +83,7 @@ from ai_stp_contracts.federation import (
     FederatedSourceDescriptor,
     FederatedSourceSet,
 )
+from ai_stp_contracts.first_party import FirstPartyCatalogIdentity
 from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
@@ -497,6 +498,7 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-passport-view": PassportView,
     "cli-version-report": VersionReport,
     "cli-standard-inventory": StandardInventory,
+    "cli-first-party-catalog-identity": FirstPartyCatalogIdentity,
 }
 
 CONTRACT_MODELS: Final[dict[str, ExportedSchema]] = {**HTTP_MODELS, **CLI_MODELS}
