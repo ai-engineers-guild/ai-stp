@@ -1,9 +1,10 @@
 """Inventory of agent-facing authority prose, and the contradictions it forbids.
 
 `ADR-0150` / `ADR-0159` close the remaining human stops. Installed skills,
-AGENTS files, and agent docs must not demand a pause for in-task work
-(experimental composition, unknown engineering facts, a second confirm on a
-plan digest). This module names the surfaces and the forbidden phrases.
+AGENTS files, agent docs, and SPEC-011 must not demand a pause for in-task
+work (experimental composition, unverified install, Git promotion, deploy,
+unknown engineering facts, a second confirm on a plan digest). This module
+names the surfaces and the forbidden phrases.
 """
 
 from __future__ import annotations
@@ -55,6 +56,17 @@ CONTRADICTIONS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
         "public_version_as_stop",
         re.compile(r"a public version, major version line, visibility change", re.I),
     ),
+    (
+        "unverified_install_as_stop",
+        re.compile(
+            r"confirmation from.{0,160}install an unverified object",
+            re.I | re.S,
+        ),
+    ),
+    (
+        "git_or_deploy_as_stop",
+        re.compile(r"perform an external Git action, or deploy", re.I),
+    ),
 )
 
 IN_TASK_APPLY: Final[tuple[tuple[str, ...], ...]] = (
@@ -87,6 +99,7 @@ def inventory(root: Path = ROOT) -> tuple[Path, ...]:
         root / "docs" / "agent" / "interaction-policy.md",
         root / "docs" / "agent" / "integration-skill.md",
         root / "docs" / "agent" / "machine-help.md",
+        root / "specs" / "active" / "SPEC-011-cli-agent-skill.md",
     )
     globs = (
         "skills/canonical/ai-stp/**/*.md",
@@ -94,6 +107,7 @@ def inventory(root: Path = ROOT) -> tuple[Path, ...]:
         "apps/cli/src/ai_stp_cli/skills/**/*.md",
         "docs/agent/*.md",
         "packages/contracts/src/ai_stp_contracts/first_party/v1/*instruction*.md",
+        "specs/active/SPEC-011-*.md",
     )
     found: set[Path] = set()
     for path in required:

@@ -22,6 +22,7 @@ def test_the_inventory_covers_the_required_agent_surfaces() -> None:
         "docs/agent/interaction-policy.md",
         "docs/agent/integration-skill.md",
         "docs/agent/machine-help.md",
+        "specs/active/SPEC-011-cli-agent-skill.md",
     ):
         assert relative in held, relative
     assert any("first_party" in path and path.endswith(".md") for path in held)
@@ -34,6 +35,20 @@ def test_canonical_decisions_name_the_remaining_stops() -> None:
     )
     for phrase in authority_surfaces.REMAINING_STOPS:
         assert phrase in text, phrase
+
+
+def test_a_planted_unverified_install_stop_in_a_spec_is_detected(
+    tmp_path: Path,
+) -> None:
+    planted = tmp_path / "SPEC-011.md"
+    planted.write_text(
+        "does not remove confirmation from publication, release a major "
+        "version, install an unverified object, or deploy.\n",
+        encoding="utf-8",
+    )
+    findings = authority_surfaces.scan([planted], root=tmp_path)
+    kinds = {item.kind for item in findings}
+    assert "unverified_install_as_stop" in kinds, findings
 
 
 def test_a_planted_ask_the_owner_instruction_is_detected(tmp_path: Path) -> None:
