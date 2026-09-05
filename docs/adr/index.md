@@ -156,6 +156,7 @@ last_verified: "2026-08-03"
 | [ADR-0155-cli-is-a-component-kind.md](ADR-0155-cli-is-a-component-kind.md) | Decision to add `cli` as a ninth component kind, distinct from a slash `command`. | 2026-09-05 |
 | [ADR-0156-first-party-catalog-identity.md](ADR-0156-first-party-catalog-identity.md) | Decision that first-party catalog identity is the corpus passport projection, not a weaker id-and-description record. | 2026-09-05 |
 | [ADR-0157-explicit-path-inventory.md](ADR-0157-explicit-path-inventory.md) | Decision that an explicit path is a passport-first inventory and does not import global homes. | 2026-09-05 |
+| [ADR-0158-discovery-continuation.md](ADR-0158-discovery-continuation.md) | Decision that bounded component discovery reports completeness and a resumable cursor. | 2026-09-05 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

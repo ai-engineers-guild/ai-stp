@@ -612,6 +612,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "Project root to look inside. Does not scan global harness homes.",
             ),
+            option(
+                "cursor",
+                "string",
+                "Opaque continuation from an incomplete discover --root.",
+            ),
         ),
         next_actions=("component inventory", "component adopt"),
     ),
@@ -626,6 +631,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "Directory to inventory. Does not scan global harness homes.",
                 required=True,
+            ),
+            option(
+                "cursor",
+                "string",
+                "Opaque continuation from an incomplete inventory --root.",
             ),
         ),
         next_actions=("component discover", "component adopt"),

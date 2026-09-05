@@ -277,10 +277,20 @@ def discover(parameters: Mapping[str, object]) -> Answer[NativeComponents]:
     """
     given = parameters.get("root")
     project = Path(str(given)) if given is not None else None
-    report = components.discover_report(project=project)
+    token = parameters.get("cursor")
+    continuation = None if token is None else str(token)
+    if continuation is not None and project is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a discovery continuation requires the same --root",
+            next_actions=["component discover --root <path> --json"],
+        )
+    report = components.discover_report(project=project, continuation=continuation)
     return Answer(
         NativeComponents(
             project=None if project is None else str(project),
+            complete=report.complete,
+            continuation=report.continuation,
             components=[
                 NativeComponent(
                     component_type=item.component_type,  # pyright: ignore[reportArgumentType]
@@ -324,7 +334,13 @@ def discover(parameters: Mapping[str, object]) -> Answer[NativeComponents]:
 
 def inventory(parameters: Mapping[str, object]) -> Answer[PathInventory]:
     """Passport-first inventory of one explicit root. Changes nothing."""
-    return Answer(path_inventory.inventory_root(Path(str(parameters["root"]))))
+    token = parameters.get("cursor")
+    return Answer(
+        path_inventory.inventory_root(
+            Path(str(parameters["root"])),
+            cursor=None if token is None else str(token),
+        )
+    )
 
 
 def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:

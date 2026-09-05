@@ -362,6 +362,15 @@
           "repeatable": false,
           "summary": "Project root to look inside. Does not scan global harness homes.",
           "choices": []
+        },
+        {
+          "name": "cursor",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Opaque continuation from an incomplete discover --root.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -525,6 +534,15 @@
           "required": true,
           "repeatable": false,
           "summary": "Directory to inventory. Does not scan global harness homes.",
+          "choices": []
+        },
+        {
+          "name": "cursor",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Opaque continuation from an incomplete inventory --root.",
           "choices": []
         }
       ],

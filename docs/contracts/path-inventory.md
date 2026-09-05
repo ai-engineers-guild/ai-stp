@@ -7,8 +7,8 @@ last_verified: "2026-09-05"
 
 ## Boundary
 
-The requirements owner is `SPEC-005` REQ-534 and REQ-518. The decision is
-`ADR-0157`. Native harness layouts remain
+The requirements owner is `SPEC-005` REQ-534, REQ-535, and REQ-518. The
+decisions are `ADR-0157` and `ADR-0158`. Native harness layouts remain
 [native-component-discovery.md](native-component-discovery.md).
 
 `component inventory --root` observes one named directory and writes nothing.
@@ -40,5 +40,8 @@ this inventory never allocates one.
 
 ## Completeness
 
-`complete` is false when a directory bound fires. A resume cursor is not part
-of this contract.
+`complete` is false when a directory bound fires or a directory cannot be
+listed. `continuation` is an opaque cursor of the remaining walk relative to
+the named root. Passing it as `--cursor` with the same `--root` returns the
+next disjoint page. Unreadable listings are `unreadable` diagnostics, not
+empty results.

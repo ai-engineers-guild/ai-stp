@@ -38,6 +38,9 @@ Discovery сообщает пути, не открывая файлы с сек�
 `inventory --root` сначала читает паспорта авторства, затем нативные раскладки,
 и не считает сгенерированные `projections/` независимыми источниками.
 
+Если `complete` ложно, передайте возвращённый `continuation` как `--cursor` с
+тем же `--root`. Усечённый список нельзя считать исчерпывающим.
+
 ```bash
 ai-stp component discover --json
 ai-stp component discover --root . --json

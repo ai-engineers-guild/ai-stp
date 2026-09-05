@@ -11,9 +11,11 @@ The requirements owner is `SPEC-005` REQ-517 and REQ-518; the decisions are
 `ADR-0054`, `ADR-0055`, and `ADR-0056`.
 `component discover` without `--root` checks declared global layouts of supported
 harnesses. With `--root` it checks only layouts inside that directory and does
-not add global homes (`ADR-0157`). Passport-first classification of an authoring
-tree is [path-inventory.md](path-inventory.md). The command does not traverse home,
-read values from discovered files, create a passport, or open the registry for writing.
+not add global homes (`ADR-0157`). A truncated walk reports `complete=false` and
+an opaque `continuation` (`ADR-0158`, `REQ-535`). Passport-first classification
+of an authoring tree is [path-inventory.md](path-inventory.md). The command does
+not traverse home, read values from discovered files, create a passport, or open
+the registry for writing.
 A separate adapter under `ADR-0055` reads only declared size-bounded metadata manifests
 to prove package provenance; it does not read arbitrary settings or secret values.
 The MCP source adapter additionally reads only a bounded package manifest and exact
@@ -148,6 +150,12 @@ Candidate identity is computed from the type, harness, scope, redacted path,
 `layout_source`, and allowlisted provenance. Repeating discovery on an unchanged
 filesystem returns the same values in the same order. Changing the official layout
 source or exact source intentionally changes identity and requires agent reevaluation.
+
+The listing itself carries `complete` and `continuation` (`REQ-535`).
+`complete=false` when a directory budget or an unreadable listing stopped the
+walk. `continuation` is the remaining partition; `--cursor` resumes it under
+the same `--root`. Pages do not overlap. An unreadable directory is not an
+empty one.
 
 ## GitHub provenance
 
