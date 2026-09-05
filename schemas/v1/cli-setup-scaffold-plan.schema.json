@@ -135,6 +135,19 @@
           "title": "Setup Name",
           "type": "string"
         },
+        "standard_family": {
+          "anyOf": [
+            {
+              "const": "ai-stp-standard/1",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Standard Family"
+        },
         "template_version": {
           "$ref": "#/$defs/SetupTemplateVersion",
           "default": "setup-scaffold/5"

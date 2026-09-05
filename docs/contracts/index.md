@@ -11,7 +11,7 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [access-grants-and-forks.md](access-grants-and-forks.md) | Access grant target, recipient actions, forks, derivative publication, and revocation consequences. | 2026-09-01 |
 | [article-publication.md](article-publication.md) | Machine contract for repository import, staff publication, and public article reads. | 2026-08-29 |
-| [canonical-data.md](canonical-data.md) | Canonical identifiers, serialization, references, hashes, and signatures. | 2026-09-03 |
+| [canonical-data.md](canonical-data.md) | Canonical identifiers, serialization, references, hashes, and signatures. | 2026-09-05 |
 | [capability-vocabulary.md](capability-vocabulary.md) | Closed vocabulary of required capabilities, its growth rule, and the distinction between unknown and missing capabilities. | 2026-08-08 |
 | [catalog-reactions.md](catalog-reactions.md) | Private account reactions to public catalog components and setups. | 2026-08-17 |
 | [catalog-support-evidence.md](catalog-support-evidence.md) | Safe public projection of harness support evidence in the catalog. | 2026-08-09 |
@@ -24,7 +24,7 @@ last_verified: "2026-08-03"
 | [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-08-25 |
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
-| [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-04 |
+| [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-05 |
 | [component-presentation.md](component-presentation.md) | Mutable component presentation in the catalog without changing the version passport. | 2026-09-04 |
 | [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-08-22 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
@@ -54,6 +54,7 @@ last_verified: "2026-08-03"
 | [setup-import.md](setup-import.md) | Machine boundary for discovering and registering an existing native setup. | 2026-09-01 |
 | [setup-store-ports.md](setup-store-ports.md) | Contract for local discovery, preview, and component import from SX and APM. | 2026-08-13 |
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
+| [standard-family.md](standard-family.md) | Coordinated standard-family identity, contract digest, and classification axes. | 2026-09-05 |
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable exception records by publisher and major line. | 2026-08-29 |

@@ -1,6 +1,6 @@
 ---
 description: "Canonical identifiers, serialization, references, hashes, and signatures."
-last_verified: "2026-09-03"
+last_verified: "2026-09-05"
 ---
 
 # Canonical data
@@ -50,6 +50,7 @@ ai-stp:component-adaptation:v1
 ai-stp:passport:v1
 ai-stp:revision:v1
 ai-stp:plan:v1
+ai-stp:standard-inventory:v1
 ai-stp:scaffold-plan:v1
 ai-stp:setup-scaffold-plan:v1
 ai-stp:setup-export:v1
@@ -89,6 +90,10 @@ The `article-revision`, `article-active`, and `article-snapshot` domains belong 
 article publication under `article-publication.md`: canonical localized revision,
 active RU/EN pair, and complete repository snapshot. `article-body` remains the SEO body
 hash and does not replace a revision's `content_digest`.
+
+The `standard-inventory` domain belongs to the coordinated family inventory under
+`standard-family.md`: family id, axis identities, and exported schema `$id`s.
+It is not an envelope `schema_version` and not a kit protocol version.
 
 The `native-discovery` domain belongs to a reproducible read-only discovery candidate
 under `ADR-0054` and `ADR-0055`. It binds the declared layout, scope, harness, redacted

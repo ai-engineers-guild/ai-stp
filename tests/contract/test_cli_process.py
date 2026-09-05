@@ -119,6 +119,7 @@ def ready(home: Path) -> Path:
 #: new read command is covered by all of the process-level checks at once.
 READ_COMMANDS = [
     ("version",),
+    ("contract", "inventory"),
     ("passport", "device", "show"),
     ("doctor",),
     ("capabilities",),
@@ -411,6 +412,7 @@ def test_report_preview_is_process_visible_and_confirm_still_requires_a_person(h
     ("argv", "schema"),
     [
         (("version",), "cli-version-report"),
+        (("contract", "inventory"), "cli-standard-inventory"),
         (("doctor",), "cli-doctor-report"),
         (("capabilities",), "cli-capabilities"),
         (("config", "show"), "cli-config-report"),
@@ -812,6 +814,7 @@ def test_switching_off_the_catalogue_and_sync_leaves_a_complete_offline_path(rea
 
     for argv in (
         ("version",),
+        ("contract", "inventory"),
         ("capabilities",),
         ("doctor",),
         ("config", "show"),

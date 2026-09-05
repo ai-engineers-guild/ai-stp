@@ -1,6 +1,6 @@
 ---
 description: "Versioned scaffold plans and safe projection of component authoring templates."
-last_verified: "2026-09-04"
+last_verified: "2026-09-05"
 ---
 
 # Component authoring templates
@@ -31,6 +31,10 @@ Declarative `instruction`, `skill`, `command`, `agent`, and `setting` use
 because the provider does not perform a hidden source build. The variant is `portable`
 or one of the harnesses in the closed registry. If the selected harness has no
 independent native form for the type, the plan fails closed before any write.
+
+New writes record `standard_family` as `ai-stp-standard/1` on the descriptor
+(`SPEC-060`). Historical descriptors without that field remain validatable and
+are not assigned the family on read.
 
 The current `component-scaffold/6` directory contains `.ai-stp-template.json`,
 `.gitignore`, `component-passport.json`, `eval-profile.json`, README, and editable

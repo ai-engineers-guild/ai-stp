@@ -53,6 +53,7 @@ def setup_scaffold_plan(
         harness_id=harness,  # pyright: ignore[reportArgumentType]
         setup_name=name,
         members=list(members),
+        standard_family="ai-stp-standard/1",
     )
     files = setup_scaffold_files(descriptor)
     entries = [

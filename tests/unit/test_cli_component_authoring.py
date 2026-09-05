@@ -200,6 +200,10 @@ def test_scaffold_matrix_produces_valid_exact_artifacts(
     assert plan.requires_exact_source_before_publication is True
     assert plan.descriptor.template_version == "component-scaffold/6"
     assert plan.descriptor.generator_version == "ai-stp/6"
+    assert plan.descriptor.standard_family == "ai-stp-standard/1"
+    assert json.loads(files[".ai-stp-template.json"].decode())["standard_family"] == (
+        "ai-stp-standard/1"
+    )
     assert any(path.startswith("projections/") for path in files) is (harness != "portable")
     assert all(not path.startswith("native/") for path in files)
     assert ".ai-stp-template.json" in files

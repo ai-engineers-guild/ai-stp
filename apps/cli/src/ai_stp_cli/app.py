@@ -218,6 +218,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("component", "version"): "List recorded versions and release the next one.",
     ("config",): "Read and change this installation's settings.",
     ("consent",): "Grant and withdraw consent for unverified candidates.",
+    ("contract",): "The coordinated standard family and the other contract axes this build speaks.",
     ("device",): "This machine's identity in the local registry.",
     ("eval",): "Score a setup against a profile before installing it.",
     ("harness",): "Install, update and remove the harness program itself.",
