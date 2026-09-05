@@ -102,6 +102,9 @@ class ComponentTemplateDescriptor(BaseModel):
     language: AuthoringLanguage
     harness_variant: AuthoringVariant
     executable: bool
+    #: Absent on historical descriptors. Present on new writes. Never inferred
+    #: from `schema_version: 1` — that discriminator already belongs to envelopes.
+    standard_family: Literal["ai-stp-standard/1"] | None = None
 
     @model_validator(mode="after")
     def type_language_pair_is_meaningful(self) -> Self:
@@ -196,6 +199,7 @@ class SetupTemplateDescriptor(BaseModel):
     harness_id: HarnessId
     setup_name: Annotated[str, Field(min_length=1, max_length=64)]
     members: list[SetupMemberDescriptor] = Field(default_factory=list[SetupMemberDescriptor])
+    standard_family: Literal["ai-stp-standard/1"] | None = None
 
 
 class SetupScaffoldPlan(BaseModel):

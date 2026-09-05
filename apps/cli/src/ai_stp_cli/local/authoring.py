@@ -133,6 +133,7 @@ def scaffold_plan(
         language=language,  # pyright: ignore[reportArgumentType]
         harness_variant=harness_variant,  # pyright: ignore[reportArgumentType]
         executable=not declarative,
+        standard_family="ai-stp-standard/1",
     )
     files = _scaffold_files(name, descriptor)
     entries = [

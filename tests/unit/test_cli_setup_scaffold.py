@@ -38,6 +38,7 @@ def test_setup_scaffold_nests_members_without_a_nested_git(tmp_path: Path) -> No
     }
     plan = setup_scaffold_commands.plan(parameters).payload
     assert plan.descriptor.template_version == "setup-scaffold/5"
+    assert plan.descriptor.standard_family == "ai-stp-standard/1"
     assert plan.descriptor.harness_id == "codex"
     assert {member.name for member in plan.descriptor.members} == {"review-kit", "conventions"}
     assert any(item.path == "setup.json" for item in plan.files)

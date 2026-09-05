@@ -21,6 +21,10 @@ def test_version_reports_the_build_and_both_contract_versions() -> None:
     report = version.run({}).payload
     assert report.cli_version
     assert report.wire_schema_version == 1
+    assert report.standard_family == "ai-stp-standard/1"
+    assert report.contract_digest.startswith("sha256:")
+    assert report.http_api_version == "v1"
+    assert report.provider_protocol_version == 3
     assert report.python_version.count(".") == 2
 
 

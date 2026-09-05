@@ -92,6 +92,19 @@
           "title": "Schema Version",
           "type": "integer"
         },
+        "standard_family": {
+          "anyOf": [
+            {
+              "const": "ai-stp-standard/1",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Standard Family"
+        },
         "template_version": {
           "$ref": "#/$defs/ComponentTemplateVersion",
           "default": "component-scaffold/6"

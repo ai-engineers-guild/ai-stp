@@ -36,6 +36,7 @@ from ai_stp_contracts.catalog import (
 from ai_stp_contracts.http import Timestamp, open_wire_object
 from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
 from ai_stp_contracts.publication import PublicationPlanResponse
+from ai_stp_contracts.standard import STANDARD_FAMILY
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.errors import ErrorHandling, ExitClass
@@ -297,6 +298,10 @@ class VersionReport(BaseModel):
     cli_version: Annotated[str, Field(min_length=1)]
     wire_schema_version: Literal[1] = 1
     python_version: Annotated[str, Field(pattern=r"^\d+\.\d+\.\d+")]
+    standard_family: Literal["ai-stp-standard/1"] = STANDARD_FAMILY
+    contract_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    http_api_version: Literal["v1"] = "v1"
+    provider_protocol_version: Literal[3] = 3
 
 
 class ConfigValue(BaseModel):

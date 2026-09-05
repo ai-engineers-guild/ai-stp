@@ -1441,6 +1441,21 @@
     },
     {
       "path": [
+        "contract",
+        "inventory"
+      ],
+      "summary": "List the coordinated standard family and every other contract axis.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-standard-inventory",
+      "next_actions": [
+        "version"
+      ]
+    },
+    {
+      "path": [
         "device",
         "init"
       ],

@@ -12,7 +12,11 @@ from ai_stp_cli.output import (
 )
 from ai_stp_contracts.machine_help import VersionReport
 
-PAYLOAD = VersionReport(cli_version="1.2.3", python_version="3.12.13")
+PAYLOAD = VersionReport(
+    cli_version="1.2.3",
+    python_version="3.12.13",
+    contract_digest="sha256:" + "0" * 64,
+)
 
 #: The envelope enforces the typed-id pattern, so a placeholder will not do.
 REQUEST_ID = new_request_id()
@@ -123,6 +127,7 @@ class _Nested(VersionReport):
 
     cli_version: str = "1.0.0"
     python_version: str = "3.12.0"
+    contract_digest: str = "sha256:" + "0" * 64
     flag: bool = True
     missing: str | None = None
     empty: list[str] = []  # noqa: RUF012

@@ -604,6 +604,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("doctor", "help --agent"),
     ),
     Declaration(
+        path=["contract", "inventory"],
+        summary="List the coordinated standard family and every other contract axis.",
+        result_schema="urn:ai-stp:schema:v1:cli-standard-inventory",
+        handler="contract:inventory",
+        next_actions=("version",),
+    ),
+    Declaration(
         path=["component", "discover"],
         summary="List native components in the harness roots and one project. Changes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-native-components",

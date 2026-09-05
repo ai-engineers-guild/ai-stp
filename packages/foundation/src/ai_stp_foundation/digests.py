@@ -34,6 +34,7 @@ DIGEST_DOMAINS: Final[frozenset[str]] = frozenset(
         "ai-stp:project-index:v1",
         "ai-stp:project-toolchain:v1",
         "ai-stp:revision:v1",
+        "ai-stp:standard-inventory:v1",
         "ai-stp:scaffold-plan:v1",
         "ai-stp:setup-scaffold-plan:v1",
         "ai-stp:setup-export:v1",
