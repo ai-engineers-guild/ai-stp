@@ -625,6 +625,19 @@ async def execute_validate(
     else:
         plan.state = "failed"
         cast(Any, plan).checks_summary_last = summary
+        official_attempts = list(
+            (
+                await session.scalars(
+                    select(OfficialUpstreamSync).where(OfficialUpstreamSync.plan_id == plan.id)
+                )
+            ).all()
+        )
+        for official_attempt in official_attempts:
+            official_attempt.state = "failed_permanent"
+            official_attempt.result = "failed"
+            official_attempt.error_code = "failed_validation"
+            official_attempt.error_class = "permanent"
+            official_attempt.completed_at = datetime.now(UTC)
     await session.flush()
     return snapshot
 
@@ -936,10 +949,12 @@ async def execute_publish(
         session, object_kind=plan.object_kind, stable_id=plan.stable_id
     )
     if plan.object_kind == "component":
-        official_attempt = await session.scalar(
-            select(OfficialUpstreamSync).where(OfficialUpstreamSync.plan_id == plan.id)
-        )
-        if official_attempt is not None:
+        official_attempts = (
+            await session.scalars(
+                select(OfficialUpstreamSync).where(OfficialUpstreamSync.plan_id == plan.id)
+            )
+        ).all()
+        for official_attempt in official_attempts:
             official_attempt.state = "published"
             official_attempt.result = "publication_started"
             official_attempt.completed_at = datetime.now(UTC)

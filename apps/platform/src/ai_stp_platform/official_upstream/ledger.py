@@ -16,6 +16,7 @@ from ai_stp_platform.models import (
     OfficialSyncOutbox,
     OfficialUpstreamSource,
     OfficialUpstreamSync,
+    PublicationPlan,
 )
 from ai_stp_platform.queue.engine import enqueue
 from ai_stp_platform.queue.models import Job
@@ -393,7 +394,20 @@ async def reconcile_delivery(session: AsyncSession, *, now: datetime | None = No
                 "resolving",
                 "publishing",
             }:
-                # Completion is recorded by the sync/publish path; leave running.
-                pass
+                if attempt.plan_id is None:
+                    continue
+                plan = await session.get(PublicationPlan, attempt.plan_id)
+                if plan is not None and plan.state == "published":
+                    await mark_attempt(session, attempt, "published")
+                    repairs.append(f"unrecorded_publication:{source.id}")
+                elif plan is not None and plan.state in {"failed", "cancelled", "stale"}:
+                    await mark_attempt(
+                        session,
+                        attempt,
+                        "failed_permanent",
+                        error_code="failed_validation",
+                        error_class="permanent",
+                    )
+                    repairs.append(f"unrecorded_publication_failure:{source.id}")
     await session.flush()
     return repairs

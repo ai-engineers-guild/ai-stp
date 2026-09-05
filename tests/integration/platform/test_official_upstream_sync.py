@@ -35,7 +35,7 @@ from ai_stp_platform.official_upstream.errors import (
     OfficialUpstreamError,
 )
 from ai_stp_platform.official_upstream.github import GithubHttpResponse
-from ai_stp_platform.official_upstream.ledger import record_queue_outcome
+from ai_stp_platform.official_upstream.ledger import reconcile_delivery, record_queue_outcome
 from ai_stp_platform.official_upstream.source import (
     SourceUpsert,
     delete_source,
@@ -296,6 +296,40 @@ async def test_failed_plan_retry_reuses_in_flight_and_fits_idempotency_key(
 
 
 @pytest.mark.asyncio
+async def test_reconcile_closes_terminal_publication_outcomes(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    store = _store()
+    now = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await _owner(session)
+        await upsert_source(session, _command())
+        job = (await enqueue_daily(session, now=now))[0]
+        attempt = (await session.scalars(select(OfficialUpstreamSync))).one()
+        await run_sync(
+            session,
+            SOURCE_ID,
+            fetch=_fetch(_tar("# Demo\n")),
+            store=store,
+            now=now,
+            attempt_id=attempt.id,
+        )
+        plan = (await session.scalars(select(PublicationPlan))).one()
+        job.state = JobState.SUCCEEDED
+        plan.state = "failed"
+        repairs = await reconcile_delivery(session, now=now)
+        assert repairs == [f"unrecorded_publication_failure:{SOURCE_ID}"]
+        assert attempt.state == "failed_permanent"
+
+        attempt.state = "publishing"
+        attempt.completed_at = None
+        plan.state = "published"
+        repairs = await reconcile_delivery(session, now=now)
+        assert repairs == [f"unrecorded_publication:{SOURCE_ID}"]
+        assert attempt.state == "published"
+
+
+@pytest.mark.asyncio
 async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
     db_sessionmaker: async_sessionmaker[AsyncSession],
 ) -> None:
@@ -310,6 +344,18 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         assert result == "publication_started"
         plan = (await session.scalars(select(PublicationPlan))).first()
         assert plan is not None
+        original_attempt = (await session.scalars(select(OfficialUpstreamSync))).one()
+        repeated_attempt = OfficialUpstreamSync(
+            source_id=SOURCE_ID,
+            utc_day=now.date(),
+            trigger_key="manual:repeat",
+            result="publication_started",
+            state="publishing",
+            plan_id=plan.id,
+            expected_owner_account_id=OFFICIAL_ACCOUNT_ID,
+        )
+        session.add(repeated_attempt)
+        await session.flush()
         validate = (
             await session.scalars(select(Job).where(Job.job_type == JobType.VALIDATE))
         ).first()
@@ -319,6 +365,8 @@ async def test_sync_noop_then_publish_once_and_redelivery_is_idempotent(
         published = await execute_publish(session, plan_id=plan.id, store=store)
         assert published.version == "1.0"
         assert published.owner_account_id == OFFICIAL_ACCOUNT_ID
+        assert original_attempt.state == "published"
+        assert repeated_attempt.state == "published"
         passport = dict(published.passport_document or {})
         assert passport.get("artifact_format") == PROJECTION_FORMAT
         assert str(passport.get("description", "")).startswith(

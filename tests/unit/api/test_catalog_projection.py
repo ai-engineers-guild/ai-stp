@@ -81,6 +81,40 @@ def test_component_summary_projects_explicit_adaptation_facts() -> None:
     assert list(passport.adaptations[0].scope_adaptations[0].supported_os) == []
 
 
+def test_component_summary_reads_legacy_flat_passport_without_rewriting_it() -> None:
+    row = _row_from_seed()
+    adaptation = cast(dict[str, object], cast(list[object], row.passport["adaptations"])[0])
+    scope = cast(dict[str, object], cast(list[object], adaptation["scope_adaptations"])[0])
+    legacy = dict(row.passport)
+    legacy.pop("adaptations")
+    legacy.pop("origin_harness_id", None)
+    legacy["harness_id"] = adaptation["harness_id"]
+    legacy["projection_kind"] = scope["projection_kind"]
+    legacy["harness_ids"] = [adaptation["harness_id"]]
+    legacy["managed_paths"] = []
+    legacy["native_ids"] = []
+    legacy["supported_os"] = []
+    legacy["revision_id"] = derive_revision_id(legacy)
+    historical = PublicVersionRow(
+        metadata=row.metadata,
+        passport=legacy,
+        passport_digest=_PLACEHOLDER_DIGEST,
+        published_at=row.published_at,
+        trust_lane=row.trust_lane,
+        author_verified=row.author_verified,
+        component_verified=row.component_verified,
+        lifecycle=row.lifecycle,
+        stable_id=row.stable_id,
+        version=row.version,
+        object_kind=row.object_kind,
+    )
+
+    summary = component_summary(historical)
+
+    assert summary.latest_harness_id == adaptation["harness_id"]
+    assert historical.passport == legacy
+
+
 def test_latest_fields_map_from_passport() -> None:
     row = _row_from_seed()
     summary = component_summary(row)

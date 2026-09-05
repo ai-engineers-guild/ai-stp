@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ai_stp_platform.logging import get_logger
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.github import worker_github_token
-from ai_stp_platform.official_upstream.ledger import record_queue_outcome
+from ai_stp_platform.official_upstream.ledger import reconcile_delivery, record_queue_outcome
 from ai_stp_platform.queue.engine import (
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     DEFAULT_LEASE_TIMEOUT_SECONDS,
@@ -123,6 +123,7 @@ class Worker:
             today = datetime.now(UTC).date()
             if self._official_enqueue_day is not None and self._official_enqueue_day != today:
                 await enqueue_daily(session)
+                await reconcile_delivery(session)
                 enqueued_for = today
             await requeue_stale(session, lease_timeout_seconds=self._lease_timeout)
             queue_events = list(
