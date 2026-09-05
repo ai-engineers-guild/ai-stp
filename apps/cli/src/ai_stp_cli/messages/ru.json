@@ -54,6 +54,7 @@
   "a multi-root child operation disappeared from the journal": "дочерняя multi-root операция исчезла из журнала",
   "a multi-root transaction contains a duplicate scope": "multi-root транзакция содержит повторяющуюся область",
   "a multi-root transaction contains a duplicate target": "multi-root транзакция содержит повторяющуюся цель",
+  "a multi-root transaction contains overlapping physical roots": "multi-root транзакция содержит пересекающиеся физические корни",
   "a multi-root transaction requires at least two scopes": "multi-root транзакция требует минимум две области",
   "a name-only query is required": "нужен запрос только по имени",
   "a named member is not admissible for this harness": "названный участник недопустим для этой упряжки",

@@ -54,6 +54,7 @@
   "a multi-root child operation disappeared from the journal": "a multi-root child operation disappeared from the journal",
   "a multi-root transaction contains a duplicate scope": "a multi-root transaction contains a duplicate scope",
   "a multi-root transaction contains a duplicate target": "a multi-root transaction contains a duplicate target",
+  "a multi-root transaction contains overlapping physical roots": "a multi-root transaction contains overlapping physical roots",
   "a multi-root transaction requires at least two scopes": "a multi-root transaction requires at least two scopes",
   "a name-only query is required": "a name-only query is required",
   "a named member is not admissible for this harness": "a named member is not admissible for this harness",
