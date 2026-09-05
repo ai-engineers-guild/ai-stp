@@ -136,13 +136,13 @@ The executable is `ai-stp`. The PyPI package is `ai-stp-cli`.
 | `ai-stp install recover` | `read` | `none` | [install.md](install.md) | What one stopped operation left, and what may be done. Recovers nothing itself. |
 | `ai-stp install resume` | `apply` | `none` | [install.md](install.md) | Finish the result check an interrupted apply never made. Applies nothing. |
 | `ai-stp setup compose plan` | `plan` | `none` | [setup.md](setup.md) | Resolve and freeze a new setup from exact catalog, Git, package and local sources. |
-| `ai-stp setup compose apply` | `apply` | `explicit_flag` | [setup.md](setup.md) | Record the exact still-current mixed setup as one immutable local version. |
+| `ai-stp setup compose apply` | `apply` | `plan_digest` | [setup.md](setup.md) | Record the exact still-current mixed setup as one immutable local version. |
 | `ai-stp setup import inspect` | `read` | `none` | [setup.md](setup.md) | Read one native configuration and report what it holds. Writes nothing. |
 | `ai-stp setup import plan` | `plan` | `none` | [setup.md](setup.md) | Plan exact component and setup drafts from one native configuration. |
 | `ai-stp setup publish plan` | `plan` | `none` | [setup.md](setup.md) | Plan the publication of one released setup together with every component it pins. |
 | `ai-stp setup publish confirm` | `apply` | `explicit_flag` | [setup.md](setup.md) | Confirm one exact reviewed publication set: pinned components, then the setup. |
 | `ai-stp setup update plan` | `plan` | `none` | [setup.md](setup.md) | Preview replacing one embedded component with a newer exact snapshot. |
-| `ai-stp setup update apply` | `apply` | `explicit_flag` | [setup.md](setup.md) | Confirm one exact embedded update and create a new immutable setup version. |
+| `ai-stp setup update apply` | `apply` | `plan_digest` | [setup.md](setup.md) | Apply one exact embedded update and create a new immutable setup version. |
 | `ai-stp setup import register` | `apply` | `plan_digest` | [setup.md](setup.md) | Register an inspected configuration as your own setup. No secret value is stored. |
 | `ai-stp provider conformance` | `read` | `none` | [provider.md](provider.md) | Check one provider against an explicitly selected protocol. Changes nothing. |
 | `ai-stp component skill validate` | `read` | `none` | [component-publish.md](component-publish.md) | Check a skill package against the Agent Skills Specification and name every deviation. Changes nothing. |

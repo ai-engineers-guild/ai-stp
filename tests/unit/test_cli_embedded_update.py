@@ -1,5 +1,8 @@
 # pyright: reportUnknownLambdaType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportPrivateUsage=false, reportArgumentType=false
-"""Explicit embedded update keeps the old setup selected until confirm (REQ-5712, REQ-5716)."""
+"""Embedded update keeps the old setup selected until the planned digest applies.
+
+REQ-5712, REQ-5716.
+"""
 
 from __future__ import annotations
 
@@ -166,7 +169,7 @@ def test_plan_does_not_change_selected_setup() -> None:
     assert pinned == (setup_id, version, selection.PENDING_INSTALL)
 
 
-def test_apply_without_confirm_leaves_old_version_selected() -> None:
+def test_apply_with_the_wrong_digest_leaves_old_version_selected() -> None:
     setup_id, version, harness = _store_setup()
     with closing(open_registry(configured_path(), create=True)) as connection:
         planned = embedded_update.plan(
@@ -179,7 +182,7 @@ def test_apply_without_confirm_leaves_old_version_selected() -> None:
             harness_id=harness,
             at=AT,
         )
-        with pytest.raises(CliFailure, match="setup update apply requires explicit confirmation"):
+        with pytest.raises(CliFailure, match="the update plan digest changed before apply"):
             embedded_update.apply(
                 connection,
                 setup_id=setup_id,
@@ -188,10 +191,9 @@ def test_apply_without_confirm_leaves_old_version_selected() -> None:
                 snapshot=_newer_snapshot(),
                 project_id=PROJECT,
                 harness_id=harness,
-                expected_plan_digest=planned.plan_digest,
+                expected_plan_digest="sha256:" + "0" * 64,
                 device_id=DEVICE,
                 at=AT,
-                confirm=False,
             )
         pinned = selection.selected(connection, project_id=PROJECT, harness_id=harness)
         assert versions.held(connection, setup_id, planned.to_version) is None
@@ -222,7 +224,6 @@ def test_confirmed_apply_creates_new_immutable_version_and_selects_it() -> None:
             expected_plan_digest=planned.plan_digest,
             device_id=DEVICE,
             at=AT,
-            confirm=True,
         )
         pinned = selection.selected(connection, project_id=PROJECT, harness_id=harness)
         recorded = versions.held(connection, setup_id, result.to_version)
@@ -273,7 +274,6 @@ def test_update_rejects_a_display_name_and_keeps_equal_names_distinct() -> None:
             expected_plan_digest=planned.plan_digest,
             device_id=DEVICE,
             at=AT,
-            confirm=True,
         )
         from ai_stp_sources.definition import try_parse_setup_definition
 
@@ -342,7 +342,6 @@ def test_matching_catalog_is_a_dismissible_suggestion_and_apply_keeps_embedded_i
             expected_plan_digest=planned.plan_digest,
             device_id=DEVICE,
             at=AT,
-            confirm=True,
         )
         from ai_stp_sources.definition import try_parse_setup_definition
 

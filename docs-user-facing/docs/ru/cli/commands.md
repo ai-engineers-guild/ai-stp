@@ -136,13 +136,13 @@ ai-stp help --agent --json
 | `ai-stp install recover` | `read` | `none` | [install.md](install.md) | что оставила одна остановленная операция и что можно сделать; сама ничего не восстанавливает |
 | `ai-stp install resume` | `apply` | `none` | [install.md](install.md) | довести проверку результата, которую прерванный apply так и не сделал; ничего не применяет |
 | `ai-stp setup compose plan` | `plan` | `none` | [setup.md](setup.md) | разрешить и зафиксировать новый сетап из точных источников каталога, Git, пакетов и path |
-| `ai-stp setup compose apply` | `apply` | `explicit_flag` | [setup.md](setup.md) | записать точный, по-прежнему актуальный смешанный сетап как одну неизменяемую локальную версию |
+| `ai-stp setup compose apply` | `apply` | `plan_digest` | [setup.md](setup.md) | записать точный, по-прежнему актуальный смешанный сетап как одну неизменяемую локальную версию |
 | `ai-stp setup import inspect` | `read` | `none` | [setup.md](setup.md) | прочитать одну нативную конфигурацию и сообщить, что в ней; ничего не пишет |
 | `ai-stp setup import plan` | `plan` | `none` | [setup.md](setup.md) | спланировать точные черновики компонентов и сетапа из одной нативной конфигурации |
 | `ai-stp setup publish plan` | `plan` | `none` | [setup.md](setup.md) | спланировать публикацию одного выпущенного сетапа со всеми компонентами, которые он фиксирует |
 | `ai-stp setup publish confirm` | `apply` | `explicit_flag` | [setup.md](setup.md) | подтвердить один точный отрецензированный набор публикации: закреплённые компоненты, затем сетап |
 | `ai-stp setup update plan` | `plan` | `none` | [setup.md](setup.md) | предпросмотр замены одного встроенного компонента более новым точным снапшотом |
-| `ai-stp setup update apply` | `apply` | `explicit_flag` | [setup.md](setup.md) | подтвердить одно точное встроенное обновление и создать новую неизменяемую версию сетапа |
+| `ai-stp setup update apply` | `apply` | `plan_digest` | [setup.md](setup.md) | применить одно точное встроенное обновление и создать новую неизменяемую версию сетапа |
 | `ai-stp setup import register` | `apply` | `plan_digest` | [setup.md](setup.md) | зарегистрировать проинспектированную конфигурацию как свой сетап; секретные значения не хранятся |
 | `ai-stp provider conformance` | `read` | `none` | [provider.md](provider.md) | проверить одного провайдера по явно выбранному протоколу; ничего не меняет |
 | `ai-stp component skill validate` | `read` | `none` | [component-publish.md](component-publish.md) | проверить skill-пакет по Agent Skills Specification и назвать каждое отклонение; ничего не меняет |

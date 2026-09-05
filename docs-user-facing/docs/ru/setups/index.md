@@ -16,7 +16,7 @@ description: "Как ai_stp собирает полный сетап из точ
 
 ```text
 ai-stp setup compose plan --manifest setup.json --root . --json
-ai-stp setup compose apply --manifest setup.json --root . --id <setup_id> --created-at <created_at> --expected-plan-digest <digest> --confirm --json
+ai-stp setup compose apply --manifest setup.json --root . --id <setup_id> --created-at <created_at> --expected-plan-digest <digest> --json
 ai-stp setup export --id <setup_id> --version 1.0 --output ./exported-setup --json
 ai-stp setup publish plan --id <setup_id> --version 1.0 --json
 ```

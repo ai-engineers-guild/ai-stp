@@ -10,5 +10,5 @@ Resolve from machine help: `ai-stp select eligibility`,
 
 Read eligibility and reports before proposing. Confirm only the proposal just
 returned, not an older row from a listing. `experimental` or unverified-author
-members need a separate user decision. Verify with `ai-stp select graph` after
-confirm.
+members may enter under task authority and stay labeled; they do not become
+`authoritative`. Verify with `ai-stp select graph` after confirm.

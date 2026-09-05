@@ -54,7 +54,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[SetupUpdatePlan]:
 
 
 def apply(parameters: Mapping[str, object]) -> Answer[SetupUpdateResult]:
-    """Create a new immutable setup version only after explicit confirmation."""
+    """Create a new immutable setup version bound to the planned digest."""
     request = _request(parameters)
     with closing(open_registry(configured_path(), create=True)) as connection:
         return Answer(
@@ -69,7 +69,6 @@ def apply(parameters: Mapping[str, object]) -> Answer[SetupUpdateResult]:
                 expected_plan_digest=str(parameters.get("expected-plan-digest") or ""),
                 device_id=request.device_id,
                 at=request.at,
-                confirm=parameters.get("confirm") is True,
             )
         )
 

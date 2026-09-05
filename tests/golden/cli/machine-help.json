@@ -5585,7 +5585,7 @@
       ],
       "summary": "Record the exact still-current mixed setup as one immutable local version.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "manifest",
@@ -5630,15 +5630,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm recording this exact composition.",
           "choices": []
         }
       ],
@@ -6091,7 +6082,7 @@
       ],
       "summary": "Confirm one exact embedded update and create a new immutable setup version.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "id",
@@ -6172,15 +6163,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by setup update plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm creating this exact new setup version.",
           "choices": []
         }
       ],
