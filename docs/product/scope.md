@@ -55,7 +55,7 @@ Open beta ships all seven harnesses. Completeness of the product requirements an
 - real payments and payouts;
 - ratings and a social feed;
 - browser-based setup editor;
-- Windows runtime support;
+- installing the managed toolchain on Windows (`SPEC-014` REQ-1419); harness detection, provider apply, and the OS vocabulary include Windows;
 - persistent desktop daemon;
 - automatic updates and release channels;
 - platform-authored packaging of third-party open-source components to populate the catalog;
