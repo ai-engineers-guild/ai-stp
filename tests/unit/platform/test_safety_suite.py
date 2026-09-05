@@ -409,6 +409,7 @@ async def test_execute_validate_wires_safety_and_blocks_on_secret(
     session = AsyncMock()
     session.get = AsyncMock(return_value=plan)
     session.scalar = AsyncMock(return_value=None)
+    session.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: []))
     session.add = lambda obj: added.append(obj)
     session.flush = AsyncMock()
 

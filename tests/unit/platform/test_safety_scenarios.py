@@ -163,6 +163,7 @@ def _session_for_plan(plan: SimpleNamespace, *, catalog_scalar: Any = None) -> A
         return None
 
     session.scalar = AsyncMock(side_effect=_scalar)
+    session.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: []))
     session.add = lambda obj: added.append(obj)
     session.flush = AsyncMock()
     session._added = added  # type: ignore[attr-defined]
