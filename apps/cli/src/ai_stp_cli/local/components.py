@@ -1019,26 +1019,42 @@ def adopt(
                 return existing
             parents = [existing.revision_id]
     else:
-        stable_id = new_id("component")
-        connection.execute(
-            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
-            (stable_id, at),
+        resolved = str(item.absolute.resolve())
+        moved_id = _rebind_moved_source(
+            connection,
+            harness_id=item.harness_id,
+            component_type=item.component_type,
+            digest=stored_bytes.digest,
+            source_key=source_key,
+            absolute_path=resolved,
         )
-        connection.execute(
-            """
-            INSERT INTO component_source_binding (
-                source_key, stable_id, harness_id, component_type, absolute_path, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                source_key,
-                stable_id,
-                item.harness_id,
-                item.component_type,
-                str(item.absolute.resolve()),
-                at,
-            ),
-        )
+        if moved_id is not None:
+            stable_id = moved_id
+            existing = revisions.head(connection, stable_id)
+            if existing is not None:
+                parents = [existing.revision_id]
+        else:
+            stable_id = new_id("component")
+            connection.execute(
+                "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+                (stable_id, at),
+            )
+            connection.execute(
+                """
+                INSERT INTO component_source_binding (
+                    source_key, stable_id, harness_id, component_type,
+                    absolute_path, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    source_key,
+                    stable_id,
+                    item.harness_id,
+                    item.component_type,
+                    resolved,
+                    at,
+                ),
+            )
     operation_id = journal.begin(connection, "component.adopt", at)
     try:
         stored = revisions.commit(
@@ -1060,6 +1076,53 @@ def adopt(
         raise
     journal.settle(connection, operation_id, "verified", moment())
     return stored
+
+
+def _rebind_moved_source(
+    connection: sqlite3.Connection,
+    *,
+    harness_id: str,
+    component_type: str,
+    digest: str,
+    source_key: str,
+    absolute_path: str,
+) -> str | None:
+    """Reuse the binding whose recorded path is gone and whose head digest matches.
+
+    A copy whose old path still exists is a second object. Two vanished paths
+    with the same bytes are ambiguous and mint a new id.
+    """
+    rows = connection.execute(
+        """
+        SELECT stable_id, absolute_path
+        FROM component_source_binding
+        WHERE harness_id = ? AND component_type = ?
+        """,
+        (harness_id, component_type),
+    ).fetchall()
+    candidates: list[str] = []
+    for row in rows:
+        if Path(str(row["absolute_path"])).exists():
+            continue
+        existing = revisions.head(connection, str(row["stable_id"]))
+        if existing is None:
+            continue
+        held = existing.envelope.facts.get("content_digest")
+        if held is None or held.value != digest:
+            continue
+        candidates.append(str(row["stable_id"]))
+    if len(candidates) != 1:
+        return None
+    stable_id = candidates[0]
+    connection.execute(
+        """
+        UPDATE component_source_binding
+        SET source_key = ?, absolute_path = ?
+        WHERE stable_id = ?
+        """,
+        (source_key, absolute_path, stable_id),
+    )
+    return stable_id
 
 
 def _passport(
