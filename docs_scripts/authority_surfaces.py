@@ -71,6 +71,10 @@ CONTRADICTIONS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
         "unverified_excluded_from_composition",
         re.compile(r"unverified object is excluded from automatic composition", re.I),
     ),
+    (
+        "unverified_excluded_from_setup",
+        re.compile(r"does not enter the automatic setup", re.I),
+    ),
 )
 
 IN_TASK_APPLY: Final[tuple[tuple[str, ...], ...]] = (
@@ -105,6 +109,7 @@ def inventory(root: Path = ROOT) -> tuple[Path, ...]:
         root / "docs" / "agent" / "machine-help.md",
         root / "specs" / "active" / "SPEC-011-cli-agent-skill.md",
         root / "specs" / "active" / "SPEC-001-product-contract.md",
+        root / "docs" / "engineering" / "testing.md",
     )
     globs = (
         "skills/canonical/ai-stp/**/*.md",
@@ -114,6 +119,7 @@ def inventory(root: Path = ROOT) -> tuple[Path, ...]:
         "packages/contracts/src/ai_stp_contracts/first_party/v1/*instruction*.md",
         "specs/active/SPEC-011-*.md",
         "specs/active/SPEC-001-*.md",
+        "docs/engineering/testing.md",
     )
     found: set[Path] = set()
     for path in required:

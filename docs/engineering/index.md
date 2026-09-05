@@ -30,7 +30,7 @@ last_verified: "2026-08-03"
 | [seo-publication-implementation-plan.md](seo-publication-implementation-plan.md) | Procedure for implementing the server-side SEO loop without mixing domain publication and model enrichment. | 2026-08-29 |
 | [tech-debt-rules.md](tech-debt-rules.md) | Rules for registering temporary compromises. | 2026-08-03 |
 | [tech-stack.md](tech-stack.md) | Target MVP stack and rules for choosing dependencies. | 2026-08-05 |
-| [testing.md](testing.md) | Test strategy for passports, builds, sync, providers, and platform. | 2026-08-27 |
+| [testing.md](testing.md) | Test strategy for passports, builds, sync, providers, and platform. | 2026-09-05 |
 | [web-quality.md](web-quality.md) | Web operating rules: SEO, machine discovery, browser storage, selectors, and quality gates. | 2026-08-29 |
 
 <!-- END CONTENTS -->

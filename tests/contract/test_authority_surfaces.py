@@ -24,6 +24,7 @@ def test_the_inventory_covers_the_required_agent_surfaces() -> None:
         "docs/agent/machine-help.md",
         "specs/active/SPEC-011-cli-agent-skill.md",
         "specs/active/SPEC-001-product-contract.md",
+        "docs/engineering/testing.md",
     ):
         assert relative in held, relative
     assert any("first_party" in path and path.endswith(".md") for path in held)
@@ -36,6 +37,17 @@ def test_canonical_decisions_name_the_remaining_stops() -> None:
     )
     for phrase in authority_surfaces.REMAINING_STOPS:
         assert phrase in text, phrase
+
+
+def test_a_planted_automatic_setup_exclusion_is_detected(tmp_path: Path) -> None:
+    planted = tmp_path / "testing.md"
+    planted.write_text(
+        "An unverified object enters the output only with explicit consent "
+        "and does not enter the automatic setup.\n",
+        encoding="utf-8",
+    )
+    findings = authority_surfaces.scan([planted], root=tmp_path)
+    assert any(item.kind == "unverified_excluded_from_setup" for item in findings), findings
 
 
 def test_a_planted_unverified_composition_exclusion_is_detected(
