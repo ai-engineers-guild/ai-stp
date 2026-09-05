@@ -173,20 +173,10 @@ def test_release_freezes_two_adaptations_and_keeps_the_previous_version(tmp_path
         changed_digest = digest_bytes("ai-stp:artifact:v1", changed)
         head = revisions.head(connection, stored.stable_id)
         assert head is not None
-        child = {
-            "schema_version": 1,
-            "kind": "component",
-            "stable_id": stored.stable_id,
-            "owner_id": head.envelope.owner_id,
-            "created_at": CREATED,
-            "visibility": "private",
-            "parent_revision_ids": [head.revision_id],
-            "facts": cast(dict[str, JsonValue], head.envelope.model_dump(mode="json")["facts"]),
-        }
-        sources = cast(
-            list[JsonValue],
-            cast(dict[str, JsonValue], child["facts"]["adaptation_contents"])["value"],
-        )
+        dumped = cast(dict[str, JsonValue], head.envelope.model_dump(mode="json"))
+        facts = cast(dict[str, JsonValue], dumped["facts"])
+        contents = cast(dict[str, JsonValue], facts["adaptation_contents"])
+        sources = cast(list[JsonValue], contents["value"])
         sources[1] = {
             "harness_id": "codex",
             "content_digest": changed_digest,
@@ -194,6 +184,16 @@ def test_release_freezes_two_adaptations_and_keeps_the_previous_version(tmp_path
             "managed_paths": ["AGENTS.md"],
             "scope": "global",
             "projection_kind": "native_files",
+        }
+        child: dict[str, JsonValue] = {
+            "schema_version": 1,
+            "kind": "component",
+            "stable_id": stored.stable_id,
+            "owner_id": head.envelope.owner_id,
+            "created_at": CREATED,
+            "visibility": "private",
+            "parent_revision_ids": [head.revision_id],
+            "facts": facts,
         }
         revisions.commit(connection, child, device_id="device_test")
         second, second_revision = component_passports.materialize_version_passport(
