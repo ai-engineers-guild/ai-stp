@@ -16,30 +16,55 @@ export function namedHarnesses(item: {
   return [item.latest_harness_id];
 }
 
-type FlatHarnessPassport = {
-  harness_id: string;
-  harness_ids?: ReadonlyArray<string> | null;
-};
-
-type AdaptedHarnessPassport = {
+export type ComponentPassportCompatibility = {
+  adaptations?: ReadonlyArray<{
+    harness_id: string;
+    scope_adaptations?: ReadonlyArray<{
+      projection_kind?: string | null;
+      supported_os?: ReadonlyArray<string> | null;
+    }>;
+  }>;
   origin_harness_id?: string | null;
-  adaptations: ReadonlyArray<{ harness_id: string }>;
+  harness_id?: string;
+  harness_ids?: ReadonlyArray<string> | null;
+  projection_kind?: string;
+  supported_os?: ReadonlyArray<string> | null;
 };
 
-export function namedPassportHarnesses(
-  passport: FlatHarnessPassport | AdaptedHarnessPassport,
-): string[] {
-  if ("adaptations" in passport) {
-    const fromAdaptations = uniqueInOrder(passport.adaptations.map((item) => item.harness_id));
-    if (fromAdaptations.length > 0) {
-      return fromAdaptations;
-    }
+export function namedPassportHarnesses(passport: ComponentPassportCompatibility): string[] {
+  if (passport.adaptations) {
+    const fromAdaptations = uniqueInOrder(
+      passport.adaptations.map((adaptation) => adaptation.harness_id),
+    );
+    if (fromAdaptations.length > 0) return fromAdaptations;
     return passport.origin_harness_id ? [passport.origin_harness_id] : [];
   }
-  return namedHarnesses({
-    latest_harness_id: passport.harness_id,
-    ...(passport.harness_ids === undefined ? {} : { latest_harness_ids: passport.harness_ids }),
-  });
+  if (passport.harness_id) {
+    return namedHarnesses({
+      latest_harness_id: passport.harness_id,
+      ...(passport.harness_ids === undefined ? {} : { latest_harness_ids: passport.harness_ids }),
+    });
+  }
+  return [];
+}
+
+export function componentOperatingSystems(passport: ComponentPassportCompatibility): string[] {
+  if (passport.adaptations) {
+    return uniqueInOrder(
+      passport.adaptations.flatMap((adaptation) =>
+        (adaptation.scope_adaptations ?? []).flatMap((scope) => scope.supported_os ?? []),
+      ),
+    );
+  }
+  return passport.supported_os ? Array.from(passport.supported_os) : [];
+}
+
+export function componentPassportPrimary(passport: ComponentPassportCompatibility) {
+  const adaptation = passport.adaptations?.[0];
+  return {
+    harnessId: adaptation?.harness_id ?? passport.harness_id,
+    projectionKind: adaptation?.scope_adaptations?.[0]?.projection_kind ?? passport.projection_kind,
+  };
 }
 
 type FlatOsPassport = {

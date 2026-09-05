@@ -30,11 +30,13 @@ claims them.
 
 Option 3 is accepted as a narrow exception to ADR-0034.
 
-An operator-managed allowlist names a public GitHub repository, tracked ref,
-component subpath and type, reviewed description, and AI STP Official owner. A
-scheduled sync resolves the ref to a full commit, downloads exact bytes, records
-their digest and upstream identity, and uses the existing plan, bind, validate,
-and publish path. It never writes a published version directly.
+A reviewed allowlist names a public GitHub repository, tracked ref, component
+subpath and type, reviewed description, and AI STP Official owner. A scheduled
+sync resolves the ref to a full commit, downloads exact bytes, records their
+digest and upstream identity, and uses the existing plan, bind, validate, and
+publish path. It never writes a published version directly. ADR-0153 supersedes
+the storage and delivery part of this decision by making that allowlist a Git
+manifest reconciled through a durable outbox and ledger.
 
 The catalog owner is the publisher of the AI STP snapshot, not a claim to have
 authored the upstream project. Every version description starts with upstream
@@ -44,10 +46,10 @@ verified AI STP publisher account; `component_verified` continues to describe
 only accepted evidence for the exact bytes. Neither axis proves upstream
 affiliation.
 
-Official synchronization now consumes the shared `SourceIntent`/`SourceSnapshot`
-resolver for multiple operator-managed GitHub and package source rows. SPEC-057
-and ADR-0139 own that generalization and the separate audited ownership-claim
-operation. No public management endpoint, automatic transfer, catalog
+Official synchronization consumes the shared `SourceIntent`/`SourceSnapshot`
+resolver for multiple GitHub and package source rows. SPEC-057 owns explicit
+ownership requests; ADR-0153 owns the atomic database transfer and source fence.
+No public source-management endpoint, automatic claim approval, catalog
 replacement, or identity merge is added.
 
 ## Consequences

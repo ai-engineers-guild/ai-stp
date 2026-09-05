@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal, cast
@@ -83,8 +84,10 @@ class Binary:
 type Expression = TextTerm | Predicate | Unary | Binary
 type PredicateField = Literal["NAME", "TAGS", "HARNESS", "TYPE", "AUTHOR", "VERIFIED"]
 
-_FIELDS = frozenset({"NAME", "TAGS", "HARNESS", "TYPE", "AUTHOR", "VERIFIED"})
-_KEYWORDS = frozenset({"AND", "OR", "NOT", "IN"})
+CATALOG_QL_FIELDS = ("NAME", "TAGS", "HARNESS", "TYPE", "AUTHOR", "VERIFIED")
+CATALOG_QL_OPERATORS = ("AND", "OR", "NOT", "IN")
+_FIELDS = frozenset(CATALOG_QL_FIELDS)
+_KEYWORDS = frozenset(CATALOG_QL_OPERATORS)
 
 
 def tokenize(source: str) -> list[Token]:
@@ -208,11 +211,13 @@ class _Parser:
             )
         token = self.advance()
         field = token.value.upper()
-        if field in _FIELDS and (
-            self.current.kind == TokenKind.COLON or self.keyword("IN") or self.keyword("NOT")
+        if (
+            token.kind == TokenKind.WORD
+            and field in _FIELDS
+            and (self.current.kind == TokenKind.COLON or self.keyword("IN") or self.keyword("NOT"))
         ):
-            return self.parse_predicate(cast(PredicateField, field), token.offset)
-        if field in _KEYWORDS:
+            return self.parse_predicate(field, token.offset)
+        if token.kind == TokenKind.WORD and field in _KEYWORDS:
             raise QuerySyntaxError(
                 "operator has no left operand", offset=token.offset, expected="term"
             )
@@ -297,7 +302,11 @@ def matches(
                 author,
             ]
         ).casefold()
-        return expression.value.casefold() in haystack
+        document_terms = set(re.findall(r"\w+", haystack))
+        query_terms = set(re.findall(r"\w+", expression.value.casefold()))
+        return bool(query_terms) and all(
+            any(query in term for term in document_terms) for query in query_terms
+        )
     if isinstance(expression, Unary):
         return not matches(expression.operand, passport, author=author, verified=verified)
     if isinstance(expression, Binary):

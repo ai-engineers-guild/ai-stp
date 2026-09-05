@@ -1,0 +1,140 @@
+{
+  "cases": {
+    "agent-none-claude-code": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:a2473410e37df571d6397a30ee905b1495b5bd6bd8caa4198555335ab7b50b66",
+      "adaptations/claude-code/adaptation.json": "sha256:ebcff961d4ec0779dc75002fb3ea6bcf5784c6c475c2bb20e2b1afe4799dc242",
+      "component-passport.json": "sha256:c2a723d44b6dfb51f88f6726a7c36d3e665871f0e19128c4c131e4b863fe05d3",
+      "component.json": "sha256:eb0664e94f72c9b010529eaf15dbe43951ff05e37ca889851c8b77395b2e0163",
+      "eval-profile.json": "sha256:754c21124328f454b2b9b94a11971d43523f2fe0c57ed4b99fd1d1878999b109",
+      "projections/claude-code/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/claude-code/agents/agent.toml": "sha256:8bec11ad708eedb4583df0286236a7db65ab5bae80d6370e1432f0dc8ca096b7",
+      "source/agent.md": "sha256:4ab40d75768b7ddfd959194b4d14ef80c2f9a8ccef266a6c062b95008ccbd797"
+    },
+    "command-none-portable": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:cb415a3fdc83a8641f1ff2ac97b4358d91d9208d9899b02c23e14046b28c10e9",
+      "adaptations/portable/adaptation.json": "sha256:b294ce4fa03c4c93d67aead953fdb7dd76302e44c911718fad4f6e87fd19ad76",
+      "component-passport.json": "sha256:6079301aca93e54f2d1668b63f6c72443664ff44337bc61f040c9e6f7d8b0887",
+      "component.json": "sha256:e5925345241bf0e7a4c6ce4d7c3230fd298959aa5fae6e7c7fafa1cd6b79f4ee",
+      "eval-profile.json": "sha256:c1f8f722a16afa1fc1d64c14edc5c771d8eecc259e7e8aa87f8f1283329fc710",
+      "source/command.md": "sha256:a8bfcdf5766b2c15e0fe50f7f9925b3f52b89fff75d430ca71b8e1f298a90198"
+    },
+    "hook-javascript-cursor": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:7f0d2a65cfc8434f081fbb1bf0565b9b0f14a96631dafd1a1c254c4b08a44613",
+      "adaptations/cursor/adaptation.json": "sha256:3c48309eaac5c0a00abce305dda4f5640b607857927bbd4c4a895b546059ea09",
+      "component-passport.json": "sha256:3b6d3e02751008f02d5cc75255a7eeef4ed4f2099ec480a205a6cca317b45e10",
+      "component.json": "sha256:161e24e26ca38899d1f2462835fed3ce8e5d4ac71fcc14ea494a3753c8184dd4",
+      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/cursor/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/cursor/hooks.json": "sha256:c8560b3caccd82220f5e03935c9782069dedb76d6c38a0d99dc21de6e0a557a5",
+      "projections/cursor/hooks/reference-component/handler.js": "sha256:6b8315390f229603cc9925dace5d5d5157e3b40b020f18815d4c3ba4e481b3e5",
+      "source/hook-source.json": "sha256:fceb1236e1a4d81b0fe08123345dc5544f0aaf889967f42c533c96418d3d811d",
+      "source/hooks/reference-component/handler.js": "sha256:6b8315390f229603cc9925dace5d5d5157e3b40b020f18815d4c3ba4e481b3e5"
+    },
+    "hook-python-antigravity": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:543961b168d9a83d070c59fbfdee3acd1863c284c4e4d2cd16f647fee1e6c6c7",
+      "adaptations/antigravity/adaptation.json": "sha256:f2596b71317f7c01d6a1e8820053b3bc0f736414dea76a164dd650bb7deb6812",
+      "component-passport.json": "sha256:16aa9649b30221d8f53358bafc165e0db437eca4b8c0e2db7110f7ece47016ae",
+      "component.json": "sha256:3c159aef61742bea268bcf351f912fde173a8a711fd992faf02af7d6a3c27e6d",
+      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/antigravity/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/antigravity/config/hooks.json": "sha256:9df6cb8aa9aaae3e908f62218d1c90e8ad0aa6f17647ec6309bab406f18e8433",
+      "projections/antigravity/config/hooks/reference-component/handler.py": "sha256:e12025ea99345f03fd3904d9f8b77649663279704a9ef31d5c2d4c4e71cc87a1",
+      "source/config/hooks/reference-component/handler.py": "sha256:e12025ea99345f03fd3904d9f8b77649663279704a9ef31d5c2d4c4e71cc87a1",
+      "source/hook-source.json": "sha256:d0758ab3c051c56c912da14898c1a28c759dff9701019360e01017aa0c32229c"
+    },
+    "hook-typescript-codex": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:61b88598a5c6a643da86a7d6279f62e3f8b20cdbd0d38dec6a535b3295c9cda6",
+      "adaptations/codex/adaptation.json": "sha256:abe063f9793cf206b6bc47a3c98c65fc65d795074481d796d7b3131a229f8401",
+      "component-passport.json": "sha256:fbd81c56a9acca4c535d53e31691b3ef2edf22e435be55107628e6888db6ba59",
+      "component.json": "sha256:413db4122c12a50997c806f6ef4a75e7fbace244c66e3ec67af19133ec840c87",
+      "eval-profile.json": "sha256:f6142ff368b6b13d6b265a4de8d3b121c8d6f0586550acc594589827c16e4ff6",
+      "projections/codex/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/codex/hooks.json": "sha256:0a97c2d165af4559317e12aa330eb214f4bea158d10a428d78c516d273bf35dc",
+      "projections/codex/hooks/reference-component/handler.ts": "sha256:f808cb594922c537c8b30642aab9063541cc13540c114082a83a1d391250fa6c",
+      "source/hook-source.json": "sha256:e2d6cef2305987bdecce28e2cf25564c3ae4009b71790ca4710c6013b78ac2cd",
+      "source/hooks/reference-component/handler.ts": "sha256:f808cb594922c537c8b30642aab9063541cc13540c114082a83a1d391250fa6c"
+    },
+    "instruction-none-portable": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:b09f9c1f129223ec57a89dd1cee8ec82124bc065dc91c83dadf7ff871f60d9bf",
+      "adaptations/portable/adaptation.json": "sha256:36c5bb65f91b379b1830e5e24501884cfa03e5d015be31cc8698d658256301e2",
+      "component-passport.json": "sha256:75ddc0d03fede98124b3732384303a37272a07fe0eefa88b69edccb342fd7015",
+      "component.json": "sha256:040c71e23132aa6a4859f0653b65f26d3ce6afd546df6a567915e04e441fcdb2",
+      "eval-profile.json": "sha256:1624133139d2a554a3f72151d858ac4e6c33b206a7fc3d7511017c1ad927f8d0",
+      "source/AGENTS.md": "sha256:1861a0f798e7a902700a2f79d94d11c2ea7c3e7b7708d870361aaa8047323d49"
+    },
+    "mcp-javascript-codex": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:eb3439a9d81861b13b2cd2d0ca2ad060d316fcfc56f797432abcb8d9739fe35f",
+      "adaptations/codex/adaptation.json": "sha256:6c15412fbafd2bb1119bd45fd43a5b38230b1e9638901bb172bd9355f0ac1267",
+      "component-passport.json": "sha256:01cdabd78074a7997635c964975ca265cd83951c935fd9b99c9feec850015f6c",
+      "component.json": "sha256:ce54afe96ee2668b0b77618766518e9e395354a4d5610ee2a084d21ded8c0b11",
+      "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
+      "projections/codex/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/codex/config.toml": "sha256:c075d590ae3005162866bf817f4c596df13107ee28403e964ede2c873e7df72b",
+      "projections/codex/servers/reference-component/server.js": "sha256:e1b3dc94c78f5464354e046b68c87597746bd86a30c7db80810bdc1bfd371a50",
+      "source/servers/reference-component/server.js": "sha256:e1b3dc94c78f5464354e046b68c87597746bd86a30c7db80810bdc1bfd371a50"
+    },
+    "mcp-python-portable": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:5092e46d6d1ec5d77421eaee9e00bb157978769a25fd7a53c7e1826e470960c6",
+      "adaptations/portable/adaptation.json": "sha256:25a9d27279ee42fdb237bd1bf4542ff4fadf27fe12ee22a2552a3d23efae675d",
+      "component-passport.json": "sha256:05428fba4290c2c7ac4cf88576904a8b08413d5ced212e72bcd1e047e3063aaa",
+      "component.json": "sha256:16c94c1638caadee19324d9a686b3c7a642d1ff991ca8b11966a70c2094e8743",
+      "eval-profile.json": "sha256:4599e84c9bbbcb33cdf45a6c15016e0cf86474fd1425794fc29c1dbea1863435",
+      "source/servers/reference-component/server.py": "sha256:5caea2c2ca03a75f11d87bfd4cc8afbf8282ee4e268934ebf28a1ef6b5a187bc"
+    },
+    "plugin-dart-flutter-grok-build": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:63ec183a629b110a4a9946029d559609b92672c84b1eec37065c245b37fe30e4",
+      "adaptations/grok-build/adaptation.json": "sha256:4a490dce49e3a0cfe58beaf471fc109b80bcafec25315d97577473d8623cb121",
+      "component-passport.json": "sha256:a44b853b11f3535cde174dd775a70dccc7f17f8a75133371f7eeeba81bc24eb0",
+      "component.json": "sha256:a9563387b855682d2f4633a7aea7faeb1b08b2eed66d497e056594fbca8b0d74",
+      "eval-profile.json": "sha256:fca75730526ba8dd5f187c9302a8d08a7baaa5fcebcc558328d95c813bc1e21c",
+      "projections/grok-build/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/grok-build/plugin.json": "sha256:910547aab8848605ac3bcdb3eeb8504f69d1505169372038782c979cf04b7cd8",
+      "projections/grok-build/src/main-reference_component.dart": "sha256:a76a0c209251a33fe77cac515dab470c65f92d74831de78d65acf035a115b89a",
+      "source/src/main-reference_component.dart": "sha256:a76a0c209251a33fe77cac515dab470c65f92d74831de78d65acf035a115b89a"
+    },
+    "setting-none-grok-build": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:a9712bd1bd076a064c739a79c5768c8810df3c5e3d240ae4facd0d6dea15ec17",
+      "adaptations/grok-build/adaptation.json": "sha256:91f037384ac36c46992f4dbd00eb3cf237c145cb626ed25a734d193cba8766fb",
+      "component-passport.json": "sha256:9c44b5c6690b95a09a4dff4a209eee0f4ff042442362376f1a8b9f9904a092bd",
+      "component.json": "sha256:99c4aaad1ae080b5ba2fba4420e75b8162abd157df455588b1661d0041af08d2",
+      "eval-profile.json": "sha256:f1cded74b474644392a256e83ac3567e9a6497bf9af6fcfe447a1a52aaac0ad0",
+      "projections/grok-build/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/grok-build/config.toml": "sha256:1cc5b8f811262ef4c0979d1d3b562b77037597e5eb35c6099339ebe12a9544d5",
+      "source/settings.json": "sha256:1cc5b8f811262ef4c0979d1d3b562b77037597e5eb35c6099339ebe12a9544d5"
+    },
+    "skill-none-codex": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:41a167e748889e5d28d04646ae4d1e2f711210b599b34f27a2142b2f245af6a3",
+      "adaptations/codex/adaptation.json": "sha256:704e2161e2326a1f2eb26d4568cf9d857fe1b8d8cc90332c6d1b175ae7a69c96",
+      "component-passport.json": "sha256:075e7e0a49d8c0fd5f3ff974d0eed48c1ed4bd62b2f2eb1f877935ac84dbe358",
+      "component.json": "sha256:80644296e900cd16f4f420eab3bf769f53d8fc8fc91b095c71ccffb4075c02ae",
+      "eval-profile.json": "sha256:e80fd5b259b8040498885949ff1d2d33847e204d10863f43f361ba5b461b7585",
+      "projections/codex/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/codex/skills/reference-component/SKILL.md": "sha256:e85ed18e3c2c049cf898bc05ccca70b9d20239de3d56b53858cef421324ec770",
+      "source/SKILL.md": "sha256:e85ed18e3c2c049cf898bc05ccca70b9d20239de3d56b53858cef421324ec770"
+    },
+    "skill-none-cursor": {
+      ".gitignore": "sha256:049707d52d2a1f59e1684bb8d7adb5c0b99920514b45a0c2db831d6e948447c4",
+      "README.md": "sha256:d32bf30d96aa45ca7a810a8dcd5ea55e8159c5aa0fdd5b50679f2d08af1440da",
+      "adaptations/cursor/adaptation.json": "sha256:c6aa390197b65776c2b6ebdb38663052159133c887f631081b16595b6a469c99",
+      "component-passport.json": "sha256:b10e8fa06384ebfc1e48ad6e28c1757bdff9f68e25a1a86e035567fcec4b8663",
+      "component.json": "sha256:bffa40cb9a4ee08900f9fb2530e136f73ef50d1b4b190d51bed00eaa3ad70249",
+      "eval-profile.json": "sha256:e80fd5b259b8040498885949ff1d2d33847e204d10863f43f361ba5b461b7585",
+      "projections/cursor/GENERATED.md": "sha256:d494e3c3873a874a9e810ab16f18710080b976edcf49a704ad317f3f742f1b36",
+      "projections/cursor/skills/reference-component/SKILL.md": "sha256:e85ed18e3c2c049cf898bc05ccca70b9d20239de3d56b53858cef421324ec770",
+      "source/SKILL.md": "sha256:e85ed18e3c2c049cf898bc05ccca70b9d20239de3d56b53858cef421324ec770"
+    }
+  },
+  "generator_version": "ai-stp/4",
+  "template_version": "component-scaffold/4"
+}

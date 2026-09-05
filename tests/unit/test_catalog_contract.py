@@ -73,6 +73,11 @@ OBJECT_IDENTITY = {
     "schema_version",
     "stable_id",
     "publisher_id",
+    "owner_account_id",
+    "owner_handle",
+    "canonical_name",
+    "display_name",
+    "display_locale",
     "likes_count",
     "github_stars",
     "updated_at",
@@ -337,10 +342,10 @@ def test_a_search_request_bounds_its_own_inputs() -> None:
     assert ComponentSearchRequest(page_size=PAGE_SIZE_MAX).page_size == PAGE_SIZE_MAX
     with pytest.raises(ValidationError):
         ComponentSearchRequest(page_size=PAGE_SIZE_MAX + 1)
+    assert ComponentSearchRequest(q="").q is None
+    assert ComponentSearchRequest(q="   ").q is None
     with pytest.raises(ValidationError):
-        ComponentSearchRequest(q="")
-    with pytest.raises(ValidationError):
-        ComponentSearchRequest(tags=[f"tag-{index}" for index in range(9)])
+        ComponentSearchRequest(tags=[f"tag-{index}" for index in range(11)])
     with pytest.raises(ValidationError):
         ComponentSearchRequest(cursor="has space")
 
@@ -373,7 +378,7 @@ def test_tags_keep_the_passport_bounds() -> None:
     with pytest.raises(ValidationError):
         component_summary(latest_tags=[])
     with pytest.raises(ValidationError):
-        component_summary(latest_tags=[f"tag-{index}" for index in range(9)])
+        component_summary(latest_tags=[f"tag-{index}" for index in range(11)])
 
 
 def test_version_entry_rejects_a_floating_reference() -> None:

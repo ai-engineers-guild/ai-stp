@@ -18,6 +18,8 @@ export type ContentSummary = {
   revision_id: string;
   content_digest: string;
   source_kind: ContentSourceKind;
+  cover_image: string | null;
+  cover_alt: string | null;
 };
 
 export type ContentDetail = ContentSummary & {

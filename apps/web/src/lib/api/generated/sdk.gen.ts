@@ -6,9 +6,6 @@ import type {
   AcceptGrantInvitationData,
   AcceptGrantInvitationErrors,
   AcceptGrantInvitationResponses,
-  ApproveOwnershipClaimData,
-  ApproveOwnershipClaimErrors,
-  ApproveOwnershipClaimResponses,
   BindPublicationArtifactData,
   BindPublicationArtifactErrors,
   BindPublicationArtifactResponses,
@@ -39,12 +36,12 @@ import type {
   CreateReportCaseData,
   CreateReportCaseErrors,
   CreateReportCaseResponses,
+  CreateRequestCaseData,
+  CreateRequestCaseErrors,
+  CreateRequestCaseResponses,
   DeleteStaffContentData,
   DeleteStaffContentErrors,
   DeleteStaffContentResponses,
-  DenyOwnershipClaimData,
-  DenyOwnershipClaimErrors,
-  DenyOwnershipClaimResponses,
   ExchangeDeviceCodeData,
   ExchangeDeviceCodeErrors,
   ExchangeDeviceCodeResponses,
@@ -81,6 +78,9 @@ import type {
   ListReportCasesData,
   ListReportCasesErrors,
   ListReportCasesResponses,
+  ListRequestCasesData,
+  ListRequestCasesErrors,
+  ListRequestCasesResponses,
   ListStaffReportsData,
   ListStaffReportsErrors,
   ListStaffReportsResponses,
@@ -141,6 +141,9 @@ import type {
   ReadPublicationPlanData,
   ReadPublicationPlanErrors,
   ReadPublicationPlanResponses,
+  ReadRequestCaseData,
+  ReadRequestCaseErrors,
+  ReadRequestCaseResponses,
   ReadSelectionImpactData,
   ReadSelectionImpactErrors,
   ReadSelectionImpactResponses,
@@ -204,9 +207,6 @@ import type {
   SetOwnerVersionLifecycleData,
   SetOwnerVersionLifecycleErrors,
   SetOwnerVersionLifecycleResponses,
-  StaffAuthorVerifiedData,
-  StaffAuthorVerifiedErrors,
-  StaffAuthorVerifiedResponses,
   StaffTriageReportData,
   StaffTriageReportErrors,
   StaffTriageReportResponses,
@@ -225,6 +225,9 @@ import type {
   UnlinkAccountIdentityData,
   UnlinkAccountIdentityErrors,
   UnlinkAccountIdentityResponses,
+  UpdateAccountIdentityData,
+  UpdateAccountIdentityErrors,
+  UpdateAccountIdentityResponses,
   UpdateAccountPrivacyData,
   UpdateAccountPrivacyErrors,
   UpdateAccountPrivacyResponses,
@@ -320,6 +323,26 @@ export const unlinkAccountIdentity = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/account/identities/{provider}",
     ...options,
+  });
+
+/**
+ * Replace the current unique public handle and display name.
+ */
+export const updateAccountIdentity = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateAccountIdentityData, ThrowOnError>,
+): RequestResult<UpdateAccountIdentityResponses, UpdateAccountIdentityErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdateAccountIdentityResponses,
+    UpdateAccountIdentityErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/account/identity",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**
@@ -956,7 +979,7 @@ export const startOwnerPublication = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Request transfer of an official catalog component to a verified maintainer.
+ * Compatibility entry that records an ownership-transfer request without granting it.
  */
 export const createOwnershipClaim = <ThrowOnError extends boolean = false>(
   options: Options<CreateOwnershipClaimData, ThrowOnError>,
@@ -1097,6 +1120,50 @@ export const createReportCase = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * List the caller's own request cases.
+ */
+export const listRequestCases = <ThrowOnError extends boolean = false>(
+  options?: Options<ListRequestCasesData, ThrowOnError>,
+): RequestResult<ListRequestCasesResponses, ListRequestCasesErrors, ThrowOnError> =>
+  (options?.client ?? client).get<ListRequestCasesResponses, ListRequestCasesErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/requests",
+    ...options,
+  });
+
+/**
+ * Create a private request case for any shared topic.
+ */
+export const createRequestCase = <ThrowOnError extends boolean = false>(
+  options: Options<CreateRequestCaseData, ThrowOnError>,
+): RequestResult<CreateRequestCaseResponses, CreateRequestCaseErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateRequestCaseResponses,
+    CreateRequestCaseErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/requests",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read one of the caller's own request cases.
+ */
+export const readRequestCase = <ThrowOnError extends boolean = false>(
+  options: Options<ReadRequestCaseData, ThrowOnError>,
+): RequestResult<ReadRequestCaseResponses, ReadRequestCaseErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadRequestCaseResponses, ReadRequestCaseErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/requests/{case_id}",
+    ...options,
+  });
+
+/**
  * Read an account-scoped selection impact report.
  */
 export const readSelectionImpact = <ThrowOnError extends boolean = false>(
@@ -1190,26 +1257,6 @@ export const rollbackSeoRevision = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Issue or revoke author_verified for an account.
- */
-export const staffAuthorVerified = <ThrowOnError extends boolean = false>(
-  options: Options<StaffAuthorVerifiedData, ThrowOnError>,
-): RequestResult<StaffAuthorVerifiedResponses, StaffAuthorVerifiedErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    StaffAuthorVerifiedResponses,
-    StaffAuthorVerifiedErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: "/v1/staff/author-verified",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-/**
  * Unpublish both locales of a staff article without deleting history.
  */
 export const deleteStaffContent = <ThrowOnError extends boolean = false>(
@@ -1238,46 +1285,6 @@ export const putStaffContent = <ThrowOnError extends boolean = false>(
   (options.client ?? client).put<PutStaffContentResponses, PutStaffContentErrors, ThrowOnError>({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/staff/content/{type}/{slug}",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-/**
- * Approve a verified-maintainer claim without rewriting published passports.
- */
-export const approveOwnershipClaim = <ThrowOnError extends boolean = false>(
-  options: Options<ApproveOwnershipClaimData, ThrowOnError>,
-): RequestResult<ApproveOwnershipClaimResponses, ApproveOwnershipClaimErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    ApproveOwnershipClaimResponses,
-    ApproveOwnershipClaimErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: "/v1/staff/ownership-claims/{claim_id}/approve",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-/**
- * Deny a verified-maintainer claim with no catalog effect.
- */
-export const denyOwnershipClaim = <ThrowOnError extends boolean = false>(
-  options: Options<DenyOwnershipClaimData, ThrowOnError>,
-): RequestResult<DenyOwnershipClaimResponses, DenyOwnershipClaimErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    DenyOwnershipClaimResponses,
-    DenyOwnershipClaimErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: "/v1/staff/ownership-claims/{claim_id}/deny",
     ...options,
     headers: {
       "Content-Type": "application/json",

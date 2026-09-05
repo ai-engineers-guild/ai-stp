@@ -28,6 +28,7 @@ from ai_stp_passports.versions import (
     SetupVersionPassport,
     seal_adaptation,
 )
+from ai_stp_platform.identity import ensure_catalog_identity
 from ai_stp_platform.models import Account, CatalogMetadata, ComponentMedia
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN, ImmutableObjectStore
 
@@ -808,6 +809,9 @@ async def upsert_seed_version(
     )
     session.add(row)
     await session.flush()
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+    await upsert_catalog_search_projection(session, object_kind=object_kind, stable_id=stable_id)
     return row, True
 
 
@@ -824,6 +828,14 @@ async def load_first_party_seed(
             session.add(Account(id=account_id))
             created_accounts += 1
     if created_accounts:
+        await session.flush()
+
+    fixture_owner = await session.get(Account, SEED_OWNER_ACCOUNT_ID)
+    if fixture_owner is not None and not fixture_owner.handle_normalized:
+        fixture_owner.handle = "fixture-owner"
+        fixture_owner.handle_normalized = "fixture-owner"
+        fixture_owner.display_name = "Fixture Owner"
+        fixture_owner.display_name_normalized = "fixture owner"
         await session.flush()
 
     created = 0
@@ -849,6 +861,14 @@ async def load_first_party_seed(
             and await _write_seed_artifact(store, INCIDENT_SUBAGENT_ARTIFACT)
         ):
             artifacts_written += 1
+    await ensure_catalog_identity(
+        session,
+        stable_id=FIXTURE_COMPONENT_ID,
+        owner_account_id=SEED_OWNER_ACCOUNT_ID,
+        canonical_name="fixture-component",
+        display_name_en="Fixture Component",
+        display_name_ru="Fixture Component",
+    )
     preview_id = "media_seed_river_planner_preview"
     if await session.get(ComponentMedia, preview_id) is None:
         session.add(

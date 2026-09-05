@@ -65,6 +65,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
 
   const passport = response.passport;
   const harnesses = namedPassportHarnesses(passport);
+  const supportedOperatingSystems = namedOperatingSystems(passport);
   const projectionKinds = namedProjectionKinds(passport);
   const sourceLinks = sourceLinksFor(passport.source, passport.facts).map((item) => ({
     ...item,
@@ -120,7 +121,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         <div>
           <dt className="text-muted-foreground text-sm">{t("supportedOs")}</dt>
           <dd>
-            <OsBadgeList values={namedOperatingSystems(passport)} empty={t("noneListed")} />
+            <OsBadgeList values={supportedOperatingSystems} empty={t("noneListed")} />
           </dd>
         </div>
         <div>

@@ -25,7 +25,7 @@ last_verified: "2026-08-03"
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
 | [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-04 |
-| [component-presentation.md](component-presentation.md) | Mutable component presentation in the catalog without changing the version passport. | 2026-08-10 |
+| [component-presentation.md](component-presentation.md) | Mutable component presentation in the catalog without changing the version passport. | 2026-09-04 |
 | [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-08-22 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
@@ -36,7 +36,7 @@ last_verified: "2026-08-03"
 | [fixture-corpus.md](fixture-corpus.md) | Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Machine contract for local GitHub archive evidence and observation history. | 2026-08-15 |
 | [harness-bundle.md](harness-bundle.md) | Bounded deterministic package for a public harness provider. | 2026-09-01 |
-| [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-08-29 |
+| [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-09-04 |
 | [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-09-04 |
 | [offline-capability.md](offline-capability.md) | What works without the network after initial setup and what requires connectivity. | 2026-08-13 |
 | [operation.md](operation.md) | States, plan, journal, and recovery of a mutating operation. | 2026-08-09 |
@@ -44,8 +44,8 @@ last_verified: "2026-08-03"
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
 | [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |
-| [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-08-08 |
-| [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-08-13 |
+| [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-09-04 |
+| [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-09-04 |
 | [selection-impact.md](selection-impact.md) | Machine contract for the local context budget, capability delta, and blast radius. | 2026-08-15 |
 | [selection-proposal.md](selection-proposal.md) | Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion. | 2026-08-25 |
 | [seo-publication-projection.md](seo-publication-projection.md) | Machine boundary for server-side SEO revisions, discovery documents, and model enrichment. | 2026-08-29 |
@@ -55,7 +55,7 @@ last_verified: "2026-08-03"
 | [setup-store-ports.md](setup-store-ports.md) | Contract for local discovery, preview, and component import from SX and APM. | 2026-08-13 |
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
-| [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, normalization, limit, and search behavior. | 2026-08-04 |
+| [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable exception records by publisher and major line. | 2026-08-29 |
 | [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-03 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Cookie categories and the rule for starting optional Web integrations. | 2026-08-22 |

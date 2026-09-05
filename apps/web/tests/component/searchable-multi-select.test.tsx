@@ -19,7 +19,10 @@ describe("SearchableMultiSelect", () => {
     );
 
     expect(screen.getByText("Tags (1)")).toBeInTheDocument();
-    expect(screen.getByText("Tags (1)").closest("details")).toHaveClass("min-w-0");
+    expect(screen.getByText("Tags (1)").closest("details")).toHaveAttribute(
+      "name",
+      "catalog-filter",
+    );
     expect(screen.getByRole("checkbox", { name: "security" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "security" })).toHaveAttribute(
       "form",
@@ -71,5 +74,35 @@ describe("SearchableMultiSelect", () => {
     expect(onChange).toHaveBeenCalledWith([]);
     await user.click(screen.getByRole("checkbox", { name: "Bea" }));
     expect(onChange).toHaveBeenLastCalledWith(["account_b"]);
+  });
+
+  it("closes another open filter menu", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <SearchableMultiSelect
+          name="tag"
+          label="Tags"
+          searchLabel="Search tags"
+          options={["python"]}
+          selected={[]}
+        />
+        <SearchableMultiSelect
+          name="harness_id"
+          label="Harness"
+          searchLabel="Search harnesses"
+          options={["codex"]}
+          selected={[]}
+        />
+      </>,
+    );
+
+    const tags = screen.getByText("Tags").closest("details");
+    const harness = screen.getByText("Harness").closest("details");
+    await user.click(screen.getByText("Tags"));
+    expect(tags).toHaveAttribute("open", "");
+    await user.click(screen.getByText("Harness"));
+    expect(tags).not.toHaveAttribute("open");
+    expect(harness).toHaveAttribute("open", "");
   });
 });

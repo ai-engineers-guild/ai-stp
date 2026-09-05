@@ -1,6 +1,6 @@
 ---
 description: "Public profile fields, revisions, avatar, and separation from the developer passport."
-last_verified: "2026-08-08"
+last_verified: "2026-09-04"
 ---
 
 # Public profile
@@ -33,11 +33,14 @@ not that the catalog contains an empty card.
 
 | Field | Constraint | Meaning |
 |---|---|---|
-| `display_name` | 1–80 UTF-8 characters, if provided | Display name |
-| `bio` | 0–1500 characters; limited Markdown (lists, headings, tables, bold/code/links), without HTML tags or `javascript:`/`data:` URIs | Short description |
+| `display_name` | 1–80 normalized UTF-8 characters, if provided; same plain-text policy as `bio` | Display name |
+| `bio` | 0–1500 normalized UTF-8 characters; Unicode letters/digits, whitespace, and basic ASCII punctuation only; no invisible/typographic characters, unsafe URIs, markup, profanity, sexual content/services, threats/violence, extremism, or military-action markers | Short description |
 | `links` | 0–8 items; `label` 1–60; normalized HTTPS `url`; unique | External links |
 | `avatar_asset_id` | id of a processed asset, or absent | Association with AvatarAsset |
 | `content_digest` | canonical revision digest | Snapshot identity |
+
+Prohibited-content markers are matched as complete words or explicit phrases at
+word boundaries; roots and suffixes are not matched.
 
 ## Lifecycle
 

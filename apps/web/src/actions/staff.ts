@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
-import { staffAuthorVerified, staffTriageReport, staffVersionLifecycle } from "@/lib/api/reports";
+import { staffTriageReport, staffVersionLifecycle } from "@/lib/api/reports";
 import { ApiError } from "@/lib/api/errors";
 import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
 
@@ -69,31 +69,6 @@ export async function staffLifecycleAction(input: {
     stable_id: input.stableId,
     version: input.version,
     action: input.action,
-    reason: input.reason.trim(),
-    idempotency_key: randomBytes(16).toString("hex"),
-  });
-  revalidatePath("/[locale]/staff/reports", "layout");
-  return { operationId: result.operationId };
-}
-
-export async function staffAuthorVerifiedAction(input: {
-  csrfToken: string;
-  subjectAccountId: string;
-  verified: boolean;
-  reason: string;
-}): Promise<{ operationId: string | null }> {
-  assertCsrf(input.csrfToken, await readCsrfToken());
-  if (!input.reason.trim()) {
-    throw new ApiError({
-      code: "AI_STP_VALIDATION_ERROR",
-      message: "reason required",
-      status: 400,
-    });
-  }
-  const sessionToken = await sessionTokenOrThrow();
-  const result = await staffAuthorVerified(sessionToken, {
-    subject_account_id: input.subjectAccountId,
-    verified: input.verified,
     reason: input.reason.trim(),
     idempotency_key: randomBytes(16).toString("hex"),
   });

@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
+from ai_stp_api.slices.owner import service as owner_service
 from ai_stp_contracts.catalog import CATALOG_UNSPECIFIED_FILTER
+from ai_stp_contracts.owner import OwnerExternalProductCreateRequest
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.catalog_seed import FIXTURE_COMPONENT_ID, load_first_party_seed
 from ai_stp_platform.models import Account, CatalogMetadata
@@ -45,6 +47,24 @@ async def _owner(sessionmaker: async_sessionmaker[AsyncSession]) -> tuple[str, s
         return account.id, token.raw_token
 
 
+async def _seed_service(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    *,
+    name: str,
+    primary_url: str,
+    country_codes: list[str],
+) -> None:
+    async with sessionmaker() as db:
+        await owner_service.create_external_product(
+            db,
+            body=OwnerExternalProductCreateRequest(
+                name=name,
+                primary_url=primary_url,
+                country_codes=country_codes,
+            ),
+        )
+
+
 @pytest.mark.asyncio
 async def test_owner_creates_and_attaches_service_visible_under_country(
     db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
@@ -66,29 +86,14 @@ async def test_owner_creates_and_attaches_service_visible_under_country(
     stable_id = FIXTURE_COMPONENT_ID
     token = issued.raw_token
     headers = {"Authorization": f"Bearer {token}"}
-    created = await client.post(
-        "/v1/owner/external-products",
-        headers=headers,
-        json={
-            "schema_version": 1,
-            "name": "Kaspi",
-            "primary_url": "https://KASPI.KZ/shop/?utm=x",
-            "country_codes": ["KZ"],
-        },
+    await _seed_service(
+        sessionmaker,
+        name="Kaspi",
+        primary_url="https://KASPI.KZ/shop/?utm=x",
+        country_codes=["KZ"],
     )
-    assert created.status_code == 201
-    assert created.json()["canonical_domain"] == "kaspi.kz"
-    duplicate = await client.post(
-        "/v1/owner/external-products",
-        headers=headers,
-        json={
-            "schema_version": 1,
-            "name": "Kaspi Store",
-            "primary_url": "https://kaspi.kz",
-            "country_codes": ["KZ"],
-        },
-    )
-    assert duplicate.status_code == 409
+    removed = await client.post("/v1/owner/external-products", headers=headers, json={})
+    assert removed.status_code == 404
     attached = await client.put(
         f"/v1/owner/objects/component/{stable_id}/external-products",
         headers=headers,
@@ -144,28 +149,12 @@ async def test_catalog_search_accepts_multi_and_unspecified_relation_filters(
         await db.commit()
     stable_id = FIXTURE_COMPONENT_ID
     headers = {"Authorization": f"Bearer {issued.raw_token}"}
-    created_us = await client.post(
-        "/v1/owner/external-products",
-        headers=headers,
-        json={
-            "schema_version": 1,
-            "name": "Example Pay",
-            "primary_url": "https://example.com",
-            "country_codes": ["US"],
-        },
+    await _seed_service(
+        sessionmaker, name="Example Pay", primary_url="https://example.com", country_codes=["US"]
     )
-    assert created_us.status_code == 201
-    created_open = await client.post(
-        "/v1/owner/external-products",
-        headers=headers,
-        json={
-            "schema_version": 1,
-            "name": "Worldwide",
-            "primary_url": "https://worldwide.example",
-            "country_codes": [],
-        },
+    await _seed_service(
+        sessionmaker, name="Worldwide", primary_url="https://worldwide.example", country_codes=[]
     )
-    assert created_open.status_code == 201
     attached = await client.put(
         f"/v1/owner/objects/component/{stable_id}/external-products",
         headers=headers,
@@ -275,13 +264,20 @@ async def test_service_creation_rejects_deep_link(
     client, sessionmaker, _settings = db_api_client
     _owner_id, token = await _owner(sessionmaker)
     response = await client.post(
-        "/v1/owner/external-products",
+        "/v1/requests",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "schema_version": 1,
-            "name": "Deep",
-            "primary_url": "https://kaspi.kz/shop/item",
-            "country_codes": ["KZ"],
+            "topic": "service_request",
+            "service": {
+                "name": "Deep",
+                "primary_url": "https://kaspi.kz/shop/item",
+                "description_ru": "Описание",
+                "description_en": "Description",
+                "source_url": "https://kaspi.kz/about",
+                "country_codes": ["KZ"],
+            },
+            "idempotency_key": "deep-service-request",
         },
     )
     assert response.status_code == 400

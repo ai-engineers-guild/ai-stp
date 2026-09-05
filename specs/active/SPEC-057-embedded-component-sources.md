@@ -116,10 +116,12 @@ the architecture and extends ADR-0051 without changing `ComponentRef`.
   Byte equivalence with an official catalog component produces a dismissible
   suggestion, not an automatic identity merge. Similar names never merge
   identities; after freeze, names do not participate in resolution.
-- `REQ-5717`: A verified upstream maintainer may request transfer of an official
-  catalog component. Staff verifies the claim, previews the exact affected object
-  and major lines, records reason and evidence, and performs an audited ownership
-  revision without rewriting published versions; denial has no catalog effect.
+- `REQ-5717`: Any authenticated account, including AI STP Official, may request
+  transfer of an Official catalog component through the shared private request
+  flow. Submission neither requires nor grants `author_verified`. Staff reviews
+  the claimant, requested recipient, exact affected line and versions, reason,
+  and evidence; approval is performed only by the database-bound operation in
+  SPEC-056, while denial has no catalog or source effect.
 - `REQ-5718`: All resolver and registry clients use bounded time, response size,
   redirect host, extraction size/count, and dependency-graph limits. Tokens,
   credential-bearing URLs, local absolute paths, and secret-like files do not
@@ -182,7 +184,7 @@ version 2 bytes and published setup history.
 | `REQ-5714` | Promotion process tests use the ordinary publication barrier, cover passport reuse/new identity, and prove setup publish causes no promotion. |
 | `REQ-5715` | Multiple official Git/package sources use the shared resolver; exact coordinate+digest yields only a dismissible replacement suggestion. |
 | `REQ-5716` | Local/Git forks remain embedded, duplicate bytes suggest without merging, and name collisions retain distinct exact refs. |
-| `REQ-5717` | Staff/non-staff and approve/deny tests cover claim evidence, preview, audit, ownership revision, and immutable history. |
+| `REQ-5717` | Requester, Official-account, and database-bound transfer tests cover claim evidence, preview, audit, ownership revision, source cutoff, and immutable history. |
 | `REQ-5718` | Bounds and secret-redaction tests cover every adapter, archive, graph, document, payload, log, and fixture boundary. |
 | `REQ-5719` | Web/API tests cover projected harnesses, absence of a setup percentage, per-member checks, and catalog/Git/package/local link behavior. |
 | `REQ-5720` | Export of a recorded mixed setup writes passport, definition, README, and a recomputable export manifest to a new directory; it refuses an occupied destination without mutating either authoring or harness state. |

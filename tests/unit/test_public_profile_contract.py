@@ -44,10 +44,8 @@ def test_display_name_and_bio_bounds() -> None:
         ProfileFields(bio="hello <b>x</b>")
     with pytest.raises(ValidationError):
         ProfileFields(bio="click javascript:alert(1)")
-    # Limited Markdown is allowed (bold / code / links).
-    ok = ProfileFields(bio="has `code` and **bold** and [x](https://example.com)")
-    assert ok.bio is not None
-    assert "`code`" in ok.bio
+    with pytest.raises(ValidationError):
+        ProfileFields(bio="has `code` and **bold** and [x](https://example.com)")
 
 
 def test_link_rules() -> None:

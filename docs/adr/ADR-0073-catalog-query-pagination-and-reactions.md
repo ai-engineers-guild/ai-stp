@@ -1,6 +1,6 @@
 ---
 description: "Catalog QL, two pagination modes, and isolated reactions."
-last_verified: "2026-08-09"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0073: Catalog query, pagination, and reactions
@@ -25,7 +25,11 @@ The public projection stores only the non-negative `likes_count` aggregate, sepa
 
 ## Consequences
 
-OpenAPI and fixtures receive additive fields/parameters. Indexes are required for the public projection, filters, full-text/trigram search, and the reaction aggregate. Count must not include hidden/private rows. The frontend parser is a UX aid, but the backend repeats all validation. Any grammar extension requires a version and a golden corpus.
+OpenAPI and fixtures receive additive fields/parameters. Execution of search
+against PostgreSQL, including the one-row search projection, GIN `tsvector`,
+and sort-matching cursors, is owned by `ADR-0151`. Count must not include
+hidden/private rows. The frontend parser is a UX aid, but the backend repeats
+all validation. Any grammar extension requires a version and a golden corpus.
 
 ## Reconsideration Criteria
 

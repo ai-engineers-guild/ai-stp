@@ -18,6 +18,16 @@
       "minLength": 1,
       "type": "string"
     },
+    "ContentImage": {
+      "maxLength": 512,
+      "pattern": "^/content/illustrations/[a-z0-9._-]+\\.(?:svg|png|jpg|jpeg|webp|gif)$",
+      "type": "string"
+    },
+    "ContentImageAlt": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+    },
     "ContentLocale": {
       "enum": [
         "ru",
@@ -65,6 +75,28 @@
     },
     "content_digest": {
       "$ref": "#/$defs/DigestValue"
+    },
+    "cover_alt": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentImageAlt"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "cover_image": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentImage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "description": {
       "$ref": "#/$defs/ContentDescription"

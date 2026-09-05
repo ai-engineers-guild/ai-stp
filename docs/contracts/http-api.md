@@ -1,6 +1,6 @@
 ---
 description: "HTTP API versioning, authorization, idempotency, and concurrency."
-last_verified: "2026-08-29"
+last_verified: "2026-09-04"
 ---
 
 # HTTP API
@@ -30,14 +30,14 @@ The MVP base path is `/v1`. The client sends and receives UTF-8 JSON. Every resp
 
 A cursor is opaque: it is a position in an ordering, not an offset or identifier. Its form is 1 to 512 characters from `A-Za-z0-9_-`. The client returns it verbatim and does not parse it.
 
-The cursor sequence follows the server's keyset order and enumerates the complete
-set: an object appears on exactly one page, and pagination does not change the
-resulting set. This implies an easily misread boundary: `sort` applies to page
-mode (`page`), where the server orders the entire set before slicing it. Sorting
-one page of a cursor sequence would order twenty rows among themselves and call
-that catalog order, while a cursor taken from that page would point into a
-different order from the one being continued. That exact behavior lost and
-repeated rows and made the result depend on page size (`REQ-2105`).
+The cursor sequence follows the selected sort, including direction, and
+enumerates the complete set: an object appears on exactly one page, and
+pagination does not change the resulting set. Cursor keys are those sort keys
+plus `stable_id`. Page mode uses the same order before `OFFSET`/`LIMIT` and may
+return `total_items` for the already authorized public slice. Equivalent
+filters share a signature: `q` is trimmed and blank is absent; multi-value
+parameters are unique and sorted; singular `harness_id`/`component_type` merge
+with their list forms using OR (`REQ-2105`, `ADR-0151`).
 
 The default page size is `20`, with a maximum of `100`; a request above the maximum is clamped rather than rejected. The same maximum limits the number of objects in the response, not merely the declared size, or one “page” could return the entire catalog.
 

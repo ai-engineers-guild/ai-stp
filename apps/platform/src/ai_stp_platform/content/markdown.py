@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
+from urllib.parse import ParseResult, parse_qs, urlparse
 
 from ai_stp_contracts.content import CONTENT_BODY_MAX
 from ai_stp_platform.content.errors import ContentError
@@ -33,6 +35,29 @@ def validate_article_body(source: str) -> str:
                 raise ContentError("AI_STP_CONTENT_INVALID", "credential-bearing url rejected")
             continue
         raise ContentError("AI_STP_CONTENT_INVALID", "link must be https, fragment or illustration")
+    for kind, dest in _video_references(source):
+        parsed: ParseResult = urlparse(dest)
+        host = (parsed.hostname or "").lower()
+        if kind.lower() == "youtube":
+            video_id = (
+                parsed.path.strip("/")
+                if host == "youtu.be"
+                else parse_qs(parsed.query).get("v", [""])[0]
+            )
+            allowed = (
+                host in {"youtube.com", "www.youtube.com", "youtu.be"}
+                and re.fullmatch(r"[A-Za-z0-9_-]{6,}", video_id) is not None
+            )
+        else:
+            video_id = parsed.path.rstrip("/").split("/")[-1]
+            allowed = (
+                host in {"vimeo.com", "www.vimeo.com", "player.vimeo.com"}
+                and re.fullmatch(r"\d{1,12}", video_id) is not None
+            )
+        if not allowed:
+            raise ContentError(
+                "AI_STP_CONTENT_INVALID", "video must be a supported YouTube or Vimeo URL"
+            )
     return source
 
 
@@ -74,26 +99,44 @@ def _has_forbidden_tag(lowered: str) -> bool:
 
 
 def _has_event_handler_attr(lowered: str) -> bool:
-    n = len(lowered)
-    index = 0
-    while index < n:
-        start = lowered.find("on", index)
-        if start < 0:
-            return False
-        cursor = start + 2
-        if cursor < n and _is_word_char(lowered[cursor]):
-            cursor += 1
-            while cursor < n and _is_word_char(lowered[cursor]):
-                cursor += 1
-            skip = cursor
-            while skip < n and lowered[skip].isspace():
-                skip += 1
-            if skip < n and lowered[skip] == "=":
-                return True
-            index = cursor
+    for index in range(len(lowered) - 2):
+        if index and (lowered[index - 1].isalnum() or lowered[index - 1] == "_"):
             continue
-        index = start + 1
+        if lowered[index : index + 2] != "on":
+            continue
+        cursor = index + 2
+        while cursor < len(lowered) and "a" <= lowered[cursor] <= "z":
+            cursor += 1
+        if cursor == index + 2:
+            continue
+        while cursor < len(lowered) and lowered[cursor].isspace():
+            cursor += 1
+        if cursor < len(lowered) and lowered[cursor] == "=":
+            return True
     return False
+
+
+def _video_references(source: str) -> Iterator[tuple[str, str]]:
+    """Yield supported video references in one linear pass."""
+    index = 0
+    while (start := source.find("@[", index)) >= 0:
+        close = source.find("](", start + 2)
+        if close < 0:
+            return
+        kind = source[start + 2 : close].lower()
+        if kind not in {"youtube", "vimeo"}:
+            index = close + 2
+            continue
+        body = close + 2
+        if not source.startswith(_HTTPS_PREFIX, body):
+            index = body
+            continue
+        end = body
+        while end < len(source) and source[end] not in ") \t\r\n":
+            end += 1
+        if end > body:
+            yield kind, source[body:end]
+        index = end + 1
 
 
 def _markdown_link_destinations(source: str) -> Iterator[str]:

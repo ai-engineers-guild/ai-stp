@@ -20,6 +20,14 @@ const MOCK_CASE_ID = "case_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 const MOCK_PLAN_HASH = "sha256:" + "a".repeat(64);
 const MOCK_ACCOUNT = "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 
+type MockExternalProduct = {
+  schema_version: 1;
+  name: string;
+  canonical_domain: string;
+  primary_url: string;
+  country_codes: string[];
+};
+
 type MockPresentation = {
   schema_version: 1;
   stable_id: string;
@@ -39,6 +47,16 @@ const presentationByStableId: Map<string, MockPresentation> = (() => {
     globalStore.__aiStpMockPresentations = new Map<string, MockPresentation>();
   }
   return globalStore.__aiStpMockPresentations;
+})();
+
+const externalProductsByObject: Map<string, MockExternalProduct[]> = (() => {
+  const globalStore = globalThis as typeof globalThis & {
+    __aiStpMockExternalProducts?: Map<string, MockExternalProduct[]>;
+  };
+  if (!globalStore.__aiStpMockExternalProducts) {
+    globalStore.__aiStpMockExternalProducts = new Map<string, MockExternalProduct[]>();
+  }
+  return globalStore.__aiStpMockExternalProducts;
 })();
 
 function defaultPresentation(stableId: string): MockPresentation {
@@ -154,6 +172,33 @@ function ownerHandlers(
         ],
       },
     };
+  }
+  const externalProductsMatch = path.match(
+    /^\/v1\/owner\/objects\/(component|setup)\/([^/]+)\/external-products$/,
+  );
+  if (externalProductsMatch) {
+    const key = `${externalProductsMatch[1]}:${externalProductsMatch[2]}`;
+    if (method === "GET") {
+      return {
+        status: 200,
+        body: { schema_version: 1, items: externalProductsByObject.get(key) ?? [] },
+      };
+    }
+    if (method === "PUT") {
+      const payload = body as { canonical_domains?: unknown } | undefined;
+      const domains = Array.isArray(payload?.canonical_domains)
+        ? payload.canonical_domains.filter((value): value is string => typeof value === "string")
+        : [];
+      const products = domains.map((domain) => ({
+        schema_version: 1 as const,
+        name: domain,
+        canonical_domain: domain,
+        primary_url: `https://${domain}`,
+        country_codes: [],
+      }));
+      externalProductsByObject.set(key, products);
+      return { status: 200, body: { schema_version: 1, items: products } };
+    }
   }
   const versionMatch = path.match(
     /^\/v1\/owner\/objects\/(component|setup)\/([^/]+)\/versions\/([^/]+)$/,
@@ -395,10 +440,12 @@ function grantHandlers(
   return null;
 }
 
+// eslint-disable-next-line complexity -- Compatibility routes intentionally share one response table.
 function reportHandlers(
   method: string,
   path: string,
   auth: string | null,
+  body?: unknown,
 ): WorkspaceMockResult | null {
   if (path.startsWith("/v1/staff/")) {
     const unauth = requireAuth(auth, "staff.unauth");
@@ -462,10 +509,7 @@ function reportHandlers(
         headers: { "x-operation-id": MOCK_OP },
       };
     }
-    if (
-      method === "POST" &&
-      (path === "/v1/staff/versions/lifecycle" || path === "/v1/staff/author-verified")
-    ) {
+    if (method === "POST" && path === "/v1/staff/versions/lifecycle") {
       return {
         status: 200,
         body: { schema_version: 1, state: "applied" },
@@ -475,14 +519,31 @@ function reportHandlers(
     return null;
   }
 
-  if (!path.startsWith("/v1/reports")) {
+  if (!path.startsWith("/v1/reports") && !path.startsWith("/v1/requests")) {
     return null;
   }
   const unauth = requireAuth(auth, "reports.unauth");
   if (unauth) {
     return unauth;
   }
-  if (method === "GET" && path === "/v1/reports") {
+  if (method === "GET" && path.startsWith("/v1/requests/") && path !== "/v1/requests") {
+    return {
+      status: 200,
+      body: {
+        schema_version: 1,
+        case_id: MOCK_CASE_ID,
+        topic: "object_report",
+        object_kind: "component",
+        stable_id: FIXTURE_COMPONENT_ID,
+        version: "1.0",
+        state: "submitted",
+        vulnerability: false,
+        locale: "en",
+        created_at: FIXTURE_TIMESTAMP,
+      },
+    };
+  }
+  if (method === "GET" && (path === "/v1/reports" || path === "/v1/requests")) {
     return {
       status: 200,
       body: {
@@ -502,7 +563,11 @@ function reportHandlers(
       },
     };
   }
-  if (method === "POST" && path === "/v1/reports") {
+  if (method === "POST" && (path === "/v1/reports" || path === "/v1/requests")) {
+    const topic =
+      body && typeof body === "object" && "topic" in body && typeof body.topic === "string"
+        ? body.topic
+        : "object_report";
     return {
       status: 201,
       body: {
@@ -513,6 +578,7 @@ function reportHandlers(
         version: "1.0",
         state: "submitted",
         vulnerability: false,
+        topic,
         created_at: FIXTURE_TIMESTAMP,
       },
       headers: { "x-operation-id": MOCK_OP },
@@ -532,6 +598,6 @@ export function workspaceHandlers(
     ownerHandlers(method, path, auth, body) ??
     publicationHandlers(method, path, auth) ??
     grantHandlers(method, path, auth) ??
-    reportHandlers(method, path, auth)
+    reportHandlers(method, path, auth, body)
   );
 }

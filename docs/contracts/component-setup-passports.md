@@ -34,7 +34,7 @@ requirements, or capabilities by inference.
 Enrichment accepts a closed JSON patch, an exact expected revision, and explicit
 confirmation. Every change creates a child revision; a stale patch fails closed.
 Patch fields become declared/user-confirmed facts, while observed facts retain their
-provenance. Secret-bearing keys, null, unknown fields, unsafe markdown, absolute or
+provenance. Secret-bearing keys, null, unknown fields, unsafe public description text, absolute or
 root-escaping managed paths, and an inexact public source are rejected before writing.
 The public source repository may be any credential-free HTTPS repository; GitHub is
 not a required host.

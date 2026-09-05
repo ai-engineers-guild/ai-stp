@@ -11,8 +11,16 @@
   "description": "One immutable ownership revision. Published version passports are unchanged.",
   "properties": {
     "claim_id": {
-      "title": "Claim Id",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Claim Id"
     },
     "created_at": {
       "$ref": "#/$defs/Timestamp"

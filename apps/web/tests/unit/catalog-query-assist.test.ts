@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   completeCatalogQlToken,
   correctCatalogQuery,
+  highlightCatalogQuery,
   suggestCatalogQlWords,
 } from "@/lib/catalog-query-assist";
 
@@ -45,5 +46,23 @@ describe("catalog query language assist", () => {
     expect(suggestCatalogQlWords("NAME")).toEqual([":", "IN", "AND"]);
     expect(suggestCatalogQlWords("HARNESS")).toEqual([":", "IN", "AND"]);
     expect(suggestCatalogQlWords("NAME:tool AND TAGS")).toEqual([":", "IN", "AND"]);
+  });
+
+  it("keeps quoted reserved words literal", () => {
+    expect(suggestCatalogQlWords('NAME:tool AND "AN')).toEqual([]);
+    expect(correctCatalogQuery('NAME:tool AND "and tags"')).toBe('NAME:tool AND "and tags"');
+    expect(
+      highlightCatalogQuery('NAME:"AND" OR TAGS:python').map(({ text, kind }) => [text, kind]),
+    ).toEqual([
+      ["NAME", "field"],
+      [":", "syntax"],
+      ['"AND"', "quoted"],
+      [" ", "text"],
+      ["OR", "operator"],
+      [" ", "text"],
+      ["TAGS", "field"],
+      [":", "syntax"],
+      ["python", "text"],
+    ]);
   });
 });

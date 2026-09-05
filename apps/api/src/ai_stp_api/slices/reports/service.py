@@ -17,14 +17,13 @@ from ai_stp_contracts.reports import (
     ReportCaseListResponse,
     ReportCaseResponse,
     StaffActionResponse,
-    StaffAuthorVerifiedRequest,
+    StaffAuthorVerificationRequest,
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.external_catalog import COUNTRY_CODES, canonical_external_url
 from ai_stp_platform.models import (
-    Account,
-    AccountAuthorVerification,
     CatalogMetadata,
     ReportCase,
 )
@@ -54,11 +53,13 @@ def case_to_wire(row: ReportCase) -> ReportCaseResponse:
     return ReportCaseResponse(
         schema_version=1,
         case_id=row.id,
-        object_kind=row.object_kind,  # type: ignore[arg-type]
-        stable_id=row.stable_id,
-        version=row.version,
+        topic=row.topic,  # type: ignore[arg-type]
+        object_kind=row.object_kind or "",  # type: ignore[arg-type]
+        stable_id=row.stable_id or "",
+        version=row.version or "",  # type: ignore[arg-type]
         state=row.state,  # type: ignore[arg-type]
         vulnerability=row.vulnerability,
+        locale=row.locale,  # type: ignore[arg-type]
         created_at=_ts(row.created_at),
     )
 
@@ -107,18 +108,66 @@ async def create_report(
     if count is not None and int(count) >= _RATE_LIMIT:
         raise ApiError(ErrorCategory.RATE_LIMITED, "report rate limit exceeded")
 
-    group_key = f"{body.object_kind}:{body.stable_id}:{body.version}"
-    state = "security_escalated" if body.vulnerability else "submitted"
-    case = ReportCase(
-        id=new_id("report"),
-        reporter_account_id=ctx.account_id,
-        object_kind=body.object_kind,
-        stable_id=body.stable_id,
-        version=body.version,
-        content_digest=body.content_digest,
-        state=state,
-        vulnerability=body.vulnerability,
-        payload={
+    if body.service:
+        canonical = canonical_external_url(body.service.primary_url)
+        if canonical is None:
+            raise ApiError(
+                ErrorCategory.VALIDATION,
+                "primary_url must be a shallow public HTTPS URL",
+            )
+        invalid_codes = sorted(set(body.service.country_codes) - COUNTRY_CODES)
+        if invalid_codes:
+            raise ApiError(
+                ErrorCategory.VALIDATION,
+                "unknown country code",
+                details={"country_codes": ",".join(invalid_codes)},
+            )
+        for value in (
+            body.service.name,
+            body.service.primary_url,
+            body.service.description_ru,
+            body.service.description_en,
+            body.service.source_url,
+        ):
+            _scan_forbidden(value)
+        group_key = f"service:{canonical[1]}"
+        request_payload: dict[str, object] = body.service.model_dump(mode="json")
+    elif body.country:
+        for value in (body.country.name_ru, body.country.name_en):
+            _scan_forbidden(value)
+        group_key = f"country:{body.country.code}"
+        request_payload = body.country.model_dump(mode="json")
+    elif body.topic == "component_complaint":
+        group_key = f"component_complaint:{body.stable_id}"
+        request_payload = {
+            "message": body.message,
+            "evidence": body.evidence,
+            "author_account_id": body.author_account_id,
+        }
+    elif body.topic == "author_complaint":
+        group_key = f"author_complaint:{body.author_account_id}"
+        request_payload = {"message": body.message, "evidence": body.evidence}
+    elif body.topic == "ownership_transfer":
+        group_key = f"ownership_transfer:{body.stable_id}:{body.recipient_account_id}"
+        request_payload = {
+            "message": body.message,
+            "evidence": body.evidence,
+            "recipient_account_id": body.recipient_account_id,
+            "author_account_id": body.author_account_id,
+        }
+    elif body.topic == "verification_request":
+        group_key = f"verification_request:{body.author_account_id}"
+        request_payload = {"message": body.message, "evidence": body.evidence}
+    elif body.topic == "other":
+        group_key = f"other:{body.subject.strip().casefold()}"
+        request_payload = {
+            "subject": body.subject,
+            "message": body.message,
+            "evidence": body.evidence,
+        }
+    else:
+        group_key = f"{body.object_kind}:{body.stable_id}:{body.version}"
+        request_payload = {
             "harness_id": body.harness_id,
             "harness_version": body.harness_version,
             "provider_version": body.provider_version,
@@ -126,7 +175,26 @@ async def create_report(
             "error_code": body.error_code,
             "validation_snapshot_ids": list(body.validation_snapshot_ids),
             "diagnostics_len": len(body.diagnostics),
-        },
+        }
+    if body.message:
+        _scan_forbidden(body.message)
+    if body.evidence:
+        _scan_forbidden(body.evidence)
+    if body.subject:
+        _scan_forbidden(body.subject)
+    state = "security_escalated" if body.vulnerability else "submitted"
+    case = ReportCase(
+        id=new_id("report"),
+        reporter_account_id=ctx.account_id,
+        topic=body.topic,
+        object_kind=body.object_kind,
+        stable_id=body.stable_id,
+        version=body.version,
+        content_digest=body.content_digest,
+        state=state,
+        vulnerability=body.vulnerability,
+        payload=request_payload,
+        locale=body.locale,
         group_key=group_key,
         idempotency_key=body.idempotency_key,
     )
@@ -134,13 +202,22 @@ async def create_report(
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,
-        action="report.created",
+        action="request.created",
         target_table="report_case",
         target_id=case.id,
-        payload={"group_key": group_key, "vulnerability": body.vulnerability},
+        payload={"topic": body.topic, "group_key": group_key, "vulnerability": body.vulnerability},
     )
     await db.flush()
     return case_to_wire(case)
+
+
+async def read_own_report(
+    db: AsyncSession, *, ctx: AuthContext, case_id: str
+) -> ReportCaseResponse:
+    row = await db.get(ReportCase, case_id)
+    if row is None or row.reporter_account_id != ctx.account_id:
+        raise ApiError(ErrorCategory.NOT_FOUND, "report case not found")
+    return case_to_wire(row)
 
 
 async def list_reports(db: AsyncSession, *, ctx: AuthContext) -> ReportCaseListResponse:
@@ -180,9 +257,10 @@ async def list_staff_reports(
         StaffReportSummary(
             schema_version=1,
             case_id=row.id,
-            object_kind=row.object_kind,  # type: ignore[arg-type]
-            stable_id=row.stable_id,
-            version=row.version,
+            topic=row.topic,  # type: ignore[arg-type]
+            object_kind=row.object_kind or "",  # type: ignore[arg-type]
+            stable_id=row.stable_id or "",
+            version=row.version or "",  # type: ignore[arg-type]
             state=row.state,
             vulnerability=row.vulnerability,
             created_at=_ts(row.created_at),
@@ -214,15 +292,17 @@ async def read_staff_report(
     return StaffReportDetail(
         schema_version=1,
         case_id=row.id,
-        object_kind=row.object_kind,  # type: ignore[arg-type]
-        stable_id=row.stable_id,
-        version=row.version,
+        topic=row.topic,  # type: ignore[arg-type]
+        object_kind=row.object_kind or "",  # type: ignore[arg-type]
+        stable_id=row.stable_id or "",
+        version=row.version or "",  # type: ignore[arg-type]
         state=row.state,
         vulnerability=row.vulnerability,
         created_at=_ts(row.created_at),
         content_digest=row.content_digest,
         error_code=str(error_code) if isinstance(error_code, str) else "",
         harness_id=str(harness_id) if isinstance(harness_id, str) else "",
+        request_payload=payload,
     )
 
 
@@ -304,64 +384,34 @@ async def staff_lifecycle(
             row.passport_digest or row.current_revision_id or "",
         ),
     )
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+    await upsert_catalog_search_projection(
+        db, object_kind=body.object_kind, stable_id=body.stable_id
+    )
     await db.flush()
     return StaffActionResponse(schema_version=1, applied=True, action=body.action)
 
 
-async def staff_author_verified(
+async def staff_author_verification(
     db: AsyncSession,
     *,
     ctx: AuthContext,
     staff_ids: frozenset[str],
-    body: StaffAuthorVerifiedRequest,
+    body: StaffAuthorVerificationRequest,
 ) -> StaffActionResponse:
     await require_staff(ctx, staff_ids)
-    subject = await db.get(Account, body.subject_account_id)
-    if subject is None:
-        raise ApiError(ErrorCategory.NOT_FOUND, "account not found")
-    row = await db.get(AccountAuthorVerification, body.subject_account_id)
-    if row is None:
-        row = AccountAuthorVerification(
-            account_id=body.subject_account_id,
-            verified=body.verified,
-            reason=body.reason,
-            issued_by_account_id=ctx.account_id,
-        )
-        db.add(row)
-    else:
-        row.verified = body.verified
-        row.reason = body.reason
-        row.issued_by_account_id = ctx.account_id
-    # Forward-only projection: update catalog author_verified for owned versions.
-    versions = list(
-        (
-            await db.execute(
-                select(CatalogMetadata).where(
-                    CatalogMetadata.owner_account_id == body.subject_account_id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
-    for version in versions:
-        version.author_verified = body.verified
-        if body.verified and version.component_verified:
-            version.trust_lane = "authoritative"
-        elif version.trust_lane == "authoritative" and not body.verified:
-            version.trust_lane = "experimental"
-    action = "staff.author_verified_issued" if body.verified else "staff.author_verified_revoked"
-    await emit_audit(
+    from ai_stp_platform.catalog_transfer import apply_author_verification
+
+    await apply_author_verification(
         db,
-        actor_account_id=ctx.account_id,
-        action=action,
-        target_table="account_author_verification",
-        target_id=body.subject_account_id,
+        subject_account_id=body.subject_account_id,
+        verified=body.verified,
         reason=body.reason,
+        operator_account_id=ctx.account_id,
     )
-    await db.flush()
     return StaffActionResponse(
         schema_version=1,
         applied=True,
-        action="author_verified_issue" if body.verified else "author_verified_revoke",
+        action="author_verified_issued" if body.verified else "author_verified_revoked",
     )

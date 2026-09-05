@@ -27,12 +27,18 @@ from ai_stp_platform.embedded_validation import (
     resolve_embedded_setup,
     setup_trust_lane,
 )
+from ai_stp_platform.identity import (
+    IdentityError,
+    assert_publication_owner,
+    ensure_catalog_identity,
+)
 from ai_stp_platform.models import (
     AccountAuthorVerification,
     CatalogMetadata,
     Device,
     EvidenceBinding,
     ObjectLocation,
+    OfficialUpstreamSync,
     PublicationPlan,
     SafetyFinding,
     SafetyScanRun,
@@ -785,6 +791,17 @@ async def execute_publish(
     if passport is None:
         msg = f"publish passport failed integrity validation: {', '.join(invalid)}"
         raise ValueError(msg)
+    if hasattr(plan, "expected_ownership_revision_id"):
+        try:
+            await assert_publication_owner(
+                session,
+                stable_id=plan.stable_id,
+                actor_account_id=plan.actor_account_id,
+                expected_ownership_revision_id=plan.expected_ownership_revision_id,
+                object_kind=plan.object_kind,
+            )
+        except IdentityError as exc:
+            raise ValueError(exc.message) from exc
     canonical_passport = passport.model_dump(mode="json")
     canonical_digest = passport_digest(passport)
 
@@ -876,6 +893,22 @@ async def execute_publish(
         component_verified=component_verified,
     )
     name = plan.passport.get("name")
+    if plan.object_kind == "component":
+        display = str(name) if name is not None else plan.stable_id
+        try:
+            await ensure_catalog_identity(
+                session,
+                stable_id=plan.stable_id,
+                owner_account_id=plan.actor_account_id,
+                canonical_name=display,
+                display_name_en=display,
+                display_name_ru=display,
+                expected_ownership_revision_id=getattr(
+                    plan, "expected_ownership_revision_id", None
+                ),
+            )
+        except IdentityError as exc:
+            raise ValueError(exc.message) from exc
     metadata = CatalogMetadata(
         owner_account_id=plan.actor_account_id,
         object_kind=plan.object_kind,
@@ -897,6 +930,19 @@ async def execute_publish(
     plan.state = "published"
     plan.component_verified = component_verified
     await session.flush()
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+    await upsert_catalog_search_projection(
+        session, object_kind=plan.object_kind, stable_id=plan.stable_id
+    )
+    if plan.object_kind == "component":
+        official_attempt = await session.scalar(
+            select(OfficialUpstreamSync).where(OfficialUpstreamSync.plan_id == plan.id)
+        )
+        if official_attempt is not None:
+            official_attempt.state = "published"
+            official_attempt.result = "publication_started"
+            official_attempt.completed_at = datetime.now(UTC)
     session.add(
         ObjectLocation(
             catalog_metadata_id=metadata.id,
@@ -981,6 +1027,11 @@ async def execute_reevaluate_eligibility(
             row.trust_lane = "experimental"
         plan.component_verified = False
         await session.flush()
+        from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+        await upsert_catalog_search_projection(
+            session, object_kind=object_kind, stable_id=stable_id
+        )
     return row
 
 

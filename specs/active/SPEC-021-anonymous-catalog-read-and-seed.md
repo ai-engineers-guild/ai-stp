@@ -1,6 +1,6 @@
 ---
 description: "SPEC-021: Anonymous reading of the public catalog and initial seeding of objects."
-last_verified: "2026-08-25"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-021: Anonymous public catalog reading and primary seeding
@@ -79,8 +79,9 @@ storage and migrations as such (`SPEC-020`); REST ready surface
   only with request-scoped consent of `include_experimental` (`SPEC-006` `REQ-603`,
   `ADR-0029`) and comes in a separate section, not mixed together.
 - `REQ-2105`: The order of the result is complete and stable within one cursor
-  sequences with unique tie resolver `stable_id`; cursor
-  opaque, tamper-resistant, and linked to a filter and sort signature;
+  sequence with unique tie resolver `stable_id`; cursor keys match the selected
+  sort; the cursor is
+  opaque, tamper-resistant, and linked to a canonical filter and sort signature;
   a cursor that is tampered with or belongs to another filter is rejected by the typed
   mistake; the page is limited in total along both lines by the value `PAGE_SIZE_MAX`;
   pagination does not create duplicates and does not miss anything.

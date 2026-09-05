@@ -1,4 +1,4 @@
-"""Ownership claim and staff decision routes (SPEC-057 REQ-5717)."""
+"""Ownership claim request and revision routes (SPEC-057 REQ-5717)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ai_stp_api.deps import get_db, require_auth
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.ownership import service
-from ai_stp_contracts.ownership import OwnershipClaimCreateRequest, OwnershipClaimDecisionRequest
+from ai_stp_contracts.ownership import OwnershipClaimCreateRequest
 
 router = APIRouter(tags=["ownership"])
 
@@ -45,44 +45,6 @@ async def read_ownership_claim(
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.read_claim(db, ctx=ctx, claim_id=claim_id, staff_ids=_staff_ids(request))
-    return _resource(result)
-
-
-@router.post("/staff/ownership-claims/{claim_id}/approve", response_model=None)
-async def approve_ownership_claim(
-    claim_id: str,
-    body: OwnershipClaimDecisionRequest,
-    request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
-) -> JSONResponse:
-    result = await service.decide_claim(
-        db,
-        ctx=ctx,
-        staff_ids=_staff_ids(request),
-        claim_id=claim_id,
-        body=body,
-        approved=True,
-    )
-    return _resource(result)
-
-
-@router.post("/staff/ownership-claims/{claim_id}/deny", response_model=None)
-async def deny_ownership_claim(
-    claim_id: str,
-    body: OwnershipClaimDecisionRequest,
-    request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
-) -> JSONResponse:
-    result = await service.decide_claim(
-        db,
-        ctx=ctx,
-        staff_ids=_staff_ids(request),
-        claim_id=claim_id,
-        body=body,
-        approved=False,
-    )
     return _resource(result)
 
 

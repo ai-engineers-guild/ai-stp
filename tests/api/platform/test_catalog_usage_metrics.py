@@ -138,7 +138,10 @@ async def test_detail_and_card_share_one_aggregate_without_false_repeat(
     metrics = first.json()["summary"]["usage_metrics"]
     assert metrics == {"schema_version": 1, "detail_views_count": 1, "artifact_downloads_count": 0}
     assert second.json()["summary"]["usage_metrics"] == metrics
-    assert listed.json()["experimental"][0]["usage_metrics"] == metrics
+    listed_card = next(
+        item for item in listed.json()["experimental"] if item["stable_id"] == FIXTURE_COMPONENT_ID
+    )
+    assert listed_card["usage_metrics"] == metrics
     assert version.json()["usage_metrics"] == metrics
     assert version.json()["trust"]["component_verified"] is False
     assert version.json()["trust"]["author_verified"] is False

@@ -20,6 +20,9 @@ deploy/geoip/*.mmdb
 # Agent/session local notes and check reports (not product docs)
 plans/
 
+# Runtime logs are local artifacts, never public source.
+logs/
+
 # Review-tool workspace: screenshots, Lighthouse reports, and dev-server logs.
 # The rule is preventive: it does not exclude files already tracked. Add other
 # tool directories when they appear rather than speculating in advance.

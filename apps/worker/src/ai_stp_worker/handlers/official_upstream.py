@@ -24,4 +24,6 @@ async def handle_official_upstream_sync(
     if not isinstance(source_id, str) or not source_id:
         raise ValueError("official_upstream_sync requires source_id")
     moment = now if isinstance(now, datetime) else None
-    await run_sync(session, source_id, fetch=fetch, store=store, now=moment)
+    raw_attempt = payload.get("attempt_id")
+    attempt_id = raw_attempt if isinstance(raw_attempt, int) else None
+    await run_sync(session, source_id, fetch=fetch, store=store, now=moment, attempt_id=attempt_id)

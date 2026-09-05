@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import json
@@ -51,7 +52,7 @@ from ai_stp_platform.safety.sandbox import (
     is_bwrap_failure,
     reset_sandbox_cache,
 )
-from ai_stp_platform.safety.types import ArtifactManifest
+from ai_stp_platform.safety.types import ArtifactManifest, CheckOutcome
 from ai_stp_platform.safety.workdir import (
     WorkdirError,
     env_no_network,
@@ -61,6 +62,14 @@ from ai_stp_platform.safety.workdir import (
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN, ObjectIntegrityError
 
 pytestmark = pytest.mark.platform
+
+
+def _zip_tree(files: dict[str, str | bytes]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for name, content in files.items():
+            zf.writestr(name, content)
+    return buf.getvalue()
 
 
 def _spec(
@@ -1011,23 +1020,286 @@ async def test_open_env_object_store_missing_settings(monkeypatch: pytest.Monkey
 @pytest.mark.asyncio
 async def test_orchestrator_artifact_unavailable_and_cache() -> None:
     clear_safety_cache()
+    payload = _zip_tree({"SKILL.md": "# safe\n"})
+    digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, payload)
+
+    class _Source:
+        available = False
+        calls = 0
+
+        async def fetch_bytes(self, content_digest: str, size_bytes: int | None) -> bytes | None:
+            del content_digest, size_bytes
+            self.calls += 1
+            return payload if self.available else None
+
+    source = _Source()
     result = await run_safety_suite(
         passport={"component_type": "skill"},
-        content_digest="sha256:" + "a" * 64,
-        artifact_source=None,
+        content_digest=digest,
+        artifact_source=source,
         use_cache=True,
     )
     assert all(o.result == "not_run" for o in result.outcomes)
     assert result.cache_hit is False
 
-    cached = await run_safety_suite(
+    source.available = True
+    retried = await run_safety_suite(
         passport={"component_type": "skill"},
-        content_digest="sha256:" + "a" * 64,
-        artifact_source=None,
+        content_digest=digest,
+        artifact_source=source,
         use_cache=True,
     )
-    assert cached.cache_hit is True
+    assert retried.cache_hit is False
+    assert next(o for o in retried.outcomes if o.check_id == "artifact_unpack").result == "passed"
+    assert source.calls == 2
     clear_safety_cache()
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_cache_context_and_expiry(monkeypatch: pytest.MonkeyPatch) -> None:
+    from ai_stp_platform.safety import orchestrator
+
+    clear_safety_cache()
+    payload = _zip_tree({"SKILL.md": "# safe\n"})
+    digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, payload)
+
+    def _pass(_tree: Path, _manifest: ArtifactManifest, spec: CheckSpec) -> CheckOutcome:
+        return CheckOutcome(
+            check_id=spec.check_id,
+            family=spec.family,
+            result="passed",
+            mandatory=spec.mandatory,
+            tool_name=spec.check_id,
+        )
+
+    monkeypatch.setattr(orchestrator, "get_adapter", lambda _check_id: _pass)
+
+    async def _run():
+        return await run_safety_suite(
+            passport={"component_type": "skill"},
+            content_digest=digest,
+            artifact_bytes=payload,
+            use_cache=True,
+        )
+
+    first = await _run()
+    cached = await _run()
+    assert first.cache_hit is False
+    assert cached.cache_hit is True
+
+    monkeypatch.setenv("AI_STP_SAFETY_ASSESSMENT_GENERATION", "next")
+    refreshed = await _run()
+    assert refreshed.cache_hit is False
+    assert (await _run()).cache_hit is True
+
+    monkeypatch.setenv("AI_STP_SAFETY_CACHE_TTL_SECONDS", "0")
+    assert (await _run()).cache_hit is False
+    clear_safety_cache()
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_singleflight_shares_unavailable_scan() -> None:
+    from ai_stp_platform.safety import orchestrator
+
+    clear_safety_cache()
+    gate = asyncio.Event()
+
+    class _BlockingSource:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.active = 0
+            self.max_active = 0
+            self.started = asyncio.Event()
+
+        async def fetch_bytes(self, content_digest: str, size_bytes: int | None) -> bytes | None:
+            del content_digest, size_bytes
+            self.calls += 1
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            self.started.set()
+            try:
+                await gate.wait()
+                return None
+            finally:
+                self.active -= 1
+
+    source = _BlockingSource()
+    tasks = [
+        asyncio.create_task(
+            run_safety_suite(
+                passport={"component_type": "skill"},
+                content_digest="sha256:" + "d" * 64,
+                artifact_source=source,
+                use_cache=True,
+            )
+        )
+        for _ in range(3)
+    ]
+    await source.started.wait()
+    await asyncio.sleep(0)
+    assert source.calls == 1
+    gate.set()
+    results = await asyncio.gather(*tasks)
+
+    assert source.max_active == 1
+    assert all(not result.cache_hit for result in results)
+    assert all(
+        all(outcome.result == "not_run" for outcome in result.outcomes) for result in results
+    )
+    assert not orchestrator._SCAN_LOCKS
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_singleflight_cancellation_and_failure_cleanup() -> None:
+    from ai_stp_platform.safety import orchestrator
+
+    clear_safety_cache()
+    gate = asyncio.Event()
+
+    class _BlockingSource:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.started = asyncio.Event()
+
+        async def fetch_bytes(self, content_digest: str, size_bytes: int | None) -> bytes | None:
+            del content_digest, size_bytes
+            self.calls += 1
+            self.started.set()
+            await gate.wait()
+            return None
+
+    source = _BlockingSource()
+    owner = asyncio.create_task(
+        run_safety_suite(
+            passport={"component_type": "skill"},
+            content_digest="sha256:" + "e" * 64,
+            artifact_source=source,
+            use_cache=True,
+        )
+    )
+    await source.started.wait()
+    waiter = asyncio.create_task(
+        run_safety_suite(
+            passport={"component_type": "skill"},
+            content_digest="sha256:" + "e" * 64,
+            artifact_source=source,
+            use_cache=True,
+        )
+    )
+    await asyncio.sleep(0)
+    waiter.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiter
+    gate.set()
+    await owner
+    assert source.calls == 1
+    assert not orchestrator._SCAN_LOCKS
+
+    clear_safety_cache()
+    gate = asyncio.Event()
+    source = _BlockingSource()
+    cancelled_owner = asyncio.create_task(
+        run_safety_suite(
+            passport={"component_type": "skill"},
+            content_digest="sha256:" + "f" * 64,
+            artifact_source=source,
+            use_cache=True,
+        )
+    )
+    await source.started.wait()
+    surviving_waiter = asyncio.create_task(
+        run_safety_suite(
+            passport={"component_type": "skill"},
+            content_digest="sha256:" + "f" * 64,
+            artifact_source=source,
+            use_cache=True,
+        )
+    )
+    await asyncio.sleep(0)
+    cancelled_owner.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await cancelled_owner
+    gate.set()
+    result = await surviving_waiter
+    assert result.outcomes
+    assert source.calls == 1
+    assert not orchestrator._SCAN_LOCKS
+
+    class _FailingSource:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.started = asyncio.Event()
+
+        async def fetch_bytes(self, content_digest: str, size_bytes: int | None) -> bytes | None:
+            del content_digest, size_bytes
+            self.calls += 1
+            self.started.set()
+            await asyncio.sleep(0)
+            raise RuntimeError("scanner source failed")
+
+    failing = _FailingSource()
+    failed_tasks = [
+        asyncio.create_task(
+            run_safety_suite(
+                passport={"component_type": "skill"},
+                content_digest="sha256:" + "1" * 64,
+                artifact_source=failing,
+                use_cache=True,
+            )
+        )
+        for _ in range(3)
+    ]
+    await failing.started.wait()
+    failures = await asyncio.gather(*failed_tasks, return_exceptions=True)
+    assert failing.calls == 1
+    assert all(isinstance(error, RuntimeError) for error in failures)
+    assert not orchestrator._SCAN_LOCKS
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_singleflight_keeps_different_subjects_concurrent() -> None:
+    from ai_stp_platform.safety import orchestrator
+
+    clear_safety_cache()
+    gate = asyncio.Event()
+
+    class _BlockingSource:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.active = 0
+            self.max_active = 0
+            self.all_started = asyncio.Event()
+
+        async def fetch_bytes(self, content_digest: str, size_bytes: int | None) -> bytes | None:
+            del content_digest, size_bytes
+            self.calls += 1
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            if self.calls == 2:
+                self.all_started.set()
+            try:
+                await gate.wait()
+                return None
+            finally:
+                self.active -= 1
+
+    source = _BlockingSource()
+    tasks = [
+        asyncio.create_task(
+            run_safety_suite(
+                passport={"component_type": "skill"},
+                content_digest="sha256:" + digit * 64,
+                artifact_source=source,
+                use_cache=True,
+            )
+        )
+        for digit in ("2", "3")
+    ]
+    await source.all_started.wait()
+    assert source.max_active == 2
+    gate.set()
+    await asyncio.gather(*tasks)
+    assert not orchestrator._SCAN_LOCKS
 
 
 @pytest.mark.asyncio
@@ -1048,18 +1320,36 @@ async def test_orchestrator_fetch_failures_and_digest_mismatch() -> None:
     assert all(o.result == "not_run" for o in result.outcomes)
 
     class _Boom:
+        calls = 0
+
         async def fetch_bytes(self, content_digest: str, size_bytes: int | None) -> bytes | None:
             del content_digest, size_bytes
+            self.calls += 1
             raise WorkdirError("fetch failed")
 
     result = await run_safety_suite(
         passport={"component_type": "skill", "artifact": {"size_bytes": 1}},
         content_digest="sha256:" + "c" * 64,
         artifact_source=_Boom(),
-        use_cache=False,
+        use_cache=True,
     )
     assert result.outcomes[0].check_id == "artifact_unpack"
     assert result.outcomes[0].result == "failed"
+    source = _Boom()
+    await run_safety_suite(
+        passport={"component_type": "skill", "artifact": {"size_bytes": 1}},
+        content_digest="sha256:" + "c" * 64,
+        artifact_source=source,
+        use_cache=True,
+    )
+    retry = await run_safety_suite(
+        passport={"component_type": "skill", "artifact": {"size_bytes": 1}},
+        content_digest="sha256:" + "c" * 64,
+        artifact_source=source,
+        use_cache=True,
+    )
+    assert retry.cache_hit is False
+    assert source.calls == 2
 
     payload = b"hello-world"
     wrong = digest_bytes(ARTIFACT_DIGEST_DOMAIN, b"other")

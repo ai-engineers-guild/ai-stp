@@ -101,6 +101,7 @@ from ai_stp_contracts.grants import (
 from ai_stp_contracts.health import LivenessResponse, ReadinessResponse
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.identity import (
+    AccountIdentityUpdate,
     AccountProfile,
     DeviceListResponse,
     DeviceRegisterResponse,
@@ -191,6 +192,7 @@ from ai_stp_contracts.machine_help import (
     VersionLine,
     VersionReport,
 )
+from ai_stp_contracts.official_manifest import OfficialManifest, OfficialManifestEntry
 from ai_stp_contracts.openapi import render as render_openapi
 from ai_stp_contracts.owner import (
     CliOwnerObjectDetailView,
@@ -212,7 +214,6 @@ from ai_stp_contracts.owner import (
 )
 from ai_stp_contracts.ownership import (
     OwnershipClaimCreateRequest,
-    OwnershipClaimDecisionRequest,
     OwnershipClaimPreview,
     OwnershipClaimResponse,
     OwnershipRevisionListResponse,
@@ -233,7 +234,7 @@ from ai_stp_contracts.reports import (
     ReportCaseListResponse,
     ReportCaseResponse,
     StaffActionResponse,
-    StaffAuthorVerifiedRequest,
+    StaffAuthorVerificationRequest,
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
@@ -297,6 +298,7 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "system-version-response": SystemVersionResponse,
     "health-liveness": LivenessResponse,
     "identity-account-profile": AccountProfile,
+    "identity-account-update": AccountIdentityUpdate,
     "identity-device-list": DeviceListResponse,
     "identity-device-register-response": DeviceRegisterResponse,
     "identity-device-revoke-request": DeviceRevokeRequest,
@@ -332,7 +334,7 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "report-case-list-response": ReportCaseListResponse,
     "staff-triage-request": StaffTriageRequest,
     "staff-lifecycle-request": StaffLifecycleRequest,
-    "staff-author-verified-request": StaffAuthorVerifiedRequest,
+    "staff-author-verification-request": StaffAuthorVerificationRequest,
     "staff-action-response": StaffActionResponse,
     "owner-object-list-query": OwnerObjectListQuery,
     "owner-object-list-response": OwnerObjectListResponse,
@@ -348,7 +350,6 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "owner-lifecycle-response": OwnerLifecycleResponse,
     "owner-start-publication-request": OwnerStartPublicationRequest,
     "ownership-claim-create-request": OwnershipClaimCreateRequest,
-    "ownership-claim-decision-request": OwnershipClaimDecisionRequest,
     "ownership-claim-preview": OwnershipClaimPreview,
     "ownership-claim-response": OwnershipClaimResponse,
     "ownership-revision-list-response": OwnershipRevisionListResponse,
@@ -391,6 +392,8 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-report-preview": CliReportPreview,
     "cli-report-case": CliReportCaseView,
     "cli-report-list": CliReportListView,
+    "official-manifest": OfficialManifest,
+    "official-manifest-entry": OfficialManifestEntry,
     "cli-grant-invitation": CliGrantInvitationView,
     "cli-grant-access": CliGrantAccessView,
     "cli-grant-list": CliGrantListView,

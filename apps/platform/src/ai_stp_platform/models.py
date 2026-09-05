@@ -8,12 +8,14 @@ objects.
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
+    Computed,
     Date,
     DateTime,
     ForeignKey,
@@ -23,7 +25,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
+from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_stp_platform.db import Base
@@ -33,6 +37,20 @@ class Account(Base):
     """Internal platform account, separated from provider identities."""
 
     __tablename__ = "account"
+    __table_args__ = (
+        Index(
+            "uq_account_handle_normalized",
+            "handle_normalized",
+            unique=True,
+            postgresql_where=text("handle_normalized IS NOT NULL"),
+        ),
+        Index(
+            "uq_account_display_name_normalized",
+            "display_name_normalized",
+            unique=True,
+            postgresql_where=text("display_name_normalized IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     # Existing accounts predate legal onboarding and remain active after the
@@ -44,6 +62,10 @@ class Account(Base):
     allow_publisher_listing: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false"
     )
+    handle: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    handle_normalized: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    display_name_normalized: Mapped[str | None] = mapped_column(String(80), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -210,6 +232,155 @@ class CatalogMetadata(Base):
     owner: Mapped[Account] = relationship()
 
 
+class CatalogIdentity(Base):
+    """One owned catalog line per component stable ID (SPEC-059)."""
+
+    __tablename__ = "catalog_identity"
+    __table_args__ = (
+        UniqueConstraint("canonical_name_normalized", name="uq_catalog_identity_canonical"),
+    )
+
+    stable_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), index=True
+    )
+    canonical_name: Mapped[str] = mapped_column(String(80))
+    canonical_name_normalized: Mapped[str] = mapped_column(String(80))
+    ownership_revision_id: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CatalogIdentityLocale(Base):
+    """Unique RU/EN presentation name for one catalog line."""
+
+    __tablename__ = "catalog_identity_locale"
+    __table_args__ = (
+        CheckConstraint("locale in ('ru', 'en')", name="ck_catalog_identity_locale"),
+        UniqueConstraint("stable_id", "locale", name="uq_catalog_identity_locale_line"),
+        UniqueConstraint(
+            "locale", "display_name_normalized", name="uq_catalog_identity_locale_name"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    stable_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("catalog_identity.stable_id", ondelete="CASCADE"), index=True
+    )
+    locale: Mapped[str] = mapped_column(String(8))
+    display_name: Mapped[str] = mapped_column(String(80))
+    display_name_normalized: Mapped[str] = mapped_column(String(80))
+
+
+CATALOG_SEARCH_VECTOR_SQL = "to_tsvector('simple', coalesce(search_text, ''))"
+
+
+class CatalogSearchProjection(Base):
+    """One latest public catalog object for SQL search (ADR-0151)."""
+
+    __tablename__ = "catalog_search_projection"
+    __table_args__ = (
+        UniqueConstraint(
+            "object_kind",
+            "stable_id",
+            name="uq_catalog_search_projection_kind_stable_id",
+        ),
+        UniqueConstraint(
+            "catalog_metadata_id",
+            name="uq_catalog_search_projection_metadata_id",
+        ),
+        CheckConstraint(
+            "object_kind in ('component', 'setup')",
+            name="ck_catalog_search_projection_kind",
+        ),
+        CheckConstraint(
+            "lifecycle_state in ('active', 'deprecated', 'blocked')",
+            name="ck_catalog_search_projection_lifecycle",
+        ),
+        Index(
+            "ix_catalog_search_projection_fts",
+            "search_vector",
+            postgresql_using="gin",
+        ),
+        Index(
+            "ix_catalog_search_projection_tags",
+            "tags",
+            postgresql_using="gin",
+        ),
+        Index(
+            "ix_catalog_search_projection_harnesses",
+            "harness_ids",
+            postgresql_using="gin",
+        ),
+        Index(
+            "ix_catalog_search_projection_updated",
+            "object_kind",
+            "updated_at",
+            "stable_id",
+        ),
+        Index(
+            "ix_catalog_search_projection_likes",
+            "object_kind",
+            "likes_count",
+            "updated_at",
+            "stable_id",
+        ),
+        Index(
+            "ix_catalog_search_projection_updated_active",
+            "object_kind",
+            "updated_at",
+            "stable_id",
+            postgresql_where=text("lifecycle_state = 'active'"),
+        ),
+        Index(
+            "ix_catalog_search_projection_likes_active",
+            "object_kind",
+            "likes_count",
+            "updated_at",
+            "stable_id",
+            postgresql_where=text("lifecycle_state = 'active'"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    catalog_metadata_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_metadata.id", ondelete="CASCADE"), index=True
+    )
+    object_kind: Mapped[str] = mapped_column(String(32))
+    stable_id: Mapped[str] = mapped_column(String(64))
+    version: Mapped[str] = mapped_column(String(32))
+    version_major: Mapped[int] = mapped_column(Integer)
+    version_minor: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(200), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    owner_account_id: Mapped[str] = mapped_column(String(64))
+    component_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    harness_ids: Mapped[list[str]] = mapped_column(
+        ARRAY(String(32)), default=list, server_default="{}"
+    )
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list, server_default="{}")
+    tag_aliases: Mapped[list[str]] = mapped_column(
+        ARRAY(String(64)), default=list, server_default="{}"
+    )
+    trust_lane: Mapped[str] = mapped_column(String(32))
+    component_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    lifecycle_state: Mapped[str] = mapped_column(String(32))
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    likes_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    support_tier: Mapped[str] = mapped_column(String(32), default="primary")
+    support_state: Mapped[str] = mapped_column(String(32), default="missing")
+    support_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    search_text: Mapped[str] = mapped_column(Text)
+    search_vector: Mapped[Any] = mapped_column(
+        TSVECTOR, Computed(CATALOG_SEARCH_VECTOR_SQL, persisted=True)
+    )
+
+
 class RepositoryMetric(Base):
     """Mutable, best-effort public metrics for one canonical repository."""
 
@@ -231,12 +402,49 @@ class ExternalProduct(Base):
     canonical_domain: Mapped[str] = mapped_column(String(253), unique=True, index=True)
     primary_url: Mapped[str] = mapped_column(String(512))
     name: Mapped[str] = mapped_column(String(160))
-    description: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ExternalProductLocale(Base):
+    """Curated localized service presentation."""
+
+    __tablename__ = "external_product_locale"
+    __table_args__ = (
+        UniqueConstraint(
+            "external_product_id", "locale", name="uq_external_product_locale_identity"
+        ),
+        CheckConstraint("locale in ('ru', 'en')", name="ck_external_product_locale_locale"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    external_product_id: Mapped[int] = mapped_column(
+        ForeignKey("external_product.id", ondelete="CASCADE"), index=True
+    )
+    locale: Mapped[str] = mapped_column(String(8))
+    name: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(String(2000))
+    source_url: Mapped[str] = mapped_column(String(512))
+
+
+class CountryLocale(Base):
+    """Curated country name used by localized public projections."""
+
+    __tablename__ = "country_locale"
+    __table_args__ = (
+        UniqueConstraint("country_code", "locale", name="uq_country_locale_identity"),
+        CheckConstraint("locale in ('ru', 'en')", name="ck_country_locale_locale"),
+        CheckConstraint("country_code ~ '^[A-Z]{2}$'", name="ck_country_locale_code"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    country_code: Mapped[str] = mapped_column(String(2), index=True)
+    locale: Mapped[str] = mapped_column(String(8))
+    name: Mapped[str] = mapped_column(String(160))
 
 
 class ExternalProductCountry(Base):
@@ -521,6 +729,7 @@ class PublicationPlan(Base):
     component_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     idempotency_key: Mapped[str] = mapped_column(String(128))
     confirm_idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    expected_ownership_revision_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -707,7 +916,7 @@ class GrantInvitation(Base):
 
 
 class ReportCase(Base):
-    """Closed report case for one exact version (SPEC-016)."""
+    """Private request case routed by topic (SPEC-016)."""
 
     __tablename__ = "report_case"
     __table_args__ = (
@@ -723,22 +932,38 @@ class ReportCase(Base):
             name="ck_report_case_state",
         ),
         CheckConstraint(
-            "object_kind in ('component', 'setup')",
+            "topic in ("
+            "'object_report', 'service_request', 'country_request', "
+            "'component_complaint', 'author_complaint', 'ownership_transfer', "
+            "'verification_request', 'other')",
+            name="ck_report_case_topic",
+        ),
+        CheckConstraint(
+            "(topic = 'object_report' and object_kind in ('component', 'setup') "
+            "and stable_id is not null and version is not null and content_digest is not null) "
+            "or (topic in ('component_complaint', 'ownership_transfer') "
+            "and stable_id is not null) "
+            "or (topic in ("
+            "'service_request', 'country_request', 'author_complaint', "
+            "'verification_request', 'other'))",
             name="ck_report_case_object_kind",
         ),
+        CheckConstraint("locale in ('ru', 'en')", name="ck_report_case_locale"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     reporter_account_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="CASCADE"), index=True
     )
-    object_kind: Mapped[str] = mapped_column(String(32))
-    stable_id: Mapped[str] = mapped_column(String(64), index=True)
-    version: Mapped[str] = mapped_column(String(32))
-    content_digest: Mapped[str] = mapped_column(String(71))
+    topic: Mapped[str] = mapped_column(String(32), default="object_report")
+    object_kind: Mapped[str | None] = mapped_column(String(32))
+    stable_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    version: Mapped[str | None] = mapped_column(String(32))
+    content_digest: Mapped[str | None] = mapped_column(String(71))
     state: Mapped[str] = mapped_column(String(32), default="submitted")
     vulnerability: Mapped[bool] = mapped_column(Boolean, default=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    locale: Mapped[str] = mapped_column(String(8), default="en", server_default="en")
     group_key: Mapped[str] = mapped_column(String(200), index=True)
     idempotency_key: Mapped[str] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -1061,6 +1286,14 @@ class OfficialUpstreamSource(Base):
             ")",
             name="ck_official_upstream_source_kind_fields",
         ),
+        CheckConstraint(
+            "inventory_state in ('enabled', 'paused', 'transferred', 'removed')",
+            name="ck_official_upstream_source_inventory_state",
+        ),
+        CheckConstraint(
+            "update_policy in ('daily', 'pinned', 'disabled')",
+            name="ck_official_upstream_source_update_policy",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -1094,6 +1327,15 @@ class OfficialUpstreamSource(Base):
     reviewed_license: Mapped[str] = mapped_column(String(64))
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    inventory_state: Mapped[str] = mapped_column(
+        String(16), default="enabled", server_default="enabled"
+    )
+    update_policy: Mapped[str] = mapped_column(String(16), default="daily", server_default="daily")
+    canonical_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    display_name_en: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    display_name_ru: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    manifest_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    ownership_revision_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_github_repo_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     last_commit: Mapped[str | None] = mapped_column(String(256), nullable=True)
     last_canonical_coordinate: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -1106,21 +1348,43 @@ class OfficialUpstreamSource(Base):
 
 
 class OfficialUpstreamSync(Base):
-    """One UTC-day outcome for the official upstream source (SPEC-056)."""
+    """One Official sync attempt from desired update through a terminal result."""
 
     __tablename__ = "official_upstream_sync"
     __table_args__ = (
-        UniqueConstraint("source_id", "utc_day", name="uq_official_upstream_sync_source_day"),
+        UniqueConstraint(
+            "source_id", "trigger_key", name="uq_official_upstream_sync_source_trigger"
+        ),
         CheckConstraint(
             "result in ('unchanged', 'publication_started', 'failed')",
             name="ck_official_upstream_sync_result",
+        ),
+        CheckConstraint(
+            "state in ("
+            "'desired', 'queued', 'resolving', 'unchanged', 'publishing', 'published', "
+            "'retry_wait', 'dead_lettered', 'failed_permanent', 'cancelled_transferred')",
+            name="ck_official_upstream_sync_state",
         ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     source_id: Mapped[str] = mapped_column(String(64), index=True)
     utc_day: Mapped[date] = mapped_column(Date)
+    trigger_key: Mapped[str | None] = mapped_column(String(80), nullable=True)
     result: Mapped[str] = mapped_column(String(32))
+    state: Mapped[str] = mapped_column(String(32), default="desired", server_default="desired")
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    outbox_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expected_owner_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expected_ownership_revision_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    manifest_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    provenance: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    error_class: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     commit: Mapped[str | None] = mapped_column(String(256), nullable=True)
     archive_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
     component_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
@@ -1133,8 +1397,32 @@ class OfficialUpstreamSync(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class OfficialSyncOutbox(Base):
+    """Transactional Official sync intent independent of the generic job row."""
+
+    __tablename__ = "official_sync_outbox"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_official_sync_outbox_idempotency"),
+        CheckConstraint(
+            "state in ('pending', 'dispatched', 'cancelled')",
+            name="ck_official_sync_outbox_state",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_id: Mapped[str] = mapped_column(String(64), index=True)
+    attempt_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("official_upstream_sync.id", ondelete="CASCADE"), index=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(160))
+    state: Mapped[str] = mapped_column(String(16), default="pending")
+    job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class OwnershipClaim(Base):
-    """Verified-maintainer request to receive an official catalog component."""
+    """Request to receive an official catalog component."""
 
     __tablename__ = "ownership_claim"
     __table_args__ = (
@@ -1171,9 +1459,10 @@ class OwnershipRevision(Base):
     __tablename__ = "ownership_revision"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    claim_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("ownership_claim.id", ondelete="RESTRICT"), index=True
+    claim_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("ownership_claim.id", ondelete="RESTRICT"), nullable=True, index=True
     )
+    case_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     stable_id: Mapped[str] = mapped_column(String(64), index=True)
     from_account_id: Mapped[str] = mapped_column(String(64))
     to_account_id: Mapped[str] = mapped_column(String(64))

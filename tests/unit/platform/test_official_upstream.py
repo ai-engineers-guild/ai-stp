@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 import pytest
 from tests.support.component_passports import adaptation_fields
 
+from ai_stp_contracts.official_manifest import load_official_manifest
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
@@ -71,6 +72,36 @@ def _tar(files: dict[str, bytes | str], *, prefix: str = "tool-aaaaaaaa/") -> by
             info.size = len(payload)
             archive.addfile(info, io.BytesIO(payload))
     return buffer.getvalue()
+
+
+def test_checked_in_official_inventory_is_complete_and_unique() -> None:
+    manifest = load_official_manifest()
+    names = {entry.canonical_name for entry in manifest.entries}
+    assert len(manifest.entries) == 52
+    assert len(names) == len(manifest.entries)
+    assert {
+        "ai-stp-skill",
+        "caveman",
+        "context7-mcp",
+        "grill-me",
+        "ponytail",
+        "semble",
+        "serena-mcp",
+    } <= names
+    assert not {"context7", "context-mode", "serena"} & names
+    assert not {"ctxt-mcp", "linear-mcp", "vercel-mcp"} & {
+        entry.source_id for entry in manifest.entries
+    }
+    by_source = {entry.source_id: entry for entry in manifest.entries}
+    assert by_source["addyosmani-agent-skills"].component_type == "skill"
+    assert by_source["andrej-karpathy-skills"].component_type == "skill"
+    assert by_source["anthropic-cybersecurity-skills"].component_type == "skill"
+    assert by_source["bmad-method"].component_type == "plugin"
+    assert by_source["openai-docs-mcp"].component_type == "skill"
+    assert by_source["openspec"].component_type == "skill"
+    assert by_source["slack-mcp"].component_type == "plugin"
+    assert by_source["figma-mcp"].repository_url == "https://github.com/figma/mcp-server-guide"
+    assert by_source["keenable-mcp"].repository_url == "https://github.com/keenableai/keenable-mcp"
 
 
 def test_source_rejects_unsafe_coordinates_and_non_official_owner() -> None:
@@ -148,6 +179,26 @@ def test_extract_keeps_the_committed_component_tree() -> None:
         ".github/workflows/ci.yml",
         ".gitignore",
         "dist/index.js",
+    }
+
+
+def test_extract_ignores_unsafe_files_outside_component_root() -> None:
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        selected = b"# Demo\n"
+        info = tarfile.TarInfo("tool-aaaaaaaa/skills/demo/SKILL.md")
+        info.size = len(selected)
+        archive.addfile(info, io.BytesIO(selected))
+        binary = tarfile.TarInfo("tool-aaaaaaaa/assets/logo.bin")
+        binary.size = 2
+        archive.addfile(binary, io.BytesIO(b"\x00\x01"))
+        link = tarfile.TarInfo("tool-aaaaaaaa/docs/latest")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "README.md"
+        archive.addfile(link)
+
+    assert extract_component_files(buffer.getvalue(), subpath="skills/demo") == {
+        "SKILL.md": selected
     }
 
 

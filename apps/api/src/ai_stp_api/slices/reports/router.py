@@ -15,7 +15,7 @@ from ai_stp_api.slices.reports import service
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.reports import (
     ReportCaseCreateRequest,
-    StaffAuthorVerifiedRequest,
+    StaffAuthorVerificationRequest,
     StaffLifecycleRequest,
     StaffTriageRequest,
 )
@@ -43,12 +43,41 @@ async def create_report_case(
     return _resource(result, status_code=201)
 
 
+@router.post("/requests", response_model=None)
+async def create_request_case(
+    body: ReportCaseCreateRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    result = await service.create_report(db, ctx=ctx, body=body)
+    return _resource(result, status_code=201)
+
+
 @router.get("/reports", response_model=None)
 async def list_report_cases(
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     result = await service.list_reports(db, ctx=ctx)
+    return _resource(result)
+
+
+@router.get("/requests", response_model=None)
+async def list_request_cases(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    result = await service.list_reports(db, ctx=ctx)
+    return _resource(result)
+
+
+@router.get("/requests/{case_id}", response_model=None)
+async def read_request_case(
+    case_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    result = await service.read_own_report(db, ctx=ctx, case_id=case_id)
     return _resource(result)
 
 
@@ -108,13 +137,13 @@ async def staff_version_lifecycle(
 
 
 @router.post("/staff/author-verified", response_model=None)
-async def staff_author_verified(
-    body: StaffAuthorVerifiedRequest,
+async def staff_author_verification(
+    body: StaffAuthorVerificationRequest,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
-    result = await service.staff_author_verified(
+    result = await service.staff_author_verification(
         db, ctx=ctx, staff_ids=_staff_ids(request), body=body
     )
     return _resource(result)

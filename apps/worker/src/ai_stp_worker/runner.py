@@ -7,11 +7,13 @@ import time
 from contextlib import suppress
 from datetime import UTC, date, datetime
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_platform.logging import get_logger
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.github import worker_github_token
+from ai_stp_platform.official_upstream.ledger import record_queue_outcome
 from ai_stp_platform.queue.engine import (
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     DEFAULT_LEASE_TIMEOUT_SECONDS,
@@ -23,6 +25,7 @@ from ai_stp_platform.queue.engine import (
     requeue_stale,
 )
 from ai_stp_platform.queue.models import Job
+from ai_stp_platform.queue.states import JobState, JobType
 from ai_stp_platform.safety.metrics import record_queue_job
 from ai_stp_worker.handlers import resolve
 
@@ -122,6 +125,18 @@ class Worker:
                 await enqueue_daily(session)
                 enqueued_for = today
             await requeue_stale(session, lease_timeout_seconds=self._lease_timeout)
+            queue_events = list(
+                (
+                    await session.scalars(
+                        select(Job).where(
+                            Job.job_type == JobType.OFFICIAL_UPSTREAM_SYNC,
+                            Job.state.in_((JobState.RETRY_SCHEDULED, JobState.DEAD_LETTER)),
+                        )
+                    )
+                ).all()
+            )
+            for queue_event in queue_events:
+                await record_queue_outcome(session, queue_event)
             claimed = await claim(
                 session,
                 worker_id=self._worker_id,
@@ -182,6 +197,7 @@ class Worker:
                     result = "succeeded"
                 else:
                     await fail(status_session, current, error=error)
+                    await record_queue_outcome(status_session, current)
                     result = "failed"
         finally:
             if heartbeat_task is not None:

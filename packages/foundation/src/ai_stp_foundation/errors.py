@@ -200,6 +200,51 @@ ERROR_CODES: Final[Mapping[str, ErrorCodeEntry]] = MappingProxyType(
             "stop_for_permission",
             "content import credential is missing, invalid or has another scope",
         ),
+        "AI_STP_HANDLE_CONFLICT": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "the normalized public handle is already assigned",
+        ),
+        "AI_STP_ACCOUNT_DISPLAY_NAME_CONFLICT": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "the normalized account display name is already assigned",
+        ),
+        "AI_STP_CANONICAL_NAME_CONFLICT": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "the normalized canonical component name is already assigned",
+        ),
+        "AI_STP_LOCALIZED_NAME_CONFLICT": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "the normalized localized component display name is already assigned",
+        ),
+        "AI_STP_FOREIGN_LINE_OWNERSHIP": ErrorCodeEntry(
+            EXIT_AUTH,
+            "stop_for_permission",
+            "the catalog line is owned by another account",
+        ),
+        "AI_STP_STALE_OWNERSHIP_REVISION": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "the expected catalog-line ownership revision is no longer current",
+        ),
+        "AI_STP_MIGRATION_CONFLICT": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "normalized identity collisions block unique-constraint activation",
+        ),
+        "AI_STP_MANIFEST_MISMATCH": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "production Official source state does not match the Git manifest",
+        ),
+        "AI_STP_SYNC_DELIVERY": ErrorCodeEntry(
+            EXIT_UNAVAILABLE,
+            "retry_if_retryable",
+            "an Official update handoff is missing, stale, or dead-lettered",
+        ),
         "AI_STP_INTERNAL": ErrorCodeEntry(EXIT_INTERNAL, "report_bug", "unexpected internal error"),
     }
 )

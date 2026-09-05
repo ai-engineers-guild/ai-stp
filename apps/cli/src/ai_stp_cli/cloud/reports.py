@@ -15,7 +15,7 @@ def create(
         return call(
             client,
             "POST",
-            "/reports",
+            "/requests",
             ReportCaseResponse,
             body=request,
             attempts=endpoint.max_attempts,
@@ -25,5 +25,16 @@ def create(
 def list_all(endpoint: Endpoint, access_token: str) -> ReportCaseListResponse:
     with open_client(endpoint, access_token=access_token) as client:
         return call(
-            client, "GET", "/reports", ReportCaseListResponse, attempts=endpoint.max_attempts
+            client, "GET", "/requests", ReportCaseListResponse, attempts=endpoint.max_attempts
+        )
+
+
+def read(endpoint: Endpoint, access_token: str, case_id: str) -> ReportCaseResponse:
+    with open_client(endpoint, access_token=access_token) as client:
+        return call(
+            client,
+            "GET",
+            f"/requests/{case_id}",
+            ReportCaseResponse,
+            attempts=endpoint.max_attempts,
         )

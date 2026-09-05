@@ -27,7 +27,9 @@
             "tags": ["setup", "trust"],
             "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-            "source_kind": "repository"
+            "source_kind": "repository",
+            "cover_image": null,
+            "cover_alt": null
           }
         ]
       }
@@ -59,6 +61,8 @@
         "revision_id": "revision_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         "source_kind": "repository",
+        "cover_image": null,
+        "cover_alt": null,
         "body": "Use exact versions.",
         "source_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "source_path": "docs-user-facing/content/en/article-safe-setup.md"
@@ -193,6 +197,8 @@
             "revision_id": "revision_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "content_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
             "source_kind": "staff",
+            "cover_image": null,
+            "cover_alt": null,
             "body": "Staff body EN.",
             "source_ref": null,
             "source_path": null
@@ -209,6 +215,8 @@
             "revision_id": "revision_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             "content_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
             "source_kind": "staff",
+            "cover_image": null,
+            "cover_alt": null,
             "body": "Staff body RU.",
             "source_ref": null,
             "source_path": null

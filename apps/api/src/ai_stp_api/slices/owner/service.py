@@ -881,6 +881,9 @@ async def set_owner_lifecycle(
         },
     )
     await db.flush()
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+    await upsert_catalog_search_projection(db, object_kind=object_kind, stable_id=stable_id)
     return OwnerLifecycleResponse(
         schema_version=1,
         stable_id=stable_id,

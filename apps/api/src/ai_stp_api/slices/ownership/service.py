@@ -1,4 +1,4 @@
-"""Ownership claim request, staff decision, and immutable revision history."""
+"""Ownership claim requests and immutable revision history."""
 
 from __future__ import annotations
 
@@ -10,23 +10,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
-from ai_stp_api.slices.reports.service import require_staff
+from ai_stp_api.slices.reports.service import create_report
 from ai_stp_contracts.ownership import (
     OwnershipClaimCreateRequest,
-    OwnershipClaimDecisionRequest,
     OwnershipClaimPreview,
     OwnershipClaimResponse,
     OwnershipRevisionListResponse,
     OwnershipRevisionView,
 )
+from ai_stp_contracts.reports import ReportCaseCreateRequest
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import (
-    AccountAuthorVerification,
+    CatalogIdentity,
     CatalogMetadata,
     OwnershipClaim,
     OwnershipRevision,
 )
-from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID
 
 
 def _ts(value: datetime) -> str:
@@ -129,26 +128,30 @@ async def create_claim(
             raise ApiError(ErrorCategory.CONFLICT, "idempotency key already used")
         return _claim_to_wire(existing)
 
-    verification = await db.get(AccountAuthorVerification, ctx.account_id)
-    if verification is None or not verification.verified:
-        raise ApiError(ErrorCategory.PERMISSION, "verified maintainer required")
-
     rows = await _component_rows(db, body.stable_id)
-    owners = {row.owner_account_id for row in rows}
-    if owners != {OFFICIAL_ACCOUNT_ID}:
-        raise ApiError(
-            ErrorCategory.PRECONDITION, "only official catalog components may be claimed"
-        )
-    if ctx.account_id == OFFICIAL_ACCOUNT_ID:
-        raise ApiError(ErrorCategory.CONFLICT, "the official owner cannot claim its own component")
-
+    identity = await db.get(CatalogIdentity, body.stable_id)
+    current_owner = identity.owner_account_id if identity is not None else rows[0].owner_account_id
+    await create_report(
+        db,
+        ctx=ctx,
+        body=ReportCaseCreateRequest(
+            topic="ownership_transfer",
+            object_kind="component",
+            stable_id=body.stable_id,
+            recipient_account_id=ctx.account_id,
+            message=body.reason,
+            evidence=body.evidence,
+            validation_snapshot_ids=[],
+            idempotency_key=body.idempotency_key,
+        ),
+    )
     preview = _preview_from_rows(body.stable_id, rows)
     claim = OwnershipClaim(
         id=new_id("operation"),
         object_kind="component",
         stable_id=body.stable_id,
         requester_account_id=ctx.account_id,
-        from_account_id=OFFICIAL_ACCOUNT_ID,
+        from_account_id=current_owner,
         to_account_id=ctx.account_id,
         reason=body.reason,
         evidence=body.evidence,
@@ -182,59 +185,6 @@ async def read_claim(
         raise ApiError(ErrorCategory.NOT_FOUND, "ownership claim not found")
     if ctx.account_id != claim.requester_account_id and ctx.account_id not in staff_ids:
         raise ApiError(ErrorCategory.PERMISSION, "staff allowlist required")
-    return _claim_to_wire(claim)
-
-
-async def decide_claim(
-    db: AsyncSession,
-    *,
-    ctx: AuthContext,
-    staff_ids: frozenset[str],
-    claim_id: str,
-    body: OwnershipClaimDecisionRequest,
-    approved: bool,
-) -> OwnershipClaimResponse:
-    await require_staff(ctx, staff_ids)
-    claim = await db.get(OwnershipClaim, claim_id)
-    if claim is None:
-        raise ApiError(ErrorCategory.NOT_FOUND, "ownership claim not found")
-    wanted = "approved" if approved else "denied"
-    if claim.state != "requested":
-        if claim.state == wanted:
-            return _claim_to_wire(claim)
-        raise ApiError(ErrorCategory.CONFLICT, "ownership claim is already decided")
-
-    claim.state = wanted
-    claim.decided_at = datetime.now(UTC)
-    claim.staff_account_id = ctx.account_id
-    claim.decision_reason = body.reason
-    action = "ownership.claim_approved" if approved else "ownership.claim_denied"
-    if approved:
-        rows = await _component_rows(db, claim.stable_id)
-        for row in rows:
-            row.owner_account_id = claim.to_account_id
-        revision = OwnershipRevision(
-            id=new_id("operation"),
-            claim_id=claim.id,
-            stable_id=claim.stable_id,
-            from_account_id=claim.from_account_id,
-            to_account_id=claim.to_account_id,
-            major_lines=list(OwnershipClaimPreview.model_validate(claim.preview).major_lines),
-            reason=body.reason,
-            evidence=claim.evidence,
-            staff_account_id=ctx.account_id,
-        )
-        db.add(revision)
-    await emit_audit(
-        db,
-        actor_account_id=ctx.account_id,
-        action=action,
-        target_table="ownership_claim",
-        target_id=claim.id,
-        reason=body.reason,
-        payload={"stable_id": claim.stable_id, "state": wanted},
-    )
-    await db.flush()
     return _claim_to_wire(claim)
 
 

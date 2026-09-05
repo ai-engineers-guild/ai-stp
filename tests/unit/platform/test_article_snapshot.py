@@ -195,3 +195,45 @@ Body.
 """
         )
     assert error.value.code == "AI_STP_CONTENT_INVALID"
+
+
+def test_snapshot_infers_english_seo_slug_and_first_image_cover(tmp_path: Path) -> None:
+    _write_entry(
+        tmp_path,
+        "en/article-setup.md",
+        """---
+type: article
+locale: en
+title: Setup MiMoCode
+description: English description
+published_at: 2026-08-12
+tags: [setup]
+draft: false
+---
+
+![Cover](/content/illustrations/setup-mimocode.png)
+""",
+    )
+    _write_entry(
+        tmp_path,
+        "ru/article-setup.md",
+        """---
+type: article
+locale: ru
+title: Настройка MiMoCode
+description: Русское описание
+published_at: 2026-08-12
+tags: [setup]
+draft: false
+---
+
+![Обложка](/content/illustrations/setup-mimocode.png)
+""",
+    )
+    snapshot = build_repository_snapshot(tmp_path, commit=COMMIT, now=NOW)
+    entries = {(entry.locale, entry.slug): entry for entry in snapshot.entries}
+    assert set(entries) == {("en", "setup-mimocode"), ("ru", "setup-mimocode")}
+    assert entries[("en", "setup-mimocode")].cover_image == (
+        "/content/illustrations/setup-mimocode.png"
+    )
+    assert entries[("ru", "setup-mimocode")].cover_alt == "Обложка"

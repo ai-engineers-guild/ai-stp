@@ -84,6 +84,22 @@ describe("parseCatalogSearchParams", () => {
     expect(badTag.invalidTags).toEqual(["NOT_VALID"]);
   });
 
+  it("rejects more than ten tags at the client boundary", () => {
+    const result = parseCatalogSearchParams({
+      tags: Array.from({ length: 11 }, (_, index) => `tag-${index}`),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.invalidQuery).toContain("tags: maximum 10");
+  });
+
+  it("rejects tags outside the ASCII form at the client boundary", () => {
+    for (const tag of ["a".repeat(33), "Tag", "тест", "tag name", "tag–name"]) {
+      const result = parseCatalogSearchParams({ tags: [tag] });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.invalidTags).toContain(tag);
+    }
+  });
+
   it("round-trips preserve record for pagination", () => {
     const parsed = parseCatalogSearchParams({
       resource: "all",
@@ -497,5 +513,7 @@ describe("parseCatalogSearchParams", () => {
     expect(validateCatalogQuery("NAME:(((((((((value)))))))))")).toContain("nesting is too deep");
     // eslint-disable-next-line no-useless-escape -- Keep the escaped quote visible as query syntax.
     expect(validateCatalogQuery('NAME:"escaped\\\"quote"')).toBeNull();
+    expect(validateCatalogQuery('"UNKNOWN:value" AND NAME:tool')).toBeNull();
+    expect(validateCatalogQuery('"OR"')).toBeNull();
   });
 });

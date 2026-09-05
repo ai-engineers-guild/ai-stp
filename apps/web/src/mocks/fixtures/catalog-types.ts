@@ -28,6 +28,9 @@ function defaultSupportForHarness(
 export type ComponentSummaryFixture = {
   schema_version: 1;
   stable_id: string;
+  canonical_name: string;
+  display_locale: "ru" | "en" | "";
+  display_name: string;
   latest_version: string;
   latest_name: string;
   latest_description: string;
@@ -43,6 +46,8 @@ export type ComponentSummaryFixture = {
   latest_checks: SafetyChecksSummary | null;
   latest_published_at: string;
   owner_id: string;
+  owner_account_id: string;
+  owner_handle: string;
   publisher_id: string;
   likes_count: number;
   github_stars: number | null;
@@ -109,6 +114,11 @@ export function makeComponentSummary(
     | "latest_requires_credentials"
     | "updated_at"
     | "latest_harness_ids"
+    | "canonical_name"
+    | "display_locale"
+    | "display_name"
+    | "owner_account_id"
+    | "owner_handle"
   > & {
     latest_lifecycle?: ComponentSummaryFixture["latest_lifecycle"];
     latest_trust?: typeof experimentalTrust;
@@ -131,6 +141,11 @@ export function makeComponentSummary(
     latest_requires_credentials: false,
     updated_at: partial.latest_published_at,
     latest_harness_ids: [partial.latest_harness_id],
+    canonical_name: partial.latest_name,
+    display_locale: "en",
+    display_name: partial.latest_name,
+    owner_account_id: partial.owner_id,
+    owner_handle: partial.owner_id,
     ...partial,
   };
 }

@@ -29,11 +29,20 @@ class _Session:
         del model
         return self.jobs.get(job_id)
 
+    async def scalars(self, statement: object) -> _ScalarResult:
+        del statement
+        return _ScalarResult()
+
     async def commit(self) -> None:
         pass
 
     async def rollback(self) -> None:
         pass
+
+
+class _ScalarResult:
+    def all(self) -> list[object]:
+        return []
 
 
 class _SessionMaker:

@@ -12,8 +12,10 @@ from ai_stp_platform.content.orm import Article, ArticleActive, ArticleRevision
 from ai_stp_platform.models import (
     CatalogExternalProduct,
     CatalogMetadata,
+    CountryLocale,
     ExternalProduct,
     ExternalProductCountry,
+    ExternalProductLocale,
     ProfileRevision,
     PublicProfile,
 )
@@ -202,6 +204,12 @@ async def collect_service(
     )
     if product is None:
         raise SubjectMissing(subject_id)
+    localized = await session.scalar(
+        select(ExternalProductLocale).where(
+            ExternalProductLocale.external_product_id == product.id,
+            ExternalProductLocale.locale == locale,
+        )
+    )
     countries = list(
         (
             await session.execute(
@@ -241,15 +249,17 @@ async def collect_service(
                 "name": row.name or row.stable_id,
             }
         )
-    description = product.description or ""
+    description = localized.description if localized else product.description or ""
+    name = localized.name if localized else product.name
+    source_url = localized.source_url if localized else product.source_url
     return PublicSubjectFacts(
         kind="service",
         subject_id=subject_id,
         source_revision=str(product.id),
         locale=parse_locale(locale),
-        name=product.name,
+        name=name,
         description=description,
-        summary=description or product.name,
+        summary=description or name,
         lifecycle="active",
         visibility="public",
         published_at=_aware(product.created_at),
@@ -258,7 +268,7 @@ async def collect_service(
         extras={
             "canonical_domain": product.canonical_domain,
             "primary_url": product.primary_url,
-            "source_url": product.source_url,
+            "source_url": source_url,
             "description": description,
             "countries": sorted(countries),
             "objects": related,
@@ -271,6 +281,13 @@ async def collect_country(
     session: AsyncSession, *, subject_id: str, locale: str
 ) -> PublicSubjectFacts:
     code = subject_id.upper()
+    localized = await session.scalar(
+        select(CountryLocale).where(
+            CountryLocale.country_code == code,
+            CountryLocale.locale == locale,
+        )
+    )
+    name = localized.name if localized else code
     product_ids = list(
         (
             await session.execute(
@@ -333,9 +350,9 @@ async def collect_country(
         subject_id=code,
         source_revision=code,
         locale=parse_locale(locale),
-        name=code,
-        description=code,
-        summary=code,
+        name=name,
+        description=name,
+        summary=name,
         lifecycle="active" if products else "unavailable",
         visibility="public",
         published_at=latest,

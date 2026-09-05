@@ -26,9 +26,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.first_party import OWNER_ID as OFFICIAL_ACCOUNT_ID
 from ai_stp_contracts.public_profile import ProfileFields, ProfileLink, content_digest
+from ai_stp_foundation.identity import OFFICIAL_DISPLAY_NAME, OFFICIAL_HANDLE
 from ai_stp_platform.catalog_reconcile import reconcile_catalog_integrity
 from ai_stp_platform.catalog_seed import SeedResult, load_first_party_seed
 from ai_stp_platform.db import make_engine, make_sessionmaker
+from ai_stp_platform.identity import allocate_account_identity
 from ai_stp_platform.logging import configure_logging, get_logger
 from ai_stp_platform.models import (
     Account,
@@ -36,6 +38,7 @@ from ai_stp_platform.models import (
     ProfileRevision,
     PublicProfile,
 )
+from ai_stp_platform.official_upstream.manifest import reconcile_official_manifest
 from ai_stp_platform.safety.artifact_fetch import close_env_object_store, open_env_object_store
 from ai_stp_platform.settings import DatabaseSettings
 
@@ -83,6 +86,11 @@ async def ensure_official_publisher(session: AsyncSession) -> bool:
     owner.status = "active"
     owner.show_profile_publicly = True
     owner.allow_publisher_listing = True
+    owner.handle = OFFICIAL_HANDLE
+    owner.handle_normalized = OFFICIAL_HANDLE
+    owner.display_name = OFFICIAL_DISPLAY_NAME
+    owner.display_name_normalized = "ai stp official"
+    await allocate_account_identity(session, owner)
     if await session.get(ProfileRevision, revision_id) is None:
         session.add(
             ProfileRevision(
@@ -129,6 +137,7 @@ async def _run() -> int:
         try:
             async with sessionmaker() as session:
                 official_created = await ensure_official_publisher(session)
+                official_manifest = await reconcile_official_manifest(session)
                 result = (
                     await load_first_party_seed(session, store=store)
                     if seeding
@@ -145,6 +154,10 @@ async def _run() -> int:
             created_versions=result.created_versions,
             reused_versions=result.reused_versions,
             artifacts_written=result.artifacts_written,
+            official_manifest_entries=len(official_manifest.unchanged)
+            + len(official_manifest.added)
+            + len(official_manifest.changed)
+            + len(official_manifest.preserved),
             catalog_checked=report.checked,
             catalog_unreadable=len(report.unreadable),
         )

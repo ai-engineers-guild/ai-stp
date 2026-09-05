@@ -33,6 +33,8 @@ def revision_content_digest(
     source_kind: str,
     source_ref: str | None,
     source_path: str | None,
+    cover_image: str | None = None,
+    cover_alt: str | None = None,
 ) -> str:
     payload: dict[str, JsonValue] = {
         "type": article_type,
@@ -46,6 +48,8 @@ def revision_content_digest(
         "source_kind": source_kind,
         "source_ref": source_ref,
         "source_path": source_path,
+        "cover_image": cover_image,
+        "cover_alt": cover_alt,
     }
     return digest_canonical(ARTICLE_REVISION_DOMAIN, payload)
 
@@ -84,6 +88,8 @@ def snapshot_digest(*, repository: str, commit: str, entries: Sequence[Mapping[s
                 "source_kind": entry["source_kind"],
                 "source_ref": entry["source_ref"],
                 "source_path": entry["source_path"],
+                "cover_image": entry.get("cover_image"),
+                "cover_alt": entry.get("cover_alt"),
             }
         )
     payload: dict[str, JsonValue] = {

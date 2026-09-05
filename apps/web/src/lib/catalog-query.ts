@@ -5,7 +5,7 @@
 
 import { asCursorToken, type CursorToken } from "@/lib/brands";
 import { normalizeCountryFilter, normalizeDomainFilter } from "@/lib/catalog-relation-filters";
-import { isValidTagId } from "@/lib/tag-vocabulary";
+import { isValidTagId, MAX_TAGS } from "@/lib/tag-vocabulary";
 
 export const CATALOG_DEFAULT_PAGE_SIZE = 25;
 
@@ -154,6 +154,7 @@ export function parseCatalogSearchParams(
   const qRaw = firstString(raw["q"]) ?? "";
   const queryError = validateCatalogQuery(qRaw);
   const invalidQuery = queryError ? [queryError] : [];
+  if (tags.length > MAX_TAGS) invalidQuery.push(`tags: maximum ${MAX_TAGS}`);
   if (updatedFromRaw && !updatedFrom) invalidQuery.push(`updated_from=${updatedFromRaw}`);
   if (updatedToRaw && !updatedTo) invalidQuery.push(`updated_to=${updatedToRaw}`);
   if (updatedFrom && updatedTo && updatedFrom > updatedTo) {
@@ -267,21 +268,40 @@ export function validateCatalogQuery(source: string): string | null {
   }
   if (quote) return `offset ${source.lastIndexOf(quote)}: unterminated quoted value`;
   if (depth > 0) return `offset ${source.lastIndexOf("(")}: missing closing parenthesis`;
+  const syntax = maskQuotedCatalogQuery(source);
   const fieldUse = /\b([A-Z][A-Z_]*)\s*(?::|(?:NOT\s+)?IN\s*\()/gi;
-  for (const match of source.matchAll(fieldUse)) {
+  for (const match of syntax.matchAll(fieldUse)) {
     if (!/^(?:NAME|TAGS|HARNESS|TYPE|AUTHOR|VERIFIED)$/i.test(match[1] ?? "")) {
       return `offset ${match.index}: unknown search field`;
     }
   }
-  for (const match of source.matchAll(/\bVERIFIED\s*:\s*([^\s)]+)/gi)) {
+  for (const match of syntax.matchAll(/\bVERIFIED\s*:\s*([^\s)]+)/gi)) {
     if (!/^(?:true|false)$/i.test(match[1] ?? "")) {
       return `offset ${match.index}: VERIFIED accepts true or false`;
     }
   }
-  if (/\b(?:AND|OR)\s*$/i.test(source) || /^\s*(?:AND|OR|IN)\b/i.test(source)) {
-    return `offset ${Math.max(0, source.search(/(?:AND|OR|IN)\s*$/i))}: operator is missing an operand`;
+  if (/\b(?:AND|OR)\s*$/i.test(syntax) || /^\s*(?:AND|OR|IN)\b/i.test(syntax)) {
+    return `offset ${Math.max(0, syntax.search(/(?:AND|OR|IN)\s*$/i))}: operator is missing an operand`;
   }
   return null;
+}
+
+function maskQuotedCatalogQuery(source: string): string {
+  let quote: string | null = null;
+  let masked = "";
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index] ?? "";
+    if (quote) {
+      if (char === quote && source[index - 1] !== "\\") quote = null;
+      masked += " ";
+    } else if (char === '"' || char === "'") {
+      quote = char;
+      masked += "x";
+    } else {
+      masked += char;
+    }
+  }
+  return masked;
 }
 
 function parseOptionalPage(value: string | undefined): number | undefined {

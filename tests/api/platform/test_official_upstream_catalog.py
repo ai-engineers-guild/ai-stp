@@ -17,6 +17,7 @@ from ai_stp_contracts.catalog import (
 )
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
+from ai_stp_platform.catalog_search import upsert_catalog_search_projection
 from ai_stp_platform.models import Account, AccountAuthorVerification, CatalogMetadata
 from ai_stp_platform.official_upstream import OFFICIAL_ACCOUNT_ID
 from ai_stp_platform.official_upstream.attribution import OWNERSHIP_NOTICE, build_description
@@ -115,6 +116,10 @@ async def _seed_official_snapshot(sessionmaker: async_sessionmaker[AsyncSession]
                 likes_count=0,
                 updated_at=published_at,
             )
+        )
+        await session.flush()
+        await upsert_catalog_search_projection(
+            session, object_kind="component", stable_id=STABLE_ID
         )
         await session.commit()
     return str(passport["description"])

@@ -45,6 +45,17 @@ This excludes the server-side state machine, background jobs, PostgreSQL, modera
   `partial`; published participants remain published, and a repeated `plan`
   lists them as `already_published`. A set belonging to another account or
   device is rejected.
+- `REQ-3813`: Report preview accepts the stable request topics from SPEC-016,
+  validates their topic-specific component, author, requested recipient,
+  custom-subject, reason, evidence, and locale fields, and stores the exact
+  request bytes. Any authenticated account may prepare and submit ownership or
+  verification requests; the CLI neither checks nor modifies verification.
+- `REQ-3814`: Human CLI output supports RU and EN topic labels selected by an
+  explicit locale or current CLI locale. JSON output, stored previews, digests,
+  and wire requests retain stable English codes and original user-authored text.
+- `REQ-3815`: The CLI exposes read-only request status and recovery after an
+  indeterminate submit result. It exposes no command that approves ownership
+  transfer or grants/revokes `author_verified`.
 - `REQ-3802`: Creating a plan does not publish the object. The response shows
   the immutable `plan_id`, `plan_hash`, expiration, and effects; confirmation is
   a separate command requiring the exact hash and mandatory `--confirm`.
@@ -118,3 +129,6 @@ a network effect.
 | `REQ-3810` | Unit tests plan a setup with a public pin and a non-public pin and verify that a plan is created only for the non-public pin while the public pin is listed as `already_published`; local `visibility` contradicts the platform response in this case. |
 | `REQ-3811` | The digest is computed over the ordered list; changing the order, adding a participant, or using a different `plan_hash` produces a different digest, while changing plan state produces the same digest. A repeated plan replaces the open set for the same version. |
 | `REQ-3812` | Confirm without the flag is rejected with a typed error; rejection of the second of three participants leaves the first published, the set in `partial`, and the third unconfirmed; another account or device is rejected. |
+| `REQ-3813` | Registry, process, and contract tests cover every topic, topic-specific rejection, exact preview/confirm, and submission by an unverified account and Official. |
+| `REQ-3814` | RU/EN snapshots differ only in human labels; JSON and digest fixtures remain byte-identical for the same authored request. |
+| `REQ-3815` | A lost-response fixture recovers one case by idempotency key, and registry parity proves no ownership/verification decision command exists. |

@@ -1045,7 +1045,7 @@
           "items": {
             "$ref": "#/$defs/TagId"
           },
-          "maxItems": 8,
+          "maxItems": 10,
           "minItems": 1,
           "title": "Tags",
           "type": "array"
@@ -1173,6 +1173,8 @@
       "type": "string"
     },
     "TagId": {
+      "maxLength": 32,
+      "minLength": 2,
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "type": "string"
     },

@@ -66,8 +66,8 @@ def test_report_transport_uses_only_the_authenticated_contract_routes() -> None:
     transport.list_all(endpoint, "bearer")
 
     assert seen == [
-        ("POST", "/v1/reports", "Bearer bearer"),
-        ("GET", "/v1/reports", "Bearer bearer"),
+        ("POST", "/v1/requests", "Bearer bearer"),
+        ("GET", "/v1/requests", "Bearer bearer"),
     ]
 
 
@@ -131,6 +131,31 @@ def test_preview_is_durable_and_confirm_reuses_it_after_an_unknown_result(
     assert row["submitted_case"] is not None
 
 
+def test_preview_accepts_a_service_without_countries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_stp_cli.commands import reports
+
+    monkeypatch.setattr(reports, "configured_path", lambda: tmp_path / "registry.sqlite3")
+    preview = reports.preview(
+        {
+            "topic": "service_request",
+            "service-name": "Worldwide",
+            "primary-url": "https://worldwide.example",
+            "description-ru": "Глобальный сервис",
+            "description-en": "Global service",
+            "source-url": "https://worldwide.example/about",
+            "country-code": (),
+            "validation-snapshot-id": (),
+            "idempotency-key": "service-request-0001",
+        }
+    ).payload
+
+    assert preview.report.topic == "service_request"
+    assert preview.report.service is not None
+    assert preview.report.service.country_codes == []
+
+
 def test_report_confirmation_requires_the_exact_digest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -176,7 +201,8 @@ def test_report_commands_are_one_preview_confirm_read_sequence() -> None:
     from ai_stp_cli.registry import COMMANDS
 
     reports = {item.name: item.descriptor for item in COMMANDS if item.name.startswith("report ")}
-    assert set(reports) == {"report confirm", "report list", "report preview"}
+    assert set(reports) == {"report confirm", "report list", "report preview", "report status"}
     assert reports["report preview"].mutability == "plan"
     assert reports["report confirm"].confirmation == "explicit_flag"
     assert reports["report list"].mutability == "read"
+    assert reports["report status"].mutability == "read"

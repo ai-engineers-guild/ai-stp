@@ -1,6 +1,6 @@
 ---
 description: "Private report case: allowed content, preview, states, and auditable moderator actions."
-last_verified: "2026-08-13"
+last_verified: "2026-09-04"
 ---
 
 # Report case
@@ -10,6 +10,32 @@ The requirements owner is `SPEC-016`; the decision is `ADR-0031`. This document 
 The web report action and CLI report command create one internal private `ReportCase` through the shared application flow under `ADR-0018`. A public GitHub issue is not created automatically from a report.
 
 ## Allowed content
+
+Every case has one stable topic: `object_report`, `service_request`,
+`country_request`, `component_complaint`, `author_complaint`,
+`ownership_transfer`, `verification_request`, or `other`.
+`POST /v1/requests` accepts every topic; `/v1/reports` remains the compatibility
+entry point for object reports. Service requests carry name,
+shallow public HTTPS URL, Russian and English descriptions, a source URL, and
+an optional country-code list. Country requests carry one uppercase ISO
+alpha-2 code and localized Russian and English names. These public names and
+descriptions are normalized UTF-8 text containing Unicode letters/digits,
+whitespace, and basic ASCII punctuation only; invisible/typographic characters,
+markup, unsafe URIs, profanity, sexual content/services, threats/violence,
+extremism, and military-action markers are rejected. Staff detail
+exposes this topic payload; there is deliberately no API that applies it to the
+catalog. `other` carries a bounded custom subject. Ownership transfer carries
+the component line and requested recipient account; verification carries the
+account. Both may carry bounded reason and evidence links.
+prohibited-content markers are matched as complete words or explicit phrases at
+word boundaries; roots and suffixes are not matched.
+
+Any authenticated account, including AI STP Official and an account without
+`author_verified`, may submit ownership-transfer and verification requests.
+Submission changes no ownership, verification, source, job, or catalog state.
+There is no HTTP decision operation: staff triages a case and an operator
+applies an approved ownership or verification decision through the audited
+database boundary.
 
 The CLI collects only mechanical fields:
 
@@ -22,6 +48,10 @@ The CLI collects only mechanical fields:
 | checks | check snapshot identifiers |
 | error | typed error code |
 | diagnostics | optional, size-bounded, and sanitized; only after explicit review and consent |
+
+Web and CLI human labels are localized in RU and EN. Topic values, machine
+output, stored previews, and digests use the stable English codes; authored
+subject, message, and evidence text remains in its submitted locale.
 
 Source code, prompts, `.env` contents, secret and environment-variable values, private object bytes, and full home paths are never sent automatically in any field. Paths in diagnostics are reduced to relative paths. The reporter sees a full preview of the report bytes before submission; submission without consent after preview is impossible.
 

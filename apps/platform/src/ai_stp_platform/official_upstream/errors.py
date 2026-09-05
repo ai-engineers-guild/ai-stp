@@ -8,6 +8,8 @@ CHANGED_REPOSITORY_IDENTITY = "changed_repository_identity"
 UNSAFE_ARCHIVE = "unsafe_archive"
 FAILED_VALIDATION = "failed_validation"
 IDEMPOTENCY_CONFLICT = "idempotency_conflict"
+STALE_OWNERSHIP = "stale_ownership_fence"
+MANIFEST_MISMATCH = "manifest_mismatch"
 
 
 class OfficialUpstreamError(Exception):

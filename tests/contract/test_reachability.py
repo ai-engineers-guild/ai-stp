@@ -119,6 +119,53 @@ EXEMPT: dict[str, str] = {
     "percent.checks_passed_percent": (
         "public passed-share calculator from check bindings (#270) exported by safety"
     ),
+    # Public read, maintenance and operator helpers are intentionally exposed
+    # for routers, migration tooling, and tests; this AST sweep cannot follow
+    # those framework/dynamic call boundaries.
+    "catalog_projection.passport_matches_filters": (
+        "public catalog filter helper consumed by query projections"
+    ),
+    "catalog_read.list_latest_public_objects": (
+        "public catalog read helper consumed by API adapters"
+    ),
+    "catalog_search.rebuild_catalog_search_projection": (
+        "operator rebuild command invoked by maintenance tooling"
+    ),
+    "catalog_support.support_matches_filters": (
+        "public support filter helper consumed by catalog tests and adapters"
+    ),
+    "catalog_transfer.apply_author_verification": (
+        "staff database decision helper invoked by operator workflows"
+    ),
+    "catalog_transfer.official_account_id": (
+        "public Official identity constant exported for database workflows"
+    ),
+    "catalog_transfer.transfer_catalog_line": (
+        "staff database transfer helper invoked by operator workflows"
+    ),
+    "enqueue.idempotency_key": (
+        "official daily scheduler key helper used by worker job construction"
+    ),
+    "enqueue.manual_idempotency_key": (
+        "official manual scheduler key helper used by operator job construction"
+    ),
+    "identity.collect_identity_conflicts": (
+        "migration/reconciliation audit helper invoked by maintenance tooling"
+    ),
+    "identity.current_catalog_identity": "public catalog identity lookup consumed by API adapters",
+    "identity.locale_names": "public localized identity lookup consumed by API adapters",
+    "service.create_external_product": (
+        "owner route service reached through the API router boundary"
+    ),
+    "service.list_tag_vocabulary": (
+        "catalog route vocabulary helper reached through the API router boundary"
+    ),
+    "service.row_matches_updated_range": "catalog range filter helper consumed by query assembly",
+    "service.sort_catalog_rows": "catalog ordering helper consumed by query assembly",
+    "service.sort_relevant_catalog_rows": (
+        "catalog relevance ordering helper consumed by query assembly"
+    ),
+    "source.delete_source": "operator cleanup helper invoked by source maintenance tooling",
 }
 
 

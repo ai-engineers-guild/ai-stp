@@ -46,7 +46,17 @@
       "$ref": "#/$defs/Timestamp"
     },
     "object_kind": {
-      "$ref": "#/$defs/ObjectKind"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ObjectKind"
+        },
+        {
+          "const": "",
+          "type": "string"
+        }
+      ],
+      "default": "",
+      "title": "Object Kind"
     },
     "schema_version": {
       "const": 1,
@@ -55,8 +65,8 @@
       "type": "integer"
     },
     "stable_id": {
+      "default": "",
       "maxLength": 64,
-      "minLength": 8,
       "title": "Stable Id",
       "type": "string"
     },
@@ -66,8 +76,33 @@
       "title": "State",
       "type": "string"
     },
+    "topic": {
+      "default": "object_report",
+      "enum": [
+        "object_report",
+        "service_request",
+        "country_request",
+        "component_complaint",
+        "author_complaint",
+        "ownership_transfer",
+        "verification_request",
+        "other"
+      ],
+      "title": "Topic",
+      "type": "string"
+    },
     "version": {
-      "$ref": "#/$defs/Version"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Version"
+        },
+        {
+          "const": "",
+          "type": "string"
+        }
+      ],
+      "default": "",
+      "title": "Version"
     },
     "vulnerability": {
       "default": false,
@@ -83,6 +118,7 @@
     "schema_version",
     "stable_id",
     "state",
+    "topic",
     "version",
     "vulnerability"
   ],

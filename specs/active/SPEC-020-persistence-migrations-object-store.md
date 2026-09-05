@@ -1,6 +1,6 @@
 ---
 description: "SPEC-020: Server-side storage, PostgreSQL migrations and immutable object storage."
-last_verified: "2026-08-25"
+last_verified: "2026-09-04"
 ---
 
 # SPEC-020: Server storage, migrations and immutable object storage
@@ -89,6 +89,11 @@ retention policy (`SPEC-013`); production infrastructure and public access.
 - `REQ-2009`: Deterministic test fixtures create and completely remove
   condition; teardown does not leave shared data between tests via schema isolation
   or transactions.
+- `REQ-2010`: Public catalog search uses table `catalog_search_projection` with
+  one row per `(object_kind, stable_id)`, PostgreSQL arrays for tags and
+  harnesses, a stored weighted `tsvector` with GIN, and composite B-tree
+  indexes for `updated_at` and `likes` sorts. The migration is reversible.
+  `pg_trgm` is not enabled unless a query uses it.
 
 ## States and errors
 
@@ -132,3 +137,4 @@ canonicalization of an object requires a new version under `SPEC-015`.
 | `REQ-2007` | The readiness test confirms that migration readiness is only true when `head` is reached. |
 | `REQ-2008` | The audit test confirms the rejection of a row change and deletion in the normal write path. |
 | `REQ-2009` | Running the test suite confirms that teardown does not leave shared state between tests. |
+| `REQ-2010` | Migration tests create `catalog_search_projection` with unique `(object_kind, stable_id)`, GIN on `search_vector`, array GIN, and partial B-tree sort indexes, and the downgrade drops the table. |

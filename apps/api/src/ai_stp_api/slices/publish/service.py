@@ -22,8 +22,10 @@ from ai_stp_platform.artifact_bind import (
     bind_plan_artifact,
     plan_artifact_is_durable,
 )
+from ai_stp_platform.identity import IdentityError, ensure_catalog_identity
 from ai_stp_platform.models import (
     Account,
+    CatalogIdentity,
     Device,
     EvidenceBinding,
     PublicationPlan,
@@ -109,6 +111,31 @@ async def create_plan(
         )
     attestations = [a.model_dump(mode="json") for a in body.attestations]
     passport = passport_model.model_dump(mode="json")
+    expected_ownership_revision_id: str | None = None
+    if body.object_kind == "component":
+        display_name = str(passport.get("name") or body.stable_id)
+        try:
+            identity = await db.scalar(
+                select(CatalogIdentity)
+                .where(CatalogIdentity.stable_id == body.stable_id)
+                .with_for_update()
+            )
+            identity = await ensure_catalog_identity(
+                db,
+                stable_id=body.stable_id,
+                owner_account_id=ctx.account_id,
+                canonical_name=display_name,
+                display_name_en=display_name,
+                display_name_ru=display_name,
+            )
+            expected_ownership_revision_id = identity.ownership_revision_id
+        except IdentityError as exc:
+            category = (
+                ErrorCategory.PERMISSION
+                if exc.code == "AI_STP_FOREIGN_LINE_OWNERSHIP"
+                else ErrorCategory.CONFLICT
+            )
+            raise ApiError(category, exc.message) from exc
     plan_hash = compute_plan_hash(
         actor_account_id=ctx.account_id,
         device_id=body.device_id,
@@ -135,6 +162,7 @@ async def create_plan(
         attestations=attestations,
         effects=["validate", "publish_catalog_version"],
         idempotency_key=body.idempotency_key,
+        expected_ownership_revision_id=expected_ownership_revision_id,
         expires_at=datetime.now(UTC) + PLAN_TTL,
     )
     db.add(plan)

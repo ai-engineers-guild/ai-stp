@@ -75,6 +75,18 @@
     "created_at": {
       "$ref": "#/$defs/Timestamp"
     },
+    "display_name": {
+      "default": "",
+      "maxLength": 80,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "handle": {
+      "default": "",
+      "maxLength": 32,
+      "title": "Handle",
+      "type": "string"
+    },
     "identities": {
       "items": {
         "$ref": "#/$defs/LinkedIdentity"
@@ -99,6 +111,8 @@
     "account_id",
     "allow_publisher_listing",
     "created_at",
+    "display_name",
+    "handle",
     "identities",
     "schema_version",
     "show_profile_publicly"

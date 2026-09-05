@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from ai_stp_sources.errors import UNSAFE_ARCHIVE, SourceError
 
 MAX_ARCHIVE_BYTES = 20 * 1024 * 1024
+MAX_GIT_ARCHIVE_BYTES = 100 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 50 * 1024 * 1024
 MAX_EXTRACTED_FILES = 20_000
 
@@ -37,23 +38,34 @@ _ENV_TEMPLATE_NAMES = frozenset(
 )
 
 
-def extract_component_files(archive_bytes: bytes, *, subpath: str) -> dict[str, bytes]:
+def extract_component_files(
+    archive_bytes: bytes,
+    *,
+    subpath: str,
+    max_archive_bytes: int = MAX_ARCHIVE_BYTES,
+) -> dict[str, bytes]:
     """Extract component-root files; reject links, traversal, secrets, binaries."""
-    if len(archive_bytes) > MAX_ARCHIVE_BYTES:
+    if len(archive_bytes) > max_archive_bytes:
         raise SourceError(UNSAFE_ARCHIVE, "archive exceeds the accepted size")
     files: dict[str, bytes] = {}
     extracted = 0
     members = 0
+    prefix = "" if subpath in {".", ""} else subpath.replace("\\", "/").strip("/")
     try:
         with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:*") as tarball:
             for member in tarball.getmembers():
-                relative = safe_member_path(member)
+                relative = safe_member_path(member, reject_special=False)
                 if relative is None:
                     continue
                 if member.isdir():
                     continue
                 if not member.isfile():
-                    raise SourceError(UNSAFE_ARCHIVE, "archive contains a link or special file")
+                    if _component_member_path(relative, prefix) is not None:
+                        raise SourceError(UNSAFE_ARCHIVE, "archive contains a link or special file")
+                    continue
+                target = _component_member_path(relative, prefix)
+                if target is None:
+                    continue
                 members += 1
                 if members > MAX_EXTRACTED_FILES:
                     raise SourceError(UNSAFE_ARCHIVE, "extracted archive exceeds the accepted size")
@@ -64,21 +76,22 @@ def extract_component_files(archive_bytes: bytes, *, subpath: str) -> dict[str, 
                     raise SourceError(UNSAFE_ARCHIVE, "archive member could not be read")
                 payload = stream.read()
                 extracted += len(payload)
-                files[relative] = payload
+                files[target] = payload
     except SourceError:
         raise
     except tarfile.TarError as exc:
         raise SourceError(UNSAFE_ARCHIVE, "archive is not a readable tar") from exc
-    selected = component_root(files, subpath)
-    for path, payload in selected.items():
+    if not files:
+        raise SourceError(UNSAFE_ARCHIVE, "component root is missing")
+    for path, payload in files.items():
         reject_secret_name(path)
         reject_binary(payload)
-    return selected
+    return files
 
 
-def safe_member_path(member: tarfile.TarInfo) -> str | None:
+def safe_member_path(member: tarfile.TarInfo, *, reject_special: bool = True) -> str | None:
     name = member.name.replace("\\", "/")
-    if member.issym() or member.islnk() or member.isfifo() or member.isdev():
+    if reject_special and (member.issym() or member.islnk() or member.isfifo() or member.isdev()):
         raise SourceError(UNSAFE_ARCHIVE, "archive contains a link or special file")
     if not name or name == ".":
         return None
@@ -94,6 +107,16 @@ def safe_member_path(member: tarfile.TarInfo) -> str | None:
     if not stripped:
         return None
     return str(PurePosixPath(*stripped))
+
+
+def _component_member_path(relative: str, prefix: str) -> str | None:
+    if prefix == "":
+        return relative
+    if relative == prefix:
+        return PurePosixPath(relative).name
+    if relative.startswith(f"{prefix}/"):
+        return relative[len(prefix) + 1 :]
+    return None
 
 
 def reject_secret_name(relative: str) -> None:

@@ -10,10 +10,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 
+from ai_stp_contracts.catalog import merged_or_values, normalize_search_text, unique_sorted
 from ai_stp_contracts.http import CURSOR_PATTERN
 from ai_stp_foundation.timestamps import format_timestamp
 
-_CURSOR_VERSION = 1
+_CURSOR_VERSION = 2
 _CURSOR_RE = __import__("re").compile(CURSOR_PATTERN)
 
 
@@ -23,10 +24,12 @@ class CursorError(ValueError):
 
 @dataclass(frozen=True)
 class CursorKey:
-    """Exclusive keyset position: sort key then stable_id tiebreaker."""
+    """Exclusive keyset position: selected sort keys then stable_id."""
 
     published_at: datetime
     stable_id: str
+    likes_count: int = 0
+    relevance: int = 0
 
 
 def filter_signature(
@@ -54,17 +57,15 @@ def filter_signature(
     """Hash the active filter so a cursor cannot migrate across queries."""
     payload = {
         "kind": object_kind,
-        "q": q,
-        "tags": list(tags),
-        "harness_id": harness_id,
-        "component_type": component_type,
+        "q": normalize_search_text(q),
+        "tags": unique_sorted(tags),
         # In the signature because it changes the result set: a cursor issued
         # while superseded versions were hidden must not be replayed against a
         # listing that offers them, or the walk skips and duplicates.
         "include_deprecated": include_deprecated,
-        "harness_ids": list(harness_ids or []),
-        "component_types": list(component_types or []),
-        "authors": list(authors or []),
+        "harness_ids": merged_or_values(harness_id, harness_ids),
+        "component_types": merged_or_values(component_type, component_types),
+        "authors": unique_sorted(authors or []),
         "verified_only": verified_only,
         "support_tier": support_tier,
         "support_state": support_state,
@@ -90,6 +91,8 @@ def encode_cursor(*, secret: str, filter_sig: str, key: CursorKey) -> str:
         "f": filter_sig,
         "t": format_timestamp(key.published_at),
         "i": key.stable_id,
+        "l": int(key.likes_count),
+        "r": int(key.relevance),
     }
     # Wire pattern forbids `.`; pack as payload||sig with a fixed-length
     # trailing HMAC (urlsafe base64 of 32 bytes is always 43 chars unpadded).
@@ -132,14 +135,23 @@ def decode_cursor(*, secret: str, token: str, filter_sig: str) -> CursorKey:
     if not isinstance(parsed, dict):
         raise CursorError("cursor payload is invalid")
     body = cast(dict[str, object], parsed)
-    if body.get("v") != _CURSOR_VERSION:
-        raise CursorError("cursor version is unsupported")
     if body.get("f") != filter_sig:
         raise CursorError("cursor filter signature mismatch")
     published_raw = body.get("t")
     stable_id = body.get("i")
     if not isinstance(published_raw, str) or not isinstance(stable_id, str):
         raise CursorError("cursor key is invalid")
+    if body.get("v") != _CURSOR_VERSION:
+        raise CursorError("cursor version is unsupported")
+    likes_raw = body.get("l", 0)
+    relevance_raw = body.get("r", 0)
+    if not isinstance(likes_raw, int) or not isinstance(relevance_raw, int):
+        raise CursorError("cursor key is invalid")
     from ai_stp_foundation.timestamps import parse_timestamp
 
-    return CursorKey(published_at=parse_timestamp(published_raw), stable_id=stable_id)
+    return CursorKey(
+        published_at=parse_timestamp(published_raw),
+        stable_id=stable_id,
+        likes_count=likes_raw,
+        relevance=relevance_raw,
+    )

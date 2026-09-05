@@ -536,6 +536,7 @@
   "the remote component is too large": "удалённый компонент слишком велик",
   "the remote component source is unavailable": "удалённый источник компонента недоступен",
   "the report preview digest does not match": "digest предпросмотра жалобы не совпадает",
+  "country_request requires exactly one --country-code": "country_request требует ровно один --country-code",
   "the requested harness differs from the confirmed composition": "запрошенная упряжка отличается от подтверждённого состава",
   "the requested permission profile is not declared by the provider": "запрошенный профиль разрешений не объявлен провайдером",
   "the required context passport is missing": "отсутствует обязательный паспорт контекста",

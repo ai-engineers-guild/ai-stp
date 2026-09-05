@@ -1,0 +1,269 @@
+{
+  "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting"
+      ],
+      "type": "string"
+    },
+    "PackageEcosystem": {
+      "enum": [
+        "npm",
+        "pypi",
+        "crates.io",
+        "go",
+        "pub.dev"
+      ],
+      "type": "string"
+    },
+    "ProjectionKind": {
+      "enum": [
+        "marketplace",
+        "plugin",
+        "native_files",
+        "package"
+      ],
+      "type": "string"
+    },
+    "ProjectionShape": {
+      "enum": [
+        "file",
+        "tree"
+      ],
+      "type": "string"
+    },
+    "SourceKind": {
+      "enum": [
+        "git",
+        "package"
+      ],
+      "type": "string"
+    },
+    "TargetScope": {
+      "enum": [
+        "global",
+        "user_root",
+        "project"
+      ],
+      "type": "string"
+    },
+    "UpdatePolicy": {
+      "enum": [
+        "daily",
+        "pinned",
+        "disabled"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:official-manifest-entry",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One reviewed Official component and its exact public source.",
+  "properties": {
+    "canonical_name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Canonical Name",
+      "type": "string"
+    },
+    "component_subpath": {
+      "default": "",
+      "maxLength": 512,
+      "title": "Component Subpath",
+      "type": "string"
+    },
+    "component_type": {
+      "$ref": "#/$defs/ComponentType"
+    },
+    "display_name_en": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Display Name En",
+      "type": "string"
+    },
+    "display_name_ru": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Display Name Ru",
+      "type": "string"
+    },
+    "ecosystem": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PackageEcosystem"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "enabled": {
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "harness_id": {
+      "title": "Harness Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/SourceKind"
+    },
+    "package_filename": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Package Filename"
+    },
+    "package_name": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Package Name"
+    },
+    "package_platform": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Package Platform"
+    },
+    "package_version": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Package Version"
+    },
+    "projection_kind": {
+      "$ref": "#/$defs/ProjectionKind",
+      "default": "native_files"
+    },
+    "projection_root": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "title": "Projection Root",
+      "type": "string"
+    },
+    "projection_shape": {
+      "$ref": "#/$defs/ProjectionShape"
+    },
+    "repository_url": {
+      "default": "",
+      "maxLength": 512,
+      "title": "Repository Url",
+      "type": "string"
+    },
+    "reviewed_description": {
+      "maxLength": 8000,
+      "minLength": 1,
+      "title": "Reviewed Description",
+      "type": "string"
+    },
+    "reviewed_license": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Reviewed License",
+      "type": "string"
+    },
+    "source_id": {
+      "pattern": "^[a-z][a-z0-9-]{0,62}$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "stable_id": {
+      "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 10,
+      "minItems": 1,
+      "title": "Tags",
+      "type": "array"
+    },
+    "target_scope": {
+      "$ref": "#/$defs/TargetScope"
+    },
+    "tracked_ref": {
+      "default": "",
+      "maxLength": 256,
+      "title": "Tracked Ref",
+      "type": "string"
+    },
+    "update_policy": {
+      "$ref": "#/$defs/UpdatePolicy"
+    },
+    "upstream_maintainer": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Upstream Maintainer",
+      "type": "string"
+    },
+    "upstream_project_name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Upstream Project Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_id",
+    "stable_id",
+    "canonical_name",
+    "display_name_en",
+    "display_name_ru",
+    "component_type",
+    "kind",
+    "enabled",
+    "update_policy",
+    "upstream_project_name",
+    "upstream_maintainer",
+    "reviewed_description",
+    "reviewed_license",
+    "harness_id",
+    "tags",
+    "target_scope",
+    "projection_root",
+    "projection_shape"
+  ],
+  "title": "OfficialManifestEntry",
+  "type": "object"
+}

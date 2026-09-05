@@ -63,6 +63,7 @@ export default async function PublisherPage({ params }: PageProps) {
   const t = await getTranslations("publisher");
   const tc = await getTranslations("common");
   const tCatalog = await getTranslations("catalog");
+  const tContact = await getTranslations("contact");
   const tAccount = await getTranslations("account");
   const tCli = await getTranslations("cli");
   const session = await readSession();
@@ -162,6 +163,13 @@ export default async function PublisherPage({ params }: PageProps) {
                 <Link href="/account/profile">{tAccount("profileEdit")}</Link>
               </Button>
             ) : null}
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/reports?topic=author_complaint&author=${encodeURIComponent(profile.account_id)}`}
+              >
+                {tContact("reportAuthorType")}
+              </Link>
+            </Button>
           </div>
           <p className="font-mono text-sm break-all">{profile.account_id}</p>
           {publisherLink ? (

@@ -20,6 +20,9 @@ CONTENT_REPOSITORY: Final[Literal["ai-engineers-guild/ai-stp"]] = "ai-engineers-
 CONTENT_TYPES: Final[tuple[str, ...]] = ("article", "blog_post", "changelog", "release_notes")
 CONTENT_LOCALES: Final[tuple[str, ...]] = ("ru", "en")
 CONTENT_SLUG_PATTERN: Final[str] = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+CONTENT_IMAGE_PATTERN: Final[str] = (
+    r"^/content/illustrations/[a-z0-9._-]+\.(?:svg|png|jpg|jpeg|webp|gif)$"
+)
 CONTENT_COMMIT_PATTERN: Final[str] = r"^[0-9a-f]{40}$"
 CONTENT_DATE_PATTERN: Final[str] = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
 CONTENT_BODY_MAX: Final[int] = 200_000
@@ -34,6 +37,8 @@ type ContentSourceKind = Literal["repository", "staff"]
 type DigestValue = Annotated[str, Field(pattern=DIGEST_PATTERN)]
 type RevisionId = Annotated[str, Field(pattern=REVISION_ID_PATTERN)]
 type ContentSlug = Annotated[str, Field(pattern=CONTENT_SLUG_PATTERN, min_length=1, max_length=120)]
+type ContentImage = Annotated[str, Field(pattern=CONTENT_IMAGE_PATTERN, max_length=512)]
+type ContentImageAlt = Annotated[str, Field(min_length=1, max_length=200)]
 type ContentTitle = Annotated[str, Field(min_length=1, max_length=160)]
 type ContentDescription = Annotated[str, Field(min_length=1, max_length=320)]
 type ContentDate = Annotated[str, Field(pattern=CONTENT_DATE_PATTERN)]
@@ -64,6 +69,8 @@ class ContentSummary(BaseModel):
     revision_id: RevisionId
     content_digest: DigestValue
     source_kind: ContentSourceKind
+    cover_image: ContentImage | None = None
+    cover_alt: ContentImageAlt | None = None
 
 
 class ContentDetail(ContentSummary):
@@ -109,6 +116,8 @@ class ContentSnapshotEntry(BaseModel):
     source_kind: Literal["repository"] = "repository"
     source_ref: ContentCommit
     source_path: Annotated[str, Field(min_length=1, max_length=512)]
+    cover_image: ContentImage | None = None
+    cover_alt: ContentImageAlt | None = None
 
     @model_validator(mode="after")
     def _unique_tags(self) -> ContentSnapshotEntry:
@@ -151,6 +160,8 @@ class StaffContentTranslation(BaseModel):
     published_at: ContentDate
     tags: Annotated[list[ContentTag], Field(max_length=12)]
     body: ContentBody
+    cover_image: ContentImage | None = None
+    cover_alt: ContentImageAlt | None = None
 
     @model_validator(mode="after")
     def _unique_tags(self) -> StaffContentTranslation:

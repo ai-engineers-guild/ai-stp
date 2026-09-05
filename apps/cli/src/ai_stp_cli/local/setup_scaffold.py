@@ -247,7 +247,8 @@ def _setup_readme(name: str, harness: str, descriptor: SetupTemplateDescriptor) 
     member_lines = "".join(
         f"- `components/{item.name}/` — `{item.component_type}`\n" for item in descriptor.members
     ) or (
-        "- No members yet. Add them with `--components type:name` or by hand under `components/`.\n"
+        "- No members yet. Add them with `--components type:name[:language]` "
+        "or by hand under `components/`.\n"
     )
     return (
         f"# {name}\n\n"

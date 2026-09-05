@@ -5,9 +5,11 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import time
 from collections import OrderedDict
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -16,9 +18,11 @@ from ai_stp_platform.safety.adapters import get_adapter
 from ai_stp_platform.safety.adapters._cli import deadline_expired, scan_deadline
 from ai_stp_platform.safety.detect import detect_manifest
 from ai_stp_platform.safety.normalize import apply_findings_to_outcome
+from ai_stp_platform.safety.osv_health import osv_db_status
 from ai_stp_platform.safety.planner import plan_checks
 from ai_stp_platform.safety.policy import POLICY_VERSION, SafetyProfile
-from ai_stp_platform.safety.tool_versions import evidence_version
+from ai_stp_platform.safety.policy_pack import policy_pack_root
+from ai_stp_platform.safety.tool_versions import evidence_version, installed_versions
 from ai_stp_platform.safety.types import CheckOutcome, SafetyScanResult
 from ai_stp_platform.safety.workdir import (
     WorkdirError,
@@ -31,6 +35,10 @@ from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN, Immutab
 HARD_CAP_MS = 8 * 60 * 1000
 SOFT_CAP_MS = 5 * 60 * 1000
 MAX_CACHE_ENTRIES = 128
+SAFETY_CACHE_TTL_SECONDS = 15 * 60
+MAX_SAFETY_CACHE_TTL_SECONDS = 24 * 60 * 60
+_CACHE_TTL_ENV = "AI_STP_SAFETY_CACHE_TTL_SECONDS"
+_ASSESSMENT_GENERATION_ENV = "AI_STP_SAFETY_ASSESSMENT_GENERATION"
 
 
 class ArtifactSource(Protocol):
@@ -79,13 +87,95 @@ class BytesArtifactSource:
 
 
 # In-process LRU cache for complete results (idempotent same process / tests).
-_RESULT_CACHE: OrderedDict[tuple[str, str, str, str, str], SafetyScanResult] = OrderedDict()
-_SCAN_LOCKS: dict[tuple[str, str, str, str, str], asyncio.Lock] = {}
+CacheKey = tuple[str, str, str, str, str, str]
+_RESULT_CACHE: OrderedDict[CacheKey, tuple[float, SafetyScanResult]] = OrderedDict()
+
+
+@dataclass(slots=True)
+class _ScanInFlight:
+    task: asyncio.Task[SafetyScanResult]
+    users: int = 0
+
+
+_SCAN_LOCKS: dict[CacheKey, _ScanInFlight] = {}
 
 
 def clear_safety_cache() -> None:
     _RESULT_CACHE.clear()
-    _SCAN_LOCKS.clear()
+    for key, entry in list(_SCAN_LOCKS.items()):
+        if entry.users == 0 and _SCAN_LOCKS.get(key) is entry:
+            _SCAN_LOCKS.pop(key, None)
+
+
+def safety_cache_ttl_seconds() -> float:
+    raw = os.environ.get(_CACHE_TTL_ENV, "").strip()
+    if not raw:
+        return SAFETY_CACHE_TTL_SECONDS
+    try:
+        ttl = float(raw)
+    except ValueError:
+        return SAFETY_CACHE_TTL_SECONDS
+    if not 0.0 <= ttl <= MAX_SAFETY_CACHE_TTL_SECONDS:
+        return SAFETY_CACHE_TTL_SECONDS
+    return ttl
+
+
+def _policy_pack_fingerprint() -> str:
+    digest = hashlib.sha256()
+    root = policy_pack_root()
+    try:
+        paths = sorted(
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix.lower() in {".json", ".yml", ".yaml", ".yar"}
+        )
+    except OSError:
+        return "unavailable"
+    for path in paths:
+        try:
+            payload = path.read_bytes()
+        except OSError:
+            payload = b"unreadable"
+        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(payload)
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _osv_cache_context() -> dict[str, object]:
+    status = osv_db_status()
+    context: dict[str, object] = {
+        key: status.get(key)
+        for key in ("path", "present", "fresh", "file_count", "reason", "max_age_hours")
+    }
+    path_value = status.get("path")
+    if not isinstance(path_value, str) or not path_value:
+        return context
+    root = Path(path_value)
+    files: list[tuple[str, int, int]] = []
+    try:
+        for path in sorted(root.rglob("*.zip")):
+            stat = path.stat()
+            files.append((path.relative_to(root).as_posix(), stat.st_size, stat.st_mtime_ns))
+    except OSError:
+        files.append(("unavailable", 0, 0))
+    context["files"] = files
+    return context
+
+
+def _assessment_context_fingerprint() -> str:
+    context = {
+        "generation": os.environ.get(_ASSESSMENT_GENERATION_ENV, "1"),
+        "external_cli": os.environ.get("AI_STP_SAFETY_EXTERNAL_CLI", ""),
+        "tool_versions": dict(sorted(installed_versions().items())),
+        "policy_pack": _policy_pack_fingerprint(),
+        "osv": _osv_cache_context(),
+    }
+    encoded = json.dumps(context, sort_keys=True, separators=(",", ":"), default=str).encode(
+        "utf-8"
+    )
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _cache_key(
@@ -95,25 +185,41 @@ def _cache_key(
     profile: SafetyProfile,
     object_kind: str,
     passport: Mapping[str, object],
-) -> tuple[str, str, str, str, str]:
+    cache_context: str,
+) -> CacheKey:
     passport_bytes = json.dumps(
         dict(passport), sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str
     ).encode("utf-8")
     passport_identity = hashlib.sha256(passport_bytes).hexdigest()
-    return (content_digest, policy_version, profile.value, object_kind, passport_identity)
+    return (
+        content_digest,
+        policy_version,
+        profile.value,
+        object_kind,
+        passport_identity,
+        cache_context,
+    )
 
 
-def _cache_get(key: tuple[str, str, str, str, str]) -> SafetyScanResult | None:
-    result = _RESULT_CACHE.get(key)
-    if result is not None:
-        _RESULT_CACHE.move_to_end(key)
+def _cache_get(key: CacheKey) -> SafetyScanResult | None:
+    cached = _RESULT_CACHE.get(key)
+    if cached is None:
+        return None
+    stored_at, result = cached
+    if time.monotonic() - stored_at >= safety_cache_ttl_seconds():
+        _RESULT_CACHE.pop(key, None)
+        return None
+    _RESULT_CACHE.move_to_end(key)
     return result
 
 
-def _cache_put(key: tuple[str, str, str, str, str], result: SafetyScanResult) -> None:
-    if any(outcome.result == "degraded" for outcome in result.outcomes):
+def _cache_put(key: CacheKey, result: SafetyScanResult, *, cacheable: bool = True) -> None:
+    if not cacheable or any(
+        outcome.result in {"degraded", "not_run", "skipped", "running"}
+        for outcome in result.outcomes
+    ):
         return
-    _RESULT_CACHE[key] = result
+    _RESULT_CACHE[key] = (time.monotonic(), result)
     _RESULT_CACHE.move_to_end(key)
     while len(_RESULT_CACHE) > MAX_CACHE_ENTRIES:
         _RESULT_CACHE.popitem(last=False)
@@ -159,29 +265,44 @@ async def run_safety_suite(
             use_cache=False,
         )
     prof = profile if isinstance(profile, SafetyProfile) else SafetyProfile(str(profile))
+    cache_context = _assessment_context_fingerprint()
     key = _cache_key(
         content_digest=content_digest,
         policy_version=policy_version,
         profile=prof,
         object_kind=object_kind,
         passport=passport,
+        cache_context=cache_context,
     )
-    lock = _SCAN_LOCKS.setdefault(key, asyncio.Lock())
-    try:
-        async with lock:
-            return await _run_safety_suite(
-                passport=passport,
-                content_digest=content_digest,
-                policy_version=policy_version,
-                object_kind=object_kind,
-                profile=prof,
-                artifact_source=artifact_source,
-                artifact_bytes=artifact_bytes,
-                use_cache=True,
+    entry = _SCAN_LOCKS.get(key)
+    if entry is None:
+        entry = _ScanInFlight(
+            asyncio.create_task(
+                _run_safety_suite(
+                    passport=passport,
+                    content_digest=content_digest,
+                    policy_version=policy_version,
+                    object_kind=object_kind,
+                    profile=prof,
+                    artifact_source=artifact_source,
+                    artifact_bytes=artifact_bytes,
+                    use_cache=True,
+                    cache_context=cache_context,
+                )
             )
+        )
+        _SCAN_LOCKS[key] = entry
+    entry.users += 1
+    try:
+        return await asyncio.shield(entry.task)
     finally:
-        if not lock.locked():
+        entry.users -= 1
+        if entry.users == 0 and _SCAN_LOCKS.get(key) is entry:
             _SCAN_LOCKS.pop(key, None)
+            if not entry.task.done():
+                entry.task.cancel()
+            elif not entry.task.cancelled():
+                entry.task.exception()
 
 
 async def _run_safety_suite(
@@ -194,17 +315,20 @@ async def _run_safety_suite(
     artifact_source: ArtifactSource | None = None,
     artifact_bytes: bytes | None = None,
     use_cache: bool = True,
+    cache_context: str | None = None,
 ) -> SafetyScanResult:
     """Run planned safety checks; return outcomes with source platform_safety_scan."""
     # SafetyProfile is a StrEnum (also a str); always normalize via the enum.
     prof = profile if isinstance(profile, SafetyProfile) else SafetyProfile(str(profile))
     passport_dict = dict(passport)
+    cache_context = cache_context or (_assessment_context_fingerprint() if use_cache else "")
     cache_key = _cache_key(
         content_digest=content_digest,
         policy_version=policy_version,
         profile=prof,
         object_kind=object_kind,
         passport=passport_dict,
+        cache_context=cache_context,
     )
     if use_cache and (cached := _cache_get(cache_key)) is not None:
         return _finish(
@@ -257,7 +381,7 @@ async def _run_safety_suite(
             wall_ms=int((time.perf_counter() - started) * 1000),
         )
         if use_cache:
-            _cache_put(cache_key, result)
+            _cache_put(cache_key, result, cacheable=False)
         return _finish(result)
 
     try:
@@ -273,7 +397,7 @@ async def _run_safety_suite(
                 wall_ms=int((time.perf_counter() - started) * 1000),
             )
             if use_cache:
-                _cache_put(cache_key, result)
+                _cache_put(cache_key, result, cacheable=False)
             return _finish(result)
         payload = await asyncio.wait_for(source.fetch_bytes(content_digest, size), remaining)
     except TimeoutError:
@@ -287,7 +411,7 @@ async def _run_safety_suite(
             wall_ms=int((time.perf_counter() - started) * 1000),
         )
         if use_cache:
-            _cache_put(cache_key, result)
+            _cache_put(cache_key, result, cacheable=False)
         return _finish(result)
     except WorkdirError as exc:
         outcomes = [
@@ -309,7 +433,7 @@ async def _run_safety_suite(
             wall_ms=int((time.perf_counter() - started) * 1000),
         )
         if use_cache:
-            _cache_put(cache_key, result)
+            _cache_put(cache_key, result, cacheable=False)
         return _finish(result)
 
     if payload is None:
@@ -323,7 +447,7 @@ async def _run_safety_suite(
             wall_ms=int((time.perf_counter() - started) * 1000),
         )
         if use_cache:
-            _cache_put(cache_key, result)
+            _cache_put(cache_key, result, cacheable=False)
         return _finish(result)
 
     # Re-hash gate
@@ -348,7 +472,7 @@ async def _run_safety_suite(
             wall_ms=int((time.perf_counter() - started) * 1000),
         )
         if use_cache:
-            _cache_put(cache_key, result)
+            _cache_put(cache_key, result, cacheable=False)
         return _finish(result)
 
     with isolated_workdir() as workdir:
@@ -375,7 +499,7 @@ async def _run_safety_suite(
                 workdir=str(workdir),
             )
             if use_cache:
-                _cache_put(cache_key, result)
+                _cache_put(cache_key, result, cacheable=False)
             return _finish(result)
 
         manifest = detect_manifest(tree, passport=passport_dict)

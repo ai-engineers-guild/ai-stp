@@ -17,6 +17,9 @@ export const TAG_FACETS = [
   "release",
 ] as const;
 
+export const MAX_TAGS = 10;
+export const MAX_TAG_LENGTH = 32;
+
 export type TagFacet = (typeof TAG_FACETS)[number];
 
 /** Harness ids offered in catalog filter dropdowns (ADR-0003). */
@@ -54,5 +57,5 @@ export function isComponentTypeFacet(value: string): value is ComponentTypeFacet
 
 /** Validate a single tag id form (vocabulary shape, not membership). */
 export function isValidTagId(value: string): boolean {
-  return value.length >= 2 && value.length <= 32 && TAG_ID_RE.test(value);
+  return value.length >= 2 && value.length <= MAX_TAG_LENGTH && TAG_ID_RE.test(value);
 }

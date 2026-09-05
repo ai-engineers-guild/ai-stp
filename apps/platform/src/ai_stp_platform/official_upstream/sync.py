@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any, cast
@@ -21,7 +22,9 @@ from ai_stp_passports import ScopeAdaptation, build_projection, seal_adaptation
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentType, ComponentVersionPassport
 from ai_stp_platform.artifact_bind import bind_plan_artifact
+from ai_stp_platform.identity import IdentityError, ensure_catalog_identity
 from ai_stp_platform.models import (
+    CatalogIdentity,
     CatalogMetadata,
     ObjectLocation,
     OfficialUpstreamSource,
@@ -32,9 +35,11 @@ from ai_stp_platform.official_upstream.attribution import build_description
 from ai_stp_platform.official_upstream.errors import (
     CHANGED_REPOSITORY_IDENTITY,
     FAILED_VALIDATION,
+    STALE_OWNERSHIP,
     OfficialUpstreamError,
 )
 from ai_stp_platform.official_upstream.github import FetchFn
+from ai_stp_platform.official_upstream.ledger import fence_attempt, mark_attempt
 from ai_stp_platform.official_upstream.resolve import resolve_official_snapshot
 from ai_stp_platform.publication_logic import (
     PLAN_TTL,
@@ -65,17 +70,46 @@ async def run_sync(
     fetch: FetchFn | None = None,
     store: ImmutableObjectStore | None = None,
     now: datetime | None = None,
+    attempt_id: int | None = None,
 ) -> str:
     """Return unchanged, publication_started, or raise a typed failure."""
     moment = now or datetime.now(UTC)
     source = await session.get(OfficialUpstreamSource, source_id)
     if source is None or not source.enabled:
         return "skipped"
+    attempt = None
+    if attempt_id is not None:
+        attempt = await session.get(OfficialUpstreamSync, attempt_id)
+    if attempt is None:
+        attempt = await session.scalar(
+            select(OfficialUpstreamSync).where(
+                OfficialUpstreamSync.source_id == source.id,
+                OfficialUpstreamSync.utc_day == moment.date(),
+            )
+        )
+    cancelled = await fence_attempt(session, source, attempt)
+    if cancelled is not None:
+        return "skipped"
+    await mark_attempt(session, attempt, "resolving")
     try:
         snapshot = await resolve_official_snapshot(source, fetch=fetch, now=moment)
     except OfficialUpstreamError as error:
-        await _record_sync(session, source, moment.date(), "failed", error_code=error.code)
+        cancelled = await fence_attempt(session, source, attempt)
+        if cancelled is not None:
+            return "skipped"
+        await _record_sync(
+            session,
+            source,
+            moment.date(),
+            "failed",
+            error_code=error.code,
+            attempt=attempt,
+            state="retry_wait",
+        )
         raise
+    cancelled = await fence_attempt(session, source, attempt)
+    if cancelled is not None:
+        return "skipped"
     if (
         source.kind == "git"
         and source.last_github_repo_id is not None
@@ -92,6 +126,8 @@ async def run_sync(
             "failed",
             snapshot=snapshot,
             error_code=error.code,
+            attempt=attempt,
+            state="retry_wait",
         )
         raise error
     artifact, adaptation = _projection(source, snapshot)
@@ -105,6 +141,8 @@ async def run_sync(
             "unchanged",
             snapshot=snapshot,
             component_digest=component_digest,
+            attempt=attempt,
+            state="unchanged",
         )
         return "unchanged"
     owned_store = store
@@ -114,7 +152,15 @@ async def run_sync(
         opened = owned_store is not None
     if owned_store is None:
         error = OfficialUpstreamError(FAILED_VALIDATION, "object store is unavailable")
-        await _record_sync(session, source, moment.date(), "failed", error_code=error.code)
+        await _record_sync(
+            session,
+            source,
+            moment.date(),
+            "failed",
+            error_code=error.code,
+            attempt=attempt,
+            state="retry_wait",
+        )
         raise error
     try:
         plan = await _start_publication(
@@ -136,6 +182,8 @@ async def run_sync(
             snapshot=snapshot,
             component_digest=component_digest,
             error_code=error.code,
+            attempt=attempt,
+            state="retry_wait",
         )
         raise
     finally:
@@ -150,6 +198,8 @@ async def run_sync(
         snapshot=snapshot,
         component_digest=component_digest,
         plan_id=plan.id,
+        attempt=attempt,
+        state="publishing",
     )
     return "publication_started"
 
@@ -174,6 +224,24 @@ def _projection(
             FAILED_VALIDATION, "official source harness is unsupported"
         ) from error
     ordered = sorted(snapshot.files.items())
+    if not ordered and source.kind == "package":
+        # Registry packages such as PyPI wheels are intentionally not unpacked
+        # into a native tree. Publish one deterministic descriptor; the sealed
+        # passport retains the exact registry coordinate used for installation.
+        descriptor = json.dumps(
+            {
+                "ecosystem": source.ecosystem,
+                "name": source.package_name,
+                "version": source.package_version,
+                "filename": source.package_filename,
+                "platform": source.package_platform,
+                "coordinate": snapshot.canonical_coordinate,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        ordered = [("package.json", descriptor)]
     if not ordered or (projection_shape == "file" and len(ordered) != 1):
         raise OfficialUpstreamError(FAILED_VALIDATION, "official source projection shape differs")
     source_prefix = (source.component_subpath or "").strip("/")
@@ -333,14 +401,35 @@ async def _start_publication(
             FAILED_VALIDATION, f"passport invalid for publication: {', '.join(invalid)}"
         )
     sealed = model.model_dump(mode="json")
-    plan_key = f"official-upstream:{source.id}:{component_digest}"
+    # publication_plan.idempotency_key is varchar(128). Keep the stable source
+    # prefix and enough digest entropy for retries without allowing long
+    # manifest source ids to overflow the database column.
+    digest_key = component_digest[:39]
+    plan_key = f"official-upstream:{source.id}:{digest_key}"
     used_keys = {plan.idempotency_key for plan in existing_plans}
     if plan_key in used_keys:
-        # publication_plan.idempotency_key is varchar(128); ISO millis overflows.
         retry = now.strftime("%Y%m%dT%H%M%S")
         plan_key = f"{plan_key}:{retry}"
         if plan_key in used_keys:
             plan_key = f"{plan_key}{now.microsecond // 1000:03d}"
+    identity = await session.get(CatalogIdentity, source.stable_id)
+    display_en = source.display_name_en or source.name
+    display_ru = source.display_name_ru or source.name
+    try:
+        identity = await ensure_catalog_identity(
+            session,
+            stable_id=source.stable_id,
+            owner_account_id=source.owner_account_id,
+            canonical_name=source.canonical_name or source.name,
+            display_name_en=display_en,
+            display_name_ru=display_ru,
+            expected_ownership_revision_id=(
+                identity.ownership_revision_id if identity is not None else None
+            ),
+        )
+    except IdentityError as error:
+        code = STALE_OWNERSHIP if "OWNERSHIP" in error.code else FAILED_VALIDATION
+        raise OfficialUpstreamError(code, error.message) from error
     plan_hash = compute_plan_hash(
         actor_account_id=source.owner_account_id,
         device_id=source.actor_device_id,
@@ -367,6 +456,7 @@ async def _start_publication(
         attestations=[],
         effects=["validate", "publish_catalog_version"],
         idempotency_key=plan_key,
+        expected_ownership_revision_id=identity.ownership_revision_id,
         expires_at=now + PLAN_TTL,
     )
     session.add(plan)
@@ -532,20 +622,43 @@ async def _record_sync(
     component_digest: str | None = None,
     plan_id: str | None = None,
     error_code: str | None = None,
+    attempt: OfficialUpstreamSync | None = None,
+    state: str | None = None,
 ) -> None:
-    row = await session.scalar(
-        select(OfficialUpstreamSync).where(
-            OfficialUpstreamSync.source_id == source.id,
-            OfficialUpstreamSync.utc_day == utc_day,
-        )
-    )
+    row = attempt
     if row is None:
-        row = OfficialUpstreamSync(source_id=source.id, utc_day=utc_day, result=result)
+        row = await session.scalar(
+            select(OfficialUpstreamSync).where(
+                OfficialUpstreamSync.source_id == source.id,
+                OfficialUpstreamSync.utc_day == utc_day,
+            )
+        )
+    if row is None:
+        identity = await session.get(CatalogIdentity, source.stable_id)
+        row = OfficialUpstreamSync(
+            source_id=source.id,
+            utc_day=utc_day,
+            trigger_key=utc_day.isoformat(),
+            result=result,
+            state=state or "desired",
+            expected_owner_account_id=source.owner_account_id,
+            expected_ownership_revision_id=(
+                identity.ownership_revision_id
+                if identity is not None
+                else source.ownership_revision_id
+            ),
+        )
         session.add(row)
     row.result = result
     row.error_code = error_code
     row.plan_id = plan_id
     row.fetched_at = datetime.now(UTC)
+    if state is not None:
+        row.state = state
+        if state in {"unchanged", "published", "dead_lettered", "failed_permanent"}:
+            row.completed_at = datetime.now(UTC)
+        if state == "retry_wait":
+            row.error_class = row.error_class or "retryable"
     if snapshot is not None:
         row.commit = snapshot.exact_identity
         row.archive_digest = snapshot.archive_digest

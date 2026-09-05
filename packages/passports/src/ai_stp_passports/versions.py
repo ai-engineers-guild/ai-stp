@@ -25,9 +25,10 @@ from ai_stp_passports.envelope import PassportEnvelope
 from ai_stp_passports.markdown import validate_safe_markdown
 
 # Tag IDs follow the vocabulary form (docs/contracts/tag-vocabulary.md);
-# 1..8 tags per version (ADR-0024).
+# 1..10 tags per version (ADR-0024).
 TAG_PATTERN: Final[str] = r"^[a-z0-9]+(-[a-z0-9]+)*$"
-MAX_TAGS: Final[int] = 8
+MAX_TAGS: Final[int] = 10
+MAX_TAG_LENGTH: Final[int] = 32
 
 # Capabilities come from the closed dotted dictionary (component-setup-passports.md).
 CAPABILITY_PATTERN: Final[str] = r"^[a-z0-9]+(\.[a-z0-9-]+)+$"
@@ -35,7 +36,7 @@ CAPABILITY_PATTERN: Final[str] = r"^[a-z0-9]+(\.[a-z0-9-]+)+$"
 ENV_NAME_PATTERN: Final[str] = r"^[A-Z][A-Z0-9_]*$"
 COMMIT_PATTERN: Final[str] = r"^[0-9a-f]{40}$"
 
-type TagId = Annotated[str, Field(pattern=TAG_PATTERN)]
+type TagId = Annotated[str, Field(min_length=2, max_length=MAX_TAG_LENGTH, pattern=TAG_PATTERN)]
 type CapabilityId = Annotated[str, Field(pattern=CAPABILITY_PATTERN)]
 type SupportedOs = Literal["linux", "macos", "windows"]
 type SupportedArch = Literal["x86_64", "arm64"]
@@ -399,6 +400,13 @@ class _VersionPassportBase(PassportEnvelope):
     @classmethod
     def _safe_description(cls, value: str) -> str:
         return validate_safe_markdown(value)
+
+    @field_validator("tags")
+    @classmethod
+    def _tags_are_unique(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("tags must not contain duplicate identifiers")
+        return value
 
     @model_validator(mode="after")
     def _immutable_snapshot(self) -> "_VersionPassportBase":

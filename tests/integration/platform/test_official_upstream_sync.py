@@ -35,6 +35,7 @@ from ai_stp_platform.official_upstream.errors import (
     OfficialUpstreamError,
 )
 from ai_stp_platform.official_upstream.github import GithubHttpResponse
+from ai_stp_platform.official_upstream.ledger import record_queue_outcome
 from ai_stp_platform.official_upstream.source import (
     SourceUpsert,
     delete_source,
@@ -44,7 +45,7 @@ from ai_stp_platform.official_upstream.source import (
 from ai_stp_platform.official_upstream.sync import run_sync
 from ai_stp_platform.publication_logic import execute_publish, execute_validate
 from ai_stp_platform.queue.models import Job
-from ai_stp_platform.queue.states import JobType
+from ai_stp_platform.queue.states import JobState, JobType
 from ai_stp_platform.seed_cli import ensure_official_publisher
 from ai_stp_platform.settings import StorageSettings
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
@@ -179,8 +180,10 @@ async def test_scheduler_enqueues_one_job_per_utc_day(
         assert first and second and next_day
         assert first[0].id == second[0].id
         assert next_day[0].id != first[0].id
-        assert first[0].payload == {"source_id": SOURCE_ID}
-        assert next_day[0].payload == {"source_id": SOURCE_ID}
+        assert first[0].payload["source_id"] == SOURCE_ID
+        assert first[0].payload["attempt_id"]
+        assert next_day[0].payload["source_id"] == SOURCE_ID
+        assert next_day[0].payload["attempt_id"]
         assert first[0].job_type == JobType.OFFICIAL_UPSTREAM_SYNC
         jobs = list((await session.scalars(select(Job))).all())
         assert len(jobs) == 2
@@ -199,7 +202,8 @@ async def test_operator_force_enqueues_audited_retry_without_replacing_daily_key
         again = await enqueue_daily(session, now=now)
         assert daily[0].id == again[0].id
         assert forced[0].id != daily[0].id
-        assert forced[0].payload == {"source_id": SOURCE_ID}
+        assert forced[0].payload["source_id"] == SOURCE_ID
+        assert forced[0].payload["attempt_id"]
         assert forced[0].idempotency_key.startswith(f"official-upstream-sync:{SOURCE_ID}:manual:")
         audits = list(
             (
@@ -214,6 +218,7 @@ async def test_operator_force_enqueues_audited_retry_without_replacing_daily_key
             "job_id": forced[0].id,
             "force": True,
             "utc_day": "2026-09-01",
+            "attempt_id": forced[0].payload["attempt_id"],
         }
         with pytest.raises(OfficialUpstreamError) as missing:
             await enqueue_daily(session, now=now, force=True, source_id="missing-source")
@@ -225,6 +230,35 @@ async def test_operator_force_enqueues_audited_retry_without_replacing_daily_key
 
 
 @pytest.mark.asyncio
+async def test_legacy_dlq_without_attempt_id_cannot_poison_new_attempt(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    now = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+    async with db_sessionmaker() as session, session.begin():
+        await _owner(session)
+        await upsert_source(session, _command())
+        daily = (await enqueue_daily(session, now=now))[0]
+        daily.state = JobState.DEAD_LETTER
+        daily.attempts = daily.max_attempts
+        daily.payload = {"source_id": SOURCE_ID}
+        await session.flush()
+        forced = (await enqueue_daily(session, now=now, force=True))[0]
+        await record_queue_outcome(session, daily)
+        attempts = list(
+            (
+                await session.scalars(
+                    select(OfficialUpstreamSync)
+                    .where(OfficialUpstreamSync.source_id == SOURCE_ID)
+                    .order_by(OfficialUpstreamSync.id)
+                )
+            ).all()
+        )
+        assert attempts[0].state == "dead_lettered"
+        assert attempts[-1].job_id == forced.id
+        assert attempts[-1].state == "queued"
+
+
+@pytest.mark.asyncio
 async def test_failed_plan_retry_reuses_in_flight_and_fits_idempotency_key(
     db_sessionmaker: async_sessionmaker[AsyncSession],
 ) -> None:
@@ -232,7 +266,7 @@ async def test_failed_plan_retry_reuses_in_flight_and_fits_idempotency_key(
     archive = _tar("# Demo\n")
     fetch = _fetch(archive)
     now = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
-    source_id = "ai-repo-safety"
+    source_id = "anthropic-cybersecurity-skills"
     async with db_sessionmaker() as session, session.begin():
         await _owner(session)
         await upsert_source(session, _command(source_id=source_id))
@@ -376,7 +410,10 @@ async def test_failure_and_disable_preserve_history(
         skipped = await enqueue_daily(session, now=now + timedelta(days=2))
         assert skipped == []
         await delete_source(session)
-        assert await session.get(OfficialUpstreamSource, SOURCE_ID) is None
+        removed = await session.get(OfficialUpstreamSource, SOURCE_ID)
+        assert removed is not None
+        assert removed.inventory_state == "removed"
+        assert removed.enabled is False
         remaining = await session.get(CatalogMetadata, published.id)
         assert remaining is not None
         session.expire_all()
@@ -385,7 +422,7 @@ async def test_failure_and_disable_preserve_history(
         assert all(row.source_id == SOURCE_ID for row in history)
         assert {row.result for row in history} >= {"publication_started", "failed"}
         audits = list((await session.scalars(select(AuditEvent))).all())
-        assert "official_upstream.source_deleted" in {item.action for item in audits}
+        assert "official_upstream.source_removed" in {item.action for item in audits}
         later = await enqueue_daily(session, now=now + timedelta(days=3))
         assert later == []
 

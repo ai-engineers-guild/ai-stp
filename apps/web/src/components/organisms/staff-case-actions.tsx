@@ -7,16 +7,12 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { MutationReference } from "@/components/molecules/mutation-reference";
-import {
-  staffAuthorVerifiedAction,
-  staffLifecycleAction,
-  staffTriageAction,
-} from "@/actions/staff";
+import { staffLifecycleAction, staffTriageAction } from "@/actions/staff";
 
 type StaffCaseActionsProps = {
   csrfToken: string;
   caseId: string;
-  objectKind: "component" | "setup";
+  objectKind: "component" | "setup" | "";
   stableId: string;
   version: string;
   labels: {
@@ -26,9 +22,7 @@ type StaffCaseActionsProps = {
     block: string;
     hide: string;
     restore: string;
-    authorVerifiedIssue: string;
-    authorVerifiedRevoke: string;
-    subjectAccount: string;
+    operatorNote: string;
     lifecycle: string;
     referenceId: string;
     stateTriaged: string;
@@ -85,7 +79,6 @@ export function StaffCaseActions({
   const [pending, startTransition] = useTransition();
   const [reason, setReason] = useState("");
   const [state, setState] = useState<TriageState>("triaged");
-  const [subjectAccountId, setSubjectAccountId] = useState("");
   const [operationId, setOperationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,6 +103,9 @@ export function StaffCaseActions({
   }
 
   const lifecycle = (action: LifecycleAction) => {
+    if (objectKind !== "component" && objectKind !== "setup") {
+      return;
+    }
     run(() =>
       staffLifecycleAction({
         csrfToken,
@@ -161,56 +157,11 @@ export function StaffCaseActions({
         </Button>
       </section>
 
-      <LifecycleControls labels={labels} pending={pending} onAction={lifecycle} />
+      {objectKind === "component" || objectKind === "setup" ? (
+        <LifecycleControls labels={labels} pending={pending} onAction={lifecycle} />
+      ) : null}
 
-      <section className="border-border space-y-3 rounded-lg border p-4">
-        <Label htmlFor="staff-subject">{labels.subjectAccount}</Label>
-        <Input
-          id="staff-subject"
-          className="font-mono text-xs"
-          value={subjectAccountId}
-          onChange={(event) => {
-            setSubjectAccountId(event.target.value);
-          }}
-        />
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            disabled={pending || !subjectAccountId}
-            onClick={() => {
-              run(() =>
-                staffAuthorVerifiedAction({
-                  csrfToken,
-                  subjectAccountId,
-                  verified: true,
-                  reason,
-                }),
-              );
-            }}
-          >
-            {labels.authorVerifiedIssue}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={pending || !subjectAccountId}
-            onClick={() => {
-              run(() =>
-                staffAuthorVerifiedAction({
-                  csrfToken,
-                  subjectAccountId,
-                  verified: false,
-                  reason,
-                }),
-              );
-            }}
-          >
-            {labels.authorVerifiedRevoke}
-          </Button>
-        </div>
-      </section>
+      <p className="text-muted-foreground text-sm">{labels.operatorNote}</p>
 
       <MutationReference label={labels.referenceId} operationId={operationId} />
       {error ? (

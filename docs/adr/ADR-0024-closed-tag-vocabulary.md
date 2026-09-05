@@ -1,6 +1,6 @@
 ---
 description: "Decision to publish tags only from a closed, versioned vocabulary."
-last_verified: "2026-08-04"
+last_verified: "2026-09-04"
 ---
 
 # ADR-0024: Tags come from a closed vocabulary
@@ -39,7 +39,7 @@ Option 3 is accepted.
 
 ## Consequences
 
-- `contracts/tag-vocabulary.md` is introduced as the owner of the vocabulary format, normalization, and limit;
+- `contracts/tag-vocabulary.md` is introduced as the owner of the vocabulary format, validation, and limit;
 - `SPEC-005` and `SPEC-007` require tags to belong to the vocabulary at publication time;
 - search filters by canonical identifier and finds by synonym;
 - the CLI and API expose the vocabulary, and the Agent Skill selects tags from it;

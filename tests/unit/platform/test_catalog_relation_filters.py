@@ -2,12 +2,12 @@
 
 import pytest
 
-from ai_stp_api.slices.catalog.service import (
+from ai_stp_contracts.catalog import CATALOG_UNSPECIFIED_FILTER
+from ai_stp_platform.catalog_search import (
     merge_relation_filters,
     plan_relation_filter,
     relation_filter_signature,
 )
-from ai_stp_contracts.catalog import CATALOG_UNSPECIFIED_FILTER
 
 pytestmark = pytest.mark.platform
 

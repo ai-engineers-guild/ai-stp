@@ -10,7 +10,14 @@ from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.catalog_cursor import CursorKey
-from ai_stp_platform.models import AccountAuthorVerification, CatalogMetadata, RepositoryMetric
+from ai_stp_platform.models import (
+    Account,
+    AccountAuthorVerification,
+    CatalogIdentity,
+    CatalogIdentityLocale,
+    CatalogMetadata,
+    RepositoryMetric,
+)
 
 PUBLIC_LIFECYCLES: frozenset[str] = frozenset({"active", "deprecated", "blocked"})
 ObjectKind = Literal["component", "setup"]
@@ -37,6 +44,10 @@ class PublicVersionRow:
     object_kind: str
     support_evidence: list[dict[str, object]] = field(default_factory=_empty_support_evidence)
     github_stars: int | None = None
+    owner_handle: str = ""
+    canonical_name: str = ""
+    display_name: str = ""
+    display_locale: str = ""
 
 
 class CatalogIntegrityError(RuntimeError):
@@ -108,7 +119,7 @@ def _repository(row: PublicVersionRow) -> str | None:
     return repository if isinstance(repository, str) else None
 
 
-async def _current_author_verification(
+async def current_author_verification(
     session: AsyncSession, rows: list[PublicVersionRow]
 ) -> list[PublicVersionRow]:
     account_ids = {row.metadata.owner_account_id for row in rows}
@@ -122,20 +133,68 @@ async def _current_author_verification(
     verified_rows = with_current_author_verification(rows, dict(result.tuples().all()))
     repositories = {repository for row in verified_rows if (repository := _repository(row))}
     if not repositories:
-        return verified_rows
+        return await _with_catalog_identity(session, verified_rows)
     metrics = await session.execute(
         select(RepositoryMetric.repository, RepositoryMetric.github_stars).where(
             RepositoryMetric.repository.in_(repositories)
         )
     )
     stars = dict(metrics.tuples().all())
-    return [
+    starred = [
         replace(
             row,
             github_stars=stars.get(repository) if (repository := _repository(row)) else None,
         )
         for row in verified_rows
     ]
+    return await _with_catalog_identity(session, starred)
+
+
+async def _with_catalog_identity(
+    session: AsyncSession, rows: list[PublicVersionRow]
+) -> list[PublicVersionRow]:
+    component_ids = {row.stable_id for row in rows if row.object_kind == "component"}
+    if not component_ids:
+        return rows
+    identities = {
+        row.stable_id: row
+        for row in (
+            await session.scalars(
+                select(CatalogIdentity).where(CatalogIdentity.stable_id.in_(component_ids))
+            )
+        ).all()
+    }
+    locales = (
+        await session.scalars(
+            select(CatalogIdentityLocale).where(
+                CatalogIdentityLocale.stable_id.in_(component_ids),
+                CatalogIdentityLocale.locale == "en",
+            )
+        )
+    ).all()
+    locale_by_id = {row.stable_id: row for row in locales}
+    owner_ids = {identity.owner_account_id for identity in identities.values()}
+    handles: dict[str, str] = {}
+    if owner_ids:
+        accounts = (await session.scalars(select(Account).where(Account.id.in_(owner_ids)))).all()
+        handles = {account.id: account.handle or "" for account in accounts}
+    overlayed: list[PublicVersionRow] = []
+    for row in rows:
+        identity = identities.get(row.stable_id)
+        locale = locale_by_id.get(row.stable_id)
+        if identity is None:
+            overlayed.append(row)
+            continue
+        overlayed.append(
+            replace(
+                row,
+                owner_handle=handles.get(identity.owner_account_id, ""),
+                canonical_name=identity.canonical_name,
+                display_name=locale.display_name if locale is not None else identity.canonical_name,
+                display_locale="en" if locale is not None else "",
+            )
+        )
+    return overlayed
 
 
 #: The cursor carries a canonical wire timestamp, and that format is
@@ -199,7 +258,7 @@ async def list_public_versions(
         )
     stmt = stmt.limit(limit)
     result = await session.scalars(stmt)
-    return await _current_author_verification(
+    return await current_author_verification(
         session, [public_version_row(row) for row in result.all()]
     )
 
@@ -261,7 +320,7 @@ async def get_public_object_versions(
         .order_by(CatalogMetadata.version.asc())
     )
     result = await session.scalars(stmt)
-    return await _current_author_verification(
+    return await current_author_verification(
         session, [public_version_row(row) for row in result.all()]
     )
 
@@ -281,7 +340,7 @@ async def get_public_version(
     meta = await session.scalar(stmt)
     if meta is None:
         return None
-    return (await _current_author_verification(session, [public_version_row(meta)]))[0]
+    return (await current_author_verification(session, [public_version_row(meta)]))[0]
 
 
 async def get_visible_metadata(

@@ -84,6 +84,17 @@ During `validate`, after passport checks, worker/platform executes the staged
 safety suite (`policy_version` of the form `safety-2`, registry in
 `ai_stp_platform.safety.policy`).
 
+The process-local result cache has a 15-minute default TTL, configurable with
+`AI_STP_SAFETY_CACHE_TTL_SECONDS`, and is keyed by an assessment-context
+fingerprint. The fingerprint includes the configured
+`AI_STP_SAFETY_ASSESSMENT_GENERATION`, safety tool versions, policy-pack
+contents, and OSV database state. Changing any of these or allowing the entry
+to expire causes a new assessment; a cache hit does not extend its original
+expiry. Only completed results are reusable: artifact absence, fetch or
+integrity failures, mandatory `not_run`, `degraded`, and unfinished `skipped`
+results are never stored as completed evidence. Concurrent requests for one
+exact context share one in-flight scan; different subjects remain independent.
+
 | Family | check_id (primary) | Source | Mandatory (public component) |
 |---|---|---|---|
 | unpack | `artifact_unpack` | workdir + digest re-verify | yes |
