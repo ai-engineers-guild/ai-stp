@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from typing import cast
 from urllib.parse import ParseResult, parse_qs, urlparse
 
 from ai_stp_contracts.content import CONTENT_BODY_MAX
@@ -15,7 +14,6 @@ _FORBIDDEN_TAGS = frozenset(
 )
 _ILLUSTRATION_PREFIX = "/content/illustrations/"
 _HTTPS_PREFIX = "https://"
-_VIDEO: re.Pattern[str] = re.compile(r"@\[(youtube|vimeo)\]\((https://[^)\s]+)\)", re.IGNORECASE)
 
 
 def validate_article_body(source: str) -> str:
@@ -37,7 +35,7 @@ def validate_article_body(source: str) -> str:
                 raise ContentError("AI_STP_CONTENT_INVALID", "credential-bearing url rejected")
             continue
         raise ContentError("AI_STP_CONTENT_INVALID", "link must be https, fragment or illustration")
-    for kind, dest in cast(list[tuple[str, str]], _VIDEO.findall(source)):
+    for kind, dest in _video_references(source):
         parsed: ParseResult = urlparse(dest)
         host = (parsed.hostname or "").lower()
         if kind.lower() == "youtube":
@@ -101,7 +99,44 @@ def _has_forbidden_tag(lowered: str) -> bool:
 
 
 def _has_event_handler_attr(lowered: str) -> bool:
-    return re.search(r"(?<![a-z0-9_])on[a-z]+\s*=", lowered) is not None
+    for index in range(len(lowered) - 2):
+        if index and (lowered[index - 1].isalnum() or lowered[index - 1] == "_"):
+            continue
+        if lowered[index : index + 2] != "on":
+            continue
+        cursor = index + 2
+        while cursor < len(lowered) and "a" <= lowered[cursor] <= "z":
+            cursor += 1
+        if cursor == index + 2:
+            continue
+        while cursor < len(lowered) and lowered[cursor].isspace():
+            cursor += 1
+        if cursor < len(lowered) and lowered[cursor] == "=":
+            return True
+    return False
+
+
+def _video_references(source: str) -> Iterator[tuple[str, str]]:
+    """Yield supported video references in one linear pass."""
+    index = 0
+    while (start := source.find("@[", index)) >= 0:
+        close = source.find("](", start + 2)
+        if close < 0:
+            return
+        kind = source[start + 2 : close].lower()
+        if kind not in {"youtube", "vimeo"}:
+            index = close + 2
+            continue
+        body = close + 2
+        if not source.startswith(_HTTPS_PREFIX, body):
+            index = body
+            continue
+        end = body
+        while end < len(source) and source[end] not in ") \t\r\n":
+            end += 1
+        if end > body:
+            yield kind, source[body:end]
+        index = end + 1
 
 
 def _markdown_link_destinations(source: str) -> Iterator[str]:

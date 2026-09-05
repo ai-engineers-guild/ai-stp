@@ -98,9 +98,8 @@ function inline(text: string): string {
 }
 
 function headingId(title: string, ids: Set<string>, explicit?: string): string {
-  const clean = title
-    .replace(/[`*_~]/g, "")
-    .replace(/<[^>]+>/g, "")
+  const clean = encodeURIComponent(title)
+    .replace(/%[0-9a-f]{2}/gi, "-")
     .toLowerCase()
     .trim();
   const generated = clean
@@ -313,7 +312,7 @@ function renderBlocks(lines: string[], ids: Set<string>, article: boolean): stri
         ? (heading[1]?.length ?? 1)
         : Math.min((heading[1]?.length ?? 1) + 1, 6);
       const id = headingId(title, ids, heading[3]);
-      blocks.push(`<h${level} id="${escapeHtml(id)}">${inline(title)}</h${level}>`);
+      blocks.push(`<h${level} id="${escapeHtml(id)}">${escapeHtml(title)}</h${level}>`);
       index += 1;
       continue;
     }
