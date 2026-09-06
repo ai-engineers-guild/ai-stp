@@ -33,9 +33,12 @@ def test_recast_preserves_nested_siblings(skill_rules: tuple[Rule, Rule]) -> Non
         "skills/review/scripts/run.sh": b"#!/bin/sh\n",
         "skills/review/references/run.sh": b"reference, not the script\n",
     }
-    assert setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
-        files, "skill", "claude-code", "global", target
-    ) == files
+    assert (
+        setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
+            files, "skill", "claude-code", "global", target
+        )
+        == files
+    )
 
 
 @pytest.mark.parametrize(
@@ -52,9 +55,12 @@ def test_recast_refuses_lossy_directory_mapping(
     skill_rules: tuple[Rule, Rule], files: dict[str, bytes]
 ) -> None:
     _source, target = skill_rules
-    assert setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
-        files, "skill", "claude-code", "global", target
-    ) is None
+    assert (
+        setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
+            files, "skill", "claude-code", "global", target
+        )
+        is None
+    )
 
 
 def test_recast_does_not_invent_an_unknown_source_root(
@@ -66,17 +72,23 @@ def test_recast_does_not_invent_an_unknown_source_root(
         return None
 
     monkeypatch.setattr(setup_recast.composition, "rule_for", no_rule)
-    assert setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
-        {"unknown/SKILL.md": b"unknown"}, "skill", "claude-code", "global", target
-    ) is None
+    assert (
+        setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
+            {"unknown/SKILL.md": b"unknown"}, "skill", "claude-code", "global", target
+        )
+        is None
+    )
 
 
 def test_recast_uses_the_same_mapping_for_modes(skill_rules: tuple[Rule, Rule]) -> None:
     _source, target = skill_rules
     modes = {"skills/review/SKILL.md": 0o644, "skills/review/scripts/run.sh": 0o755}
-    assert setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
-        modes, "skill", "claude-code", "global", target
-    ) == modes
+    assert (
+        setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
+            modes, "skill", "claude-code", "global", target
+        )
+        == modes
+    )
 
 
 @pytest.mark.parametrize("mode", [0o400, 0o600, 0o644, 0o700, 0o755])

@@ -578,7 +578,7 @@ def _remap_files[T](
     for path, payload in files.items():
         if not path.startswith(prefix) or path == prefix:
             return None
-        destination = f"{root}/{path[len(prefix):]}"
+        destination = f"{root}/{path[len(prefix) :]}"
         folded = destination.casefold()
         if folded in seen:
             return None
