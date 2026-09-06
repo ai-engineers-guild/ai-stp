@@ -41,7 +41,7 @@ scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven provider integrations with native configuration, backup/recovery and software lifecycle interfaces. Current consumer contracts still name protocol v3; per-provider launch completeness requires G4/G5 evidence. |
-| Release | Recorded published line is `0.0.17` as one `ai-stp-cli` wheel (`ADR-0146`, tag `v0.0.17`); GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Current release qualification and deployed state require exact-SHA evidence, not this row. |
+| Release | Recorded published line is `0.0.18` as one `ai-stp-cli` wheel (`ADR-0146`, tag `v0.0.18`); GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Current release qualification and deployed state require exact-SHA evidence, not this row. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection exists; completion of the platform seed consumer and artifact closure is tracked by `#146`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
@@ -50,7 +50,7 @@ scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 This section retains the earlier measurement narrative, including its package
 versions and host claims. It was not re-executed by the 2026-09-06 source audit
 and must not be used as evidence for the current `main`, current host health,
-or the forthcoming 0.1.0 cut. The later recorded consumer line is `0.0.17`.
+or the forthcoming 0.1.0 cut. The later recorded consumer line is `0.0.18`.
 
 - The canonical development checkout is `ai-engineers-guild/ai-stp`. The private
   underscore tree is an archive: it runs no workflows, promotes nothing, and its
@@ -177,7 +177,7 @@ dependency.
 | G3 | Cross-harness component adaptations and executable lifecycle | Component materialize, per-adaptation eval, claimed-portable overlay, and shared `cli` program lifecycle are in tree (`#151`, prefix containment `#152`). Occupied next-minor and overlay identities refuse a different intended passport; install/invoke/status bind to installed bytes and the requested version, not a newer registry `current` or first ZIP member. Setup eval is the setup harness only; `eval component` enumerates every advertised adaptation. `--all-missing` stamps every remaining derivable harness in one owner version. Overlay stays private. Pi MCP packages remain blocked without a measured package transform. | Native format-specific positive and negative controls; one shared executable with verified install/invoke/remove; no sevenfold runtime duplication |
 | G4 | Antigravity launch against the documented home | Public `antigravity-setup-system` `main` (`#113`, merge `a4e817de`) declares `LaunchBinding::DocumentedHome`; `config_home_env` stays empty. Six siblings received the shared runtime on the same render. Native `can_launch` against `~/.gemini` is still an evidence run, not this merge. Do not invent `ANTIGRAVITY_*`. | `can_launch` true for the documented home on the published public tree; alternate-root launch still refused by name |
 | G5 | Native 7 × 3 OS × x86/arm qualification | Estate record `ai-stp-estate-release/1` already refuses `complete` without 42 launch cells. Installed-artifact and launched-process rows remain `NOT_MEASURED` on current main. | Filled estate record with retained evidence; skipped cells keep the verdict `incomplete` |
-| G6 | Coordinated 0.1.0 / OBT cut | Consumer `0.0.17`, providers `0.0.65`, first-party objects at mixed `1.0`/`1.x`. Re-resolve those coordinates, then coordinate ai-stp and all seven providers after G0–G5 and the platform dependencies. One standard family is not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
+| G6 | Coordinated 0.1.0 / OBT cut | Consumer `0.0.18`, providers `0.0.66`, first-party objects at mixed `1.0`/`1.x`. Re-resolve those coordinates, then coordinate ai-stp and all seven providers after G0–G5 and the platform dependencies. One standard family is not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
 
 Posture (`minimal` / `baseline` / `full-auto` / `nddev-builder`) is the
 content footprint of a setup (`ADR-0130`). `execution_profile` is independently
@@ -240,13 +240,15 @@ closed or forbade. Those findings are not re-opened here:
 | Control-plane Skill package (`#97`) | Done: `skill install` writes `SKILL.md` plus `references/` for every harness; projections carry the procedure; Russian is a generated locale; machine help still owns flags (`ADR-0149`). |
 | Rust rewrite / further component kinds | Separate backlog. The ninth `cli` kind already exists under `ADR-0155`; its existence does not prove runtime lifecycle completion. Historical experiments are not current evidence. |
 
-`#100` published `ai-stp-cli==0.0.17` from candidate `33850604873`, tag `v0.0.17`,
-commit `9e03ab27`. A clean index install and one GitHub-attested provider fetch
-passed. Obsolete GitHub `pypi` / `pypi-*` environments except `pypi-cli` are
-removed. The earlier record assigned deletion of the five former internal PyPI projects
-to their owners; current index deletion was not verified by this source audit: `ai-stp-sources`
-is `rldyourmnd`; `ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`,
-and `ai-stp-contracts` are `artemletya`. There is no deletion API.
+`#160` published `ai-stp-cli==0.0.18` from candidate `34060185329`, tag `v0.0.18`,
+commit `4aa64c36`. A clean index install returned `cli_version: 0.0.18` and
+accepted `reset`. `#100` published `0.0.17` from candidate `33850604873`, tag
+`v0.0.17`, commit `9e03ab27`. Obsolete GitHub `pypi` / `pypi-*` environments
+except `pypi-cli` are removed. The earlier record assigned deletion of the five
+former internal PyPI projects to their owners; current index deletion was not
+verified by this source audit: `ai-stp-sources` is `rldyourmnd`;
+`ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`, and
+`ai-stp-contracts` are `artemletya`. There is no deletion API.
 
 ## Explicitly out of scope for this pass
 
