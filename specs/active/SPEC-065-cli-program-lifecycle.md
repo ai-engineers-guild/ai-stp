@@ -20,7 +20,9 @@ Included: composition conversion of `cli`, and `component program install`,
 ## Terms
 
 - Shared prefix — the CLI data directory `cli-programs/`, never a harness home.
-- Pointer — the exact installed path used for invoke; never `PATH`.
+- Pointer — the selected component version's installed path; never `PATH`.
+- Installed identity — exact component ID, version, and artifact bytes at the
+  version's `program` path, not the newest registry row.
 
 ## Requirements
 
@@ -29,9 +31,25 @@ Included: composition conversion of `cli`, and `component program install`,
 - `REQ-6503`: `component program install`, `invoke`, `status`, and `remove`
   operate on one prefix under the CLI data directory.
 - `REQ-6504`: `remove` accepts only a typed component identifier and deletes
-  only names under the shared prefix. A path, `..` segment, or symlink target
-  outside the prefix is refused or unlinked at the prefix name; the outside
-  target is not deleted.
+  only names under the shared prefix. A path, `..` segment, or linked prefix is
+  refused. A component-root symlink is unlinked without deleting its outside
+  target.
+- `REQ-6505`: Invoke with an explicit version uses that installed version, not
+  `current`. Without a version, invoke and status use the version selected by
+  the validated `current` pointer. A newer uninstalled registry version must
+  not change the reported installed identity. An uninstalled requested version
+  is refused without invoking another version.
+- `REQ-6506`: Status and invoke compare installed program bytes with the
+  recorded artifact and require an executable regular file. A pointer cannot
+  escape its component's `X.Y/program` coordinate or select another
+  component's program.
+- `REQ-6507`: Install refuses pre-existing linked component, version and
+  program paths. It replaces program bytes atomically rather than truncating an
+  inode that may have another hardlink.
+- `REQ-6508`: A ZIP CLI artifact contains exactly one regular program. Empty,
+  ambiguous, linked, unreadable or oversized archives are refused, not executed
+  as raw ZIP bytes or selected by first-member order. Raw single executables
+  remain valid.
 
 ## States and errors
 
@@ -62,3 +80,7 @@ are corrected; that is not a new component kind.
 | `REQ-6502` | Convert of a cli member is `complete` with `native_surface=bin`. |
 | `REQ-6503` | Install, status, invoke, and remove of one recorded cli artifact. |
 | `REQ-6504` | `component program remove --id ../outside --confirm` raises and leaves the outside directory. A symlink under the prefix to that directory is unlinked; the target remains. |
+| `REQ-6505` | Installed `1.0` plus recorded `1.1` still reports `1.0`; explicit uninstalled `1.1` is refused; explicit installed `1.0` does not run current `1.1`. |
+| `REQ-6506` | Tampered program bytes and a pointer to another component are rejected by both status and invoke. |
+| `REQ-6507` | Component/version/program symlink destinations are refused; replacing a hardlinked program leaves its outside name unchanged. |
+| `REQ-6508` | Single-file archive positive control; empty, multi-file, linked and corrupt ZIP negative controls. |
