@@ -2621,6 +2621,51 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("setup export", "setup publish plan", "select session"),
     ),
     Declaration(
+        path=["setup", "recast", "plan"],
+        summary="Preview recasting one recorded setup onto another harness.",
+        result_schema="urn:ai-stp:schema:v1:cli-setup-recast-plan",
+        handler="setup_recast:plan",
+        mutability="plan",
+        parameters=(
+            option("id", "string", "Stable identifier of the source setup.", required=True),
+            option(
+                "to-harness",
+                "string",
+                "Harness the new setup will belong to.",
+                required=True,
+                choices=HARNESS_ID_ORDER,
+            ),
+            option("version", "string", "Exact X.Y source version. Omitted, the newest recorded."),
+            option("setup-id", "string", "Setup id returned by an earlier plan."),
+        ),
+        next_actions=("setup recast apply",),
+    ),
+    Declaration(
+        path=["setup", "recast", "apply"],
+        summary="Record the exact still-current recast as one immutable local setup.",
+        result_schema="urn:ai-stp:schema:v1:cli-setup-recast-result",
+        handler="setup_recast:apply",
+        mutability="apply",
+        confirmation="plan_digest",
+        parameters=(
+            option("id", "string", "Stable identifier of the source setup.", required=True),
+            option(
+                "to-harness",
+                "string",
+                "Harness the new setup will belong to.",
+                required=True,
+                choices=HARNESS_ID_ORDER,
+            ),
+            option("version", "string", "Exact X.Y source version. Omitted, the newest recorded."),
+            option("setup-id", "string", "Exact setup id returned by plan.", required=True),
+            option("created-at", "string", "Exact timestamp returned by plan.", required=True),
+            option(
+                "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
+            ),
+        ),
+        next_actions=("setup export", "install plan", "select session"),
+    ),
+    Declaration(
         path=["setup", "export"],
         summary=(
             "Write a review tree of one recorded local setup. Does not create a harness tree."

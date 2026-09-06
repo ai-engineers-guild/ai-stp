@@ -1252,6 +1252,53 @@ class SetupComposeResult(BaseModel):
     created: bool
 
 
+class SetupRecastMember(BaseModel):
+    """One source component and what recast will do with it."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    stable_id: Annotated[str, Field(min_length=1)]
+    source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    target_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    component_type: ComponentType
+    disposition: Literal["reuse", "derive", "blocked"]
+    reason: Annotated[str, Field(min_length=1, max_length=512)]
+
+
+class SetupRecastPlan(BaseModel):
+    """Exact preview for a new setup recast onto another harness."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    setup_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    source_setup_id: Annotated[str, Field(min_length=1)]
+    source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    source_harness_id: HarnessId
+    target_harness_id: HarnessId
+    created_at: Annotated[str, Field(min_length=1)]
+    complete: bool
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    members: list[SetupRecastMember]
+
+
+class SetupRecastResult(BaseModel):
+    """A newly recorded setup recast from an exact source version."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    setup_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    source_setup_id: Annotated[str, Field(min_length=1)]
+    source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
+    created_at: Annotated[str, Field(min_length=1)]
+    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    created: bool
+
+
 class SetupExportResult(BaseModel):
     """A review tree of one already-recorded local setup. Not a harness tree."""
 

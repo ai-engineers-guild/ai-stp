@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting",
+        "cli"
+      ],
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "SetupRecastMember": {
+      "additionalProperties": false,
+      "description": "One source component and what recast will do with it.",
+      "properties": {
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "disposition": {
+          "enum": [
+            "reuse",
+            "derive",
+            "blocked"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "source_version": {
+          "pattern": "^\\d+\\.\\d+$",
+          "title": "Source Version",
+          "type": "string"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "target_version": {
+          "pattern": "^\\d+\\.\\d+$",
+          "title": "Target Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "source_version",
+        "target_version",
+        "component_type",
+        "disposition",
+        "reason"
+      ],
+      "title": "SetupRecastMember",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-setup-recast-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Exact preview for a new setup recast onto another harness.",
+  "properties": {
+    "complete": {
+      "title": "Complete",
+      "type": "boolean"
+    },
+    "created_at": {
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "members": {
+      "items": {
+        "$ref": "#/$defs/SetupRecastMember"
+      },
+      "title": "Members",
+      "type": "array"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setup_id": {
+      "minLength": 1,
+      "title": "Setup Id",
+      "type": "string"
+    },
+    "source_harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "source_setup_id": {
+      "minLength": 1,
+      "title": "Source Setup Id",
+      "type": "string"
+    },
+    "source_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Source Version",
+      "type": "string"
+    },
+    "target_harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "setup_id",
+    "version",
+    "source_setup_id",
+    "source_version",
+    "source_harness_id",
+    "target_harness_id",
+    "created_at",
+    "complete",
+    "plan_digest",
+    "members"
+  ],
+  "title": "SetupRecastPlan",
+  "type": "object"
+}

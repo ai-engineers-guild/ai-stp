@@ -5945,6 +5945,148 @@
     {
       "path": [
         "setup",
+        "recast",
+        "apply"
+      ],
+      "summary": "Record the exact still-current recast as one immutable local setup.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the source setup.",
+          "choices": []
+        },
+        {
+          "name": "to-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness the new setup will belong to.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y source version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "setup-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact setup id returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "created-at",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact timestamp returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-recast-result",
+      "next_actions": [
+        "setup export",
+        "install plan",
+        "select session"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "recast",
+        "plan"
+      ],
+      "summary": "Preview recasting one recorded setup onto another harness.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the source setup.",
+          "choices": []
+        },
+        {
+          "name": "to-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness the new setup will belong to.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y source version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "setup-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Setup id returned by an earlier plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-recast-plan",
+      "next_actions": [
+        "setup recast apply"
+      ]
+    },
+    {
+      "path": [
+        "setup",
         "scaffold",
         "apply"
       ],
