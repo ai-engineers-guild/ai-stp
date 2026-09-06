@@ -425,6 +425,8 @@
   "the evaluation plan is not a component evaluation": "the evaluation plan is not a component evaluation",
   "the evaluation plan is not a setup evaluation": "the evaluation plan is not a setup evaluation",
   "the evaluation run does not exist": "the evaluation run does not exist",
+  "the evaluation run is not a component evaluation": "the evaluation run is not a component evaluation",
+  "the evaluation run is not a setup evaluation": "the evaluation run is not a setup evaluation",
   "the exact HarnessBundle bytes approved by this plan are not in the verified cache": "the exact HarnessBundle bytes approved by this plan are not in the verified cache",
   "the exact HarnessBundle exceeds provider-declared limits": "the exact HarnessBundle exceeds provider-declared limits",
   "the exact approved provider plan artifact is absent or corrupt": "the exact approved provider plan artifact is absent or corrupt",

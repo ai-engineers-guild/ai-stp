@@ -24,8 +24,10 @@ of the same `run_id` returns the same bytes.
 | `ai-stp eval component plan` | `plan` | `none` | bind that profile to every adaptation of one component version |
 | `ai-stp eval run` | `apply` | `plan_digest` | run local deterministic checks for one confirmed setup plan |
 | `ai-stp eval component run` | `apply` | `plan_digest` | run local deterministic checks for one confirmed component plan |
-| `ai-stp eval status` | `read` | `none` | read the immutable status of one local evaluation run |
-| `ai-stp eval show` | `read` | `none` | show full immutable local evidence for one evaluation run |
+| `ai-stp eval component status` | `read` | `none` | read the immutable status of one local component evaluation run |
+| `ai-stp eval component show` | `read` | `none` | show full immutable local evidence for one component evaluation run |
+| `ai-stp eval status` | `read` | `none` | read the immutable status of one local setup evaluation run |
+| `ai-stp eval show` | `read` | `none` | show full immutable local evidence for one setup evaluation run |
 
 `--json` is global. Always pass it. `eval run` and `eval component run`
 require `--expected-plan-digest`. There is no `--confirm`. A setup plan

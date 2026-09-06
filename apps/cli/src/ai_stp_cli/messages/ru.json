@@ -425,6 +425,8 @@
   "the evaluation plan is not a component evaluation": "план оценки не относится к компоненту",
   "the evaluation plan is not a setup evaluation": "план оценки не относится к сетапу",
   "the evaluation run does not exist": "запуска оценки не существует",
+  "the evaluation run is not a component evaluation": "этот прогон оценки не относится к компоненту",
+  "the evaluation run is not a setup evaluation": "этот прогон оценки не относится к сетапу",
   "the exact HarnessBundle bytes approved by this plan are not in the verified cache": "точных байт HarnessBundle, одобренных этим планом, нет в проверенном кэше",
   "the exact HarnessBundle exceeds provider-declared limits": "точный HarnessBundle превышает пределы, объявленные провайдером",
   "the exact approved provider plan artifact is absent or corrupt": "точный артефакт одобренного плана провайдера отсутствует или повреждён",

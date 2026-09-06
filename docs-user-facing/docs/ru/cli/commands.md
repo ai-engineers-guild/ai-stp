@@ -25,8 +25,10 @@ ai-stp help --agent --json
 | `ai-stp eval component plan` | `plan` | `none` | [eval.md](eval.md) | привязать эталонный профиль оценки ко всем адаптациям одной версии компонента |
 | `ai-stp eval run` | `apply` | `plan_digest` | [eval.md](eval.md) | прогнать локальные детерминированные проверки для одного подтверждённого плана оценки сетапа |
 | `ai-stp eval component run` | `apply` | `plan_digest` | [eval.md](eval.md) | прогнать локальные детерминированные проверки для одного подтверждённого плана оценки компонента |
-| `ai-stp eval status` | `read` | `none` | [eval.md](eval.md) | прочитать неизменяемый статус одного локального прогона оценки |
-| `ai-stp eval show` | `read` | `none` | [eval.md](eval.md) | показать полные неизменяемые локальные evidence одного прогона оценки |
+| `ai-stp eval component status` | `read` | `none` | [eval.md](eval.md) | прочитать неизменяемый статус одного локального прогона оценки компонента |
+| `ai-stp eval component show` | `read` | `none` | [eval.md](eval.md) | показать полные неизменяемые локальные evidence одного прогона оценки компонента |
+| `ai-stp eval status` | `read` | `none` | [eval.md](eval.md) | прочитать неизменяемый статус одного локального прогона оценки сетапа |
+| `ai-stp eval show` | `read` | `none` | [eval.md](eval.md) | показать полные неизменяемые локальные evidence одного прогона оценки сетапа |
 | `ai-stp publication plan` | `plan` | `none` | [publication.md](publication.md) | создать неизменяемый серверный план для одной точной выпущенной версии компонента |
 | `ai-stp attestation sign` | `apply` | `explicit_flag` | [publication.md](publication.md) | подписать точные тестовые данные, зависящие от учётных данных, активным ключом устройства |
 | `ai-stp publication status` | `read` | `none` | [publication.md](publication.md) | прочитать текущее серверное состояние одного плана публикации |

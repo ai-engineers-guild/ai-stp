@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Mapping
 from contextlib import closing
 from typing import cast
@@ -110,21 +111,50 @@ def component_run(parameters: Mapping[str, object]) -> Answer[ComponentEvalResul
     return Answer(result)
 
 
-def status(
-    parameters: Mapping[str, object],
-) -> Answer[SetupEvalResult | ComponentEvalResult]:
-    """Read one immutable evaluation result without rerunning checks."""
+def status(parameters: Mapping[str, object]) -> Answer[SetupEvalResult]:
+    """Read one immutable setup evaluation result without rerunning checks."""
     with closing(open_readonly(configured_path())) as connection:
-        return Answer(evaluation.show_result(connection, _required(parameters, "run-id")))
+        return Answer(_setup_result(connection, _required(parameters, "run-id")))
 
 
-def show(
-    parameters: Mapping[str, object],
-) -> Answer[SetupEvalResult | ComponentEvalResult]:
-    """Show the full immutable evidence document for one run."""
-    run_id = _required(parameters, "run-id")
+def show(parameters: Mapping[str, object]) -> Answer[SetupEvalResult]:
+    """Show the full immutable setup evaluation evidence document."""
     with closing(open_readonly(configured_path())) as connection:
-        return Answer(evaluation.show_result(connection, run_id))
+        return Answer(_setup_result(connection, _required(parameters, "run-id")))
+
+
+def component_status(parameters: Mapping[str, object]) -> Answer[ComponentEvalResult]:
+    """Read one immutable component evaluation result without rerunning checks."""
+    with closing(open_readonly(configured_path())) as connection:
+        return Answer(_component_result(connection, _required(parameters, "run-id")))
+
+
+def component_show(parameters: Mapping[str, object]) -> Answer[ComponentEvalResult]:
+    """Show the full immutable component evaluation evidence document."""
+    with closing(open_readonly(configured_path())) as connection:
+        return Answer(_component_result(connection, _required(parameters, "run-id")))
+
+
+def _setup_result(connection: sqlite3.Connection, run_id: str) -> SetupEvalResult:
+    result = evaluation.show_result(connection, run_id)
+    if not isinstance(result, SetupEvalResult):
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the evaluation run is not a setup evaluation",
+            next_actions=[f"eval component show --run-id {run_id} --json"],
+        )
+    return result
+
+
+def _component_result(connection: sqlite3.Connection, run_id: str) -> ComponentEvalResult:
+    result = evaluation.show_result(connection, run_id)
+    if not isinstance(result, ComponentEvalResult):
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the evaluation run is not a component evaluation",
+            next_actions=[f"eval show --run-id {run_id} --json"],
+        )
+    return result
 
 
 def _required(parameters: Mapping[str, object], name: str) -> str:

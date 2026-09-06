@@ -234,6 +234,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("contract",): "The coordinated standard family and the other contract axes this build speaks.",
     ("device",): "This machine's identity in the local registry.",
     ("eval",): "Score a setup against a profile before installing it.",
+    ("eval", "component"): "Score every advertised adaptation of one component version.",
     ("harness",): "Install, update and remove the harness program itself.",
     ("grant",): "Share a private object with another account.",
     ("grant", "invitation"): "Invitations offered but not yet accepted.",

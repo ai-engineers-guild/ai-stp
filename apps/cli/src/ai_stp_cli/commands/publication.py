@@ -109,7 +109,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
         overlay = lifecycle.version_is_overlay(connection, stable_id, version)
     if recorded is None:
         raise CliFailure("AI_STP_NOT_FOUND", "the exact released component version is absent")
-    if overlay or passport.visibility != "public":
+    if overlay:
         raise CliFailure(
             "AI_STP_CONFLICT",
             "a local overlay cannot be published; materialize an owner version",

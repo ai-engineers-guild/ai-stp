@@ -80,14 +80,8 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
 
     with closing(open_readonly(configured_path())) as connection:
         setup = _setup_passport(connection, stable_id, version)
-        if setup.visibility != "public":
-            raise CliFailure(
-                "AI_STP_CONFLICT",
-                "a private setup cannot be published",
-                details={"id": stable_id, "version": version},
-            )
         pins = _catalog_pins(connection, setup)
-        _refuse_private_pins(connection, pins)
+        _refuse_overlay_pins(connection, pins)
         artifacts = {
             item[0]: _artifact(connection, item[1]) for item in _digests(connection, setup, pins)
         }
@@ -352,14 +346,11 @@ def _setup_passport(
     return SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
 
 
-def _refuse_private_pins(connection: sqlite3.Connection, pins: Sequence[tuple[str, str]]) -> None:
-    from ai_stp_cli.local import component_passports, lifecycle
+def _refuse_overlay_pins(connection: sqlite3.Connection, pins: Sequence[tuple[str, str]]) -> None:
+    from ai_stp_cli.local import lifecycle
 
     for pin_id, pin_version in pins:
-        passport = component_passports.version_passport(connection, pin_id, pin_version)
-        if lifecycle.version_is_overlay(connection, pin_id, pin_version) or (
-            passport.visibility != "public"
-        ):
+        if lifecycle.version_is_overlay(connection, pin_id, pin_version):
             raise CliFailure(
                 "AI_STP_CONFLICT",
                 "a local overlay cannot be published; materialize an owner version",
