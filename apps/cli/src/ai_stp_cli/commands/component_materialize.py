@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from contextlib import closing
+from typing import cast
 
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
@@ -13,16 +14,14 @@ from ai_stp_foundation.ids import new_id
 
 
 def plan(parameters: Mapping[str, object]) -> Answer[ComponentMaterializePlan]:
-    """Resolve one adaptation and return the exact immutable plan."""
+    """Resolve one or more adaptations and return the exact immutable plan."""
     stable_id = str(parameters.get("id") or "")
     if not stable_id:
         raise CliFailure("AI_STP_VALIDATION_ERROR", "the component id is required")
-    target = str(parameters.get("to-harness") or "")
-    if not target:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "the target harness is required")
     version = str(parameters.get("version") or "") or None
     source = str(parameters.get("from-harness") or "")
     local_only = parameters.get("local-only") is True
+    all_missing = parameters.get("all-missing") is True
     overlay_id = str(parameters.get("overlay-id") or "")
     if local_only and not overlay_id:
         overlay_id = new_id("component")
@@ -34,10 +33,11 @@ def plan(parameters: Mapping[str, object]) -> Answer[ComponentMaterializePlan]:
                 stable_id=stable_id,
                 version=version,
                 source_harness=source,
-                target_harness=target,
+                target_harness=_named_targets(parameters),
                 overlay_id=overlay_id,
                 created_at=created_at,
                 local_only=local_only,
+                all_missing=all_missing,
             )
         )
 
@@ -45,11 +45,16 @@ def plan(parameters: Mapping[str, object]) -> Answer[ComponentMaterializePlan]:
 def apply(parameters: Mapping[str, object]) -> Answer[ComponentMaterializeResult]:
     """Record the exact still-current adaptation."""
     stable_id = str(parameters.get("id") or "")
-    target = str(parameters.get("to-harness") or "")
     overlay_id = str(parameters.get("overlay-id") or "")
     created_at = str(parameters.get("created-at") or "")
     expected = str(parameters.get("expected-plan-digest") or "")
-    if not stable_id or not target or not overlay_id or not created_at or not expected:
+    all_missing = parameters.get("all-missing") is True
+    targets = _named_targets(parameters)
+    if not stable_id or not overlay_id or not created_at or not expected:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR", "the exact materialize plan identity is required"
+        )
+    if not all_missing and not targets:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR", "the exact materialize plan identity is required"
         )
@@ -64,15 +69,30 @@ def apply(parameters: Mapping[str, object]) -> Answer[ComponentMaterializeResult
                 stable_id=stable_id,
                 version=version,
                 source_harness=source,
-                target_harness=target,
+                target_harness=targets,
                 overlay_id=overlay_id,
                 created_at=created_at,
                 local_only=local_only,
                 expected_plan_digest=expected,
                 device_id=current.device_id,
                 owner_id=passports.owner().account_id,
+                all_missing=all_missing,
             )
         )
+
+
+def _named_targets(parameters: Mapping[str, object]) -> tuple[str, ...]:
+    raw = parameters.get("to-harness")
+    if raw is None or raw == "":
+        return ()
+    if isinstance(raw, str):
+        return (raw,)
+    if isinstance(raw, list | tuple):
+        items = tuple(cast(list[object] | tuple[object, ...], raw))
+        if not all(isinstance(item, str) for item in items):
+            raise CliFailure("AI_STP_VALIDATION_ERROR", "to-harness must be strings")
+        return tuple(cast(tuple[str, ...], items))
+    raise CliFailure("AI_STP_VALIDATION_ERROR", "to-harness must be strings")
 
 
 def portability_plan(parameters: Mapping[str, object]) -> Answer[ComponentMaterializePlan]:

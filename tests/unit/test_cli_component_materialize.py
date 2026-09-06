@@ -14,7 +14,7 @@ from tests.unit.test_cli_setup_recast import (
 )
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import component_materialize, component_passports, eligibility
+from ai_stp_cli.local import component_materialize, component_passports, eligibility, lifecycle
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports import adaptation_for
@@ -157,6 +157,7 @@ def test_portability_forks_a_private_overlay_without_mutating_the_source() -> No
             adaptation_for(source, "codex")
         overlay = component_passports.version_passport(connection, overlay_id, "1.0")
         assert overlay.visibility == "private"
+        assert lifecycle.version_is_overlay(connection, overlay_id, "1.0")
         adaptation_for(overlay, "codex")
         missing = eligibility.CandidateFacts(
             stable_id=member[0],
@@ -199,6 +200,105 @@ def test_an_unsupported_surface_stays_blocked() -> None:
             overlay_id=member[0],
             created_at=CREATED,
             local_only=False,
+        )
+        assert not preview.complete
+        assert preview.disposition == "blocked"
+
+
+def test_materialize_all_missing_is_blocked_when_any_harness_cannot_derive() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="instruction",
+            harness_id="claude-code",
+            payload=CLAUDE_BYTES,
+            managed_path="CLAUDE.md",
+        )
+        preview = component_materialize.plan(
+            connection,
+            stable_id=member[0],
+            version="1.0",
+            source_harness="claude-code",
+            target_harness=(),
+            overlay_id=member[0],
+            created_at=CREATED,
+            local_only=False,
+            all_missing=True,
+        )
+        assert not preview.complete
+        blocked = {
+            item.target_harness_id for item in preview.targets if item.disposition == "blocked"
+        }
+        derived = {
+            item.target_harness_id for item in preview.targets if item.disposition == "derive"
+        }
+        assert blocked == {"cursor", "antigravity"}
+        assert derived == {"codex", "pi", "opencode", "grok-build"}
+
+
+def test_materialize_named_subset_derives_every_requested_instruction() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="instruction",
+            harness_id="claude-code",
+            payload=CLAUDE_BYTES,
+            managed_path="CLAUDE.md",
+        )
+        requested = ("codex", "pi", "opencode", "grok-build")
+        preview = component_materialize.plan(
+            connection,
+            stable_id=member[0],
+            version="1.0",
+            source_harness="claude-code",
+            target_harness=requested,
+            overlay_id=member[0],
+            created_at=CREATED,
+            local_only=False,
+        )
+        assert preview.complete
+        assert preview.disposition == "derive"
+        applied = component_materialize.apply(
+            connection,
+            stable_id=member[0],
+            version="1.0",
+            source_harness="claude-code",
+            target_harness=requested,
+            overlay_id=member[0],
+            created_at=CREATED,
+            local_only=False,
+            expected_plan_digest=preview.plan_digest,
+            device_id=DEVICE,
+            owner_id=OWNER,
+        )
+        assert applied.created
+        assert applied.version == "1.1"
+        held = component_passports.version_passport(connection, member[0], "1.1")
+        assert {item.harness_id for item in held.adaptations} == {
+            "claude-code",
+            *requested,
+        }
+
+
+def test_materialize_all_missing_stays_blocked_for_settings() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="setting",
+            harness_id="claude-code",
+            payload=b"{}\n",
+            managed_path="settings.json",
+        )
+        preview = component_materialize.plan(
+            connection,
+            stable_id=member[0],
+            version="1.0",
+            source_harness="claude-code",
+            target_harness=(),
+            overlay_id=member[0],
+            created_at=CREATED,
+            local_only=False,
+            all_missing=True,
         )
         assert not preview.complete
         assert preview.disposition == "blocked"

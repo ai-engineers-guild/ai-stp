@@ -1,5 +1,82 @@
 {
   "$defs": {
+    "ComponentMaterializeTarget": {
+      "additionalProperties": false,
+      "description": "One requested target harness inside a materialize plan.",
+      "properties": {
+        "disposition": {
+          "enum": [
+            "reuse",
+            "derive",
+            "blocked"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        },
+        "filesystem_permissions": {
+          "default": [],
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Filesystem Permissions",
+          "type": "array"
+        },
+        "network_permissions": {
+          "default": [],
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Network Permissions",
+          "type": "array"
+        },
+        "process_permissions": {
+          "default": [],
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Process Permissions",
+          "type": "array"
+        },
+        "projection_digest": {
+          "minLength": 1,
+          "title": "Projection Digest",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "semantic_losses": {
+          "default": [],
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Semantic Losses",
+          "type": "array"
+        },
+        "target_harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        }
+      },
+      "required": [
+        "target_harness_id",
+        "disposition",
+        "reason",
+        "projection_digest"
+      ],
+      "title": "ComponentMaterializeTarget",
+      "type": "object"
+    },
     "HarnessId": {
       "enum": [
         "claude-code",
@@ -16,7 +93,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-component-materialize-plan",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Exact preview for one target-harness adaptation of a pinned component.",
+  "description": "Exact preview for one or more target-harness adaptations of a pinned component.",
   "properties": {
     "complete": {
       "title": "Complete",
@@ -138,6 +215,14 @@
       "title": "Target Version",
       "type": "string"
     },
+    "targets": {
+      "items": {
+        "$ref": "#/$defs/ComponentMaterializeTarget"
+      },
+      "minItems": 1,
+      "title": "Targets",
+      "type": "array"
+    },
     "transform_id": {
       "minLength": 1,
       "title": "Transform Id",
@@ -163,6 +248,7 @@
     "projection_digest",
     "disposition",
     "reason",
+    "targets",
     "local_only",
     "complete",
     "created_at",

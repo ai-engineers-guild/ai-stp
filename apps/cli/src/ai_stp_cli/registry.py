@@ -170,7 +170,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
     ),
     Declaration(
         path=["eval", "plan"],
-        summary="Bind a reference evaluation profile to one exact local setup graph.",
+        summary="Bind a reference evaluation profile to the setup's own harness adaptations.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-plan",
         handler="evaluation:plan",
         mutability="plan",
@@ -192,8 +192,25 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("eval run",),
     ),
     Declaration(
+        path=["eval", "component", "plan"],
+        summary="Bind a reference evaluation profile to every adaptation of one component version.",
+        result_schema="urn:ai-stp:schema:v1:cli-component-eval-plan",
+        handler="evaluation:component_plan",
+        mutability="plan",
+        parameters=(
+            option("id", "string", "Exact local component identifier.", required=True),
+            option("version", "string", "Exact local component X.Y version.", required=True),
+            option("harness-version", "string", "Exact evaluated harness version.", required=True),
+            option(
+                "provider-version", "string", "Exact evaluated provider version.", required=True
+            ),
+            option("runner-version", "string", "Exact evaluation runner version.", required=True),
+        ),
+        next_actions=("eval component run",),
+    ),
+    Declaration(
         path=["eval", "run"],
-        summary="Run local deterministic checks for one confirmed exact evaluation plan.",
+        summary="Run local deterministic checks for one confirmed exact setup evaluation plan.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-result",
         handler="evaluation:run",
         mutability="apply",
@@ -210,8 +227,46 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("eval status", "eval show"),
     ),
     Declaration(
+        path=["eval", "component", "run"],
+        summary="Run local deterministic checks for one confirmed component evaluation plan.",
+        result_schema="urn:ai-stp:schema:v1:cli-component-eval-result",
+        handler="evaluation:component_run",
+        mutability="apply",
+        confirmation="plan_digest",
+        parameters=(
+            option(
+                "plan-id",
+                "string",
+                "Stored component evaluation plan identifier.",
+                required=True,
+            ),
+            option(
+                "expected-plan-digest",
+                "string",
+                "Exact content digest shown by eval component plan.",
+                required=True,
+            ),
+        ),
+        next_actions=("eval component status", "eval component show"),
+    ),
+    Declaration(
+        path=["eval", "component", "status"],
+        summary="Read the immutable status of one local component evaluation run.",
+        result_schema="urn:ai-stp:schema:v1:cli-component-eval-result",
+        handler="evaluation:component_status",
+        parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
+        next_actions=("eval component show",),
+    ),
+    Declaration(
+        path=["eval", "component", "show"],
+        summary="Show full immutable local evidence for one component evaluation run.",
+        result_schema="urn:ai-stp:schema:v1:cli-component-eval-result",
+        handler="evaluation:component_show",
+        parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
+    ),
+    Declaration(
         path=["eval", "status"],
-        summary="Read the immutable status of one local evaluation run.",
+        summary="Read the immutable status of one local setup evaluation run.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-result",
         handler="evaluation:status",
         parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
@@ -219,7 +274,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
     ),
     Declaration(
         path=["eval", "show"],
-        summary="Show full immutable local evidence for one evaluation run.",
+        summary="Show full immutable local evidence for one setup evaluation run.",
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-result",
         handler="evaluation:show",
         parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
@@ -740,16 +795,20 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "harness",
                 "string",
-                "Concrete harness to add. Portable is refused.",
-                required=True,
+                "Concrete harness to add. Portable is refused. Omit with --all-missing.",
                 choices=tuple(HARNESS_ID_ORDER),
+            ),
+            option(
+                "all-missing",
+                "boolean",
+                "Add every remaining concrete harness the type can project without loss.",
             ),
         ),
         next_actions=("component passport validate", "component version release"),
     ),
     Declaration(
         path=["component", "materialize", "plan"],
-        summary="Preview materializing one target-harness adaptation from a pinned component.",
+        summary="Preview materializing target-harness adaptations from a pinned component.",
         result_schema="urn:ai-stp:schema:v1:cli-component-materialize-plan",
         handler="component_materialize:plan",
         mutability="plan",
@@ -758,9 +817,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "to-harness",
                 "string",
-                "Harness the new adaptation will belong to.",
-                required=True,
+                "Harness the new adaptation will belong to. Repeatable. Omit with --all-missing.",
+                repeatable=True,
                 choices=HARNESS_ID_ORDER,
+            ),
+            option(
+                "all-missing",
+                "boolean",
+                "Target every closed harness that does not yet have an adaptation.",
             ),
             option("version", "string", "Exact X.Y source version. Omitted, the newest recorded."),
             option(
@@ -790,9 +854,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "to-harness",
                 "string",
-                "Harness the new adaptation will belong to.",
-                required=True,
+                "Harness the new adaptation will belong to. Repeatable. Omit with --all-missing.",
+                repeatable=True,
                 choices=HARNESS_ID_ORDER,
+            ),
+            option(
+                "all-missing",
+                "boolean",
+                "Target every closed harness that does not yet have an adaptation.",
             ),
             option("version", "string", "Exact X.Y source version. Omitted, the newest recorded."),
             option(
@@ -812,7 +881,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
-        next_actions=("setup compose plan", "component program install"),
+        next_actions=("eval component plan", "select propose", "setup compose plan"),
     ),
     Declaration(
         path=["component", "portability", "plan"],
@@ -825,9 +894,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "to-harness",
                 "string",
-                "Harness the local overlay will belong to.",
-                required=True,
+                "Harness the local overlay will belong to. Repeatable. Omit with --all-missing.",
+                repeatable=True,
                 choices=HARNESS_ID_ORDER,
+            ),
+            option(
+                "all-missing",
+                "boolean",
+                "Target every closed harness that does not yet have an adaptation.",
             ),
             option("version", "string", "Exact X.Y source version. Omitted, the newest recorded."),
             option(
@@ -852,9 +926,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "to-harness",
                 "string",
-                "Harness the local overlay will belong to.",
-                required=True,
+                "Harness the local overlay will belong to. Repeatable. Omit with --all-missing.",
+                repeatable=True,
                 choices=HARNESS_ID_ORDER,
+            ),
+            option(
+                "all-missing",
+                "boolean",
+                "Target every closed harness that does not yet have an adaptation.",
             ),
             option("version", "string", "Exact X.Y source version. Omitted, the newest recorded."),
             option(
@@ -869,7 +948,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
-        next_actions=("setup compose plan", "install plan"),
+        next_actions=("select propose", "install plan"),
     ),
     Declaration(
         path=["component", "program", "install"],

@@ -198,72 +198,6 @@
       "title": "EvaluationCheck",
       "type": "object"
     },
-    "EvaluationCheckResult": {
-      "additionalProperties": false,
-      "description": "Observed result of one check without promotion of unavailable runners.",
-      "properties": {
-        "adaptation_ids": {
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "title": "Adaptation Ids",
-          "type": "array"
-        },
-        "check_id": {
-          "minLength": 1,
-          "title": "Check Id",
-          "type": "string"
-        },
-        "component_ids": {
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "title": "Component Ids",
-          "type": "array"
-        },
-        "message": {
-          "maxLength": 1000,
-          "minLength": 1,
-          "title": "Message",
-          "type": "string"
-        },
-        "method": {
-          "enum": [
-            "deterministic",
-            "model_assisted",
-            "human_review"
-          ],
-          "title": "Method",
-          "type": "string"
-        },
-        "runner": {
-          "minLength": 1,
-          "title": "Runner",
-          "type": "string"
-        },
-        "status": {
-          "enum": [
-            "passed",
-            "failed",
-            "not_run",
-            "degraded"
-          ],
-          "title": "Status",
-          "type": "string"
-        }
-      },
-      "required": [
-        "check_id",
-        "method",
-        "runner",
-        "status",
-        "message"
-      ],
-      "title": "EvaluationCheckResult",
-      "type": "object"
-    },
     "PermissionClaim": {
       "maxLength": 1024,
       "minLength": 1,
@@ -300,101 +234,6 @@
         }
       },
       "title": "Permissions",
-      "type": "object"
-    },
-    "SetupEvalPlan": {
-      "additionalProperties": false,
-      "description": "Content-addressed evaluation plan bound to exact setup coordinates.",
-      "properties": {
-        "components": {
-          "items": {
-            "$ref": "#/$defs/EvalComponentCoordinate"
-          },
-          "minItems": 1,
-          "title": "Components",
-          "type": "array"
-        },
-        "harness_id": {
-          "minLength": 1,
-          "title": "Harness Id",
-          "type": "string"
-        },
-        "harness_version": {
-          "minLength": 1,
-          "title": "Harness Version",
-          "type": "string"
-        },
-        "plan_digest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Plan Digest",
-          "type": "string"
-        },
-        "plan_id": {
-          "pattern": "^eval_plan_[0-9a-f]{24}$",
-          "title": "Plan Id",
-          "type": "string"
-        },
-        "planned_at": {
-          "minLength": 1,
-          "title": "Planned At",
-          "type": "string"
-        },
-        "profile": {
-          "$ref": "#/$defs/SetupEvalProfile"
-        },
-        "provider_version": {
-          "minLength": 1,
-          "title": "Provider Version",
-          "type": "string"
-        },
-        "runner_version": {
-          "minLength": 1,
-          "title": "Runner Version",
-          "type": "string"
-        },
-        "schema_version": {
-          "const": 1,
-          "default": 1,
-          "title": "Schema Version",
-          "type": "integer"
-        },
-        "setup_artifact_digest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Setup Artifact Digest",
-          "type": "string"
-        },
-        "setup_id": {
-          "minLength": 1,
-          "title": "Setup Id",
-          "type": "string"
-        },
-        "setup_passport_digest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Setup Passport Digest",
-          "type": "string"
-        },
-        "setup_version": {
-          "pattern": "^[0-9]+\\.[0-9]+$",
-          "title": "Setup Version",
-          "type": "string"
-        }
-      },
-      "required": [
-        "plan_id",
-        "plan_digest",
-        "profile",
-        "setup_id",
-        "setup_version",
-        "setup_passport_digest",
-        "setup_artifact_digest",
-        "harness_id",
-        "harness_version",
-        "provider_version",
-        "runner_version",
-        "components",
-        "planned_at"
-      ],
-      "title": "SetupEvalPlan",
       "type": "object"
     },
     "SetupEvalProfile": {
@@ -470,47 +309,60 @@
       "type": "object"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:cli-setup-eval-result",
+  "$id": "urn:ai-stp:schema:v1:cli-component-eval-plan",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Immutable local evaluation evidence for one exact setup plan.",
+  "description": "Content-addressed evaluation plan bound to every adaptation of one version.",
   "properties": {
-    "checks": {
+    "artifact_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Artifact Digest",
+      "type": "string"
+    },
+    "components": {
       "items": {
-        "$ref": "#/$defs/EvaluationCheckResult"
+        "$ref": "#/$defs/EvalComponentCoordinate"
       },
       "minItems": 1,
-      "title": "Checks",
+      "title": "Components",
       "type": "array"
     },
-    "executed_at": {
+    "harness_version": {
       "minLength": 1,
-      "title": "Executed At",
+      "title": "Harness Version",
       "type": "string"
     },
-    "immutable_published_bytes_changed": {
-      "const": false,
-      "default": false,
-      "title": "Immutable Published Bytes Changed",
-      "type": "boolean"
-    },
-    "plan": {
-      "$ref": "#/$defs/SetupEvalPlan"
-    },
-    "provider_permissions_used": {
-      "const": false,
-      "default": false,
-      "title": "Provider Permissions Used",
-      "type": "boolean"
-    },
-    "result_digest": {
+    "passport_digest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
-      "title": "Result Digest",
+      "title": "Passport Digest",
       "type": "string"
     },
-    "run_id": {
-      "pattern": "^eval_run_[0-9a-f]{24}$",
-      "title": "Run Id",
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "pattern": "^eval_plan_[0-9a-f]{24}$",
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "planned_at": {
+      "minLength": 1,
+      "title": "Planned At",
+      "type": "string"
+    },
+    "profile": {
+      "$ref": "#/$defs/SetupEvalProfile"
+    },
+    "provider_version": {
+      "minLength": 1,
+      "title": "Provider Version",
+      "type": "string"
+    },
+    "runner_version": {
+      "minLength": 1,
+      "title": "Runner Version",
       "type": "string"
     },
     "schema_version": {
@@ -519,25 +371,31 @@
       "title": "Schema Version",
       "type": "integer"
     },
-    "status": {
-      "enum": [
-        "passed",
-        "failed",
-        "not_run",
-        "degraded"
-      ],
-      "title": "Status",
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "title": "Version",
       "type": "string"
     }
   },
   "required": [
-    "run_id",
-    "result_digest",
-    "plan",
-    "status",
-    "executed_at",
-    "checks"
+    "plan_id",
+    "plan_digest",
+    "profile",
+    "stable_id",
+    "version",
+    "passport_digest",
+    "artifact_digest",
+    "harness_version",
+    "provider_version",
+    "runner_version",
+    "components",
+    "planned_at"
   ],
-  "title": "SetupEvalResult",
+  "title": "ComponentEvalPlan",
   "type": "object"
 }

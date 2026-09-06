@@ -23,12 +23,14 @@ This specification covers a versioned profile, exact coordinates, budgets, isola
 
 - `REQ-4001`: `SetupEvalProfile` version `setup-eval/1` defines the scope, component kinds, preconditions, checks, assertions, explicit tolerances, budgets, isolation requirements, and separate eval permissions.
 - `REQ-4002`: The reference profile contains a base check and type-specific tracks for all closed component kinds and separates the `deterministic`, `model_assisted`, and `human_review` methods, each with a compatible runner.
-- `REQ-4003`: An evaluation plan binds the profile to exact setup/component versions, passport and artifact digests, harness/provider/runner versions, and the planning time; a subset may contain only components from the specified setup graph.
+- `REQ-4003`: An evaluation plan binds the profile to exact setup/component versions, passport and artifact digests, harness/provider/runner versions, and the planning time; a subset may contain only components from the specified setup graph. A setup evaluation includes only adaptations for that setup's harness.
 - `REQ-4004`: `eval run` requires the exact plan digest and explicit confirmation; rerunning does not create a second evidence record, and a changed digest results in a fail-closed refusal.
 - `REQ-4005`: Core runs only local deterministic checks; an unavailable model, human, or isolated runner receives `not_run`, never `passed`, and an aggregate containing `not_run` receives `degraded`.
 - `REQ-4006`: The result is bound to the complete plan, exact runner coordinates, result digest, and timestamp, and explicitly states that published bytes were not changed and provider permissions were not used.
-- `REQ-4007`: Public passports are evaluated per adaptation. One projection cannot
-  stand in for another; mixed pass/fail is visible per adaptation id.
+- `REQ-4007`: A setup evaluation reports the setup's harness adaptation only.
+  `eval component plan` / `run` enumerates every advertised adaptation of one
+  version. One projection cannot stand in for another; mixed pass/fail is
+  visible per adaptation id.
 
 ## States and errors
 
@@ -54,4 +56,4 @@ The profile version is independent of the JSON Schema version. An unknown major 
 | `REQ-4004` | A run without confirmation or with a stale digest is refused; a rerun returns the same run and a single evidence row. |
 | `REQ-4005` | Local-static checks pass, model/human checks receive `not_run`, and the overall status is `degraded`. |
 | `REQ-4006` | The machine-readable result passes schema validation and contains exact coordinates, a result digest, and two explicit negative indicators for mutation and permission use. |
-| `REQ-4007` | A two-adaptation component produces one static-contract result per adaptation. |
+| `REQ-4007` | A Claude setup whose member also names Codex reports only Claude. `eval component` reports both. |

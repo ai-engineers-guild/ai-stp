@@ -1299,8 +1299,23 @@ class SetupRecastResult(BaseModel):
     created: bool
 
 
+class ComponentMaterializeTarget(BaseModel):
+    """One requested target harness inside a materialize plan."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target_harness_id: HarnessId
+    disposition: Literal["reuse", "derive", "blocked"]
+    reason: Annotated[str, Field(min_length=1, max_length=512)]
+    projection_digest: Annotated[str, Field(min_length=1)]
+    semantic_losses: list[Annotated[str, Field(min_length=1, max_length=512)]] = []
+    filesystem_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
+    network_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
+    process_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
+
+
 class ComponentMaterializePlan(BaseModel):
-    """Exact preview for one target-harness adaptation of a pinned component."""
+    """Exact preview for one or more target-harness adaptations of a pinned component."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -1322,6 +1337,7 @@ class ComponentMaterializePlan(BaseModel):
     filesystem_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
     network_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
     process_permissions: list[Annotated[str, Field(min_length=1, max_length=1024)]] = []
+    targets: Annotated[list[ComponentMaterializeTarget], Field(min_length=1)]
     local_only: bool
     complete: bool
     created_at: Annotated[str, Field(min_length=1)]
@@ -1339,6 +1355,7 @@ class ComponentMaterializeResult(BaseModel):
     source_stable_id: Annotated[str, Field(min_length=1)]
     source_version: Annotated[str, Field(pattern=r"^\d+\.\d+$")]
     target_harness_id: HarnessId
+    target_harness_ids: list[HarnessId] = []
     created_at: Annotated[str, Field(min_length=1)]
     passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]

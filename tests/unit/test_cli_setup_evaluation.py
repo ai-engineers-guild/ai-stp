@@ -372,14 +372,33 @@ def test_evaluation_reports_each_adaptation_separately() -> None:
             at=CREATED,
         )
         harnesses = {item.harness_id for item in plan.components}
-        assert "claude-code" in harnesses
-        assert "codex" in harnesses
+        assert harnesses == {"claude-code"}
         result = evaluation.run(connection, plan.plan_id, plan.plan_digest, at=CREATED)
         static = [item for item in result.checks if item.check_id == "instruction.static_contract"]
-        assert len(static) == 2
-        assert {item.status for item in static} == {"passed"}
-        assert len({tuple(item.adaptation_ids) for item in static}) == 2
+        assert len(static) == 1
+        assert static[0].status == "passed"
         assert result.immutable_published_bytes_changed is False
+        component_plan = evaluation.component_plan(
+            connection,
+            stable_id=member[0],
+            version="1.0",
+            harness_version="1.0.0",
+            provider_version="1.0.0",
+            runner_version="ai-stp-local-static/1",
+            at=CREATED,
+        )
+        assert {item.harness_id for item in component_plan.components} == {"claude-code", "codex"}
+        component_result = evaluation.run_component(
+            connection, component_plan.plan_id, component_plan.plan_digest, at=CREATED
+        )
+        component_static = [
+            item
+            for item in component_result.checks
+            if item.check_id == "instruction.static_contract"
+        ]
+        assert len(component_static) == 2
+        assert {item.status for item in component_static} == {"passed"}
+        assert len({tuple(item.adaptation_ids) for item in component_static}) == 2
 
 
 def test_a_missing_adaptation_surface_fails_that_adaptation_only() -> None:
