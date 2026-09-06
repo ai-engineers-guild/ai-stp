@@ -19,6 +19,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, revisions, versions
 from ai_stp_cli.paths import DIRECTORY_MODE, data_dir, ensure_directory
 from ai_stp_contracts.machine_help import CliProgram
+from ai_stp_foundation.ids import is_valid_id
 from ai_stp_passports.versions import ComponentVersionPassport
 
 CURRENT: Final[str] = "current"
@@ -38,6 +39,7 @@ def install(
     version: str | None,
 ) -> CliProgram:
     """Install one recorded `cli` artifact under the shared prefix."""
+    _require_component_id(stable_id)
     _passport, recorded, payload = _load(connection, stable_id, version)
     root = ensure_directory(prefix())
     target = ensure_directory(root / recorded.stable_id / recorded.version)
@@ -64,6 +66,7 @@ def invoke(
     arguments: tuple[str, ...],
 ) -> CliProgram:
     """Run the installed pointer. Never resolves through PATH."""
+    _require_component_id(stable_id)
     recorded = _recorded(connection, stable_id, version)
     pointer = prefix() / recorded.stable_id / CURRENT
     executable = _resolved(pointer)
@@ -110,6 +113,7 @@ def invoke(
 
 def status(connection: sqlite3.Connection, *, stable_id: str) -> CliProgram:
     """Report whether the shared executable is present."""
+    _require_component_id(stable_id)
     pointer = prefix() / stable_id / CURRENT
     resolved = _resolved(pointer)
     present = resolved is not None and resolved.is_file()
@@ -129,14 +133,36 @@ def status(connection: sqlite3.Connection, *, stable_id: str) -> CliProgram:
 
 def remove(*, stable_id: str) -> CliProgram:
     """Remove only what this module installed for this component."""
+    _require_component_id(stable_id)
+    base = prefix().expanduser().resolve()
     root = prefix() / stable_id
-    pointer = root / CURRENT
-    existed = pointer.exists() or root.exists()
-    if root.exists():
+    if not root.parent.expanduser().resolve().is_relative_to(base):
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the cli program is not under the shared prefix",
+            details={"id": stable_id},
+        )
+    if root.is_symlink() or root.is_file():
+        root.unlink()
+        return CliProgram(
+            stable_id=stable_id,
+            version="0.0",
+            operation="remove",
+            state="removed",
+            prefix=str(prefix()),
+        )
+    existed = root.is_dir()
+    if existed:
+        if not root.expanduser().resolve().is_relative_to(base):
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the cli program is not under the shared prefix",
+                details={"id": stable_id},
+            )
         for child in sorted(root.rglob("*"), reverse=True):
-            if child.is_file() or child.is_symlink():
+            if child.is_symlink() or child.is_file():
                 child.unlink()
-            elif child.is_dir():
+            elif child.is_dir() and child.expanduser().resolve().is_relative_to(base):
                 child.rmdir()
         root.rmdir()
     return CliProgram(
@@ -188,6 +214,11 @@ def _program_bytes(payload: bytes) -> bytes:
             return archive.read(names[0])
     except zipfile.BadZipFile:
         return payload
+
+
+def _require_component_id(stable_id: str) -> None:
+    if not is_valid_id(stable_id, "component"):
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "a valid component id is required")
 
 
 def _recorded(
