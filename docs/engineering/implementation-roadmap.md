@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-05"
+last_verified: "2026-09-06"
 ---
 
 # Current status and plan
@@ -153,10 +153,10 @@ dependency.
 
 | # | Item | Why it is still open | First proof |
 |---|---|---|---|
-| G1 | Setup recast (core value) | In this PR: `setup recast plan` / `apply`. Settings and MCP host-file contributions stay blocked until a later derive. | Claude instruction → Codex `AGENTS.md` with `ported_from`; incomplete setting recast is refused |
-| G2 | First-run skill | In this PR: bootstrap asks which project directories to index, then `project discover` / `index` and `component inventory` / `adopt`. | Canonical bootstrap names those command paths and forbids scanning home |
-| G3 | Cross-harness component adaptations | A component has one identity and explicit adaptations (`ADR-0143`). First-party corpus objects are still single-harness native files. MCP is the motivating case: logical `mcp` stays `mcp`; Codex writes `[mcp_servers]` inside `config.toml` (setting contribution); Pi hears `plugin`; Claude `.mcp.json` is project-scope only. Recast (G1) must use those rules, not copy a filename. | Recast plan names `reuse` / `derive` / `blocked` per member; a Codex MCP member is a setting contribution; a Pi MCP member is a plugin package; a missing adaptation blocks apply |
-| G4 | Antigravity launch against the documented home | Cursor launch is declared via process-home overlay. Antigravity has no documented home-override variable (`config_home_env` empty, `LaunchBinding::Undocumented`). Owner: all seven are release-quality. Do not invent `ANTIGRAVITY_*`. Launch is honest when the target *is* `~/.gemini`; overlay isolation stays refused. | `can_launch` true only for the documented home; alternate-root launch still refused by name |
+| G1 | Setup recast (core value) | Done: `setup recast plan` / `apply`. Settings stay blocked. MCP host-file contributions derive in G3. | Claude instruction → Codex `AGENTS.md` with `ported_from`; incomplete setting recast is refused |
+| G2 | First-run skill | Done: bootstrap asks which project directories to index, then `project discover` / `index` and `component inventory` / `adopt`. | Canonical bootstrap names those command paths and forbids scanning home |
+| G3 | Cross-harness component adaptations | Done in recast: MCP files and host-file contributions derive; Codex lands as `config.toml#mcp_servers` (`setting`); Pi MCP plugin packages stay blocked until a measured package transform exists. | Recast plan names `reuse` / `derive` / `blocked` per member; a Codex MCP member is a setting contribution; a Pi MCP member is a blocked plugin package; a missing adaptation blocks apply |
+| G4 | Antigravity launch against the documented home | Authoring PR: `LaunchBinding::DocumentedHome`. `config_home_env` stays empty. Launch is honest when `--target` is `~/.gemini`; alternate-root launch is refused by name. Do not invent `ANTIGRAVITY_*`. | `can_launch` true for the documented home; alternate-root launch still refused by name |
 | G5 | Native 7 × 3 OS × x86/arm qualification | Estate record `ai-stp-estate-release/1` already refuses `complete` without 42 launch cells. Installed-artifact and launched-process rows remain `NOT_MEASURED` on current main. | Filled estate record with retained evidence; skipped cells keep the verdict `incomplete` |
 | G6 | Coordinated 0.1.0 / OBT cut | Consumer `0.0.17`, providers `0.0.65`, first-party objects at mixed `1.0`/`1.x`. Bump ai-stp and the seven providers together after G0–G5. One standard family, not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
 

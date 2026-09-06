@@ -3,15 +3,26 @@
 from __future__ import annotations
 
 import io
+import json
 import sqlite3
 import zipfile
 from collections.abc import Mapping
+from pathlib import PurePosixPath
 from typing import Final, Literal, cast
 
+import tomlkit
 from pydantic import ValidationError
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, composition, content, revisions, setup_versions, versions
+from ai_stp_cli.local import (
+    cache,
+    composition,
+    content,
+    contribution,
+    revisions,
+    setup_versions,
+    versions,
+)
 from ai_stp_cli.local.components import Rule
 from ai_stp_cli.local.database import transaction
 from ai_stp_contracts.machine_help import SetupRecastMember, SetupRecastPlan, SetupRecastResult
@@ -35,6 +46,7 @@ PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 TRANSFORM_ID: Final[str] = "harness-native-rewrite"
 TRANSFORM_VERSION: Final[str] = "1.0"
 _NON_DERIVABLE: Final[frozenset[str]] = frozenset({"setting", "cli"})
+_MCP_FILE_WRAPPERS: Final[tuple[str, ...]] = ("mcpServers", "mcp_servers", "mcp")
 Disposition = Literal["reuse", "derive", "blocked"]
 
 
@@ -241,13 +253,25 @@ def _blocked_reason(
     if passport.component_type in _NON_DERIVABLE:
         return "settings and cli components do not derive across harnesses"
     try:
-        adaptation_for(passport, source_harness)
+        source_adaptation = adaptation_for(passport, source_harness)
     except ValueError:
         return "the source setup pin has no adaptation for its own harness"
-    rule = composition.rule_for(passport.component_type, target)
+    source_scope = source_adaptation.scope_adaptations[0].scope
+    source_rule = composition.rule_for(
+        passport.component_type, source_harness, scope=source_scope
+    ) or composition.rule_for(passport.component_type, source_harness)
+    rule = composition.rule_for(
+        passport.component_type, target, scope=source_scope
+    ) or composition.rule_for(passport.component_type, target)
     if rule is None:
         return "the target harness has no native surface for this kind"
-    if rule.declared_key:
+    if (source_rule is not None and source_rule.projection_kind == "package") or (
+        rule.projection_kind == "package"
+    ):
+        return "an MCP plugin package cannot be derived automatically"
+    if rule.declared_key and passport.component_type != "mcp":
+        return "a host-file contribution cannot be derived automatically"
+    if source_rule is not None and source_rule.declared_key and passport.component_type != "mcp":
         return "a host-file contribution cannot be derived automatically"
     return None
 
@@ -316,9 +340,13 @@ def _derive_adaptation(
         return None
     payload = content.get(connection, source_scope.projection_artifact.digest)
     files = _projection_files(source_scope, payload)
-    remapped = _remap_files(
-        files, passport.component_type, source_harness, source_scope.scope, rule
-    )
+    contributing = bool(rule.declared_key)
+    if passport.component_type == "mcp":
+        remapped = _derive_mcp_files(files, source_harness, source_scope.scope, rule)
+    else:
+        remapped = _remap_files(
+            files, passport.component_type, source_harness, source_scope.scope, rule
+        )
     if not remapped:
         return None
     scope_name = cast(TargetScope, rule.target_scope)
@@ -328,22 +356,9 @@ def _derive_adaptation(
     for path, payload in sorted(remapped.items()):
         stored = content.put(connection, payload, at=at)
         members.append(
-            {
-                "path": path,
-                "object_type": "file",
-                "mode": 0o600,
-                "content_artifact": {
-                    "digest": stored.digest,
-                    "size_bytes": stored.byte_length,
-                },
-                "native_ids": [],
-                "content_format": "application/octet-stream",
-                "parser_id": None,
-                "ownership": "whole",
-                "ownership_key": None,
-                "write_semantics": "replace",
-                "withdrawal_semantics": "remove_path",
-            }
+            _projection_member(
+                path, stored.digest, stored.byte_length, rule if contributing else None
+            )
         )
     surface = provider_surface(target, scope_name)
     provider_kind = rule.provider_kind or passport.component_type
@@ -398,6 +413,97 @@ def _derive_adaptation(
             "scope_adaptations": [scope_document],
         }
     )
+
+
+def _projection_member(
+    path: str, digest: str, byte_length: int, contributing: Rule | None
+) -> dict[str, JsonValue]:
+    key = contributing.declared_key if contributing is not None else ""
+    suffix = PurePosixPath(path).suffix.casefold()
+    parser = "toml/1" if suffix == ".toml" else "json/1" if key else None
+    return {
+        "path": path,
+        "object_type": "file",
+        "mode": 0o600,
+        "content_artifact": {"digest": digest, "size_bytes": byte_length},
+        "native_ids": [],
+        "content_format": "application/octet-stream",
+        "parser_id": parser,
+        "ownership": "contribution" if key else "whole",
+        "ownership_key": key or None,
+        "write_semantics": "merge" if key else "replace",
+        "withdrawal_semantics": "preserve_unowned" if key else "remove_path",
+    }
+
+
+def _derive_mcp_files(
+    files: Mapping[str, bytes],
+    source_harness: HarnessId,
+    source_scope: str,
+    target: Rule,
+) -> dict[str, bytes] | None:
+    source_rule = composition.rule_for("mcp", source_harness, scope=source_scope) or (
+        composition.rule_for("mcp", source_harness)
+    )
+    servers = _logical_mcp_servers(files, source_rule)
+    encoded = _encode_mcp(servers, target) if servers is not None else None
+    if encoded is None:
+        return None
+    return {target.relative: encoded}
+
+
+def _logical_mcp_servers(
+    files: Mapping[str, bytes], source_rule: Rule | None
+) -> dict[str, JsonValue] | None:
+    if len(files) != 1:
+        return None
+    path, payload = next(iter(files.items()))
+    host = source_rule.relative if source_rule is not None else path
+    if source_rule is not None and source_rule.declared_key:
+        parsed = contribution.parse_value(host=host, content=payload)
+        return parsed if isinstance(parsed, dict) else None
+    return _unwrap_mcp(_parse_mcp_document(host, payload))
+
+
+def _parse_mcp_document(host: str, payload: bytes) -> JsonValue | None:
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    suffix = PurePosixPath(host).suffix.casefold()
+    try:
+        if suffix == ".toml":
+            return cast("JsonValue", tomlkit.parse(text).unwrap())
+        return cast("JsonValue", json.loads(text))
+    except ValueError:
+        return None
+
+
+def _unwrap_mcp(document: JsonValue | None) -> dict[str, JsonValue] | None:
+    if not isinstance(document, dict):
+        return None
+    for key in _MCP_FILE_WRAPPERS:
+        held = document.get(key)
+        if isinstance(held, dict):
+            return cast("dict[str, JsonValue]", held)
+    if document and all(isinstance(value, dict) for value in document.values()):
+        return cast("dict[str, JsonValue]", document)
+    return None
+
+
+def _encode_mcp(servers: Mapping[str, JsonValue], target: Rule) -> bytes | None:
+    if target.shape != "file":
+        return None
+    body: dict[str, JsonValue] = dict(servers)
+    suffix = PurePosixPath(target.relative).suffix.casefold()
+    if not target.declared_key:
+        wrapper = "mcp_servers" if suffix == ".toml" else "mcpServers"
+        body = {wrapper: body}
+    if suffix == ".toml":
+        return tomlkit.dumps(body).encode("utf-8")
+    if suffix == ".json":
+        return (json.dumps(body, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return None
 
 
 def _projection_files(scope: ScopeAdaptation, payload: bytes) -> dict[str, bytes]:

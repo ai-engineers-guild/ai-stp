@@ -16,4 +16,5 @@ members may enter under task authority and stay labeled; they do not become
 
 To recast a complete setup onto another harness, resolve `setup recast plan`
 and `setup recast apply` from machine help. Apply only a complete plan. A
-blocked member is not a setup.
+blocked member is not a setup. MCP files and host-file contributions derive;
+settings, non-MCP contributions, and MCP plugin packages stay blocked.
