@@ -243,9 +243,11 @@ function ownerHandlers(
       headers: { "x-operation-id": MOCK_OP },
     };
   }
-  const presentationMatch = path.match(/^\/v1\/owner\/objects\/component\/([^/]+)\/presentation$/);
+  const presentationMatch = path.match(
+    /^\/v1\/owner\/objects\/(component|setup)\/([^/]+)\/presentation$/,
+  );
   if (presentationMatch) {
-    const stableId = presentationMatch[1] ?? FIXTURE_COMPONENT_ID;
+    const stableId = presentationMatch[2] ?? FIXTURE_COMPONENT_ID;
     if (method === "GET") {
       return {
         status: 200,
@@ -284,11 +286,11 @@ function ownerHandlers(
     }
   }
   const mediaUploadMatch = path.match(
-    /^\/v1\/owner\/objects\/component\/([^/]+)\/presentation\/media$/,
+    /^\/v1\/owner\/objects\/(component|setup)\/([^/]+)\/presentation\/media$/,
   );
   if (method === "POST" && mediaUploadMatch) {
     const mediaId = `media_mock_${Date.now().toString(36)}`;
-    const publicUrl = `/v1/media/component/${mediaId}`;
+    const publicUrl = `/v1/media/${mediaUploadMatch[1]}/${mediaId}`;
     return {
       status: 201,
       body: {

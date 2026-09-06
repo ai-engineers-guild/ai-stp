@@ -74,25 +74,38 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
               <Icon name="eye" size="sm" /> {t("viewPublic")}
             </Link>
           </Button>
-          {kind === "component" ? (
-            <Button asChild>
-              <Link href={`/objects/component/${stableId}/edit`} prefetch={false}>
-                <Icon name="edit" size="sm" /> {t("editPresentation")}
-              </Link>
-            </Button>
-          ) : null}
+          <Button asChild>
+            <Link href={`/objects/${kind}/${stableId}/edit`} prefetch={false}>
+              <Icon name="edit" size="sm" /> {t("editPresentation")}
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link
+              href={`/access?object_kind=${kind}&stable_id=${encodeURIComponent(stableId)}`}
+              prefetch={false}
+            >
+              {t("manageAccess")}
+            </Link>
+          </Button>
         </div>
       </div>
 
       {process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED !== "false" ? (
-        <ExternalProductManager
-          locale={locale}
-          objectKind={kind}
-          stableId={stableId}
-          csrfToken={(await readCsrfToken()) ?? ""}
-          initialProducts={allProducts.items}
-          selectedDomains={attachedProducts.items.map((item) => item.canonical_domain)}
-        />
+        <details className="border-border rounded-lg border">
+          <summary className="hover:bg-muted/30 cursor-pointer px-4 py-4 text-lg font-medium transition-colors">
+            {t("integrations")}
+          </summary>
+          <div className="border-border border-t p-4">
+            <ExternalProductManager
+              locale={locale}
+              objectKind={kind}
+              stableId={stableId}
+              csrfToken={(await readCsrfToken()) ?? ""}
+              initialProducts={allProducts.items}
+              selectedDomains={attachedProducts.items.map((item) => item.canonical_domain)}
+            />
+          </div>
+        </details>
       ) : null}
 
       <section className="space-y-3" aria-labelledby="versions-heading">

@@ -55,7 +55,7 @@ describe("machine route inventory (REQ-3622)", () => {
     );
   });
 
-  it("lists the closed contract component types", () => {
+  it("lists the eight contract component types", () => {
     expect([...COMPONENT_TYPES]).toEqual([
       "instruction",
       "skill",
@@ -65,7 +65,6 @@ describe("machine route inventory (REQ-3622)", () => {
       "agent",
       "plugin",
       "setting",
-      "cli",
     ]);
   });
 });

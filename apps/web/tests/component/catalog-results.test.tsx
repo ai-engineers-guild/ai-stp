@@ -259,4 +259,20 @@ describe("CatalogResults", () => {
     );
     expect(kinds).toEqual(["setup", "component"]);
   });
+
+  it("shows one mixed page when all results fit within the requested page size", () => {
+    const { container } = renderResults({
+      kind: "mixed",
+      items: [componentSummaryFixture, setupSummaryFixture],
+      experimental: [],
+      totalItems: 8,
+      pageNumber: 1,
+      setupsTotalPages: 1,
+      componentsTotalPages: 1,
+      query: { resource: "all", page_size: "25", view: "list" },
+    });
+    expect(container.querySelector("article[data-kind='setup']")).toBeInTheDocument();
+    expect(container.querySelector("article[data-kind='component']")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull();
+  });
 });

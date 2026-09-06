@@ -11,6 +11,15 @@ export async function listOwnReports(sessionToken: string): Promise<ReportCaseLi
   return apiRequest<ReportCaseListResponse>("/v1/reports", { sessionToken });
 }
 
+export async function readOwnReport(
+  sessionToken: string,
+  caseId: string,
+): Promise<ReportCaseResponse> {
+  return apiRequest<ReportCaseResponse>(`/v1/requests/${encodeURIComponent(caseId)}`, {
+    sessionToken,
+  });
+}
+
 export async function createReportCase(
   sessionToken: string,
   body: {
@@ -142,6 +151,7 @@ export async function staffTriageReport(
   state: "triaged" | "awaiting_author" | "security_escalated" | "resolved" | "dismissed",
   reason: string,
   idempotencyKey: string,
+  publicResponse = "",
 ): Promise<{ body: ReportCaseResponse; operationId: string | null }> {
   const result = await apiRequestWithMeta<ReportCaseResponse>(
     `/v1/staff/reports/${caseId}/triage`,
@@ -152,6 +162,7 @@ export async function staffTriageReport(
         schema_version: 1,
         state,
         reason,
+        public_response: publicResponse,
         idempotency_key: idempotencyKey,
       },
     },

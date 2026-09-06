@@ -270,11 +270,12 @@ describe("component detail interactions", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "Open media: First" }));
-    expect(screen.getByText(/1 \/ 2/)).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText(/2 \/ 2/)).toBeVisible();
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/1 \/ 2/)).toBeVisible();
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
+    expect(within(dialog).getByText(/2 \/ 2/)).toBeVisible();
     await user.keyboard("{ArrowLeft}");
-    expect(screen.getByText(/1 \/ 2/)).toBeVisible();
+    expect(within(dialog).getByText(/1 \/ 2/)).toBeVisible();
   });
 
   it("does not autoplay video thumbnails", () => {

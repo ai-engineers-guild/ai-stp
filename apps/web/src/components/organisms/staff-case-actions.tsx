@@ -18,6 +18,7 @@ type StaffCaseActionsProps = {
   labels: {
     triage: string;
     reason: string;
+    publicResponse: string;
     confirm: string;
     block: string;
     hide: string;
@@ -78,6 +79,7 @@ export function StaffCaseActions({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [reason, setReason] = useState("");
+  const [publicResponse, setPublicResponse] = useState("");
   const [state, setState] = useState<TriageState>("triaged");
   const [operationId, setOperationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +133,17 @@ export function StaffCaseActions({
           maxLength={500}
         />
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="staff-public-response">{labels.publicResponse}</Label>
+        <Input
+          id="staff-public-response"
+          value={publicResponse}
+          onChange={(event) => {
+            setPublicResponse(event.target.value);
+          }}
+          maxLength={2000}
+        />
+      </div>
 
       <section className="border-border space-y-3 rounded-lg border p-4">
         <h2 className="text-lg font-medium tracking-tight">{labels.triage}</h2>
@@ -150,7 +163,7 @@ export function StaffCaseActions({
           type="button"
           disabled={pending}
           onClick={() => {
-            run(() => staffTriageAction({ csrfToken, caseId, state, reason }));
+            run(() => staffTriageAction({ csrfToken, caseId, state, reason, publicResponse }));
           }}
         >
           {labels.triage}

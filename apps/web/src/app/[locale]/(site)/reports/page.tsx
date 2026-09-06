@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { listOwnReports } from "@/lib/api/reports";
 import { readCsrfToken } from "@/lib/auth/session";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { Link } from "@/lib/i18n/navigation";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -63,7 +64,11 @@ export default async function ReportsPage({ params, searchParams }: PageProps) {
     other: true,
   } as const;
   const topic =
-    sp.topic && sp.topic in topicValues ? (sp.topic as keyof typeof topicValues) : "object_report";
+    sp.topic && sp.topic in topicValues
+      ? (sp.topic as keyof typeof topicValues)
+      : kind && sp.stable_id
+        ? "object_report"
+        : "other";
 
   return (
     <div className="space-y-8">
@@ -139,17 +144,25 @@ export default async function ReportsPage({ params, searchParams }: PageProps) {
             {cases.items.map((item) => (
               <li
                 key={item.case_id}
-                className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                className="hover:bg-muted/30 grid gap-3 px-4 py-4 transition-colors sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
               >
-                <div className="space-y-1">
-                  <p className="font-mono text-xs">{item.case_id}</p>
-                  <p className="text-muted-foreground font-mono text-xs">
-                    {item.object_kind} / {item.stable_id} / {item.version}
+                <Link href={`/reports/${item.case_id}`} className="min-w-0 space-y-1">
+                  <p className="font-medium">{reportTopicLabel(item.topic, t)}</p>
+                  <p className="text-muted-foreground text-sm">{reportTargetLabel(item, t)}</p>
+                  <p className="text-muted-foreground font-mono text-xs break-all">
+                    {item.case_id}
                   </p>
+                </Link>
+                <div className="flex items-center gap-3 sm:justify-self-end">
+                  <time className="text-muted-foreground text-xs" dateTime={item.created_at}>
+                    {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+                      new Date(item.created_at),
+                    )}
+                  </time>
+                  <Badge variant="outline" className="text-xs">
+                    {reportStateLabel(item.state, t)}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="font-mono text-xs">
-                  {item.state}
-                </Badge>
               </li>
             ))}
           </ul>
@@ -157,4 +170,38 @@ export default async function ReportsPage({ params, searchParams }: PageProps) {
       </section>
     </div>
   );
+}
+
+function reportTopicLabel(topic: string, t: Awaited<ReturnType<typeof getTranslations>>): string {
+  const key = `topic${topic
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("")}`;
+  return t.has(key) ? t(key) : topic;
+}
+
+function reportStateLabel(state: string, t: Awaited<ReturnType<typeof getTranslations>>): string {
+  const key = `state${state.charAt(0).toUpperCase()}${state.slice(1)}`;
+  const knownKeys = [
+    "stateSubmitted",
+    "stateTriaged",
+    "stateAwaiting_author",
+    "stateSecurity_escalated",
+    "stateResolved",
+    "stateDismissed",
+  ];
+  return knownKeys.includes(key) && t.has(key) ? t(key) : state;
+}
+
+function reportTargetLabel(
+  item: { object_kind: string; stable_id: string; version: string; topic: string },
+  t: Awaited<ReturnType<typeof getTranslations>>,
+): string {
+  if (item.topic === "author_complaint" || item.topic === "verification_request") {
+    return t("authorTarget");
+  }
+  if (item.topic === "service_request") return t("serviceTarget");
+  if (item.topic === "country_request") return t("countryTarget");
+  if (!item.stable_id) return t("noTarget");
+  return [item.object_kind, item.stable_id, item.version].filter(Boolean).join(" · ");
 }

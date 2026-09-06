@@ -104,6 +104,7 @@ export default async function StaffReportDetailPage({ params }: PageProps) {
         labels={{
           triage: t("triage"),
           reason: t("reason"),
+          publicResponse: t("publicResponse"),
           confirm: t("confirm"),
           block: t("block"),
           hide: t("hide"),
