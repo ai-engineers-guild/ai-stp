@@ -70,6 +70,6 @@ last_verified: "2026-08-03"
 | [SPEC-059-public-identities-and-catalog-lines.md](SPEC-059-public-identities-and-catalog-lines.md) | SPEC-059: Unique account identities, component names, and owner-fenced catalog lines. | 2026-09-04 |
 | [SPEC-060-standard-family-identity.md](SPEC-060-standard-family-identity.md) | SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3. | 2026-09-05 |
 | [SPEC-061-estate-release-qualification.md](SPEC-061-estate-release-qualification.md) | SPEC-061: Estate-release complete requires the seven-harness launch matrix. | 2026-09-05 |
-| [SPEC-062-setup-recast.md](SPEC-062-setup-recast.md) | SPEC-062: Recast a complete setup onto another harness with provenance. | 2026-09-05 |
+| [SPEC-062-setup-recast.md](SPEC-062-setup-recast.md) | SPEC-062: Recast a complete setup onto another harness with provenance. | 2026-09-06 |
 
 <!-- END CONTENTS -->

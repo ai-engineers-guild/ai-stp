@@ -17,3 +17,5 @@
 
 Полный сетап на другой харнесс — `setup recast plan` и `setup recast apply` из
 machine help. Apply только полного плана. Заблокированный член — не сетап.
+MCP-файлы и host-file contributions выводятся; settings, не-MCP contributions
+и MCP plugin packages остаются заблокированными.

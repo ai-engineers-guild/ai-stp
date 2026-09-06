@@ -1,6 +1,6 @@
 ---
 description: "SPEC-062: Recast a complete setup onto another harness with provenance."
-last_verified: "2026-09-05"
+last_verified: "2026-09-06"
 ---
 
 # SPEC-062: Setup recast
@@ -16,9 +16,11 @@ untouched. A partial recast is not a setup.
 
 Included: `setup recast plan` and `setup recast apply`; reuse of an existing
 target-harness adaptation; deterministic derivation of instruction, skill,
-command, agent, hook, and plugin native paths; MCP file-to-file projection;
-refusal of settings and of MCP host-file contributions; selecting one
-adaptation by the setup's harness when a component version names several.
+command, agent, hook, and plugin native paths; MCP file-to-file projection and
+MCP host-file contributions (`declared_key` as a setting contribution);
+refusal of settings, of non-MCP host-file contributions, and of MCP plugin
+packages; selecting one adaptation by the setup's harness when a component
+version names several.
 Excluded: reconciling two related setups; changing `harness_id` on an
 existing setup; inventing Antigravity home variables; catalog/web display
 of provenance (`#139`).
@@ -43,10 +45,11 @@ of provenance (`#139`).
   or a member that became blocked after planning. Completeness requires every
   member to be `reuse` or `derive`.
 - `REQ-6204`: A component version that already has a unique adaptation for the
-  target harness is reused. A missing adaptation is derived only when the
-  target provider rule is a whole-path file or directory without
-  `declared_key`. Settings never derive. MCP host-file contributions
-  (`declared_key`) never derive.
+  target harness is reused. A missing adaptation is derived when the target
+  provider rule is a whole-path file or directory without `declared_key`, or
+  when the kind is `mcp` and the target rule is a host-file contribution.
+  Settings never derive. Non-MCP host-file contributions never derive. An MCP
+  plugin package (`projection_kind=package`) never derives.
 - `REQ-6205`: Derived adaptations are `implementation_mode=derived`, keep the
   logical component type, and land on the target rule's path and scope. The
   new component version is the next minor of the same `stable_id`.
@@ -79,6 +82,6 @@ Historical setups with null provenance remain valid. No generation port.
 | `REQ-6201` | Plan of a Claude instruction setup onto Codex lists `derive`; same-harness plan is refused. |
 | `REQ-6202` | Apply writes `ported_from` and `related_setup_ids`; source version digest is unchanged. |
 | `REQ-6203` | A setup whose only member is a setting is incomplete; apply with that digest is refused. |
-| `REQ-6204` | A component that already has a Codex adaptation is `reuse`; a setting is `blocked`. |
+| `REQ-6204` | A component that already has a Codex adaptation is `reuse`; a setting is `blocked`; a Cursor MCP file recast onto Codex is `derive` as `config.toml#mcp_servers`; a Pi MCP recast is `blocked`. |
 | `REQ-6205` | Derived Codex instruction lands on `AGENTS.md` and is a new minor of the same id. |
 | `REQ-6206` | A two-adaptation component produces a composition surface for the requested harness. |

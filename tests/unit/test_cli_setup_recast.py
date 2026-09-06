@@ -19,6 +19,8 @@ COMMIT = "a" * 40
 CLAUDE_BYTES = b"# Claude instruction\n"
 CODEX_BYTES = b"# Codex instruction\n"
 SETTING_BYTES = b'{"permissions":{"defaultMode":"acceptEdits"}}\n'
+CURSOR_MCP = b'{"mcpServers":{"docs":{"command":"npx","args":["docs-mcp"]}}}\n'
+CODEX_MCP = b'[docs]\ncommand = "npx"\nargs = ["docs-mcp"]\n'
 DEVICE = "device_test"
 OWNER = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
@@ -40,6 +42,7 @@ def _release_component(
     payload: bytes,
     managed_path: str,
     extra_adaptations: list[dict[str, JsonValue]] | None = None,
+    declared_key: str = "",
 ) -> tuple[str, str, str]:
     digest = digest_bytes("ai-stp:artifact:v1", payload)
     content.put(connection, payload, at=CREATED)  # type: ignore[arg-type]
@@ -52,6 +55,8 @@ def _release_component(
             "managed_paths": [managed_path],
             "scope": "global",
             "projection_kind": "native_files",
+            "declared_key": declared_key,
+            "source_locator": f"{managed_path}#{declared_key}" if declared_key else "",
         }
     ]
     if extra_adaptations:
@@ -298,3 +303,121 @@ def test_an_existing_target_adaptation_is_reused() -> None:
         assert preview.complete
         assert preview.members[0].disposition == "reuse"
         assert preview.members[0].target_version == "1.0"
+
+
+def test_recast_derives_a_codex_mcp_setting_contribution() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="mcp",
+            harness_id="cursor",
+            payload=CURSOR_MCP,
+            managed_path="mcp.json",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="cursor", member=member)
+        setup_id = new_id("setup")
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="codex",
+            setup_id=setup_id,
+            created_at=CREATED,
+        )
+        assert preview.complete
+        assert preview.members[0].disposition == "derive"
+        result = setup_recast.apply(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="codex",
+            setup_id=setup_id,
+            created_at=CREATED,
+            expected_plan_digest=preview.plan_digest,
+            device_id=DEVICE,
+            owner_id=OWNER,
+        )
+        derived = component_passports.version_passport(
+            connection, member[0], preview.members[0].target_version
+        )
+        assert {item.harness_id for item in derived.adaptations} == {"cursor", "codex"}
+        scope = adaptation_for(derived, "codex").scope_adaptations[0]
+        assert scope.provider_component_kind == "setting"
+        owned = scope.members[0]
+        assert owned.path == "config.toml"
+        assert owned.ownership == "contribution"
+        assert owned.ownership_key == "mcp_servers"
+        assert owned.content_artifact is not None
+        payload = content.get(connection, owned.content_artifact.digest)
+        assert b"docs" in payload
+        assert b"npx" in payload
+        assert result.setup_id == setup_id
+
+
+def test_recast_derives_a_cursor_mcp_file_from_a_codex_contribution() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="mcp",
+            harness_id="codex",
+            payload=CODEX_MCP,
+            managed_path="config.toml",
+            declared_key="mcp_servers",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="codex", member=member)
+        setup_id = new_id("setup")
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="cursor",
+            setup_id=setup_id,
+            created_at=CREATED,
+        )
+        assert preview.complete
+        assert preview.members[0].disposition == "derive"
+        setup_recast.apply(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="cursor",
+            setup_id=setup_id,
+            created_at=CREATED,
+            expected_plan_digest=preview.plan_digest,
+            device_id=DEVICE,
+            owner_id=OWNER,
+        )
+        derived = component_passports.version_passport(
+            connection, member[0], preview.members[0].target_version
+        )
+        scope = adaptation_for(derived, "cursor").scope_adaptations[0]
+        owned = scope.members[0]
+        assert owned.path == "mcp.json"
+        assert owned.ownership == "whole"
+        assert owned.content_artifact is not None
+        payload = content.get(connection, owned.content_artifact.digest)
+        assert b"mcpServers" in payload
+        assert b"docs" in payload
+
+
+def test_a_pi_mcp_plugin_package_blocks_recast() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="mcp",
+            harness_id="cursor",
+            payload=CURSOR_MCP,
+            managed_path="mcp.json",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="cursor", member=member)
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="pi",
+            setup_id=new_id("setup"),
+            created_at=CREATED,
+        )
+        assert not preview.complete
+        assert preview.members[0].disposition == "blocked"
+        assert "plugin package" in preview.members[0].reason
