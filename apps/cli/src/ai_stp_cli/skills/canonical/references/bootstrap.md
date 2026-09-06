@@ -13,14 +13,16 @@ returned. Do not invent a missing command.
 
 After those two reads, if this is a first run or the user asked to set up:
 
-1. Ask which project directories to index. That question names their trees; it
-   is not a remaining stop in `decisions.md`.
-2. For each named root, resolve `project discover` and `project index` from
+1. If the user already named project directories in this conversation, use
+   those roots. Do not ask again.
+2. Otherwise ask which project directories to index. That question names their
+   trees; it is not a remaining stop in `decisions.md`.
+3. For each named root, resolve `project discover` and `project index` from
    machine help. Treat a partial index as partial; do not call it complete.
-3. Resolve `component inventory` on the same roots. Adopt each reported
+4. Resolve `component inventory` on the same roots. Adopt each reported
    component through `component adopt`. A second adopt of the same source is a
    no-op.
-4. If doctor shows this Skill is not installed in the harness they are using,
+5. If doctor shows this Skill is not installed in the harness they are using,
    resolve `skill install` from machine help.
 
 Do not scan the home directory. Do not invent roots. Do not write a harness
