@@ -6,6 +6,7 @@ Revises: 0039_external_catalog_locales
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -19,6 +20,7 @@ from ai_stp_foundation.identity import (
     canonical_slug,
     handle_from_account_id,
     normalize_display_key,
+    normalize_handle,
     submitted_display_name,
 )
 
@@ -276,6 +278,7 @@ def upgrade() -> None:
             """
         )
     )
+    _disambiguate_duplicate_identities(bind)
     conflicts = _collect_conflicts(bind)
     if conflicts:
         detail = "; ".join(f"{item['kind']}:{item['key']}:{item['ids']}" for item in conflicts[:20])
@@ -410,10 +413,23 @@ def _backfill_accounts(bind: sa.Connection) -> None:
         handle_key = handle
         display_key = normalize_display_key(display)
         if handle_key in used_handles or display_key in used_displays:
-            raise RuntimeError(
-                "AI_STP_MIGRATION_CONFLICT: generated account identity collision: "
-                f"{account_id}:{handle_key}:{display_key}"
+            compact = (
+                re.sub(r"[^a-z0-9]", "", str(account_id).partition("_")[2].casefold()) or "account"
             )
+            resolved = False
+            for n in range(2, 100):
+                handle = normalize_handle(f"user-{compact[:20]}{n:02d}")
+                display = f"User {handle.removeprefix('user-')}"
+                handle_key = handle
+                display_key = normalize_display_key(display)
+                if handle_key not in used_handles and display_key not in used_displays:
+                    resolved = True
+                    break
+            if not resolved:
+                raise RuntimeError(
+                    "AI_STP_MIGRATION_CONFLICT: generated account identity collision: "
+                    f"{account_id}:{handle_key}:{display_key}"
+                )
         used_handles.add(handle_key)
         used_displays.add(display_key)
         bind.execute(
@@ -511,6 +527,70 @@ def _backfill_official_sources(bind: sa.Connection) -> None:
             """
         )
     )
+
+
+def _disambiguate_duplicate_identities(bind: sa.Connection) -> None:
+    """Keep the newest published spelling; suffix older same-name identities.
+
+    Restore of pre-0040 dumps can contain several component identities that
+    share a display name. Unique indexes below cannot be created until those
+    rows are distinct; later official-duplicate repairs only cover known
+    upstream source ids.
+    """
+    duplicates = bind.execute(
+        sql_text(
+            """
+            SELECT canonical_name_normalized
+            FROM catalog_identity
+            GROUP BY canonical_name_normalized
+            HAVING COUNT(*) > 1
+            """
+        )
+    ).fetchall()
+    for (key,) in duplicates:
+        rows = bind.execute(
+            sql_text(
+                """
+                SELECT identity.stable_id
+                FROM catalog_identity AS identity
+                LEFT JOIN LATERAL (
+                    SELECT published_at
+                    FROM catalog_metadata
+                    WHERE catalog_metadata.stable_id = identity.stable_id
+                      AND catalog_metadata.object_kind = 'component'
+                    ORDER BY published_at DESC NULLS LAST, id DESC
+                    LIMIT 1
+                ) AS latest ON true
+                WHERE identity.canonical_name_normalized = :key
+                ORDER BY latest.published_at DESC NULLS LAST, identity.stable_id
+                """
+            ),
+            {"key": key},
+        ).fetchall()
+        for (stable_id,) in rows[1:]:
+            suffix = str(stable_id)[-6:].lower()
+            bind.execute(
+                sql_text(
+                    """
+                    UPDATE catalog_identity
+                    SET canonical_name = canonical_name || '-' || :suffix,
+                        canonical_name_normalized = canonical_name_normalized || '-' || :suffix
+                    WHERE stable_id = :stable_id
+                    """
+                ),
+                {"suffix": suffix, "stable_id": stable_id},
+            )
+            bind.execute(
+                sql_text(
+                    """
+                    UPDATE catalog_identity_locale
+                    SET display_name = display_name || ' (' || :suffix || ')',
+                        display_name_normalized = display_name_normalized || '-' || :suffix
+                    WHERE stable_id = :stable_id
+                    """
+                ),
+                {"suffix": suffix, "stable_id": stable_id},
+            )
 
 
 def _collect_conflicts(bind: sa.Connection) -> list[dict[str, str]]:

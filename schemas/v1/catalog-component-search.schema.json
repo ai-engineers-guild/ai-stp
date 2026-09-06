@@ -19,6 +19,10 @@
       "format": "date",
       "type": "string"
     },
+    "CompatibilityMode": {
+      "const": "claimed_portable",
+      "type": "string"
+    },
     "ComponentType": {
       "enum": [
         "instruction",
@@ -103,6 +107,17 @@
       "title": "Authors",
       "type": "array"
     },
+    "compatibility": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompatibilityMode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "component_type": {
       "anyOf": [
         {
@@ -168,7 +183,7 @@
       "items": {
         "$ref": "#/$defs/HarnessId"
       },
-      "maxItems": 6,
+      "maxItems": 7,
       "title": "Harness Ids",
       "type": "array"
     },

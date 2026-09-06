@@ -463,6 +463,111 @@
       "title": "Permissions",
       "type": "object"
     },
+    "PortabilityClaim": {
+      "additionalProperties": false,
+      "description": "Immutable author assertion that exact source can be transformed for named harnesses.",
+      "properties": {
+        "claim_id": {
+          "pattern": "^claim_[0-9a-f]{64}$",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "component_types": {
+          "items": {
+            "$ref": "#/$defs/ComponentType"
+          },
+          "maxItems": 9,
+          "minItems": 1,
+          "title": "Component Types",
+          "type": "array"
+        },
+        "evidence_refs": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "issued_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+          "title": "Issued At",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "scopes": {
+          "items": {
+            "$ref": "#/$defs/TargetScope"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Scopes",
+          "type": "array"
+        },
+        "source_artifact_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Artifact Digest",
+          "type": "string"
+        },
+        "target_harness_ids": {
+          "items": {
+            "$ref": "#/$defs/HarnessId"
+          },
+          "maxItems": 7,
+          "minItems": 1,
+          "title": "Target Harness Ids",
+          "type": "array"
+        },
+        "transform_family": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Transform Family",
+          "type": "string"
+        },
+        "transform_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "Transform Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "source_artifact_digest",
+        "target_harness_ids",
+        "transform_family",
+        "transform_version",
+        "component_types",
+        "scopes",
+        "issued_at"
+      ],
+      "title": "PortabilityClaim",
+      "type": "object"
+    },
     "ProjectedMember": {
       "additionalProperties": false,
       "allOf": [
@@ -942,6 +1047,13 @@
     },
     "permissions": {
       "$ref": "#/$defs/Permissions"
+    },
+    "portability_claims": {
+      "items": {
+        "$ref": "#/$defs/PortabilityClaim"
+      },
+      "title": "Portability Claims",
+      "type": "array"
     },
     "provides_capabilities": {
       "items": {

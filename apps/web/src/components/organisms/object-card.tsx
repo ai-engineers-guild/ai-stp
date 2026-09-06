@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Card, list, and compact metric variants share one fixture. */
 import { Badge } from "@/components/atoms/badge";
 import { CatalogEngagement } from "@/components/molecules/catalog-engagement";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
@@ -66,6 +67,9 @@ type Labels = {
   unlike?: string | undefined;
   likeMenu?: string | undefined;
   unlikeMenu?: string | undefined;
+  assuranceCounts?: string | undefined;
+  claimedPortableMatch?: string | undefined;
+  familyMemberCount?: string | undefined;
 };
 export type CatalogAuthor = { displayName: string | null; avatarUrl: string | null };
 const AUTHOR_VERIFIED_FALLBACK = "Author verified";
@@ -270,6 +274,7 @@ export function ObjectCard({
             <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <Badge variant="outline">{type}</Badge>
               <Harnesses values={harnesses} label={labels.harness} />
+              <ClaimedMatch item={item} labels={labels} />
               <div className="flex min-w-0 flex-wrap gap-1">
                 {item.latest_tags.slice(0, 2).map((tag) => (
                   <Badge key={tag} variant="outline">
@@ -278,6 +283,7 @@ export function ObjectCard({
                 ))}
               </div>
             </div>
+            <CardFacts item={item} kind={kind} labels={labels} />
           </div>
           <div className="relative z-20 col-start-3 row-start-1 md:col-start-6">
             <CatalogItemMenu
@@ -338,7 +344,9 @@ export function ObjectCard({
           <div className="mt-2 flex flex-wrap items-center gap-1">
             <Badge variant="secondary">{type}</Badge>
             <Harnesses values={harnesses} label={labels.harness} />
+            <ClaimedMatch item={item} labels={labels} />
           </div>
+          <CardFacts item={item} kind={kind} labels={labels} />
           {reason ? (
             <p className="text-muted-foreground mt-1 line-clamp-1 text-xs" data-why-open="">
               {reason}
@@ -365,6 +373,62 @@ export function ObjectCard({
         {authorBlock}
       </div>
     </article>
+  );
+}
+
+function isComponentSummary(item: CatalogItem): item is ComponentSummary {
+  return "latest_component_type" in item;
+}
+
+function isSetupSummary(item: CatalogItem): item is SetupSummary {
+  return "family_member_count" in item;
+}
+
+function ClaimedMatch({ item, labels }: { item: CatalogItem; labels: Labels }) {
+  if (!isComponentSummary(item) || item.match_kind !== "claimed_portable") return null;
+  return (
+    <Badge variant="outline" data-ui={UI.catalog.claimedMatch}>
+      {labels.claimedPortableMatch ?? "Author claim"}
+    </Badge>
+  );
+}
+
+export function formatAssuranceCounts(verified: number, assessed: number, label: string): string {
+  if (assessed <= 0) {
+    return `${label}: 0 / 0`;
+  }
+  return `${label}: ${verified} / ${assessed} (${Math.round((verified / assessed) * 100)}%)`;
+}
+
+function CardFacts({
+  item,
+  kind,
+  labels,
+}: {
+  item: CatalogItem;
+  kind: "component" | "setup";
+  labels: Labels;
+}) {
+  const assurance = isComponentSummary(item)
+    ? item.latest_assurance
+    : { verified_targets: 0, assessed_targets: 0 };
+  return (
+    <div className="text-muted-foreground mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs">
+      {kind === "component" && isComponentSummary(item) ? (
+        <p data-ui={UI.catalog.assurance}>
+          {formatAssuranceCounts(
+            assurance.verified_targets,
+            assurance.assessed_targets,
+            labels.assuranceCounts ?? "Verified targets",
+          )}
+        </p>
+      ) : null}
+      {kind === "setup" && isSetupSummary(item) && item.family_member_count ? (
+        <p>
+          {labels.familyMemberCount ?? "Family members"}: {item.family_member_count}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -406,7 +470,7 @@ function SafetyScore({
   const summary = item.latest_checks;
   const explanation =
     labels.safetyCheckExplanation ??
-    "Safety check: a set of automated checks that this component does not threaten the user's agent or device.";
+    "Publication checks: automated checks required before this component version can be published.";
   const computed = summary && summary.status !== "empty" ? publicationScore(summary) : null;
   if (computed === null || !summary) {
     return (

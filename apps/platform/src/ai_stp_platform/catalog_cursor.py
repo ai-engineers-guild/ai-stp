@@ -53,6 +53,10 @@ def filter_signature(
     country_code: str | None = None,
     updated_from: str | None = None,
     updated_to: str | None = None,
+    compatibility: str | None = None,
+    family_id: str | None = None,
+    family_alignment: str | None = None,
+    member_harness_id: str | None = None,
 ) -> str:
     """Hash the active filter so a cursor cannot migrate across queries."""
     payload = {
@@ -80,6 +84,14 @@ def filter_signature(
         payload["updated_from"] = updated_from
     if updated_to:
         payload["updated_to"] = updated_to
+    if compatibility:
+        payload["compatibility"] = compatibility
+    if family_id:
+        payload["family_id"] = family_id
+    if family_alignment:
+        payload["family_alignment"] = family_alignment
+    if member_harness_id:
+        payload["member_harness_id"] = member_harness_id
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()[:32]
 

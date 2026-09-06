@@ -57,6 +57,7 @@ PLATFORM_VERSION_FACTS = {
     "harness_ids",
     "harness_id",
     "projection_kind",
+    "assurance",
 }
 
 SUPPORT_MISSING = CatalogSupport(
@@ -82,6 +83,10 @@ OBJECT_IDENTITY = {
     "github_stars",
     "updated_at",
     "usage_metrics",
+    "match_kind",
+    "family_id",
+    "family_member_count",
+    "family_match_kind",
 }
 
 

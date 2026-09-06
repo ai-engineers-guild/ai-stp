@@ -1,5 +1,29 @@
 {
   "$defs": {
+    "AssuranceCounts": {
+      "additionalProperties": true,
+      "description": "Bounded card summary. Claims never increase the verified numerator.",
+      "properties": {
+        "assessed_targets": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Assessed Targets",
+          "type": "integer"
+        },
+        "verified_targets": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Verified Targets",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "assessed_targets",
+        "verified_targets"
+      ],
+      "title": "AssuranceCounts",
+      "type": "object"
+    },
     "CatalogPageInfo": {
       "additionalProperties": true,
       "description": "Exact public web page metadata; never used for private enumeration.",
@@ -275,6 +299,30 @@
       ],
       "type": "string"
     },
+    "CompatibilityFacets": {
+      "additionalProperties": true,
+      "description": "Separate exact and claimed-portable counts for the current public query.",
+      "properties": {
+        "claimed_portable": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Claimed Portable",
+          "type": "integer"
+        },
+        "exact": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Exact",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "claimed_portable",
+        "exact"
+      ],
+      "title": "CompatibilityFacets",
+      "type": "object"
+    },
     "ComponentId": {
       "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
@@ -318,6 +366,9 @@
           "default": null,
           "title": "Github Stars"
         },
+        "latest_assurance": {
+          "$ref": "#/$defs/AssuranceCounts"
+        },
         "latest_checks": {
           "anyOf": [
             {
@@ -342,7 +393,7 @@
           "items": {
             "$ref": "#/$defs/HarnessId"
           },
-          "maxItems": 6,
+          "maxItems": 7,
           "title": "Latest Harness Ids",
           "type": "array"
         },
@@ -354,7 +405,15 @@
           "type": "string"
         },
         "latest_projection_kind": {
-          "$ref": "#/$defs/ProjectionKind"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProjectionKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "latest_published_at": {
           "$ref": "#/$defs/Timestamp"
@@ -387,6 +446,17 @@
           "minimum": 0,
           "title": "Likes Count",
           "type": "integer"
+        },
+        "match_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatchKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "owner_account_id": {
           "default": "",
@@ -435,6 +505,7 @@
         "display_locale",
         "display_name",
         "github_stars",
+        "latest_assurance",
         "latest_checks",
         "latest_component_type",
         "latest_description",
@@ -451,6 +522,7 @@
         "latest_trust",
         "latest_version",
         "likes_count",
+        "match_kind",
         "owner_account_id",
         "owner_handle",
         "publisher_id",
@@ -504,6 +576,13 @@
         "grok-build",
         "cursor",
         "antigravity"
+      ],
+      "type": "string"
+    },
+    "MatchKind": {
+      "enum": [
+        "exact",
+        "claimed_portable"
       ],
       "type": "string"
     },
@@ -856,6 +935,9 @@
   "additionalProperties": true,
   "description": "One page of component search results, partitioned by trust lane.",
   "properties": {
+    "compatibility_facets": {
+      "$ref": "#/$defs/CompatibilityFacets"
+    },
     "experimental": {
       "items": {
         "$ref": "#/$defs/ComponentSummary"
@@ -891,6 +973,7 @@
     }
   },
   "required": [
+    "compatibility_facets",
     "experimental",
     "items",
     "page",

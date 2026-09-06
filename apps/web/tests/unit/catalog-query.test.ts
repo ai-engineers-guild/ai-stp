@@ -516,4 +516,50 @@ describe("parseCatalogSearchParams", () => {
     expect(validateCatalogQuery('"UNKNOWN:value" AND NAME:tool')).toBeNull();
     expect(validateCatalogQuery('"OR"')).toBeNull();
   });
+
+  it("round-trips claimed-portable compatibility and setup family filters", () => {
+    const parsed = parseCatalogSearchParams({
+      compatibility: "claimed_portable",
+      family_id: "family_abc",
+      family_alignment: "aligned",
+      member_harness_id: "pi",
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.compatibility).toBe("claimed_portable");
+    expect(parsed.value.familyId).toBe("family_abc");
+    expect(parsed.value.familyAlignment).toBe("aligned");
+    expect(parsed.value.memberHarnessId).toBe("pi");
+    expect(catalogQueryToRecord(parsed.value)).toMatchObject({
+      compatibility: "claimed_portable",
+      family_id: "family_abc",
+      family_alignment: "aligned",
+      member_harness_id: "pi",
+    });
+    expect(countAppliedFilters(parsed.value)).toBe(4);
+    expect(appliedFilterChips(parsed.value).map((chip) => chip.key)).toEqual([
+      "compatibility",
+      "family_id",
+      "family_alignment",
+      "member_harness_id",
+    ]);
+  });
+
+  it("rejects unknown compatibility and family alignment values", () => {
+    const compatibility = parseCatalogSearchParams({ compatibility: "exact" });
+    expect(compatibility.ok).toBe(false);
+    if (!compatibility.ok) {
+      expect(compatibility.invalidSupport).toContain("compatibility=exact");
+    }
+    const alignment = parseCatalogSearchParams({ family_alignment: "equivalent" });
+    expect(alignment.ok).toBe(false);
+    if (!alignment.ok) {
+      expect(alignment.invalidSupport).toContain("family_alignment=equivalent");
+    }
+    const harness = parseCatalogSearchParams({ member_harness_id: "not-a-harness" });
+    expect(harness.ok).toBe(false);
+    if (!harness.ok) {
+      expect(harness.invalidSupport).toContain("member_harness_id=not-a-harness");
+    }
+  });
 });

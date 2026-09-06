@@ -22,7 +22,7 @@ last_verified: "2026-08-03"
 | [ADR-0011-provider-release-trust-policy.md](ADR-0011-provider-release-trust-policy.md) | Decision to establish a versioned trust policy for provider releases. | 2026-08-03 |
 | [ADR-0012-passport-model-and-single-write-path.md](ADR-0012-passport-model-and-single-write-path.md) | Decision to make the passport the sole description of an object and retain a single write path into a harness. | 2026-08-04 |
 | [ADR-0013-cli-framework.md](ADR-0013-cli-framework.md) | Decision to use Typer as the CLI command parser. | 2026-08-04 |
-| [ADR-0014-harness-specific-setup-identity.md](ADR-0014-harness-specific-setup-identity.md) | Decision to bind a setup to one harness and remove the setup variant from its identity. | 2026-08-04 |
+| [ADR-0014-harness-specific-setup-identity.md](ADR-0014-harness-specific-setup-identity.md) | Decision to bind a setup to one harness and remove the setup variant from its identity. | 2026-09-06 |
 | [ADR-0015-marketplace-as-provider-projection.md](ADR-0015-marketplace-as-provider-projection.md) | Decision to treat a marketplace as a provider projection rather than a component kind. | 2026-08-04 |
 | [ADR-0016-recommendation-trust-lanes.md](ADR-0016-recommendation-trust-lanes.md) | Decision to introduce three trust lanes and explicit consent for unverified objects. | 2026-08-04 |
 | [ADR-0017-three-independent-automation-axes.md](ADR-0017-three-independent-automation-axes.md) | Decision to separate the execution profile, validation isolation, and mutation integrity. | 2026-08-04 |
@@ -159,6 +159,11 @@ last_verified: "2026-08-03"
 | [ADR-0158-discovery-continuation.md](ADR-0158-discovery-continuation.md) | Decision that bounded component discovery reports completeness and a resumable cursor. | 2026-09-05 |
 | [ADR-0159-full-task-authority-is-a-consent-scope.md](ADR-0159-full-task-authority-is-a-consent-scope.md) | Decision that authorized full-task authority is consent scope task, not a config wildcard and not a covering grant that beats a narrower exclusion. | 2026-09-05 |
 | [ADR-0160-estate-complete-requires-launch-matrix.md](ADR-0160-estate-complete-requires-launch-matrix.md) | Decision that an estate complete verdict requires the seven-harness launch matrix; omitted or skipped cells cannot stand in for a passing row. | 2026-09-05 |
+| [ADR-0161-catalog-provenance-and-obt-support-projection.md](ADR-0161-catalog-provenance-and-obt-support-projection.md) | Decision to preserve setup provenance in catalog projections and derive open-beta support tiers from one canonical map. | 2026-09-06 |
+| [ADR-0162-component-identity-owns-an-immutable-projection-set.md](ADR-0162-component-identity-owns-an-immutable-projection-set.md) | Decision that one catalog component owns one immutable versioned set of exact harness projections and remains the sole social and usage subject. | 2026-09-06 |
+| [ADR-0163-assurance-is-bound-to-an-exact-adaptation-target.md](ADR-0163-assurance-is-bound-to-an-exact-adaptation-target.md) | Decision to separate reusable artifact safety evidence from target-bound adaptation assessment and derive component verification conservatively. | 2026-09-06 |
+| [ADR-0164-portability-is-an-evidence-bound-claim-not-an-adaptation.md](ADR-0164-portability-is-an-evidence-bound-claim-not-an-adaptation.md) | Decision to represent portable source as an explicit target-bounded author claim and require local materialization, assessment, and exact consent before risk installation. | 2026-09-06 |
+| [ADR-0165-related-single-harness-setups-form-an-explicit-family.md](ADR-0165-related-single-harness-setups-form-an-explicit-family.md) | Decision to group related single-harness setups through an explicit catalog family and compare exact versions using a harness-independent invariant digest. | 2026-09-06 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

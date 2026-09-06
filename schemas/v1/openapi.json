@@ -459,6 +459,129 @@
         "title": "AccountSelectionImpactReport",
         "type": "object"
       },
+      "AdaptationId": {
+        "pattern": "^adaptation_[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "AlignmentState": {
+        "enum": [
+          "aligned",
+          "diverged",
+          "unknown",
+          "missing"
+        ],
+        "type": "string"
+      },
+      "ArtifactCheckResult": {
+        "enum": [
+          "passed",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "ArtifactObservation": {
+        "additionalProperties": false,
+        "description": "Reusable exact-byte observation. Compatibility results stay independent.",
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "identity": {
+            "$ref": "#/components/schemas/ArtifactObservationIdentity"
+          },
+          "observed_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ArtifactCheckResult"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "identity",
+          "result",
+          "observed_at"
+        ],
+        "title": "ArtifactObservation",
+        "type": "object"
+      },
+      "ArtifactObservationIdentity": {
+        "additionalProperties": false,
+        "description": "Complete reuse key for one byte-oriented safety observation.",
+        "properties": {
+          "architecture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupportedArch"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "artifact_digest": {
+            "$ref": "#/components/schemas/Digest"
+          },
+          "check_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Check Id",
+            "type": "string"
+          },
+          "operating_system": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupportedOs"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "policy_version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "scanner_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scanner Id",
+            "type": "string"
+          },
+          "scanner_version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scanner Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_digest",
+          "check_id",
+          "scanner_id",
+          "scanner_version",
+          "policy_version"
+        ],
+        "title": "ArtifactObservationIdentity",
+        "type": "object"
+      },
       "ArtifactRef": {
         "additionalProperties": false,
         "description": "Content-addressed artifact bytes: digest and size.",
@@ -479,6 +602,39 @@
           "size_bytes"
         ],
         "title": "ArtifactRef",
+        "type": "object"
+      },
+      "AssessmentState": {
+        "enum": [
+          "not_verified",
+          "verified",
+          "failed",
+          "stale"
+        ],
+        "type": "string"
+      },
+      "AssuranceCounts": {
+        "additionalProperties": true,
+        "description": "Bounded card summary. Claims never increase the verified numerator.",
+        "properties": {
+          "assessed_targets": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Assessed Targets",
+            "type": "integer"
+          },
+          "verified_targets": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Verified Targets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "assessed_targets",
+          "verified_targets"
+        ],
+        "title": "AssuranceCounts",
         "type": "object"
       },
       "AuthLogoutResponse": {
@@ -1088,6 +1244,10 @@
         ],
         "type": "string"
       },
+      "ClaimId": {
+        "pattern": "^claim_[0-9a-f]{64}$",
+        "type": "string"
+      },
       "ClaimState": {
         "enum": [
           "requested",
@@ -1095,6 +1255,112 @@
           "denied"
         ],
         "type": "string"
+      },
+      "ClaimTargetRow": {
+        "additionalProperties": true,
+        "description": "One claim-only target. Never exact availability or install eligibility.",
+        "properties": {
+          "claim_id": {
+            "$ref": "#/components/schemas/ClaimId"
+          },
+          "component_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Component Types",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/PublicEvidenceRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "harness_id": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "issued_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "kind": {
+            "const": "claimed_portable",
+            "default": "claimed_portable",
+            "title": "Kind",
+            "type": "string"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "risk_cli_command": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Risk Cli Command"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/TargetScope"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "transform_family": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Transform Family",
+            "type": "string"
+          },
+          "transform_version": {
+            "$ref": "#/components/schemas/ai_stp_contracts__assurance__Version"
+          }
+        },
+        "required": [
+          "claim_id",
+          "component_types",
+          "evidence_refs",
+          "expires_at",
+          "harness_id",
+          "issued_at",
+          "kind",
+          "limitations",
+          "risk_cli_command",
+          "schema_version",
+          "scopes",
+          "transform_family",
+          "transform_version"
+        ],
+        "title": "ClaimTargetRow",
+        "type": "object"
       },
       "CliError": {
         "additionalProperties": true,
@@ -1129,6 +1395,34 @@
         ],
         "title": "CliError",
         "type": "object"
+      },
+      "CompatibilityFacets": {
+        "additionalProperties": true,
+        "description": "Separate exact and claimed-portable counts for the current public query.",
+        "properties": {
+          "claimed_portable": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Claimed Portable",
+            "type": "integer"
+          },
+          "exact": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Exact",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "claimed_portable",
+          "exact"
+        ],
+        "title": "CompatibilityFacets",
+        "type": "object"
+      },
+      "CompatibilityMode": {
+        "const": "claimed_portable",
+        "type": "string"
       },
       "ComplaintCreateRequest": {
         "additionalProperties": false,
@@ -1455,6 +1749,9 @@
           "summary": {
             "$ref": "#/components/schemas/ComponentSummary"
           },
+          "target_matrix": {
+            "$ref": "#/components/schemas/TargetMatrix"
+          },
           "versions": {
             "items": {
               "$ref": "#/components/schemas/VersionListEntry"
@@ -1470,6 +1767,7 @@
           "schema_version",
           "services",
           "summary",
+          "target_matrix",
           "versions"
         ],
         "title": "ComponentDetail",
@@ -1483,6 +1781,9 @@
         "additionalProperties": true,
         "description": "One page of component search results, partitioned by trust lane.",
         "properties": {
+          "compatibility_facets": {
+            "$ref": "#/components/schemas/CompatibilityFacets"
+          },
           "experimental": {
             "items": {
               "$ref": "#/components/schemas/ComponentSummary"
@@ -1518,6 +1819,7 @@
           }
         },
         "required": [
+          "compatibility_facets",
           "experimental",
           "items",
           "page",
@@ -1661,6 +1963,17 @@
             "title": "Authors",
             "type": "array"
           },
+          "compatibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompatibilityMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "component_type": {
             "anyOf": [
               {
@@ -1726,7 +2039,7 @@
             "items": {
               "$ref": "#/components/schemas/HarnessId"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "title": "Harness Ids",
             "type": "array"
           },
@@ -1906,6 +2219,9 @@
             "default": null,
             "title": "Github Stars"
           },
+          "latest_assurance": {
+            "$ref": "#/components/schemas/AssuranceCounts"
+          },
           "latest_checks": {
             "anyOf": [
               {
@@ -1930,7 +2246,7 @@
             "items": {
               "$ref": "#/components/schemas/HarnessId"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "title": "Latest Harness Ids",
             "type": "array"
           },
@@ -1942,7 +2258,15 @@
             "type": "string"
           },
           "latest_projection_kind": {
-            "$ref": "#/components/schemas/ProjectionKind"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectionKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "latest_published_at": {
             "$ref": "#/components/schemas/Timestamp"
@@ -1975,6 +2299,17 @@
             "minimum": 0,
             "title": "Likes Count",
             "type": "integer"
+          },
+          "match_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "owner_account_id": {
             "default": "",
@@ -2023,6 +2358,7 @@
           "display_locale",
           "display_name",
           "github_stars",
+          "latest_assurance",
           "latest_checks",
           "latest_component_type",
           "latest_description",
@@ -2039,6 +2375,7 @@
           "latest_trust",
           "latest_version",
           "likes_count",
+          "match_kind",
           "owner_account_id",
           "owner_handle",
           "publisher_id",
@@ -2228,6 +2565,13 @@
           "permissions": {
             "$ref": "#/components/schemas/Permissions"
           },
+          "portability_claims": {
+            "items": {
+              "$ref": "#/components/schemas/PortabilityClaim"
+            },
+            "title": "Portability Claims",
+            "type": "array"
+          },
           "provides_capabilities": {
             "items": {
               "$ref": "#/components/schemas/CapabilityId"
@@ -2387,6 +2731,9 @@
           "support": {
             "$ref": "#/components/schemas/CatalogSupport"
           },
+          "target_matrix": {
+            "$ref": "#/components/schemas/TargetMatrix"
+          },
           "trust": {
             "$ref": "#/components/schemas/CatalogTrust"
           },
@@ -2410,6 +2757,7 @@
           "published_at",
           "schema_version",
           "support",
+          "target_matrix",
           "trust",
           "usage_metrics"
         ],
@@ -3605,6 +3953,10 @@
         "title": "DeviceTokenResponse",
         "type": "object"
       },
+      "Digest": {
+        "pattern": "^sha256:[0-9a-f]{64}$",
+        "type": "string"
+      },
       "DigestValue": {
         "pattern": "^sha256:[0-9a-f]{64}$",
         "type": "string"
@@ -3865,6 +4217,131 @@
         "title": "ExactCoordinate",
         "type": "object"
       },
+      "ExactTargetRow": {
+        "additionalProperties": true,
+        "description": "One exact adaptation/scope row in the public harness matrix.",
+        "properties": {
+          "adaptation_id": {
+            "$ref": "#/components/schemas/AdaptationId"
+          },
+          "assessment_state": {
+            "$ref": "#/components/schemas/AssessmentState",
+            "default": "not_verified"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/PublicEvidenceRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "harness_id": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "implementation_mode": {
+            "$ref": "#/components/schemas/ImplementationMode"
+          },
+          "kind": {
+            "const": "exact",
+            "default": "exact",
+            "title": "Kind",
+            "type": "string"
+          },
+          "permissions_summary": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions Summary",
+            "type": "array"
+          },
+          "projection_kind": {
+            "$ref": "#/components/schemas/ProjectionKind"
+          },
+          "recommendation": {
+            "$ref": "#/components/schemas/RecommendationState",
+            "default": "ineffective"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/TargetScope"
+          },
+          "semantic_losses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Semantic Losses",
+            "type": "array"
+          },
+          "supported_arch": {
+            "items": {
+              "$ref": "#/components/schemas/SupportedArch"
+            },
+            "title": "Supported Arch",
+            "type": "array"
+          },
+          "supported_os": {
+            "items": {
+              "$ref": "#/components/schemas/SupportedOs"
+            },
+            "title": "Supported Os",
+            "type": "array"
+          },
+          "technical_support": {
+            "$ref": "#/components/schemas/TechnicalSupport"
+          },
+          "technical_support_reason": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technical Support Reason"
+          }
+        },
+        "required": [
+          "adaptation_id",
+          "assessment_state",
+          "evidence_refs",
+          "freshness",
+          "harness_id",
+          "implementation_mode",
+          "kind",
+          "permissions_summary",
+          "projection_kind",
+          "recommendation",
+          "schema_version",
+          "scope",
+          "semantic_losses",
+          "supported_arch",
+          "supported_os",
+          "technical_support",
+          "technical_support_reason"
+        ],
+        "title": "ExactTargetRow",
+        "type": "object"
+      },
       "ExternalProductSummary": {
         "additionalProperties": true,
         "description": "Curated external service, keyed by its registrable domain.",
@@ -4021,6 +4498,27 @@
           "observed",
           "derived",
           "imported"
+        ],
+        "type": "string"
+      },
+      "FamilyCreatedFrom": {
+        "enum": [
+          "recast",
+          "owner",
+          "staff_migration",
+          "migration"
+        ],
+        "type": "string"
+      },
+      "FamilyId": {
+        "pattern": "^family_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "FamilyMatchKind": {
+        "enum": [
+          "family",
+          "member_harness",
+          "alignment"
         ],
         "type": "string"
       },
@@ -4580,6 +5078,13 @@
         "title": "LivenessResponse",
         "type": "object"
       },
+      "MatchKind": {
+        "enum": [
+          "exact",
+          "claimed_portable"
+        ],
+        "type": "string"
+      },
       "NonEmptyArtifactRef": {
         "additionalProperties": false,
         "description": "Content-addressed bytes for an artifact that must contain a projection.",
@@ -5033,6 +5538,89 @@
         "title": "OwnerStartPublicationRequest",
         "type": "object"
       },
+      "OwnerTargetGap": {
+        "additionalProperties": true,
+        "description": "Owner-safe coverage diagnostic. No foreign evidence or storage keys.",
+        "properties": {
+          "claim_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "harness_id": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "next_action": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Next Action",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason Code"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TargetScope"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "state": {
+            "$ref": "#/components/schemas/AssessmentState"
+          }
+        },
+        "required": [
+          "claim_id",
+          "expires_at",
+          "harness_id",
+          "next_action",
+          "reason_code",
+          "schema_version",
+          "scope",
+          "state"
+        ],
+        "title": "OwnerTargetGap",
+        "type": "object"
+      },
       "OwnerVersionDetail": {
         "additionalProperties": true,
         "description": "Exact owned version for publication entry and evidence display.",
@@ -5076,6 +5664,17 @@
             "title": "Evidence",
             "type": "array"
           },
+          "family": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupFamilyOwner"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "install_eligible": {
             "default": false,
             "title": "Install Eligible",
@@ -5099,6 +5698,17 @@
             "title": "Open Publication Plan Id",
             "type": "string"
           },
+          "ported_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "published_at": {
             "anyOf": [
               {
@@ -5109,6 +5719,14 @@
               }
             ],
             "default": null
+          },
+          "related_setup_ids": {
+            "items": {
+              "$ref": "#/components/schemas/SetupId"
+            },
+            "maxItems": 100,
+            "title": "Related Setup Ids",
+            "type": "array"
           },
           "schema_version": {
             "const": 1,
@@ -5121,6 +5739,14 @@
             "minLength": 8,
             "title": "Stable Id",
             "type": "string"
+          },
+          "target_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerTargetGap"
+            },
+            "maxItems": 32,
+            "title": "Target Gaps",
+            "type": "array"
           },
           "trust_lane": {
             "anyOf": [
@@ -5152,14 +5778,18 @@
           "content_digest",
           "description",
           "evidence",
+          "family",
           "install_eligible",
           "lifecycle_state",
           "name",
           "object_kind",
           "open_publication_plan_id",
+          "ported_from",
           "published_at",
+          "related_setup_ids",
           "schema_version",
           "stable_id",
+          "target_gaps",
           "trust_lane",
           "version",
           "visibility"
@@ -5680,6 +6310,111 @@
         "minLength": 1,
         "type": "string"
       },
+      "PortabilityClaim": {
+        "additionalProperties": false,
+        "description": "Immutable author assertion that exact source can be transformed for named harnesses.",
+        "properties": {
+          "claim_id": {
+            "pattern": "^claim_[0-9a-f]{64}$",
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "component_types": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentType"
+            },
+            "maxItems": 9,
+            "minItems": 1,
+            "title": "Component Types",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expires At"
+          },
+          "issued_at": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+            "title": "Issued At",
+            "type": "string"
+          },
+          "limitations": {
+            "items": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Limitations",
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/TargetScope"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Scopes",
+            "type": "array"
+          },
+          "source_artifact_digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Artifact Digest",
+            "type": "string"
+          },
+          "target_harness_ids": {
+            "items": {
+              "$ref": "#/components/schemas/HarnessId"
+            },
+            "maxItems": 7,
+            "minItems": 1,
+            "title": "Target Harness Ids",
+            "type": "array"
+          },
+          "transform_family": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "title": "Transform Family",
+            "type": "string"
+          },
+          "transform_version": {
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            "title": "Transform Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_id",
+          "source_artifact_digest",
+          "target_harness_ids",
+          "transform_family",
+          "transform_version",
+          "component_types",
+          "scopes",
+          "issued_at"
+        ],
+        "title": "PortabilityClaim",
+        "type": "object"
+      },
       "ProjectedMember": {
         "additionalProperties": false,
         "allOf": [
@@ -5841,6 +6576,58 @@
           "bundle_format"
         ],
         "title": "ProviderSurfaceRef",
+        "type": "object"
+      },
+      "PublicEvidenceRef": {
+        "additionalProperties": true,
+        "description": "Allowlisted public evidence pointer. No storage keys or raw reports.",
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "kind": {
+            "enum": [
+              "policy",
+              "profile",
+              "digest",
+              "url"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "value": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expires_at",
+          "kind",
+          "observed_at",
+          "value"
+        ],
+        "title": "PublicEvidenceRef",
         "type": "object"
       },
       "PublicKey": {
@@ -6091,6 +6878,14 @@
         ],
         "title": "ReadinessResponse",
         "type": "object"
+      },
+      "RecommendationState": {
+        "enum": [
+          "recommended",
+          "not_recommended",
+          "ineffective"
+        ],
+        "type": "string"
       },
       "RelativeProjectionPath": {
         "maxLength": 4096,
@@ -6798,6 +7593,71 @@
           "technical_support"
         ],
         "title": "ScopeAdaptation",
+        "type": "object"
+      },
+      "SelectedAdaptation": {
+        "additionalProperties": true,
+        "description": "The one adaptation selected for the viewed setup harness.",
+        "properties": {
+          "adaptation_id": {
+            "pattern": "^adaptation_[0-9a-f]{64}$",
+            "title": "Adaptation Id",
+            "type": "string"
+          },
+          "assessment_state": {
+            "$ref": "#/components/schemas/AssessmentState",
+            "default": "not_verified"
+          },
+          "harness_id": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "implementation_mode": {
+            "$ref": "#/components/schemas/ImplementationMode"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "projection_kind": {
+            "$ref": "#/components/schemas/ProjectionKind"
+          },
+          "recommendation": {
+            "$ref": "#/components/schemas/RecommendationState",
+            "default": "ineffective"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "technical_support": {
+            "$ref": "#/components/schemas/TechnicalSupport"
+          }
+        },
+        "required": [
+          "adaptation_id",
+          "assessment_state",
+          "harness_id",
+          "implementation_mode",
+          "limitations",
+          "projection_kind",
+          "recommendation",
+          "schema_version",
+          "scopes",
+          "technical_support"
+        ],
+        "title": "SelectedAdaptation",
         "type": "object"
       },
       "SeoCatalogEntry": {
@@ -7706,6 +8566,39 @@
         "title": "SetupComponentChecks",
         "type": "object"
       },
+      "SetupCompositionMember": {
+        "additionalProperties": true,
+        "description": "Exact component pin plus the selected adaptation for this setup harness.",
+        "properties": {
+          "passport_digest": {
+            "$ref": "#/components/schemas/Digest"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "selected_adaptation": {
+            "$ref": "#/components/schemas/SelectedAdaptation"
+          },
+          "stable_id": {
+            "$ref": "#/components/schemas/ComponentId"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ai_stp_contracts__families__Version"
+          }
+        },
+        "required": [
+          "passport_digest",
+          "schema_version",
+          "selected_adaptation",
+          "stable_id",
+          "version"
+        ],
+        "title": "SetupCompositionMember",
+        "type": "object"
+      },
       "SetupContextBudget": {
         "additionalProperties": true,
         "description": "Absolute context estimate of one visible exact setup (SPEC-049).",
@@ -7808,12 +8701,50 @@
             "title": "Component Checks",
             "type": "array"
           },
+          "composition": {
+            "items": {
+              "$ref": "#/components/schemas/SetupCompositionMember"
+            },
+            "maxItems": 500,
+            "title": "Composition",
+            "type": "array"
+          },
           "country_codes": {
             "items": {
               "$ref": "#/components/schemas/CountryCode"
             },
             "maxItems": 249,
             "title": "Country Codes",
+            "type": "array"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupFamilyPublic"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "ported_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "related_setup_ids": {
+            "items": {
+              "$ref": "#/components/schemas/SetupId"
+            },
+            "maxItems": 100,
+            "title": "Related Setup Ids",
             "type": "array"
           },
           "schema_version": {
@@ -7844,13 +8775,360 @@
         },
         "required": [
           "component_checks",
+          "composition",
           "country_codes",
+          "family",
+          "ported_from",
+          "related_setup_ids",
           "schema_version",
           "services",
           "summary",
           "versions"
         ],
         "title": "SetupDetail",
+        "type": "object"
+      },
+      "SetupFamilyCreateRequest": {
+        "additionalProperties": false,
+        "description": "Idempotent authorized family creation with an exact baseline and members.",
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/SetupRef"
+          },
+          "expected_revision": {
+            "const": 0,
+            "default": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/SetupId"
+            },
+            "maxItems": 7,
+            "minItems": 2,
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "reason": {
+            "default": "owner_create",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "baseline",
+          "members",
+          "idempotency_key"
+        ],
+        "title": "SetupFamilyCreateRequest",
+        "type": "object"
+      },
+      "SetupFamilyMember": {
+        "additionalProperties": true,
+        "description": "One accessible family member. Public reads omit inaccessible identity.",
+        "properties": {
+          "alignment": {
+            "$ref": "#/components/schemas/AlignmentState"
+          },
+          "exact_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ai_stp_contracts__families__Version"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "harness_id": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "latest_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ai_stp_contracts__families__Version"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "passport_digest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Digest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "ported_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stable_id": {
+            "$ref": "#/components/schemas/SetupId"
+          }
+        },
+        "required": [
+          "alignment",
+          "exact_version",
+          "harness_id",
+          "latest_version",
+          "passport_digest",
+          "ported_from",
+          "schema_version",
+          "stable_id"
+        ],
+        "title": "SetupFamilyMember",
+        "type": "object"
+      },
+      "SetupFamilyOwner": {
+        "additionalProperties": true,
+        "description": "Owner family projection with revision and safe diagnostics.",
+        "properties": {
+          "allowed_actions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Allowed Actions",
+            "type": "array"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/SetupRef"
+          },
+          "created_from": {
+            "$ref": "#/components/schemas/FamilyCreatedFrom"
+          },
+          "current_member": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupFamilyMember"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "diagnostics": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "family_id": {
+            "$ref": "#/components/schemas/FamilyId"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/SetupFamilyMember"
+            },
+            "maxItems": 7,
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allowed_actions",
+          "baseline",
+          "created_from",
+          "current_member",
+          "diagnostics",
+          "family_id",
+          "members",
+          "name",
+          "revision",
+          "schema_version"
+        ],
+        "title": "SetupFamilyOwner",
+        "type": "object"
+      },
+      "SetupFamilyPatchRequest": {
+        "additionalProperties": false,
+        "description": "Expected-revision mutation of name, baseline, or membership.",
+        "properties": {
+          "add_members": {
+            "items": {
+              "$ref": "#/components/schemas/SetupId"
+            },
+            "maxItems": 7,
+            "title": "Add Members",
+            "type": "array"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "expected_revision": {
+            "minimum": 1,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "reason": {
+            "default": "owner_update",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "remove_members": {
+            "items": {
+              "$ref": "#/components/schemas/SetupId"
+            },
+            "maxItems": 7,
+            "title": "Remove Members",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "title": "SetupFamilyPatchRequest",
+        "type": "object"
+      },
+      "SetupFamilyPublic": {
+        "additionalProperties": true,
+        "description": "Public navigational family projection. Never installable content.",
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/SetupRef"
+          },
+          "created_from": {
+            "$ref": "#/components/schemas/FamilyCreatedFrom"
+          },
+          "current_member": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupFamilyMember"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "family_id": {
+            "$ref": "#/components/schemas/FamilyId"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/SetupFamilyMember"
+            },
+            "maxItems": 7,
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "baseline",
+          "created_from",
+          "current_member",
+          "family_id",
+          "members",
+          "name",
+          "schema_version"
+        ],
+        "title": "SetupFamilyPublic",
         "type": "object"
       },
       "SetupId": {
@@ -7971,6 +9249,28 @@
             ],
             "default": null
           },
+          "family_alignment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlignmentState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "family_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FamilyId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "harness_id": {
             "anyOf": [
               {
@@ -7986,7 +9286,7 @@
             "items": {
               "$ref": "#/components/schemas/HarnessId"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "title": "Harness Ids",
             "type": "array"
           },
@@ -7999,6 +9299,17 @@
             "default": false,
             "title": "Include Experimental",
             "type": "boolean"
+          },
+          "member_harness_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarnessId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "page": {
             "anyOf": [
@@ -8131,6 +9442,41 @@
         "additionalProperties": true,
         "description": "Search-result card for a setup. A setup has no variant axis (ADR-0014).\n\n`latest_harness_id` keeps the prefix even though a setup belongs to one\nharness from creation: the value is still read out of the version passport,\nand one rule with no exceptions is cheaper to verify than a rule with one.",
         "properties": {
+          "family_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FamilyId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "family_match_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FamilyMatchKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "family_member_count": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Family Member Count"
+          },
           "github_stars": {
             "anyOf": [
               {
@@ -8267,6 +9613,9 @@
           }
         },
         "required": [
+          "family_id",
+          "family_match_kind",
+          "family_member_count",
           "github_stars",
           "latest_checks",
           "latest_description",
@@ -8369,6 +9718,19 @@
           },
           "harness_id": {
             "$ref": "#/components/schemas/HarnessId"
+          },
+          "harness_invariant_digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Harness Invariant Digest"
           },
           "install_evidence_ref": {
             "anyOf": [
@@ -8635,6 +9997,25 @@
             "title": "Component Checks",
             "type": "array"
           },
+          "composition": {
+            "items": {
+              "$ref": "#/components/schemas/SetupCompositionMember"
+            },
+            "maxItems": 500,
+            "title": "Composition",
+            "type": "array"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupFamilyPublic"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "lifecycle": {
             "$ref": "#/components/schemas/PublicLifecycle"
           },
@@ -8674,6 +10055,8 @@
         "required": [
           "checks",
           "component_checks",
+          "composition",
+          "family",
           "lifecycle",
           "passport",
           "passport_digest",
@@ -9909,6 +11292,262 @@
         "minItems": 1,
         "type": "array"
       },
+      "TargetAssessmentIdentity": {
+        "additionalProperties": false,
+        "description": "Full target key. Any field mismatch is a different assessment.",
+        "properties": {
+          "adaptation_id": {
+            "$ref": "#/components/schemas/AdaptationId"
+          },
+          "architecture": {
+            "$ref": "#/components/schemas/SupportedArch"
+          },
+          "component_stable_id": {
+            "$ref": "#/components/schemas/ComponentId"
+          },
+          "harness_id": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "harness_version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Harness Version",
+            "type": "string"
+          },
+          "operating_system": {
+            "$ref": "#/components/schemas/SupportedOs"
+          },
+          "passport_digest": {
+            "$ref": "#/components/schemas/Digest"
+          },
+          "policy_version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "projection_artifact_digest": {
+            "$ref": "#/components/schemas/Digest"
+          },
+          "provider_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider Version",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/TargetScope"
+          },
+          "surface_profile_digest": {
+            "$ref": "#/components/schemas/Digest"
+          },
+          "surface_profile_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Surface Profile Id",
+            "type": "string"
+          },
+          "target_scope": {
+            "$ref": "#/components/schemas/TargetScope"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ai_stp_contracts__assurance__Version"
+          }
+        },
+        "required": [
+          "component_stable_id",
+          "version",
+          "passport_digest",
+          "adaptation_id",
+          "harness_id",
+          "scope",
+          "projection_artifact_digest",
+          "provider_id",
+          "provider_version",
+          "surface_profile_id",
+          "surface_profile_digest",
+          "target_scope",
+          "harness_version",
+          "operating_system",
+          "architecture",
+          "policy_version"
+        ],
+        "title": "TargetAssessmentIdentity",
+        "type": "object"
+      },
+      "TargetAssessmentIngestRequest": {
+        "additionalProperties": false,
+        "description": "Authenticated platform evidence writer payload. Authors cannot issue verification.",
+        "properties": {
+          "compatibility_result": {
+            "default": "not_run",
+            "enum": [
+              "passed",
+              "failed",
+              "not_run"
+            ],
+            "title": "Compatibility Result",
+            "type": "string"
+          },
+          "evidence_refs": {
+            "items": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/TargetAssessmentIdentity"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactObservation"
+            },
+            "maxItems": 32,
+            "title": "Observations",
+            "type": "array"
+          },
+          "observed_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason Code"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stored_state": {
+            "enum": [
+              "not_verified",
+              "verified",
+              "failed"
+            ],
+            "title": "Stored State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "identity",
+          "stored_state",
+          "observed_at",
+          "idempotency_key"
+        ],
+        "title": "TargetAssessmentIngestRequest",
+        "type": "object"
+      },
+      "TargetAssessmentIngestResponse": {
+        "additionalProperties": true,
+        "description": "Latest-effective projection after an accepted or idempotent ingest.",
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "effective_state": {
+            "$ref": "#/components/schemas/AssessmentState"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stored_state": {
+            "enum": [
+              "not_verified",
+              "verified",
+              "failed"
+            ],
+            "title": "Stored State",
+            "type": "string"
+          },
+          "target_key_digest": {
+            "$ref": "#/components/schemas/Digest"
+          }
+        },
+        "required": [
+          "created",
+          "effective_state",
+          "schema_version",
+          "stored_state",
+          "target_key_digest"
+        ],
+        "title": "TargetAssessmentIngestResponse",
+        "type": "object"
+      },
+      "TargetMatrix": {
+        "additionalProperties": true,
+        "description": "Detail/version projection of exact rows and claim-only rows.",
+        "properties": {
+          "claimed_portable": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimTargetRow"
+            },
+            "title": "Claimed Portable",
+            "type": "array"
+          },
+          "exact": {
+            "items": {
+              "$ref": "#/components/schemas/ExactTargetRow"
+            },
+            "title": "Exact",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "claimed_portable",
+          "exact",
+          "schema_version"
+        ],
+        "title": "TargetMatrix",
+        "type": "object"
+      },
       "TargetScope": {
         "enum": [
           "global",
@@ -10177,7 +11816,15 @@
         ],
         "type": "string"
       },
+      "ai_stp_contracts__assurance__Version": {
+        "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+        "type": "string"
+      },
       "ai_stp_contracts__catalog__Version": {
+        "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+        "type": "string"
+      },
+      "ai_stp_contracts__families__Version": {
         "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
         "type": "string"
       },
@@ -10452,6 +12099,10 @@
                             "display_locale": "en",
                             "display_name": "Fixture Component",
                             "github_stars": null,
+                            "latest_assurance": {
+                              "assessed_targets": 1,
+                              "verified_targets": 0
+                            },
                             "latest_checks": null,
                             "latest_component_type": "skill",
                             "latest_description": "fixture-component-description",
@@ -10482,6 +12133,7 @@
                             },
                             "latest_version": "1.2",
                             "likes_count": 1,
+                            "match_kind": null,
                             "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                             "owner_handle": "fixture-owner",
                             "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -12857,6 +14509,22 @@
           },
           {
             "in": "query",
+            "name": "compatibility",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CompatibilityMode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
             "name": "component_type",
             "required": false,
             "schema": {
@@ -12954,7 +14622,7 @@
               "items": {
                 "$ref": "#/components/schemas/HarnessId"
               },
-              "maxItems": 6,
+              "maxItems": 7,
               "title": "Harness Ids",
               "type": "array"
             }
@@ -13180,6 +14848,10 @@
                   "searchComponents.emptyAuthoritativeLane": {
                     "summary": "Without consent the experimental lane is not returned at all, and an empty authoritative lane is an honest answer rather than an error.",
                     "value": {
+                      "compatibility_facets": {
+                        "claimed_portable": 0,
+                        "exact": 0
+                      },
                       "experimental": [],
                       "items": [],
                       "page": {
@@ -13193,6 +14865,10 @@
                   "searchComponents.experimentalOnConsent": {
                     "summary": "With consent the experimental candidates arrive in their own section, never interleaved into items (SPEC-006 REQ-603). Sprint 1 has no validation pipeline, so nothing can honestly claim component_verified and the authoritative lane is legitimately empty.",
                     "value": {
+                      "compatibility_facets": {
+                        "claimed_portable": 0,
+                        "exact": 0
+                      },
                       "experimental": [],
                       "items": [],
                       "page": {
@@ -13343,6 +15019,10 @@
                         "display_locale": "en",
                         "display_name": "Fixture Component",
                         "github_stars": null,
+                        "latest_assurance": {
+                          "assessed_targets": 1,
+                          "verified_targets": 0
+                        },
                         "latest_checks": null,
                         "latest_component_type": "skill",
                         "latest_description": "fixture-component-description",
@@ -13373,6 +15053,7 @@
                         },
                         "latest_version": "1.2",
                         "likes_count": 0,
+                        "match_kind": null,
                         "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "owner_handle": "fixture-owner",
                         "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -13380,6 +15061,31 @@
                         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "updated_at": "2026-08-05T00:00:00.000Z",
                         "usage_metrics": null
+                      },
+                      "target_matrix": {
+                        "claimed_portable": [],
+                        "exact": [
+                          {
+                            "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+                            "assessment_state": "not_verified",
+                            "evidence_refs": [],
+                            "freshness": null,
+                            "harness_id": "claude-code",
+                            "implementation_mode": "native",
+                            "kind": "exact",
+                            "permissions_summary": [],
+                            "projection_kind": "native_files",
+                            "recommendation": "ineffective",
+                            "schema_version": 1,
+                            "scope": "global",
+                            "semantic_losses": [],
+                            "supported_arch": [],
+                            "supported_os": [],
+                            "technical_support": "experimental",
+                            "technical_support_reason": "synthetic catalog seed"
+                          }
+                        ],
+                        "schema_version": 1
                       },
                       "versions": [
                         {
@@ -13699,6 +15405,31 @@
                         "schema_version": 1,
                         "state": "missing",
                         "tier": "beta"
+                      },
+                      "target_matrix": {
+                        "claimed_portable": [],
+                        "exact": [
+                          {
+                            "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+                            "assessment_state": "not_verified",
+                            "evidence_refs": [],
+                            "freshness": null,
+                            "harness_id": "claude-code",
+                            "implementation_mode": "native",
+                            "kind": "exact",
+                            "permissions_summary": [],
+                            "projection_kind": "native_files",
+                            "recommendation": "ineffective",
+                            "schema_version": 1,
+                            "scope": "global",
+                            "semantic_losses": [],
+                            "supported_arch": [],
+                            "supported_os": [],
+                            "technical_support": "experimental",
+                            "technical_support_reason": "synthetic catalog seed"
+                          }
+                        ],
+                        "schema_version": 1
                       },
                       "trust": {
                         "author_verified": false,
@@ -14342,6 +16073,180 @@
         "summary": "Read on-demand GitHub stars and archive state for one exact component."
       }
     },
+    "/v1/catalog/setup-families/{family_id}": {
+      "get": {
+        "operationId": "readSetupFamily",
+        "parameters": [
+          {
+            "description": "Typed stable identifier of a setup family.",
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "pattern": "^family_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readSetupFamily.publicMembers": {
+                    "summary": "A public family lists only accessible members and is never an installable catalog object.",
+                    "value": {
+                      "baseline": {
+                        "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.0"
+                      },
+                      "created_from": "owner",
+                      "current_member": null,
+                      "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "members": [
+                        {
+                          "alignment": "unknown",
+                          "exact_version": "1.0",
+                          "harness_id": "claude-code",
+                          "latest_version": "1.0",
+                          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                          "ported_from": null,
+                          "schema_version": 1,
+                          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                        }
+                      ],
+                      "name": "fixture-family",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SetupFamilyPublic"
+                }
+              }
+            },
+            "description": "Read one public setup family. Never installable content.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Read one public setup family. Never installable content."
+      }
+    },
     "/v1/catalog/setups": {
       "get": {
         "operationId": "searchSetups",
@@ -14407,6 +16312,38 @@
           },
           {
             "in": "query",
+            "name": "family_alignment",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AlignmentState"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "family_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/FamilyId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
             "name": "harness_id",
             "required": false,
             "schema": {
@@ -14429,7 +16366,7 @@
               "items": {
                 "$ref": "#/components/schemas/HarnessId"
               },
-              "maxItems": 6,
+              "maxItems": 7,
               "title": "Harness Ids",
               "type": "array"
             }
@@ -14452,6 +16389,22 @@
               "default": false,
               "title": "Include Experimental",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "member_harness_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/HarnessId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
             }
           },
           {
@@ -14797,10 +16750,38 @@
                     "summary": "A setup is a separate resource from a component: its card carries purpose and target role, and it has no variant axis because a setup belongs to one harness from creation (ADR-0014).",
                     "value": {
                       "component_checks": [],
+                      "composition": [
+                        {
+                          "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                          "schema_version": 1,
+                          "selected_adaptation": {
+                            "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+                            "assessment_state": "not_verified",
+                            "harness_id": "claude-code",
+                            "implementation_mode": "native",
+                            "limitations": [],
+                            "projection_kind": "native_files",
+                            "recommendation": "ineffective",
+                            "schema_version": 1,
+                            "scopes": [
+                              "global"
+                            ],
+                            "technical_support": "experimental"
+                          },
+                          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "version": "1.2"
+                        }
+                      ],
                       "country_codes": [],
+                      "family": null,
+                      "ported_from": null,
+                      "related_setup_ids": [],
                       "schema_version": 1,
                       "services": [],
                       "summary": {
+                        "family_id": null,
+                        "family_match_kind": null,
+                        "family_member_count": null,
                         "github_stars": null,
                         "latest_checks": null,
                         "latest_description": "fixture-setup-description",
@@ -15022,6 +17003,29 @@
                     "value": {
                       "checks": null,
                       "component_checks": [],
+                      "composition": [
+                        {
+                          "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                          "schema_version": 1,
+                          "selected_adaptation": {
+                            "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+                            "assessment_state": "not_verified",
+                            "harness_id": "claude-code",
+                            "implementation_mode": "native",
+                            "limitations": [],
+                            "projection_kind": "native_files",
+                            "recommendation": "ineffective",
+                            "schema_version": 1,
+                            "scopes": [
+                              "global"
+                            ],
+                            "technical_support": "experimental"
+                          },
+                          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "version": "1.2"
+                        }
+                      ],
+                      "family": null,
                       "lifecycle": "active",
                       "passport": {
                         "artifact": {
@@ -19838,14 +21842,18 @@
                       "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                       "description": "",
                       "evidence": [],
+                      "family": null,
                       "install_eligible": false,
                       "lifecycle_state": "draft",
                       "name": "demo-skill",
                       "object_kind": "component",
                       "open_publication_plan_id": "",
+                      "ported_from": null,
                       "published_at": null,
+                      "related_setup_ids": [],
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "target_gaps": [],
                       "trust_lane": "experimental",
                       "version": "1.0",
                       "visibility": "private"
@@ -20571,6 +22579,799 @@
           }
         ],
         "summary": "Start a publication plan from an exact owned version without browser passport composition."
+      }
+    },
+    "/v1/owner/setup-families": {
+      "post": {
+        "operationId": "createOwnerSetupFamily",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "createOwnerSetupFamily.created": {
+                  "summary": "Authorized family creation binds an exact baseline that is one of the members.",
+                  "value": {
+                    "baseline": {
+                      "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "version": "1.0"
+                    },
+                    "expected_revision": 0,
+                    "idempotency_key": "family-create-0001",
+                    "members": [
+                      "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "setup_01JQZK7B8N4M6P2R9T5V0X3YC1"
+                    ],
+                    "name": "fixture-family",
+                    "reason": "owner_create",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SetupFamilyCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "createOwnerSetupFamily.created": {
+                    "summary": "Authorized family creation binds an exact baseline that is one of the members.",
+                    "value": {
+                      "allowed_actions": [
+                        "update_name",
+                        "change_baseline",
+                        "add_member",
+                        "remove_member"
+                      ],
+                      "baseline": {
+                        "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.0"
+                      },
+                      "created_from": "owner",
+                      "current_member": null,
+                      "diagnostics": [],
+                      "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "members": [
+                        {
+                          "alignment": "unknown",
+                          "exact_version": "1.0",
+                          "harness_id": "claude-code",
+                          "latest_version": "1.0",
+                          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                          "ported_from": null,
+                          "schema_version": 1,
+                          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                        },
+                        {
+                          "alignment": "unknown",
+                          "exact_version": "1.0",
+                          "harness_id": "codex",
+                          "latest_version": "1.0",
+                          "passport_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                          "ported_from": null,
+                          "schema_version": 1,
+                          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3YC1"
+                        }
+                      ],
+                      "name": "fixture-family",
+                      "revision": 1,
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SetupFamilyOwner"
+                }
+              }
+            },
+            "description": "Create one owned setup family with an exact baseline and members.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one owned setup family with an exact baseline and members."
+      }
+    },
+    "/v1/owner/setup-families/{family_id}": {
+      "get": {
+        "operationId": "readOwnerSetupFamily",
+        "parameters": [
+          {
+            "description": "Typed stable identifier of a setup family.",
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "pattern": "^family_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readOwnerSetupFamily.detail": {
+                    "summary": "The owner family read adds revision, diagnostics and allowed actions without naming inaccessible members.",
+                    "value": {
+                      "allowed_actions": [
+                        "update_name",
+                        "change_baseline",
+                        "add_member",
+                        "remove_member"
+                      ],
+                      "baseline": {
+                        "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.0"
+                      },
+                      "created_from": "owner",
+                      "current_member": null,
+                      "diagnostics": [],
+                      "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "members": [
+                        {
+                          "alignment": "unknown",
+                          "exact_version": "1.0",
+                          "harness_id": "claude-code",
+                          "latest_version": "1.0",
+                          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                          "ported_from": null,
+                          "schema_version": 1,
+                          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                        }
+                      ],
+                      "name": "fixture-family",
+                      "revision": 1,
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SetupFamilyOwner"
+                }
+              }
+            },
+            "description": "Read one owned setup family with revision and diagnostics.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read one owned setup family with revision and diagnostics."
+      },
+      "patch": {
+        "operationId": "patchOwnerSetupFamily",
+        "parameters": [
+          {
+            "description": "Typed stable identifier of a setup family.",
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "pattern": "^family_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "patchOwnerSetupFamily.rename": {
+                  "summary": "A family patch at the expected revision changes the name and appends one audit revision.",
+                  "value": {
+                    "expected_revision": 1,
+                    "idempotency_key": "family-patch-0001",
+                    "name": "fixture-family-renamed",
+                    "reason": "owner_update",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SetupFamilyPatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "patchOwnerSetupFamily.rename": {
+                    "summary": "A family patch at the expected revision changes the name and appends one audit revision.",
+                    "value": {
+                      "allowed_actions": [
+                        "update_name",
+                        "change_baseline",
+                        "add_member",
+                        "remove_member"
+                      ],
+                      "baseline": {
+                        "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.0"
+                      },
+                      "created_from": "owner",
+                      "current_member": null,
+                      "diagnostics": [],
+                      "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "members": [
+                        {
+                          "alignment": "unknown",
+                          "exact_version": "1.0",
+                          "harness_id": "claude-code",
+                          "latest_version": "1.0",
+                          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+                          "ported_from": null,
+                          "schema_version": 1,
+                          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                        }
+                      ],
+                      "name": "fixture-family-renamed",
+                      "revision": 2,
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SetupFamilyOwner"
+                }
+              }
+            },
+            "description": "Mutate family name, baseline, or membership at an expected revision.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Mutate family name, baseline, or membership at an expected revision."
       }
     },
     "/v1/ownership-claims": {
@@ -25990,6 +28791,276 @@
           }
         ],
         "summary": "Staff triage of a closed report case."
+      }
+    },
+    "/v1/staff/target-assessments": {
+      "post": {
+        "operationId": "ingestTargetAssessment",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "ingestTargetAssessment.accepted": {
+                  "summary": "Staff evidence binds the full target key and does not let an author issue verification.",
+                  "value": {
+                    "compatibility_result": "passed",
+                    "evidence_refs": [
+                      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    ],
+                    "expires_at": "2026-12-06T00:00:00.000Z",
+                    "idempotency_key": "target-assessment-01",
+                    "identity": {
+                      "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+                      "architecture": "x86_64",
+                      "component_stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "harness_id": "claude-code",
+                      "harness_version": "2.1.0",
+                      "operating_system": "linux",
+                      "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
+                      "policy_version": "1",
+                      "projection_artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                      "provider_id": "claude-code",
+                      "provider_version": "1.0",
+                      "scope": "global",
+                      "surface_profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                      "surface_profile_id": "claude-code/fixture/1",
+                      "target_scope": "global",
+                      "version": "1.2"
+                    },
+                    "observations": [],
+                    "observed_at": "2026-09-06T00:00:00.000Z",
+                    "reason_code": null,
+                    "schema_version": 1,
+                    "stored_state": "verified"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TargetAssessmentIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ingestTargetAssessment.accepted": {
+                    "summary": "Staff evidence binds the full target key and does not let an author issue verification.",
+                    "value": {
+                      "created": true,
+                      "effective_state": "verified",
+                      "schema_version": 1,
+                      "stored_state": "verified",
+                      "target_key_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TargetAssessmentIngestResponse"
+                }
+              }
+            },
+            "description": "Accept one target-bound assessment. Authors cannot issue verification.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Accept one target-bound assessment. Authors cannot issue verification."
       }
     },
     "/v1/staff/versions/lifecycle": {

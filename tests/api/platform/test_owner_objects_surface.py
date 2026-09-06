@@ -43,10 +43,30 @@ async def _own_version(
     name: str | None = None,
     with_digest: bool = False,
     artifact_digest_only: bool = False,
+    ported_from: dict[str, str] | None = None,
+    related_setup_ids: list[str] | None = None,
 ) -> str:
     stable_id = stable_id or new_id(object_kind)
     digest = "sha256:" + "a" * 64
     document: dict[str, object] = {"description": "Passport description"}
+    if object_kind == "setup":
+        from copy import deepcopy
+
+        from ai_stp_platform.catalog_seed import seed_corpus
+
+        document = deepcopy(
+            next(passport for kind, passport, *_ in seed_corpus() if kind == "setup")
+        )
+        document.update(
+            stable_id=stable_id,
+            version=version,
+            owner_id=owner_id,
+            name=name or "setup-fixture",
+        )
+        if ported_from is not None:
+            document["ported_from"] = ported_from
+        if related_setup_ids is not None:
+            document["related_setup_ids"] = related_setup_ids
     if artifact_digest_only:
         document["artifact"] = {"digest": digest, "size_bytes": 11}
     async with sessionmaker() as db:
@@ -139,6 +159,34 @@ async def test_an_owner_reads_their_own_object_and_version(
     )
     assert version.status_code == 200
     assert version.json()["version"] == "1.0"
+
+
+@pytest.mark.asyncio
+async def test_an_owner_reads_setup_provenance_on_exact_version(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    owner_id, token = await _account_with_session(sessionmaker)
+    source = {
+        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3YC1",
+        "version": "1.0",
+        "passport_digest": "sha256:" + "a" * 64,
+    }
+    stable_id = await _own_version(
+        sessionmaker,
+        owner_id=owner_id,
+        object_kind="setup",
+        ported_from=source,
+        related_setup_ids=["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"],
+    )
+
+    response = await client.get(
+        f"/v1/owner/objects/setup/{stable_id}/versions/1.0", headers=_auth(token)
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ported_from"] == source
+    assert response.json()["related_setup_ids"] == ["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"]
 
 
 @pytest.mark.asyncio

@@ -569,7 +569,11 @@
         "can_start_publication": true,
         "open_publication_plan_id": "",
         "evidence": [],
-        "description": ""
+        "description": "",
+        "ported_from": null,
+        "related_setup_ids": [],
+        "target_gaps": [],
+        "family": null
       }
     },
     {

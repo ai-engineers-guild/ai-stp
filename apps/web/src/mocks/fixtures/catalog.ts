@@ -183,6 +183,7 @@ type ComponentDetailFixture = {
     caption: string;
     source_label: string;
   }>;
+  target_matrix: { schema_version: 1; exact: []; claimed_portable: [] };
 };
 
 type SetupDetailFixture = {
@@ -193,6 +194,14 @@ type SetupDetailFixture = {
   // `summary.latest_checks`, which is also the card `registry search`
   // returns, where the name alone was refused by every released client.
   component_checks: [];
+  ported_from: {
+    stable_id: string;
+    version: string;
+    passport_digest: string;
+  } | null;
+  related_setup_ids: string[];
+  family: null;
+  composition: [];
 };
 
 function componentDetailFrom(
@@ -212,6 +221,7 @@ function componentDetailFrom(
         source_label: "ai_stp signed storage",
       },
     ],
+    target_matrix: { schema_version: 1, exact: [], claimed_portable: [] },
     versions: versions.map((version) =>
       versionEntry(
         version,
@@ -231,6 +241,18 @@ function setupDetailFrom(
     schema_version: 1,
     summary,
     component_checks: [],
+    family: null,
+    composition: [],
+    ported_from:
+      summary.stable_id === FIXTURE_SETUP_ID
+        ? {
+            stable_id: "setup_01JQZK7B8N4M6P2R9T5V0X3YC1",
+            version: "1.0",
+            passport_digest: ZERO_DIGEST,
+          }
+        : null,
+    related_setup_ids:
+      summary.stable_id === FIXTURE_SETUP_ID ? ["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"] : [],
     versions: offered.map((version) =>
       versionEntry(
         version,

@@ -9,8 +9,8 @@ import pytest
 from pydantic import ValidationError
 
 from ai_stp_contracts.catalog import CatalogTrust
-from ai_stp_foundation.canonical import canonize
-from ai_stp_foundation.digests import digest_bytes
+from ai_stp_foundation.canonical import JsonValue, canonize
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
 from ai_stp_platform.catalog_projection import (
@@ -22,8 +22,10 @@ from ai_stp_platform.catalog_projection import (
     project_component_checks,
     project_trust,
     setup_detail,
+    setup_summary,
     verify_passport_integrity,
 )
+from ai_stp_platform.catalog_query_language import named_harness_ids
 from ai_stp_platform.catalog_read import CatalogIntegrityError, PublicVersionRow
 from ai_stp_platform.catalog_seed import seed_corpus
 from ai_stp_platform.models import CatalogMetadata
@@ -314,6 +316,56 @@ def test_setup_detail_uses_setup_passports_for_version_entries() -> None:
     assert detail.versions[0].support.tier == "beta"
 
 
+def test_setup_detail_projects_latest_provenance() -> None:
+    kind, source, _published, digest = next(c for c in seed_corpus() if c[0] == "setup")
+    passport = {
+        **source,
+        "ported_from": {
+            "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3YC1",
+            "version": "1.0",
+            "passport_digest": _PLACEHOLDER_DIGEST,
+        },
+        "related_setup_ids": ["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"],
+    }
+    json_passport = cast(dict[str, JsonValue], passport)
+    passport["revision_id"] = derive_revision_id(json_passport)
+    digest = digest_canonical(PASSPORT_DIGEST_DOMAIN, json_passport)
+    meta = CatalogMetadata(
+        id=3,
+        owner_account_id=str(passport["owner_id"]),
+        object_kind=kind,
+        stable_id=str(passport["stable_id"]),
+        version=str(passport["version"]),
+        current_revision_id=str(passport["revision_id"]),
+        visibility="public",
+        lifecycle_state="active",
+        published_at=datetime(2026, 8, 5, tzinfo=UTC),
+        trust_lane="experimental",
+        passport_digest=digest,
+        passport_document=passport,
+    )
+    detail = setup_detail(
+        [
+            PublicVersionRow(
+                metadata=meta,
+                passport=passport,
+                passport_digest=digest,
+                published_at=meta.published_at,  # type: ignore[arg-type]
+                trust_lane="experimental",
+                author_verified=False,
+                component_verified=False,
+                lifecycle="active",
+                stable_id=meta.stable_id,
+                version=str(meta.version),
+                object_kind="setup",
+            )
+        ]
+    )
+    assert detail.ported_from is not None
+    assert detail.ported_from.stable_id.endswith("YC1")
+    assert detail.related_setup_ids == ["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"]
+
+
 def test_verify_passport_integrity_rejects_digest_mismatch() -> None:
     row = _row_from_seed()
     bad = PublicVersionRow(
@@ -549,3 +601,114 @@ def test_a_card_does_not_carry_the_per_member_checks_only_a_detail_reads() -> No
     assert [item.stable_id for item in project_component_checks(row)] == [
         "component_01J0000000000000000000000A"
     ]
+
+
+def test_component_detail_projects_a_not_verified_exact_matrix() -> None:
+    row = _row_from_seed()
+    detail = component_detail([row])
+    assert detail.target_matrix.exact
+    assert all(item.assessment_state == "not_verified" for item in detail.target_matrix.exact)
+    assert detail.summary.latest_assurance.assessed_targets == len(detail.target_matrix.exact)
+    assert detail.summary.latest_assurance.verified_targets == 0
+    assert detail.summary.match_kind is None
+    assert detail.summary.latest_projection_kind is not None
+
+
+def test_setup_detail_keeps_provenance_separate_from_family() -> None:
+    kind, source, _published, digest = next(c for c in seed_corpus() if c[0] == "setup")
+    passport = {
+        **source,
+        "ported_from": {
+            "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3YC1",
+            "version": "1.0",
+            "passport_digest": _PLACEHOLDER_DIGEST,
+        },
+        "related_setup_ids": ["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"],
+    }
+    json_passport = cast(dict[str, JsonValue], passport)
+    passport["revision_id"] = derive_revision_id(json_passport)
+    digest = digest_canonical(PASSPORT_DIGEST_DOMAIN, json_passport)
+    meta = CatalogMetadata(
+        id=4,
+        owner_account_id=str(passport["owner_id"]),
+        object_kind=kind,
+        stable_id=str(passport["stable_id"]),
+        version=str(passport["version"]),
+        current_revision_id=str(passport["revision_id"]),
+        visibility="public",
+        lifecycle_state="active",
+        published_at=datetime(2026, 8, 5, tzinfo=UTC),
+        trust_lane="experimental",
+        passport_digest=digest,
+        passport_document=passport,
+    )
+    detail = setup_detail(
+        [
+            PublicVersionRow(
+                metadata=meta,
+                passport=passport,
+                passport_digest=digest,
+                published_at=meta.published_at,  # type: ignore[arg-type]
+                trust_lane="experimental",
+                author_verified=False,
+                component_verified=False,
+                lifecycle="active",
+                stable_id=meta.stable_id,
+                version=str(meta.version),
+                object_kind="setup",
+            )
+        ]
+    )
+    assert detail.family is None
+    assert detail.ported_from is not None
+    assert detail.related_setup_ids == ["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"]
+
+
+def test_component_summary_match_kind_is_opt_in_and_does_not_use_claims() -> None:
+    row = _row_from_seed()
+    exact = component_summary(row)
+    claimed = component_summary(row, match_kind="claimed_portable")
+    assert exact.match_kind is None
+    assert claimed.match_kind == "claimed_portable"
+    assert claimed.latest_assurance.verified_targets == 0
+    assert set(claimed.latest_harness_ids) <= set(named_harness_ids(row.passport))
+
+
+def test_setup_summary_family_fields_are_optional() -> None:
+    kind, passport, _published, digest = next(c for c in seed_corpus() if c[0] == "setup")
+    meta = CatalogMetadata(
+        id=5,
+        owner_account_id=str(passport["owner_id"]),
+        object_kind=kind,
+        stable_id=str(passport["stable_id"]),
+        version=str(passport["version"]),
+        current_revision_id=str(passport["revision_id"]),
+        visibility="public",
+        lifecycle_state="active",
+        published_at=datetime(2026, 8, 5, tzinfo=UTC),
+        trust_lane="experimental",
+        passport_digest=digest,
+        passport_document=passport,
+    )
+    row = PublicVersionRow(
+        metadata=meta,
+        passport=passport,
+        passport_digest=digest,
+        published_at=meta.published_at,  # type: ignore[arg-type]
+        trust_lane="experimental",
+        author_verified=False,
+        component_verified=False,
+        lifecycle="active",
+        stable_id=meta.stable_id,
+        version=str(meta.version),
+        object_kind="setup",
+    )
+    card = setup_summary(
+        row,
+        family_id="family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        family_member_count=2,
+        family_match_kind="family",
+    )
+    assert card.family_id == "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+    assert card.family_member_count == 2
+    assert card.family_match_kind == "family"

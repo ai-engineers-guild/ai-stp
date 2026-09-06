@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from typing import Literal
+from typing import Literal, cast
 
 import httpx
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_contracts.assurance import CompatibilityFacets
 from ai_stp_contracts.catalog import (
     CatalogPageInfo,
     CatalogReactionList,
@@ -21,6 +22,7 @@ from ai_stp_contracts.catalog import (
     ComponentListResponse,
     ComponentMediaItem,
     ComponentSearchRequest,
+    ComponentSummary,
     ComponentVersionResponse,
     CountryDetail,
     CountryListResponse,
@@ -34,11 +36,17 @@ from ai_stp_contracts.catalog import (
     SetupDetail,
     SetupListResponse,
     SetupSearchRequest,
+    SetupSummary,
     SetupVersionResponse,
 )
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.safety_checks import SafetyChecksSummary
 from ai_stp_contracts.tag_vocabulary import TagVocabularyResponse, tag_vocabulary_response
+from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_platform.catalog_assessments import (
+    load_effective_assessments,
+    load_effective_assessments_for_versions,
+)
 from ai_stp_platform.catalog_cursor import (
     CursorError,
     CursorKey,
@@ -46,8 +54,10 @@ from ai_stp_platform.catalog_cursor import (
     encode_cursor,
     filter_signature,
 )
+from ai_stp_platform.catalog_families import family_for_setup, project_family
 from ai_stp_platform.catalog_projection import (
     component_detail,
+    component_passport,
     component_summary,
     component_version_response,
     project_trust,
@@ -55,7 +65,7 @@ from ai_stp_platform.catalog_projection import (
     setup_summary,
     setup_version_response,
 )
-from ai_stp_platform.catalog_query_language import QuerySyntaxError, parse_query
+from ai_stp_platform.catalog_query_language import QuerySyntaxError, named_harness_ids, parse_query
 from ai_stp_platform.catalog_read import (
     CatalogIntegrityError,
     PublicVersionRow,
@@ -68,6 +78,7 @@ from ai_stp_platform.catalog_search import (
     search_catalog,
     upsert_catalog_search_projection,
 )
+from ai_stp_platform.catalog_targets import claimed_harness_ids, setup_composition
 from ai_stp_platform.catalog_usage import CatalogUsagePolicy, load_usage_metrics
 from ai_stp_platform.external_catalog import COUNTRY_CODES
 from ai_stp_platform.github_metadata import (
@@ -88,6 +99,7 @@ from ai_stp_platform.models import (
 _log = get_logger("catalog")
 
 ObjectKind = Literal["component", "setup"]
+type FamilyCardFields = dict[str, tuple[str | None, int | None, str | None]]
 
 
 async def set_reaction(
@@ -436,6 +448,11 @@ class SearchPage:
     now: datetime
     page_number: int | None = None
     total_items: int | None = None
+    exact_count: int = 0
+    claimed_portable_count: int = 0
+    family_fields: FamilyCardFields = field(
+        default_factory=dict[str, tuple[str | None, int | None, str | None]]
+    )
 
 
 async def apply_usage_metrics[T](
@@ -499,12 +516,27 @@ def _copy_with_usage[T](model: T, metrics: dict[str, CatalogUsageMetrics]) -> T:
     return model
 
 
+def _component_match_kind(
+    row: PublicVersionRow, *, compatibility: str | None, harness_ids: Sequence[str]
+) -> str | None:
+    if compatibility != "claimed_portable":
+        return None
+    exact = set(named_harness_ids(row.passport))
+    claimed = set(claimed_harness_ids(row.passport))
+    if harness_ids and any(item in claimed and item not in exact for item in harness_ids):
+        return "claimed_portable"
+    return "exact"
+
+
 async def search_components(
     session: AsyncSession,
     request: ComponentSearchRequest,
     *,
     cursor_secret: str,
 ) -> ComponentListResponse:
+    harness_ids = list(request.harness_ids)
+    if request.harness_id:
+        harness_ids = list(dict.fromkeys([request.harness_id, *harness_ids]))
     page = await _search(
         session,
         object_kind="component",
@@ -532,15 +564,43 @@ async def search_components(
         page_size=request.page_size,
         page_number=request.page,
         cursor_secret=cursor_secret,
+        compatibility=request.compatibility,
     )
+
+    listed = (*page.authoritative, *page.experimental)
+    version_keys = [(row.stable_id, row.version) for row in listed]
+    loaded = (
+        await load_effective_assessments_for_versions(session, version_keys)
+        if hasattr(session, "execute")
+        else {}
+    )
+
+    def project(row: PublicVersionRow, *, now: datetime) -> ComponentSummary:
+        assessments = {
+            (adaptation_id, harness_id, scope): item
+            for (stable_id, version, adaptation_id, harness_id, scope), item in loaded.items()
+            if stable_id == row.stable_id and version == row.version
+        }
+        return component_summary(
+            row,
+            now=now,
+            assessments=assessments,
+            match_kind=_component_match_kind(
+                row, compatibility=request.compatibility, harness_ids=harness_ids
+            ),
+        )
+
     return ComponentListResponse(
         items=_project_search_rows(
-            page.authoritative, component_summary, now=page.now, object_kind="component"
+            page.authoritative, project, now=page.now, object_kind="component"
         ),
         experimental=_project_search_rows(
-            page.experimental, component_summary, now=page.now, object_kind="component"
+            page.experimental, project, now=page.now, object_kind="component"
         ),
         page=_page_info(page),
+        compatibility_facets=CompatibilityFacets(
+            exact=page.exact_count, claimed_portable=page.claimed_portable_count
+        ),
     )
 
 
@@ -577,15 +637,103 @@ async def search_setups(
         page_size=request.page_size,
         page_number=request.page,
         cursor_secret=cursor_secret,
+        family_id=request.family_id,
+        family_alignment=request.family_alignment,
+        member_harness_id=request.member_harness_id,
     )
+    match_kind = (
+        "family"
+        if request.family_id
+        else "member_harness"
+        if request.member_harness_id
+        else "alignment"
+        if request.family_alignment
+        else None
+    )
+
+    def project(row: PublicVersionRow, *, now: datetime) -> SetupSummary:
+        fields = page.family_fields.get(row.stable_id, (None, None, None))
+        return setup_summary(
+            row,
+            now=now,
+            family_id=fields[0],
+            family_member_count=fields[1],
+            family_match_kind=match_kind if fields[0] else None,
+        )
+
     return SetupListResponse(
-        items=_project_search_rows(
-            page.authoritative, setup_summary, now=page.now, object_kind="setup"
-        ),
+        items=_project_search_rows(page.authoritative, project, now=page.now, object_kind="setup"),
         experimental=_project_search_rows(
-            page.experimental, setup_summary, now=page.now, object_kind="setup"
+            page.experimental, project, now=page.now, object_kind="setup"
         ),
         page=_page_info(page),
+    )
+
+
+async def _setup_composition(
+    session: AsyncSession, versions: list[PublicVersionRow]
+) -> list[object]:
+    latest = max(versions, key=lambda row: tuple(int(part) for part in row.version.split(".")))
+    setup = SetupVersionPassport.model_validate(latest.passport)
+    # Embedded setup members are validated from the setup passport itself. They
+    # intentionally have no public catalog row and therefore do not belong in
+    # the catalog-only composition projection.
+    embedded_keys: set[tuple[str, str]] = set()
+    raw_facts = latest.passport.get("facts")
+    if isinstance(raw_facts, dict):
+        facts = cast(dict[str, object], raw_facts)
+        raw_presentations = facts.get("component_presentations")
+        if isinstance(raw_presentations, dict):
+            presentations = cast(dict[str, object], raw_presentations)
+            raw_value = presentations.get("value")
+            if isinstance(raw_value, list):
+                for raw in cast(list[object], raw_value):
+                    if not isinstance(raw, dict):
+                        continue
+                    raw_item = cast(dict[str, object], raw)
+                    if raw_item.get("embedded") is not True:
+                        continue
+                    stable_id = raw_item.get("stable_id")
+                    version = raw_item.get("version")
+                    if isinstance(stable_id, str) and isinstance(version, str):
+                        embedded_keys.add((stable_id, version))
+    catalog_setup = setup.model_copy(
+        update={
+            "components": [
+                ref for ref in setup.components if (ref.stable_id, ref.version) not in embedded_keys
+            ]
+        }
+    )
+    components: dict[str, ComponentVersionPassport] = {}
+    assessments: dict[tuple[str, str, str], object] = {}
+    for ref in catalog_setup.components:
+        row = await get_public_version(
+            session, object_kind="component", stable_id=ref.stable_id, version=ref.version
+        )
+        if row is None:
+            raise CatalogIntegrityError(
+                f"setup composition missing exact component {ref.stable_id}@{ref.version}"
+            )
+        components[ref.stable_id] = component_passport(row.passport)
+        loaded = await load_effective_assessments(
+            session, component_stable_id=ref.stable_id, version=ref.version
+        )
+        assessments.update(loaded)
+    return setup_composition(catalog_setup, components, assessments=assessments)  # type: ignore[arg-type]
+
+
+async def read_public_family(session: AsyncSession, family_id: str):
+    from ai_stp_platform.models import SetupFamily
+
+    family = await session.get(SetupFamily, family_id)
+    if family is None:
+        raise CatalogNotFound
+    return await project_family(
+        session,
+        family,
+        current_stable_id=None,
+        exact_version=None,
+        authorized_owner_id=None,
     )
 
 
@@ -612,7 +760,11 @@ async def read_component(session: AsyncSession, stable_id: str) -> ComponentDeta
     if not versions:
         raise CatalogNotFound
     try:
-        detail = component_detail(versions, now=datetime.now(UTC))
+        latest = max(versions, key=lambda row: tuple(int(part) for part in row.version.split(".")))
+        assessments = await load_effective_assessments(
+            session, component_stable_id=stable_id, version=latest.version
+        )
+        detail = component_detail(versions, now=datetime.now(UTC), assessments=assessments)
         media_rows = (
             await session.execute(
                 select(ComponentMedia)
@@ -659,7 +811,25 @@ async def read_setup(session: AsyncSession, stable_id: str) -> SetupDetail:
         country_codes, services = await read_object_relations(
             session, object_kind="setup", stable_id=stable_id
         )
-        return detail.model_copy(update={"country_codes": country_codes, "services": services})
+        family = await family_for_setup(session, stable_id)
+        family_view = None
+        if family is not None:
+            family_view = await project_family(
+                session,
+                family,
+                current_stable_id=stable_id,
+                exact_version=None,
+                authorized_owner_id=None,
+            )
+        composition = await _setup_composition(session, versions)
+        return detail.model_copy(
+            update={
+                "country_codes": country_codes,
+                "services": services,
+                "family": family_view,
+                "composition": composition,
+            }
+        )
     except CatalogIntegrityError as exc:
         raise _corrupt(exc, object_kind="setup", stable_id=stable_id) from exc
 
@@ -673,7 +843,10 @@ async def read_component_version(
     if row is None:
         raise CatalogNotFound
     try:
-        return component_version_response(row, now=datetime.now(UTC))
+        assessments = await load_effective_assessments(
+            session, component_stable_id=stable_id, version=version
+        )
+        return component_version_response(row, now=datetime.now(UTC), assessments=assessments)
     except CatalogIntegrityError as exc:
         raise _corrupt(exc, object_kind="component", stable_id=stable_id, version=version) from exc
 
@@ -687,7 +860,19 @@ async def read_setup_version(
     if row is None:
         raise CatalogNotFound
     try:
-        return setup_version_response(row, now=datetime.now(UTC))
+        response = setup_version_response(row, now=datetime.now(UTC))
+        family = await family_for_setup(session, stable_id)
+        family_view = None
+        if family is not None:
+            family_view = await project_family(
+                session,
+                family,
+                current_stable_id=stable_id,
+                exact_version=version,
+                authorized_owner_id=None,
+            )
+        composition = await _setup_composition(session, [row])
+        return response.model_copy(update={"family": family_view, "composition": composition})
     except CatalogIntegrityError as exc:
         raise _corrupt(exc, object_kind="setup", stable_id=stable_id, version=version) from exc
 
@@ -774,6 +959,10 @@ async def _search(
     cursor_secret: str,
     updated_from: date | None = None,
     updated_to: date | None = None,
+    compatibility: str | None = None,
+    family_id: str | None = None,
+    family_alignment: str | None = None,
+    member_harness_id: str | None = None,
 ) -> SearchPage:
     if cursor is not None and page_number is not None:
         raise CatalogBadRequest("cursor and page modes are mutually exclusive")
@@ -803,6 +992,10 @@ async def _search(
         include_deprecated=include_deprecated,
         updated_from=updated_from.isoformat() if updated_from is not None else None,
         updated_to=updated_to.isoformat() if updated_to is not None else None,
+        compatibility=compatibility,
+        family_id=family_id,
+        family_alignment=family_alignment,
+        member_harness_id=member_harness_id,
     )
     after: CursorKey | None = None
     if cursor is not None:
@@ -845,6 +1038,10 @@ async def _search(
         query_expression=query_expression,
         updated_from=updated_from,
         updated_to=updated_to,
+        compatibility=compatibility,
+        family_id=family_id,
+        family_alignment=family_alignment,
+        member_harness_id=member_harness_id,
     )
     next_cursor = None
     if hits.next_cursor_key is not None:
@@ -865,6 +1062,9 @@ async def _search(
         now=datetime.now(UTC),
         page_number=page_number,
         total_items=hits.total_items,
+        exact_count=hits.exact_count,
+        claimed_portable_count=hits.claimed_portable_count,
+        family_fields=hits.family_fields,
     )
 
 

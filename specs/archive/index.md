@@ -9,6 +9,7 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| - | empty | - |
+| [SPEC-059-adaptation-assessments-and-harness-matrix.md](SPEC-059-adaptation-assessments-and-harness-matrix.md) | Superseded historical SPEC-059: Platform-owned adaptation assessments and the public per-harness support matrix. | 2026-09-06 |
+| [SPEC-063-catalog-provenance-and-obt-support-projection.md](SPEC-063-catalog-provenance-and-obt-support-projection.md) | Superseded SPEC-063: Direct catalog provenance links and OBT support projection. | 2026-09-06 |
 
 <!-- END CONTENTS -->

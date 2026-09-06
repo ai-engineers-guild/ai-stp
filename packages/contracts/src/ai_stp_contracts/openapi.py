@@ -26,6 +26,10 @@ from typing import Final, cast
 from pydantic import BaseModel
 from pydantic.json_schema import models_json_schema
 
+from ai_stp_contracts.assurance import (
+    TargetAssessmentIngestRequest,
+    TargetAssessmentIngestResponse,
+)
 from ai_stp_contracts.auth import (
     AuthLogoutResponse,
     AuthMeResponse,
@@ -74,6 +78,12 @@ from ai_stp_contracts.content import (
     StaffContentTranslations,
     StaffContentUnpublishRequest,
     StaffContentUnpublishResponse,
+)
+from ai_stp_contracts.families import (
+    SetupFamilyCreateRequest,
+    SetupFamilyOwner,
+    SetupFamilyPatchRequest,
+    SetupFamilyPublic,
 )
 from ai_stp_contracts.fixtures import load_cases
 from ai_stp_contracts.grants import (
@@ -264,6 +274,11 @@ _VERSION = PathParam(
     description="Exact two-integer version. A range or `latest` is not a reference.",
     pattern=VERSION_PATTERN,
 )
+_FAMILY_ID = PathParam(
+    name="family_id",
+    description="Typed stable identifier of a setup family.",
+    pattern=stable_id_pattern("family"),
+)
 _DEVICE_ID = PathParam(
     name="device_id",
     description="Typed stable identifier of the device.",
@@ -372,6 +387,61 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         response=SetupVersionResponse,
         path_params=(_OBJECT_ID, _VERSION),
         errors=("AI_STP_NOT_FOUND", "AI_STP_CATALOG_INTEGRITY"),
+    ),
+    Operation(
+        method="get",
+        path="/catalog/setup-families/{family_id}",
+        operation_id="readSetupFamily",
+        summary="Read one public setup family. Never installable content.",
+        response=SetupFamilyPublic,
+        path_params=(_FAMILY_ID,),
+        errors=("AI_STP_NOT_FOUND",),
+    ),
+    Operation(
+        method="get",
+        path="/owner/setup-families/{family_id}",
+        operation_id="readOwnerSetupFamily",
+        summary="Read one owned setup family with revision and diagnostics.",
+        response=SetupFamilyOwner,
+        path_params=(_FAMILY_ID,),
+        errors=("AI_STP_NOT_FOUND",),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/owner/setup-families",
+        operation_id="createOwnerSetupFamily",
+        summary="Create one owned setup family with an exact baseline and members.",
+        response=SetupFamilyOwner,
+        body=SetupFamilyCreateRequest,
+        status=201,
+        authenticated=True,
+        idempotent_mutation=True,
+        errors=("AI_STP_CONFLICT", "AI_STP_NOT_FOUND"),
+    ),
+    Operation(
+        method="patch",
+        path="/owner/setup-families/{family_id}",
+        operation_id="patchOwnerSetupFamily",
+        summary="Mutate family name, baseline, or membership at an expected revision.",
+        response=SetupFamilyOwner,
+        path_params=(_FAMILY_ID,),
+        body=SetupFamilyPatchRequest,
+        authenticated=True,
+        idempotent_mutation=True,
+        errors=("AI_STP_CONFLICT", "AI_STP_NOT_FOUND"),
+    ),
+    Operation(
+        method="post",
+        path="/staff/target-assessments",
+        operation_id="ingestTargetAssessment",
+        summary="Accept one target-bound assessment. Authors cannot issue verification.",
+        response=TargetAssessmentIngestResponse,
+        body=TargetAssessmentIngestRequest,
+        status=201,
+        authenticated=True,
+        idempotent_mutation=True,
+        errors=("AI_STP_CONFLICT", "AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"),
     ),
     Operation(
         method="get",

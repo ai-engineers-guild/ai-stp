@@ -288,6 +288,8 @@ def _setup_body(
     owner_id: str = SEED_OWNER_ACCOUNT_ID,
     published_at: str = FIXTURE_PUBLISHED_AT,
     supported_tasks: list[str] | None = None,
+    ported_from: dict[str, Any] | None = None,
+    related_setup_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     return {
         "schema_version": 1,
@@ -321,8 +323,8 @@ def _setup_body(
         "posture": posture,
         "supported_tasks": supported_tasks or ["development"],
         "components": components,
-        "ported_from": None,
-        "related_setup_ids": [],
+        "ported_from": ported_from,
+        "related_setup_ids": list(related_setup_ids or []),
         "execution_profile": "full-auto",
         "supported_harness_versions": ["2.1.0"],
         "supported_os": ["linux"],

@@ -6,6 +6,7 @@ import base64
 import binascii
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -57,6 +58,7 @@ from ai_stp_platform.safety.artifact_fetch import (
 from ai_stp_platform.safety.orchestrator import run_safety_suite
 from ai_stp_platform.safety.percent import build_checks_summary
 from ai_stp_platform.safety.policy import POLICY_VERSION, SafetyProfile
+from ai_stp_platform.safety.types import SafetyScanResult
 from ai_stp_platform.storage.object_store import ImmutableObjectStore, ObjectIntegrityError
 from ai_stp_sources.definition import definition_has_embedded
 
@@ -569,9 +571,31 @@ async def execute_validate(
                     )
                 ]
                 bindings.extend(extra)
+            if plan.object_kind == "component":
+                projection_scans: dict[str, SafetyScanResult] = {plan.content_digest: safety}
+                extra_scans = await _scan_unique_projection_artifacts(
+                    session,
+                    passport_dict=passport_dict,
+                    content_digest=plan.content_digest,
+                    policy_version=policy_ver,
+                    safety_profile=safety_profile,
+                    source=source,
+                    resolved_bytes=resolved_bytes,
+                    already=projection_scans,
+                )
+                projection_scans.update(extra_scans)
+                await _record_component_projection_assessments(
+                    session,
+                    plan=plan,
+                    passport_digest=bound_passport_digest,
+                    policy_version=policy_ver,
+                    scans_by_digest=projection_scans,
+                )
     finally:
         await close_env_object_store(owned_store)
 
+    if plan.object_kind == "setup":
+        bindings.extend(await _exact_adaptation_bindings(session, dict(plan.passport or {})))
     state, component_verified = snapshot_outcome(bindings)
     summary = build_checks_summary(bindings)
     if setup_pin_context is not None:
@@ -850,6 +874,7 @@ async def execute_publish(
             subject_id=plan.stable_id,
             source_digest=canonical_digest,
         )
+        await _apply_setup_family_publication_effect(session, existing)
         return existing
 
     snapshot = await session.scalar(
@@ -948,6 +973,7 @@ async def execute_publish(
     await upsert_catalog_search_projection(
         session, object_kind=plan.object_kind, stable_id=plan.stable_id
     )
+    await _apply_setup_family_publication_effect(session, metadata)
     if plan.object_kind == "component":
         official_attempts = (
             await session.scalars(
@@ -989,6 +1015,181 @@ async def execute_publish(
         source_digest=canonical_digest,
     )
     return metadata
+
+
+def _unique_projection_artifacts(passport: ComponentVersionPassport) -> dict[str, int]:
+    """Digest → size for every exact projection artifact in the version."""
+    unique: dict[str, int] = {}
+    for adaptation in passport.adaptations:
+        for scope in adaptation.scope_adaptations:
+            unique[scope.projection_artifact.digest] = scope.projection_artifact.size_bytes
+    return unique
+
+
+async def _scan_unique_projection_artifacts(
+    session: AsyncSession,
+    *,
+    passport_dict: dict[str, Any],
+    content_digest: str,
+    policy_version: str,
+    safety_profile: str | SafetyProfile,
+    source: ArtifactBytesSource | None,
+    resolved_bytes: bytes | None,
+    already: dict[str, SafetyScanResult],
+) -> dict[str, SafetyScanResult]:
+    """Scan projection bytes that differ from the common-source suite."""
+    try:
+        passport = ComponentVersionPassport.model_validate(passport_dict)
+    except (TypeError, ValidationError):
+        return {}
+    extra: dict[str, SafetyScanResult] = {}
+    for digest, size in _unique_projection_artifacts(passport).items():
+        if digest in already or digest in extra:
+            continue
+        payload: bytes | None = None
+        if resolved_bytes is not None and digest == content_digest:
+            payload = resolved_bytes
+        elif source is not None:
+            try:
+                payload = await source.fetch_bytes(digest, size)
+            except ObjectIntegrityError:
+                payload = None
+        if payload is None:
+            continue
+        safety = await run_safety_suite(
+            passport=passport_dict,
+            content_digest=digest,
+            policy_version=policy_version,
+            object_kind="component",
+            profile=safety_profile,
+            artifact_bytes=payload,
+            use_cache=True,
+        )
+        await _persist_safety_run(session, safety)
+        extra[digest] = safety
+    return extra
+
+
+async def _record_component_projection_assessments(
+    session: AsyncSession,
+    *,
+    plan: PublicationPlan,
+    passport_digest: str,
+    policy_version: str,
+    scans_by_digest: Mapping[str, SafetyScanResult],
+) -> None:
+    if not passport_digest:
+        return
+    try:
+        passport = ComponentVersionPassport.model_validate(dict(plan.passport or {}))
+    except (TypeError, ValidationError):
+        return
+    from ai_stp_platform.catalog_assessments import record_component_scan_assessments
+
+    await record_component_scan_assessments(
+        session,
+        plan_id=plan.id,
+        passport=passport,
+        passport_digest=passport_digest,
+        policy_version=policy_version,
+        scans_by_digest=scans_by_digest,
+        expires_at=datetime.now(UTC) + EVIDENCE_TTL,
+    )
+
+
+async def _exact_adaptation_bindings(
+    session: AsyncSession, passport: dict[str, object]
+) -> list[dict[str, Any]]:
+    """Fail public setup publication when a pin has no exact harness adaptation."""
+    if passport.get("kind") != "setup":
+        return []
+    try:
+        setup = SetupVersionPassport.model_validate(passport)
+    except ValidationError:
+        return []
+    if not setup.components:
+        return []
+    requested = [(ref.stable_id, ref.version) for ref in setup.components]
+    rows = list(
+        (
+            await session.execute(
+                select(CatalogMetadata).where(
+                    CatalogMetadata.object_kind == "component",
+                    or_(
+                        *(
+                            (CatalogMetadata.stable_id == stable_id)
+                            & (CatalogMetadata.version == version)
+                            for stable_id, version in requested
+                        )
+                    ),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    components: dict[str, ComponentVersionPassport] = {}
+    for row in rows:
+        if row.passport_document is None:
+            continue
+        try:
+            components[row.stable_id] = ComponentVersionPassport.model_validate(
+                row.passport_document
+            )
+        except ValidationError:
+            continue
+    from ai_stp_platform.catalog_targets import missing_exact_adaptation_pins
+
+    missing = missing_exact_adaptation_pins(setup, components)
+    if missing:
+        return [
+            {
+                "check_id": "setup_exact_adaptation",
+                "family": "compatibility",
+                "result": "failed",
+                "source": "platform_structure_verified",
+                "mandatory": True,
+                "reason": "adaptation_unavailable",
+                "detail": {"stable_id": stable_id, "harness_id": setup.harness_id},
+            }
+            for stable_id in missing
+        ]
+    return [
+        {
+            "check_id": "setup_exact_adaptation",
+            "family": "compatibility",
+            "result": "passed",
+            "source": "platform_structure_verified",
+            "mandatory": True,
+        }
+    ]
+
+
+async def _apply_setup_family_publication_effect(
+    session: AsyncSession, published: CatalogMetadata
+) -> None:
+    if getattr(published, "object_kind", None) != "setup":
+        return
+    from ai_stp_platform.catalog_families import apply_recast_family_effect
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+    from ai_stp_platform.models import SetupFamilyMember as FamilyMemberRow
+
+    family = await apply_recast_family_effect(session, published)
+    if family is None:
+        return
+    members = list(
+        (
+            await session.execute(
+                select(FamilyMemberRow).where(FamilyMemberRow.family_id == family.family_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for member in members:
+        await upsert_catalog_search_projection(
+            session, object_kind="setup", stable_id=member.stable_id
+        )
 
 
 async def execute_reevaluate_eligibility(

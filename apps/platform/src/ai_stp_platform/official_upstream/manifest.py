@@ -153,6 +153,44 @@ async def reconcile_official_manifest(
                 before.update_policy = "disabled"
                 report.preserved.append(entry.source_id)
                 continue
+        # A reviewed upstream may arrive after an independently published
+        # catalog line with the same normalized name. Do not steal that stable
+        # identity or make seed fail for the whole catalog; keep the Official
+        # source out of the active inventory until the manifest chooses a new
+        # canonical name or an explicit ownership transfer is performed.
+        conflicting_identity = await session.scalar(
+            select(CatalogIdentity).where(
+                CatalogIdentity.canonical_name_normalized == entry.canonical_name,
+                CatalogIdentity.stable_id != entry.stable_id,
+            )
+        )
+        if conflicting_identity is not None:
+            report.preserved.append(entry.source_id)
+            if (
+                await session.scalar(
+                    select(AuditEvent.id).where(
+                        AuditEvent.action == "official_upstream.manifest_conflict",
+                        AuditEvent.target_table == "official_manifest",
+                        AuditEvent.target_id == entry.source_id,
+                    )
+                )
+                is None
+            ):
+                session.add(
+                    AuditEvent(
+                        actor_account_id=actor_account_id,
+                        action="official_upstream.manifest_conflict",
+                        target_table="official_manifest",
+                        target_id=entry.source_id,
+                        reason="canonical name is already owned by another catalog line",
+                        payload={
+                            "manifest_stable_id": entry.stable_id,
+                            "existing_stable_id": conflicting_identity.stable_id,
+                            "canonical_name": entry.canonical_name,
+                        },
+                    )
+                )
+            continue
         snapshot = None if before is None else _material_fields(before)
         source = await upsert_source(session, _entry_command(entry))
         source.stable_id = entry.stable_id

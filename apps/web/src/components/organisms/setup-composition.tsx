@@ -3,7 +3,9 @@ import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { StatePanel } from "@/components/molecules/state-panel";
 import type {
   ComponentType,
+  SelectedAdaptation,
   SetupComponentChecks,
+  SetupCompositionMember,
   SetupVersionPassport,
 } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
@@ -24,12 +26,14 @@ export function SetupComposition({
   passport,
   components,
   catalogComponents,
+  composition = [],
   setupAuthor,
   t,
 }: {
   passport: SetupVersionPassport;
   components: SetupComponentChecks[];
   catalogComponents: CatalogComponentPresentation[];
+  composition?: SetupCompositionMember[];
   setupAuthor: { accountId: string; displayName?: string | null | undefined };
   t: (key: string) => string;
 }) {
@@ -38,6 +42,9 @@ export function SetupComposition({
   );
   const catalogByRef = new Map(
     catalogComponents.map((item) => [`${item.stableId}@${item.version}`, item]),
+  );
+  const compositionByRef = new Map(
+    composition.map((item) => [`${item.stable_id}@${item.version}`, item]),
   );
   const presentations = componentPresentations(passport);
 
@@ -52,6 +59,7 @@ export function SetupComposition({
               const key = `${ref.stable_id}@${ref.version}`;
               const component = checksByRef.get(key);
               const catalog = catalogByRef.get(key);
+              const selected = compositionByRef.get(key)?.selected_adaptation;
               const presentation = presentations.get(key);
               const embedded = component?.embedded ?? presentation?.embedded ?? false;
               const componentType =
@@ -120,6 +128,7 @@ export function SetupComposition({
                           </a>
                         ) : null}
                       </div>
+                      {selected ? <SelectedAdaptationFacts selected={selected} t={t} /> : null}
                     </div>
                   </div>
                 </li>
@@ -131,6 +140,46 @@ export function SetupComposition({
         <StatePanel kind="empty" title={t("noneListed")} />
       )}
     </DetailAccordion>
+  );
+}
+
+function SelectedAdaptationFacts({
+  selected,
+  t,
+}: {
+  selected: SelectedAdaptation;
+  t: (key: string) => string;
+}) {
+  return (
+    <details className="border-border mt-3 rounded-md border p-3">
+      <summary className="cursor-pointer text-sm font-medium underline underline-offset-4">
+        {t("selectedAdaptation")}: {selected.harness_id} · {selected.projection_kind}
+      </summary>
+      <dl className="text-muted-foreground mt-3 grid gap-2 text-xs sm:grid-cols-2">
+        <div>
+          <dt className="text-foreground font-medium">{t("safetyCheck")}</dt>
+          <dd>{selected.assessment_state}</dd>
+        </div>
+        <div>
+          <dt className="text-foreground font-medium">{t("technicalSupport")}</dt>
+          <dd>{selected.technical_support}</dd>
+        </div>
+        <div>
+          <dt className="text-foreground font-medium">{t("implementationMode")}</dt>
+          <dd>{selected.implementation_mode}</dd>
+        </div>
+        <div>
+          <dt className="text-foreground font-medium">{t("recommendation")}</dt>
+          <dd>{selected.recommendation}</dd>
+        </div>
+        {selected.limitations.length ? (
+          <div className="sm:col-span-2">
+            <dt className="text-foreground font-medium">{t("semanticLosses")}</dt>
+            <dd>{selected.limitations.join(", ")}</dd>
+          </div>
+        ) : null}
+      </dl>
+    </details>
   );
 }
 

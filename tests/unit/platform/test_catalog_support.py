@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from ai_stp_contracts.catalog import CatalogSupport, ComponentSearchRequest
+from ai_stp_foundation.harnesses import HARNESS_IDS, SUPPORT_TIERS
 from ai_stp_platform.catalog_read import CatalogIntegrityError
 from ai_stp_platform.catalog_support import (
     project_support,
@@ -44,6 +45,11 @@ def test_support_is_beta_until_mandatory_evidence_passes() -> None:
     assert missing.tier == "beta"
     assert missing.state == "missing"
     assert verified.state == "verified"
+
+
+def test_every_supported_harness_is_on_the_obt_beta_line() -> None:
+    assert set(SUPPORT_TIERS) == set(HARNESS_IDS)
+    assert all(support_tier_for_harness(harness_id) == "beta" for harness_id in HARNESS_IDS)
 
 
 @pytest.mark.parametrize(

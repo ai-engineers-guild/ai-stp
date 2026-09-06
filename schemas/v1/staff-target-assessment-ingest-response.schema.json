@@ -1,0 +1,57 @@
+{
+  "$defs": {
+    "AssessmentState": {
+      "enum": [
+        "not_verified",
+        "verified",
+        "failed",
+        "stale"
+      ],
+      "type": "string"
+    },
+    "Digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:staff-target-assessment-ingest-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Latest-effective projection after an accepted or idempotent ingest.",
+  "properties": {
+    "created": {
+      "title": "Created",
+      "type": "boolean"
+    },
+    "effective_state": {
+      "$ref": "#/$defs/AssessmentState"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stored_state": {
+      "enum": [
+        "not_verified",
+        "verified",
+        "failed"
+      ],
+      "title": "Stored State",
+      "type": "string"
+    },
+    "target_key_digest": {
+      "$ref": "#/$defs/Digest"
+    }
+  },
+  "required": [
+    "created",
+    "effective_state",
+    "schema_version",
+    "stored_state",
+    "target_key_digest"
+  ],
+  "title": "TargetAssessmentIngestResponse",
+  "type": "object"
+}

@@ -12,6 +12,7 @@ from ai_stp_api.deps import get_db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.owner import service
+from ai_stp_contracts.families import SetupFamilyCreateRequest, SetupFamilyPatchRequest
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.owner import (
     OwnerExternalProductAttachRequest,
@@ -233,3 +234,31 @@ async def set_owner_version_lifecycle(
         body=body,
     )
     return _resource(result)
+
+
+@router.get("/owner/setup-families/{family_id}", response_model=None)
+async def read_owner_setup_family(
+    family_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    return _resource(await service.read_owner_family(db, ctx=ctx, family_id=family_id))
+
+
+@router.post("/owner/setup-families", response_model=None)
+async def create_owner_setup_family(
+    body: SetupFamilyCreateRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    return _resource(await service.create_owner_family(db, ctx=ctx, body=body), status_code=201)
+
+
+@router.patch("/owner/setup-families/{family_id}", response_model=None)
+async def patch_owner_setup_family(
+    family_id: str,
+    body: SetupFamilyPatchRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    return _resource(await service.patch_owner_family(db, ctx=ctx, family_id=family_id, body=body))

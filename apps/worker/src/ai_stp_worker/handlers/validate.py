@@ -13,8 +13,10 @@ async def handle_validate(session: AsyncSession, payload: Mapping[str, object]) 
     """Run validate including safety suite with object-store artifact fetch.
 
     ``execute_validate`` resolves artifact bytes from ``AI_STP_STORAGE_*`` when
-    configured (content-addressed key + digest re-verify). Optional payload keys
-    for tests: none on the wire; inject store via execute_validate in unit tests.
+    configured (content-addressed key + digest re-verify). For a component it
+    also scans each unique harness projection and writes a target assessment
+    per adaptation/scope. Optional payload keys for tests: none on the wire;
+    inject store via execute_validate in unit tests.
     """
     plan_id = payload.get("plan_id")
     if not isinstance(plan_id, str) or not plan_id:

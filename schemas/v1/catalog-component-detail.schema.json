@@ -1,5 +1,42 @@
 {
   "$defs": {
+    "AdaptationId": {
+      "pattern": "^adaptation_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "AssessmentState": {
+      "enum": [
+        "not_verified",
+        "verified",
+        "failed",
+        "stale"
+      ],
+      "type": "string"
+    },
+    "AssuranceCounts": {
+      "additionalProperties": true,
+      "description": "Bounded card summary. Claims never increase the verified numerator.",
+      "properties": {
+        "assessed_targets": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Assessed Targets",
+          "type": "integer"
+        },
+        "verified_targets": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Verified Targets",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "assessed_targets",
+        "verified_targets"
+      ],
+      "title": "AssuranceCounts",
+      "type": "object"
+    },
     "CatalogSupport": {
       "additionalProperties": true,
       "description": "Provider support status, separate from object trust and verification.",
@@ -205,6 +242,116 @@
       ],
       "type": "string"
     },
+    "ClaimId": {
+      "pattern": "^claim_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "ClaimTargetRow": {
+      "additionalProperties": true,
+      "description": "One claim-only target. Never exact availability or install eligibility.",
+      "properties": {
+        "claim_id": {
+          "$ref": "#/$defs/ClaimId"
+        },
+        "component_types": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Component Types",
+          "type": "array"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/PublicEvidenceRef"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "issued_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "kind": {
+          "const": "claimed_portable",
+          "default": "claimed_portable",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "risk_cli_command": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Risk Cli Command"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scopes": {
+          "items": {
+            "$ref": "#/$defs/TargetScope"
+          },
+          "title": "Scopes",
+          "type": "array"
+        },
+        "transform_family": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Transform Family",
+          "type": "string"
+        },
+        "transform_version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "claim_id",
+        "component_types",
+        "evidence_refs",
+        "expires_at",
+        "harness_id",
+        "issued_at",
+        "kind",
+        "limitations",
+        "risk_cli_command",
+        "schema_version",
+        "scopes",
+        "transform_family",
+        "transform_version"
+      ],
+      "title": "ClaimTargetRow",
+      "type": "object"
+    },
     "ComponentId": {
       "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
@@ -334,6 +481,9 @@
           "default": null,
           "title": "Github Stars"
         },
+        "latest_assurance": {
+          "$ref": "#/$defs/AssuranceCounts"
+        },
         "latest_checks": {
           "anyOf": [
             {
@@ -358,7 +508,7 @@
           "items": {
             "$ref": "#/$defs/HarnessId"
           },
-          "maxItems": 6,
+          "maxItems": 7,
           "title": "Latest Harness Ids",
           "type": "array"
         },
@@ -370,7 +520,15 @@
           "type": "string"
         },
         "latest_projection_kind": {
-          "$ref": "#/$defs/ProjectionKind"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProjectionKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "latest_published_at": {
           "$ref": "#/$defs/Timestamp"
@@ -403,6 +561,17 @@
           "minimum": 0,
           "title": "Likes Count",
           "type": "integer"
+        },
+        "match_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatchKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "owner_account_id": {
           "default": "",
@@ -451,6 +620,7 @@
         "display_locale",
         "display_name",
         "github_stars",
+        "latest_assurance",
         "latest_checks",
         "latest_component_type",
         "latest_description",
@@ -467,6 +637,7 @@
         "latest_trust",
         "latest_version",
         "likes_count",
+        "match_kind",
         "owner_account_id",
         "owner_handle",
         "publisher_id",
@@ -500,6 +671,131 @@
       "maxLength": 240,
       "minLength": 1,
       "type": "string"
+    },
+    "ExactTargetRow": {
+      "additionalProperties": true,
+      "description": "One exact adaptation/scope row in the public harness matrix.",
+      "properties": {
+        "adaptation_id": {
+          "$ref": "#/$defs/AdaptationId"
+        },
+        "assessment_state": {
+          "$ref": "#/$defs/AssessmentState",
+          "default": "not_verified"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/PublicEvidenceRef"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "implementation_mode": {
+          "$ref": "#/$defs/ImplementationMode"
+        },
+        "kind": {
+          "const": "exact",
+          "default": "exact",
+          "title": "Kind",
+          "type": "string"
+        },
+        "permissions_summary": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Permissions Summary",
+          "type": "array"
+        },
+        "projection_kind": {
+          "$ref": "#/$defs/ProjectionKind"
+        },
+        "recommendation": {
+          "$ref": "#/$defs/RecommendationState",
+          "default": "ineffective"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "$ref": "#/$defs/TargetScope"
+        },
+        "semantic_losses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Semantic Losses",
+          "type": "array"
+        },
+        "supported_arch": {
+          "items": {
+            "$ref": "#/$defs/SupportedArch"
+          },
+          "title": "Supported Arch",
+          "type": "array"
+        },
+        "supported_os": {
+          "items": {
+            "$ref": "#/$defs/SupportedOs"
+          },
+          "title": "Supported Os",
+          "type": "array"
+        },
+        "technical_support": {
+          "$ref": "#/$defs/TechnicalSupport"
+        },
+        "technical_support_reason": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technical Support Reason"
+        }
+      },
+      "required": [
+        "adaptation_id",
+        "assessment_state",
+        "evidence_refs",
+        "freshness",
+        "harness_id",
+        "implementation_mode",
+        "kind",
+        "permissions_summary",
+        "projection_kind",
+        "recommendation",
+        "schema_version",
+        "scope",
+        "semantic_losses",
+        "supported_arch",
+        "supported_os",
+        "technical_support",
+        "technical_support_reason"
+      ],
+      "title": "ExactTargetRow",
+      "type": "object"
     },
     "ExternalProductSummary": {
       "additionalProperties": true,
@@ -600,6 +896,20 @@
       ],
       "type": "string"
     },
+    "ImplementationMode": {
+      "enum": [
+        "derived",
+        "native"
+      ],
+      "type": "string"
+    },
+    "MatchKind": {
+      "enum": [
+        "exact",
+        "claimed_portable"
+      ],
+      "type": "string"
+    },
     "PassportDigest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
@@ -613,11 +923,71 @@
       ],
       "type": "string"
     },
+    "PublicEvidenceRef": {
+      "additionalProperties": true,
+      "description": "Allowlisted public evidence pointer. No storage keys or raw reports.",
+      "properties": {
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "enum": [
+            "policy",
+            "profile",
+            "digest",
+            "url"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "value": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expires_at",
+        "kind",
+        "observed_at",
+        "value"
+      ],
+      "title": "PublicEvidenceRef",
+      "type": "object"
+    },
     "PublicLifecycle": {
       "enum": [
         "active",
         "deprecated",
         "blocked"
+      ],
+      "type": "string"
+    },
+    "RecommendationState": {
+      "enum": [
+        "recommended",
+        "not_recommended",
+        "ineffective"
       ],
       "type": "string"
     },
@@ -883,6 +1253,21 @@
       ],
       "type": "string"
     },
+    "SupportedArch": {
+      "enum": [
+        "x86_64",
+        "arm64"
+      ],
+      "type": "string"
+    },
+    "SupportedOs": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "type": "string"
+    },
     "TagId": {
       "maxLength": 32,
       "minLength": 2,
@@ -896,6 +1281,55 @@
       "maxItems": 10,
       "minItems": 1,
       "type": "array"
+    },
+    "TargetMatrix": {
+      "additionalProperties": true,
+      "description": "Detail/version projection of exact rows and claim-only rows.",
+      "properties": {
+        "claimed_portable": {
+          "items": {
+            "$ref": "#/$defs/ClaimTargetRow"
+          },
+          "title": "Claimed Portable",
+          "type": "array"
+        },
+        "exact": {
+          "items": {
+            "$ref": "#/$defs/ExactTargetRow"
+          },
+          "title": "Exact",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "claimed_portable",
+        "exact",
+        "schema_version"
+      ],
+      "title": "TargetMatrix",
+      "type": "object"
+    },
+    "TargetScope": {
+      "enum": [
+        "global",
+        "user_root",
+        "project"
+      ],
+      "type": "string"
+    },
+    "TechnicalSupport": {
+      "enum": [
+        "unsupported",
+        "experimental",
+        "supported"
+      ],
+      "type": "string"
     },
     "Timestamp": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
@@ -990,6 +1424,9 @@
     "summary": {
       "$ref": "#/$defs/ComponentSummary"
     },
+    "target_matrix": {
+      "$ref": "#/$defs/TargetMatrix"
+    },
     "versions": {
       "items": {
         "$ref": "#/$defs/VersionListEntry"
@@ -1005,6 +1442,7 @@
     "schema_version",
     "services",
     "summary",
+    "target_matrix",
     "versions"
   ],
   "title": "ComponentDetail",

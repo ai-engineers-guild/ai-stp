@@ -27,6 +27,9 @@ import type {
   CreateGrantInvitationData,
   CreateGrantInvitationErrors,
   CreateGrantInvitationResponses,
+  CreateOwnerSetupFamilyData,
+  CreateOwnerSetupFamilyErrors,
+  CreateOwnerSetupFamilyResponses,
   CreateOwnershipClaimData,
   CreateOwnershipClaimErrors,
   CreateOwnershipClaimResponses,
@@ -54,6 +57,9 @@ import type {
   ImportContentRepositoryData,
   ImportContentRepositoryErrors,
   ImportContentRepositoryResponses,
+  IngestTargetAssessmentData,
+  IngestTargetAssessmentErrors,
+  IngestTargetAssessmentResponses,
   LikeCatalogObjectData,
   LikeCatalogObjectErrors,
   LikeCatalogObjectResponses,
@@ -87,6 +93,9 @@ import type {
   LogoutSessionData,
   LogoutSessionErrors,
   LogoutSessionResponses,
+  PatchOwnerSetupFamilyData,
+  PatchOwnerSetupFamilyErrors,
+  PatchOwnerSetupFamilyResponses,
   PullSyncEventsData,
   PullSyncEventsErrors,
   PullSyncEventsResponses,
@@ -132,6 +141,9 @@ import type {
   ReadOwnerObjectData,
   ReadOwnerObjectErrors,
   ReadOwnerObjectResponses,
+  ReadOwnerSetupFamilyData,
+  ReadOwnerSetupFamilyErrors,
+  ReadOwnerSetupFamilyResponses,
   ReadOwnershipClaimData,
   ReadOwnershipClaimErrors,
   ReadOwnershipClaimResponses,
@@ -170,6 +182,9 @@ import type {
   ReadSetupContextBudgetResponses,
   ReadSetupData,
   ReadSetupErrors,
+  ReadSetupFamilyData,
+  ReadSetupFamilyErrors,
+  ReadSetupFamilyResponses,
   ReadSetupGithubMetadataData,
   ReadSetupGithubMetadataErrors,
   ReadSetupGithubMetadataResponses,
@@ -555,6 +570,17 @@ export const readComponentGithubMetadata = <ThrowOnError extends boolean = false
     ReadComponentGithubMetadataErrors,
     ThrowOnError
   >({ url: "/v1/catalog/components/{stable_id}/versions/{version}/github-metadata", ...options });
+
+/**
+ * Read one public setup family. Never installable content.
+ */
+export const readSetupFamily = <ThrowOnError extends boolean = false>(
+  options: Options<ReadSetupFamilyData, ThrowOnError>,
+): RequestResult<ReadSetupFamilyResponses, ReadSetupFamilyErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadSetupFamilyResponses, ReadSetupFamilyErrors, ThrowOnError>({
+    url: "/v1/catalog/setup-families/{family_id}",
+    ...options,
+  });
 
 /**
  * Search public setups. Anonymous.
@@ -982,6 +1008,62 @@ export const startOwnerPublication = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Create one owned setup family with an exact baseline and members.
+ */
+export const createOwnerSetupFamily = <ThrowOnError extends boolean = false>(
+  options: Options<CreateOwnerSetupFamilyData, ThrowOnError>,
+): RequestResult<CreateOwnerSetupFamilyResponses, CreateOwnerSetupFamilyErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateOwnerSetupFamilyResponses,
+    CreateOwnerSetupFamilyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/setup-families",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read one owned setup family with revision and diagnostics.
+ */
+export const readOwnerSetupFamily = <ThrowOnError extends boolean = false>(
+  options: Options<ReadOwnerSetupFamilyData, ThrowOnError>,
+): RequestResult<ReadOwnerSetupFamilyResponses, ReadOwnerSetupFamilyErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadOwnerSetupFamilyResponses,
+    ReadOwnerSetupFamilyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/setup-families/{family_id}",
+    ...options,
+  });
+
+/**
+ * Mutate family name, baseline, or membership at an expected revision.
+ */
+export const patchOwnerSetupFamily = <ThrowOnError extends boolean = false>(
+  options: Options<PatchOwnerSetupFamilyData, ThrowOnError>,
+): RequestResult<PatchOwnerSetupFamilyResponses, PatchOwnerSetupFamilyErrors, ThrowOnError> =>
+  (options.client ?? client).patch<
+    PatchOwnerSetupFamilyResponses,
+    PatchOwnerSetupFamilyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/setup-families/{family_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * Compatibility entry that records an ownership-transfer request without granting it.
  */
 export const createOwnershipClaim = <ThrowOnError extends boolean = false>(
@@ -1352,6 +1434,26 @@ export const staffTriageReport = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/staff/reports/{case_id}/triage",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Accept one target-bound assessment. Authors cannot issue verification.
+ */
+export const ingestTargetAssessment = <ThrowOnError extends boolean = false>(
+  options: Options<IngestTargetAssessmentData, ThrowOnError>,
+): RequestResult<IngestTargetAssessmentResponses, IngestTargetAssessmentErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    IngestTargetAssessmentResponses,
+    IngestTargetAssessmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/staff/target-assessments",
     ...options,
     headers: {
       "Content-Type": "application/json",

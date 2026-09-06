@@ -52,6 +52,11 @@
               ],
               "latest_component_type": "skill",
               "latest_projection_kind": "native_files",
+              "latest_assurance": {
+                "verified_targets": 0,
+                "assessed_targets": 1
+              },
+              "match_kind": null,
               "latest_tags": [
                 "python",
                 "tests"
@@ -118,6 +123,10 @@
           "schema_version": 1,
           "next_cursor": null,
           "page_size": 20
+        },
+        "compatibility_facets": {
+          "exact": 0,
+          "claimed_portable": 0
         }
       }
     },
@@ -143,6 +152,10 @@
           "schema_version": 1,
           "next_cursor": null,
           "page_size": 20
+        },
+        "compatibility_facets": {
+          "exact": 0,
+          "claimed_portable": 0
         }
       }
     },
@@ -217,6 +230,11 @@
           ],
           "latest_component_type": "skill",
           "latest_projection_kind": "native_files",
+          "latest_assurance": {
+            "verified_targets": 0,
+            "assessed_targets": 1
+          },
+          "match_kind": null,
           "latest_tags": [
             "python",
             "tests"
@@ -279,7 +297,32 @@
         ],
         "media": [],
         "country_codes": [],
-        "services": []
+        "services": [],
+        "target_matrix": {
+          "schema_version": 1,
+          "exact": [
+            {
+              "schema_version": 1,
+              "kind": "exact",
+              "harness_id": "claude-code",
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "scope": "global",
+              "implementation_mode": "native",
+              "projection_kind": "native_files",
+              "technical_support": "experimental",
+              "technical_support_reason": "synthetic catalog seed",
+              "supported_os": [],
+              "supported_arch": [],
+              "semantic_losses": [],
+              "permissions_summary": [],
+              "assessment_state": "not_verified",
+              "freshness": null,
+              "recommendation": "ineffective",
+              "evidence_refs": []
+            }
+          ],
+          "claimed_portable": []
+        }
       }
     },
     {
@@ -546,7 +589,32 @@
           "evidence": []
         },
         "checks": null,
-        "usage_metrics": null
+        "usage_metrics": null,
+        "target_matrix": {
+          "schema_version": 1,
+          "exact": [
+            {
+              "schema_version": 1,
+              "kind": "exact",
+              "harness_id": "claude-code",
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "scope": "global",
+              "implementation_mode": "native",
+              "projection_kind": "native_files",
+              "technical_support": "experimental",
+              "technical_support_reason": "synthetic catalog seed",
+              "supported_os": [],
+              "supported_arch": [],
+              "semantic_losses": [],
+              "permissions_summary": [],
+              "assessment_state": "not_verified",
+              "freshness": null,
+              "recommendation": "ineffective",
+              "evidence_refs": []
+            }
+          ],
+          "claimed_portable": []
+        }
       }
     },
     {

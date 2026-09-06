@@ -27,6 +27,11 @@ export const SEED_A3_HOOK_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBD";
 export const SEED_A3_AGENT_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBE";
 export const SEED_A3_SETUP_ID = "setup_01JQZK7B8N4M6P2R9T5V0X3YC2";
 
+// Coverage fixtures for every supported OBT harness.
+export const SEED_COMPONENT_GROK_BUILD_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBG";
+export const SEED_COMPONENT_CURSOR_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBH";
+export const SEED_COMPONENT_ANTIGRAVITY_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBJ";
+
 // Backward-compatible aliases used by older tests.
 export const SEED_COMPONENT_CODEX_ID = SEED_A2_SKILL_CORE_ID;
 export const SEED_COMPONENT_PI_ID = SEED_A3_MCP_ID;

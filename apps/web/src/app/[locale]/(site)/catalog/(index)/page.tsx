@@ -201,6 +201,9 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
     unlike: t("unlike"),
     likeMenu: t("likeMenu"),
     unlikeMenu: t("unlikeMenu"),
+    assuranceCounts: t("assuranceCounts"),
+    claimedPortableMatch: t("claimedPortableMatch"),
+    familyMemberCount: t("familyMemberCount"),
   };
 
   let likedIds: string[] = [];
@@ -262,6 +265,8 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
             searchOptions: t("searchOptions"),
             authorFilter: t("authorFilter"),
             verifiedOnly: t("verifiedOnly"),
+            claimedPortableFilter: t("claimedPortableFilter"),
+            claimedPortableFilterHelp: t("claimedPortableFilterHelp"),
             serviceFilter: t("serviceFilter"),
             countryFilter: t("countryFilter"),
             unspecifiedOption: t("unspecifiedOption"),

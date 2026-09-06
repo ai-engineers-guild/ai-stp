@@ -52,6 +52,8 @@ const labels = {
   searchOptions: "Search options",
   authorFilter: "Author",
   verifiedOnly: "Only verified",
+  claimedPortableFilter: "Include claimed-portable targets",
+  claimedPortableFilterHelp: "Help for claimed-portable targets",
   serviceFilter: "External service domain",
   countryFilter: "Country code",
   sortBy: "Sort results",
@@ -130,6 +132,9 @@ describe("CatalogFilters", () => {
     expect(screen.queryByRole("combobox", { name: "Support tier" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Support state" })).toBeNull();
     expect(screen.getByRole("button", { name: "Apply filters" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Include claimed-portable targets" }),
+    ).toBeInTheDocument();
   });
 
   it("hides component type facet for setups resource", async () => {
@@ -149,6 +154,7 @@ describe("CatalogFilters", () => {
     await user.click(screen.getByRole("button", { name: /^Filters/ }));
     expect(screen.queryByLabelText("Component type")).toBeNull();
     expect(screen.getByRole("combobox", { name: "Catalog resource" })).toHaveValue("setups");
+    expect(screen.queryByRole("group", { name: "Include claimed-portable targets" })).toBeNull();
   });
 
   it("shows applied filter count and dismissible chips with reset in the popup", async () => {
@@ -478,6 +484,7 @@ describe("CatalogFilters", () => {
         "Help for component types",
         "Help for authors",
         "Help for verified only",
+        "Help for claimed-portable targets",
         "Help for countries",
         "Help for services",
         "Help for update dates",
@@ -494,6 +501,8 @@ describe("CatalogFilters", () => {
     delete (fallbackLabels as Partial<typeof labels>).typeFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).authorFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).verifiedOnlyHelp;
+    delete (fallbackLabels as Partial<typeof labels>).claimedPortableFilter;
+    delete (fallbackLabels as Partial<typeof labels>).claimedPortableFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).countryFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).serviceFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).updatedRangeHelp;

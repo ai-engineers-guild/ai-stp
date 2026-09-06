@@ -23,7 +23,15 @@ export const MAX_TAG_LENGTH = 32;
 export type TagFacet = (typeof TAG_FACETS)[number];
 
 /** Harness ids offered in catalog filter dropdowns (ADR-0003). */
-export const HARNESS_FACETS = ["claude-code", "codex", "pi", "opencode", "grok-build"] as const;
+export const HARNESS_FACETS = [
+  "claude-code",
+  "codex",
+  "pi",
+  "opencode",
+  "grok-build",
+  "cursor",
+  "antigravity",
+] as const;
 
 export type HarnessFacet = (typeof HARNESS_FACETS)[number];
 

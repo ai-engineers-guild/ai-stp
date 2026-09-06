@@ -6,19 +6,21 @@ import { Badge } from "@/components/atoms/badge";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { ExactSourceLink } from "@/components/molecules/exact-source-link";
+import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
+import { SetupProvenance } from "@/components/molecules/setup-provenance";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { SupportSummary, supportLabels } from "@/components/molecules/support-summary";
 import {
+  readSetup,
   readSetupContextBudget,
   readSetupGithubMetadata,
   readSetupVersion,
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsSetupId } from "@/lib/brands";
-import { namedPassportHarnesses } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { versionPageMetadata } from "@/lib/seo/metadata";
@@ -59,6 +61,9 @@ export default async function SetupVersionPage({ params }: PageProps) {
   const tCli = await getTranslations("cli");
 
   const passport = response.passport;
+  const catalogDetail = await readSetup(setupId).catch(() => null);
+  const publisherId = catalogDetail?.summary.publisher_id || passport.owner_id;
+  const harnesses = [passport.harness_id];
   const metadata = await readSetupGithubMetadata(setupId, asVersionId(version)).catch(() => ({
     schema_version: 1 as const,
     stars: null,
@@ -89,7 +94,9 @@ export default async function SetupVersionPage({ params }: PageProps) {
       <p className="text-muted-foreground break-words">{passport.description}</p>
       <div className="flex flex-wrap gap-2">
         <Badge>{response.trust.trust_lane}</Badge>
-        <Badge variant="outline">{namedPassportHarnesses(passport).join(", ")}</Badge>
+        <Badge variant="outline">
+          {t("harness")}: {harnesses[0] ?? t("noneListed")}
+        </Badge>
       </div>
       <dl className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -102,7 +109,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("harness")}</dt>
-          <dd>{namedPassportHarnesses(passport).join(", ")}</dd>
+          <dd>{harnesses.join(", ")}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-sm">{t("license")}</dt>
@@ -111,8 +118,8 @@ export default async function SetupVersionPage({ params }: PageProps) {
         <div className="sm:col-span-2">
           <dt className="text-muted-foreground text-sm">{t("publisher")}</dt>
           <dd>
-            <Link href={`/publishers/${passport.owner_id}`} className="font-mono text-sm underline">
-              {passport.owner_id}
+            <Link href={`/publishers/${publisherId}`} className="font-mono text-sm underline">
+              {publisherId}
             </Link>
           </dd>
         </div>
@@ -131,6 +138,20 @@ export default async function SetupVersionPage({ params }: PageProps) {
           <dd className="font-mono text-xs break-all">{response.passport_digest}</dd>
         </div>
       </dl>
+      <SetupProvenance
+        portedFrom={passport.ported_from ?? null}
+        relatedSetupIds={passport.related_setup_ids}
+        labels={{
+          heading: t("setupProvenance"),
+          portedFrom: t("portedFrom"),
+          relatedSetups: t("relatedSetups"),
+        }}
+      />
+      <SetupFamilyBlock
+        family={response.family}
+        currentStableId={stableId}
+        labels={setupFamilyLabels(t)}
+      />
       <ExactSourceLink source={passport.source} label={t("viewSource")} />
       <CatalogUsageStats
         metrics={response.usage_metrics}
@@ -151,7 +172,8 @@ export default async function SetupVersionPage({ params }: PageProps) {
         passport={passport}
         components={response.component_checks}
         catalogComponents={[]}
-        setupAuthor={{ accountId: passport.owner_id }}
+        composition={response.composition}
+        setupAuthor={{ accountId: publisherId }}
         t={t}
       />
       <CliCopyBlock

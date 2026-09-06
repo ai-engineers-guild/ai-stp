@@ -11,16 +11,28 @@ outside these hashed bytes per SPEC-005: it never changes the snapshot.
 """
 
 import re
-from typing import Annotated, Final, Literal, cast, get_args
+from typing import Annotated, Any, Final, Literal, cast, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
+from pydantic.json_schema import JsonSchemaValue
 
 from ai_stp_foundation.adaptations import ADAPTATION_ID_PATTERN, adaptation_id
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
-from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
+from ai_stp_foundation.invariants import CLAIM_ID_PATTERN, portability_claim_id
 from ai_stp_foundation.refs import ComponentRef, SetupRef, Version
+from ai_stp_foundation.timestamps import TIMESTAMP_PATTERN
+from ai_stp_foundation.versioning import VERSION_PATTERN
 from ai_stp_passports.envelope import PassportEnvelope
 from ai_stp_passports.markdown import validate_safe_markdown
 
@@ -329,6 +341,63 @@ class LicenseInfo(BaseModel):
     redistribution_allowed: bool
 
 
+class PortabilityClaim(BaseModel):
+    """Immutable author assertion that exact source can be transformed for named harnesses."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claim_id: Annotated[str, Field(pattern=CLAIM_ID_PATTERN)]
+    source_artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    target_harness_ids: Annotated[list[HarnessId], Field(min_length=1, max_length=7)]
+    transform_family: Annotated[str, Field(min_length=1, max_length=64, pattern=TAG_PATTERN)]
+    transform_version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    component_types: Annotated[list[ComponentType], Field(min_length=1, max_length=9)]
+    scopes: Annotated[list[TargetScope], Field(min_length=1, max_length=3)]
+    evidence_refs: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=512)]], Field(max_length=16)
+    ] = Field(default_factory=list)
+    limitations: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=512)]], Field(max_length=32)
+    ] = Field(default_factory=list)
+    issued_at: Annotated[str, Field(pattern=TIMESTAMP_PATTERN)]
+    expires_at: Annotated[str, Field(pattern=TIMESTAMP_PATTERN)] | None = None
+
+    @model_validator(mode="after")
+    def _bounded_explicit_targets(self) -> "PortabilityClaim":
+        reserved = {"all", "*", "any", "unknown", "future"}
+        lowered = [item.casefold() for item in self.target_harness_ids]
+        if any(item in reserved for item in lowered):
+            raise ValueError(
+                "portability claims cannot name wildcard, all, unknown, or future targets"
+            )
+        if len(self.target_harness_ids) != len(set(self.target_harness_ids)):
+            raise ValueError("portability claim targets must be unique")
+        unknown = [item for item in self.target_harness_ids if item not in HARNESS_IDS]
+        if unknown:
+            raise ValueError("portability claim targets must be canonical harness IDs")
+        if len(self.component_types) != len(set(self.component_types)):
+            raise ValueError("claimed component types must be unique")
+        if len(self.scopes) != len(set(self.scopes)):
+            raise ValueError("claimed scopes must be unique")
+        if len(self.evidence_refs) != len(set(self.evidence_refs)):
+            raise ValueError("claim evidence refs must be unique")
+        if self.expires_at is not None and self.expires_at <= self.issued_at:
+            raise ValueError("a portability claim cannot expire at or before publication")
+        payload = cast(dict[str, JsonValue], self.model_dump(mode="json"))
+        held = payload.pop("claim_id")
+        if held != portability_claim_id(payload):
+            raise ValueError("claim_id does not match the immutable claim body")
+        return self
+
+
+def seal_portability_claim(data: dict[str, JsonValue]) -> PortabilityClaim:
+    """Add the canonical claim ID and validate one portability claim."""
+    candidate = dict(data)
+    candidate.pop("claim_id", None)
+    candidate["claim_id"] = portability_claim_id(candidate)
+    return PortabilityClaim.model_validate(candidate)
+
+
 class ComponentAdaptation(BaseModel):
     """One immutable harness-native implementation of a logical component."""
 
@@ -428,14 +497,37 @@ class _VersionPassportBase(PassportEnvelope):
         return self
 
 
+def _open_wire_omitting(*omitted: str):
+    """Require every declared field except historically omitted empty dumps."""
+    skip = frozenset(omitted)
+
+    def hook(schema: JsonSchemaValue) -> None:
+        properties = schema.get("properties")
+        names: list[str] = []
+        if isinstance(properties, dict):
+            properties_map = cast(dict[str, object], properties)
+            names = [key for key in properties_map if key not in skip]
+        schema["required"] = sorted(names)
+        schema["additionalProperties"] = True
+
+    return hook
+
+
 class ComponentVersionPassport(_VersionPassportBase):
     """Immutable component version passport."""
+
+    model_config = ConfigDict(
+        extra="allow",
+        frozen=True,
+        json_schema_extra=_open_wire_omitting("portability_claims"),
+    )
 
     # Narrowing the envelope kind to one literal is safe on a frozen model.
     kind: Literal["component"] = "component"  # pyright: ignore[reportIncompatibleVariableOverride]
     component_type: ComponentType
     origin_harness_id: HarnessId | None = None
     adaptations: Annotated[list[ComponentAdaptation], Field(min_length=1, max_length=7)]
+    portability_claims: list[PortabilityClaim] = Field(default_factory=list[PortabilityClaim])
     provides_capabilities: list[CapabilityId] = Field(default_factory=list)
     requires_components: list[ComponentRef] = Field(default_factory=list[ComponentRef])
     requires_capabilities: list[CapabilityId] = Field(default_factory=list)
@@ -457,12 +549,41 @@ class ComponentVersionPassport(_VersionPassportBase):
         harnesses = [adaptation.harness_id for adaptation in self.adaptations]
         if len(harnesses) != len(set(harnesses)):
             raise ValueError("component adaptations must not repeat a harness")
+        if len(self.adaptations) > len(HARNESS_IDS):
+            raise ValueError(
+                "a component version cannot contain more adaptations than canonical harnesses"
+            )
         if any(
             adaptation.logical_component_type != self.component_type
             for adaptation in self.adaptations
         ):
             raise ValueError("every adaptation must preserve the logical component type")
+        exact = set(harnesses)
+        claimed: set[str] = set()
+        claim_ids: list[str] = []
+        for claim in self.portability_claims:
+            claim_ids.append(claim.claim_id)
+            if claim.source_artifact_digest != self.artifact.digest:
+                raise ValueError("a portability claim must bind the current version source digest")
+            if self.component_type not in claim.component_types:
+                raise ValueError("a portability claim must include the version component type")
+            overlap = exact.intersection(claim.target_harness_ids)
+            if overlap:
+                raise ValueError("a portability claim cannot name an exact adaptation harness")
+            duplicate = claimed.intersection(claim.target_harness_ids)
+            if duplicate:
+                raise ValueError("portability claims must not repeat a target harness")
+            claimed.update(claim.target_harness_ids)
+        if len(claim_ids) != len(set(claim_ids)):
+            raise ValueError("portability claims must not repeat a claim_id")
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_claims(self, serializer: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        payload = serializer(self)
+        if not payload.get("portability_claims"):
+            payload.pop("portability_claims", None)
+        return payload
 
 
 def adaptation_for(
@@ -491,6 +612,12 @@ def scope_for(
 
 class SetupVersionPassport(_VersionPassportBase):
     """Immutable setup version passport with one native harness and projections."""
+
+    model_config = ConfigDict(
+        extra="allow",
+        frozen=True,
+        json_schema_extra=_open_wire_omitting("harness_invariant_digest"),
+    )
 
     # Narrowing the envelope kind to one literal is safe on a frozen model.
     kind: Literal["setup"] = "setup"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -527,6 +654,7 @@ class SetupVersionPassport(_VersionPassportBase):
     related_setup_ids: list[Annotated[str, Field(pattern=stable_id_pattern("setup"))]] = Field(
         default_factory=list
     )
+    harness_invariant_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)] | None = None
     execution_profile: Literal["full-auto"] = "full-auto"
     supported_harness_versions: list[str] = Field(default_factory=list)
     #: Windows is here because refusing it in the type was the wrong place for
@@ -551,3 +679,10 @@ class SetupVersionPassport(_VersionPassportBase):
         if "variant_id" in extras:
             raise ValueError("a setup has no variant axis (ADR-0014)")
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_invariant(self, serializer: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        payload = serializer(self)
+        if payload.get("harness_invariant_digest") is None:
+            payload.pop("harness_invariant_digest", None)
+        return payload

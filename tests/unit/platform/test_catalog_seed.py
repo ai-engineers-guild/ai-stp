@@ -15,6 +15,7 @@ from ai_stp_platform.catalog_seed import (
     SEED_A1_INCIDENT_SETUP_ID,
     load_first_party_seed,
     seed_corpus,
+    upsert_seed_version,
 )
 from ai_stp_platform.models import Account, CatalogMetadata, ComponentMedia
 
@@ -74,6 +75,33 @@ def test_seed_passport_digest_matches_canonical_bytes() -> None:
     for _kind, passport, _published_at, digest in seed_corpus():
         expected = digest_canonical("ai-stp:passport:v1", passport)
         assert digest == expected
+
+
+@pytest.mark.asyncio
+async def test_setup_seed_upsert_preserves_provenance() -> None:
+    source = {
+        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3YC1",
+        "version": "1.0",
+        "passport_digest": "sha256:" + "a" * 64,
+    }
+    passport = next(passport for kind, passport, *_ in seed_corpus() if kind == "setup").copy()
+    passport.update(
+        stable_id="setup_01JQZK7B8N4M6P2R9T5V0X3YZZ",
+        ported_from=source,
+        related_setup_ids=["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"],
+    )
+    row, created = await upsert_seed_version(
+        RecordingSession(),  # type: ignore[arg-type]
+        object_kind="setup",
+        passport=passport,
+        published_at_wire="2026-08-08T00:00:00.000Z",
+        passport_digest="sha256:" + "b" * 64,
+    )
+    assert created
+    stored = row.passport_document
+    assert stored is not None
+    assert stored["ported_from"] == source
+    assert stored["related_setup_ids"] == ["setup_01JQZK7B8N4M6P2R9T5V0X3YC2"]
 
 
 def test_every_seed_passport_id_derives_from_its_own_body() -> None:

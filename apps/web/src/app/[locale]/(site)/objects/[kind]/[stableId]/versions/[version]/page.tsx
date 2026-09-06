@@ -6,6 +6,7 @@ import { EvidenceList } from "@/components/organisms/evidence-list";
 import { StartPublicationForm } from "@/components/organisms/start-publication-form";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { ApiError } from "@/lib/api/errors";
+import type { OwnerVersionDetail } from "@/lib/api/generated/types.gen";
 import { readOwnerVersion } from "@/lib/api/owner";
 import { readCsrfToken } from "@/lib/auth/session";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
@@ -82,6 +83,8 @@ export default async function OwnerVersionPage({ params }: PageProps) {
 
       <p className="text-muted-foreground max-w-2xl text-sm">{t("eligibilityNote")}</p>
 
+      <OwnerCoverage detail={detail} t={t} />
+
       <EvidenceList
         items={detail.evidence}
         labels={{
@@ -126,5 +129,53 @@ export default async function OwnerVersionPage({ params }: PageProps) {
         {t("reportVersion")}
       </Link>
     </div>
+  );
+}
+
+function OwnerCoverage({ detail, t }: { detail: OwnerVersionDetail; t: (key: string) => string }) {
+  return (
+    <>
+      {detail.target_gaps.length ? (
+        <section className="border-border space-y-3 rounded-lg border p-4">
+          <h2 className="font-semibold">{t("targetGaps")}</h2>
+          <ul className="space-y-2">
+            {detail.target_gaps.map((gap) => (
+              <li key={`${gap.harness_id}:${gap.scope ?? gap.claim_id ?? gap.state}`}>
+                <p className="text-sm">
+                  {gap.harness_id}
+                  {gap.scope ? ` · ${gap.scope}` : ""} · {gap.state}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {t("nextAction")}: {gap.next_action}
+                  {gap.reason_code ? ` · ${gap.reason_code}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : detail.object_kind === "component" ? (
+        <p className="text-muted-foreground text-sm">{t("targetGapsEmpty")}</p>
+      ) : null}
+      {detail.family ? (
+        <section className="border-border space-y-2 rounded-lg border p-4">
+          <h2 className="font-semibold">{t("ownerFamily")}</h2>
+          <p className="text-sm">
+            {detail.family.name} · {t("ownerFamilyRevision")} {detail.family.revision}
+          </p>
+          {detail.family.diagnostics.length ? (
+            <ul className="text-muted-foreground list-inside list-disc text-sm">
+              {detail.family.diagnostics.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : null}
+          {detail.family.allowed_actions.length ? (
+            <p className="text-muted-foreground text-sm">
+              {t("ownerFamilyActions")}: {detail.family.allowed_actions.join(", ")}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+    </>
   );
 }

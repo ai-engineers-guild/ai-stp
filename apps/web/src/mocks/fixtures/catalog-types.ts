@@ -3,7 +3,7 @@ import type { SafetyChecksSummary } from "@/lib/api/generated/types.gen";
 
 export const missingSupport = {
   schema_version: 1 as const,
-  tier: "primary" as const,
+  tier: "beta" as const,
   state: "missing" as const,
   evidence: [],
 };
@@ -20,9 +20,8 @@ type SupportFixture = typeof missingSupport | typeof betaMissingSupport;
 function defaultSupportForHarness(
   harnessId: ComponentSummaryFixture["latest_harness_id"],
 ): SupportFixture {
-  return harnessId === "pi" || harnessId === "opencode" || harnessId === "grok-build"
-    ? betaMissingSupport
-    : missingSupport;
+  void harnessId;
+  return betaMissingSupport;
 }
 
 export type ComponentSummaryFixture = {
@@ -34,8 +33,9 @@ export type ComponentSummaryFixture = {
   latest_version: string;
   latest_name: string;
   latest_description: string;
-  latest_harness_id: "claude-code" | "codex" | "pi" | "opencode" | "grok-build";
-  latest_harness_ids: Array<"claude-code" | "codex" | "pi" | "opencode" | "grok-build">;
+  latest_harness_id:
+    "claude-code" | "codex" | "pi" | "opencode" | "grok-build" | "cursor" | "antigravity";
+  latest_harness_ids: Array<ComponentSummaryFixture["latest_harness_id"]>;
   latest_component_type:
     "instruction" | "skill" | "mcp" | "hook" | "command" | "agent" | "plugin" | "setting" | "cli";
   latest_projection_kind: "marketplace" | "plugin" | "native_files" | "package";
@@ -59,6 +59,8 @@ export type ComponentSummaryFixture = {
   latest_requirements_count: number;
   latest_requires_credentials: boolean;
   updated_at: string;
+  latest_assurance: { verified_targets: number; assessed_targets: number };
+  match_kind: "exact" | "claimed_portable" | null;
 };
 
 export type SetupSummaryFixture = {
@@ -70,8 +72,8 @@ export type SetupSummaryFixture = {
   latest_purpose: string;
   latest_target_role: string | null;
   latest_posture: string | null;
-  latest_harness_id: "claude-code" | "codex" | "pi" | "opencode" | "grok-build";
-  latest_harness_ids: Array<"claude-code" | "codex" | "pi" | "opencode" | "grok-build">;
+  latest_harness_id: ComponentSummaryFixture["latest_harness_id"];
+  latest_harness_ids: Array<ComponentSummaryFixture["latest_harness_id"]>;
   latest_tags: string[];
   latest_lifecycle: "active" | "deprecated" | "blocked";
   latest_trust: typeof experimentalTrust;
@@ -90,6 +92,9 @@ export type SetupSummaryFixture = {
   latest_requirements_count: number;
   latest_requires_credentials: boolean;
   updated_at: string;
+  family_id: string | null;
+  family_match_kind: "family" | "member_harness" | "alignment" | null;
+  family_member_count: number | null;
   composition: ReadonlyArray<{
     stable_id: string;
     version: string;
@@ -119,12 +124,16 @@ export function makeComponentSummary(
     | "display_name"
     | "owner_account_id"
     | "owner_handle"
+    | "latest_assurance"
+    | "match_kind"
   > & {
     latest_lifecycle?: ComponentSummaryFixture["latest_lifecycle"];
     latest_trust?: typeof experimentalTrust;
     latest_support?: SupportFixture;
     latest_checks?: SafetyChecksSummary | null;
     latest_harness_ids?: ComponentSummaryFixture["latest_harness_ids"];
+    latest_assurance?: ComponentSummaryFixture["latest_assurance"];
+    match_kind?: ComponentSummaryFixture["match_kind"];
   },
 ): ComponentSummaryFixture {
   return {
@@ -146,6 +155,8 @@ export function makeComponentSummary(
     display_name: partial.latest_name,
     owner_account_id: partial.owner_id,
     owner_handle: partial.owner_id,
+    latest_assurance: { verified_targets: 0, assessed_targets: 0 },
+    match_kind: null,
     ...partial,
   };
 }
@@ -166,12 +177,18 @@ export function makeSetupSummary(
     | "latest_requires_credentials"
     | "updated_at"
     | "latest_harness_ids"
+    | "family_id"
+    | "family_match_kind"
+    | "family_member_count"
   > & {
     latest_lifecycle?: SetupSummaryFixture["latest_lifecycle"];
     latest_trust?: typeof experimentalTrust;
     latest_support?: SupportFixture;
     latest_checks?: null;
     latest_harness_ids?: SetupSummaryFixture["latest_harness_ids"];
+    family_id?: SetupSummaryFixture["family_id"];
+    family_match_kind?: SetupSummaryFixture["family_match_kind"];
+    family_member_count?: SetupSummaryFixture["family_member_count"];
   },
 ): SetupSummaryFixture {
   return {
@@ -188,6 +205,9 @@ export function makeSetupSummary(
     latest_requires_credentials: false,
     updated_at: partial.latest_published_at,
     latest_harness_ids: [partial.latest_harness_id],
+    family_id: null,
+    family_match_kind: null,
+    family_member_count: null,
     ...partial,
   };
 }

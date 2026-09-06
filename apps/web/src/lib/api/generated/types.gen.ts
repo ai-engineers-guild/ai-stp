@@ -218,6 +218,64 @@ export type AccountSelectionImpactReport = {
   unavailable_reason?: string | null;
 };
 
+export type AdaptationId = string;
+
+export const AlignmentState = {
+  ALIGNED: "aligned",
+  DIVERGED: "diverged",
+  UNKNOWN: "unknown",
+  MISSING: "missing",
+} as const;
+
+export type AlignmentState = (typeof AlignmentState)[keyof typeof AlignmentState];
+
+export const ArtifactCheckResult = { PASSED: "passed", FAILED: "failed" } as const;
+
+export type ArtifactCheckResult = (typeof ArtifactCheckResult)[keyof typeof ArtifactCheckResult];
+
+/**
+ * ArtifactObservation
+ *
+ * Reusable exact-byte observation. Compatibility results stay independent.
+ */
+export type ArtifactObservation = {
+  expires_at?: Timestamp | null;
+  identity: ArtifactObservationIdentity;
+  observed_at: Timestamp;
+  result: ArtifactCheckResult;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ArtifactObservationIdentity
+ *
+ * Complete reuse key for one byte-oriented safety observation.
+ */
+export type ArtifactObservationIdentity = {
+  architecture?: SupportedArch | null;
+  artifact_digest: Digest;
+  /**
+   * Check Id
+   */
+  check_id: string;
+  operating_system?: SupportedOs | null;
+  /**
+   * Policy Version
+   */
+  policy_version: string;
+  /**
+   * Scanner Id
+   */
+  scanner_id: string;
+  /**
+   * Scanner Version
+   */
+  scanner_version: string;
+};
+
 /**
  * ArtifactRef
  *
@@ -232,6 +290,32 @@ export type ArtifactRef = {
    * Size Bytes
    */
   size_bytes: number;
+};
+
+export const AssessmentState = {
+  NOT_VERIFIED: "not_verified",
+  VERIFIED: "verified",
+  FAILED: "failed",
+  STALE: "stale",
+} as const;
+
+export type AssessmentState = (typeof AssessmentState)[keyof typeof AssessmentState];
+
+/**
+ * AssuranceCounts
+ *
+ * Bounded card summary. Claims never increase the verified numerator.
+ */
+export type AssuranceCounts = {
+  /**
+   * Assessed Targets
+   */
+  assessed_targets: number;
+  /**
+   * Verified Targets
+   */
+  verified_targets: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -587,6 +671,8 @@ export const ChecksStatus = {
 
 export type ChecksStatus = (typeof ChecksStatus)[keyof typeof ChecksStatus];
 
+export type ClaimId = string;
+
 export const ClaimState = {
   REQUESTED: "requested",
   APPROVED: "approved",
@@ -594,6 +680,52 @@ export const ClaimState = {
 } as const;
 
 export type ClaimState = (typeof ClaimState)[keyof typeof ClaimState];
+
+/**
+ * ClaimTargetRow
+ *
+ * One claim-only target. Never exact availability or install eligibility.
+ */
+export type ClaimTargetRow = {
+  claim_id: ClaimId;
+  /**
+   * Component Types
+   */
+  component_types: Array<string>;
+  /**
+   * Evidence Refs
+   */
+  evidence_refs: Array<PublicEvidenceRef>;
+  expires_at: Timestamp | null;
+  harness_id: HarnessId;
+  issued_at: Timestamp;
+  /**
+   * Kind
+   */
+  kind: "claimed_portable";
+  /**
+   * Limitations
+   */
+  limitations: Array<string>;
+  /**
+   * Risk Cli Command
+   */
+  risk_cli_command: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Scopes
+   */
+  scopes: Array<TargetScope>;
+  /**
+   * Transform Family
+   */
+  transform_family: string;
+  transform_version: AiStpContractsAssuranceVersion;
+  [key: string]: unknown;
+};
 
 /**
  * CliError
@@ -621,6 +753,25 @@ export type CliError = {
   retryable: boolean;
   [key: string]: unknown;
 };
+
+/**
+ * CompatibilityFacets
+ *
+ * Separate exact and claimed-portable counts for the current public query.
+ */
+export type CompatibilityFacets = {
+  /**
+   * Claimed Portable
+   */
+  claimed_portable: number;
+  /**
+   * Exact
+   */
+  exact: number;
+  [key: string]: unknown;
+};
+
+export type CompatibilityMode = "claimed_portable";
 
 /**
  * ComplaintCreateRequest
@@ -768,6 +919,7 @@ export type ComponentDetail = {
    */
   services: Array<ExternalProductSummary>;
   summary: ComponentSummary;
+  target_matrix: TargetMatrix;
   /**
    * Versions
    */
@@ -783,6 +935,7 @@ export type ComponentId = string;
  * One page of component search results, partitioned by trust lane.
  */
 export type ComponentListResponse = {
+  compatibility_facets: CompatibilityFacets;
   /**
    * Experimental
    */
@@ -879,6 +1032,7 @@ export type ComponentSearchRequest = {
    * Authors
    */
   authors?: Array<string>;
+  compatibility?: CompatibilityMode | null;
   component_type?: ComponentType | null;
   /**
    * Component Types
@@ -970,6 +1124,7 @@ export type ComponentSummary = {
    * Github Stars
    */
   github_stars: number | null;
+  latest_assurance: AssuranceCounts;
   latest_checks: SafetyChecksSummary | null;
   latest_component_type: ComponentType;
   latest_description: DescriptionExcerpt;
@@ -983,7 +1138,7 @@ export type ComponentSummary = {
    * Latest Name
    */
   latest_name: string;
-  latest_projection_kind: ProjectionKind;
+  latest_projection_kind: ProjectionKind | null;
   latest_published_at: Timestamp;
   /**
    * Latest Requirements Count
@@ -1001,6 +1156,7 @@ export type ComponentSummary = {
    * Likes Count
    */
   likes_count: number;
+  match_kind: MatchKind | null;
   /**
    * Owner Account Id
    */
@@ -1120,6 +1276,10 @@ export type ComponentVersionPassport = {
   parent_revision_ids: Array<RevisionId>;
   permissions: Permissions;
   /**
+   * Portability Claims
+   */
+  portability_claims?: Array<PortabilityClaim>;
+  /**
    * Provides Capabilities
    */
   provides_capabilities: Array<CapabilityId>;
@@ -1185,6 +1345,7 @@ export type ComponentVersionResponse = {
    */
   schema_version: 1;
   support: CatalogSupport;
+  target_matrix: TargetMatrix;
   trust: CatalogTrust;
   usage_metrics: CatalogUsageMetrics | null;
   [key: string]: unknown;
@@ -1839,6 +2000,8 @@ export type DeviceTokenResponse = {
   [key: string]: unknown;
 };
 
+export type Digest = string;
+
 export type DigestValue = string;
 
 /**
@@ -1983,6 +2146,56 @@ export type ExactCoordinate = {
 };
 
 /**
+ * ExactTargetRow
+ *
+ * One exact adaptation/scope row in the public harness matrix.
+ */
+export type ExactTargetRow = {
+  adaptation_id: AdaptationId;
+  assessment_state: AssessmentState;
+  /**
+   * Evidence Refs
+   */
+  evidence_refs: Array<PublicEvidenceRef>;
+  freshness: Timestamp | null;
+  harness_id: HarnessId;
+  implementation_mode: ImplementationMode;
+  /**
+   * Kind
+   */
+  kind: "exact";
+  /**
+   * Permissions Summary
+   */
+  permissions_summary: Array<string>;
+  projection_kind: ProjectionKind;
+  recommendation: RecommendationState;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  scope: TargetScope;
+  /**
+   * Semantic Losses
+   */
+  semantic_losses: Array<string>;
+  /**
+   * Supported Arch
+   */
+  supported_arch: Array<SupportedArch>;
+  /**
+   * Supported Os
+   */
+  supported_os: Array<SupportedOs>;
+  technical_support: TechnicalSupport;
+  /**
+   * Technical Support Reason
+   */
+  technical_support_reason: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * ExternalProductSummary
  *
  * Curated external service, keyed by its registrable domain.
@@ -2053,6 +2266,25 @@ export const FactOrigin = {
 } as const;
 
 export type FactOrigin = (typeof FactOrigin)[keyof typeof FactOrigin];
+
+export const FamilyCreatedFrom = {
+  RECAST: "recast",
+  OWNER: "owner",
+  STAFF_MIGRATION: "staff_migration",
+  MIGRATION: "migration",
+} as const;
+
+export type FamilyCreatedFrom = (typeof FamilyCreatedFrom)[keyof typeof FamilyCreatedFrom];
+
+export type FamilyId = string;
+
+export const FamilyMatchKind = {
+  FAMILY: "family",
+  MEMBER_HARNESS: "member_harness",
+  ALIGNMENT: "alignment",
+} as const;
+
+export type FamilyMatchKind = (typeof FamilyMatchKind)[keyof typeof FamilyMatchKind];
 
 export const FindingSeverity = {
   INFO: "info",
@@ -2417,6 +2649,10 @@ export type LivenessResponse = {
   [key: string]: unknown;
 };
 
+export const MatchKind = { EXACT: "exact", CLAIMED_PORTABLE: "claimed_portable" } as const;
+
+export type MatchKind = (typeof MatchKind)[keyof typeof MatchKind];
+
 /**
  * NonEmptyArtifactRef
  *
@@ -2677,6 +2913,32 @@ export type OwnerStartPublicationRequest = {
 };
 
 /**
+ * OwnerTargetGap
+ *
+ * Owner-safe coverage diagnostic. No foreign evidence or storage keys.
+ */
+export type OwnerTargetGap = {
+  claim_id: ClaimId | null;
+  expires_at: Timestamp | null;
+  harness_id: HarnessId;
+  /**
+   * Next Action
+   */
+  next_action: string;
+  /**
+   * Reason Code
+   */
+  reason_code: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  scope: TargetScope | null;
+  state: AssessmentState;
+  [key: string]: unknown;
+};
+
+/**
  * OwnerVersionDetail
  *
  * Exact owned version for publication entry and evidence display.
@@ -2703,6 +2965,7 @@ export type OwnerVersionDetail = {
    * Evidence
    */
   evidence: Array<OwnerEvidenceRow>;
+  family: SetupFamilyOwner | null;
   /**
    * Install Eligible
    */
@@ -2717,7 +2980,12 @@ export type OwnerVersionDetail = {
    * Open Publication Plan Id
    */
   open_publication_plan_id: string;
+  ported_from: SetupRef | null;
   published_at: Timestamp | null;
+  /**
+   * Related Setup Ids
+   */
+  related_setup_ids: Array<SetupId>;
   /**
    * Schema Version
    */
@@ -2726,6 +2994,10 @@ export type OwnerVersionDetail = {
    * Stable Id
    */
   stable_id: string;
+  /**
+   * Target Gaps
+   */
+  target_gaps: Array<OwnerTargetGap>;
   trust_lane: TrustLane | null;
   version: AiStpContractsOwnerVersion;
   /**
@@ -3024,6 +3296,58 @@ export type PlanState = (typeof PlanState)[keyof typeof PlanState];
 export type PolicyVersion = string;
 
 /**
+ * PortabilityClaim
+ *
+ * Immutable author assertion that exact source can be transformed for named harnesses.
+ */
+export type PortabilityClaim = {
+  /**
+   * Claim Id
+   */
+  claim_id: string;
+  /**
+   * Component Types
+   */
+  component_types: Array<ComponentType>;
+  /**
+   * Evidence Refs
+   */
+  evidence_refs?: Array<string>;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Issued At
+   */
+  issued_at: string;
+  /**
+   * Limitations
+   */
+  limitations?: Array<string>;
+  /**
+   * Scopes
+   */
+  scopes: Array<TargetScope>;
+  /**
+   * Source Artifact Digest
+   */
+  source_artifact_digest: string;
+  /**
+   * Target Harness Ids
+   */
+  target_harness_ids: Array<HarnessId>;
+  /**
+   * Transform Family
+   */
+  transform_family: string;
+  /**
+   * Transform Version
+   */
+  transform_version: string;
+};
+
+/**
  * ProjectedMember
  *
  * One canonical projected path and the provider semantics it requires.
@@ -3088,6 +3412,25 @@ export type ProviderSurfaceRef = {
    * Profile Id
    */
   profile_id: string;
+};
+
+/**
+ * PublicEvidenceRef
+ *
+ * Allowlisted public evidence pointer. No storage keys or raw reports.
+ */
+export type PublicEvidenceRef = {
+  expires_at: Timestamp | null;
+  /**
+   * Kind
+   */
+  kind: "policy" | "profile" | "digest" | "url";
+  observed_at: Timestamp | null;
+  /**
+   * Value
+   */
+  value: string;
+  [key: string]: unknown;
 };
 
 export type PublicKey = string;
@@ -3228,6 +3571,14 @@ export type ReadinessResponse = {
   status: "ready" | "not_ready";
   [key: string]: unknown;
 };
+
+export const RecommendationState = {
+  RECOMMENDED: "recommended",
+  NOT_RECOMMENDED: "not_recommended",
+  INEFFECTIVE: "ineffective",
+} as const;
+
+export type RecommendationState = (typeof RecommendationState)[keyof typeof RecommendationState];
 
 export type RelativeProjectionPath = string;
 
@@ -3555,6 +3906,37 @@ export type ScopeAdaptation = unknown & {
    * Technical Support Reason
    */
   technical_support_reason?: string | null;
+};
+
+/**
+ * SelectedAdaptation
+ *
+ * The one adaptation selected for the viewed setup harness.
+ */
+export type SelectedAdaptation = {
+  /**
+   * Adaptation Id
+   */
+  adaptation_id: string;
+  assessment_state: AssessmentState;
+  harness_id: HarnessId;
+  implementation_mode: ImplementationMode;
+  /**
+   * Limitations
+   */
+  limitations: Array<string>;
+  projection_kind: ProjectionKind;
+  recommendation: RecommendationState;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Scopes
+   */
+  scopes: Array<string>;
+  technical_support: TechnicalSupport;
+  [key: string]: unknown;
 };
 
 /**
@@ -4051,6 +4433,23 @@ export type SetupComponentChecks = {
 };
 
 /**
+ * SetupCompositionMember
+ *
+ * Exact component pin plus the selected adaptation for this setup harness.
+ */
+export type SetupCompositionMember = {
+  passport_digest: Digest;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  selected_adaptation: SelectedAdaptation;
+  stable_id: ComponentId;
+  version: AiStpContractsFamiliesVersion;
+  [key: string]: unknown;
+};
+
+/**
  * SetupContextBudget
  *
  * Absolute context estimate of one visible exact setup (SPEC-049).
@@ -4116,9 +4515,19 @@ export type SetupDetail = {
    */
   component_checks: Array<SetupComponentChecks>;
   /**
+   * Composition
+   */
+  composition: Array<SetupCompositionMember>;
+  /**
    * Country Codes
    */
   country_codes: Array<CountryCode>;
+  family: SetupFamilyPublic | null;
+  ported_from: SetupRef | null;
+  /**
+   * Related Setup Ids
+   */
+  related_setup_ids: Array<SetupId>;
   /**
    * Schema Version
    */
@@ -4132,6 +4541,152 @@ export type SetupDetail = {
    * Versions
    */
   versions: Array<VersionListEntry>;
+  [key: string]: unknown;
+};
+
+/**
+ * SetupFamilyCreateRequest
+ *
+ * Idempotent authorized family creation with an exact baseline and members.
+ */
+export type SetupFamilyCreateRequest = {
+  baseline: SetupRef;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: 0;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Members
+   */
+  members: Array<SetupId>;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Reason
+   */
+  reason?: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * SetupFamilyMember
+ *
+ * One accessible family member. Public reads omit inaccessible identity.
+ */
+export type SetupFamilyMember = {
+  alignment: AlignmentState;
+  exact_version: AiStpContractsFamiliesVersion | null;
+  harness_id: HarnessId;
+  latest_version: AiStpContractsFamiliesVersion | null;
+  passport_digest: Digest | null;
+  ported_from: SetupRef | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  stable_id: SetupId;
+  [key: string]: unknown;
+};
+
+/**
+ * SetupFamilyOwner
+ *
+ * Owner family projection with revision and safe diagnostics.
+ */
+export type SetupFamilyOwner = {
+  /**
+   * Allowed Actions
+   */
+  allowed_actions: Array<string>;
+  baseline: SetupRef;
+  created_from: FamilyCreatedFrom;
+  current_member: SetupFamilyMember | null;
+  /**
+   * Diagnostics
+   */
+  diagnostics: Array<string>;
+  family_id: FamilyId;
+  /**
+   * Members
+   */
+  members: Array<SetupFamilyMember>;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * SetupFamilyPatchRequest
+ *
+ * Expected-revision mutation of name, baseline, or membership.
+ */
+export type SetupFamilyPatchRequest = {
+  /**
+   * Add Members
+   */
+  add_members?: Array<SetupId>;
+  baseline?: SetupRef | null;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Reason
+   */
+  reason?: string;
+  /**
+   * Remove Members
+   */
+  remove_members?: Array<SetupId>;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * SetupFamilyPublic
+ *
+ * Public navigational family projection. Never installable content.
+ */
+export type SetupFamilyPublic = {
+  baseline: SetupRef;
+  created_from: FamilyCreatedFrom;
+  current_member: SetupFamilyMember | null;
+  family_id: FamilyId;
+  /**
+   * Members
+   */
+  members: Array<SetupFamilyMember>;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
   [key: string]: unknown;
 };
 
@@ -4194,6 +4749,8 @@ export type SetupSearchRequest = {
    */
   country_codes?: Array<CountryFilterValue>;
   cursor?: Cursor | null;
+  family_alignment?: AlignmentState | null;
+  family_id?: FamilyId | null;
   harness_id?: HarnessId | null;
   /**
    * Harness Ids
@@ -4207,6 +4764,7 @@ export type SetupSearchRequest = {
    * Include Experimental
    */
   include_experimental?: boolean;
+  member_harness_id?: HarnessId | null;
   page?: PageNumber | null;
   page_size?: PageSize;
   /**
@@ -4253,6 +4811,12 @@ export type SetupSearchRequest = {
  * and one rule with no exceptions is cheaper to verify than a rule with one.
  */
 export type SetupSummary = {
+  family_id: FamilyId | null;
+  family_match_kind: FamilyMatchKind | null;
+  /**
+   * Family Member Count
+   */
+  family_member_count: number | null;
   /**
    * Github Stars
    */
@@ -4355,6 +4919,10 @@ export type SetupVersionPassport = {
     [key: string]: Fact;
   };
   harness_id: HarnessId;
+  /**
+   * Harness Invariant Digest
+   */
+  harness_invariant_digest?: string | null;
   /**
    * Install Evidence Ref
    */
@@ -4459,6 +5027,11 @@ export type SetupVersionResponse = {
    * Component Checks
    */
   component_checks: Array<SetupComponentChecks>;
+  /**
+   * Composition
+   */
+  composition: Array<SetupCompositionMember>;
+  family: SetupFamilyPublic | null;
   lifecycle: PublicLifecycle;
   passport: SetupVersionPassport;
   passport_digest: PassportDigest;
@@ -5115,6 +5688,128 @@ export type TagId = string;
 
 export type Tags = Array<TagId>;
 
+/**
+ * TargetAssessmentIdentity
+ *
+ * Full target key. Any field mismatch is a different assessment.
+ */
+export type TargetAssessmentIdentity = {
+  adaptation_id: AdaptationId;
+  architecture: SupportedArch;
+  component_stable_id: ComponentId;
+  harness_id: HarnessId;
+  /**
+   * Harness Version
+   */
+  harness_version: string;
+  operating_system: SupportedOs;
+  passport_digest: Digest;
+  /**
+   * Policy Version
+   */
+  policy_version: string;
+  projection_artifact_digest: Digest;
+  /**
+   * Provider Id
+   */
+  provider_id: string;
+  /**
+   * Provider Version
+   */
+  provider_version: string;
+  scope: TargetScope;
+  surface_profile_digest: Digest;
+  /**
+   * Surface Profile Id
+   */
+  surface_profile_id: string;
+  target_scope: TargetScope;
+  version: AiStpContractsAssuranceVersion;
+};
+
+/**
+ * TargetAssessmentIngestRequest
+ *
+ * Authenticated platform evidence writer payload. Authors cannot issue verification.
+ */
+export type TargetAssessmentIngestRequest = {
+  /**
+   * Compatibility Result
+   */
+  compatibility_result?: "passed" | "failed" | "not_run";
+  /**
+   * Evidence Refs
+   */
+  evidence_refs?: Array<string>;
+  expires_at?: Timestamp | null;
+  /**
+   * Idempotency Key
+   */
+  idempotency_key: string;
+  identity: TargetAssessmentIdentity;
+  /**
+   * Observations
+   */
+  observations?: Array<ArtifactObservation>;
+  observed_at: Timestamp;
+  /**
+   * Reason Code
+   */
+  reason_code?: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Stored State
+   */
+  stored_state: "not_verified" | "verified" | "failed";
+};
+
+/**
+ * TargetAssessmentIngestResponse
+ *
+ * Latest-effective projection after an accepted or idempotent ingest.
+ */
+export type TargetAssessmentIngestResponse = {
+  /**
+   * Created
+   */
+  created: boolean;
+  effective_state: AssessmentState;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stored State
+   */
+  stored_state: "not_verified" | "verified" | "failed";
+  target_key_digest: Digest;
+  [key: string]: unknown;
+};
+
+/**
+ * TargetMatrix
+ *
+ * Detail/version projection of exact rows and claim-only rows.
+ */
+export type TargetMatrix = {
+  /**
+   * Claimed Portable
+   */
+  claimed_portable: Array<ClaimTargetRow>;
+  /**
+   * Exact
+   */
+  exact: Array<ExactTargetRow>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
 export const TargetScope = {
   GLOBAL: "global",
   USER_ROOT: "user_root",
@@ -5247,7 +5942,11 @@ export const WriteSemantics = { REPLACE: "replace", MERGE: "merge" } as const;
 
 export type WriteSemantics = (typeof WriteSemantics)[keyof typeof WriteSemantics];
 
+export type AiStpContractsAssuranceVersion = string;
+
 export type AiStpContractsCatalogVersion = string;
+
+export type AiStpContractsFamiliesVersion = string;
 
 export type AiStpContractsOwnerVersion = string;
 
@@ -6046,6 +6745,7 @@ export type SearchComponentsData = {
      * Authors
      */
     authors?: Array<string>;
+    compatibility?: CompatibilityMode | null;
     component_type?: ComponentType | null;
     /**
      * Component Types
@@ -6425,6 +7125,58 @@ export type ReadComponentGithubMetadataResponses = {
 export type ReadComponentGithubMetadataResponse =
   ReadComponentGithubMetadataResponses[keyof ReadComponentGithubMetadataResponses];
 
+export type ReadSetupFamilyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed stable identifier of a setup family.
+     */
+    family_id: string;
+  };
+  query?: never;
+  url: "/v1/catalog/setup-families/{family_id}";
+};
+
+export type ReadSetupFamilyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadSetupFamilyError = ReadSetupFamilyErrors[keyof ReadSetupFamilyErrors];
+
+export type ReadSetupFamilyResponses = {
+  /**
+   * Read one public setup family. Never installable content.
+   */
+  200: SetupFamilyPublic;
+};
+
+export type ReadSetupFamilyResponse = ReadSetupFamilyResponses[keyof ReadSetupFamilyResponses];
+
 export type SearchSetupsData = {
   body?: never;
   headers?: {
@@ -6447,6 +7199,8 @@ export type SearchSetupsData = {
      */
     country_codes?: Array<CountryFilterValue>;
     cursor?: Cursor | null;
+    family_alignment?: AlignmentState | null;
+    family_id?: FamilyId | null;
     harness_id?: HarnessId | null;
     /**
      * Harness Ids
@@ -6460,6 +7214,7 @@ export type SearchSetupsData = {
      * Include Experimental
      */
     include_experimental?: boolean;
+    member_harness_id?: HarnessId | null;
     page?: PageNumber | null;
     page_size?: PageSize;
     /**
@@ -8153,6 +8908,203 @@ export type StartOwnerPublicationResponses = {
 export type StartOwnerPublicationResponse =
   StartOwnerPublicationResponses[keyof StartOwnerPublicationResponses];
 
+export type CreateOwnerSetupFamilyData = {
+  body: SetupFamilyCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/owner/setup-families";
+};
+
+export type CreateOwnerSetupFamilyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateOwnerSetupFamilyError =
+  CreateOwnerSetupFamilyErrors[keyof CreateOwnerSetupFamilyErrors];
+
+export type CreateOwnerSetupFamilyResponses = {
+  /**
+   * Create one owned setup family with an exact baseline and members.
+   */
+  201: SetupFamilyOwner;
+};
+
+export type CreateOwnerSetupFamilyResponse =
+  CreateOwnerSetupFamilyResponses[keyof CreateOwnerSetupFamilyResponses];
+
+export type ReadOwnerSetupFamilyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed stable identifier of a setup family.
+     */
+    family_id: string;
+  };
+  query?: never;
+  url: "/v1/owner/setup-families/{family_id}";
+};
+
+export type ReadOwnerSetupFamilyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadOwnerSetupFamilyError =
+  ReadOwnerSetupFamilyErrors[keyof ReadOwnerSetupFamilyErrors];
+
+export type ReadOwnerSetupFamilyResponses = {
+  /**
+   * Read one owned setup family with revision and diagnostics.
+   */
+  200: SetupFamilyOwner;
+};
+
+export type ReadOwnerSetupFamilyResponse =
+  ReadOwnerSetupFamilyResponses[keyof ReadOwnerSetupFamilyResponses];
+
+export type PatchOwnerSetupFamilyData = {
+  body: SetupFamilyPatchRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Typed stable identifier of a setup family.
+     */
+    family_id: string;
+  };
+  query?: never;
+  url: "/v1/owner/setup-families/{family_id}";
+};
+
+export type PatchOwnerSetupFamilyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PatchOwnerSetupFamilyError =
+  PatchOwnerSetupFamilyErrors[keyof PatchOwnerSetupFamilyErrors];
+
+export type PatchOwnerSetupFamilyResponses = {
+  /**
+   * Mutate family name, baseline, or membership at an expected revision.
+   */
+  200: SetupFamilyOwner;
+};
+
+export type PatchOwnerSetupFamilyResponse =
+  PatchOwnerSetupFamilyResponses[keyof PatchOwnerSetupFamilyResponses];
+
 export type CreateOwnershipClaimData = {
   body: OwnershipClaimCreateRequest;
   headers: {
@@ -9608,6 +10560,71 @@ export type StaffTriageReportResponses = {
 
 export type StaffTriageReportResponse =
   StaffTriageReportResponses[keyof StaffTriageReportResponses];
+
+export type IngestTargetAssessmentData = {
+  body: TargetAssessmentIngestRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/staff/target-assessments";
+};
+
+export type IngestTargetAssessmentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type IngestTargetAssessmentError =
+  IngestTargetAssessmentErrors[keyof IngestTargetAssessmentErrors];
+
+export type IngestTargetAssessmentResponses = {
+  /**
+   * Accept one target-bound assessment. Authors cannot issue verification.
+   */
+  201: TargetAssessmentIngestResponse;
+};
+
+export type IngestTargetAssessmentResponse =
+  IngestTargetAssessmentResponses[keyof IngestTargetAssessmentResponses];
 
 export type StaffVersionLifecycleData = {
   body: StaffLifecycleRequest;

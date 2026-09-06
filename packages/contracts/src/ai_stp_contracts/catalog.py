@@ -40,6 +40,20 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ai_stp_contracts.assurance import (
+    AssuranceCounts,
+    CompatibilityFacets,
+    CompatibilityMode,
+    MatchKind,
+    TargetMatrix,
+)
+from ai_stp_contracts.families import (
+    AlignmentState,
+    FamilyId,
+    FamilyMatchKind,
+    SetupCompositionMember,
+    SetupFamilyPublic,
+)
 from ai_stp_contracts.http import (
     PAGE_SIZE_DEFAULT,
     PAGE_SIZE_MAX,
@@ -59,6 +73,7 @@ from ai_stp_contracts.safety_checks import SafetyChecksSummary, SetupComponentCh
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
+from ai_stp_foundation.refs import SetupRef
 from ai_stp_foundation.versioning import VERSION_PATTERN
 from ai_stp_passports.versions import (
     MAX_TAGS,
@@ -394,11 +409,14 @@ class ComponentSummary(BaseModel):
     latest_description: DescriptionExcerpt
     latest_harness_id: HarnessId
     #: Every harness the latest version names; includes `latest_harness_id`.
-    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
         default_factory=list[HarnessId]
     )
     latest_component_type: ComponentType
-    latest_projection_kind: ProjectionKind
+    #: Present only when every exact adaptation shares one projection kind.
+    latest_projection_kind: ProjectionKind | None = None
+    latest_assurance: AssuranceCounts = Field(default_factory=AssuranceCounts)
+    match_kind: MatchKind | None = None
     latest_tags: Tags
     latest_lifecycle: PublicLifecycle
     latest_trust: CatalogTrust
@@ -453,6 +471,9 @@ class SetupSummary(BaseModel):
     latest_checks: SafetyChecksSummary | None = None
     #: Public usage aggregate; omitted when the feature is disabled.
     usage_metrics: CatalogUsageMetrics | None = None
+    family_id: FamilyId | None = None
+    family_member_count: Annotated[int, Field(ge=0)] | None = None
+    family_match_kind: FamilyMatchKind | None = None
 
 
 class CatalogReactionState(BaseModel):
@@ -497,7 +518,7 @@ class ComponentSearchRequest(BaseModel):
     tags: Annotated[list[TagId], Field(max_length=MAX_TAGS)] = Field(default_factory=list[TagId])
     harness_id: HarnessId | None = None
     component_type: ComponentType | None = None
-    harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+    harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
         default_factory=list[HarnessId]
     )
     component_types: Annotated[list[ComponentType], Field(max_length=9)] = Field(
@@ -544,6 +565,8 @@ class ComponentSearchRequest(BaseModel):
     #: questions until 2026-08-30, when the catalogue's first page was 19
     #: deprecated setups and one active.
     include_deprecated: bool = False
+    #: Absent means exact availability only. Claim-only targets require this mode.
+    compatibility: CompatibilityMode | None = None
 
     @field_validator("q", mode="before")
     @classmethod
@@ -578,7 +601,7 @@ class SetupSearchRequest(BaseModel):
     q: Annotated[str, Field(min_length=1, max_length=200)] | None = None
     tags: Annotated[list[TagId], Field(max_length=MAX_TAGS)] = Field(default_factory=list[TagId])
     harness_id: HarnessId | None = None
-    harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+    harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
         default_factory=list[HarnessId]
     )
     authors: Annotated[list[str], Field(max_length=20)] = Field(default_factory=list[str])
@@ -617,6 +640,9 @@ class SetupSearchRequest(BaseModel):
     #: questions until 2026-08-30, when the catalogue's first page was 19
     #: deprecated setups and one active.
     include_deprecated: bool = False
+    family_id: FamilyId | None = None
+    family_alignment: AlignmentState | None = None
+    member_harness_id: HarnessId | None = None
 
     @field_validator("q", mode="before")
     @classmethod
@@ -661,6 +687,7 @@ class ComponentListResponse(BaseModel):
         default_factory=list[ComponentSummary]
     )
     page: PageInfo | CatalogPageInfo
+    compatibility_facets: CompatibilityFacets = Field(default_factory=CompatibilityFacets)
 
     @model_validator(mode="after")
     def _page_is_bounded_across_both_lanes(self) -> "ComponentListResponse":
@@ -715,6 +742,7 @@ class ComponentDetail(BaseModel):
     services: Annotated[list[ExternalProductSummary], Field(max_length=32)] = Field(
         default_factory=list[ExternalProductSummary]
     )
+    target_matrix: TargetMatrix = Field(default_factory=TargetMatrix)
 
 
 class SetupDetail(BaseModel):
@@ -725,6 +753,8 @@ class SetupDetail(BaseModel):
     schema_version: Literal[1] = 1
     summary: SetupSummary
     versions: Annotated[list[VersionListEntry], Field(min_length=1)]
+    ported_from: SetupRef | None = None
+    related_setup_ids: Annotated[list[SetupId], Field(max_length=100)] = Field(default_factory=list)
     #: ISO country codes implied by linked services; never an exclusivity claim.
     country_codes: Annotated[list[CountryCode], Field(max_length=249)] = Field(
         default_factory=list[CountryCode]
@@ -737,6 +767,10 @@ class SetupDetail(BaseModel):
     #: `registry search` returns, and every released client refused a card
     #: carrying a name it did not know.
     component_checks: Annotated[list[SetupComponentChecks], Field(max_length=500)]
+    family: SetupFamilyPublic | None = None
+    composition: Annotated[list[SetupCompositionMember], Field(max_length=500)] = Field(
+        default_factory=list[SetupCompositionMember]
+    )
 
 
 def _require_published(visibility: str) -> None:
@@ -775,6 +809,7 @@ class ComponentVersionResponse(BaseModel):
     checks: SafetyChecksSummary | None = None
     #: Public usage aggregate; omitted when the feature is disabled.
     usage_metrics: CatalogUsageMetrics | None = None
+    target_matrix: TargetMatrix = Field(default_factory=TargetMatrix)
 
     @model_validator(mode="after")
     def _passport_is_published(self) -> "ComponentVersionResponse":
@@ -801,6 +836,10 @@ class SetupVersionResponse(BaseModel):
     component_checks: Annotated[list[SetupComponentChecks], Field(max_length=500)]
     #: Public usage aggregate; omitted when the feature is disabled.
     usage_metrics: CatalogUsageMetrics | None = None
+    family: SetupFamilyPublic | None = None
+    composition: Annotated[list[SetupCompositionMember], Field(max_length=500)] = Field(
+        default_factory=list[SetupCompositionMember]
+    )
 
     @model_validator(mode="after")
     def _passport_is_published(self) -> "SetupVersionResponse":

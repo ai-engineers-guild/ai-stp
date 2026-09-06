@@ -28,7 +28,7 @@ export type ComponentSummaryFacts = {
   latest_lifecycle: string;
   latest_tags: string[];
   latest_trust: TrustLike;
-  latest_projection_kind?: string;
+  latest_projection_kind?: string | null;
   latest_requires_credentials?: boolean;
   latest_published_at?: string;
   usage_metrics?: {
@@ -106,7 +106,7 @@ export type PublicObjectFacts = {
 export type ComponentPublicExtras = {
   countryCodes?: string[] | undefined;
   services?: string[] | undefined;
-  projectionKind?: string | undefined;
+  projectionKind?: string | null | undefined;
   license?: string | undefined;
   requiresCredentials?: boolean | undefined;
   requiresAuthorization?: string | undefined;

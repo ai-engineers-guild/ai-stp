@@ -84,6 +84,10 @@ type SearchParams = {
   country_codes?: ReadonlyArray<string>;
   updated_from?: string;
   updated_to?: string;
+  compatibility?: "claimed_portable";
+  family_id?: string;
+  family_alignment?: "aligned" | "diverged" | "unknown" | "missing";
+  member_harness_id?: string;
 };
 
 export type ExternalProductObject = {
@@ -148,6 +152,7 @@ export async function searchComponents(params: SearchParams = {}): Promise<Compo
       country_codes: params.country_codes ? [...params.country_codes] : undefined,
       updated_from: params.updated_from,
       updated_to: params.updated_to,
+      compatibility: params.compatibility,
     },
   });
 }
@@ -175,6 +180,9 @@ export async function searchSetups(params: SearchParams = {}): Promise<SetupList
       country_codes: params.country_codes ? [...params.country_codes] : undefined,
       updated_from: params.updated_from,
       updated_to: params.updated_to,
+      family_id: params.family_id,
+      family_alignment: params.family_alignment,
+      member_harness_id: params.member_harness_id,
     },
   });
 }

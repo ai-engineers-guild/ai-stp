@@ -6,6 +6,8 @@ from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ai_stp_contracts.assurance import OwnerTargetGap
+from ai_stp_contracts.families import SetupFamilyOwner
 from ai_stp_contracts.http import (
     Cursor,
     PageInfo,
@@ -16,10 +18,13 @@ from ai_stp_contracts.http import (
 )
 from ai_stp_contracts.text_safety import validate_public_text
 from ai_stp_foundation.digests import DIGEST_PATTERN
+from ai_stp_foundation.ids import stable_id_pattern
+from ai_stp_foundation.refs import SetupRef
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
 type ObjectKind = Literal["component", "setup"]
 type CountryCode = Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
+type SetupId = Annotated[str, Field(pattern=stable_id_pattern("setup"))]
 
 
 class OwnerExternalProductCreateRequest(BaseModel):
@@ -254,6 +259,12 @@ class OwnerVersionDetail(BaseModel):
     open_publication_plan_id: Annotated[str, Field(default="", max_length=64)] = ""
     evidence: Annotated[list[OwnerEvidenceRow], Field(default_factory=list)]
     description: Annotated[str, Field(default="", max_length=2000)] = ""
+    ported_from: SetupRef | None = None
+    related_setup_ids: Annotated[list[SetupId], Field(max_length=100)] = Field(default_factory=list)
+    target_gaps: Annotated[list[OwnerTargetGap], Field(max_length=32)] = Field(
+        default_factory=list[OwnerTargetGap]
+    )
+    family: SetupFamilyOwner | None = None
 
 
 class StaffReportSummary(BaseModel):

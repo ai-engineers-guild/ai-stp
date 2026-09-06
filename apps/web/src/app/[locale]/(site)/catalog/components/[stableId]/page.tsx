@@ -17,11 +17,11 @@ import {
   requirementLabels,
   RequirementsSummary,
 } from "@/components/molecules/requirements-summary";
-import {
-  SafetyChecksSummaryView,
-  safetyChecksLabels,
-} from "@/components/molecules/safety-checks-summary";
 import { StatePanel } from "@/components/molecules/state-panel";
+import {
+  ComponentTargetMatrix,
+  targetMatrixLabels,
+} from "@/components/molecules/component-target-matrix";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ComponentContextBudgetPanel } from "@/components/organisms/context-budget-panel";
@@ -94,7 +94,13 @@ export default async function ComponentDetailPage({ params }: PageProps) {
     ...item,
     label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
   }));
-  const ownerId = passport?.owner_id || summary.publisher_id;
+  const ownerId = summary.publisher_id || passport?.owner_id || "";
+  const summaryData = summary as unknown as {
+    latest_assurance?: { verified_targets: number; assessed_targets: number };
+  };
+  const assurance = summaryData.latest_assurance ?? { verified_targets: 0, assessed_targets: 0 };
+  const targetMatrix = (detail as unknown as { target_matrix?: typeof detail.target_matrix })
+    .target_matrix;
   const author = await readAuthor(ownerId);
   const token = await sessionCookieValue();
   const isOwner = token ? await canEditComponent(token, stableId) : false;
@@ -142,6 +148,12 @@ export default async function ComponentDetailPage({ params }: PageProps) {
                 {harness}
               </Badge>
             ))}
+            <Badge variant="outline" data-ui={UI.catalog.assurance}>
+              {t("assuranceCounts")}: {assurance.verified_targets} / {assurance.assessed_targets}
+              {assurance.assessed_targets > 0
+                ? ` (${Math.round((assurance.verified_targets / assurance.assessed_targets) * 100)}%)`
+                : ""}
+            </Badge>
           </>
         }
         versionLabel={`v${summary.latest_version}`}
@@ -231,7 +243,10 @@ export default async function ComponentDetailPage({ params }: PageProps) {
                 summary={summary.latest_lifecycle}
                 facts={[
                   { label: t("lifecycle"), value: summary.latest_lifecycle },
-                  { label: t("projectionKind"), value: summary.latest_projection_kind },
+                  {
+                    label: t("projectionKind"),
+                    value: summary.latest_projection_kind ?? t("noneListed"),
+                  },
                   { label: t("publishedAt"), value: summary.latest_published_at },
                   { label: t("harness"), value: namedHarnesses(summary).join(", ") },
                 ]}
@@ -242,9 +257,9 @@ export default async function ComponentDetailPage({ params }: PageProps) {
             {passport ? (
               <RequirementsSummary requirements={passport} labels={requirementLabels(t, tc)} />
             ) : null}
-            <SafetyChecksSummaryView
-              summary={summary.latest_checks}
-              labels={safetyChecksLabels(t)}
+            <ComponentTargetMatrix
+              matrix={targetMatrix ?? null}
+              labels={targetMatrixLabels(t, tCli)}
             />
           </>
         }

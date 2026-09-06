@@ -48,6 +48,7 @@ router = APIRouter(tags=["catalog"])
 
 _COMPONENT_ID_RE = re.compile(stable_id_pattern("component"))
 _SETUP_ID_RE = re.compile(stable_id_pattern("setup"))
+_FAMILY_ID_RE = re.compile(stable_id_pattern("family"))
 
 
 def require_component_id(stable_id: str) -> str:
@@ -148,6 +149,7 @@ _COMPONENT_SEARCH_KEYS = frozenset(
         "page",
         "include_experimental",
         "include_deprecated",
+        "compatibility",
     }
 )
 _SETUP_SEARCH_KEYS = frozenset(
@@ -174,6 +176,9 @@ _SETUP_SEARCH_KEYS = frozenset(
         "page",
         "include_experimental",
         "include_deprecated",
+        "family_id",
+        "family_alignment",
+        "member_harness_id",
     }
 )
 
@@ -293,6 +298,7 @@ def _component_search_request(
     page: Annotated[int | None, Query(ge=1, le=10_000)] = None,
     include_experimental: Annotated[bool, Query()] = False,
     include_deprecated: Annotated[bool, Query()] = False,
+    compatibility: Annotated[str | None, Query()] = None,
 ) -> ComponentSearchRequest:
     _reject_unknown_query(request, _COMPONENT_SEARCH_KEYS)
     try:
@@ -320,6 +326,7 @@ def _component_search_request(
             page=page,
             include_experimental=include_experimental,
             include_deprecated=include_deprecated,
+            compatibility=compatibility,  # type: ignore[arg-type]
         )
     except ValidationError as exc:
         raise ApiError(
@@ -352,6 +359,9 @@ def _setup_search_request(
     page: Annotated[int | None, Query(ge=1, le=10_000)] = None,
     include_experimental: Annotated[bool, Query()] = False,
     include_deprecated: Annotated[bool, Query()] = False,
+    family_id: Annotated[str | None, Query()] = None,
+    family_alignment: Annotated[str | None, Query()] = None,
+    member_harness_id: Annotated[str | None, Query()] = None,
 ) -> SetupSearchRequest:
     _reject_unknown_query(request, _SETUP_SEARCH_KEYS)
     try:
@@ -377,6 +387,9 @@ def _setup_search_request(
             page=page,
             include_experimental=include_experimental,
             include_deprecated=include_deprecated,
+            family_id=family_id,  # type: ignore[arg-type]
+            family_alignment=family_alignment,  # type: ignore[arg-type]
+            member_harness_id=member_harness_id,  # type: ignore[arg-type]
         )
     except ValidationError as exc:
         raise ApiError(
@@ -589,6 +602,21 @@ async def read_setup(
         raise ApiError(
             ErrorCategory.CATALOG_INTEGRITY, "catalog object failed integrity verification"
         ) from exc
+    return _resource(request, result)
+
+
+@router.get("/catalog/setup-families/{family_id}", response_model=None)
+async def read_setup_family(
+    request: Request,
+    family_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> JSONResponse:
+    if _FAMILY_ID_RE.fullmatch(family_id) is None:
+        raise ApiError(ErrorCategory.VALIDATION, "request validation failed")
+    try:
+        result = await service.read_public_family(db, family_id)
+    except service.CatalogNotFound as exc:
+        raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
     return _resource(request, result)
 
 

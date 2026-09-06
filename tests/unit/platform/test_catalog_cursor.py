@@ -55,6 +55,48 @@ def test_tampered_cursor_is_rejected() -> None:
         decode_cursor(secret=_SECRET, token=tampered, filter_sig=fsig)
 
 
+def test_filter_signature_includes_compatibility_and_family_axes() -> None:
+    base = filter_signature(
+        object_kind="component",
+        q=None,
+        tags=[],
+        harness_id="codex",
+        component_type=None,
+        include_experimental=True,
+    )
+    claimed = filter_signature(
+        object_kind="component",
+        q=None,
+        tags=[],
+        harness_id="codex",
+        component_type=None,
+        include_experimental=True,
+        compatibility="claimed_portable",
+    )
+    family = filter_signature(
+        object_kind="setup",
+        q=None,
+        tags=[],
+        harness_id=None,
+        component_type=None,
+        include_experimental=True,
+        family_id="family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    )
+    member = filter_signature(
+        object_kind="setup",
+        q=None,
+        tags=[],
+        harness_id=None,
+        component_type=None,
+        include_experimental=True,
+        family_id="family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        member_harness_id="codex",
+    )
+    assert base != claimed
+    assert base != family
+    assert family != member
+
+
 def test_foreign_filter_cursor_is_rejected() -> None:
     fsig_a = filter_signature(
         object_kind="component",
