@@ -38,12 +38,18 @@ catalog presentation, server persistence, mutating a published version in place.
   identity, declared losses, and whether the result is a local overlay.
 - `REQ-6303`: Owner apply records the next minor of the same `stable_id` when
   bytes change. Source and unrelated adaptations are preserved. Retry of the
-  same plan is idempotent.
+  same plan is idempotent only when the occupied coordinate already contains
+  the intended adaptations. An occupied next minor with different content is a
+  conflict, not an idempotent success, and does not silently choose another
+  version.
 - `REQ-6304`: A local overlay forks a new private `stable_id` and never mutates
-  the source version. Public publication still requires an exact published
-  adaptation of the public object. A public setup composition and setup
-  publication refuse an overlay or other private member. A private local setup
-  may include the overlay.
+  the source version. Reusing an overlay identifier requires the same exact
+  source coordinate and digest, an existing overlay lifecycle record, and the
+  identical intended adaptations. Public publication still requires an exact
+  published adaptation of the public object. A public setup composition and
+  setup publication refuse an overlay or other private member. A private local
+  setup may include the overlay. The source's own identifier is not a new
+  overlay.
 - `REQ-6305`: Unsupported or unmapped surfaces are `blocked`. Apply refuses an
   incomplete or stale plan.
 
@@ -71,6 +77,6 @@ generation. The native transform is the recast table at revision `1.3`.
 |---|---|
 | `REQ-6301` | Claude instruction onto Codex is `derive`; same harness is refused. `--all-missing` on that instruction is incomplete because Cursor and Antigravity stay `blocked`; the four derivable targets in one apply produce `1.1`. |
 | `REQ-6302` | Identical inputs share a plan digest; a stale digest is `AI_STP_PLAN_STALE`. |
-| `REQ-6303` | Apply creates `1.1`; a second apply of the same digest returns `created=false`. |
-| `REQ-6304` | Portability apply leaves source 1.0 without the target adaptation; the overlay is `private` and recorded in `overlay_origin`. |
+| `REQ-6303` | Apply creates `1.1`; a second apply of the same digest returns `created=false`. A second target that would occupy the same next minor is `AI_STP_CONFLICT` and leaves the registry dump unchanged. |
+| `REQ-6304` | Portability apply leaves source 1.0 without the target adaptation; the overlay is `private` and recorded in `overlay_origin`. Reusing its overlay ID for another source or target conflicts. Using the source's ID as a new overlay conflicts. |
 | `REQ-6305` | A setting cannot materialize across harnesses. |

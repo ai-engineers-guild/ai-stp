@@ -270,19 +270,23 @@ def _apply_owned(
 ) -> tuple[str, str, str, bool]:
     if all(item.disposition == "reuse" for item in preview.targets):
         return recorded.stable_id, recorded.version, recorded.passport_digest, False
-    existing = versions.held(connection, recorded.stable_id, preview.target_version)
-    if existing is not None:
-        return existing.stable_id, existing.version, existing.passport_digest, False
     passport, _current = _held(connection, recorded.stable_id, recorded.version)
     added = _derived_adaptations(connection, passport, source, preview, created_at)
     replaced = {item.harness_id for item in added}
-    kept = [item for item in passport.adaptations if item.harness_id not in replaced]
+    adaptations = (
+        *(item for item in passport.adaptations if item.harness_id not in replaced),
+        *added,
+    )
+    existing = versions.held(connection, recorded.stable_id, preview.target_version)
+    if existing is not None:
+        _require_same_materialized_content(connection, existing, adaptations)
+        return existing.stable_id, existing.version, existing.passport_digest, False
     digest = _record_version(
         connection,
         passport=passport,
         stable_id=recorded.stable_id,
         version=preview.target_version,
-        adaptations=(*kept, *added),
+        adaptations=adaptations,
         created_at=created_at,
         device_id=device_id,
     )
@@ -302,11 +306,30 @@ def _apply_local(
 ) -> tuple[str, str, str, bool]:
     overlay_id = preview.overlay_id
     existing = versions.held(connection, overlay_id, versions.FIRST_VERSION)
-    if existing is not None:
-        return overlay_id, existing.version, existing.passport_digest, False
     added = _derived_adaptations(connection, passport, source, preview, created_at)
     replaced = {item.harness_id for item in added}
-    kept = [item for item in passport.adaptations if item.harness_id not in replaced]
+    adaptations = (
+        *(item for item in passport.adaptations if item.harness_id not in replaced),
+        *added,
+    )
+    if existing is not None:
+        origin = connection.execute(
+            "SELECT source_stable_id, source_version, source_digest FROM fork_origin "
+            "WHERE stable_id = ?",
+            (overlay_id,),
+        ).fetchone()
+        if (
+            origin is None
+            or tuple(origin) != (recorded.stable_id, recorded.version, recorded.passport_digest)
+            or not lifecycle.version_is_overlay(connection, overlay_id, existing.version)
+        ):
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the overlay identity already belongs to a different origin",
+                details={"stable_id": overlay_id},
+            )
+        _require_same_materialized_content(connection, existing, adaptations)
+        return overlay_id, existing.version, existing.passport_digest, False
     connection.execute(
         "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, ?, ?)",
         (overlay_id, "component", created_at),
@@ -330,7 +353,7 @@ def _apply_local(
         passport=passport,
         stable_id=overlay_id,
         version=versions.FIRST_VERSION,
-        adaptations=(*kept, *added),
+        adaptations=adaptations,
         created_at=created_at,
         device_id=device_id,
         owner_id=owner_id,
@@ -348,6 +371,27 @@ def _apply_local(
         at=created_at,
     )
     return overlay_id, versions.FIRST_VERSION, digest, True
+
+
+def _require_same_materialized_content(
+    connection: sqlite3.Connection,
+    existing: versions.Recorded,
+    intended: tuple[ComponentAdaptation, ...],
+) -> None:
+    held, _recorded = _held(connection, existing.stable_id, existing.version)
+    if _adaptation_payloads(held.adaptations) != _adaptation_payloads(intended):
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "that component version already stands for different materialized content",
+            details={"stable_id": existing.stable_id, "version": existing.version},
+        )
+
+
+def _adaptation_payloads(
+    items: tuple[ComponentAdaptation, ...] | list[ComponentAdaptation],
+) -> bytes:
+    ordered = sorted(items, key=lambda item: item.harness_id)
+    return canonize(cast(JsonValue, [item.model_dump(mode="json") for item in ordered]))
 
 
 def _derived_adaptations(

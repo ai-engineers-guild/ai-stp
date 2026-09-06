@@ -8,22 +8,35 @@ from __future__ import annotations
 
 import io
 import os
+import shutil
 import sqlite3
 import stat
 import subprocess
+import tempfile
 import zipfile
 from pathlib import Path
 from typing import Final
 
+from pydantic import ValidationError
+
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, revisions, versions
-from ai_stp_cli.paths import DIRECTORY_MODE, data_dir, ensure_directory
+from ai_stp_cli.paths import (
+    data_dir,
+    ensure_directory,
+    is_executable_file,
+    write_private,
+    write_private_bytes,
+)
 from ai_stp_contracts.machine_help import CliProgram
 from ai_stp_foundation.ids import is_valid_id
+from ai_stp_foundation.versioning import parse_version
+from ai_stp_passports.envelope import verify_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
 
 CURRENT: Final[str] = "current"
 MAX_INVOKE_OUTPUT: Final[int] = 65_536
+MAX_POINTER_BYTES: Final[int] = 32_768
 INVOKE_TIMEOUT_SECONDS: Final[float] = 30.0
 
 
@@ -41,19 +54,29 @@ def install(
     """Install one recorded `cli` artifact under the shared prefix."""
     _require_component_id(stable_id)
     _passport, recorded, payload = _load(connection, stable_id, version)
-    root = ensure_directory(prefix())
-    target = ensure_directory(root / recorded.stable_id / recorded.version)
+    root = _program_root(recorded.stable_id, create=True)
+    target = root / recorded.version
+    _directory(target, create=True)
     executable = target / "program"
-    executable.write_bytes(payload)
-    executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
-    pointer = root / recorded.stable_id / CURRENT
-    _replace_pointer(pointer, executable)
+    _plain_program(executable)
+    try:
+        write_private_bytes(executable, payload)
+        if os.name != "nt":
+            executable.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+        pointer = root / CURRENT
+        _replace_pointer(pointer, executable)
+    except OSError as error:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the cli program could not be installed",
+            details={"id": recorded.stable_id, "error": type(error).__name__},
+        ) from error
     return CliProgram(
         stable_id=recorded.stable_id,
         version=recorded.version,
         operation="install",
         state="present",
-        prefix=str(root),
+        prefix=str(prefix()),
         executable=str(pointer),
     )
 
@@ -65,24 +88,17 @@ def invoke(
     version: str | None,
     arguments: tuple[str, ...],
 ) -> CliProgram:
-    """Run the installed pointer. Never resolves through PATH."""
+    """Run the exact installed version, or the validated current pointer."""
     _require_component_id(stable_id)
-    recorded = _recorded(connection, stable_id, version)
-    pointer = prefix() / recorded.stable_id / CURRENT
-    executable = _resolved(pointer)
-    if executable is None:
+    installed = _installed(connection, stable_id, version)
+    if installed is None:
         raise CliFailure(
             "AI_STP_NOT_FOUND",
             "that cli program is not installed",
-            details={"id": recorded.stable_id},
-            next_actions=[f"component program install --id {recorded.stable_id} --json"],
+            details={"id": stable_id},
+            next_actions=[f"component program install --id {stable_id} --json"],
         )
-    if not executable.is_file():
-        raise CliFailure(
-            "AI_STP_CONFLICT",
-            "the installed cli pointer does not name a file",
-            details={"id": recorded.stable_id, "path": str(pointer)},
-        )
+    recorded, executable = installed
     try:
         finished = subprocess.run(
             _argv(executable, arguments),
@@ -92,7 +108,7 @@ def invoke(
             check=False,
             env={"PATH": "", "HOME": os.environ.get("HOME", "")},
         )
-    except (OSError, subprocess.SubprocessError) as error:
+    except (OSError, UnicodeError, subprocess.SubprocessError) as error:
         raise CliFailure(
             "AI_STP_CONFLICT",
             "the cli program could not be invoked",
@@ -112,59 +128,42 @@ def invoke(
 
 
 def status(connection: sqlite3.Connection, *, stable_id: str) -> CliProgram:
-    """Report whether the shared executable is present."""
+    """Report the version and bytes actually selected by the installed pointer."""
     _require_component_id(stable_id)
-    pointer = prefix() / stable_id / CURRENT
-    resolved = _resolved(pointer)
-    present = resolved is not None and resolved.is_file()
-    version = ""
-    if present:
-        held = versions.line(connection, stable_id)
-        version = held[-1].version if held else "0.0"
+    installed = _installed(connection, stable_id, None)
     return CliProgram(
         stable_id=stable_id,
-        version=version or "0.0",
+        version=installed[0].version if installed is not None else "0.0",
         operation="status",
-        state="present" if present else "never_installed",
+        state="present" if installed is not None else "never_installed",
         prefix=str(prefix()),
-        executable=str(pointer) if present else "",
+        executable=str(prefix() / stable_id / CURRENT) if installed is not None else "",
     )
 
 
 def remove(*, stable_id: str) -> CliProgram:
     """Remove only what this module installed for this component."""
     _require_component_id(stable_id)
-    base = prefix().expanduser().resolve()
-    root = prefix() / stable_id
-    if not root.parent.expanduser().resolve().is_relative_to(base):
+    base = prefix().expanduser().absolute()
+    if base.exists():
+        _directory(base)
+    root = (base.resolve() if base.exists() else base) / stable_id
+    existed = root.exists() or root.is_symlink() or _is_junction(root)
+    try:
+        if root.is_symlink() or root.is_file():
+            root.unlink()
+        elif _is_junction(root):
+            root.rmdir()
+        elif root.is_dir():
+            shutil.rmtree(root)
+        elif existed:
+            raise CliFailure("AI_STP_CONFLICT", "the cli program root is not a directory")
+    except OSError as error:
         raise CliFailure(
             "AI_STP_CONFLICT",
-            "the cli program is not under the shared prefix",
-            details={"id": stable_id},
-        )
-    if root.is_symlink() or root.is_file():
-        root.unlink()
-        return CliProgram(
-            stable_id=stable_id,
-            version="0.0",
-            operation="remove",
-            state="removed",
-            prefix=str(prefix()),
-        )
-    existed = root.is_dir()
-    if existed:
-        if not root.expanduser().resolve().is_relative_to(base):
-            raise CliFailure(
-                "AI_STP_CONFLICT",
-                "the cli program is not under the shared prefix",
-                details={"id": stable_id},
-            )
-        for child in sorted(root.rglob("*"), reverse=True):
-            if child.is_symlink() or child.is_file():
-                child.unlink()
-            elif child.is_dir() and child.expanduser().resolve().is_relative_to(base):
-                child.rmdir()
-        root.rmdir()
+            "the cli program could not be removed",
+            details={"id": stable_id, "error": type(error).__name__},
+        ) from error
     return CliProgram(
         stable_id=stable_id,
         version="0.0",
@@ -185,7 +184,26 @@ def _load(
             "the recorded cli revision is missing",
             details={"id": stable_id},
         )
-    passport = ComponentVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    try:
+        passport = ComponentVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    except ValidationError as error:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the recorded cli passport is invalid",
+            details={"id": stable_id},
+        ) from error
+    if passport.stable_id != recorded.stable_id or passport.version != recorded.version:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the recorded cli passport does not match its immutable identity",
+            details={"id": stable_id, "version": recorded.version},
+        )
+    if not verify_revision_id(stored.envelope):
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the recorded cli passport does not match its immutable identity",
+            details={"id": stable_id, "version": recorded.version},
+        )
     if passport.component_type != "cli":
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
@@ -204,16 +222,50 @@ def _load(
 
 
 def _program_bytes(payload: bytes) -> bytes:
-    if not payload.startswith(b"PK"):
-        return payload
+    extracted = _unzip_first_file(payload) if payload.startswith(b"PK") else payload
+    if extracted.startswith(b"PK"):
+        return _unzip_only_regular_file(extracted)
+    return extracted
+
+
+def _unzip_first_file(payload: bytes) -> bytes:
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
             names = [name for name in archive.namelist() if not name.endswith("/")]
             if not names:
                 return b""
-            return archive.read(names[0])
-    except zipfile.BadZipFile:
-        return payload
+            return _read_zip_member(archive, archive.getinfo(names[0]))
+    except CliFailure:
+        raise
+    except (zipfile.BadZipFile, RuntimeError, NotImplementedError, OSError, KeyError) as error:
+        raise CliFailure("AI_STP_CONFLICT", "the cli archive cannot be read") from error
+
+
+def _unzip_only_regular_file(payload: bytes) -> bytes:
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            members = [member for member in archive.infolist() if not member.is_dir()]
+            kind = stat.S_IFMT(members[0].external_attr >> 16) if members else 0
+            if len(members) != 1 or kind not in (0, stat.S_IFREG):
+                raise CliFailure(
+                    "AI_STP_CONFLICT",
+                    "the cli archive must contain exactly one regular program",
+                )
+            return _read_zip_member(archive, members[0])
+    except CliFailure:
+        raise
+    except (zipfile.BadZipFile, RuntimeError, NotImplementedError, OSError) as error:
+        raise CliFailure("AI_STP_CONFLICT", "the cli archive cannot be read") from error
+
+
+def _read_zip_member(archive: zipfile.ZipFile, member: zipfile.ZipInfo) -> bytes:
+    if member.file_size > content.MAX_CONTENT_BYTES:
+        raise CliFailure("AI_STP_CONFLICT", "the expanded cli program is too large")
+    with archive.open(member) as stream:
+        program = stream.read(content.MAX_CONTENT_BYTES + 1)
+    if len(program) > content.MAX_CONTENT_BYTES:
+        raise CliFailure("AI_STP_CONFLICT", "the expanded cli program is too large")
+    return program
 
 
 def _require_component_id(stable_id: str) -> None:
@@ -244,30 +296,110 @@ def _recorded(
 
 
 def _argv(executable: Path, arguments: tuple[str, ...]) -> list[str]:
-    raw = executable.read_bytes()[:128]
+    with executable.open("rb") as stream:
+        raw = stream.read(128)
     if raw.startswith(b"#!"):
-        line = raw.split(b"\n", 1)[0][2:].decode("utf-8", errors="replace").strip()
-        return [*line.split(), str(executable), *arguments]
+        line = raw.split(b"\n", 1)[0][2:].decode("utf-8").strip()
+        interpreter = line.split()
+        if not interpreter or not Path(interpreter[0]).is_absolute():
+            raise CliFailure("AI_STP_CONFLICT", "the cli interpreter must be an absolute path")
+        return [*interpreter, str(executable), *arguments]
     return [str(executable), *arguments]
 
 
+def _is_junction(path: Path) -> bool:
+    checker = getattr(path, "is_junction", None)
+    return bool(checker()) if callable(checker) else False
+
+
+def _directory(path: Path, *, create: bool = False) -> None:
+    if path.is_symlink() or _is_junction(path) or (path.exists() and not path.is_dir()):
+        raise CliFailure("AI_STP_CONFLICT", "the cli prefix contains a linked or invalid directory")
+    if create:
+        ensure_directory(path)
+
+
+def _program_root(stable_id: str, *, create: bool = False) -> Path:
+    base = prefix().expanduser().absolute()
+    _directory(base, create=create)
+    root = (base.resolve() if base.exists() else base) / stable_id
+    _directory(root, create=create)
+    return root
+
+
+def _plain_program(path: Path) -> None:
+    if path.is_symlink() or _is_junction(path) or (path.exists() and not path.is_file()):
+        raise CliFailure("AI_STP_CONFLICT", "the installed cli program is not a regular file")
+
+
+def _installed(
+    connection: sqlite3.Connection, stable_id: str, version: str | None
+) -> tuple[versions.Recorded, Path] | None:
+    root = _program_root(stable_id)
+    selected_version = version
+    if selected_version is None:
+        selected = _resolved(root / CURRENT)
+        if selected is None:
+            return None
+        try:
+            relative = selected.relative_to(root)
+            if len(relative.parts) != 2 or relative.name != "program":
+                raise ValueError("the pointer is not a version/program coordinate")
+            selected_version = relative.parts[0]
+            parse_version(selected_version)
+        except ValueError as error:
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the installed cli pointer is outside its component version prefix",
+                details={"id": stable_id},
+            ) from error
+    _passport, recorded, payload = _load(connection, stable_id, selected_version)
+    directory = root / recorded.version
+    _directory(directory)
+    executable = directory / "program"
+    _plain_program(executable)
+    if not executable.exists():
+        return None
+    with executable.open("rb") as stream:
+        installed_bytes = stream.read(len(payload) + 1)
+    if installed_bytes != payload or not is_executable_file(executable):
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the installed cli bytes or executable mode differ from the recorded artifact",
+            details={"id": stable_id, "version": recorded.version},
+        )
+    return recorded, executable
+
+
 def _resolved(pointer: Path) -> Path | None:
+    if pointer.is_symlink():
+        target = pointer.readlink()
+        if not target.is_absolute():
+            target = pointer.parent / target
+        return target.absolute()
     if not pointer.exists():
         return None
-    if pointer.is_symlink() or os.name != "nt":
-        return pointer.resolve() if pointer.exists() else None
-    text = pointer.read_text(encoding="utf-8")
-    if not text.startswith("path:"):
-        return None
-    return Path(text.removeprefix("path:"))
+    if os.name != "nt" or not pointer.is_file():
+        raise CliFailure("AI_STP_CONFLICT", "the installed cli pointer is invalid")
+    with pointer.open("rb") as stream:
+        payload = stream.read(MAX_POINTER_BYTES + 1)
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeError as error:
+        raise CliFailure("AI_STP_CONFLICT", "the installed cli pointer is invalid") from error
+    if len(payload) > MAX_POINTER_BYTES or not text.startswith("path:"):
+        raise CliFailure("AI_STP_CONFLICT", "the installed cli pointer is invalid")
+    target = Path(text.removeprefix("path:"))
+    if not target.is_absolute():
+        raise CliFailure("AI_STP_CONFLICT", "the installed cli pointer is invalid")
+    return target.absolute()
 
 
 def _replace_pointer(pointer: Path, target: Path) -> None:
-    pointer.parent.mkdir(mode=DIRECTORY_MODE, parents=True, exist_ok=True)
-    staged = pointer.with_name(f".{CURRENT}.staging")
-    staged.unlink(missing_ok=True)
     if os.name == "nt":
-        staged.write_text(f"path:{target}", encoding="utf-8")
-    else:
+        write_private(pointer, f"path:{target}")
+        return
+    with tempfile.TemporaryDirectory(prefix=f".{CURRENT}-", dir=pointer.parent) as room:
+        staged = Path(room) / CURRENT
         staged.symlink_to(target)
-    staged.replace(pointer)
+        staged.replace(pointer)
