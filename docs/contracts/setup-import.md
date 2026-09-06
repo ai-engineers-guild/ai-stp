@@ -1,6 +1,6 @@
 ---
 description: "Machine boundary for discovering and registering an existing native setup."
-last_verified: "2026-09-01"
+last_verified: "2026-09-06"
 ---
 
 # Native setup import
@@ -53,8 +53,10 @@ component boundary rather than to the harness root: a single file as
 the one tree encoder, and a contribution as the extracted key value. The
 passport records `source_name`, `content_format` and `managed_paths` exactly as
 adoption records them, so a bundle compiled from an imported setup is the
-bundle an adopted one would produce. Drafts registered before this rule in the
-`ai-stp-imported-component/1` envelope remain readable.
+bundle an adopted one would produce. A contribution also records
+`declared_key` and `source_locator`, so freeze marks ownership as a
+contribution rather than a whole file (`ADR-0129`). Drafts registered before
+this rule in the `ai-stp-imported-component/1` envelope remain readable.
 
 Sanitization is structural per format: JSON, JSONC, TOML (comment-preserving),
 and YAML documents are rewritten with credential values removed and environment

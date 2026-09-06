@@ -52,7 +52,7 @@ last_verified: "2026-08-03"
 | [seo-publication-projection.md](seo-publication-projection.md) | Machine boundary for server-side SEO revisions, discovery documents, and model enrichment. | 2026-08-29 |
 | [setup-evaluation.md](setup-evaluation.md) | Machine contract for the profile, plan, and result of local evaluation of an exact SetupVersion. | 2026-09-06 |
 | [setup-graph.md](setup-graph.md) | Exact setup dependency closure: node, deterministic order, closed failure list, and resource limits. | 2026-08-08 |
-| [setup-import.md](setup-import.md) | Machine boundary for discovering and registering an existing native setup. | 2026-09-01 |
+| [setup-import.md](setup-import.md) | Machine boundary for discovering and registering an existing native setup. | 2026-09-06 |
 | [setup-store-ports.md](setup-store-ports.md) | Contract for local discovery, preview, and component import from SX and APM. | 2026-08-13 |
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
 | [standard-family.md](standard-family.md) | Coordinated standard-family identity, contract digest, and classification axes. | 2026-09-05 |

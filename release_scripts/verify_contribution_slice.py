@@ -49,7 +49,15 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final
 
-from release_scripts._evidence import EvidenceError, cli, data, error_code
+from release_scripts._evidence import (
+    EvidenceError,
+    cli,
+    contribution_probe_present,
+    data,
+    error_code,
+    release_draft_update_arguments,
+    write_release_draft_patch,
+)
 
 #: One harness per native form, named by the form rather than by the harness so
 #: a substitution stays honest about what it covers.
@@ -169,13 +177,58 @@ def _seed(home: Path, harness_id: str) -> tuple[Path, str]:
     return place, str(getattr(rule, "provider_kind", "") or "plugin")
 
 
+def _prepare_release(
+    stages: list[dict[str, Any]],
+    identifier: str,
+    *,
+    home: Path,
+    python: str,
+    name: str,
+) -> bool:
+    """Declare name, description, tags and license on an adopted draft before release.
+
+    Same defect the config slice paid for: adopt records observed facts, release
+    refuses a draft that still lacks the declared fields, and jumping the gap
+    made every contribution row die before a provider was asked.
+    """
+    shown = _stage(
+        "passport:show",
+        ["component", "passport", "show", "--id", identifier],
+        home=home,
+        python=python,
+    )
+    stages.append(shown)
+    if shown["outcome"] != PASSED:
+        return False
+    patch = write_release_draft_patch(home / f"release-draft-{identifier[-6:]}.json", name=name)
+    updated = _stage(
+        "passport:update",
+        release_draft_update_arguments(
+            identifier, str(shown["data"].get("revision_id", "")), patch
+        ),
+        home=home,
+        python=python,
+    )
+    stages.append(updated)
+    return updated["outcome"] == PASSED
+
+
 def _stage(name: str, arguments: list[str], *, home: Path, python: str) -> dict[str, Any]:
     envelope = cli(arguments, home=home, python=python, allow_failure=True)
     if envelope.get("ok") is True:
         return {"stage": name, "outcome": PASSED, "data": data(envelope, name)}
     code = error_code(envelope)
     outcome = INCONCLUSIVE if code in _ENVIRONMENT_CODES else FAILED
-    return {"stage": name, "outcome": outcome, "code": code}
+    held = envelope.get("error")
+    message = held.get("message", "") if isinstance(held, dict) else ""
+    details = held.get("details", {}) if isinstance(held, dict) else {}
+    return {
+        "stage": name,
+        "outcome": outcome,
+        "code": code,
+        "message": message,
+        "details": details,
+    }
 
 
 def _anchor(home: Path, project: Path, python: str) -> dict[str, Any] | None:
@@ -251,6 +304,10 @@ def _row(form: str, harness_id: str, *, root: Path, tag: str, python: str) -> di
         return _settle(form, harness_id, rule, stages, target)
     identifier = str(adopted["data"].get("stable_id", ""))
 
+    if not _prepare_release(
+        stages, identifier, home=home, python=python, name=f"evidence-{identifier[-6:]}"
+    ):
+        return _settle(form, harness_id, rule, stages, target)
     released = _stage(
         "release",
         ["component", "version", "release", "--id", identifier, "--major"],
@@ -401,12 +458,8 @@ def _row(form: str, harness_id: str, *, root: Path, tag: str, python: str) -> di
 
 
 def _holds_mcp01(target: Path, rule: Any) -> bool:
-    host = target / rule.relative if rule is not None else None
-    if host is None or not host.exists():
-        return False
-    if host.is_file():
-        return "mcp01" in host.read_text(encoding="utf-8", errors="replace")
-    return any("mcp01" in item.name for item in host.rglob("*"))
+    relative = getattr(rule, "relative", "") if rule is not None else ""
+    return contribution_probe_present(target, str(relative))
 
 
 def _sibling_present(target: Path, rule: Any) -> bool:
@@ -436,11 +489,7 @@ def _settle(
     host = target / rule.relative if rule is not None else None
     landed = host is not None and host.exists()
     key = getattr(rule, "declared_key", "") if rule is not None else ""
-    contains = False
-    if landed and host is not None and host.is_file():
-        contains = "mcp01" in host.read_text(encoding="utf-8", errors="replace")
-    elif landed and host is not None:
-        contains = any("mcp01" in item.name for item in host.rglob("*"))
+    contains = _holds_mcp01(target, rule)
     contributed = bool(getattr(rule, "declared_key", "")) if rule is not None else False
     if any(item["outcome"] == FAILED for item in stages):
         outcome = FAILED
@@ -529,6 +578,41 @@ def _refusal(root: Path, python: str) -> dict[str, Any]:
         }
     member = data(adopted, "adopt")
     identifier = str(member.get("stable_id", ""))
+    shown = cli(
+        ["component", "passport", "show", "--id", identifier],
+        home=home,
+        python=python,
+        allow_failure=True,
+    )
+    if shown.get("ok") is not True:
+        return {
+            "form": "no_surface_at_all",
+            "harness_id": REFUSING_HARNESS,
+            "outcome": INCONCLUSIVE,
+            "reason": "the probe component passport could not be read",
+            "code": error_code(shown),
+            "stages": [],
+        }
+    patch = write_release_draft_patch(
+        home / f"release-draft-{identifier[-6:]}.json", name=f"evidence-{identifier[-6:]}"
+    )
+    updated = cli(
+        release_draft_update_arguments(
+            identifier, str(data(shown, "passport show").get("revision_id", "")), patch
+        ),
+        home=home,
+        python=python,
+        allow_failure=True,
+    )
+    if updated.get("ok") is not True:
+        return {
+            "form": "no_surface_at_all",
+            "harness_id": REFUSING_HARNESS,
+            "outcome": INCONCLUSIVE,
+            "reason": "the probe component draft could not be completed for release",
+            "code": error_code(updated),
+            "stages": [],
+        }
     released = cli(
         ["component", "version", "release", "--id", identifier, "--major"],
         home=home,
