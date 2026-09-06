@@ -197,7 +197,11 @@ def test_recast_preview_carries_source_modes_without_writing(
         cast(sqlite3.Connection, object()), passport, "claude-code", "grok-build"
     )
     assert result is not None
-    assert result[3] == {"skills/review/SKILL.md": 0o644, "skills/review/scripts/run.sh": 0o755}
+    assert len(result) == 1
+    assert result[0].modes == {
+        "skills/review/SKILL.md": 0o644,
+        "skills/review/scripts/run.sh": 0o755,
+    }
 
 
 def test_recast_plan_binds_the_transform_revision(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -228,3 +232,63 @@ def test_recast_plan_binds_the_transform_revision(monkeypatch: pytest.MonkeyPatc
         source, "codex", setup_id, created_at, members
     )
     assert current.plan_digest != previous.plan_digest
+
+
+def test_recast_maps_every_source_scope_and_does_not_use_list_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    global_rule = Rule("skill", "skills", "directory", "cursor")
+    project_rule = Rule("skill", ".cursor/skills", "directory", "cursor", target_scope="project")
+    grok_rule = Rule("skill", "skills", "directory", "grok-build")
+    global_scope = SimpleNamespace(
+        scope="global",
+        projection_artifact=SimpleNamespace(digest="sha256:" + "a" * 64),
+        members=[SimpleNamespace(path="skills/review/SKILL.md", mode=0o644, object_type="file")],
+    )
+    project_scope = SimpleNamespace(
+        scope="project",
+        projection_artifact=SimpleNamespace(digest="sha256:" + "b" * 64),
+        members=[
+            SimpleNamespace(path=".cursor/skills/review/SKILL.md", mode=0o644, object_type="file")
+        ],
+    )
+    passport = cast(ComponentVersionPassport, SimpleNamespace(component_type="skill"))
+
+    def permitted(*_args: object) -> None:
+        return None
+
+    def source_adaptation(*_args: object) -> SimpleNamespace:
+        return SimpleNamespace(scope_adaptations=[project_scope, global_scope])
+
+    def rule_for(_kind: object, harness: object, *, scope: str = "global") -> Rule | None:
+        if harness == "cursor":
+            return project_rule if scope == "project" else global_rule
+        if harness == "grok-build" and scope == "global":
+            return grok_rule
+        return None
+
+    def projection_files(scope: SimpleNamespace, _payload: object) -> dict[str, bytes]:
+        if scope.scope == "project":
+            return {".cursor/skills/review/SKILL.md": b"# project\n"}
+        return {"skills/review/SKILL.md": b"# global\n"}
+
+    monkeypatch.setattr(setup_recast, "_blocked_reason", permitted)
+    monkeypatch.setattr(setup_recast, "adaptation_for", source_adaptation)
+    monkeypatch.setattr(composition, "rule_for", rule_for)
+    monkeypatch.setattr(
+        setup_recast,
+        "PROVIDER_SURFACES",
+        {("grok-build", "global"): object(), ("cursor", "global"): object()},
+    )
+
+    def projection_bytes(*_args: object) -> bytes:
+        return b"projection"
+
+    monkeypatch.setattr(content, "get", projection_bytes)
+    monkeypatch.setattr(setup_recast, "_projection_files", projection_files)
+    result = setup_recast._preview_projection(  # pyright: ignore[reportPrivateUsage]
+        cast(sqlite3.Connection, object()), passport, "cursor", "grok-build"
+    )
+    assert result is not None
+    assert [item.source.scope for item in result] == ["global"]
+    assert result[0].files == {"skills/review/SKILL.md": b"# global\n"}

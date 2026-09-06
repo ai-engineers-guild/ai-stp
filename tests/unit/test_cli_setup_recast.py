@@ -56,6 +56,8 @@ def _release_component(
     extra_adaptations: list[dict[str, JsonValue]] | None = None,
     declared_key: str = "",
     content_format: str = "ai-stp-component-file/1",
+    native_ids: list[str] | None = None,
+    supported_os: list[str] | None = None,
 ) -> tuple[str, str, str]:
     digest = digest_bytes("ai-stp:artifact:v1", payload)
     content.put(connection, payload, at=CREATED)  # type: ignore[arg-type]
@@ -70,6 +72,7 @@ def _release_component(
             "projection_kind": "native_files",
             "declared_key": declared_key,
             "source_locator": f"{managed_path}#{declared_key}" if declared_key else "",
+            "native_ids": list(native_ids or []),
         }
     ]
     if extra_adaptations:
@@ -94,6 +97,8 @@ def _release_component(
         "content_digest": _fact(digest),
         "byte_length": _fact(len(payload)),
         "managed_paths": _fact([managed_path]),
+        "native_ids": _fact(list(native_ids or [])),
+        "supported_os": _fact(list(supported_os or [])),
         "adaptation_contents": _fact(sources),
     }
     stored = revisions.commit(
@@ -493,6 +498,8 @@ def test_recast_preserves_skill_subtree_and_executable_modes() -> None:
             payload=_skill_tree(),
             managed_path="skills/review",
             content_format=components.COMPONENT_TREE_FORMAT,
+            native_ids=["review-kit"],
+            supported_os=["linux", "macos"],
         )
         source_id, _digest = _record_setup(connection, harness_id="claude-code", member=member)
         setup_id = new_id("setup")
@@ -530,6 +537,8 @@ def test_recast_preserves_skill_subtree_and_executable_modes() -> None:
         assert modes[f"{root}/review/SKILL.md"] == 0o644
         assert modes[f"{root}/review/scripts/run.sh"] == 0o755
         assert modes[f"{root}/review/references/run.sh"] == 0o644
+        assert list(scope.supported_os) == ["linux", "macos"]
+        assert all(item.native_ids == ["review-kit"] for item in scope.members)
 
 
 def test_a_missing_projection_blocks_planning_instead_of_raising() -> None:
