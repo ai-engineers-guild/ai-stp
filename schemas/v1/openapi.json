@@ -10469,7 +10469,7 @@
                               "evidence": [],
                               "schema_version": 1,
                               "state": "missing",
-                              "tier": "primary"
+                              "tier": "beta"
                             },
                             "latest_tags": [
                               "python",
@@ -13360,7 +13360,7 @@
                           "evidence": [],
                           "schema_version": 1,
                           "state": "missing",
-                          "tier": "primary"
+                          "tier": "beta"
                         },
                         "latest_tags": [
                           "python",
@@ -13391,7 +13391,7 @@
                             "evidence": [],
                             "schema_version": 1,
                             "state": "missing",
-                            "tier": "primary"
+                            "tier": "beta"
                           },
                           "trust": {
                             "author_verified": false,
@@ -13409,7 +13409,7 @@
                             "evidence": [],
                             "schema_version": 1,
                             "state": "missing",
-                            "tier": "primary"
+                            "tier": "beta"
                           },
                           "trust": {
                             "author_verified": false,
@@ -13698,7 +13698,7 @@
                         "evidence": [],
                         "schema_version": 1,
                         "state": "missing",
-                        "tier": "primary"
+                        "tier": "beta"
                       },
                       "trust": {
                         "author_verified": false,
@@ -14819,7 +14819,7 @@
                           "evidence": [],
                           "schema_version": 1,
                           "state": "missing",
-                          "tier": "primary"
+                          "tier": "beta"
                         },
                         "latest_tags": [
                           "python"
@@ -14848,7 +14848,7 @@
                             "evidence": [],
                             "schema_version": 1,
                             "state": "missing",
-                            "tier": "primary"
+                            "tier": "beta"
                           },
                           "trust": {
                             "author_verified": false,
@@ -15097,7 +15097,7 @@
                         "evidence": [],
                         "schema_version": 1,
                         "state": "missing",
-                        "tier": "primary"
+                        "tier": "beta"
                       },
                       "trust": {
                         "author_verified": false,

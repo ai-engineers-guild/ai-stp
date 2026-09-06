@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-04"
+last_verified: "2026-09-05"
 ---
 
 # Current status and plan
@@ -37,6 +37,7 @@ plans are not continued literally after the implementation changes.
 | Providers | Seven protocol-v3 systems, native configuration layouts, backup/recovery, software lifecycle capabilities, and five complete launch capabilities |
 | Release | Published line is `0.0.17` as one `ai-stp-cli` wheel (`ADR-0146`, tag `v0.0.17`); GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`); public `check` and CodeQL green on the verified main; the host pulls `deploy/prod` |
 | Catalog | Seven harness families and four postures published; review tasks `#408`, `#456`, `#460`, and `#461` closed by implementation |
+| OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
 ## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut
 
@@ -128,156 +129,61 @@ accumulating snapshots.
 
 ## Remaining work
 
-### P0. The configuration lifecycle on all six native legs — measured
+The audit findings A01–A22 on the CLI, shared contracts, and providers are
+implemented on current `main`. Platform items B01–B04 (`#111`, `#112`, `#117`,
+`#118`) were completed by the platform owner in PR `#122`. What remains is the
+open-beta product: one standard-v1 family, seven equal harnesses, three
+operating systems, agent-first recast, and an honest estate record.
 
-`software-evidence` proves the **program** lifecycle on six legs. The
-**configuration** lifecycle — the arc this product exists for — was proven by
-hand on `linux/x86_64` alone:
+Do not retag `0.1.0` until the ordered work below is measured. Do not invent a
+home-override environment variable for Antigravity.
 
-```text
-seed a native surface → component adopt → component version release
-→ select propose → select confirm → install plan → install approve
-→ install apply → target status/backups
-→ install plan --action remove → approve → apply → the surface is gone
-```
+### Closed measurements (not remaining)
 
-`just evidence-config <tag>` and the `config-evidence` workflow drive it, one row
-per harness, with the verdict read from the target rather than from the
-provider's reply.
+Configuration, program, workspace, `user_root`, software-evidence, and
+contribution slices were measured 42/42 on six native legs against providers
+`0.0.57`–`0.0.58`. Isolation launchers are Bubblewrap, AppContainer, and
+`sandbox-exec`. The published consumer line is `ai-stp-cli==0.0.17`. Providers
+are at `0.0.65`. Those rows are evidence, not a substitute for the OBT cut.
 
-Measured against providers `0.0.57`, run `33623425620`, read from the six
-artifacts rather than the badge — 42 of 42 rows and 84 of 84 observe stages
-passed, with a real isolation launcher named on every leg:
+### OBT remaining — CLI and providers (this side)
 
-| leg | rows | isolation |
+Ordered. Each item is one PR-sized slice unless a later item names a
+dependency.
+
+| # | Item | Why it is still open | First proof |
+|---|---|---|---|
+| G1 | Setup recast (core value) | `ported_from` / `related_setup_ids` exist on the passport and compose always writes `None`. There is no command that takes a complete Claude setup and records a complete Codex setup. ADR-0014 already says porting is a new setup, not a variant. | `setup recast plan` / `apply`; Claude instruction+MCP → Codex setup with `ported_from`; apply refuses a partial setup |
+| G2 | First-run skill | After `uv tool install ai-stp-cli` the skill starts at `doctor`/`help` and does not ask which project directories to index or register. Commands already exist: `project discover` / `index`, `component inventory` / `adopt`. | Bootstrap playbook asks for roots, indexes them, adopts idempotently, and names only registry command paths |
+| G3 | Cross-harness component adaptations | A component has one identity and explicit adaptations (`ADR-0143`). First-party corpus objects are still single-harness native files. MCP is the motivating case: logical `mcp` stays `mcp`; Codex writes `[mcp_servers]` inside `config.toml` (setting contribution); Pi hears `plugin`; Claude `.mcp.json` is project-scope only. Recast (G1) must use those rules, not copy a filename. | Recast plan names `reuse` / `derive` / `blocked` per member; a Codex MCP member is a setting contribution; a Pi MCP member is a plugin package; a missing adaptation blocks apply |
+| G4 | Antigravity launch against the documented home | Cursor launch is declared via process-home overlay. Antigravity has no documented home-override variable (`config_home_env` empty, `LaunchBinding::Undocumented`). Owner: all seven are release-quality. Do not invent `ANTIGRAVITY_*`. Launch is honest when the target *is* `~/.gemini`; overlay isolation stays refused. | `can_launch` true only for the documented home; alternate-root launch still refused by name |
+| G5 | Native 7 × 3 OS × x86/arm qualification | Estate record `ai-stp-estate-release/1` already refuses `complete` without 42 launch cells. Installed-artifact and launched-process rows remain `NOT_MEASURED` on current main. | Filled estate record with retained evidence; skipped cells keep the verdict `incomplete` |
+| G6 | Coordinated 0.1.0 / OBT cut | Consumer `0.0.17`, providers `0.0.65`, first-party objects at mixed `1.0`/`1.x`. Bump ai-stp and the seven providers together after G0–G5. One standard family, not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
+
+Posture (`minimal` / `baseline` / `full-auto` / `nddev-builder`) is the
+content footprint of a setup (`ADR-0130`). `execution_profile` is independently
+always `full-auto`. A08 already put ask-nothing autonomy keys on every standard
+posture. Do not treat the four postures as four execution characters.
+
+v1 is the first product version. There is no generation-to-generation port of
+incompatible objects. Old published bytes stay immutable and are never mistaken
+for the new standard family.
+
+### OBT remaining — platform/web (colleague)
+
+Do not implement `apps/api`, `apps/platform`, `apps/worker`, or `migrations`
+here. Issues:
+
+| Issue | State | Remaining for the colleague |
 |---|---|---|
-| linux `x86_64` / `arm64` | **7/7** | Bubblewrap |
-| macOS `x86_64` / `arm64` | **7/7** | `sandbox-exec` |
-| windows `x86_64` / `arm64` | **7/7** | AppContainer, and it is doing its job: the positive control reached IPv4, IPv6 and DNS UDP, the container denied all three, and the provider ran in a job object that kills its tree |
+| `#100` | open | PyPI distribution leftovers (delete the five former internal index projects). CLI install path is already `uv tool install ai-stp-cli`. |
+| `#125` | open | Postgres CHECK and official-upstream allowlist must accept kind `cli`. |
+| `#127` | open | Seed the public catalog from `first_party.CORPUS` identities, including `ported_from` when present, and re-project `support_tier` from `SUPPORT_TIERS`. |
+| `#111` `#112` `#117` `#118` | closed | Done in PR `#122`. Do not reopen. |
+| `#139` | open | Setup detail must show `ported_from` and `related_setup_ids` (generated types already have the fields; web mocks them as null and does not render them). |
+| `#140` | open | After G0, catalog search/web must not hardcode three `primary` harnesses. `support_tier=primary` may be empty during OBT; that is correct. |
 
-That last row is the one this section existed for. It was `unavailable` in
-every earlier measurement, then red for two provider releases after the
-launcher was proved on a hosted runner. The arc below is what the three
-Windows failures were, in the order they were found.
-
-The first run of this slice reported success on all six legs while four of them
-had proven nothing: `clean` asked "did nothing fail" rather than "did everything
-pass", which a run of pure `inconclusive` rows satisfies. Fixed in all three
-slices, and a refusal now carries its message and details so a leg diagnoses
-itself. The Linux legs then wanted Bubblewrap plus the unprivileged user
-namespace Ubuntu 24.04 restricts; both are in the workflow and both legs are
-green.
-
-Windows was a product finding rather than an environment one (`#65`, closed):
-the AppContainer probe fails on a hosted runner, `install plan/approve/apply`
-proceeded through the trusted-release exception, and `target
-status/diff/backups` refused — the read path was stricter than the write it
-observed, because the observer was the one caller that never consulted a
-trusted release. The three reads now establish trust the way the writers do:
-a named `--provider-manifest`, the operator's `--unverified-provider`, or the
-release the pair was last verified under when the named executable is its
-exact bytes (`docs/contracts/provider-release.md`). Both Windows legs read
-their targets back under the same trust the install used, and the isolation
-record still says the launcher was unavailable.
-
-The slice also drives the import capture path (`from_import=1`), so the
-round trip `#63` closed is proven by the same slice as the ordinary path, and
-the two chosen projection scopes (`REQ-632`) for the harnesses whose provider
-declares a rule at them: `scope=project` measured 2 of 2 rows on **every** leg
-against `0.0.57` (run `33624726045`), Windows included.
-
-The first runs with the Windows AppContainer `enforced` on hosted runners
-(after the launcher was proved there) failed every Windows row of every slice
-against `0.0.55`: `provider-info` read as answering no `protocol_version`,
-program installs ended in an internal failure. A branch-only diagnostic run
-showed the provider inside the container exiting 0 with a complete JSON
-answer while the consumer's invoker reported "did not answer with JSON": the
-container's pipe was opened unbuffered, so the bounded single read returned
-the child's first chunk, and the child's stderr shared the answer pipe where
-every other platform discards it. Both fixed in one change; the native test's
-child now answers in two writes with noise on stderr.
-
-That fix moved the failure one step along rather than removing it, and the
-step it moved to was not ours. Re-measured against `0.0.55` and `0.0.56`,
-every Windows row still failed, for a structural reason: inside an
-AppContainer `std::fs::canonicalize` cannot resolve a path, because the DOS
-device name it resolves through lives under `\GLOBAL??`, which the
-container's device map does not expose. No consumer change can reach that —
-the call is the provider's. The provider estate shipped the fallback in
-`0.0.57`: canonicalize when it answers, the joined absolute path without the
-`\\?\` prefix when it does not, and the operating-system error in `detail`.
-Both Windows legs went green on it, in the configuration slice, the program
-slice and the workspace scope. `0.0.15` on PyPI still carries the consumer
-half of the pipe defect for any Windows machine whose AppContainer probe
-passes, so `0.0.16` follows this measurement.
-
-Remaining in this section: the aggregated run on each release candidate's
-exact SHA (`#56`).
-
-### P1. The last link of the capture round-trip (`#63`)
-
-The path from an imported draft to an installable version exists command by
-command — `component version release` on each draft, `select propose` and
-`select confirm` over those exact versions — and the wall was one layer down:
-the importer stored every member at its harness-root-relative path, so the
-compiler met a file-shaped component as a named member and re-rooted a
-directory-shaped one under itself. Registration now packages members relative
-to the component boundary in adoption's own formats and records the same
-`source_name`, `content_format` and `managed_paths` facts, so an imported
-setup compiles into the bundle an adopted one would
-(`docs/contracts/setup-import.md`). Remaining: a `--from-import` row in the
-configuration slice, so the round trip is proven by the same slice that proves
-the ordinary path.
-
-### P2. `end_state` on the consumer side (`#54`) — done, measured
-
-`ADR-0125` fixes the order: this CLI accepts the field, the CLI is released, kit
-`0.2.8` declares it, providers implement it. All four steps are true, and the
-consumer half landed on 2026-09-02: `contribution.withdraw()` reconstructs the
-host file without the contributed key by the install's own route (TOML through
-`tomlkit`, so the person's comments and order survive; JSON as the object
-without the key), `select.compile_withdrawal_bundle()` packs the surviving
-bytes of every contributed host the target still holds, and `install plan
---action remove` hands that bundle to a provider whose `plan_request_fields`
-declares `end_state` — the plan is then required to name each packed member as
-`final_bytes` with its member, digest and length. A host that would end empty
-is not packed and goes `removed`; a provider that declares nothing keeps
-today's whole-file removal; a graph that contributes to no owned file sends no
-bundle. Measured by `just evidence-contribution 0.0.56`, whose removal half
-seeds the target's `config.toml` with the person's own key before the install:
-codex's plan answered «leave config.toml», apply verified, and the file stayed
-with that key and without the contribution; cursor's own file and pi's
-extension went whole. The three measured refusal forms of `0.0.54` —
-`unsupported_operation`, `unsupported_bundle_format`, `digest_mismatch` — are
-the shapes the consumer tests pin.
-
-### P3. Native evidence, now measured
-
-1. Windows job objects and grant sweeping: measured on `windows-latest` in
-   `test_a_killed_parent_takes_its_isolated_tree_and_its_grants_with_it` — a
-   parent killed inside `run` loses its AppContainer child to
-   `KILL_ON_JOB_CLOSE`, and `sweep_abandoned_grants` takes back the ACE the
-   dead parent never revoked. On the way there the hosted-runner probe was
-   found to have failed since the environment allowlist arrived (`[Errno 203]`,
-   no `SystemRoot`/`LOCALAPPDATA`/`TEMP`/`TMP` in the child's block), and the
-   native spawn test to have skipped on every green `check`; both are fixed
-   and the test fails, not skips, on a GitHub runner.
-2. The macOS deny-write profile: the launcher's write probe runs a positive
-   control and then the identical child under `profile_for(target)` on every
-   discovery, and `test_the_real_sandbox_bounds_a_provider_s_writes_to_its_target`
-   drives the public `run` on `macos-latest`. The seven real providers under
-   that profile are the macOS legs of the configuration slice, 7/7 each.
-
-### P3b. The host's roll time
-
-One roll of the production host — pull, image build, migrate, bring-up —
-measured 29 minutes on 2026-09-01 (run `33562822602`, promote 21:46:04 → host
-serving 22:15:03), dominated by building the images on the host. The public
-verification now waits for two rolls, because the host deploys serially and
-always takes the newest ref. The time itself is the thing to act on next:
-images built once in CI and pulled by the host would turn a roll into
-minutes, but that moves where bytes are built and needs its own decision
-beside `ADR-0103` rather than a bigger wait.
+Backlog issues `#18`–`#60` stay backlog.
 
 ### P4. Agent-first cleanup as a continuing practice
 
@@ -303,8 +209,8 @@ closed or forbade. Those findings are not re-opened here:
 | Provider-owned multi-root commit (LAY-002) | Superseded by `ADR-0145` / SPEC-058: the consumer owns a recoverable transaction over unchanged provider v3 (one target). |
 | PyPI as the default provider channel (PYP-002) | Not claimed. GitHub attested releases remain the default until six-leg evidence exists for the index path. |
 | Public provider disclosure (PUB-001/002) | Owned by the setup-systems estate, not this consumer ([setup-systems#287](https://github.com/NDDev-it-com/setup-systems/issues/287)). |
-| Persist adaptation assessments (CMP-003) | Platform work, not CLI: filed as `#111`. |
-| Catalog/web per-harness matrix (CMP-004) | Platform/web work, not CLI: filed as `#112`. |
+| Persist adaptation assessments (CMP-003) | Closed: platform PR `#122` completed `#111`. |
+| Catalog/web per-harness matrix (CMP-004) | Closed: platform PR `#122` completed `#112`. |
 | Scaffold v5 (SCA-001) | Done: the consumer CLI preserves `/3` and `/4` as historical and emits `component-scaffold/5`: `source/AGENTS.md` canon, generated `projections/<harness>/` in the native layout, no speculative adaptation document, no invented passport tags, and one reported Git root. |
 | Portable hook handler (`#116`) | Done: `component-scaffold/6` writes the derived closed-set manifest and runnable handler under `source/` for portable hooks; `/5` remains validatable. `setup-scaffold/5` embeds `/6`. |
 | Authoring freeze (SCA-004) | Done: `setup-scaffold/5` points nested members at `projections/<harness>` with `managed_paths`; compose and `component version release` refuse `TODO(ai-stp-scaffold):` markers and freeze a content-addressed `ComponentAdaptation` on the exact provider surface. |

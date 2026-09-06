@@ -24,7 +24,7 @@ The primary flow spans the CLI, coding agent, local registry, public web catalog
 
 ## Capabilities and Constraints
 
-- Primary support: Claude Code, Codex, and Grok Build; Pi, OpenCode, Cursor, and Antigravity are in beta; an unknown harness is available in limited `undefined` mode.
+- Open beta ships all seven harnesses (Claude Code, Codex, Grok Build, Pi, OpenCode, Cursor, Antigravity) at the `beta` support tier; an unknown harness is available in limited `undefined` mode.
 - The web displays results and manages the account and public catalog, but does not assemble or install setups.
 - Public data must be available to people, search engines, and LLM clients without exposing private records.
 - Human/Machine are two equal projections of the same information: Human is optimized for human reading, while Machine provides technical presentation and explicit links to machine-readable resources. The projection is independent of the light or dark color theme; switching it does not change server truth or create a separate domain model.

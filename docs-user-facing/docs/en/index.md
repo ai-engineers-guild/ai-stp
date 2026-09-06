@@ -34,7 +34,7 @@ harness's own public provider.
 - [CLI](cli/index.md): the working surface — JSON envelopes, plans, and
   confirmation.
 - [Web](web/index.md): account, catalog cards, publications, and reports.
-- [Harnesses](harnesses.md): primary support, beta lines, and `undefined`.
+- [Harnesses](harnesses.md): the seven open-beta harnesses and `undefined`.
 - [Concepts](concepts/index.md): harness, setup, provider, assembler, device,
   project, and the three modes.
 - [Components](components/index.md): the closed kinds and how they differ.
@@ -47,10 +47,10 @@ harness's own public provider.
 
 ## What the MVP supports
 
-Primary support is for **Claude Code**, **Codex**, and **Grok Build**.
-
-Beta lines are **Pi**, **OpenCode**, **Cursor**, and **Antigravity**. Catalog
-and compatibility work; the provider path may still ask for extra confirmation.
+Open beta ships all seven harnesses at the `beta` tier: **Claude Code**,
+**Codex**, **Grok Build**, **Pi**, **OpenCode**, **Cursor**, and
+**Antigravity**. Missing evidence is `not_verified`; it does not drop a
+harness from the product.
 
 An unknown harness falls back to limited **`undefined`**. Reading, import and
 local checks are allowed. Automatic installation is not considered safe.

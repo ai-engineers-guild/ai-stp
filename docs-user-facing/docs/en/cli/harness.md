@@ -233,7 +233,7 @@ prefix”. Do not use one as the other.
 | [Provider](provider.md) | the binary that writes native state |
 | [Install](install.md) | applying a setup through that provider |
 | [Target](target.md) | daily state of a project and harness |
-| [Harnesses](../harnesses.md) | primary vs beta support |
+| [Harnesses](../harnesses.md) | the seven open-beta harnesses |
 | [Agent Skill CLI](skill.md) | the skill the program will read |
 | [Quickstart for people](../quickstart/human.md) | first-run when the program is missing |
 

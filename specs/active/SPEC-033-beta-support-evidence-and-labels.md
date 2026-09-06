@@ -1,6 +1,6 @@
 ---
 description: "SPEC-033: Public beta-support labels, evidence, and freshness."
-last_verified: "2026-08-09"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-033: Public beta-support labels, evidence, and freshness
@@ -36,7 +36,7 @@ Excluded:
 - changes to the CLI, local registry, or canonical Agent Skill;
 - changes to `trust_lane`, `author_verified`, or `component_verified`;
 - automatic promotion from beta to primary;
-- blocking the first MVP release because beta evidence is incomplete;
+- the OBT evidence completeness gate (`SPEC-001` REQ-109, `SPEC-061`);
 - publication of secrets, internal logs, credentials, or private artifacts.
 
 ## Terms
@@ -58,12 +58,13 @@ Support tier and support state are independent fields. `beta` does not mean
 - `REQ-3301`: The API and web represent support tier only as `primary` or
   `beta`; the value matches the canonical harness set in `SPEC-001` and is not
   derived from `trust_lane`.
-- `REQ-3315`: The tier composition is defined exactly as follows: `claude-code`, `codex`, and
-  `grok-build` are `primary`; `pi`, `opencode`, `cursor`, and `antigravity` are `beta`.
-  The value has a single owner and is not repeated in a second table. The tier is
-  a product decision: under `REQ-3306`, evidence does not promote it, while under
-  `REQ-3307`, the absence of a recorded run is reflected in support state and does
-  not lower the tier.
+- `REQ-3315`: During open beta every supported harness is `beta`:
+  `claude-code`, `codex`, `grok-build`, `pi`, `opencode`, `cursor`, and
+  `antigravity`. `primary` remains a valid later generally-available label and
+  currently has no members. The value has a single owner (`SUPPORT_TIERS`) and
+  is not repeated in a second table. The tier is a product decision: under
+  `REQ-3306`, evidence does not promote it, while under `REQ-3307`, the absence
+  of a recorded run is reflected in support state and does not lower the tier.
 - `REQ-3302`: A public card and exact object version show support tier, support
   state, and a safe evidence summary for `latest_harness_id`.
 - `REQ-3303`: `support evidence` is bound to an exact `provider release`, `exact
@@ -75,9 +76,10 @@ Support tier and support state are independent fields. `beta` does not mean
   mandatory evidence receives `missing`; neither state is displayed as verified support.
 - `REQ-3306`: Evidence with a `failed`, `degraded`, `not_run`, or other result not
   accepted by policy receives `not_verified` and does not promote support tier.
-- `REQ-3307`: Missing or stale beta evidence is represented honestly and does not
-  block the first MVP release; a line without a recorded run is not called
-  supported and receives `not_verified`.
+- `REQ-3307`: Missing or stale evidence is represented honestly as `not_verified`,
+  `missing`, or `stale`. It does not drop the harness from the product and does
+  not change the declared tier. Completeness of recorded evidence for the open-beta
+  cut belongs to `SPEC-001` REQ-109 and `SPEC-061`, not to this label.
 - `REQ-3308`: Support evidence does not change `author_verified`,
   `component_verified`, or `trust_lane`; these axes continue to be computed under
   `ADR-0016`, `ADR-0026`, and `ADR-0032`.
@@ -147,7 +149,7 @@ does not delete published versions or change already installed targets.
 | `REQ-3304` | Fixture with a complete fresh set of passed evidence receives `verified`. |
 | `REQ-3305` | Fixtures with expired and missing mandatory evidence receive `stale` and `missing`. |
 | `REQ-3306` | Fixture with failed/degraded/not_run evidence receives `not_verified`. |
-| `REQ-3307` | Release gate verifies that an incomplete beta line neither blocks MVP nor is called supported. |
+| `REQ-3307` | A line without a recorded run is `not_verified` and keeps its declared `beta` tier; the OBT evidence gate is `SPEC-001` REQ-109. |
 | `REQ-3308` | Contract test changes support evidence and confirms that trust axes remain unchanged. |
 | `REQ-3309` | API tests verify enum validation and independence from experimental consent. |
 | `REQ-3310` | Static/component test prohibits web-side status computation. |

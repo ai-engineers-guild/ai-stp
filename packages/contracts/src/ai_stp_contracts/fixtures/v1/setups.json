@@ -45,7 +45,7 @@
           "latest_published_at": "2026-08-05T00:00:00.000Z",
           "latest_support": {
             "schema_version": 1,
-            "tier": "primary",
+            "tier": "beta",
             "state": "missing",
             "evidence": []
           },
@@ -65,7 +65,7 @@
             "published_at": "2026-08-05T00:00:00.000Z",
             "support": {
               "schema_version": 1,
-              "tier": "primary",
+              "tier": "beta",
               "state": "missing",
               "evidence": []
             },
@@ -168,7 +168,7 @@
         "published_at": "2026-08-05T00:00:00.000Z",
         "support": {
           "schema_version": 1,
-          "tier": "primary",
+          "tier": "beta",
           "state": "missing",
           "evidence": []
         },

@@ -38,9 +38,7 @@ ai_stp does not call model interfaces and does not require a model key. The one 
 
 ## Harnesses on this line
 
-Primary support is Claude Code, Codex and Grok Build. Those are the production path: passports, compatibility, setup assembly, provider plan and apply.
-
-Pi, OpenCode, Cursor and Antigravity are beta. Catalog and compatibility exist. Parts of the provider path, the native surface or the UX are still stricter and may ask for more confirmation. An unknown harness is `undefined`: fine for reading, import and local checks, refused for automatic installation.
+Open beta ships all seven harnesses at the `beta` tier: Claude Code, Codex, Grok Build, Pi, OpenCode, Cursor and Antigravity. Passports, compatibility, setup assembly, provider plan and apply are the path for each of them. Missing evidence is `not_verified`; it does not drop a harness from the product. An unknown harness is `undefined`: fine for reading, import and local checks, refused for automatic installation.
 
 A setup is not portable by rename. The same English words mean different files and events in different CLIs. Moving a composition to another harness is an explicit new version.
 

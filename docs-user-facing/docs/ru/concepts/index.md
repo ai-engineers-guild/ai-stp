@@ -13,8 +13,8 @@ description: "Ключевые понятия ai_stp для пользовате
 Харнесс — CLI-среда, в которой работает coding agent. `ai_stp` не заменяет
 её и не вызывает модели.
 
-Основная поддержка: Claude Code, Codex, Grok Build. Beta: Pi, OpenCode,
-Cursor, Antigravity. Неизвестный харнесс: ограниченный `undefined`.
+Открытая бета выпускает все семь: Claude Code, Codex, Grok Build, Pi,
+OpenCode, Cursor, Antigravity. Неизвестный харнесс: ограниченный `undefined`.
 
 Подробнее: [поддерживаемые харнессы](../harnesses.md).
 
@@ -172,7 +172,7 @@ ai-stp project passport --root . --json
 - [Быстрый старт для человека](../quickstart/human.md) — установка и первое
   чтение каталога.
 - [Быстрый старт для ИИ-агента](../quickstart/agent.md) — ритуал сессии.
-- [Поддерживаемые харнессы](../harnesses.md) — основная, beta, `undefined`.
+- [Поддерживаемые харнессы](../harnesses.md) — семь харнессов открытой беты и `undefined`.
 - [Компоненты](../components/index.md) — закрытые виды.
 - [Сетапы](../setups/index.md) — точные pins, один харнесс.
 - [CLI](../cli/index.md) — конверты и группы команд.

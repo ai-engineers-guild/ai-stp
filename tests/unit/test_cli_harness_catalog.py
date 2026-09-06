@@ -96,7 +96,7 @@ def test_machine_table_exposes_support_layouts_capabilities_and_gaps() -> None:
         item.harness_id for item in harness_catalog.DEFINITIONS
     ]
     by_id = {row.harness_id: row for row in rows}
-    assert by_id["claude-code"].support == "primary"
+    assert by_id["claude-code"].support == "beta"
     assert "plugin_manifest" in by_id["codex"].native_authoring
     assert ".grok/skills" in by_id["grok-build"].project_layouts
     assert by_id["undefined"].gaps == ["no_single_harness_owner"]
