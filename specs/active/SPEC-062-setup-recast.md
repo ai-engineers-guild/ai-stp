@@ -68,6 +68,13 @@ of provenance (`#139`).
   destination, or a recorded projection that cannot be read blocks derivation.
   Basename flattening and dictionary overwrites must not silently discard or
   relocate source members.
+- `REQ-6208`: Derivation maps every source scope independently. Source list
+  order does not choose which scope survives. Applicable `supported_os`,
+  `supported_arch`, `supported_harness_versions`, scope permissions, and
+  member `native_ids` are preserved on mapped scopes. A source scope with no
+  lossless target mapping is recorded in `semantic_losses` rather than taken
+  from `scope_adaptations[0]`. An empty `semantic_losses` list means no such
+  drop occurred.
 
 ## States and errors
 
@@ -86,10 +93,11 @@ model, or write a harness target.
 
 `ported_from` and `related_setup_ids` stay the existing passport fields.
 Historical setups with null provenance remain valid. No generation port.
-The file-preserving rewrite is transform content revision `1.1`; immutable
-adaptations produced by `1.0` are not rewritten. This is not a new HTTP,
-provider, scaffold, or standard-family generation. Pre-change plans become
-stale and are replanned automatically within the existing task authority.
+File-preserving rewrite is transform content revision `1.1`. Scope and
+constraint preservation is `1.2`. Immutable adaptations produced by earlier
+revisions are not rewritten. This is not a new HTTP, provider, scaffold, or
+standard-family generation. Pre-change plans become stale and are replanned
+automatically within the existing task authority.
 
 ## Acceptance criteria
 
@@ -102,3 +110,4 @@ stale and are replanned automatically within the existing task authority.
 | `REQ-6205` | Derived Codex instruction lands on `AGENTS.md` and is a new minor of the same id. |
 | `REQ-6206` | A two-adaptation component produces a composition surface for the requested harness. |
 | `REQ-6207` | Nested same-basename siblings survive a directory rename; out-of-surface and case-colliding paths are refused; a skill tree keeps recorded modes through plan, apply, and the sealed projection ZIP. |
+| `REQ-6208` | A two-scope source with project first still maps the global scope onto a target that has no project surface; derived members keep recorded native ids and OS constraints. |
