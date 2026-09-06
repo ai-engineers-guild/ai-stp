@@ -45,8 +45,10 @@ of provenance (`#139`).
   or a member that became blocked after planning. Completeness requires every
   member to be `reuse` or `derive`. Before reporting `derive`, planning reads
   the recorded projection and uses the same side-effect-free mapping as apply.
-  The plan digest binds the transform revision, so an earlier plan cannot
-  authorize changed transform behavior.
+  A missing or unreadable recorded projection blocks that member; it does not
+  abort the rest of the plan or report `derive`. The plan digest binds the
+  transform revision, so an earlier plan cannot authorize changed transform
+  behavior.
 - `REQ-6204`: A component version that already has a unique adaptation for the
   target harness is reused. A missing adaptation is derived when the target
   provider rule is a whole-path file or directory without `declared_key`, or
@@ -60,10 +62,12 @@ of provenance (`#139`).
   matches the setup's `harness_id`. A component version with two adaptations
   is not a conflict.
 - `REQ-6207`: Recast preserves each file's recorded mode, including executable
-  bits, and the relative subtree below a declared directory surface. A missing
-  source directory rule, an out-of-surface member, an empty relative member,
-  or a case-colliding destination blocks derivation. Basename flattening and
-  dictionary overwrites must not silently discard or relocate source members.
+  bits, and the relative subtree below a declared directory surface even when
+  the target directory name differs. A missing source directory rule, an
+  out-of-surface member, an empty relative member, a case-colliding
+  destination, or a recorded projection that cannot be read blocks derivation.
+  Basename flattening and dictionary overwrites must not silently discard or
+  relocate source members.
 
 ## States and errors
 
@@ -93,8 +97,8 @@ stale and are replanned automatically within the existing task authority.
 |---|---|
 | `REQ-6201` | Plan of a Claude instruction setup onto Codex lists `derive`; same-harness plan is refused. |
 | `REQ-6202` | Apply writes `ported_from` and `related_setup_ids`; source version digest is unchanged. |
-| `REQ-6203` | A setting-only setup is incomplete; an unmappable recorded projection is blocked during planning; changing the transform revision changes the plan digest. |
+| `REQ-6203` | A setting-only setup is incomplete; an unmappable or missing recorded projection is blocked during planning without registry writes; changing the transform revision changes the plan digest. |
 | `REQ-6204` | A component that already has a Codex adaptation is `reuse`; a setting is `blocked`; a Cursor MCP file recast onto Codex is `derive` as `config.toml#mcp_servers`; a Pi MCP recast is `blocked`. |
 | `REQ-6205` | Derived Codex instruction lands on `AGENTS.md` and is a new minor of the same id. |
 | `REQ-6206` | A two-adaptation component produces a composition surface for the requested harness. |
-| `REQ-6207` | `tests/unit/test_cli_recast_projection_integrity.py` covers nested siblings, out-of-surface and case-colliding paths, preserved modes, and a read-only projection preview. |
+| `REQ-6207` | Nested same-basename siblings survive a directory rename; out-of-surface and case-colliding paths are refused; a skill tree keeps recorded modes through plan, apply, and the sealed projection ZIP. |

@@ -341,8 +341,15 @@ def _preview_projection(
     ) or composition.rule_for(passport.component_type, target)
     if rule is None or (target, rule.target_scope) not in PROVIDER_SURFACES:
         return None
-    payload = content.get(connection, source_scope.projection_artifact.digest)
-    files = _projection_files(source_scope, payload)
+    try:
+        payload = content.get(connection, source_scope.projection_artifact.digest)
+        files = _projection_files(source_scope, payload)
+    except CliFailure as error:
+        if error.code not in {"AI_STP_NOT_FOUND", "AI_STP_CONFLICT"}:
+            raise
+        return None
+    except (KeyError, OSError, zipfile.BadZipFile, zipfile.LargeZipFile):
+        return None
     source_modes = {
         member.path: member.mode for member in source_scope.members if member.object_type == "file"
     }
@@ -491,7 +498,10 @@ def _logical_mcp_servers(
     path, payload = next(iter(files.items()))
     host = source_rule.relative if source_rule is not None else path
     if source_rule is not None and source_rule.declared_key:
-        parsed = contribution.parse_value(host=host, content=payload)
+        try:
+            parsed = contribution.parse_value(host=host, content=payload)
+        except CliFailure:
+            return None
         return parsed if isinstance(parsed, dict) else None
     return _unwrap_mcp(_parse_mcp_document(host, payload))
 

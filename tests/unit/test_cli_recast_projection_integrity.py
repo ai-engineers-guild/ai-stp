@@ -80,6 +80,25 @@ def test_recast_does_not_invent_an_unknown_source_root(
     )
 
 
+def test_recast_preserves_the_subtree_when_the_target_directory_differs() -> None:
+    target = composition.rule_for("skill", "antigravity")
+    assert target is not None
+    files = {
+        "skills/review/SKILL.md": b"# Review\n",
+        "skills/review/scripts/run.sh": b"#!/bin/sh\n",
+        "skills/review/references/run.sh": b"reference, not the script\n",
+    }
+    root = target.relative.rstrip("/")
+    remapped = setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
+        files, "skill", "claude-code", "global", target
+    )
+    assert remapped == {
+        f"{root}/review/SKILL.md": b"# Review\n",
+        f"{root}/review/scripts/run.sh": b"#!/bin/sh\n",
+        f"{root}/review/references/run.sh": b"reference, not the script\n",
+    }
+
+
 def test_recast_uses_the_same_mapping_for_modes(skill_rules: tuple[Rule, Rule]) -> None:
     _source, target = skill_rules
     modes = {"skills/review/SKILL.md": 0o644, "skills/review/scripts/run.sh": 0o755}

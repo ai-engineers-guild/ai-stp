@@ -2,17 +2,29 @@
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import closing
+from pathlib import Path
 from typing import cast
 
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import cache, component_passports, content, revisions, setup_recast, versions
+from ai_stp_cli.local import (
+    cache,
+    component_passports,
+    components,
+    composition,
+    content,
+    revisions,
+    setup_recast,
+    versions,
+)
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.local.setup_versions import MemberRef, passport_content
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports import SetupVersionPassport, adaptation_for
+from ai_stp_passports.projections import verify_projection
 
 CREATED = "2026-09-05T12:00:00.000Z"
 COMMIT = "a" * 40
@@ -43,6 +55,7 @@ def _release_component(
     managed_path: str,
     extra_adaptations: list[dict[str, JsonValue]] | None = None,
     declared_key: str = "",
+    content_format: str = "ai-stp-component-file/1",
 ) -> tuple[str, str, str]:
     digest = digest_bytes("ai-stp:artifact:v1", payload)
     content.put(connection, payload, at=CREATED)  # type: ignore[arg-type]
@@ -51,7 +64,7 @@ def _release_component(
         {
             "harness_id": harness_id,
             "content_digest": digest,
-            "content_format": "ai-stp-component-file/1",
+            "content_format": content_format,
             "managed_paths": [managed_path],
             "scope": "global",
             "projection_kind": "native_files",
@@ -77,7 +90,7 @@ def _release_component(
         "projection_kind": _fact("native_files"),
         "scope": _fact("global"),
         "license": _fact({"spdx_id": "MIT", "redistribution_allowed": True}),
-        "content_format": _fact("ai-stp-component-file/1"),
+        "content_format": _fact(content_format),
         "content_digest": _fact(digest),
         "byte_length": _fact(len(payload)),
         "managed_paths": _fact([managed_path]),
@@ -147,6 +160,19 @@ def _record_setup(
         at=CREATED,
     )
     return setup_id, digest
+
+
+def _registry_fingerprint(connection: sqlite3.Connection) -> tuple[object, object, object]:
+    return (
+        tuple(connection.execute("SELECT digest, byte_length FROM content ORDER BY digest")),
+        tuple(connection.execute("SELECT revision_id FROM revision ORDER BY revision_id")),
+        tuple(
+            connection.execute(
+                "SELECT stable_id, version, passport_digest FROM object_version "
+                "ORDER BY stable_id, version"
+            )
+        ),
+    )
 
 
 def test_recast_derives_an_instruction_and_records_provenance() -> None:
@@ -421,3 +447,136 @@ def test_a_pi_mcp_plugin_package_blocks_recast() -> None:
         assert not preview.complete
         assert preview.members[0].disposition == "blocked"
         assert "plugin package" in preview.members[0].reason
+
+
+def _skill_tree() -> bytes:
+    return components.encode_tree_artifact(
+        [
+            components.ComponentFile("SKILL.md", b"# Review\n", 0o644),
+            components.ComponentFile("scripts/run.sh", b"#!/bin/sh\necho ok\n", 0o755),
+            components.ComponentFile("references/run.sh", b"reference, not the script\n", 0o644),
+        ],
+        Path("review"),
+    )
+
+
+def test_recast_planning_does_not_write_registry_state() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="instruction",
+            harness_id="claude-code",
+            payload=CLAUDE_BYTES,
+            managed_path="CLAUDE.md",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="claude-code", member=member)
+        before = _registry_fingerprint(connection)
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="codex",
+            setup_id=new_id("setup"),
+            created_at=CREATED,
+        )
+        assert preview.complete
+        assert preview.members[0].disposition == "derive"
+        assert _registry_fingerprint(connection) == before
+
+
+def test_recast_preserves_skill_subtree_and_executable_modes() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="skill",
+            harness_id="claude-code",
+            payload=_skill_tree(),
+            managed_path="skills/review",
+            content_format=components.COMPONENT_TREE_FORMAT,
+        )
+        source_id, _digest = _record_setup(connection, harness_id="claude-code", member=member)
+        setup_id = new_id("setup")
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="antigravity",
+            setup_id=setup_id,
+            created_at=CREATED,
+        )
+        assert preview.complete
+        assert preview.members[0].disposition == "derive"
+        setup_recast.apply(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="antigravity",
+            setup_id=setup_id,
+            created_at=CREATED,
+            expected_plan_digest=preview.plan_digest,
+            device_id=DEVICE,
+            owner_id=OWNER,
+        )
+        derived = component_passports.version_passport(
+            connection, member[0], preview.members[0].target_version
+        )
+        scope = adaptation_for(derived, "antigravity").scope_adaptations[0]
+        assert scope.projection_artifact.digest
+        verify_projection(scope, content.get(connection, scope.projection_artifact.digest))
+        target = composition.rule_for("skill", "antigravity")
+        assert target is not None
+        root = target.relative.rstrip("/")
+        modes = {item.path: item.mode for item in scope.members if item.object_type == "file"}
+        assert modes[f"{root}/review/SKILL.md"] == 0o644
+        assert modes[f"{root}/review/scripts/run.sh"] == 0o755
+        assert modes[f"{root}/review/references/run.sh"] == 0o644
+
+
+def test_a_missing_projection_blocks_planning_instead_of_raising() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="instruction",
+            harness_id="claude-code",
+            payload=CLAUDE_BYTES,
+            managed_path="CLAUDE.md",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="claude-code", member=member)
+        passport = component_passports.version_passport(connection, member[0], member[1])
+        digest = (
+            adaptation_for(passport, "claude-code").scope_adaptations[0].projection_artifact.digest
+        )
+        connection.execute("DELETE FROM content WHERE digest = ?", (digest,))
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="codex",
+            setup_id=new_id("setup"),
+            created_at=CREATED,
+        )
+        assert not preview.complete
+        assert preview.members[0].disposition == "blocked"
+
+
+def test_unreadable_mcp_contribution_blocks_planning_instead_of_raising() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="mcp",
+            harness_id="codex",
+            payload=b"this is not toml",
+            managed_path="config.toml",
+            declared_key="mcp_servers",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="codex", member=member)
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="cursor",
+            setup_id=new_id("setup"),
+            created_at=CREATED,
+        )
+        assert not preview.complete
+        assert preview.members[0].disposition == "blocked"
