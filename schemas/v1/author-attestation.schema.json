@@ -92,6 +92,32 @@
       "title": "Account Id",
       "type": "string"
     },
+    "adaptation_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Adaptation Id"
+    },
+    "arch": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arch"
+    },
     "attested_at": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
       "title": "Attested At",
@@ -120,10 +146,49 @@
       "title": "Object Digest",
       "type": "string"
     },
+    "os": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Os"
+    },
     "policy_version": {
       "minLength": 1,
       "title": "Policy Version",
       "type": "string"
+    },
+    "projection_digest": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Projection Digest"
+    },
+    "provider_profile_digest": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Profile Digest"
     },
     "provider_version": {
       "minLength": 1,
@@ -143,6 +208,19 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "scope": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scope"
     },
     "signature": {
       "pattern": "^[A-Za-z0-9+/]{86}==$",

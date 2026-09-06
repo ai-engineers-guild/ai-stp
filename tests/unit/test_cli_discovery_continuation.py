@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from ai_stp_cli.local import authoring, components, path_inventory
+from ai_stp_contracts.machine_help import PathInventory
 
 
 def _portable_tree(tmp_path: Path) -> Path:
@@ -143,3 +144,60 @@ def test_a_bounded_inventory_walk_is_incomplete_and_resumable(
         "gamma-kit",
     }
     assert seen == {item.object_id for item in full.objects if item.relation == "independent"}
+
+
+def test_inventory_keeps_authoring_coverage_across_portable_pages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace = tmp_path / "workspace"
+    owned = workspace / "skills" / "owned"
+    owned.mkdir(parents=True)
+    (owned / "SKILL.md").write_text("# owned\n", encoding="utf-8")
+    (owned / "component-passport.json").write_text(
+        '{"name":"owned","component_type":"skill"}\n', encoding="utf-8"
+    )
+    for name in ("alpha", "beta", "gamma"):
+        place = workspace / "skills" / name
+        place.mkdir()
+        (place / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
+
+    monkeypatch.setattr(components, "MAX_PORTABLE_SKILL_DIRECTORIES", 1)
+    pages: list[PathInventory] = []
+    cursor: str | None = None
+    while True:
+        page = path_inventory.inventory_root(workspace, cursor=cursor)
+        pages.append(page)
+        cursor = page.continuation
+        if page.complete or cursor is None:
+            break
+        assert len(pages) < 20
+
+    monkeypatch.setattr(components, "MAX_PORTABLE_SKILL_DIRECTORIES", 2000)
+    full = path_inventory.inventory_root(workspace)
+    paged = [item for page in pages for item in page.objects]
+    paged_ids = [(item.object_id, item.origin, item.relation, item.relative_path) for item in paged]
+    full_ids = [
+        (item.object_id, item.origin, item.relation, item.relative_path) for item in full.objects
+    ]
+    assert sorted(paged_ids) == sorted(full_ids)
+    owned_rows = [item for item in paged if item.relative_path.endswith("skills/owned")]
+    assert owned_rows
+    assert all(item.origin == "passport" for item in owned_rows)
+    assert not any(
+        item.origin == "native" and item.relative_path.endswith("skills/owned") for item in paged
+    )
+
+
+def test_inventory_does_not_materialize_a_whole_wide_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace = tmp_path / "wide"
+    workspace.mkdir()
+    for index in range(6):
+        child = workspace / f"child-{index:02d}"
+        child.mkdir()
+        (child / "SKILL.md").write_text("# child\n", encoding="utf-8")
+    monkeypatch.setattr(path_inventory, "MAX_INVENTORY_ENTRIES", 2)
+    report = path_inventory.inventory_root(workspace)
+    assert report.complete is False
+    assert any(item.code == "bounded_limit" for item in report.diagnostics)

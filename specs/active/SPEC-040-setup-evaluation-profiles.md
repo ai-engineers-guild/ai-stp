@@ -1,6 +1,6 @@
 ---
 description: "SPEC-040: Local functional evaluation profiles for an exact setup."
-last_verified: "2026-09-05"
+last_verified: "2026-09-06"
 ---
 
 # SPEC-040: Setup Evaluation Profiles
@@ -27,6 +27,8 @@ This specification covers a versioned profile, exact coordinates, budgets, isola
 - `REQ-4004`: `eval run` requires the exact plan digest and explicit confirmation; rerunning does not create a second evidence record, and a changed digest results in a fail-closed refusal.
 - `REQ-4005`: Core runs only local deterministic checks; an unavailable model, human, or isolated runner receives `not_run`, never `passed`, and an aggregate containing `not_run` receives `degraded`.
 - `REQ-4006`: The result is bound to the complete plan, exact runner coordinates, result digest, and timestamp, and explicitly states that published bytes were not changed and provider permissions were not used.
+- `REQ-4007`: Public passports are evaluated per adaptation. One projection cannot
+  stand in for another; mixed pass/fail is visible per adaptation id.
 
 ## States and errors
 
@@ -52,3 +54,4 @@ The profile version is independent of the JSON Schema version. An unknown major 
 | `REQ-4004` | A run without confirmation or with a stale digest is refused; a rerun returns the same run and a single evidence row. |
 | `REQ-4005` | Local-static checks pass, model/human checks receive `not_run`, and the overall status is `degraded`. |
 | `REQ-4006` | The machine-readable result passes schema validation and contains exact coordinates, a result digest, and two explicit negative indicators for mutation and permission use. |
+| `REQ-4007` | A two-adaptation component produces one static-contract result per adaptation. |

@@ -1,0 +1,173 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-component-materialize-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Exact preview for one target-harness adaptation of a pinned component.",
+  "properties": {
+    "complete": {
+      "title": "Complete",
+      "type": "boolean"
+    },
+    "created_at": {
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "disposition": {
+      "enum": [
+        "reuse",
+        "derive",
+        "blocked"
+      ],
+      "title": "Disposition",
+      "type": "string"
+    },
+    "filesystem_permissions": {
+      "default": [],
+      "items": {
+        "maxLength": 1024,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Filesystem Permissions",
+      "type": "array"
+    },
+    "local_only": {
+      "title": "Local Only",
+      "type": "boolean"
+    },
+    "network_permissions": {
+      "default": [],
+      "items": {
+        "maxLength": 1024,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Network Permissions",
+      "type": "array"
+    },
+    "overlay_id": {
+      "minLength": 1,
+      "title": "Overlay Id",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "process_permissions": {
+      "default": [],
+      "items": {
+        "maxLength": 1024,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Process Permissions",
+      "type": "array"
+    },
+    "projection_digest": {
+      "minLength": 1,
+      "title": "Projection Digest",
+      "type": "string"
+    },
+    "provider_profile_digest": {
+      "minLength": 1,
+      "title": "Provider Profile Digest",
+      "type": "string"
+    },
+    "reason": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "semantic_losses": {
+      "default": [],
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Semantic Losses",
+      "type": "array"
+    },
+    "source_harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "source_passport_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Passport Digest",
+      "type": "string"
+    },
+    "source_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Source Version",
+      "type": "string"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "target_harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "target_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Target Version",
+      "type": "string"
+    },
+    "transform_id": {
+      "minLength": 1,
+      "title": "Transform Id",
+      "type": "string"
+    },
+    "transform_version": {
+      "minLength": 1,
+      "title": "Transform Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "stable_id",
+    "overlay_id",
+    "source_version",
+    "target_version",
+    "source_harness_id",
+    "target_harness_id",
+    "source_passport_digest",
+    "transform_id",
+    "transform_version",
+    "provider_profile_digest",
+    "projection_digest",
+    "disposition",
+    "reason",
+    "local_only",
+    "complete",
+    "created_at",
+    "plan_digest"
+  ],
+  "title": "ComponentMaterializePlan",
+  "type": "object"
+}

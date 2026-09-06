@@ -18,6 +18,19 @@
       "additionalProperties": false,
       "description": "Exact component identity inside the evaluated setup graph.",
       "properties": {
+        "adaptation_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adaptation Id"
+        },
         "artifact_digest": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Artifact Digest",
@@ -26,10 +39,36 @@
         "component_type": {
           "$ref": "#/$defs/ComponentType"
         },
+        "harness_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Harness Id"
+        },
         "passport_digest": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Passport Digest",
           "type": "string"
+        },
+        "projection_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Projection Digest"
         },
         "stable_id": {
           "minLength": 1,
@@ -163,6 +202,14 @@
       "additionalProperties": false,
       "description": "Observed result of one check without promotion of unavailable runners.",
       "properties": {
+        "adaptation_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Adaptation Ids",
+          "type": "array"
+        },
         "check_id": {
           "minLength": 1,
           "title": "Check Id",

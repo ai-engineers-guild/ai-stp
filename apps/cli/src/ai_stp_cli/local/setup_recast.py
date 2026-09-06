@@ -20,6 +20,7 @@ from ai_stp_cli.local import (
     composition,
     content,
     contribution,
+    native_transform,
     revisions,
     setup_versions,
     versions,
@@ -45,9 +46,8 @@ from ai_stp_passports.versions import ComponentAdaptation, ScopeAdaptation, Targ
 
 PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 TRANSFORM_ID: Final[str] = "harness-native-rewrite"
-TRANSFORM_VERSION: Final[str] = "1.2"
+TRANSFORM_VERSION: Final[str] = "1.3"
 _NON_DERIVABLE: Final[frozenset[str]] = frozenset({"setting", "cli"})
-_MCP_FILE_WRAPPERS: Final[tuple[str, ...]] = ("mcpServers", "mcp_servers", "mcp")
 Disposition = Literal["reuse", "derive", "blocked"]
 
 
@@ -230,38 +230,42 @@ def _classify(
 ) -> SetupRecastMember:
     passport = _component_passport(connection, member)
     try:
-        adaptation_for(passport, target)
+        existing = adaptation_for(passport, target)
     except ValueError:
-        reason = _blocked_reason(passport, source_harness, target)
-        if (
-            reason is None
-            and _preview_projection(connection, passport, source_harness, target) is None
-        ):
-            reason = "the recorded projection cannot be mapped without losing files or modes"
-        if reason is None:
-            return SetupRecastMember(
-                stable_id=member[0],
-                source_version=member[1],
-                target_version=versions.next_minor(connection, member[0]),
-                component_type=passport.component_type,
-                disposition="derive",
-                reason="derive a native adaptation for the target harness",
-            )
+        existing = None
+    stale = (
+        existing is not None
+        and existing.implementation_mode == "derived"
+        and (existing.transform is None or existing.transform.version != TRANSFORM_VERSION)
+    )
+    if existing is not None and not stale:
         return SetupRecastMember(
             stable_id=member[0],
             source_version=member[1],
             target_version=member[1],
             component_type=passport.component_type,
-            disposition="blocked",
-            reason=reason,
+            disposition="reuse",
+            reason="the pinned version already has the target adaptation",
+        )
+    reason = _blocked_reason(passport, source_harness, target)
+    if reason is None and _preview_projection(connection, passport, source_harness, target) is None:
+        reason = "the recorded projection cannot be mapped without losing files or modes"
+    if reason is None:
+        return SetupRecastMember(
+            stable_id=member[0],
+            source_version=member[1],
+            target_version=versions.next_minor(connection, member[0]),
+            component_type=passport.component_type,
+            disposition="derive",
+            reason="derive a native adaptation for the target harness",
         )
     return SetupRecastMember(
         stable_id=member[0],
         source_version=member[1],
         target_version=member[1],
         component_type=passport.component_type,
-        disposition="reuse",
-        reason="the pinned version already has the target adaptation",
+        disposition="blocked",
+        reason=reason,
     )
 
 
@@ -285,12 +289,16 @@ def _blocked_reason(
             rule is not None and rule.projection_kind == "package"
         ):
             return "an MCP plugin package cannot be derived automatically"
-        if rule is not None and rule.declared_key and passport.component_type != "mcp":
+        if (
+            rule is not None
+            and rule.declared_key
+            and passport.component_type not in {"mcp", "hook"}
+        ):
             return "a host-file contribution cannot be derived automatically"
         if (
             source_rule is not None
             and source_rule.declared_key
-            and passport.component_type != "mcp"
+            and passport.component_type not in {"mcp", "hook"}
         ):
             return "a host-file contribution cannot be derived automatically"
     return None
@@ -319,8 +327,9 @@ def _materialize_member(
     body = cast(dict[str, JsonValue], passport.model_dump(mode="json", exclude={"revision_id"}))
     body["version"] = classified.target_version
     body["created_at"] = at
+    kept = [item for item in passport.adaptations if item.harness_id != target]
     body["adaptations"] = [
-        *[cast(JsonValue, item.model_dump(mode="json")) for item in passport.adaptations],
+        *[cast(JsonValue, item.model_dump(mode="json")) for item in kept],
         cast(JsonValue, derived.model_dump(mode="json")),
     ]
     sealed = seal_envelope(body)
@@ -384,14 +393,17 @@ def _preview_scope(
         member.path: member.mode for member in source_scope.members if member.object_type == "file"
     }
     identities = {path: path for path in files}
+    losses: list[str] = []
     if passport.component_type == "mcp":
-        remapped = _derive_mcp_files(files, source_harness, source_scope.scope, rule)
+        derived = _derive_mcp_files(files, source_harness, source_scope.scope, rule)
+        if derived is None:
+            return None
+        remapped, mcp_losses = derived
+        losses.extend(mcp_losses)
         modes = (
             {rule.relative: next(iter(source_modes.values()))} if len(source_modes) == 1 else None
         )
-        source_paths = (
-            {rule.relative: next(iter(files))} if remapped is not None and len(files) == 1 else None
-        )
+        source_paths = {rule.relative: next(iter(files))} if len(files) == 1 else None
     else:
         remapped = _remap_files(
             files, passport.component_type, source_harness, source_scope.scope, rule
@@ -402,6 +414,19 @@ def _preview_scope(
         source_paths = _remap_files(
             identities, passport.component_type, source_harness, source_scope.scope, rule
         )
+        if remapped is not None and modes is not None and source_paths is not None:
+            native = native_transform.transform(
+                component_type=passport.component_type,
+                source_harness=source_harness,
+                target=rule,
+                files=remapped,
+                modes=modes,
+                source_paths=source_paths,
+            )
+            if native is None:
+                return None
+            remapped, modes, source_paths = native.files, native.modes, native.source_paths
+            losses.extend(native.losses)
     if (
         not remapped
         or modes is None
@@ -410,7 +435,6 @@ def _preview_scope(
         or remapped.keys() != source_paths.keys()
     ):
         return None
-    losses: list[str] = []
     if rule.target_scope != source_scope.scope:
         losses.append(
             f"source scope {source_scope.scope} lands on target scope {rule.target_scope}"
@@ -557,15 +581,16 @@ def _derive_mcp_files(
     source_harness: HarnessId,
     source_scope: str,
     target: Rule,
-) -> dict[str, bytes] | None:
+) -> tuple[dict[str, bytes], tuple[str, ...]] | None:
     source_rule = composition.rule_for("mcp", source_harness, scope=source_scope) or (
         composition.rule_for("mcp", source_harness)
     )
     servers = _logical_mcp_servers(files, source_rule)
-    encoded = _encode_mcp(servers, target) if servers is not None else None
+    encoded = native_transform.encode_mcp_servers(servers, target) if servers is not None else None
     if encoded is None:
         return None
-    return {target.relative: encoded}
+    payload, losses = encoded
+    return {target.relative: payload}, losses
 
 
 def _logical_mcp_servers(
@@ -581,7 +606,8 @@ def _logical_mcp_servers(
         except CliFailure:
             return None
         return parsed if isinstance(parsed, dict) else None
-    return _unwrap_mcp(_parse_mcp_document(host, payload))
+    parsed = _parse_mcp_document(host, payload)
+    return native_transform.logical_mcp_servers(parsed) if parsed is not None else None
 
 
 def _parse_mcp_document(host: str, payload: bytes) -> JsonValue | None:
@@ -596,33 +622,6 @@ def _parse_mcp_document(host: str, payload: bytes) -> JsonValue | None:
         return cast("JsonValue", json.loads(text))
     except ValueError:
         return None
-
-
-def _unwrap_mcp(document: JsonValue | None) -> dict[str, JsonValue] | None:
-    if not isinstance(document, dict):
-        return None
-    for key in _MCP_FILE_WRAPPERS:
-        held = document.get(key)
-        if isinstance(held, dict):
-            return cast("dict[str, JsonValue]", held)
-    if document and all(isinstance(value, dict) for value in document.values()):
-        return cast("dict[str, JsonValue]", document)
-    return None
-
-
-def _encode_mcp(servers: Mapping[str, JsonValue], target: Rule) -> bytes | None:
-    if target.shape != "file":
-        return None
-    body: dict[str, JsonValue] = dict(servers)
-    suffix = PurePosixPath(target.relative).suffix.casefold()
-    if not target.declared_key:
-        wrapper = "mcp_servers" if suffix == ".toml" else "mcpServers"
-        body = {wrapper: body}
-    if suffix == ".toml":
-        return tomlkit.dumps(body).encode("utf-8")
-    if suffix == ".json":
-        return (json.dumps(body, indent=2, sort_keys=True) + "\n").encode("utf-8")
-    return None
 
 
 def _projection_files(scope: ScopeAdaptation, payload: bytes) -> dict[str, bytes]:
@@ -756,3 +755,9 @@ def _plan_view(
         plan_digest=digest_bytes(PLAN_DOMAIN, canonize(body)),
         members=list(members),
     )
+
+
+classify_member = _classify
+preview_projection = _preview_projection
+derive_adaptation = _derive_adaptation
+materialize_member = _materialize_member

@@ -5,6 +5,12 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+from tests.unit.test_cli_setup_recast import (
+    CLAUDE_BYTES,
+    CREATED,
+    _record_setup,  # pyright: ignore[reportPrivateUsage]
+    _release_component,  # pyright: ignore[reportPrivateUsage]
+)
 
 from ai_stp_cli.commands import component as component_command
 from ai_stp_cli.commands import evaluation as command
@@ -252,12 +258,12 @@ def test_an_adopted_draft_component_is_loaded_through_the_one_passport_owner(
     with closing(open_readonly(configured_path())) as connection:
         recorded = versions.held(connection, stored.stable_id, "1.0")
         assert recorded is not None
-        loaded = evaluation._component(  # pyright: ignore[reportPrivateUsage]
+        loaded = evaluation._components(  # pyright: ignore[reportPrivateUsage]
             connection, stored.stable_id, "1.0", recorded.passport_digest
         )
 
-    assert loaded.coordinate.component_type == "skill"
-    assert loaded.coordinate.passport_digest == recorded.passport_digest
+    assert loaded[0].coordinate.component_type == "skill"
+    assert loaded[0].coordinate.passport_digest == recorded.passport_digest
 
 
 def test_an_incomplete_adopted_draft_must_be_enriched_before_version_evaluation(
@@ -322,8 +328,81 @@ def test_a_draft_without_its_kind_is_named_as_a_precondition_for_evaluation(
         )
 
         with pytest.raises(CliFailure) as raised:
-            evaluation._component(connection, stable_id, "1.0", digest)  # pyright: ignore[reportPrivateUsage]
+            evaluation._components(connection, stable_id, "1.0", digest)  # pyright: ignore[reportPrivateUsage]
 
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
     assert raised.value.details["field"] == "component_type"
     assert raised.value.next_actions == [f"component passport show --id {stable_id} --json"]
+
+
+def test_evaluation_reports_each_adaptation_separately() -> None:
+    from tests.unit.test_cli_setup_recast import CODEX_BYTES
+
+    from ai_stp_foundation.digests import digest_bytes
+
+    codex_digest = digest_bytes("ai-stp:artifact:v1", CODEX_BYTES)
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        content.put(connection, CODEX_BYTES, at=CREATED)
+        member = _release_component(
+            connection,
+            component_type="instruction",
+            harness_id="claude-code",
+            payload=CLAUDE_BYTES,
+            managed_path="CLAUDE.md",
+            extra_adaptations=[
+                {
+                    "harness_id": "codex",
+                    "content_digest": codex_digest,
+                    "content_format": "ai-stp-component-file/1",
+                    "managed_paths": ["AGENTS.md"],
+                    "scope": "global",
+                    "projection_kind": "native_files",
+                }
+            ],
+        )
+        setup_id, _digest = _record_setup(connection, harness_id="claude-code", member=member)
+        plan = evaluation.plan(
+            connection,
+            setup_id=setup_id,
+            setup_version="1.0",
+            component_ids=(member[0],),
+            harness_version="1.0.0",
+            provider_version="1.0.0",
+            runner_version="ai-stp-local-static/1",
+            at=CREATED,
+        )
+        harnesses = {item.harness_id for item in plan.components}
+        assert "claude-code" in harnesses
+        assert "codex" in harnesses
+        result = evaluation.run(connection, plan.plan_id, plan.plan_digest, at=CREATED)
+        static = [item for item in result.checks if item.check_id == "instruction.static_contract"]
+        assert len(static) == 2
+        assert {item.status for item in static} == {"passed"}
+        assert len({tuple(item.adaptation_ids) for item in static}) == 2
+        assert result.immutable_published_bytes_changed is False
+
+
+def test_a_missing_adaptation_surface_fails_that_adaptation_only() -> None:
+    from ai_stp_contracts.evaluation import EvalComponentCoordinate
+
+    empty = evaluation._Loaded(  # pyright: ignore[reportPrivateUsage]
+        EvalComponentCoordinate(
+            stable_id="component_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            version="1.0",
+            passport_digest="sha256:" + "a" * 64,
+            artifact_digest="sha256:" + "b" * 64,
+            component_type="instruction",
+            adaptation_id="adaptation_" + "c" * 64,
+            harness_id="codex",
+            projection_digest="sha256:" + "d" * 64,
+        ),
+        {"managed_paths": ()},
+        b"# empty\n",
+    )
+    present = evaluation._Loaded(  # pyright: ignore[reportPrivateUsage]
+        empty.coordinate.model_copy(update={"harness_id": "claude-code"}),
+        {"managed_paths": ("CLAUDE.md",)},
+        b"# Claude\n",
+    )
+    assert not evaluation._static_contract(empty)  # pyright: ignore[reportPrivateUsage]
+    assert evaluation._static_contract(present)  # pyright: ignore[reportPrivateUsage]

@@ -1,0 +1,80 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-component-program",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Shared executable lifecycle for one catalog `cli` component.",
+  "properties": {
+    "executable": {
+      "default": "",
+      "title": "Executable",
+      "type": "string"
+    },
+    "exit_code": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Exit Code"
+    },
+    "operation": {
+      "enum": [
+        "install",
+        "invoke",
+        "status",
+        "remove"
+      ],
+      "title": "Operation",
+      "type": "string"
+    },
+    "output": {
+      "default": "",
+      "title": "Output",
+      "type": "string"
+    },
+    "prefix": {
+      "minLength": 1,
+      "title": "Prefix",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "present",
+        "removed",
+        "never_installed",
+        "invoked"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "stable_id",
+    "version",
+    "operation",
+    "state",
+    "prefix"
+  ],
+  "title": "CliProgram",
+  "type": "object"
+}

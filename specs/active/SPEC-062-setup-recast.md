@@ -53,8 +53,9 @@ of provenance (`#139`).
   target harness is reused. A missing adaptation is derived when the target
   provider rule is a whole-path file or directory without `declared_key`, or
   when the kind is `mcp` and the target rule is a host-file contribution.
-  Settings never derive. Non-MCP host-file contributions never derive. An MCP
-  plugin package (`projection_kind=package`) never derives.
+  Settings never derive. Non-MCP host-file contributions never derive except
+  hooks, which have a named native transform. An MCP plugin package
+  (`projection_kind=package`) never derives.
 - `REQ-6205`: Derived adaptations are `implementation_mode=derived`, keep the
   logical component type, and land on the target rule's path and scope. The
   new component version is the next minor of the same `stable_id`.
@@ -75,6 +76,11 @@ of provenance (`#139`).
   lossless target mapping is recorded in `semantic_losses` rather than taken
   from `scope_adaptations[0]`. An empty `semantic_losses` list means no such
   drop occurred.
+- `REQ-6209`: Recast rewrites MCP server objects, agent documents, hook
+  manifests, and plugin packs into the target harness native form, or blocks
+  the member. A path-only copy of the source syntax is not a successful
+  derive. An existing derived adaptation whose transform revision is older
+  than the current rewrite is derived again, not reused.
 
 ## States and errors
 
@@ -94,10 +100,11 @@ model, or write a harness target.
 `ported_from` and `related_setup_ids` stay the existing passport fields.
 Historical setups with null provenance remain valid. No generation port.
 File-preserving rewrite is transform content revision `1.1`. Scope and
-constraint preservation is `1.2`. Immutable adaptations produced by earlier
-revisions are not rewritten. This is not a new HTTP, provider, scaffold, or
-standard-family generation. Pre-change plans become stale and are replanned
-automatically within the existing task authority.
+constraint preservation is `1.2`. Native syntax rewrite is `1.3`. Immutable
+adaptations produced by earlier revisions are not rewritten in place; a
+stale derived adaptation is replaced by a new minor. This is not a new HTTP,
+provider, scaffold, or standard-family generation. Pre-change plans become
+stale and are replanned automatically within the existing task authority.
 
 ## Acceptance criteria
 
@@ -111,3 +118,4 @@ automatically within the existing task authority.
 | `REQ-6206` | A two-adaptation component produces a composition surface for the requested harness. |
 | `REQ-6207` | Nested same-basename siblings survive a directory rename; out-of-surface and case-colliding paths are refused; a skill tree keeps recorded modes through plan, apply, and the sealed projection ZIP. |
 | `REQ-6208` | A two-scope source with project first still maps the global scope onto a target that has no project surface; derived members keep recorded native ids and OS constraints. |
+| `REQ-6209` | Cursor MCP recast onto OpenCode emits `type: local` and a command array; a Claude markdown agent recast onto Codex is TOML; a remote-only MCP server is blocked. |
