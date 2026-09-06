@@ -28,6 +28,10 @@ Included: composition conversion of `cli`, and `component program install`,
 - `REQ-6502`: Conversion reports `cli` as complete on the shared `bin` surface.
 - `REQ-6503`: `component program install`, `invoke`, `status`, and `remove`
   operate on one prefix under the CLI data directory.
+- `REQ-6504`: `remove` accepts only a typed component identifier and deletes
+  only names under the shared prefix. A path, `..` segment, or symlink target
+  outside the prefix is refused or unlinked at the prefix name; the outside
+  target is not deleted.
 
 ## States and errors
 
@@ -40,6 +44,9 @@ Included: composition conversion of `cli`, and `component program install`,
 
 Invoke never resolves through `PATH`. The environment passed to the process is
 bounded. Artifact bytes are already local; the command does not fetch them.
+`--id` is a typed component identifier, not a filesystem path. Remove resolves
+the prefix and the named root and refuses a candidate that is not inside the
+prefix. A symlink at that name is unlinked without following it.
 
 ## Compatibility and migration
 
@@ -54,3 +61,4 @@ are corrected; that is not a new component kind.
 | `REQ-6501` | Composition of a required cli member has no `native_surface_lost`. |
 | `REQ-6502` | Convert of a cli member is `complete` with `native_surface=bin`. |
 | `REQ-6503` | Install, status, invoke, and remove of one recorded cli artifact. |
+| `REQ-6504` | `component program remove --id ../outside --confirm` raises and leaves the outside directory. A symlink under the prefix to that directory is unlinked; the target remains. |
