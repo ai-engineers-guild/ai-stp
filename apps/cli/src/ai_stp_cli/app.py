@@ -211,6 +211,18 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("auth",): "Sign in, inspect or remove the optional cloud session.",
     ("component",): "Discover, adopt, describe and version single components.",
     ("component", "adaptation"): "Add another harness-native projection to one authoring tree.",
+    (
+        "component",
+        "materialize",
+    ): "Derive a missing harness adaptation from a pinned component version.",
+    (
+        "component",
+        "portability",
+    ): "Record a private local overlay from an explicit portability claim.",
+    (
+        "component",
+        "program",
+    ): "Install, invoke and remove a catalog cli component as a shared executable.",
     ("component", "passport"): "Read, enrich and validate a component's passport.",
     ("component", "scaffold"): "Start a new component from a declared layout.",
     ("component", "source"): "Resolve an external source to an exact, checkable identity.",
