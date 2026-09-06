@@ -1,6 +1,6 @@
 ---
 description: "SPEC-001: MVP product contract."
-last_verified: "2026-09-03"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-001: MVP Product Contract
@@ -55,7 +55,7 @@ An unknown harness produces `unsupported` readiness on this axis and the separat
 
 ## Security and privacy
 
-An unverified object is excluded from automatic composition. Secrets, source conversations, and environment values are not written to passports. Every mutating operation uses a plan, an exact digest, and separate confirmation according to the risk rules.
+An unverified object may enter composition under task authority and stays labeled unverified (`ADR-0150`, `ADR-0159`). Secrets, source conversations, and environment values are not written to passports. Every mutating operation uses a plan, an exact digest, and confirmation according to the remaining stops in `skills/canonical/ai-stp/references/decisions.md`.
 
 ## Compatibility and migration
 

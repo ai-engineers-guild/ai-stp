@@ -1,6 +1,6 @@
 ---
 description: "SPEC-021: Anonymous reading of the public catalog and initial seeding of objects."
-last_verified: "2026-09-04"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-021: Anonymous public catalog reading and primary seeding
@@ -143,6 +143,12 @@ storage and migrations as such (`SPEC-020`); REST ready surface
   are checked against the published document, and not against a re-serialization of the current
   models. Offline retry does not open the network, rechecks the cache and either
   returns the same graph, or type-fails without a partial record.
+- `REQ-2115`: Each first-party `(harness, posture)` has one catalog identity
+  derived from `ai_stp_contracts.first_party` passports: `setup_id`,
+  `setup_version`, `setup_passport_digest`, and per-component `stable_id`,
+  `version`, `passport_digest`, and `adaptation_id`. The projection does not
+  mint identifiers. Compiling that setup through the CLI bundle path yields
+  the same setup identity and the same component stable_ids.
 
 ## States and errors
 
@@ -200,3 +206,4 @@ canonicalization requires a new version under `SPEC-015`.
 | `REQ-2111` | The test confirms that the API does not mark the version verified beyond the stored evidence state. |
 | `REQ-2112` | The `run_conformance` run over the common fixture body completes with no findings for the API implementation. |
 | `REQ-2113` | Client tests receive the exact setup graph, collect it from the local registry, repeat the acquisition without a network and confirm idempotency; a corrupted cache is rejected, and a failure within a transaction leaves no partial graph. A separate test confirms that a passport without later added fields with default values ​​passes acquire if the revision seal matches the published document. |
+| `REQ-2115` | A table-driven test derives one catalog identity per first-party `(harness, posture)` from corpus passports, agrees with `compile_setup_version_bundle` on setup id/version and component stable_ids, is deterministic, and contains no private authoring coordinates. |

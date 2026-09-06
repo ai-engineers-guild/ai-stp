@@ -152,6 +152,13 @@ last_verified: "2026-08-03"
 | [ADR-0151-postgresql-catalog-search-projection.md](ADR-0151-postgresql-catalog-search-projection.md) | Public catalog search is a PostgreSQL projection compiled from Catalog QL. | 2026-09-04 |
 | [ADR-0152-public-identities-and-owned-catalog-lines.md](ADR-0152-public-identities-and-owned-catalog-lines.md) | Decision to give accounts and catalog component lines unique public identities owned independently of versions. | 2026-09-04 |
 | [ADR-0153-git-owned-official-registry-and-recoverable-sync.md](ADR-0153-git-owned-official-registry-and-recoverable-sync.md) | Decision to own the AI STP Official inventory in Git and reconcile it through a durable outbox, queue, ledger, and transfer fence. | 2026-09-04 |
+| [ADR-0154-standard-family-is-not-a-relabel.md](ADR-0154-standard-family-is-not-a-relabel.md) | Decision that the coordinated standard is a new identity, not a rename of HTTP v1, envelope schema_version, kit protocol v3, or generator generations. | 2026-09-05 |
+| [ADR-0155-cli-is-a-component-kind.md](ADR-0155-cli-is-a-component-kind.md) | Decision to add `cli` as a ninth component kind, distinct from a slash `command`. | 2026-09-05 |
+| [ADR-0156-first-party-catalog-identity.md](ADR-0156-first-party-catalog-identity.md) | Decision that first-party catalog identity is the corpus passport projection, not a weaker id-and-description record. | 2026-09-05 |
+| [ADR-0157-explicit-path-inventory.md](ADR-0157-explicit-path-inventory.md) | Decision that an explicit path is a passport-first inventory and does not import global homes. | 2026-09-05 |
+| [ADR-0158-discovery-continuation.md](ADR-0158-discovery-continuation.md) | Decision that bounded component discovery reports completeness and a resumable cursor. | 2026-09-05 |
+| [ADR-0159-full-task-authority-is-a-consent-scope.md](ADR-0159-full-task-authority-is-a-consent-scope.md) | Decision that authorized full-task authority is consent scope task, not a config wildcard and not a covering grant that beats a narrower exclusion. | 2026-09-05 |
+| [ADR-0160-estate-complete-requires-launch-matrix.md](ADR-0160-estate-complete-requires-launch-matrix.md) | Decision that an estate complete verdict requires the seven-harness launch matrix; omitted or skipped cells cannot stand in for a passing row. | 2026-09-05 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

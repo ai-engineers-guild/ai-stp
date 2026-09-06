@@ -26,6 +26,7 @@ from ai_stp_cli.local import (
     external_sources,
     github_evidence,
     lifecycle,
+    path_inventory,
     revisions,
     search,
     skill_package,
@@ -44,6 +45,7 @@ from ai_stp_contracts.machine_help import (
     ComponentQualityCheck,
     ComponentQualityDimension,
     ComponentQualityReport,
+    ComponentScaffoldView,
     ComponentTemplateView,
     ConsentRecord,
     ConsentSummary,
@@ -54,6 +56,7 @@ from ai_stp_contracts.machine_help import (
     NativeComponents,
     NativeDiscoveryDiagnostic,
     PassportView,
+    PathInventory,
     RecordedVersion,
     SearchHit,
     SkillPackageFinding,
@@ -204,6 +207,24 @@ def scaffold_apply(parameters: Mapping[str, object]) -> Answer[ComponentScaffold
     return Answer(authoring.apply_scaffold(plan, files, expected_digest=expected))
 
 
+def adaptation_add(parameters: Mapping[str, object]) -> Answer[ComponentScaffoldView]:
+    """Render one extra concrete harness projection into an existing authoring tree."""
+    import json
+
+    root = Path(_required(parameters, "root", "an authoring directory is required")).expanduser()
+    harness = _required(parameters, "harness", "a concrete harness is required")
+    written = authoring.add_adaptation(root, harness)
+    template = json.loads((root / ".ai-stp-template.json").read_text(encoding="utf-8"))
+    return Answer(
+        ComponentScaffoldView(
+            component_type=template["component_type"],
+            component_name=root.name,
+            output=str(root.resolve()),
+            byte_length=sum(len(payload) for payload in written.values()),
+        )
+    )
+
+
 def template_render(parameters: Mapping[str, object]) -> Answer[ComponentTemplateView]:
     """Render a portable template for exactly one closed-registry harness."""
     source_path = Path(
@@ -247,18 +268,29 @@ def _view(stored: revisions.StoredRevision) -> PassportView:
 
 
 def discover(parameters: Mapping[str, object]) -> Answer[NativeComponents]:
-    """List native components in the harness roots and, if named, one project.
+    """List native components in harness roots, or only in a named project.
 
+    An explicit `--root` is the path workflow: it does not add global homes.
     Reads no file's content and writes nothing at all. A path whose *name* says
     it holds a credential is listed and flagged, never opened: opening it to
     find out whether it holds a secret is the harm the rule exists to prevent.
     """
     given = parameters.get("root")
     project = Path(str(given)) if given is not None else None
-    report = components.discover_report(project=project)
+    token = parameters.get("cursor")
+    continuation = None if token is None else str(token)
+    if continuation is not None and project is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a discovery continuation requires the same --root",
+            next_actions=["component discover --root <path> --json"],
+        )
+    report = components.discover_report(project=project, continuation=continuation)
     return Answer(
         NativeComponents(
             project=None if project is None else str(project),
+            complete=report.complete,
+            continuation=report.continuation,
             components=[
                 NativeComponent(
                     component_type=item.component_type,  # pyright: ignore[reportArgumentType]
@@ -300,6 +332,17 @@ def discover(parameters: Mapping[str, object]) -> Answer[NativeComponents]:
     )
 
 
+def inventory(parameters: Mapping[str, object]) -> Answer[PathInventory]:
+    """Passport-first inventory of one explicit root. Changes nothing."""
+    token = parameters.get("cursor")
+    return Answer(
+        path_inventory.inventory_root(
+            Path(str(parameters["root"])),
+            cursor=None if token is None else str(token),
+        )
+    )
+
+
 def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:
     """Register one discovered component, by the exact path discovery reported.
 
@@ -326,7 +369,11 @@ def adopt(parameters: Mapping[str, object]) -> Answer[PassportView]:
         if named is not None
         else (wanted.parent if wanted.parent.is_dir() else None)
     )
-    matches = [item for item in components.discover(project=project) if item.absolute == wanted]
+    matches = [
+        item
+        for item in components.discover(project=project, include_global=True)
+        if item.absolute == wanted
+    ]
     if not matches:
         raise CliFailure(
             "AI_STP_NOT_FOUND",
@@ -551,11 +598,11 @@ def forget(parameters: Mapping[str, object]) -> Answer[PassportView]:
 
 
 def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
-    """Record a durable consent to unverified objects of one publisher or line.
+    """Record a durable consent to unverified objects, or full-task authority.
 
     There is deliberately no form covering everything unverified forever: the
-    `search.include_unverified` key was exactly that and was removed, so the
-    scope is one publisher or one major line and nothing wider.
+    `search.include_unverified` key was exactly that and was removed. `task`
+    names the authorized full-auto profile, not a wildcard publisher.
     """
     scope = parameters.get("scope")
     target = parameters.get("target")
@@ -576,6 +623,23 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
         )
 
     def work(connection: sqlite3.Connection) -> ConsentRecord:
+        if str(scope) == consent.SCOPE_TASK:
+            # Task authority is a named profile, not a fingerprint of objects.
+            # Requiring a matching registration would make the grant unwritable
+            # until an unverified object already existed — the opposite of
+            # authorizing the task that will meet those objects.
+            record = consent.grant(
+                connection,
+                consent_id=new_id("request"),
+                scope=str(scope),
+                target=str(target),
+                fingerprint=consent.fingerprint_of({}),
+                observed=(),
+                decided_by=owner().account_id,
+                origin="component consent allow",
+                at=moment(),
+            )
+            return _record(record)
         # The contract asks for "the fingerprint of the candidate at the moment
         # of consent", so the shape is read from the objects the target
         # actually covers right now. It used to record `fingerprint_of({})`
@@ -991,7 +1055,7 @@ def _hit(hit: search.Hit) -> SearchHit:
 def skill_validate(parameters: Mapping[str, object]) -> Answer[SkillPackageReport]:
     """Check a skill package against the Agent Skills Specification (`#455`).
 
-    Reads a directory and changes nothing. Of the eight component kinds this is
+    Reads a directory and changes nothing. Of the closed component kinds this is
     the one with a published standard that exists independently of this estate,
     so every limit it enforces is quoted from that document rather than chosen
     here — which is what makes the answer checkable by somebody who does not

@@ -37,7 +37,7 @@ export type ComponentSummaryFixture = {
   latest_harness_id: "claude-code" | "codex" | "pi" | "opencode" | "grok-build";
   latest_harness_ids: Array<"claude-code" | "codex" | "pi" | "opencode" | "grok-build">;
   latest_component_type:
-    "instruction" | "skill" | "mcp" | "hook" | "command" | "agent" | "plugin" | "setting";
+    "instruction" | "skill" | "mcp" | "hook" | "command" | "agent" | "plugin" | "setting" | "cli";
   latest_projection_kind: "marketplace" | "plugin" | "native_files" | "package";
   latest_tags: string[];
   latest_lifecycle: "active" | "deprecated" | "blocked";

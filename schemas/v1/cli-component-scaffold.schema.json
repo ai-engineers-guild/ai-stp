@@ -1,4 +1,20 @@
 {
+  "$defs": {
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting",
+        "cli"
+      ],
+      "type": "string"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:cli-component-scaffold",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -15,18 +31,7 @@
       "type": "string"
     },
     "component_type": {
-      "enum": [
-        "instruction",
-        "skill",
-        "mcp",
-        "hook",
-        "command",
-        "agent",
-        "plugin",
-        "setting"
-      ],
-      "title": "Component Type",
-      "type": "string"
+      "$ref": "#/$defs/ComponentType"
     },
     "output": {
       "minLength": 1,

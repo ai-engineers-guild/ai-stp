@@ -63,6 +63,36 @@ class FirstPartyVersion(BaseModel):
     source_tree: str
 
 
+class FirstPartyCatalogMember(BaseModel):
+    """One component identity a catalog projection may vendor without minting ids."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    stable_id: str
+    version: str
+    passport_digest: str
+    adaptation_id: str
+
+
+class FirstPartyCatalogIdentity(BaseModel):
+    """Compact first-party catalog identity derived from corpus passports (A14).
+
+    A provider local catalog historically recorded an id and a description.
+    This object is the identity set a compiled bundle already carries, so the
+    two channels can agree without inventing identifiers at install time.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    harness_id: str
+    posture: str
+    setup_id: str
+    setup_version: str
+    setup_passport_digest: str
+    component_refs: tuple[FirstPartyCatalogMember, ...]
+
+
 class _ComponentSource(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
@@ -555,3 +585,42 @@ def family(harness_id: str, posture: str) -> tuple[FirstPartyVersion, ...]:
     if not found:
         raise LookupError(f"the first-party corpus has no {harness_id} objects in {posture!r}")
     return found
+
+
+def catalog_identity(harness_id: str, posture: str) -> FirstPartyCatalogIdentity:
+    """Return the catalog identity already sealed in the corpus for this pair."""
+    members = family(harness_id, posture)
+    setup = next(item for item in members if item.kind == "setup")
+    if not isinstance(setup.passport, SetupVersionPassport):
+        raise LookupError(f"{harness_id} {posture} has no setup passport")
+    refs: list[FirstPartyCatalogMember] = []
+    for item in members:
+        if item.kind != "component":
+            continue
+        if not isinstance(item.passport, ComponentVersionPassport):
+            raise LookupError(f"{item.passport.stable_id} is not a component passport")
+        refs.append(
+            FirstPartyCatalogMember(
+                stable_id=item.passport.stable_id,
+                version=item.passport.version,
+                passport_digest=item.passport_digest,
+                adaptation_id=item.passport.adaptations[0].adaptation_id,
+            )
+        )
+    return FirstPartyCatalogIdentity(
+        harness_id=setup.passport.harness_id,
+        posture=setup.passport.posture or posture,
+        setup_id=setup.passport.stable_id,
+        setup_version=setup.passport.version,
+        setup_passport_digest=setup.passport_digest,
+        component_refs=tuple(refs),
+    )
+
+
+def catalog_identities() -> tuple[FirstPartyCatalogIdentity, ...]:
+    """One identity per published first-party setup, in corpus order."""
+    return tuple(
+        catalog_identity(item.passport.harness_id, item.passport.posture or "")
+        for item in versions()
+        if item.kind == "setup" and isinstance(item.passport, SetupVersionPassport)
+    )

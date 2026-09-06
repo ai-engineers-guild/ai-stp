@@ -1,6 +1,6 @@
 ---
 description: "Component and setup version passports, component types, and dependencies."
-last_verified: "2026-08-22"
+last_verified: "2026-09-05"
 ---
 
 # Component and setup passports
@@ -79,7 +79,8 @@ provenance contract.
 
 ## Component types
 
-The list is closed under `ADR-0012` and reduced to eight values under `ADR-0015`:
+The list is closed under `ADR-0012`, reduced under `ADR-0015`, and extended
+with `cli` under `ADR-0155`:
 
 ```text
 instruction
@@ -90,6 +91,7 @@ command
 agent
 plugin
 setting
+cli
 ```
 
 Memory, rules, settings, and auxiliary tools are not separate types: they are content
@@ -108,6 +110,7 @@ Classification rule, with one example for each type:
 | `agent` | a review subagent with its own role and toolset | a declaration of role, model, tools, and delegation |
 | `plugin` | a native package contributing commands and hooks together | a native manifest containing other components |
 | `setting` | a concurrency-limit value | a typed key-value pair in native configuration |
+| `cli` | a `review-kit` executable with a process entry point | a standalone program invoked as a process, not a slash command |
 
 A harness marketplace is not any of these types: it is a delivery channel expressed through `projection_kind`.
 

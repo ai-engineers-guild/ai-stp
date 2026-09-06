@@ -1,6 +1,6 @@
 ---
 description: "SPEC-006: Search, candidate selection, and setup compiler."
-last_verified: "2026-09-01"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-006: Search, Selection, and Setup Compiler
@@ -57,14 +57,15 @@ Trust lines under `ADR-0016`:
 - `REQ-624`: A proposal is bound to an input snapshot: changing a candidate hash, context-passport revisions, or policy version makes it stale; confirmation of a stale proposal is rejected with a typed error, while repeated confirmation of the same proposal idempotently returns the same version.
 - `REQ-625`: The MVP setup compiler performs only deterministic operations: canonical ordering, deduplication of identical exact references, resolution of the exact dependency closure, merging of non-overlapping managed paths, and deterministic generation of reports and the package.
 - `REQ-626`: The setup compiler does not perform automatic semantic merging, equivalent selection, or optimization for conflicting instructions, hooks, commands, MCP, agents, plugins, and settings; a semantic conflict blocks the package, resolution belongs to the agent and user through selection of another component or an explicit derived component or overlay, and the derived object is checked as a separate exact version.
-- `REQ-627`: A durable consent record stores the target, scope, decision author, time, source, and authority-and-capability fingerprint; a new major line or a new requirement for authority, processes, network, credentials, external endpoints, managed paths, or native surfaces invalidates the record for that version until a new explicit decision, the result always remains on the `experimental` line, and the consent source and fingerprint are recorded in the recommendation trace and installation plan.
+- `REQ-627`: A durable `publisher` or `object_major` consent record stores the target, scope, decision author, time, source, and authority-and-capability fingerprint; a new major line or a new requirement for authority, processes, network, credentials, external endpoints, managed paths, or native surfaces invalidates that record for that version until a new explicit decision of those scopes. The result always remains on the `experimental` line, and the consent source and fingerprint are recorded in the recommendation trace and installation plan. Scope `task` is not a fingerprint ceiling: see `REQ-634`.
 - `REQ-628`: Confirmation atomically stores a complete `SetupVersionPassport` and an independent canonical definition artifact with exact component refs; HarnessBundle is not used as the artifact for its own embedded passport, and incomplete legacy member metadata explicitly blocks publication.
-- `REQ-614`: Consent to unverified objects is an explicit request flag and applies within a command or session; indefinite global consent to all unverified objects is not supported, while durable exceptions exist in exactly two scopes under `docs/contracts/unverified-consent.md` — publisher and exact-object major line — and are selected explicitly by the user.
+- `REQ-614`: Consent to unverified objects is an explicit request flag and applies within a command or session; indefinite global consent to all unverified objects is not supported. Durable records exist in exactly the three scopes under `docs/contracts/unverified-consent.md` — `publisher`, exact-object major line, and `task` (authorized full-auto profile, target `full-auto`) — and are selected explicitly. `task` is not a configuration wildcard.
 - `REQ-615`: An object on the `local_owner_or_pinned` line is selected directly after local checks, is available offline, and is not marked as platform-verified.
 - `REQ-616`: `RecommendationTrace` stores each candidate's line, author and version state, consent source, authority-and-capability fingerprint, mandatory-check results, and compatibility evidence.
 - `REQ-617`: The absence of verified candidates does not enable another line by itself and remains an honest state.
 - `REQ-618`: Candidate search uses normalized name, description, tags, and synonyms; supports prefix and phrase queries; and supports structural filters by type, harness, compatibility, source, line, `author_verified`, and `component_verified`.
 - `REQ-619`: Local search works without a network, models, or a separate vector store; cloud-search unavailability does not block local search.
+- `REQ-634`: An active `task` / `full-auto` record admits an `experimental` candidate without a per-object grant and without a fingerprint or major ceiling; a revoked narrower `publisher` or `object_major` record remains an exclusion; the candidate is not moved to `authoritative` (`ADR-0150`, `ADR-0159`).
 
 ## Result Ordering
 
@@ -121,7 +122,7 @@ The scoring version, setup compiler version, and input hash are recorded in the 
 | `REQ-611` | A golden scoring fixture verifies each criterion's contribution and the policy version. |
 | `REQ-612` | Disabling the scoring layer yields `ranking: unavailable`, not an error or empty results. |
 | `REQ-613` | Configuration tests do not allow evidence to be zeroed, the line to be changed, or constraints to be bypassed. |
-| `REQ-614` | Consent from a previous command or session does not affect a new request, a clean profile does not return `experimental`, and the `publisher` and `object_major` scopes cover different candidate sets in fixtures. |
+| `REQ-614` | Consent from a previous command or session does not affect a new request, a clean profile does not return `experimental`, and the `publisher`, `object_major`, and `task` scopes cover different candidate sets in fixtures. |
 | `REQ-615` | An offline fixture selects the user's own object and does not show it as platform-verified. |
 | `REQ-616` | The golden trace contains the line, author and version state, consent source, authority-and-capability fingerprint, and evidence for each candidate. |
 | `REQ-617` | Empty `authoritative` results do not mix in candidates from other lines. |
@@ -139,5 +140,6 @@ The scoring version, setup compiler version, and input hash are recorded in the 
 | `REQ-624` | A fixture with a changed candidate or context passport rejects confirmation with a typed error; an injected change between preflight and the write lock proves revalidation and complete rollback, while repeated confirmation returns the same version without a second object. |
 | `REQ-625` | Recompiling one input produces the same complete ZIP with its passport, both reports, and exact files, while the composition report lists applied operations only from the allowed set. |
 | `REQ-626` | Fixtures with conflicting instructions, hooks, and settings block the package without attempting a merge, while an explicit derived overlay passes only after its own checks as a separate version. |
-| `REQ-627` | Fixtures for a new major line and expanded authority reject the old consent record and require a new decision, while the record never moves a candidate to `authoritative`. |
+| `REQ-627` | Fixtures for a new major line and expanded authority reject the old `publisher` or `object_major` consent record and require a new decision of those scopes, while the record never moves a candidate to `authoritative`. |
+| `REQ-634` | Table-driven tests: an active `task` / `full-auto` grant admits capability growth and a new major line; a revoked narrower `publisher` or `object_major` record still refuses; the candidate remains `experimental`. |
 | `REQ-628` | A test validates the stored revision with the `SetupVersionPassport` model, reads definition bytes by artifact digest, and uses an injected failure to prove joint rollback of content/version/trace/pin; complete and legacy aggregates are distinguished by an explicit flag. |

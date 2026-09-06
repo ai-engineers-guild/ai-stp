@@ -1,6 +1,6 @@
 ---
 description: "Verifiable inventory of the actual bytes and passports in the first-party launch corpus."
-last_verified: "2026-08-29"
+last_verified: "2026-09-05"
 ---
 
 # First-party launch corpus
@@ -81,7 +81,7 @@ The third copy of the projection table no longer exists. It was located in `ai_s
 
 `safe` and `full-auto` remain execution profiles of one setup graph, not two content setups. Switching the profile does not change the component, setup artifact, or graph according to `SPEC-008` `REQ-835`; both profiles are checked by the provider lifecycle separately from the content body.
 
-The imported data owner is `ai_stp_contracts.first_party`. It supplies exact bytes of artifacts, full sealed passports, and their hashes in a single set and is used by both parties instead of independent copies.
+The imported data owner is `ai_stp_contracts.first_party`. It supplies exact bytes of artifacts, full sealed passports, and their hashes in a single set and is used by both parties instead of independent copies. `catalog_identity(harness, posture)` is the compact catalog projection of those identities (`ADR-0156`): setup id, version, passport digest, and per-component stable id, version, passport digest, and adaptation id. It does not mint identifiers.
 
 ## Unclosed integration
 

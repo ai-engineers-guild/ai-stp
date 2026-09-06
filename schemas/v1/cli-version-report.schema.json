@@ -9,6 +9,23 @@
       "title": "Cli Version",
       "type": "string"
     },
+    "contract_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Contract Digest",
+      "type": "string"
+    },
+    "http_api_version": {
+      "const": "v1",
+      "default": "v1",
+      "title": "Http Api Version",
+      "type": "string"
+    },
+    "provider_protocol_version": {
+      "const": 3,
+      "default": 3,
+      "title": "Provider Protocol Version",
+      "type": "integer"
+    },
     "python_version": {
       "pattern": "^\\d+\\.\\d+\\.\\d+",
       "title": "Python Version",
@@ -20,6 +37,12 @@
       "title": "Schema Version",
       "type": "integer"
     },
+    "standard_family": {
+      "const": "ai-stp-standard/1",
+      "default": "ai-stp-standard/1",
+      "title": "Standard Family",
+      "type": "string"
+    },
     "wire_schema_version": {
       "const": 1,
       "default": 1,
@@ -29,8 +52,12 @@
   },
   "required": [
     "cli_version",
+    "contract_digest",
+    "http_api_version",
+    "provider_protocol_version",
     "python_version",
     "schema_version",
+    "standard_family",
     "wire_schema_version"
   ],
   "title": "VersionReport",

@@ -31,11 +31,11 @@ More: [setups](../setups/index.md).
 
 ## Component
 
-A component is one part of a setup, of one of eight kinds. Memory, rules,
+A component is one part of a setup, of one of the closed kinds. Memory, rules,
 parameters and helper tools are the *content* of an `instruction`, a `skill`
 or a `setting` — not kinds of their own.
 
-The eight kinds, and how to choose among them, live on
+The closed kinds, and how to choose among them, live on
 [component kinds](../components/index.md). This page does not repeat that
 list.
 
@@ -174,7 +174,7 @@ Details: [Project](../cli/project.md).
   read.
 - [Quickstart for agents](../quickstart/agent.md) — session ritual.
 - [Supported harnesses](../harnesses.md) — primary, beta, `undefined`.
-- [Components](../components/index.md) — the eight kinds.
+- [Components](../components/index.md) — the closed kinds.
 - [Setups](../setups/index.md) — exact pins, one harness.
 - [CLI](../cli/index.md) — envelopes and command groups.
 - [Catalog](../catalog/index.md) — how to read a public result.

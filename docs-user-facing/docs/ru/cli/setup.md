@@ -18,20 +18,21 @@ description: "Собрать, импортировать, обновить и о
 | Команда | Мутабельность | Подтверждение | Когда |
 | --- | --- | --- | --- |
 | `ai-stp setup compose plan` | `plan` | `none` | разрешить и зафиксировать новый сетап из каталога, Git, пакетов и path-источников |
-| `ai-stp setup compose apply` | `apply` | `explicit_flag` | записать точный, по-прежнему актуальный смешанный сетап как одну неизменяемую локальную версию |
+| `ai-stp setup compose apply` | `apply` | `plan_digest` | записать точный, по-прежнему актуальный смешанный сетап как одну неизменяемую локальную версию |
 | `ai-stp setup import inspect` | `read` | `none` | прочитать одну нативную конфигурацию; ничего не записывать |
 | `ai-stp setup import plan` | `plan` | `none` | спланировать точные черновики компонентов и сетапа из одной нативной конфигурации |
 | `ai-stp setup import register` | `apply` | `plan_digest` | зарегистрировать проинспектированную конфигурацию как свой сетап |
 | `ai-stp setup update plan` | `plan` | `none` | предпросмотр замены одного встроенного компонента более новым точным снапшотом |
-| `ai-stp setup update apply` | `apply` | `explicit_flag` | подтвердить одно точное встроенное обновление и создать новую версию сетапа |
+| `ai-stp setup update apply` | `apply` | `plan_digest` | применить одно точное встроенное обновление и создать новую версию сетапа |
 | `ai-stp setup publish plan` | `plan` | `none` | спланировать публикацию одного выпущенного сетапа со всеми компонентами, которые он фиксирует |
 | `ai-stp setup publish confirm` | `apply` | `explicit_flag` | подтвердить один точный отрецензированный набор публикации |
 
 `--json` — глобальный флаг. Всегда передавайте его.
 
-`compose apply` и `update apply` требуют **оба** `--expected-plan-digest`
-и `--confirm`. `import register` требует `--plan-digest` (это
-декларированное имя). `publish confirm` требует `--set-digest` и `--confirm`.
+`compose apply` и `update apply` требуют `--expected-plan-digest`. Этот
+дайджест и есть решение. `import register` требует `--plan-digest` (это
+декларированное имя). `publish confirm` требует `--set-digest` и `--confirm`,
+потому что меняет видимость существующего объекта.
 
 ## Compose plan и apply
 
@@ -92,7 +93,7 @@ ai-stp setup compose plan --manifest setup.json --root . --json
 `version`, `source`, `embedded`.
 
 Apply повторяет разрешение и отклоняет изменённые байты. Передайте возвращённый
-идентификатор сетапа, временную метку, дайджест плана **и** `--confirm`:
+идентификатор сетапа, временную метку и дайджест плана:
 
 ```bash
 ai-stp setup compose apply \
@@ -101,7 +102,6 @@ ai-stp setup compose apply \
   --id <setup_id> \
   --created-at <created_at> \
   --expected-plan-digest sha256:... \
-  --confirm \
   --json
 ```
 
@@ -164,8 +164,7 @@ ai-stp setup update plan \
 40-символьный Git SHA. `--project` — корень проекта, чей выбранный сетап
 проверяется.
 
-Apply повторяет те же опции и добавляет `--expected-plan-digest` и
-`--confirm`:
+Apply повторяет те же опции и добавляет `--expected-plan-digest`:
 
 ```bash
 ai-stp setup update apply \
@@ -176,7 +175,6 @@ ai-stp setup update apply \
   --commit abcdef0123456789abcdef0123456789abcdef01 \
   --harness codex \
   --expected-plan-digest sha256:... \
-  --confirm \
   --json
 ```
 
@@ -214,7 +212,7 @@ Compose:
 
 ```text
 setup compose plan --manifest setup.json --root .
-→ setup compose apply --manifest setup.json --root . --id … --created-at … --expected-plan-digest … --confirm
+→ setup compose apply --manifest setup.json --root . --id … --created-at … --expected-plan-digest …
 → select session / install plan
 ```
 
@@ -250,7 +248,7 @@ setup publish plan --id <setup_id> --version <X.Y>
 
 | Что вы видите | Что это значит | Что делать |
 | --- | --- | --- |
-| `AI_STP_USER_DECISION_REQUIRED` | `--confirm` был пропущен при compose apply, update apply или publish confirm | передайте `--confirm` после ревью плана |
+| `AI_STP_USER_DECISION_REQUIRED` | `--confirm` был пропущен при publish confirm | передайте `--confirm` после ревью набора публикации |
 | `AI_STP_VALIDATION_ERROR` | отсутствует `--expected-plan-digest`, `--plan-digest` или `--set-digest` | скопируйте дайджест, который вернул plan |
 | `AI_STP_PLAN_STALE` | байты Git, байты пакетов или локальные пути изменились | спланируйте заново; apply отклоняет изменённые байты |
 | `AI_STP_PRECONDITION_FAILED` | import register без бэкапа провайдера или несвязанный элемент | сделайте бэкап через install; исправьте манифест |

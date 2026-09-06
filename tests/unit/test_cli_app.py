@@ -244,7 +244,13 @@ def test_a_valued_option_reaches_its_handler(
 
     def handler(parameters: Mapping[str, object]) -> Answer[VersionReport]:
         seen.update(parameters)
-        return Answer(VersionReport(cli_version="9.9.9", python_version="3.12.0"))
+        return Answer(
+            VersionReport(
+                cli_version="9.9.9",
+                python_version="3.12.0",
+                contract_digest="sha256:" + "0" * 64,
+            )
+        )
 
     descriptor = COMMANDS[0].descriptor.model_copy(
         update={
@@ -295,7 +301,13 @@ def test_a_hyphenated_option_reaches_its_handler_under_its_declared_name(
 
     def handler(parameters: Mapping[str, object]) -> Answer[VersionReport]:
         seen.update(parameters)
-        return Answer(VersionReport(cli_version="9.9.9", python_version="3.12.0"))
+        return Answer(
+            VersionReport(
+                cli_version="9.9.9",
+                python_version="3.12.0",
+                contract_digest="sha256:" + "0" * 64,
+            )
+        )
 
     descriptor = COMMANDS[0].descriptor.model_copy(
         update={
@@ -332,7 +344,13 @@ def test_a_required_hyphenated_boolean_is_checked_under_its_declared_name(
     from ai_stp_contracts.machine_help import CommandParameter, VersionReport
 
     def handler(_parameters: Mapping[str, object]) -> Answer[VersionReport]:
-        return Answer(VersionReport(cli_version="9.9.9", python_version="3.12.0"))
+        return Answer(
+            VersionReport(
+                cli_version="9.9.9",
+                python_version="3.12.0",
+                contract_digest="sha256:" + "0" * 64,
+            )
+        )
 
     descriptor = COMMANDS[0].descriptor.model_copy(
         update={

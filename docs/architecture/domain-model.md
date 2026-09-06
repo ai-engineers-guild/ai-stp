@@ -1,6 +1,6 @@
 ---
 description: "Product entities, their ownership, and core invariants."
-last_verified: "2026-08-29"
+last_verified: "2026-09-05"
 ---
 
 # Domain Model
@@ -35,7 +35,7 @@ last_verified: "2026-08-29"
 
 | Entity | Meaning |
 |---|---|
-| Component | A stable logical component entity with a closed eight-value `component_type`. |
+| Component | A stable logical component entity with a closed `component_type`. |
 | ComponentVariant | A native component implementation for one harness. |
 | ComponentVersion | An immutable `X.Y` version. |
 | Setup | A stable logical setup entity belonging to one harness. |
@@ -59,7 +59,7 @@ last_verified: "2026-08-29"
 |---|---|
 | SelectionRun | Context, questions, candidates, and decisions. |
 | SelectionProposal | A derived, short-lived composition proposal within a recommendation session. |
-| UnverifiedConsent | A durable consent record scoped to a publisher or object_major, with a capability fingerprint. |
+| UnverifiedConsent | A durable consent record scoped to a publisher, object major line, or authorized full-task profile. |
 | RecommendationTrace | The trust lane, consent source, and reasons for selecting a candidate. |
 | SetupGraph | Component nodes and dependencies. |
 | Overlay | A constrained change on top of an upstream version. |
@@ -130,7 +130,7 @@ last_verified: "2026-08-29"
 - BackupRef and ImportedSetup remain distinct objects.
 - A device signature is not platform-executed validation.
 - An unverified object enters results only with explicit consent and never enters the authoritative lane.
-- A consent record is scoped to a publisher or object_major and is revoked when capabilities expand.
+- A consent record is scoped to a publisher, object major line, or authorized full-task profile; fingerprint expansion revokes publisher and object-major coverage, not an active task grant.
 - `author_verified` and `component_verified` are independent axes.
 - AccessGrant is not created merely from knowledge of an account ID or email address.
 - Report count alone does not change a version's lifecycle; hiding and blocking are auditable moderator actions.

@@ -35,7 +35,7 @@ ROOT_DOCS = (
     "CONTRIBUTING.md",
 )
 
-# Eight component types under ADR-0015. Each must have a matrix row.
+# Closed component types (ADR-0015, ADR-0155). Each must have a matrix row.
 COMPONENT_TYPES = (
     "instruction",
     "skill",
@@ -45,6 +45,7 @@ COMPONENT_TYPES = (
     "agent",
     "plugin",
     "setting",
+    "cli",
 )
 
 # MCP transport classes from validation-policy.md.

@@ -9,6 +9,7 @@ const COMPONENT_TYPES = [
   "agent",
   "plugin",
   "setting",
+  "cli",
 ] as const;
 
 test.describe("machine projection parity (REQ-3624, REQ-3626)", () => {

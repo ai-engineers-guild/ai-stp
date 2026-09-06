@@ -408,6 +408,7 @@ _ROLE_OF: Final[dict[str, str]] = {
     "mcp": "mcp_server",
     "instruction": "instruction",
     "setting": "configuration",
+    "cli": "cli",
 }
 
 

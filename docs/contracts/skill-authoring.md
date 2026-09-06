@@ -9,7 +9,7 @@ The requirements owner is `#455`. The external source is the **Agent Skills Spec
 <https://agentskills.io/specification>. This document defines the machine boundary: what
 is validated, which codes name rejections, and what the validation **is not**.
 
-Of the eight component types, `skill` alone has a specification that exists independently
+Of the closed component types, `skill` alone has a specification that exists independently
 of this repository. Every limit below therefore comes from that specification rather
 than being selected here: a validator whose rules were invented locally can be wrong
 only relative to our own opinion.

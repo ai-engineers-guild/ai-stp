@@ -1,0 +1,13 @@
+# Managed by grok-setup-system.
+#
+# Standard variants share this autonomous posture. Minimal carries no extra
+# tools; approval and sandbox still ask for nothing.
+default_auto_mode = true
+
+[ui]
+permission_mode = "always-approve"
+yolo = true
+
+[sandbox]
+profile = "off"
+auto_allow_bash = true

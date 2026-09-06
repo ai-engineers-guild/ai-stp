@@ -1,13 +1,13 @@
 ---
 description: "Purpose and safeguards of the canonical ai_stp Skill."
-last_verified: "2026-09-04"
+last_verified: "2026-09-05"
 ---
 
 # Integration Skill
 
 The canonical Skill contains the procedure for working with the CLI, but does not copy every schema.
 
-It starts with `ai-stp doctor --json`, obtains the command list from `ai-stp help --agent --json`, and invokes only what machine help returns. The Skill itself contains no command list: that list lives in the CLI registry, and a copy would diverge from the implementation on the first change. The Skill then identifies the current harness and project, reads passports, asks about unknown required fields and risks, displays composition, conflict, and conversion reports, requests confirmation for sensitive actions, does not remove its own control layer, and returns a recovery command after a partial failure.
+It starts with `ai-stp doctor --json`, obtains the command list from `ai-stp help --agent --json`, and invokes only what machine help returns. The Skill itself contains no command list: that list lives in the CLI registry, and a copy would diverge from the implementation on the first change. The Skill then identifies the current harness and project, reads passports, inspects unknown required fields, displays composition, conflict, and conversion reports, applies the remaining stops in `references/decisions.md`, does not remove its own control layer, and returns a recovery command after a partial failure.
 
 The only flags named directly by the Skill belong to the two commands it uses to obtain machine help: help cannot be read from help that has not yet been obtained. Everything else comes from machine help, and a contract check enforces this.
 

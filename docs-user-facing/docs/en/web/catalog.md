@@ -104,7 +104,7 @@ query string. **Reset all** returns the defaults above.
 | --- | --- | --- |
 | Tag | `tags` | vocabulary tags (invalid ids error) |
 | Harness | `harness_id` / `harness_ids` | passports that name that harness |
-| Component type | `component_type` / `component_types` | `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting` |
+| Component type | `component_type` / `component_types` | `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`, `cli` |
 | Author | `authors` | publisher account ids, comma-separated |
 | Only verified | `verified_only` | both `author_verified` and `component_verified` current |
 | Countries | `country_code` / `country_codes` | linked markets; **Not specified** is no country list |
@@ -205,7 +205,7 @@ not a stack trace.
 - [Trust and safety](../trust-and-safety/index.md) — two verified axes.
 - [Security checks](../security-checks.md) — what the percent covers.
 - [Registry](../cli/registry.md) — CLI search and fetch.
-- [Components](../components/index.md) — the eight kinds.
+- [Components](../components/index.md) — the closed kinds.
 
 !!! warning "Verified is two bits"
     `verified_only` requires both axes. Ticking it because the author

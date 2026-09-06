@@ -19,10 +19,10 @@ The executable is `ai-stp` (package `ai-stp-cli`). Always pass `--json`.
 There is no `component inspect` and no `setup show`. The only kind-specific
 validate is `ai-stp component skill validate`.
 
-## Eight chapters
+## Nine chapters
 
 Each kind has its own page. Read the chapter before scaffolding or
-adopting that kind. The eight chapters share one formula: the question
+adopting that kind. The chapters share one formula: the question
 the kind answers, what it is not, the neighbours table, the recommended
 package, native layouts, the checks that actually run, the CLI path,
 then red flags. Compare kinds by that spine; do not learn a new shape
@@ -38,6 +38,7 @@ per page.
 | `agent` | [`agent`](agent.md) | which named role should carry this class of work? |
 | `plugin` | [`plugin`](plugin.md) | which package extends the harness itself? |
 | `setting` | [`setting`](setting.md) | which non-secret parameters should be pinned? |
+| `cli` | [`cli`](cli.md) | which shared executable can be run as a process? |
 
 Name collisions that the chapters spell out:
 
@@ -58,6 +59,7 @@ finding carries `layout_source`. Do not invent a neighbour's path.
 | Connect an external tool to the agent | [`mcp`](mcp.md) | MCP gives the agent a managed interface to a service or a local tool |
 | Act on a harness event | [`hook`](hook.md) | a hook is bound to the lifecycle and needs care |
 | Give a person or an agent a named command | [`command`](command.md) | a command makes a repeatable entry point clear and checkable |
+| Ship a standalone executable | [`cli`](cli.md) | a `cli` is a shared process, not a slash command |
 | Add a role or a specialised subagent | [`agent`](agent.md) | an agent describes an area of responsibility and its limits |
 | Extend the harness itself with a package | [`plugin`](plugin.md) | a plugin installs a native harness extension |
 | Pin parameters and modes | [`setting`](setting.md) | a setting holds configuration, without secrets and without behaviour |
@@ -70,7 +72,8 @@ finding carries `layout_source`. Do not invent a neighbour's path.
 | `skill` | `SKILL.md`, assets, scripts, references | structure, compatibility, executable helpers | hidden side effects in scripts |
 | `mcp` | the MCP server description and how it starts | source, permissions, no secrets in the passport | external access to data or tools |
 | `hook` | the event, the action, the conditions | the event, the target, recovery, confirmation | state changed automatically |
-| `command` | a slash or CLI command and its arguments | the name, the scope, the help, command conflicts | an ambiguous or dangerous shortcut |
+| `command` | a slash or prompt command and its arguments | the name, the scope, the help, command conflicts | an ambiguous or dangerous shortcut |
+| `cli` | a standalone executable and its entry point | the process contract, one shared artifact | seven copies of the same binary, or a disguised slash command |
 | `agent` | the role, its instructions, its limits | the role's boundaries, compatibility, permissions | a subagent with authority that is too wide |
 | `plugin` | a native harness extension | the package, the version, the source, the install route | supply chain and post-install behaviour |
 | `setting` | parameters, modes, preferences | allowed values, and that there are no secrets | leaked private data, or configuration drift |

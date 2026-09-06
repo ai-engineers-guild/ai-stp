@@ -21,6 +21,7 @@ from ai_stp_contracts.machine_help import (
     ToolchainProfile,
     ToolInstallation,
 )
+from ai_stp_passports.versions import COMPONENT_TYPES
 
 #: The scopes a provider owns and may project into. `project` is not one: a
 #: project-scoped layout lives in somebody's repository, which discovery may
@@ -31,16 +32,7 @@ _PROVIDER_OWNED_SCOPES: Final[frozenset[str]] = frozenset({harness_catalog.G, "u
 #: provider. A projection state needs somebody to project.
 _OWNERLESS_GAP: Final[str] = "no_single_harness_owner"
 
-_COMPONENT_KINDS: Final[tuple[str, ...]] = (
-    "instruction",
-    "skill",
-    "mcp",
-    "hook",
-    "command",
-    "agent",
-    "plugin",
-    "setting",
-)
+_COMPONENT_KINDS: Final[tuple[str, ...]] = COMPONENT_TYPES
 
 
 def _capability(definition: harness_catalog.HarnessDefinition, kind: str) -> dict[str, object]:

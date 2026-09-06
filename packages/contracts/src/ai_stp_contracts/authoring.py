@@ -45,6 +45,9 @@ AUTHORING_TYPE_LANGUAGE_MATRIX: Final[dict[ComponentType, tuple[AuthoringLanguag
     "agent": ("none",),
     "plugin": AUTHORING_LANGUAGES[1:],
     "setting": ("none",),
+    # A cli is a shared process, not a slash command. Portable only: seven
+    # harness copies of the same binary are not an adaptation (ADR-0155).
+    "cli": AUTHORING_LANGUAGES[1:],
 }
 
 type ComponentTemplateVersion = Literal[
@@ -102,6 +105,13 @@ class ComponentTemplateDescriptor(BaseModel):
     language: AuthoringLanguage
     harness_variant: AuthoringVariant
     executable: bool
+    #: Absent on historical descriptors. Present on new writes. Never inferred
+    #: from `schema_version: 1` — that discriminator already belongs to envelopes.
+    standard_family: Literal["ai-stp-standard/1"] | None = None
+    #: Extra concrete harnesses this authoring tree also projects. The primary
+    #: `harness_variant` stays the one the scaffold was created for. Empty on
+    #: historical descriptors and on single-harness trees.
+    additional_harnesses: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def type_language_pair_is_meaningful(self) -> Self:
@@ -196,6 +206,7 @@ class SetupTemplateDescriptor(BaseModel):
     harness_id: HarnessId
     setup_name: Annotated[str, Field(min_length=1, max_length=64)]
     members: list[SetupMemberDescriptor] = Field(default_factory=list[SetupMemberDescriptor])
+    standard_family: Literal["ai-stp-standard/1"] | None = None
 
 
 class SetupScaffoldPlan(BaseModel):

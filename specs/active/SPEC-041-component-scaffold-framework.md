@@ -1,6 +1,6 @@
 ---
 description: "SPEC-041: Versioned scaffold plans for a component's complete authoring catalog."
-last_verified: "2026-09-04"
+last_verified: "2026-09-05"
 ---
 
 # SPEC-041: Component scaffold framework
@@ -29,14 +29,15 @@ invoke a package manager, or execute generated code.
 ## Requirements
 
 - `REQ-4101`: The descriptor pins the template and generator versions, one of
-  the eight component types, the language, a portable or specific harness
+  the closed component types, the language, a portable or specific harness
   variant, and the executability flag.
 - `REQ-4102`: The matrix permits `none` for the declarative `instruction`,
-  `skill`, `command`, `agent`, and `setting` types; `mcp` and `plugin` use one of
-  the executable languages, while `hook` uses only a language whose source can
-  be run after installation without an implicit build. A combination without
-  native semantics in the selected harness is rejected before any files are
-  written.
+  `skill`, `command`, `agent`, and `setting` types; `mcp`, `plugin`, and `cli`
+  use one of the executable languages, while `hook` uses only a language whose
+  source can be run after installation without an implicit build. Kind `cli` is
+  portable only: a concrete harness variant is refused so the same executable
+  is not copied into seven layouts. A combination without native semantics in
+  the selected harness is rejected before any files are written.
 - `REQ-4103`: The plan lists every relative path, exact byte length, mode, and
   domain-separated digest and binds them to an absolute new target.
 - `REQ-4104`: The current scaffold contains the descriptor as

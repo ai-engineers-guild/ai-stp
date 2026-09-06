@@ -31,7 +31,7 @@ it goes to `/{locale}/objects/component/{stable_id}/edit`.
 Use the card to decide whether this exact version is a candidate:
 
 - kind (`instruction`, `skill`, `mcp`, `hook`, `command`, `agent`,
-  `plugin`, `setting`);
+  `plugin`, `setting`, `cli`);
 - harness names;
 - `author_verified` and `component_verified` as separate bits;
 - source repository, commit, and path;
@@ -57,7 +57,7 @@ or `setting`. They are not extra kinds on this page.
 
 | Element | What it shows |
 | --- | --- |
-| Type icon | the eight-kind glyph |
+| Type icon | the closed-kind glyph |
 | Title | `latest_name` |
 | Badges | component type, named harnesses |
 | Version | `v{latest_version}` |

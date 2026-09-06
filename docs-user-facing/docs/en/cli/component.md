@@ -5,7 +5,7 @@ description: "The component command group: discover, passport, source, and publi
 
 # Component commands
 
-A component is one part of a setup, of one of eight kinds. The `component`
+A component is one part of a setup, of one of the closed kinds. The `component`
 group is how this installation finds native files, records a local passport,
 binds an external source, and prepares a version for publication.
 
@@ -29,8 +29,9 @@ or refusals on those pages.
 ## What a component is
 
 A component has a kind, an exact `X.Y` version, a passport, and a source. The
-eight kinds are `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`,
-`plugin`, and `setting`. Memory, rules, parameters, and helper tools are
+closed kinds are `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`,
+`plugin`, `setting`, and `cli`. `command` is a named slash invocation; `cli`
+is a standalone executable. Memory, rules, parameters, and helper tools are
 content of `instruction`, `skill`, or `setting`. They are not kinds of their
 own.
 

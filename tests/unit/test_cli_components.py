@@ -105,7 +105,7 @@ def project(tmp_path: Path) -> Path:
 
 
 def test_the_declared_layouts_are_sound() -> None:
-    # Every rule names one of the eight kinds, a harness a detector can find,
+    # Every rule names one of the closed kinds, a harness a detector can find,
     # and the documentation the layout was read from. A rule for a harness
     # nothing detects would never be reached and nothing else would say so.
     assert components.declared_consistently() == ()
@@ -626,6 +626,51 @@ def test_adopting_the_same_source_twice_keeps_one_stable_id(
     assert third.revision_id != first.revision_id
 
 
+def test_moving_an_adopted_source_keeps_the_stable_id(
+    registry: sqlite3.Connection, harness_home: Path
+) -> None:
+    found = next(
+        item
+        for item in components.discover()
+        if item.component_type == "skill" and item.harness_id == "claude-code"
+    )
+    first = components.adopt(registry, found, device_id="device_test")
+    destination = found.absolute.parent / "reviewing-moved"
+    found.absolute.rename(destination)
+    moved = next(item for item in components.discover() if item.absolute == destination)
+    second = components.adopt(registry, moved, device_id="device_test")
+    assert second.stable_id == first.stable_id
+    row = registry.execute(
+        "SELECT absolute_path FROM component_source_binding WHERE stable_id = ?",
+        (first.stable_id,),
+    ).fetchone()
+    assert row is not None
+    assert Path(row["absolute_path"]) == destination
+
+
+def test_a_copy_at_a_new_path_does_not_steal_the_original_id(
+    registry: sqlite3.Connection, harness_home: Path
+) -> None:
+    found = next(
+        item
+        for item in components.discover()
+        if item.component_type == "skill" and item.harness_id == "claude-code"
+    )
+    first = components.adopt(registry, found, device_id="device_test")
+    destination = found.absolute.parent / "reviewing-copy"
+    destination.mkdir()
+    (destination / "SKILL.md").write_bytes((found.absolute / "SKILL.md").read_bytes())
+    copied = next(item for item in components.discover() if item.absolute == destination)
+    second = components.adopt(registry, copied, device_id="device_test")
+    assert second.stable_id != first.stable_id
+    original = registry.execute(
+        "SELECT absolute_path FROM component_source_binding WHERE stable_id = ?",
+        (first.stable_id,),
+    ).fetchone()
+    assert original is not None
+    assert Path(original["absolute_path"]) == found.absolute
+
+
 def test_an_adopted_passport_carries_only_the_allowlist(
     registry: sqlite3.Connection, harness_home: Path
 ) -> None:
@@ -643,8 +688,13 @@ def test_two_identical_components_share_one_stored_object(
     registry: sqlite3.Connection, harness_home: Path, project: Path
 ) -> None:
     (project / "CLAUDE.md").write_bytes(b"# global instruction\n")
-    found = components.discover(project=project)
-    same = [item for item in found if item.source_path.endswith("CLAUDE.md")]
+    global_copy = [item for item in components.discover() if item.source_path.endswith("CLAUDE.md")]
+    project_copy = [
+        item
+        for item in components.discover(project=project)
+        if item.source_path.endswith("CLAUDE.md")
+    ]
+    same = global_copy + project_copy
     assert len(same) == 2
 
     digests = {
@@ -817,7 +867,7 @@ def test_the_discover_command_reports_the_project_it_searched(
     answer = command.discover({"root": str(project)}).payload
     assert answer.project == str(project)
     assert any(item.scope == "project" for item in answer.components)
-    assert any(item.scope == "global" for item in answer.components)
+    assert all(item.scope == "project" for item in answer.components)
     assert all(item.candidate_id.startswith("sha256:") for item in answer.components)
     assert all(item.layout_source for item in answer.components)
 

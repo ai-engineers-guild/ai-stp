@@ -17,7 +17,8 @@ keeps history.
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp component discover` | `read` | `none` | list native components in harness roots and one project |
+| `ai-stp component discover` | `read` | `none` | list native components in one project or the harness roots |
+| `ai-stp component inventory` | `read` | `none` | passport-first inventory of one explicit authoring tree |
 | `ai-stp component find` | `read` | `none` | search the local registry by prefix, phrase, tag, or field |
 | `ai-stp component scaffold plan` | `plan` | `none` | preview exact files and digests for one versioned scaffold |
 | `ai-stp component scaffold apply` | `apply` | `plan_digest` | create exactly the confirmed scaffold; never overwrite a path |
@@ -29,13 +30,20 @@ keeps history.
 
 ## Discover
 
-`discover` scans harness roots and, if you name `--root`, one project. It
-changes nothing. A secret-looking path is flagged from the **name**, not from
-opening the file.
+`discover` without `--root` scans harness roots. With `--root` it looks only
+inside that directory and does not add global homes. It changes nothing. A
+secret-looking path is flagged from the **name**, not from opening the file.
+
+`inventory --root` reads authoring passports first, then native layouts, and
+does not treat generated `projections/` as independent sources.
+
+If `complete` is false, pass the returned `continuation` as `--cursor` with the
+same `--root`. Do not treat a truncated listing as exhaustive.
 
 ```bash
 ai-stp component discover --json
 ai-stp component discover --root . --json
+ai-stp component inventory --root . --json
 ```
 
 Success fields include `components`, `diagnostics`, `project`, and
@@ -71,7 +79,7 @@ the files the plan named, and refuses to overwrite a path that already
 exists.
 
 `--type` is one of `instruction`, `skill`, `mcp`, `hook`, `command`,
-`agent`, `plugin`, `setting`. `--language` is `none` for declarative types,
+`agent`, `plugin`, `setting`, `cli`. `--language` is `none` for declarative types,
 or one of `python`, `typescript`, `javascript`, `rust`, `go`,
 `dart-flutter`. `--harness` is `portable` or one concrete harness:
 `claude-code`, `codex`, `pi`, `opencode`, `grok-build`, `cursor`,

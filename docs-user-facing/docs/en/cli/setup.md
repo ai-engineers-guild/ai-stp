@@ -18,20 +18,21 @@ They do not write the harness target. Installation still goes through
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
 | `ai-stp setup compose plan` | `plan` | `none` | resolve and freeze a new setup from catalog, Git, package, and path sources |
-| `ai-stp setup compose apply` | `apply` | `explicit_flag` | record the exact still-current mixed setup as one immutable local version |
+| `ai-stp setup compose apply` | `apply` | `plan_digest` | record the exact still-current mixed setup as one immutable local version |
 | `ai-stp setup import inspect` | `read` | `none` | read one native configuration; write nothing |
 | `ai-stp setup import plan` | `plan` | `none` | plan exact component and setup drafts from one native configuration |
 | `ai-stp setup import register` | `apply` | `plan_digest` | register the inspected configuration as your own setup |
 | `ai-stp setup update plan` | `plan` | `none` | preview replacing one embedded component with a newer exact snapshot |
-| `ai-stp setup update apply` | `apply` | `explicit_flag` | confirm one exact embedded update and create a new setup version |
+| `ai-stp setup update apply` | `apply` | `plan_digest` | apply one exact embedded update and create a new setup version |
 | `ai-stp setup publish plan` | `plan` | `none` | plan publication of one released setup with every component it pins |
 | `ai-stp setup publish confirm` | `apply` | `explicit_flag` | confirm one exact reviewed publication set |
 
 `--json` is global. Always pass it.
 
-`compose apply` and `update apply` require **both** `--expected-plan-digest`
-and `--confirm`. `import register` requires `--plan-digest` (that is the
-declared name). `publish confirm` requires `--set-digest` and `--confirm`.
+`compose apply` and `update apply` require `--expected-plan-digest`. That
+digest is the decision. `import register` requires `--plan-digest` (that is
+the declared name). `publish confirm` requires `--set-digest` and `--confirm`
+because it changes visibility of an existing object.
 
 ## Compose plan and apply
 
@@ -92,7 +93,7 @@ The plan answer carries `setup_id`, `version`, `harness_id`, `created_at`,
 `version`, `source`, `embedded`.
 
 Apply repeats resolution and refuses changed bytes. Pass the returned setup
-id, timestamp, plan digest, **and** `--confirm`:
+id, timestamp, and plan digest:
 
 ```bash
 ai-stp setup compose apply \
@@ -101,7 +102,6 @@ ai-stp setup compose apply \
   --id <setup_id> \
   --created-at <created_at> \
   --expected-plan-digest sha256:... \
-  --confirm \
   --json
 ```
 
@@ -164,8 +164,7 @@ or `path:relative` coordinate. `--commit` is the exact lowercase
 40-character Git SHA. `--project` is the project root whose selected setup
 is checked.
 
-Apply repeats the same options and adds `--expected-plan-digest` and
-`--confirm`:
+Apply repeats the same options and adds `--expected-plan-digest`:
 
 ```bash
 ai-stp setup update apply \
@@ -176,7 +175,6 @@ ai-stp setup update apply \
   --commit abcdef0123456789abcdef0123456789abcdef01 \
   --harness codex \
   --expected-plan-digest sha256:... \
-  --confirm \
   --json
 ```
 
@@ -214,7 +212,7 @@ Compose:
 
 ```text
 setup compose plan --manifest setup.json --root .
-→ setup compose apply --manifest setup.json --root . --id … --created-at … --expected-plan-digest … --confirm
+→ setup compose apply --manifest setup.json --root . --id … --created-at … --expected-plan-digest …
 → select session / install plan
 ```
 
@@ -250,7 +248,7 @@ setup publish plan --id <setup_id> --version <X.Y>
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `AI_STP_USER_DECISION_REQUIRED` | `--confirm` was omitted on compose apply, update apply, or publish confirm | pass `--confirm` after reviewing the plan |
+| `AI_STP_USER_DECISION_REQUIRED` | `--confirm` was omitted on publish confirm | pass `--confirm` after reviewing the publication set |
 | `AI_STP_VALIDATION_ERROR` | `--expected-plan-digest`, `--plan-digest`, or `--set-digest` missing | copy the digest the plan returned |
 | `AI_STP_PLAN_STALE` | Git bytes, package bytes, or local paths changed | plan again; apply refuses changed bytes |
 | `AI_STP_PRECONDITION_FAILED` | import register without a provider backup, or an unbound member | take the backup through install; fix the manifest |

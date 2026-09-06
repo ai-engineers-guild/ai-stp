@@ -1676,7 +1676,7 @@
             "items": {
               "$ref": "#/components/schemas/ComponentType"
             },
-            "maxItems": 8,
+            "maxItems": 9,
             "title": "Component Types",
             "type": "array"
           },
@@ -2133,7 +2133,8 @@
           "command",
           "agent",
           "plugin",
-          "setting"
+          "setting",
+          "cli"
         ],
         "type": "string"
       },
@@ -12878,7 +12879,7 @@
               "items": {
                 "$ref": "#/components/schemas/ComponentType"
               },
-              "maxItems": 8,
+              "maxItems": 9,
               "title": "Component Types",
               "type": "array"
             }

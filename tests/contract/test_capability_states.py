@@ -5,7 +5,7 @@ has no such surface, the harness has one at a scope no provider owns, and the
 harness has one this compiler does not route yet. An agent reading the output
 cannot tell them apart, and the difference decides whether waiting helps.
 
-Two sources describe the same 56 cells and neither is the other's copy.
+Two sources describe the same cells and neither is the other's copy.
 `harness_catalog.DEFINITIONS` records what each product natively reads, cited to
 a vendor page or to the product's own bytes. `composition.PROVIDER_RULES`
 records what this compiler will hand a provider. They answer different
@@ -25,19 +25,11 @@ import pytest
 
 from ai_stp_cli.local import capability_reasons, composition, harness_catalog
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
+from ai_stp_passports.versions import COMPONENT_TYPES
 
 pytestmark = pytest.mark.cli
 
-COMPONENT_KINDS: Final[tuple[str, ...]] = (
-    "instruction",
-    "skill",
-    "mcp",
-    "hook",
-    "command",
-    "agent",
-    "plugin",
-    "setting",
-)
+COMPONENT_KINDS: Final[tuple[str, ...]] = COMPONENT_TYPES
 
 #: The scopes a provider owns and may therefore project into. `project` is not
 #: one: a project-scoped layout lives in somebody's repository, which discovery
@@ -71,7 +63,7 @@ def _state(harness_id: str, kind: str) -> str:
 
 
 def test_every_cell_is_supported_or_named() -> None:
-    """56 cells, and each one is either working or explained.
+    """Every closed kind x harness cell is either working or explained.
 
     The count is asserted rather than left to a loop that might examine nothing:
     a filter selecting no cells passes every assertion inside it.
@@ -93,7 +85,7 @@ def test_every_cell_is_supported_or_named() -> None:
             if key not in table:
                 unexplained.append(f"{harness_id}/{kind} is {state} and nothing says why")
 
-    assert examined == len(HARNESS_ID_ORDER) * len(COMPONENT_KINDS) == 56
+    assert examined == len(HARNESS_ID_ORDER) * len(COMPONENT_KINDS) == 63
     assert not unexplained, unexplained
 
 

@@ -25,7 +25,7 @@ Read what the task concerns. Reading the entire normative base in advance is nei
 
 - **Harness** — the CLI environment in which a coding agent operates.
 - **Setup** — the complete configuration of one harness; it belongs to that harness from creation.
-- **Component** — a part of a setup of one of eight kinds: `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`. Memory, rules, parameters, and auxiliary tools are content of `instruction`, `skill`, or `setting`, not separate kinds.
+- **Component** — a part of a setup of one of the closed kinds: `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`, `cli`. `command` is a named slash invocation; `cli` is a standalone executable. Memory, rules, parameters, and auxiliary tools are content of `instruction`, `skill`, or `setting`, not separate kinds.
 - **Passport** — a versioned, machine-readable description of an object.
 - **Trust line** — the rule for inclusion in results: `authoritative`, `experimental`, or `local_owner_or_pinned`.
 - **Provider** — a public NDDev setup manager, the only writer of the harness's final state.

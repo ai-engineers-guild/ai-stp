@@ -4,8 +4,10 @@ import hashlib
 import io
 import json
 import posixpath
+import tomllib
 import zipfile
 from importlib.resources import files
+from pathlib import Path
 from typing import cast
 
 from release_scripts import build_first_party_corpus as builder
@@ -215,7 +217,10 @@ def test_a_setup_publishes_the_platform_set_its_provider_declared() -> None:
 def test_republished_objects_advance_without_flattening_version_lines() -> None:
     """A corpus-wide profile cutover advances every independently evolving line."""
     seen = {item.passport.version for item in versions()}
-    assert all(int(version.split(".", 1)[1]) >= 1 for version in seen), seen
+    # New objects start at 1.0. Held lines must keep their own minor, or a
+    # rebuild that reminted everyone as 1.0 would look like one cutover.
+    assert "1.0" in seen, seen
+    assert any(int(version.split(".", 1)[1]) >= 1 for version in seen), seen
     assert len(seen) > 1, seen
 
 
@@ -288,3 +293,73 @@ def test_first_party_passports_are_complete_public_immutable_snapshots() -> None
             "ai-stp:passport:v1",
             canonize(cast(JsonValue, passport.model_dump(mode="json"))),
         )
+
+
+#: Native keys that decide whether the harness asks or sandboxes. Content
+#: footprint may differ by posture; these keys may not (A08).
+_AUTONOMY: dict[str, tuple[tuple[str, ...], ...]] = {
+    "antigravity": (("toolPermission",), ("enableTerminalSandbox",)),
+    "claude-code": (("permissions", "defaultMode"), ("sandbox", "enabled")),
+    "codex": (("approval_policy",), ("sandbox_mode",)),
+    "cursor": (("approvalMode",), ("sandbox", "mode")),
+    "grok-build": (("ui", "permission_mode"), ("ui", "yolo"), ("sandbox", "profile")),
+    "opencode": (("permission", "*"),),
+    "pi": (("defaultProjectTrust",),),
+}
+
+
+def _setting_document(path: Path) -> dict[str, object]:
+    text = path.read_text(encoding="utf-8")
+    parsed: object = tomllib.loads(text) if path.name.endswith(".toml") else json.loads(text)
+    if not isinstance(parsed, dict):
+        raise TypeError(f"{path} is not a mapping")
+    return cast(dict[str, object], parsed)
+
+
+def _at(document: dict[str, object], path: tuple[str, ...]) -> object:
+    cursor: object = document
+    for key in path:
+        if not isinstance(cursor, dict) or key not in cursor:
+            return None
+        cursor = cursor[key]  # pyright: ignore[reportUnknownVariableType]
+    return cursor  # pyright: ignore[reportUnknownVariableType]
+
+
+def test_every_standard_posture_carries_the_full_auto_autonomy() -> None:
+    """A08: baseline/minimal/builder share full-auto's ask-nothing posture."""
+    root = Path(str(files("ai_stp_contracts.first_party").joinpath("v1")))
+    by_pair: dict[tuple[str, str], Path] = {}
+    for path in root.iterdir():
+        if "-setting." not in path.name:
+            continue
+        for harness in builder.REPOSITORIES:
+            prefix = f"{harness}-"
+            if not path.name.startswith(prefix):
+                continue
+            rest = path.name[len(prefix) :]
+            for posture in builder.POSTURES:
+                if rest.startswith(f"{posture}-"):
+                    by_pair[(harness, posture)] = path
+                    break
+            break
+    missing: list[tuple[str, str]] = []
+    mismatched: list[tuple[str, str, tuple[str, ...], object, object]] = []
+    for harness in builder.REPOSITORIES:
+        auto_path = by_pair[(harness, "full-auto")]
+        auto = _setting_document(auto_path)
+        expected = {key: _at(auto, key) for key in _AUTONOMY[harness]}
+        assert all(value is not None for value in expected.values()), (harness, expected)
+        for posture in builder.POSTURES:
+            if posture == "full-auto":
+                continue
+            other = by_pair.get((harness, posture))
+            if other is None:
+                missing.append((harness, posture))
+                continue
+            document = _setting_document(other)
+            for key, value in expected.items():
+                observed = _at(document, key)
+                if observed != value:
+                    mismatched.append((harness, posture, key, observed, value))
+    assert missing == []
+    assert mismatched == []

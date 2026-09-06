@@ -251,6 +251,50 @@
     {
       "path": [
         "component",
+        "adaptation",
+        "add"
+      ],
+      "summary": "Render a second concrete harness projection into an existing authoring tree.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Existing component authoring directory.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Concrete harness to add. Portable is refused.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-scaffold",
+      "next_actions": [
+        "component passport validate",
+        "component version release"
+      ]
+    },
+    {
+      "path": [
+        "component",
         "adopt"
       ],
       "summary": "Register one discovered component in the local registry.",
@@ -306,7 +350,7 @@
         "component",
         "discover"
       ],
-      "summary": "List native components in the harness roots and one project. Changes nothing.",
+      "summary": "List native components in one project or the harness roots. Changes nothing.",
       "mutability": "read",
       "confirmation": "none",
       "parameters": [
@@ -316,13 +360,23 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "Project root to look inside, beside the roots.",
+          "summary": "Project root to look inside. Does not scan global harness homes.",
+          "choices": []
+        },
+        {
+          "name": "cursor",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Opaque continuation from an incomplete discover --root.",
           "choices": []
         }
       ],
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-native-components",
       "next_actions": [
+        "component inventory",
         "component adopt"
       ]
     },
@@ -462,6 +516,41 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-version-line",
       "next_actions": [
         "component version list"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "inventory"
+      ],
+      "summary": "Passport-first inventory of one explicit authoring tree. Changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Directory to inventory. Does not scan global harness homes.",
+          "choices": []
+        },
+        {
+          "name": "cursor",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Opaque continuation from an incomplete inventory --root.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-path-inventory",
+      "next_actions": [
+        "component discover",
+        "component adopt"
       ]
     },
     {
@@ -704,7 +793,8 @@
             "command",
             "agent",
             "plugin",
-            "setting"
+            "setting",
+            "cli"
           ]
         },
         {
@@ -802,7 +892,8 @@
             "command",
             "agent",
             "plugin",
-            "setting"
+            "setting",
+            "cli"
           ]
         },
         {
@@ -1361,7 +1452,7 @@
         "consent",
         "allow"
       ],
-      "summary": "Record consent to unverified objects of one publisher or major line.",
+      "summary": "Record consent to unverified objects of one publisher, major line, or the authorized task profile.",
       "mutability": "apply",
       "confirmation": "none",
       "parameters": [
@@ -1371,7 +1462,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "publisher or object_major. No wider form exists.",
+          "summary": "publisher, object_major, or task. task is the authorized full-auto profile, not a wildcard.",
           "choices": []
         },
         {
@@ -1380,7 +1471,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "The publisher or object major line it covers.",
+          "summary": "The publisher, object major line, or full-auto task profile it covers.",
           "choices": []
         }
       ],
@@ -1420,7 +1511,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "publisher or object_major.",
+          "summary": "publisher, object_major, or task.",
           "choices": []
         },
         {
@@ -1429,7 +1520,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "The publisher or object major line it covers.",
+          "summary": "The publisher, object major line, or full-auto task profile it covers.",
           "choices": []
         }
       ],
@@ -1437,6 +1528,21 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-consent-record",
       "next_actions": [
         "consent list"
+      ]
+    },
+    {
+      "path": [
+        "contract",
+        "inventory"
+      ],
+      "summary": "List the coordinated standard family and every other contract axis.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-standard-inventory",
+      "next_actions": [
+        "version"
       ]
     },
     {
@@ -1602,7 +1708,8 @@
             "command",
             "agent",
             "plugin",
-            "setting"
+            "setting",
+            "cli"
           ]
         }
       ],
@@ -5478,7 +5585,7 @@
       ],
       "summary": "Record the exact still-current mixed setup as one immutable local version.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "manifest",
@@ -5523,15 +5630,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm recording this exact composition.",
           "choices": []
         }
       ],
@@ -5984,7 +6082,7 @@
       ],
       "summary": "Confirm one exact embedded update and create a new immutable setup version.",
       "mutability": "apply",
-      "confirmation": "explicit_flag",
+      "confirmation": "plan_digest",
       "parameters": [
         {
           "name": "id",
@@ -6065,15 +6163,6 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact digest returned by setup update plan.",
-          "choices": []
-        },
-        {
-          "name": "confirm",
-          "kind": "option",
-          "value_type": "boolean",
-          "required": true,
-          "repeatable": false,
-          "summary": "Confirm creating this exact new setup version.",
           "choices": []
         }
       ],

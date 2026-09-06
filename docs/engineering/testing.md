@@ -1,6 +1,6 @@
 ---
 description: "Test strategy for passports, builds, sync, providers, and platform."
-last_verified: "2026-08-27"
+last_verified: "2026-09-05"
 ---
 
 # Testing
@@ -27,10 +27,10 @@ last_verified: "2026-08-27"
 - Changing the passport does not change the public profile;
 - duplicate `X.Y` with a new digest is rejected;
 - The link to the setup version does not contain a variant, and the list of component types does not contain `marketplace`;
-- An unverified object enters the output only with explicit consent and does not enter the automatic setup;
+- An unverified object enters output and composition only with explicit consent, including task authority, and stays labeled unverified (`ADR-0150`);
 - Two devices store different environments without changing or conflicting with the developer's passport;
 - Canceling a recommendation session does not create a version, and confirmation atomically creates exactly one;
-- Consent areas `publisher` and `object_major` differ, and extension of privileges requires a new decision;
+- Consent scopes `publisher`, `object_major`, and `task` differ; a narrower exclusion beats task, and without task authority a capability expansion needs a new publisher or object-major decision;
 - the right to the `X` line does not open `X+1`, a fork does not change the original, a revocation preserves local data;
 - the complaint contains no secrets or paths and does not change the version state without moderator action;
 - expiration of mandatory proof blocks new installations without disabling the installed target;

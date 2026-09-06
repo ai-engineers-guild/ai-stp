@@ -1,6 +1,6 @@
 ---
 description: "Confirmations and questions in the configuration workflow."
-last_verified: "2026-08-09"
+last_verified: "2026-09-05"
 ---
 
 # Interaction Policy
@@ -11,15 +11,18 @@ is reached; there is no need to ask again before each one. A request to prepare,
 install, update, or repair a setup already authorizes inspection, planning,
 application, verification, and recovery within that setup.
 
-A separate decision is required when something outside the task arises:
+A separate decision is required only for the remaining stops in
+`skills/canonical/ai-stp/references/decisions.md`:
 
-- a required passport fact is unknown and the alternatives materially change the result;
-- an unresolved conflict cannot be resolved mechanically;
-- consent to the `experimental` lane or selection of an object from an unverified author;
-- a public version, major version line, visibility change, access rights, or invitations;
-- linking credentials or an account, or elevating privileges;
-- complete cleanup or deletion of a target or backup with no recovery path;
-- an external Git or deployment action not requested by the task.
+- visibility or access of an existing object;
+- linking **someone else's** account or new third-party credentials;
+- elevating system privileges;
+- deleting data, a target, or a backup with no recovery path.
+
+Uncertainty is more inspection or a reversible experiment, not a permission
+question. Unverified and `experimental` objects may be used under task
+authority and stay labeled. Publishing, committing, merging, and deploying
+verified work that the task already requested are inside that authority.
 
 Checking the digest, preconditions, idempotency, and plan match is always
 required and is not a question for the user: it is machine confirmation that
@@ -27,7 +30,7 @@ the approved effect is exactly what will be performed. A stale plan is handled
 by building a new one and showing the difference; a new decision is required
 only if the effect itself changed.
 
-Consent to the `experimental` lane applies within a command or session; no permanent global consent setting exists. A durable exception is created only through an explicit user choice and in exactly two scopes—a publisher or the major line of an exact object, as defined by `docs/contracts/unverified-consent.md`. A new major line and any expansion of capabilities, network access, credentials, external endpoints, managed paths, or native surfaces require a new explicit decision.
+Consent to the `experimental` lane applies within a command or session; no permanent global consent setting exists. A durable record is created only through an explicit choice in the scopes defined by `docs/contracts/unverified-consent.md`. Under an authorized `task` / `full-auto` profile (`ADR-0150`, `ADR-0159`) a new major line or capability expansion does not require a new publisher or object-major grant; a revoked narrower record remains an exclusion. Without task authority, a new major line and any expansion of capabilities, network access, credentials, external endpoints, managed paths, or native surfaces require a new explicit publisher or object-major decision.
 
 No question is needed for reading, repeatable local validation, or deterministic regeneration without a semantic change.
 

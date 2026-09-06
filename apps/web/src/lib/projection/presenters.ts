@@ -517,7 +517,7 @@ export function presentPlatformContext(input: { docsHref?: string } = {}): Machi
   return [
     heading(1, "ai_stp machine context"),
     paragraph(
-      "ai_stp creates, validates, stores, selects and installs complete configurations for AI coding harnesses. A setup belongs to exactly one harness and pins exact component versions. Supported component kinds are instruction, skill, mcp, hook, command, agent, plugin and setting.",
+      "ai_stp creates, validates, stores, selects and installs complete configurations for AI coding harnesses. A setup belongs to exactly one harness and pins exact component versions. Supported component kinds are instruction, skill, mcp, hook, command, agent, plugin, setting and cli.",
     ),
     paragraph(
       "Primary support: Claude Code and Codex. Beta support: Pi, OpenCode and Grok Build. Unknown harnesses use the restricted undefined mode.",

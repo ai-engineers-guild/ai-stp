@@ -1,6 +1,6 @@
 ---
 description: "CLI machine help as the source of available commands and schemas."
-last_verified: "2026-08-09"
+last_verified: "2026-09-05"
 ---
 
 # Machine help
@@ -43,7 +43,7 @@ The command list belongs to the registry and grows with implemented tasks. It is
 
 A command appears in machine help only when it works. A declared but unimplemented command is worse than an absent one: the Skill would plan around a step that cannot be performed.
 
-The mutability class (`read`, `plan`, `apply`, `destructive`) and confirmation rule (`none`, `explicit_flag`, `plan_digest`) are declared on each command and determine whether the Agent must ask the user before invocation. Behavioral rules belong to `interaction-policy.md`; the value vocabulary belongs to `packages/contracts`.
+The mutability class (`read`, `plan`, `apply`, `destructive`) and confirmation rule (`none`, `explicit_flag`, `plan_digest`) are declared on each command. `plan_digest` is a machine binding of exact bytes, not a person. `explicit_flag` is only the remaining stops in `interaction-policy.md`. The value vocabulary belongs to `packages/contracts`.
 
 The CLI does not prompt in the terminal. A decision arrives through an explicit flag or the exact digest of a stored plan; its absence yields `needs_user_action`, not an input prompt. This keeps the execution path identical for people and agents and prevents hangs in CI or containers.
 

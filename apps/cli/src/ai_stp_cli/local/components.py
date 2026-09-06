@@ -36,6 +36,7 @@ from ai_stp_cli.local import (
     component_passports,
     component_sources,
     content,
+    discovery_continuation,
     harness_catalog,
     harnesses,
     interop_sources,
@@ -50,14 +51,13 @@ from ai_stp_cli.paths import redact_home
 from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
+from ai_stp_passports.versions import COMPONENT_TYPES as PASSPORT_COMPONENT_TYPES
 from ai_stp_passports.versions import ProjectionKind
 
-#: The eight kinds, from `packages/passports`. Restated here only as a guard:
-#: a detector naming something outside this set is a bug in this file, and the
-#: check that catches it is at the bottom of the module.
-COMPONENT_TYPES: Final[frozenset[str]] = frozenset(
-    {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
-)
+#: The closed kinds, from `packages/passports`. A detector naming something
+#: outside this set is a bug in this file, and the check that catches it is
+#: at the bottom of the module.
+COMPONENT_TYPES: Final[frozenset[str]] = frozenset(PASSPORT_COMPONENT_TYPES)
 
 #: Where a component was found. `global` is a harness's own configuration root;
 #: `project` is inside a project the user named.
@@ -714,10 +714,12 @@ class Found:
 
 @dataclass(frozen=True)
 class Discovery:
-    """Complete component listing plus safe optional-adapter diagnostics."""
+    """Component listing plus proof of whether the named root was fully examined."""
 
     components: tuple[Found, ...]
     diagnostics: tuple[component_sources.Diagnostic, ...]
+    complete: bool = True
+    continuation: str | None = None
 
 
 def cursor_config_root(environment: dict[str, str] | None, home: Path) -> Path:
@@ -743,6 +745,8 @@ def discover(
     *,
     project: Path | None = None,
     environment: dict[str, str] | None = None,
+    include_global: bool | None = None,
+    continuation: str | None = None,
 ) -> tuple[Found, ...]:
     """List native components. Writes nothing and reads no file's content.
 
@@ -750,99 +754,117 @@ def discover(
     harness survey cannot disagree about where a harness keeps its files. Sizes
     are read from the directory entry, not by opening anything.
     """
-    return discover_report(project=project, environment=environment).components
+    return discover_report(
+        project=project,
+        environment=environment,
+        include_global=include_global,
+        continuation=continuation,
+    ).components
 
 
 def discover_report(
     *,
     project: Path | None = None,
     environment: dict[str, str] | None = None,
+    include_global: bool | None = None,
+    continuation: str | None = None,
 ) -> Discovery:
-    """List components and explain optional source-adapter failures safely."""
+    """List components and explain optional source-adapter failures safely.
+
+    A named project is the path workflow (`REQ-534`) and does not add global
+    homes unless `include_global` is true. Adoption looks up an already
+    discovered path and therefore asks for both.
+    """
+    if continuation is not None:
+        return _resume_portable(project, continuation)
     found: list[Found] = []
     diagnostics: list[component_sources.Diagnostic] = []
-    held = environment if environment is not None else None
-    home = Path((held or {}).get("HOME", "~")).expanduser() if held is not None else Path.home()
-    for rule in GLOBAL_RULES:
-        if rule.root == "home":
-            base = home
-        elif rule.root == "cursor_config":
-            base = cursor_config_root(environment, home)
-        else:
-            detector = next(
-                (item for item in harnesses.DETECTORS if item.harness_id == rule.harness_id), None
-            )
-            if detector is None:  # pragma: no cover - guarded by the checker
-                continue
-            base = harnesses.config_root(detector, environment)
-        found.extend(_at(base / rule.relative, rule, SCOPE_GLOBAL))
+    remaining: list[tuple[Path, int]] = []
+    scan_global = project is None if include_global is None else include_global
+    if scan_global:
+        held = environment if environment is not None else None
+        home = Path((held or {}).get("HOME", "~")).expanduser() if held is not None else Path.home()
+        for rule in GLOBAL_RULES:
+            if rule.root == "home":
+                base = home
+            elif rule.root == "cursor_config":
+                base = cursor_config_root(environment, home)
+            else:
+                detector = next(
+                    (item for item in harnesses.DETECTORS if item.harness_id == rule.harness_id),
+                    None,
+                )
+                if detector is None:  # pragma: no cover - guarded by the checker
+                    continue
+                base = harnesses.config_root(detector, environment)
+            found.extend(_at(base / rule.relative, rule, SCOPE_GLOBAL))
 
-    global_imported = interop_sources.discover_skill_lock(home)
-    diagnostics.extend(global_imported.diagnostics)
-    found = _merge_interop(found, global_imported.candidates, SCOPE_GLOBAL)
+        global_imported = interop_sources.discover_skill_lock(home)
+        diagnostics.extend(global_imported.diagnostics)
+        found = _merge_interop(found, global_imported.candidates, SCOPE_GLOBAL)
 
-    claude = next(item for item in harnesses.DETECTORS if item.harness_id == "claude-code")
-    sourced = component_sources.claude_plugins(harnesses.config_root(claude, environment))
-    diagnostics.extend(sourced.diagnostics)
-    plugin_rule = Rule(
-        "plugin",
-        "plugins/cache",
-        "directory",
-        "claude-code",
-        "code.claude.com/docs/en/plugin-marketplaces",
-    )
-    for item in sourced.candidates:
-        found.append(
-            _describe(
-                item.absolute,
-                plugin_rule,
-                SCOPE_GLOBAL,
-                provenance=Provenance(
-                    kind=item.kind,
-                    state=item.state,
-                    repository=item.repository,
-                    revision=item.revision,
-                    subpath=item.subpath,
-                    package_name=item.package_name,
-                    package_version=item.package_version,
-                    evidence=item.evidence,
-                ),
-            )
+        claude = next(item for item in harnesses.DETECTORS if item.harness_id == "claude-code")
+        sourced = component_sources.claude_plugins(harnesses.config_root(claude, environment))
+        diagnostics.extend(sourced.diagnostics)
+        plugin_rule = Rule(
+            "plugin",
+            "plugins/cache",
+            "directory",
+            "claude-code",
+            "code.claude.com/docs/en/plugin-marketplaces",
         )
-
-    pi = next(item for item in harnesses.DETECTORS if item.harness_id == "pi")
-    pi_packages = component_sources.pi_git_packages(harnesses.config_root(pi, environment))
-    diagnostics.extend(pi_packages.diagnostics)
-    pi_package_rule = Rule(
-        "plugin",
-        "git",
-        "directory",
-        "pi",
-        "pi.dev/docs/latest/packages",
-    )
-    for item in pi_packages.candidates:
-        found.append(
-            _describe(
-                item.absolute,
-                pi_package_rule,
-                SCOPE_GLOBAL,
-                provenance=Provenance(
-                    kind=item.kind,
-                    state=item.state,
-                    repository=item.repository,
-                    revision=item.revision,
-                    subpath=item.subpath,
-                    package_name=item.package_name,
-                    package_version=item.package_version,
-                    evidence=item.evidence,
-                ),
+        for item in sourced.candidates:
+            found.append(
+                _describe(
+                    item.absolute,
+                    plugin_rule,
+                    SCOPE_GLOBAL,
+                    provenance=Provenance(
+                        kind=item.kind,
+                        state=item.state,
+                        repository=item.repository,
+                        revision=item.revision,
+                        subpath=item.subpath,
+                        package_name=item.package_name,
+                        package_version=item.package_version,
+                        evidence=item.evidence,
+                    ),
+                )
             )
+
+        pi = next(item for item in harnesses.DETECTORS if item.harness_id == "pi")
+        pi_packages = component_sources.pi_git_packages(harnesses.config_root(pi, environment))
+        diagnostics.extend(pi_packages.diagnostics)
+        pi_package_rule = Rule(
+            "plugin",
+            "git",
+            "directory",
+            "pi",
+            "pi.dev/docs/latest/packages",
         )
+        for item in pi_packages.candidates:
+            found.append(
+                _describe(
+                    item.absolute,
+                    pi_package_rule,
+                    SCOPE_GLOBAL,
+                    provenance=Provenance(
+                        kind=item.kind,
+                        state=item.state,
+                        repository=item.repository,
+                        revision=item.revision,
+                        subpath=item.subpath,
+                        package_name=item.package_name,
+                        package_version=item.package_version,
+                        evidence=item.evidence,
+                    ),
+                )
+            )
 
     if project is not None:
         for rule in PROJECT_RULES:
             found.extend(_at(project / rule.relative, rule, SCOPE_PROJECT))
-        portable, portable_diagnostics = _portable_skills(project)
+        portable, portable_diagnostics, remaining = _portable_skills(project)
         found.extend(portable)
         diagnostics.extend(portable_diagnostics)
         imported = interop_sources.discover(project)
@@ -885,21 +907,7 @@ def discover_report(
                     evidence_refs=candidate.evidence,
                 )
             )
-    return Discovery(
-        components=tuple(
-            sorted(
-                found,
-                key=lambda item: (
-                    item.scope,
-                    item.harness_id,
-                    item.component_type,
-                    item.source_path,
-                    item.layout_source,
-                ),
-            )
-        ),
-        diagnostics=tuple(diagnostics),
-    )
+    return _discovery(found, diagnostics, project, remaining)
 
 
 def _merge_interop(
@@ -1011,26 +1019,42 @@ def adopt(
                 return existing
             parents = [existing.revision_id]
     else:
-        stable_id = new_id("component")
-        connection.execute(
-            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
-            (stable_id, at),
+        resolved = str(item.absolute.resolve())
+        moved_id = _rebind_moved_source(
+            connection,
+            harness_id=item.harness_id,
+            component_type=item.component_type,
+            digest=stored_bytes.digest,
+            source_key=source_key,
+            absolute_path=resolved,
         )
-        connection.execute(
-            """
-            INSERT INTO component_source_binding (
-                source_key, stable_id, harness_id, component_type, absolute_path, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                source_key,
-                stable_id,
-                item.harness_id,
-                item.component_type,
-                str(item.absolute.resolve()),
-                at,
-            ),
-        )
+        if moved_id is not None:
+            stable_id = moved_id
+            existing = revisions.head(connection, stable_id)
+            if existing is not None:
+                parents = [existing.revision_id]
+        else:
+            stable_id = new_id("component")
+            connection.execute(
+                "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",
+                (stable_id, at),
+            )
+            connection.execute(
+                """
+                INSERT INTO component_source_binding (
+                    source_key, stable_id, harness_id, component_type,
+                    absolute_path, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    source_key,
+                    stable_id,
+                    item.harness_id,
+                    item.component_type,
+                    resolved,
+                    at,
+                ),
+            )
     operation_id = journal.begin(connection, "component.adopt", at)
     try:
         stored = revisions.commit(
@@ -1052,6 +1076,53 @@ def adopt(
         raise
     journal.settle(connection, operation_id, "verified", moment())
     return stored
+
+
+def _rebind_moved_source(
+    connection: sqlite3.Connection,
+    *,
+    harness_id: str,
+    component_type: str,
+    digest: str,
+    source_key: str,
+    absolute_path: str,
+) -> str | None:
+    """Reuse the binding whose recorded path is gone and whose head digest matches.
+
+    A copy whose old path still exists is a second object. Two vanished paths
+    with the same bytes are ambiguous and mint a new id.
+    """
+    rows = connection.execute(
+        """
+        SELECT stable_id, absolute_path
+        FROM component_source_binding
+        WHERE harness_id = ? AND component_type = ?
+        """,
+        (harness_id, component_type),
+    ).fetchall()
+    candidates: list[str] = []
+    for row in rows:
+        if Path(str(row["absolute_path"])).exists():
+            continue
+        existing = revisions.head(connection, str(row["stable_id"]))
+        if existing is None:
+            continue
+        held = existing.envelope.facts.get("content_digest")
+        if held is None or held.value != digest:
+            continue
+        candidates.append(str(row["stable_id"]))
+    if len(candidates) != 1:
+        return None
+    stable_id = candidates[0]
+    connection.execute(
+        """
+        UPDATE component_source_binding
+        SET source_key = ?, absolute_path = ?
+        WHERE stable_id = ?
+        """,
+        (source_key, absolute_path, stable_id),
+    )
+    return stable_id
 
 
 def _passport(
@@ -1149,16 +1220,20 @@ def _shape_of(place: Path) -> str:
     """
     try:
         mode = place.stat().st_mode
-    except FileNotFoundError:
-        return "absent"
-    except NotADirectoryError:
-        # A parent in the path is a file, so nothing can exist here either.
-        return "absent"
-    except OSError:
-        return "unreadable"
+    except OSError as error:
+        return "absent" if _is_absent(error) else "unreadable"
     if stat.S_ISREG(mode):
         return "file"
     return "directory" if stat.S_ISDIR(mode) else "absent"
+
+
+def _is_absent(error: OSError) -> bool:
+    """Missing is not unreadable. `_shape_of` and the portable walk share this.
+
+    `NotADirectoryError` is a parent in the path that is a file, so nothing can
+    exist here either.
+    """
+    return isinstance(error, FileNotFoundError | NotADirectoryError)
 
 
 #: Suffix chains a directory layout never offers as a component, and the file
@@ -1267,7 +1342,8 @@ def _holds_plugin_manifest(entry: Path) -> bool:
 
 def _portable_skills(
     project: Path,
-) -> tuple[list[Found], list[component_sources.Diagnostic]]:
+    start: list[tuple[Path, int]] | None = None,
+) -> tuple[list[Found], list[component_sources.Diagnostic], list[tuple[Path, int]]]:
     """Find exact portable Skill manifests inside one explicitly named root.
 
     This is not a source-tree search. Only the root manifest and the bounded
@@ -1275,41 +1351,56 @@ def _portable_skills(
     or vendored buckets are skipped, and a depth/directory ceiling makes the
     worst case independent of an untrusted tree's total size.
     """
-    try:
-        project_mode = project.lstat().st_mode
-    except OSError:
-        return [], []
-    if stat.S_ISLNK(project_mode):
-        return [], [
-            component_sources.Diagnostic(
-                code="invalid_record",
-                source="portable-skills",
-                reason="the explicit portable skill root is a link and was not traversed",
-            )
-        ]
-    if not stat.S_ISDIR(project_mode):
-        return [], []
-
     rule = Rule("skill", "SKILL.md", "file", "", PORTABLE_SKILL_SOURCE)
-    found = _at(project / "SKILL.md", rule, SCOPE_PROJECT)
-    collection = project / "skills"
-    try:
-        collection_mode = collection.lstat().st_mode
-    except OSError:
-        return found, []
-    if stat.S_ISLNK(collection_mode):
-        return found, [
-            component_sources.Diagnostic(
-                code="invalid_record",
-                source="portable-skills",
-                reason="the portable skills collection is a link and was not traversed",
-            )
-        ]
-    if not stat.S_ISDIR(collection_mode):
-        return found, []
-
     diagnostics: list[component_sources.Diagnostic] = []
-    stack: list[tuple[Path, int]] = [(collection, 0)]
+    found: list[Found] = []
+    if start is None:
+        try:
+            project_mode = project.lstat().st_mode
+        except OSError as error:
+            if _is_absent(error):
+                return [], [], []
+            return [], [_unreadable(project, project, "portable skill root")], []
+        if stat.S_ISLNK(project_mode):
+            return (
+                [],
+                [
+                    component_sources.Diagnostic(
+                        code="invalid_record",
+                        source="portable-skills",
+                        reason="the explicit portable skill root is a link and was not traversed",
+                    )
+                ],
+                [],
+            )
+        if not stat.S_ISDIR(project_mode):
+            return [], [], []
+        found = _at(project / "SKILL.md", rule, SCOPE_PROJECT)
+        collection = project / "skills"
+        try:
+            collection_mode = collection.lstat().st_mode
+        except OSError as error:
+            if _is_absent(error):
+                return found, [], []
+            return found, [_unreadable(project, collection, "portable skills collection")], []
+        if stat.S_ISLNK(collection_mode):
+            return (
+                found,
+                [
+                    component_sources.Diagnostic(
+                        code="invalid_record",
+                        source="portable-skills",
+                        reason="the portable skills collection is a link and was not traversed",
+                    )
+                ],
+                [],
+            )
+        if not stat.S_ISDIR(collection_mode):
+            return found, [], []
+        stack: list[tuple[Path, int]] = [(collection, 0)]
+    else:
+        stack = list(start)
+
     visited = 0
     while stack:
         directory, depth = stack.pop()
@@ -1322,17 +1413,21 @@ def _portable_skills(
                     reason="the portable skill collection exceeded its bounded directory limit",
                 )
             )
-            break
+            return found, diagnostics, [(directory, depth), *stack]
         try:
             entries = sorted(directory.iterdir(), key=lambda item: item.name, reverse=True)
-        except OSError:
+        except OSError as error:
+            if not _is_absent(error):
+                diagnostics.append(_unreadable(project, directory, "portable skill directory"))
             continue
         for entry in entries:
             if entry.name in PORTABLE_SKILL_EXCLUDED_NAMES:
                 continue
             try:
                 held = entry.lstat()
-            except OSError:
+            except OSError as error:
+                if not _is_absent(error):
+                    diagnostics.append(_unreadable(project, entry, "portable skill entry"))
                 continue
             if stat.S_ISLNK(held.st_mode) or not stat.S_ISDIR(held.st_mode):
                 continue
@@ -1344,7 +1439,72 @@ def _portable_skills(
                 found.append(_describe(entry, rule, SCOPE_PROJECT))
             if child_depth < MAX_PORTABLE_SKILL_DEPTH:
                 stack.append((entry, child_depth))
-    return found, diagnostics
+    return found, diagnostics, []
+
+
+def _unreadable(root: Path, place: Path, label: str) -> component_sources.Diagnostic:
+    try:
+        relative = discovery_continuation.relative_to(root, place)
+    except ValueError:
+        relative = place.name
+    return component_sources.Diagnostic(
+        code="unreadable",
+        source="portable-skills",
+        reason=f"the {label} at {relative} could not be listed",
+    )
+
+
+def _resume_portable(project: Path | None, token: str) -> Discovery:
+    if project is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a discovery continuation requires the same --root",
+            next_actions=["component discover --root <path> --json"],
+        )
+    walk, frames, _covered = discovery_continuation.decode(token)
+    if walk != "portable_skills":
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that continuation does not belong to component discover",
+            next_actions=["component inventory --root <path> --json"],
+        )
+    start = [(discovery_continuation.join(project, relative), depth) for relative, depth in frames]
+    found, diagnostics, remaining = _portable_skills(project, start=start)
+    return _discovery(found, diagnostics, project, remaining)
+
+
+def _discovery(
+    found: list[Found],
+    diagnostics: list[component_sources.Diagnostic],
+    project: Path | None,
+    remaining: list[tuple[Path, int]],
+) -> Discovery:
+    continuation = None
+    if remaining and project is not None:
+        frames = [
+            (discovery_continuation.relative_to(project, path), depth) for path, depth in remaining
+        ]
+        continuation = discovery_continuation.encode("portable_skills", frames)
+    complete = continuation is None and not any(
+        item.code in {"bounded_limit", "unreadable"} for item in diagnostics
+    )
+    return Discovery(
+        components=tuple(
+            sorted(
+                found,
+                key=lambda item: (
+                    item.scope,
+                    item.harness_id,
+                    item.component_type,
+                    item.source_path,
+                    item.layout_source,
+                ),
+            )
+        ),
+        diagnostics=tuple(diagnostics),
+        complete=complete,
+        continuation=continuation,
+    )
 
 
 @dataclass(frozen=True)
@@ -2019,7 +2179,7 @@ def declared_consistently() -> tuple[str, ...]:
 
     A function rather than an import-time assertion so the gate reports all of
     them at once instead of the first. Two harnesses are checked: every rule
-    names one of the eight kinds, and every rule names a harness that a detector
+    names one of the closed kinds, and every rule names a harness that a detector
     actually knows how to find — a layout for a harness nothing detects would
     never be reached and nothing else would say so.
     """

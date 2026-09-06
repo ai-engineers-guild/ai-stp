@@ -106,7 +106,7 @@ Both-режим показывает **сначала сетапы, затем �
 | --- | --- | --- |
 | Тег | `tags` | теги словаря (неверные id — ошибка) |
 | Упряжка | `harness_id` / `harness_ids` | паспорта, которые называют этот харнесс |
-| Тип компонента | `component_type` / `component_types` | `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting` |
+| Тип компонента | `component_type` / `component_types` | `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`, `cli` |
 | Автор | `authors` | id аккаунтов издателей, через запятую |
 | Только проверенные | `verified_only` | оба `author_verified` и `component_verified` текущие |
 | Страны | `country_code` / `country_codes` | связанные рынки; **Не задано** — нет списка стран |
@@ -213,7 +213,7 @@ Machine-документ каталога перечисляет активны�
 - [Проверки безопасности](../security-checks.md) — что покрывает
   процент.
 - [Реестр](../cli/registry.md) — поиск и fetch в CLI.
-- [Компоненты](../components/index.md) — восемь видов.
+- [Компоненты](../components/index.md) — закрытые виды.
 
 !!! warning "Verified — это два бита"
     `verified_only` требует обе оси. Включить его, потому что автор

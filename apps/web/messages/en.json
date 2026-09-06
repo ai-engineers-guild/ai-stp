@@ -11,7 +11,8 @@
     "command": "Command",
     "agent": "Agent",
     "plugin": "Plugin",
-    "setting": "Setting"
+    "setting": "Setting",
+    "cli": "CLI"
   },
   "nav": {
     "primaryLabel": "Primary navigation",

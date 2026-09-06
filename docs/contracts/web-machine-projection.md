@@ -1,6 +1,6 @@
 ---
 description: "Fields of the web machine document, paired URLs, and leak prevention."
-last_verified: "2026-08-16"
+last_verified: "2026-09-05"
 ---
 
 # Web machine projection
@@ -38,7 +38,7 @@ entry is a defect.
 Required component fields: `stable_id`, `version`, `digest`, `harness`,
 `component_type`, `trust_lane`, `author_verified`, `component_verified`,
 CLI installation command. `component_type` accepts only
-`instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`.
+`instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`, `cli`.
 A setup returns `purpose` and `target_role` instead of `component_type`.
 
 ## Prohibited classes

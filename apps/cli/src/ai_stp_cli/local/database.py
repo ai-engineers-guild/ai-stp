@@ -173,9 +173,9 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             # whole mechanism is "does the candidate now need more than it did
             # when the user agreed", and that question needs the old answer.
             #
-            # `UNIQUE(scope, target)` because the contract has exactly two
-            # scopes and one record each; a second record for one target would
-            # make "which fingerprint applies" ambiguous.
+            # `UNIQUE(scope, target)` because each (scope, target) has one
+            # record; a second row would make "which fingerprint applies"
+            # ambiguous. `task` / `full-auto` is one such pair.
             """
             CREATE TABLE consent (
                 consent_id  TEXT PRIMARY KEY,

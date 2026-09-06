@@ -33,7 +33,7 @@ from ai_stp_contracts.machine_help import (
     MutabilityClass,
 )
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER, HARNESS_IDS
-from ai_stp_passports.versions import MAX_TAG_LENGTH, MAX_TAGS
+from ai_stp_passports.versions import COMPONENT_TYPES, MAX_TAG_LENGTH, MAX_TAGS
 
 type Handler = Callable[[Mapping[str, object]], Answer[BaseModel]]
 
@@ -163,16 +163,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "type",
                 "string",
                 "Limit the reference profile to one component type.",
-                choices=(
-                    "instruction",
-                    "skill",
-                    "mcp",
-                    "hook",
-                    "command",
-                    "agent",
-                    "plugin",
-                    "setting",
-                ),
+                choices=COMPONENT_TYPES,
             ),
         ),
         next_actions=("eval plan",),
@@ -604,12 +595,50 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("doctor", "help --agent"),
     ),
     Declaration(
+        path=["contract", "inventory"],
+        summary="List the coordinated standard family and every other contract axis.",
+        result_schema="urn:ai-stp:schema:v1:cli-standard-inventory",
+        handler="contract:inventory",
+        next_actions=("version",),
+    ),
+    Declaration(
         path=["component", "discover"],
-        summary="List native components in the harness roots and one project. Changes nothing.",
+        summary="List native components in one project or the harness roots. Changes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-native-components",
         handler="component:discover",
-        parameters=(option("root", "string", "Project root to look inside, beside the roots."),),
-        next_actions=("component adopt",),
+        parameters=(
+            option(
+                "root",
+                "string",
+                "Project root to look inside. Does not scan global harness homes.",
+            ),
+            option(
+                "cursor",
+                "string",
+                "Opaque continuation from an incomplete discover --root.",
+            ),
+        ),
+        next_actions=("component inventory", "component adopt"),
+    ),
+    Declaration(
+        path=["component", "inventory"],
+        summary="Passport-first inventory of one explicit authoring tree. Changes nothing.",
+        result_schema="urn:ai-stp:schema:v1:cli-path-inventory",
+        handler="component:inventory",
+        parameters=(
+            option(
+                "root",
+                "string",
+                "Directory to inventory. Does not scan global harness homes.",
+                required=True,
+            ),
+            option(
+                "cursor",
+                "string",
+                "Opaque continuation from an incomplete inventory --root.",
+            ),
+        ),
+        next_actions=("component discover", "component adopt"),
     ),
     Declaration(
         path=["component", "scaffold", "plan"],
@@ -623,16 +652,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "One closed-vocabulary component type.",
                 required=True,
-                choices=(
-                    "instruction",
-                    "skill",
-                    "mcp",
-                    "hook",
-                    "command",
-                    "agent",
-                    "plugin",
-                    "setting",
-                ),
+                choices=COMPONENT_TYPES,
             ),
             option(
                 "language",
@@ -674,16 +694,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "One closed-vocabulary component type.",
                 required=True,
-                choices=(
-                    "instruction",
-                    "skill",
-                    "mcp",
-                    "hook",
-                    "command",
-                    "agent",
-                    "plugin",
-                    "setting",
-                ),
+                choices=COMPONENT_TYPES,
             ),
             option(
                 "language",
@@ -717,6 +728,24 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
         ),
         next_actions=("component passport validate", "component adopt"),
+    ),
+    Declaration(
+        path=["component", "adaptation", "add"],
+        summary="Render a second concrete harness projection into an existing authoring tree.",
+        result_schema="urn:ai-stp:schema:v1:cli-component-scaffold",
+        handler="component:adaptation_add",
+        mutability="apply",
+        parameters=(
+            option("root", "string", "Existing component authoring directory.", required=True),
+            option(
+                "harness",
+                "string",
+                "Concrete harness to add. Portable is refused.",
+                required=True,
+                choices=tuple(HARNESS_ID_ORDER),
+            ),
+        ),
+        next_actions=("component passport validate", "component version release"),
     ),
     Declaration(
         path=["component", "template", "render"],
@@ -985,13 +1014,25 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
     ),
     Declaration(
         path=["consent", "allow"],
-        summary="Record consent to unverified objects of one publisher or major line.",
+        summary=(
+            "Record consent to unverified objects of one publisher, "
+            "major line, or the authorized task profile."
+        ),
         result_schema="urn:ai-stp:schema:v1:cli-consent-record",
         handler="component:consent_allow",
         mutability="apply",
         parameters=(
-            option("scope", "string", "publisher or object_major. No wider form exists."),
-            option("target", "string", "The publisher or object major line it covers."),
+            option(
+                "scope",
+                "string",
+                "publisher, object_major, or task. "
+                "task is the authorized full-auto profile, not a wildcard.",
+            ),
+            option(
+                "target",
+                "string",
+                "The publisher, object major line, or full-auto task profile it covers.",
+            ),
         ),
         next_actions=("consent list",),
     ),
@@ -1002,8 +1043,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="component:consent_revoke",
         mutability="apply",
         parameters=(
-            option("scope", "string", "publisher or object_major."),
-            option("target", "string", "The publisher or object major line it covers."),
+            option("scope", "string", "publisher, object_major, or task."),
+            option(
+                "target",
+                "string",
+                "The publisher, object major line, or full-auto task profile it covers.",
+            ),
         ),
         next_actions=("consent list",),
     ),
@@ -2563,7 +2608,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-setup-compose-result",
         handler="setup_compose:apply",
         mutability="apply",
-        confirmation="explicit_flag",
+        confirmation="plan_digest",
         parameters=(
             option("manifest", "string", "JSON composition manifest to resolve.", required=True),
             option("root", "string", "Root that bounds path: sources."),
@@ -2571,9 +2616,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("created-at", "string", "Exact timestamp returned by plan.", required=True),
             option(
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
-            ),
-            option(
-                "confirm", "boolean", "Confirm recording this exact composition.", required=True
             ),
         ),
         next_actions=("setup export", "setup publish plan", "select session"),
@@ -2700,7 +2742,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-setup-update-result",
         handler="setup_update:apply",
         mutability="apply",
-        confirmation="explicit_flag",
+        confirmation="plan_digest",
         parameters=(
             option("id", "string", "Stable identifier of the setup being updated.", required=True),
             option("version", "string", "Exact currently selected X.Y version.", required=True),
@@ -2724,12 +2766,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest",
                 "string",
                 "Exact digest returned by setup update plan.",
-                required=True,
-            ),
-            option(
-                "confirm",
-                "boolean",
-                "Confirm creating this exact new setup version.",
                 required=True,
             ),
         ),

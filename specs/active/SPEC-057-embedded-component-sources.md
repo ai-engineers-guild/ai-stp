@@ -174,7 +174,7 @@ version 2 bytes and published setup history.
 | `REQ-5704` | Ecosystem fixtures cover npm scripts/lock, PyPI file ambiguity/platform, crates checksum/lock, Go checksum, and pub archive/lock. |
 | `REQ-5705` | A mixed authoring fixture freezes to exact refs and a version 2 definition; a catalog-only setup remains byte-compatible version 1; a scaffold draft still containing `TODO(ai-stp-scaffold):` is refused. |
 | `REQ-5706` | Golden and negative tests verify canonical bytes, ordering, digests, bounds, collisions, mismatches, and incomplete records. |
-| `REQ-5707` | Passport tests cover all eight kinds, ownership/upstream attribution separation, dependencies, and absence from catalog search. |
+| `REQ-5707` | Passport tests cover all closed kinds, ownership/upstream attribution separation, dependencies, and absence from catalog search. |
 | `REQ-5708` | Private Git/package/local fixtures pass; public fixtures fail for unknown/prohibitive licenses and foreign local bytes. |
 | `REQ-5709` | Trust tests prove any embedded member caps the setup at experimental without conflating verification axes. |
 | `REQ-5710` | Server process tests validate mixed catalog/embedded graphs, scan actual embedded bytes, and reject every missing/ambiguous/mismatched ref. |

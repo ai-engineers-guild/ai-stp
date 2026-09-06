@@ -36,6 +36,7 @@ from ai_stp_contracts.catalog import (
 from ai_stp_contracts.http import Timestamp, open_wire_object
 from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
 from ai_stp_contracts.publication import PublicationPlanResponse
+from ai_stp_contracts.standard import STANDARD_FAMILY
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.errors import ErrorHandling, ExitClass
@@ -297,6 +298,10 @@ class VersionReport(BaseModel):
     cli_version: Annotated[str, Field(min_length=1)]
     wire_schema_version: Literal[1] = 1
     python_version: Annotated[str, Field(pattern=r"^\d+\.\d+\.\d+")]
+    standard_family: Literal["ai-stp-standard/1"] = STANDARD_FAMILY
+    contract_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    http_api_version: Literal["v1"] = "v1"
+    provider_protocol_version: Literal[3] = 3
 
 
 class ConfigValue(BaseModel):
@@ -1099,6 +1104,7 @@ class NativeDiscoveryDiagnostic(BaseModel):
         "invalid_record",
         "missing_source_entry",
         "bounded_limit",
+        "unreadable",
     ]
     source: Annotated[str, Field(min_length=1)]
     reason: Annotated[str, Field(min_length=1)]
@@ -1271,9 +1277,7 @@ class ComponentScaffoldView(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    component_type: Literal[
-        "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
-    ]
+    component_type: ComponentType
     component_name: Annotated[str, Field(min_length=1)]
     output: Annotated[str, Field(min_length=1)]
     byte_length: Annotated[int, Field(gt=0)]
@@ -1306,9 +1310,7 @@ class NativeComponent(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
-    component_type: Literal[
-        "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
-    ]
+    component_type: ComponentType
     native_role: Literal["mcp_client_config", "mcp_server"] | None = None
 
     #: `None` for a cross-harness convention such as a project `AGENTS.md`,
@@ -1339,9 +1341,45 @@ class NativeComponents(BaseModel):
 
     schema_version: Literal[1] = 1
 
-    #: The project searched beside the global harness roots, when one was named.
+    #: The explicit project root. When set, discovery does not add global homes.
     project: str | None = None
+    complete: bool
+    continuation: str | None = None
     components: list[NativeComponent]
+    diagnostics: list[NativeDiscoveryDiagnostic] = Field(
+        default_factory=list[NativeDiscoveryDiagnostic]
+    )
+
+
+class PathInventoryObject(BaseModel):
+    """One logical object in an explicit-root inventory (`SPEC-005` REQ-534)."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    object_kind: Literal["component", "setup"]
+    relation: Literal["independent", "embedded_member", "generated_projection", "duplicate"]
+    origin: Literal["passport", "native"]
+    object_id: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    relative_path: Annotated[str, Field(min_length=1, max_length=2048)]
+    component_type: ComponentType | None = None
+    name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    harness_id: str | None = None
+    passport_path: Annotated[str, Field(min_length=1, max_length=2048)] | None = None
+    generated_from: Annotated[str, Field(min_length=1, max_length=2048)] | None = None
+    stable_id: Annotated[str, Field(min_length=1, max_length=128)] | None = None
+
+
+class PathInventory(BaseModel):
+    """Passport-first inventory of one explicit root. Observation only (`REQ-518`)."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    root: Annotated[str, Field(min_length=1)]
+    complete: bool
+    continuation: str | None = None
+    objects: list[PathInventoryObject]
     diagnostics: list[NativeDiscoveryDiagnostic] = Field(
         default_factory=list[NativeDiscoveryDiagnostic]
     )
@@ -1360,8 +1398,9 @@ class ConsentRecord(BaseModel):
     schema_version: Literal[1] = 1
     consent_id: Annotated[str, Field(min_length=1)]
 
-    #: Two forms and no third. "Everything unverified, forever" does not exist.
-    scope: Literal["publisher", "object_major"]
+    #: Three forms and no fourth. "Everything unverified, forever" does not
+    #: exist: `task` names the authorized full-auto profile, not a wildcard.
+    scope: Literal["publisher", "object_major", "task"]
     target: Annotated[str, Field(min_length=1)]
     decided_by: Annotated[str, Field(min_length=1)]
     origin: Annotated[str, Field(min_length=1)]
@@ -3017,7 +3056,7 @@ class HarnessComponentCapability(BaseModel):
     Reading a single list of kinds as "what can be installed" is the mistake
     this exists to remove: the catalogue answers what the *product* reads, and
     the compiler answers what this build can hand a provider. They are different
-    questions and they disagree on ten of fifty-six cells.
+    questions and they disagree on ten of the native-layout cells.
 
     **None of these fields claims a component is active.** Whether an installed
     thing is loaded, parsed and running is a third question, and for at least
@@ -3032,9 +3071,7 @@ class HarnessComponentCapability(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     schema_version: Literal[1] = 1
-    component_type: Literal[
-        "instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"
-    ]
+    component_type: ComponentType
     #: The product reads this kind somewhere, at any scope.
     native_support: bool
     #: ...and at a scope a provider owns, which is what makes it projectable.
@@ -3069,10 +3106,8 @@ class HarnessCapabilityRow(BaseModel):
     #: Every kind the *product* reads, at any scope. Kept because it is a true
     #: fact about the harness, and no longer the only one reported: read alone
     #: it was taken for effective support, which is `#462`.
-    component_types: list[
-        Literal["instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"]
-    ]
-    #: All eight kinds, each with its own state — present for every kind rather
+    component_types: list[ComponentType]
+    #: Every closed kind, each with its own state — present for every kind rather
     #: than only the interesting ones, because a caller building a matrix should
     #: not have to infer absence from a missing row.
     #:

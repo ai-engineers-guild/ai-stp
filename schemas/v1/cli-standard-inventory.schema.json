@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "ContractAxis": {
+      "enum": [
+        "standard_family",
+        "http_api",
+        "envelope",
+        "http_schema",
+        "exported_schema",
+        "provider_protocol",
+        "kit_protocol",
+        "component_generator",
+        "setup_generator",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "InventoryAxis": {
+      "additionalProperties": true,
+      "description": "One version axis the estate currently speaks.",
+      "properties": {
+        "current_identity": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Current Identity",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/ContractAxis"
+        }
+      },
+      "required": [
+        "current_identity",
+        "description",
+        "name"
+      ],
+      "title": "InventoryAxis",
+      "type": "object"
+    },
+    "InventoryMember": {
+      "additionalProperties": true,
+      "description": "One owner-controlled schema or protocol identity.",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/ContractAxis"
+        },
+        "identity": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Identity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "axis",
+        "identity"
+      ],
+      "title": "InventoryMember",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-standard-inventory",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Machine inventory of the coordinated standard family and every other axis.",
+  "properties": {
+    "axes": {
+      "items": {
+        "$ref": "#/$defs/InventoryAxis"
+      },
+      "minItems": 1,
+      "title": "Axes",
+      "type": "array"
+    },
+    "contract_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Contract Digest",
+      "type": "string"
+    },
+    "members": {
+      "items": {
+        "$ref": "#/$defs/InventoryMember"
+      },
+      "minItems": 1,
+      "title": "Members",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "standard_family": {
+      "const": "ai-stp-standard/1",
+      "default": "ai-stp-standard/1",
+      "title": "Standard Family",
+      "type": "string"
+    }
+  },
+  "required": [
+    "axes",
+    "contract_digest",
+    "members",
+    "schema_version",
+    "standard_family"
+  ],
+  "title": "StandardInventory",
+  "type": "object"
+}

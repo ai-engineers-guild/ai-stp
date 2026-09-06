@@ -1063,6 +1063,7 @@ export const ComponentType = {
   AGENT: "agent",
   PLUGIN: "plugin",
   SETTING: "setting",
+  CLI: "cli",
 } as const;
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType];
@@ -4491,6 +4492,31 @@ export type StaffActionResponse = {
    */
   schema_version: 1;
   [key: string]: unknown;
+};
+
+/**
+ * StaffAuthorVerificationRequest
+ *
+ * POST /v1/staff/author-verified body.
+ */
+export type StaffAuthorVerificationRequest = {
+  idempotency_key: IdempotencyKey;
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Subject Account Id
+   */
+  subject_account_id: string;
+  /**
+   * Verified
+   */
+  verified: boolean;
 };
 
 /**
@@ -9201,6 +9227,67 @@ export type RollbackSeoRevisionResponses = {
 
 export type RollbackSeoRevisionResponse =
   RollbackSeoRevisionResponses[keyof RollbackSeoRevisionResponses];
+
+export type StaffAuthorVerificationData = {
+  body: StaffAuthorVerificationRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/staff/author-verified";
+};
+
+export type StaffAuthorVerificationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type StaffAuthorVerificationError =
+  StaffAuthorVerificationErrors[keyof StaffAuthorVerificationErrors];
+
+export type StaffAuthorVerificationResponses = {
+  /**
+   * Staff grant or revoke manual author verification.
+   */
+  200: StaffActionResponse;
+};
+
+export type StaffAuthorVerificationResponse =
+  StaffAuthorVerificationResponses[keyof StaffAuthorVerificationResponses];
 
 export type DeleteStaffContentData = {
   body: StaffContentUnpublishRequest;

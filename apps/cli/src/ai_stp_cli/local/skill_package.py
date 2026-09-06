@@ -1,6 +1,6 @@
 """The Agent Skills authoring contract, checked against the published standard.
 
-`#455`. Of the eight component kinds, `skill` is the one with an external
+`#455`. Of the closed component kinds, `skill` is the one with an external
 specification that exists independently of this estate — <https://agentskills.io
 /specification> — so it is the one where a validator can be right or wrong about
 something other than our own opinion. Every limit below is quoted from that

@@ -1,14 +1,15 @@
 """Durable consent to unverified objects (`docs/contracts/unverified-consent.md`).
 
-The contract's whole mechanism is one comparison: does this candidate now need
-more than it needed when the user agreed to it. That question cannot be answered
-without the old answer, so the capability fingerprint is **stored** at the moment
-of consent rather than derived on read.
+Publisher and object-major records compare a stored capability fingerprint to
+what the candidate needs now. Task authority is a different question: under an
+authorized full-auto profile (`ADR-0150`) the agent does not collect a fresh
+grant per object or capability expansion. The object stays `experimental`.
 
-Two scopes and no third. There is deliberately no "everything unverified,
-forever": the removed `search.include_unverified` config key was exactly that,
-and re-introducing it here as a wildcard target would restore it under another
-name. `SCOPES` is closed and an unknown scope is refused.
+Three scopes and no fourth. There is still no "everything unverified, forever":
+the removed `search.include_unverified` config key was exactly that, and a
+wildcard target under `task` would restore it under another name. `task` names
+one authorized profile (`full-auto`), is revocable, and loses to a narrower
+exclusion. `SCOPES` is closed and an unknown scope is refused.
 
 Consent never promotes anything. A covered candidate appears in the
 `experimental` lane and nowhere else — it does not become `authoritative`, it
@@ -25,10 +26,14 @@ from typing import Final, cast
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue, canonize
 
-#: The two forms of durable record the contract defines. Closed on purpose.
+#: The three forms of durable record the contract defines. Closed on purpose.
 SCOPE_PUBLISHER: Final[str] = "publisher"
 SCOPE_OBJECT_MAJOR: Final[str] = "object_major"
-SCOPES: Final[frozenset[str]] = frozenset({SCOPE_PUBLISHER, SCOPE_OBJECT_MAJOR})
+SCOPE_TASK: Final[str] = "task"
+SCOPES: Final[frozenset[str]] = frozenset({SCOPE_PUBLISHER, SCOPE_OBJECT_MAJOR, SCOPE_TASK})
+
+#: The only `task` target. Any other string would be a wildcard by another name.
+TASK_PROFILE_FULL_AUTO: Final[str] = "full-auto"
 
 #: What a fingerprint records, in the contract's own terms: the permissions and
 #: capabilities a candidate needed when the user agreed. Declared as a closed
@@ -126,6 +131,12 @@ def grant(
             "a consent record must name what it covers",
             details={"scope": scope},
         )
+    if scope == SCOPE_TASK and target != TASK_PROFILE_FULL_AUTO:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "that task profile is not one this contract defines",
+            details={"target": target, "allowed": TASK_PROFILE_FULL_AUTO},
+        )
     connection.execute(
         """
         INSERT INTO consent
@@ -201,6 +212,9 @@ def covers(record: Record, candidate: dict[str, JsonValue], *, major: int | None
     """
     if not record.active:
         return Verdict(False, "the consent was withdrawn")
+
+    if record.scope == SCOPE_TASK:
+        return Verdict(True, "covered by the authorized full-task profile")
 
     if not record.observed:
         return Verdict(
@@ -286,37 +300,64 @@ def consulted(
 ) -> Consultation:
     """Whether any durable record covers this candidate, and on what basis.
 
-    The two scopes are consulted most specific first: a record naming this
-    object's major line answers before one naming its publisher, because the
-    user who wrote the narrower one was being more precise, and letting the
-    broader record overrule it would make the narrower one unwritable.
+    Order is the product, not an implementation detail:
 
-    Until 2026-08-29 nothing called this, under either scope. `search` asked
-    for a `publisher_of` mapping that no caller ever passed, so the publisher
-    was always unknown and the lookup always missed; `object_major` had no
-    reader at all, and `covers` took a `major` argument nobody supplied. The
-    records were writable, listable and inert — which reads from the outside
-    exactly like consent being refused on purpose.
+    1. A revoked narrower record is an exclusion. It answers before a broader
+       grant, including task authority. Claiming the narrower exclusion wins
+       while returning the first covering grant is the A06 bug.
+    2. An active `object_major` or `publisher` record that still matches the
+       fingerprint answers next, most specific first, so the source names the
+       record the user actually wrote.
+    3. An active `task` grant covers without a fingerprint or major ceiling.
+       Capability growth and a new major line do not re-prompt (`ADR-0150`).
+    4. Otherwise a fingerprint miss reports that miss; otherwise there is no
+       durable consent.
+
+    Until 2026-08-29 nothing called this, under either publisher scope. The
+    records were writable, listable and inert.
     """
     major = major_of(version)
-    tried: list[tuple[str, Record]] = []
+    held_records: list[tuple[str, Record]] = []
     if major is not None:
         narrow = held(connection, scope=SCOPE_OBJECT_MAJOR, target=f"{stable_id}@{major}")
         if narrow is not None:
-            tried.append((SCOPE_OBJECT_MAJOR, narrow))
+            held_records.append((SCOPE_OBJECT_MAJOR, narrow))
     if owner_id:
-        broad = held(connection, scope=SCOPE_PUBLISHER, target=owner_id)
-        if broad is not None:
-            tried.append((SCOPE_PUBLISHER, broad))
+        publisher = held(connection, scope=SCOPE_PUBLISHER, target=owner_id)
+        if publisher is not None:
+            held_records.append((SCOPE_PUBLISHER, publisher))
+    task = held(connection, scope=SCOPE_TASK, target=TASK_PROFILE_FULL_AUTO)
+    if task is not None:
+        held_records.append((SCOPE_TASK, task))
 
-    if not tried:
+    if not held_records:
         return Consultation(False, "no durable consent record covers this candidate")
 
-    scope, record = tried[0]
-    verdict = covers(record, capabilities, major=major)
-    if verdict.covered:
-        return Consultation(True, verdict.reason, f"{scope}:{record.target}")
-    return Consultation(False, verdict.reason, f"{scope}:{record.target}", verdict.changed)
+    for scope, record in held_records:
+        if not record.active:
+            return Consultation(False, "the consent was withdrawn", f"{scope}:{record.target}")
+
+    fingerprint_miss: Consultation | None = None
+    for scope, record in held_records:
+        if scope == SCOPE_TASK:
+            continue
+        verdict = covers(record, capabilities, major=major)
+        if verdict.covered:
+            return Consultation(True, verdict.reason, f"{scope}:{record.target}")
+        if fingerprint_miss is None:
+            fingerprint_miss = Consultation(
+                False, verdict.reason, f"{scope}:{record.target}", verdict.changed
+            )
+
+    for scope, record in held_records:
+        if scope == SCOPE_TASK:
+            return Consultation(
+                True, covers(record, capabilities).reason, f"{scope}:{record.target}"
+            )
+
+    if fingerprint_miss is not None:
+        return fingerprint_miss
+    return Consultation(False, "no durable consent record covers this candidate")
 
 
 def _as_set(value: JsonValue) -> frozenset[str]:

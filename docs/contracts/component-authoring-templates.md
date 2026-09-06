@@ -1,6 +1,6 @@
 ---
 description: "Versioned scaffold plans and safe projection of component authoring templates."
-last_verified: "2026-09-04"
+last_verified: "2026-09-05"
 ---
 
 # Component authoring templates
@@ -31,6 +31,15 @@ Declarative `instruction`, `skill`, `command`, `agent`, and `setting` use
 because the provider does not perform a hidden source build. The variant is `portable`
 or one of the harnesses in the closed registry. If the selected harness has no
 independent native form for the type, the plan fails closed before any write.
+
+New writes record `standard_family` as `ai-stp-standard/1` on the descriptor
+(`SPEC-060`). Historical descriptors without that field remain validatable and
+are not assigned the family on read.
+
+`component adaptation add` renders a second concrete harness projection under
+`projections/<harness>/` without changing the original `harness_variant`.
+Release freezes every `adaptation_contents` source into the version passport
+(`ADR-0143`); a singular `harness_id` draft still produces one adaptation.
 
 The current `component-scaffold/6` directory contains `.ai-stp-template.json`,
 `.gitignore`, `component-passport.json`, `eval-profile.json`, README, and editable
@@ -66,8 +75,10 @@ another type.
 2. Implement the behavior in `source/` and fill in only confirmed patch facts. For `required_env`,
    record names and purposes, but not values. Add source only after pinning a public
    GitHub commit.
-3. Place the component in a supported native layout, run `component discover` and
-   `component adopt`, then apply the patch through
+3. Inventory the authoring tree with `component inventory --root` before copying
+   anything into a native layout. Generated `projections/` are not independent
+   sources. Then run `component discover --root` and `component adopt`, and apply
+   the patch through
    `component passport update --expected-revision ... --from ... --confirm`.
 4. Run `component passport validate` and the evaluation lifecycle. The saved profile
    shows in advance that core will perform local-static checks, while model/human

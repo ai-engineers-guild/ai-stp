@@ -11,12 +11,12 @@ last_verified: "2026-08-03"
 | -------- | ----- | ------- |
 | [access-grants-and-forks.md](access-grants-and-forks.md) | Access grant target, recipient actions, forks, derivative publication, and revocation consequences. | 2026-09-01 |
 | [article-publication.md](article-publication.md) | Machine contract for repository import, staff publication, and public article reads. | 2026-08-29 |
-| [canonical-data.md](canonical-data.md) | Canonical identifiers, serialization, references, hashes, and signatures. | 2026-09-03 |
+| [canonical-data.md](canonical-data.md) | Canonical identifiers, serialization, references, hashes, and signatures. | 2026-09-05 |
 | [capability-vocabulary.md](capability-vocabulary.md) | Closed vocabulary of required capabilities, its growth rule, and the distinction between unknown and missing capabilities. | 2026-08-08 |
 | [catalog-reactions.md](catalog-reactions.md) | Private account reactions to public catalog components and setups. | 2026-08-17 |
 | [catalog-support-evidence.md](catalog-support-evidence.md) | Safe public projection of harness support evidence in the catalog. | 2026-08-09 |
 | [catalog-usage-metrics.md](catalog-usage-metrics.md) | Wire semantics of public detail-view and artifact-download counters. | 2026-08-17 |
-| [cli-config.md](cli-config.md) | Global CLI configuration fields, defaults, and source precedence. | 2026-08-29 |
+| [cli-config.md](cli-config.md) | Global CLI configuration fields, defaults, and source precedence. | 2026-09-05 |
 | [cli-copy-templates.md](cli-copy-templates.md) | Canonical CLI templates for web UI copy blocks (SPEC-037). | 2026-08-13 |
 | [cli-grants.md](cli-grants.md) | Client sequence for issuing, accepting, and revoking access grants. | 2026-08-13 |
 | [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-09-01 |
@@ -24,23 +24,24 @@ last_verified: "2026-08-03"
 | [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-08-25 |
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
-| [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-04 |
+| [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-05 |
 | [component-presentation.md](component-presentation.md) | Mutable component presentation in the catalog without changing the version passport. | 2026-09-04 |
-| [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-08-22 |
+| [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-09-05 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Device passport fields, privacy, and the permitted summary for the server and web. | 2026-08-04 |
 | [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-09-03 |
-| [estate-release.md](estate-release.md) | Immutable estate release record binding one consumer cut to exact provider evidence. | 2026-09-04 |
+| [estate-release.md](estate-release.md) | Immutable estate release record binding one consumer cut to exact provider evidence. | 2026-09-05 |
 | [federated-sources.md](federated-sources.md) | Machine contract for shared descriptors used by local ports and metadata adapters. | 2026-08-16 |
 | [fixture-corpus.md](fixture-corpus.md) | Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Machine contract for local GitHub archive evidence and observation history. | 2026-08-15 |
 | [harness-bundle.md](harness-bundle.md) | Bounded deterministic package for a public harness provider. | 2026-09-01 |
 | [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-09-04 |
-| [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-09-04 |
+| [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-09-05 |
 | [offline-capability.md](offline-capability.md) | What works without the network after initial setup and what requires connectivity. | 2026-08-13 |
 | [operation.md](operation.md) | States, plan, journal, and recovery of a mutating operation. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |
+| [path-inventory.md](path-inventory.md) | Machine contract for passport-first inventory of one explicit authoring root. | 2026-09-05 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
 | [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |
@@ -54,11 +55,12 @@ last_verified: "2026-08-03"
 | [setup-import.md](setup-import.md) | Machine boundary for discovering and registering an existing native setup. | 2026-09-01 |
 | [setup-store-ports.md](setup-store-ports.md) | Contract for local discovery, preview, and component import from SX and APM. | 2026-08-13 |
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
+| [standard-family.md](standard-family.md) | Coordinated standard-family identity, contract digest, and classification axes. | 2026-09-05 |
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
-| [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable exception records by publisher and major line. | 2026-08-29 |
-| [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-03 |
+| [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable records by publisher, major line, and authorized task profile. | 2026-09-05 |
+| [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-05 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Cookie categories and the rule for starting optional Web integrations. | 2026-08-22 |
-| [web-machine-projection.md](web-machine-projection.md) | Fields of the web machine document, paired URLs, and leak prevention. | 2026-08-16 |
+| [web-machine-projection.md](web-machine-projection.md) | Fields of the web machine document, paired URLs, and leak prevention. | 2026-09-05 |
 
 <!-- END CONTENTS -->

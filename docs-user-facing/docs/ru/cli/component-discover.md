@@ -18,7 +18,8 @@ Discovery сообщает пути, не открывая файлы с сек�
 
 | Команда | Mutability | Confirmation | Когда |
 | --- | --- | --- | --- |
-| `ai-stp component discover` | `read` | `none` | перечислить нативные компоненты в корнях harness и одном проекте |
+| `ai-stp component discover` | `read` | `none` | перечислить нативные компоненты в названном проекте или в корнях harness, если проект не назван |
+| `ai-stp component inventory` | `read` | `none` | паспорт-первый инвентарь одного явного дерева авторства |
 | `ai-stp component find` | `read` | `none` | искать в локальном реестре по prefix, phrase, tag или field |
 | `ai-stp component scaffold plan` | `plan` | `none` | показать точные файлы и digest одного версионированного scaffold |
 | `ai-stp component scaffold apply` | `apply` | `plan_digest` | создать ровно подтверждённый scaffold; путь не перезаписывать |
@@ -30,13 +31,20 @@ Discovery сообщает пути, не открывая файлы с сек�
 
 ## Discover
 
-`discover` сканирует корни harness и, если назван `--root`, один проект.
-Ничего не меняет. Путь, похожий на секрет, помечается по **имени**, а не
-потому что файл открыли.
+`discover` без `--root` сканирует корни harness. С `--root` он смотрит только
+внутрь этого каталога и не добавляет глобальные home. Ничего не меняет. Путь,
+похожий на секрет, помечается по **имени**, а не потому что файл открыли.
+
+`inventory --root` сначала читает паспорта авторства, затем нативные раскладки,
+и не считает сгенерированные `projections/` независимыми источниками.
+
+Если `complete` ложно, передайте возвращённый `continuation` как `--cursor` с
+тем же `--root`. Усечённый список нельзя считать исчерпывающим.
 
 ```bash
 ai-stp component discover --json
 ai-stp component discover --root . --json
+ai-stp component inventory --root . --json
 ```
 
 Поля успеха: `components`, `diagnostics`, `project`, `schema_version`. У
@@ -72,7 +80,7 @@ Scaffold — новый каталог авторства. Сначала plan. 
 существует.
 
 `--type` — одно из `instruction`, `skill`, `mcp`, `hook`, `command`,
-`agent`, `plugin`, `setting`. `--language` — `none` для декларативных
+`agent`, `plugin`, `setting`, `cli`. `--language` — `none` для декларативных
 типов или одно из `python`, `typescript`, `javascript`, `rust`, `go`,
 `dart-flutter`. `--harness` — `portable` или конкретный harness:
 `claude-code`, `codex`, `pi`, `opencode`, `grok-build`, `cursor`,

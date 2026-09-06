@@ -21,6 +21,7 @@ from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import verify_revision_id
 from ai_stp_passports.versions import (
+    COMPONENT_TYPES,
     ComponentType,
     ComponentVersionPassport,
     Permissions,
@@ -29,16 +30,7 @@ from ai_stp_passports.versions import (
 
 PROFILE_VERSION: Final[str] = "setup-eval/1"
 RUNNER_VERSION: Final[str] = "ai-stp-local-static/1"
-_TYPES: Final[tuple[ComponentType, ...]] = (
-    "instruction",
-    "skill",
-    "mcp",
-    "hook",
-    "command",
-    "agent",
-    "plugin",
-    "setting",
-)
+_TYPES: Final[tuple[ComponentType, ...]] = COMPONENT_TYPES
 _SURFACES: Final[dict[ComponentType, tuple[str, ...]]] = {
     "instruction": ("managed_paths",),
     "skill": ("managed_paths", "entry_points"),
@@ -48,6 +40,7 @@ _SURFACES: Final[dict[ComponentType, tuple[str, ...]]] = {
     "agent": ("native_ids", "entry_points"),
     "plugin": ("native_ids", "managed_paths"),
     "setting": ("native_ids", "managed_paths"),
+    "cli": ("native_ids", "entry_points"),
 }
 
 
@@ -88,6 +81,7 @@ def reference_profile(
         "agent": "declared delegation surface and tool boundary",
         "plugin": "declared plugin identity or managed root",
         "setting": "declared merge target and harness effect",
+        "cli": "declared process entry point and exit contract",
     }
     for component_type in selected:
         checks.extend(

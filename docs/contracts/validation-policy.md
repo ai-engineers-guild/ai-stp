@@ -1,6 +1,6 @@
 ---
 description: "Mandatory checks by component type, MCP class, and setup."
-last_verified: "2026-09-03"
+last_verified: "2026-09-05"
 ---
 
 # Validation policy
@@ -192,6 +192,7 @@ requirements file exists; otherwise it is `not_applicable`.
 | `agent` | role, model, tools, and delegation declaration; native schema; hidden remote prompts prohibited; conflict and permission resolution |
 | `plugin` | native manifest; list of nested components; exact dependency graph; smoke installation and loading by the provider; native identifier conflicts |
 | `setting` | typed key and value schema; merge, precedence, and conflict policy; secrets prohibited in the value; native validation by the target |
+| `cli` | process entry point and argument shape; platform/architecture assets; exit and semantic error contract; one shared artifact, not seven harness copies |
 
 ## MCP transport classes
 

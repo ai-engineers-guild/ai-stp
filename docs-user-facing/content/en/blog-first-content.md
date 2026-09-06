@@ -15,7 +15,7 @@ The distribution on PyPI is `ai-stp-cli`. The executable is `ai-stp`. Copying `u
 
 ## What the product actually is
 
-A **harness** is the CLI environment a coding agent runs in. A **setup** is the complete configuration of one harness; it belongs to that harness from creation. A **component** is a part of a setup of one of eight kinds: `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`. Memory, rules, parameters and helper tools are content of those kinds, not extra kinds.
+A **harness** is the CLI environment a coding agent runs in. A **setup** is the complete configuration of one harness; it belongs to that harness from creation. A **component** is a part of a setup of one of the closed kinds: `instruction`, `skill`, `mcp`, `hook`, `command`, `agent`, `plugin`, `setting`, `cli`. `command` is a named slash invocation; `cli` is a standalone executable. Memory, rules, parameters and helper tools are content of those kinds, not extra kinds.
 
 A published version pins exact component versions and is immutable. Trust is origin, version and consent. Compatibility — graph, target and policy — decides before apply. `author_verified` and `component_verified` are independent. Only the harness’s public provider writes native files.
 

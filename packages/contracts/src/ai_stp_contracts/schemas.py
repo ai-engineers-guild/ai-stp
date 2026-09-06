@@ -83,6 +83,7 @@ from ai_stp_contracts.federation import (
     FederatedSourceDescriptor,
     FederatedSourceSet,
 )
+from ai_stp_contracts.first_party import FirstPartyCatalogIdentity
 from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
@@ -156,6 +157,7 @@ from ai_stp_contracts.machine_help import (
     MultiRootTransactionView,
     NativeComponents,
     PassportView,
+    PathInventory,
     ProjectCandidates,
     ProjectIndex,
     ProjectSymbols,
@@ -248,6 +250,7 @@ from ai_stp_contracts.seo import (
     SeoSitemapShard,
     SeoSubjectQuery,
 )
+from ai_stp_contracts.standard import StandardInventory, inventory_for
 from ai_stp_contracts.store_ports import (
     StorePortDiscovery,
     StorePortImportPlan,
@@ -264,7 +267,7 @@ from ai_stp_contracts.sync import (
     SyncPushResponse,
     SyncStreamEvent,
 )
-from ai_stp_foundation.schemas import ExportedSchema, check, write
+from ai_stp_foundation.schemas import ExportedSchema, check, schema_id, write
 
 #: The `/v1` HTTP boundary. Every one of these is served by a route, and a test
 #: rejects any that is not.
@@ -481,6 +484,7 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-target-backups": TargetBackups,
     "cli-telemetry-status": TelemetryStatus,
     "cli-native-components": NativeComponents,
+    "cli-path-inventory": PathInventory,
     "cli-external-source-identity": ExternalSourceIdentity,
     "cli-github-archive-evidence": GitHubArchiveEvidence,
     "cli-github-archive-history": GitHubArchiveHistory,
@@ -495,6 +499,8 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-machine-help": MachineHelp,
     "cli-passport-view": PassportView,
     "cli-version-report": VersionReport,
+    "cli-standard-inventory": StandardInventory,
+    "cli-first-party-catalog-identity": FirstPartyCatalogIdentity,
 }
 
 CONTRACT_MODELS: Final[dict[str, ExportedSchema]] = {**HTTP_MODELS, **CLI_MODELS}
@@ -503,6 +509,14 @@ EXPORTED_MODELS: Final[dict[str, ExportedSchema]] = {
     **ASSURANCE_STACK_MODELS,
     **CONTRACT_MODELS,
 }
+
+
+def current_inventory() -> StandardInventory:
+    """Inventory of exported schema ids plus the closed protocol axes."""
+    members = tuple(("http_schema", schema_id(name)) for name in HTTP_MODELS) + tuple(
+        ("exported_schema", schema_id(name)) for name in EXPORTED_MODELS if name not in HTTP_MODELS
+    )
+    return inventory_for(members)
 
 
 #: The OpenAPI document is generated beside the schemas and checked by the same

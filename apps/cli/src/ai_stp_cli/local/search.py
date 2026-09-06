@@ -242,8 +242,9 @@ def search(
 
     `include_unverified` is the request flag of `ADR-0016` — per command, never
     stored. A durable consent record can also cover a candidate, and either is
-    enough; what does not exist is a way to allow everything unverified forever,
-    which is why there is no third option here.
+    enough; what does not exist is a config key that allows everything
+    unverified forever. Scope `task` is a named, revocable profile, not that
+    key.
     """
     validate_query(prefix=prefix, phrase=phrase, field=field, value=value)
     laned: dict[str, list[Hit]] = {lane: [] for lane in LANES}
