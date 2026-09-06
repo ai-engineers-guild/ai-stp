@@ -1451,3 +1451,39 @@ def test_a_path_two_kinds_claim_is_the_same_decision_as_two_harnesses(
     with pytest.raises(CliFailure) as absent:
         command.adopt({"path": str(configuration), "kind": "hook"})
     assert absent.value.code == "AI_STP_NOT_FOUND"
+
+
+def test_adopting_a_host_file_contribution_records_the_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Import already stored `declared_key`; adopt extracted the value and stopped.
+
+    Freeze reads those facts to mark ownership as a contribution. Without them
+    an adopted Codex MCP released as a whole-file `mcp` adaptation, which the
+    provider refuses (`adaptation_binding_mismatch`) because it does not
+    declare `mcp` as a kind — servers live inside `config.toml`.
+    """
+    from ai_stp_cli.commands import component as command
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.delenv("CODEX_HOME", raising=False)
+    configuration = tmp_path / ".codex" / "config.toml"
+    configuration.parent.mkdir(parents=True)
+    configuration.write_text(
+        '[mcp_servers.probe]\ncommand = "probe-server"\n',
+        encoding="utf-8",
+    )
+
+    def value_of(facts: "dict[str, JsonValue]", key: str) -> "JsonValue":
+        fact = facts[key]
+        assert isinstance(fact, dict)
+        return fact["value"]
+
+    contributed = command.adopt({"path": str(configuration), "kind": "mcp"}).payload.facts
+    assert value_of(contributed, "declared_key") == "mcp_servers"
+    assert value_of(contributed, "source_locator") == "config.toml#mcp_servers"
+
+    setting = command.adopt({"path": str(configuration), "kind": "setting"}).payload.facts
+    assert value_of(setting, "declared_key") == ""
+    assert value_of(setting, "source_locator") == ""

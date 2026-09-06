@@ -635,6 +635,13 @@ ADOPTED_FIELDS: Final[tuple[str, ...]] = (
     "content_digest",
     "byte_length",
     "managed_paths",
+    # Import already recorded these so freeze could mark a host-file landing
+    # as a contribution (`ADR-0129`). Adopt extracted the key's value and
+    # stopped, so a released Codex MCP froze as a whole-file `mcp` adaptation
+    # and the provider refused it (`adaptation_binding_mismatch`, measured
+    # on `evidence-contribution` 0.0.66). Empty when the kind owns its path.
+    "declared_key",
+    "source_locator",
 )
 
 
@@ -1136,6 +1143,7 @@ def _passport(
     parents: list[str] | None = None,
 ) -> dict[str, JsonValue]:
     """A passport built from the allowlist, one fact per adopted field."""
+    locator = _contribution_locator(item)
     values: dict[str, JsonValue] = {
         "component_type": item.component_type,
         "projection_kind": item.projection_kind,
@@ -1165,6 +1173,8 @@ def _passport(
         "content_digest": digest,
         "byte_length": byte_length,
         "managed_paths": list(_adopted_managed_paths(item)),
+        "declared_key": locator[0],
+        "source_locator": locator[1],
     }
     facts: dict[str, JsonValue] = {
         name: {
@@ -1192,6 +1202,16 @@ def _adopted_managed_paths(item: Found) -> tuple[str, ...]:
     from ai_stp_cli.local.composition import adopted_covers
 
     return adopted_covers(item)
+
+
+def _contribution_locator(item: Found) -> tuple[str, str]:
+    """The key a contribution owns, and the host-file locator freeze projects onto."""
+    from ai_stp_cli.local import composition
+
+    rule = composition.rule_for(item.component_type, item.harness_id, scope=item.scope)
+    if rule is None or not rule.declared_key:
+        return "", ""
+    return rule.declared_key, f"{rule.relative}#{rule.declared_key}"
 
 
 def _source_name(item: Found) -> str:
