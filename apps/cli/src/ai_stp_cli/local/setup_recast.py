@@ -44,7 +44,7 @@ from ai_stp_passports.versions import ComponentAdaptation, ScopeAdaptation, Targ
 
 PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 TRANSFORM_ID: Final[str] = "harness-native-rewrite"
-TRANSFORM_VERSION: Final[str] = "1.0"
+TRANSFORM_VERSION: Final[str] = "1.1"
 _NON_DERIVABLE: Final[frozenset[str]] = frozenset({"setting", "cli"})
 _MCP_FILE_WRAPPERS: Final[tuple[str, ...]] = ("mcpServers", "mcp_servers", "mcp")
 Disposition = Literal["reuse", "derive", "blocked"]
@@ -220,6 +220,11 @@ def _classify(
         adaptation_for(passport, target)
     except ValueError:
         reason = _blocked_reason(passport, source_harness, target)
+        if (
+            reason is None
+            and _preview_projection(connection, passport, source_harness, target) is None
+        ):
+            reason = "the recorded projection cannot be mapped without losing files or modes"
         if reason is None:
             return SetupRecastMember(
                 stable_id=member[0],
@@ -321,6 +326,51 @@ def _materialize_member(
     return setup_versions.MemberRef(member[0], classified.target_version, digest)
 
 
+def _preview_projection(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    source_harness: HarnessId,
+    target: HarnessId,
+) -> tuple[ScopeAdaptation, Rule, dict[str, bytes], dict[str, int]] | None:
+    """Read and map the recorded files and modes without creating registry state."""
+    if _blocked_reason(passport, source_harness, target) is not None:
+        return None
+    source_scope = adaptation_for(passport, source_harness).scope_adaptations[0]
+    rule = composition.rule_for(
+        passport.component_type, target, scope=source_scope.scope
+    ) or composition.rule_for(passport.component_type, target)
+    if rule is None or (target, rule.target_scope) not in PROVIDER_SURFACES:
+        return None
+    try:
+        payload = content.get(connection, source_scope.projection_artifact.digest)
+        files = _projection_files(source_scope, payload)
+    except CliFailure as error:
+        if error.code not in {"AI_STP_NOT_FOUND", "AI_STP_CONFLICT"}:
+            raise
+        return None
+    except (KeyError, OSError, zipfile.BadZipFile, zipfile.LargeZipFile):
+        return None
+    source_modes = {
+        member.path: member.mode for member in source_scope.members if member.object_type == "file"
+    }
+    if passport.component_type == "mcp":
+        remapped = _derive_mcp_files(files, source_harness, source_scope.scope, rule)
+        # MCP conversion is one document to one document, not a package transform.
+        modes = (
+            {rule.relative: next(iter(source_modes.values()))} if len(source_modes) == 1 else None
+        )
+    else:
+        remapped = _remap_files(
+            files, passport.component_type, source_harness, source_scope.scope, rule
+        )
+        modes = _remap_files(
+            source_modes, passport.component_type, source_harness, source_scope.scope, rule
+        )
+    if not remapped or modes is None or remapped.keys() != modes.keys():
+        return None
+    return source_scope, rule, remapped, modes
+
+
 def _derive_adaptation(
     connection: sqlite3.Connection,
     passport: ComponentVersionPassport,
@@ -329,35 +379,22 @@ def _derive_adaptation(
     *,
     at: str,
 ) -> ComponentAdaptation | None:
-    if _blocked_reason(passport, source_harness, target) is not None:
+    preview = _preview_projection(connection, passport, source_harness, target)
+    if preview is None:
         return None
-    source_adaptation = adaptation_for(passport, source_harness)
-    source_scope = source_adaptation.scope_adaptations[0]
-    rule = composition.rule_for(
-        passport.component_type, target, scope=source_scope.scope
-    ) or composition.rule_for(passport.component_type, target)
-    if rule is None:
-        return None
-    payload = content.get(connection, source_scope.projection_artifact.digest)
-    files = _projection_files(source_scope, payload)
+    source_scope, rule, remapped, modes = preview
     contributing = bool(rule.declared_key)
-    if passport.component_type == "mcp":
-        remapped = _derive_mcp_files(files, source_harness, source_scope.scope, rule)
-    else:
-        remapped = _remap_files(
-            files, passport.component_type, source_harness, source_scope.scope, rule
-        )
-    if not remapped:
-        return None
     scope_name = cast(TargetScope, rule.target_scope)
-    if (target, scope_name) not in PROVIDER_SURFACES:
-        return None
     members: list[JsonValue] = []
     for path, payload in sorted(remapped.items()):
         stored = content.put(connection, payload, at=at)
         members.append(
             _projection_member(
-                path, stored.digest, stored.byte_length, rule if contributing else None
+                path,
+                stored.digest,
+                stored.byte_length,
+                rule if contributing else None,
+                mode=modes[path],
             )
         )
     surface = provider_surface(target, scope_name)
@@ -391,6 +428,7 @@ def _derive_adaptation(
     }
     transform_body: dict[str, JsonValue] = {
         "transform_id": TRANSFORM_ID,
+        "version": TRANSFORM_VERSION,
         "source_harness": source_harness,
         "target_harness": target,
         "component_type": passport.component_type,
@@ -416,7 +454,7 @@ def _derive_adaptation(
 
 
 def _projection_member(
-    path: str, digest: str, byte_length: int, contributing: Rule | None
+    path: str, digest: str, byte_length: int, contributing: Rule | None, *, mode: int
 ) -> dict[str, JsonValue]:
     key = contributing.declared_key if contributing is not None else ""
     suffix = PurePosixPath(path).suffix.casefold()
@@ -424,7 +462,7 @@ def _projection_member(
     return {
         "path": path,
         "object_type": "file",
-        "mode": 0o600,
+        "mode": mode,
         "content_artifact": {"digest": digest, "size_bytes": byte_length},
         "native_ids": [],
         "content_format": "application/octet-stream",
@@ -460,7 +498,10 @@ def _logical_mcp_servers(
     path, payload = next(iter(files.items()))
     host = source_rule.relative if source_rule is not None else path
     if source_rule is not None and source_rule.declared_key:
-        parsed = contribution.parse_value(host=host, content=payload)
+        try:
+            parsed = contribution.parse_value(host=host, content=payload)
+        except CliFailure:
+            return None
         return parsed if isinstance(parsed, dict) else None
     return _unwrap_mcp(_parse_mcp_document(host, payload))
 
@@ -516,13 +557,19 @@ def _projection_files(scope: ScopeAdaptation, payload: bytes) -> dict[str, bytes
     return files
 
 
-def _remap_files(
-    files: Mapping[str, bytes],
+def _remap_files[T](
+    files: Mapping[str, T],
     component_type: str,
     source_harness: HarnessId,
     source_scope: str,
     target: Rule,
-) -> dict[str, bytes] | None:
+) -> dict[str, T] | None:
+    """Map a complete declared subtree without flattening or overwriting members.
+
+    The same mapping is used for bytes and modes. A path outside the source
+    surface is not a basename alias: guessing one can silently replace another
+    file or detach a script from its package-relative resources.
+    """
     if target.declared_key or not files:
         return None
     if target.shape == "file":
@@ -532,17 +579,21 @@ def _remap_files(
     if target.shape != "directory":
         return None
     source_rule = composition.rule_for(component_type, source_harness, scope=source_scope)
-    prefix = ""
-    if source_rule is not None and source_rule.shape == "directory":
-        prefix = source_rule.relative.rstrip("/") + "/"
-    remapped: dict[str, bytes] = {}
+    if source_rule is None or source_rule.shape != "directory":
+        return None
+    prefix = source_rule.relative.rstrip("/") + "/"
+    remapped: dict[str, T] = {}
+    seen: set[str] = set()
     root = target.relative.rstrip("/")
     for path, payload in files.items():
-        if prefix and path.startswith(prefix):
-            suffix = path[len(prefix) :]
-        else:
-            suffix = path.rsplit("/", 1)[-1]
-        remapped[f"{root}/{suffix}"] = payload
+        if not path.startswith(prefix) or path == prefix:
+            return None
+        destination = f"{root}/{path[len(prefix) :]}"
+        folded = destination.casefold()
+        if folded in seen:
+            return None
+        seen.add(folded)
+        remapped[destination] = payload
     return remapped
 
 
@@ -612,6 +663,7 @@ def _plan_view(
         "setup_id": setup_id,
         "version": versions.FIRST_VERSION,
         "created_at": created_at,
+        "transform": {"transform_id": TRANSFORM_ID, "version": TRANSFORM_VERSION},
         "members": [cast(JsonValue, item.model_dump(mode="json")) for item in members],
     }
     return SetupRecastPlan(
