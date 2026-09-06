@@ -21,8 +21,10 @@ The executable is `ai-stp`. The PyPI package is `ai-stp-cli`.
 | Command | Mutability | Confirmation | Owner page | What it is for |
 | --- | --- | --- | --- | --- |
 | `ai-stp eval profile` | `read` | `none` | [eval.md](eval.md) | Show the versioned reference evaluation profile for all or one component type. |
-| `ai-stp eval plan` | `plan` | `none` | [eval.md](eval.md) | Bind a reference evaluation profile to one exact local setup graph. |
-| `ai-stp eval run` | `apply` | `plan_digest` | [eval.md](eval.md) | Run local deterministic checks for one confirmed exact evaluation plan. |
+| `ai-stp eval plan` | `plan` | `none` | [eval.md](eval.md) | Bind a reference evaluation profile to the setup's own harness adaptations. |
+| `ai-stp eval component plan` | `plan` | `none` | [eval.md](eval.md) | Bind a reference evaluation profile to every adaptation of one component version. |
+| `ai-stp eval run` | `apply` | `plan_digest` | [eval.md](eval.md) | Run local deterministic checks for one confirmed setup evaluation plan. |
+| `ai-stp eval component run` | `apply` | `plan_digest` | [eval.md](eval.md) | Run local deterministic checks for one confirmed component evaluation plan. |
 | `ai-stp eval status` | `read` | `none` | [eval.md](eval.md) | Read the immutable status of one local evaluation run. |
 | `ai-stp eval show` | `read` | `none` | [eval.md](eval.md) | Show full immutable local evidence for one evaluation run. |
 | `ai-stp publication plan` | `plan` | `none` | [publication.md](publication.md) | Create an immutable server plan for one exact released component version. |

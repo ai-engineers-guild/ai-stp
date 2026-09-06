@@ -11,7 +11,13 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import evaluation
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
 from ai_stp_cli.local.passports import moment
-from ai_stp_contracts.evaluation import SetupEvalPlan, SetupEvalProfile, SetupEvalResult
+from ai_stp_contracts.evaluation import (
+    ComponentEvalPlan,
+    ComponentEvalResult,
+    SetupEvalPlan,
+    SetupEvalProfile,
+    SetupEvalResult,
+)
 
 
 def profile(parameters: Mapping[str, object]) -> Answer[SetupEvalProfile]:
@@ -62,6 +68,24 @@ def plan(parameters: Mapping[str, object]) -> Answer[SetupEvalPlan]:
     return Answer(planned)
 
 
+def component_plan(parameters: Mapping[str, object]) -> Answer[ComponentEvalPlan]:
+    """Persist an evaluation plan bound to every adaptation of one component version."""
+    with (
+        closing(open_registry(configured_path(), create=False)) as connection,
+        transaction(connection),
+    ):
+        planned = evaluation.component_plan(
+            connection,
+            stable_id=_required(parameters, "id"),
+            version=_required(parameters, "version"),
+            harness_version=_required(parameters, "harness-version"),
+            provider_version=_required(parameters, "provider-version"),
+            runner_version=_required(parameters, "runner-version"),
+            at=moment(),
+        )
+    return Answer(planned)
+
+
 def run(parameters: Mapping[str, object]) -> Answer[SetupEvalResult]:
     """Run the local-static checks after exact plan confirmation."""
     plan_id = _required(parameters, "plan-id")
@@ -74,13 +98,29 @@ def run(parameters: Mapping[str, object]) -> Answer[SetupEvalResult]:
     return Answer(result)
 
 
-def status(parameters: Mapping[str, object]) -> Answer[SetupEvalResult]:
+def component_run(parameters: Mapping[str, object]) -> Answer[ComponentEvalResult]:
+    """Run local deterministic checks for one confirmed component evaluation plan."""
+    plan_id = _required(parameters, "plan-id")
+    digest = _required(parameters, "expected-plan-digest")
+    with (
+        closing(open_registry(configured_path(), create=False)) as connection,
+        transaction(connection),
+    ):
+        result = evaluation.run_component(connection, plan_id, digest, at=moment())
+    return Answer(result)
+
+
+def status(
+    parameters: Mapping[str, object],
+) -> Answer[SetupEvalResult | ComponentEvalResult]:
     """Read one immutable evaluation result without rerunning checks."""
     with closing(open_readonly(configured_path())) as connection:
         return Answer(evaluation.show_result(connection, _required(parameters, "run-id")))
 
 
-def show(parameters: Mapping[str, object]) -> Answer[SetupEvalResult]:
+def show(
+    parameters: Mapping[str, object],
+) -> Answer[SetupEvalResult | ComponentEvalResult]:
     """Show the full immutable evidence document for one run."""
     run_id = _required(parameters, "run-id")
     with closing(open_readonly(configured_path())) as connection:

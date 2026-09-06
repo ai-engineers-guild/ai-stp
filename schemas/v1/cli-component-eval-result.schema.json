@@ -1,5 +1,94 @@
 {
   "$defs": {
+    "ComponentEvalPlan": {
+      "additionalProperties": false,
+      "description": "Content-addressed evaluation plan bound to every adaptation of one version.",
+      "properties": {
+        "artifact_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Artifact Digest",
+          "type": "string"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/EvalComponentCoordinate"
+          },
+          "minItems": 1,
+          "title": "Components",
+          "type": "array"
+        },
+        "harness_version": {
+          "minLength": 1,
+          "title": "Harness Version",
+          "type": "string"
+        },
+        "passport_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "plan_id": {
+          "pattern": "^eval_plan_[0-9a-f]{24}$",
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "planned_at": {
+          "minLength": 1,
+          "title": "Planned At",
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/SetupEvalProfile"
+        },
+        "provider_version": {
+          "minLength": 1,
+          "title": "Provider Version",
+          "type": "string"
+        },
+        "runner_version": {
+          "minLength": 1,
+          "title": "Runner Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan_id",
+        "plan_digest",
+        "profile",
+        "stable_id",
+        "version",
+        "passport_digest",
+        "artifact_digest",
+        "harness_version",
+        "provider_version",
+        "runner_version",
+        "components",
+        "planned_at"
+      ],
+      "title": "ComponentEvalPlan",
+      "type": "object"
+    },
     "ComponentType": {
       "enum": [
         "instruction",
@@ -302,101 +391,6 @@
       "title": "Permissions",
       "type": "object"
     },
-    "SetupEvalPlan": {
-      "additionalProperties": false,
-      "description": "Content-addressed evaluation plan bound to exact setup coordinates.",
-      "properties": {
-        "components": {
-          "items": {
-            "$ref": "#/$defs/EvalComponentCoordinate"
-          },
-          "minItems": 1,
-          "title": "Components",
-          "type": "array"
-        },
-        "harness_id": {
-          "minLength": 1,
-          "title": "Harness Id",
-          "type": "string"
-        },
-        "harness_version": {
-          "minLength": 1,
-          "title": "Harness Version",
-          "type": "string"
-        },
-        "plan_digest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Plan Digest",
-          "type": "string"
-        },
-        "plan_id": {
-          "pattern": "^eval_plan_[0-9a-f]{24}$",
-          "title": "Plan Id",
-          "type": "string"
-        },
-        "planned_at": {
-          "minLength": 1,
-          "title": "Planned At",
-          "type": "string"
-        },
-        "profile": {
-          "$ref": "#/$defs/SetupEvalProfile"
-        },
-        "provider_version": {
-          "minLength": 1,
-          "title": "Provider Version",
-          "type": "string"
-        },
-        "runner_version": {
-          "minLength": 1,
-          "title": "Runner Version",
-          "type": "string"
-        },
-        "schema_version": {
-          "const": 1,
-          "default": 1,
-          "title": "Schema Version",
-          "type": "integer"
-        },
-        "setup_artifact_digest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Setup Artifact Digest",
-          "type": "string"
-        },
-        "setup_id": {
-          "minLength": 1,
-          "title": "Setup Id",
-          "type": "string"
-        },
-        "setup_passport_digest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Setup Passport Digest",
-          "type": "string"
-        },
-        "setup_version": {
-          "pattern": "^[0-9]+\\.[0-9]+$",
-          "title": "Setup Version",
-          "type": "string"
-        }
-      },
-      "required": [
-        "plan_id",
-        "plan_digest",
-        "profile",
-        "setup_id",
-        "setup_version",
-        "setup_passport_digest",
-        "setup_artifact_digest",
-        "harness_id",
-        "harness_version",
-        "provider_version",
-        "runner_version",
-        "components",
-        "planned_at"
-      ],
-      "title": "SetupEvalPlan",
-      "type": "object"
-    },
     "SetupEvalProfile": {
       "additionalProperties": false,
       "description": "Reusable evaluation intent, independent from one setup version.",
@@ -470,10 +464,10 @@
       "type": "object"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:cli-setup-eval-result",
+  "$id": "urn:ai-stp:schema:v1:cli-component-eval-result",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Immutable local evaluation evidence for one exact setup plan.",
+  "description": "Immutable local evaluation evidence for every advertised adaptation.",
   "properties": {
     "checks": {
       "items": {
@@ -495,7 +489,7 @@
       "type": "boolean"
     },
     "plan": {
-      "$ref": "#/$defs/SetupEvalPlan"
+      "$ref": "#/$defs/ComponentEvalPlan"
     },
     "provider_permissions_used": {
       "const": false,
@@ -538,6 +532,6 @@
     "executed_at",
     "checks"
   ],
-  "title": "SetupEvalResult",
+  "title": "ComponentEvalResult",
   "type": "object"
 }

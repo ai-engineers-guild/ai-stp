@@ -156,6 +156,17 @@ def record_overlay(
     return found
 
 
+def version_is_overlay(connection: sqlite3.Connection, stable_id: str, version: str) -> bool:
+    """Whether this recorded version was produced as a local overlay."""
+    row = connection.execute(
+        "SELECT revision_id FROM object_version WHERE stable_id = ? AND version = ?",
+        (stable_id, version),
+    ).fetchone()
+    if row is None:
+        return False
+    return overlay_of(connection, str(row["revision_id"])) is not None
+
+
 def overlay_of(connection: sqlite3.Connection, revision_id: str) -> Overlay | None:
     """The provenance of one revision, if it came from an overlay."""
     row = connection.execute(

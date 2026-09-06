@@ -271,9 +271,9 @@
           "name": "harness",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Concrete harness to add. Portable is refused.",
+          "summary": "Concrete harness to add. Portable is refused. Omit with --all-missing.",
           "choices": [
             "claude-code",
             "codex",
@@ -283,6 +283,15 @@
             "cursor",
             "antigravity"
           ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Add every remaining concrete harness the type can project without loss.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -576,9 +585,9 @@
           "name": "to-harness",
           "kind": "option",
           "value_type": "string",
-          "required": true,
-          "repeatable": false,
-          "summary": "Harness the new adaptation will belong to.",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness the new adaptation will belong to. Repeatable. Omit with --all-missing.",
           "choices": [
             "claude-code",
             "codex",
@@ -588,6 +597,15 @@
             "cursor",
             "antigravity"
           ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Target every closed harness that does not yet have an adaptation.",
+          "choices": []
         },
         {
           "name": "version",
@@ -655,8 +673,9 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-result",
       "next_actions": [
-        "setup compose plan",
-        "component program install"
+        "eval component plan",
+        "select propose",
+        "setup compose plan"
       ]
     },
     {
@@ -665,7 +684,7 @@
         "materialize",
         "plan"
       ],
-      "summary": "Preview materializing one target-harness adaptation from a pinned component.",
+      "summary": "Preview materializing target-harness adaptations from a pinned component.",
       "mutability": "plan",
       "confirmation": "none",
       "parameters": [
@@ -682,9 +701,9 @@
           "name": "to-harness",
           "kind": "option",
           "value_type": "string",
-          "required": true,
-          "repeatable": false,
-          "summary": "Harness the new adaptation will belong to.",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness the new adaptation will belong to. Repeatable. Omit with --all-missing.",
           "choices": [
             "claude-code",
             "codex",
@@ -694,6 +713,15 @@
             "cursor",
             "antigravity"
           ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Target every closed harness that does not yet have an adaptation.",
+          "choices": []
         },
         {
           "name": "version",
@@ -931,9 +959,9 @@
           "name": "to-harness",
           "kind": "option",
           "value_type": "string",
-          "required": true,
-          "repeatable": false,
-          "summary": "Harness the local overlay will belong to.",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness the local overlay will belong to. Repeatable. Omit with --all-missing.",
           "choices": [
             "claude-code",
             "codex",
@@ -943,6 +971,15 @@
             "cursor",
             "antigravity"
           ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Target every closed harness that does not yet have an adaptation.",
+          "choices": []
         },
         {
           "name": "version",
@@ -1001,7 +1038,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-result",
       "next_actions": [
-        "setup compose plan",
+        "select propose",
         "install plan"
       ]
     },
@@ -1028,9 +1065,9 @@
           "name": "to-harness",
           "kind": "option",
           "value_type": "string",
-          "required": true,
-          "repeatable": false,
-          "summary": "Harness the local overlay will belong to.",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness the local overlay will belong to. Repeatable. Omit with --all-missing.",
           "choices": [
             "claude-code",
             "codex",
@@ -1040,6 +1077,15 @@
             "cursor",
             "antigravity"
           ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Target every closed harness that does not yet have an adaptation.",
+          "choices": []
         },
         {
           "name": "version",
@@ -2127,9 +2173,107 @@
     {
       "path": [
         "eval",
+        "component",
         "plan"
       ],
-      "summary": "Bind a reference evaluation profile to one exact local setup graph.",
+      "summary": "Bind a reference evaluation profile to every adaptation of one component version.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local component identifier.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local component X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "harness-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluated harness version.",
+          "choices": []
+        },
+        {
+          "name": "provider-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluated provider version.",
+          "choices": []
+        },
+        {
+          "name": "runner-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluation runner version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-plan",
+      "next_actions": [
+        "eval component run"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "component",
+        "run"
+      ],
+      "summary": "Run local deterministic checks for one confirmed component evaluation plan.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stored component evaluation plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact content digest shown by eval component plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-result",
+      "next_actions": [
+        "eval status",
+        "eval show"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "plan"
+      ],
+      "summary": "Bind a reference evaluation profile to the setup's own harness adaptations.",
       "mutability": "plan",
       "confirmation": "none",
       "parameters": [
@@ -2234,7 +2378,7 @@
         "eval",
         "run"
       ],
-      "summary": "Run local deterministic checks for one confirmed exact evaluation plan.",
+      "summary": "Run local deterministic checks for one confirmed exact setup evaluation plan.",
       "mutability": "apply",
       "confirmation": "plan_digest",
       "parameters": [

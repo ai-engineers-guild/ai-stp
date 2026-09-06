@@ -22,7 +22,9 @@ Excluded: platform persistence and web rendering of assessments (`#146`).
 
 ## Requirements
 
-- `REQ-6401`: Evaluation enumerates every adaptation of the pinned version.
+- `REQ-6401`: `eval component` enumerates every adaptation of the pinned
+  version. A setup evaluation enumerates only the adaptation for that setup's
+  harness.
 - `REQ-6402`: Each adaptation is scanned at its projection digest. Mixed
   pass/fail is visible per adaptation without collapsing into one surface set.
 - `REQ-6403`: Author attestation may bind adaptation id, projection digest,
@@ -52,7 +54,7 @@ fields default to absent. Changing evidence never rewrites a component version.
 
 | Requirement | Executable verification method |
 |---|---|
-| `REQ-6401` | A two-adaptation setup plan lists both harnesses. |
+| `REQ-6401` | A Claude setup with a Codex sibling lists only Claude. `eval component` lists both. |
 | `REQ-6402` | Static-contract results include mixed `passed`/`failed` with adaptation ids. |
 | `REQ-6403` | Attestation digest changes when `adaptation_id` changes; omitted fields are absent from the signed payload. |
 | `REQ-6404` | Eval result states `immutable_published_bytes_changed` is false. |

@@ -75,7 +75,13 @@ from ai_stp_contracts.content import (
 )
 from ai_stp_contracts.deep_links import DeepLinkView
 from ai_stp_contracts.estate_release import EstateRelease
-from ai_stp_contracts.evaluation import SetupEvalPlan, SetupEvalProfile, SetupEvalResult
+from ai_stp_contracts.evaluation import (
+    ComponentEvalPlan,
+    ComponentEvalResult,
+    SetupEvalPlan,
+    SetupEvalProfile,
+    SetupEvalResult,
+)
 from ai_stp_contracts.federation import (
     CatalogExternalCoordinate,
     CatalogMetadataObservation,
@@ -472,6 +478,8 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-setup-eval-profile": SetupEvalProfile,
     "cli-setup-eval-plan": SetupEvalPlan,
     "cli-setup-eval-result": SetupEvalResult,
+    "cli-component-eval-plan": ComponentEvalPlan,
+    "cli-component-eval-result": ComponentEvalResult,
     "cli-harness-bundle": HarnessBundle,
     "cli-conformance-report": ConformanceReport,
     "cli-provider-network-capability": ProviderNetworkCapability,

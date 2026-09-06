@@ -65,6 +65,14 @@
     "target_harness_id": {
       "$ref": "#/$defs/HarnessId"
     },
+    "target_harness_ids": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/HarnessId"
+      },
+      "title": "Target Harness Ids",
+      "type": "array"
+    },
     "version": {
       "pattern": "^\\d+\\.\\d+$",
       "title": "Version",

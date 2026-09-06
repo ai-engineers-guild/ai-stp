@@ -21,8 +21,10 @@ ai-stp help --agent --json
 | Команда | Mutability | Confirmation | Страница | Зачем |
 | --- | --- | --- | --- | --- |
 | `ai-stp eval profile` | `read` | `none` | [eval.md](eval.md) | показать версионированный эталонный профиль оценки для всех или одного типа компонента |
-| `ai-stp eval plan` | `plan` | `none` | [eval.md](eval.md) | привязать эталонный профиль оценки к одному точному локальному графу сетапа |
-| `ai-stp eval run` | `apply` | `plan_digest` | [eval.md](eval.md) | прогнать локальные детерминированные проверки для одного подтверждённого точного плана оценки |
+| `ai-stp eval plan` | `plan` | `none` | [eval.md](eval.md) | привязать эталонный профиль оценки к адаптациям харнесса этого сетапа |
+| `ai-stp eval component plan` | `plan` | `none` | [eval.md](eval.md) | привязать эталонный профиль оценки ко всем адаптациям одной версии компонента |
+| `ai-stp eval run` | `apply` | `plan_digest` | [eval.md](eval.md) | прогнать локальные детерминированные проверки для одного подтверждённого плана оценки сетапа |
+| `ai-stp eval component run` | `apply` | `plan_digest` | [eval.md](eval.md) | прогнать локальные детерминированные проверки для одного подтверждённого плана оценки компонента |
 | `ai-stp eval status` | `read` | `none` | [eval.md](eval.md) | прочитать неизменяемый статус одного локального прогона оценки |
 | `ai-stp eval show` | `read` | `none` | [eval.md](eval.md) | показать полные неизменяемые локальные evidence одного прогона оценки |
 | `ai-stp publication plan` | `plan` | `none` | [publication.md](publication.md) | создать неизменяемый серверный план для одной точной выпущенной версии компонента |

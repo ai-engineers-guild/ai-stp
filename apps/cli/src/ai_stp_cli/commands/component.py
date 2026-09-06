@@ -208,12 +208,23 @@ def scaffold_apply(parameters: Mapping[str, object]) -> Answer[ComponentScaffold
 
 
 def adaptation_add(parameters: Mapping[str, object]) -> Answer[ComponentScaffoldView]:
-    """Render one extra concrete harness projection into an existing authoring tree."""
+    """Render extra concrete harness projections into an existing authoring tree."""
     import json
 
     root = Path(_required(parameters, "root", "an authoring directory is required")).expanduser()
-    harness = _required(parameters, "harness", "a concrete harness is required")
-    written = authoring.add_adaptation(root, harness)
+    all_missing = parameters.get("all-missing") is True
+    harness = str(parameters.get("harness") or "")
+    if all_missing and harness:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "all-missing cannot be combined with an explicit target harness",
+        )
+    if all_missing:
+        written = authoring.add_missing_adaptations(root)
+    else:
+        if not harness:
+            raise CliFailure("AI_STP_VALIDATION_ERROR", "a concrete harness is required")
+        written = authoring.add_adaptation(root, harness)
     template = json.loads((root / ".ai-stp-template.json").read_text(encoding="utf-8"))
     return Answer(
         ComponentScaffoldView(

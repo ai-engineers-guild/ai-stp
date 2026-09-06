@@ -6,8 +6,9 @@ description: "Bind a reference evaluation profile to a local setup and run it."
 # Eval
 
 Eval binds a versioned reference evaluation profile to one exact local
-setup graph and runs local deterministic checks. It does not install, does
-not publish, and does not call a model API.
+setup graph, or to every advertised adaptation of one component version,
+and runs local deterministic checks. It does not install, does not
+publish, and does not call a model API.
 
 The profile is the same for every caller. The plan pins the setup, the
 harness, the provider, and the runner. The run is confirmed by the plan
@@ -19,13 +20,17 @@ of the same `run_id` returns the same bytes.
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
 | `ai-stp eval profile` | `read` | `none` | show the versioned reference profile for all or one component type |
-| `ai-stp eval plan` | `plan` | `none` | bind that profile to one exact local setup graph |
-| `ai-stp eval run` | `apply` | `plan_digest` | run local deterministic checks for one confirmed exact plan |
+| `ai-stp eval plan` | `plan` | `none` | bind that profile to the setup's own harness adaptations |
+| `ai-stp eval component plan` | `plan` | `none` | bind that profile to every adaptation of one component version |
+| `ai-stp eval run` | `apply` | `plan_digest` | run local deterministic checks for one confirmed setup plan |
+| `ai-stp eval component run` | `apply` | `plan_digest` | run local deterministic checks for one confirmed component plan |
 | `ai-stp eval status` | `read` | `none` | read the immutable status of one local evaluation run |
 | `ai-stp eval show` | `read` | `none` | show full immutable local evidence for one evaluation run |
 
-`--json` is global. Always pass it. `eval run` requires
-`--expected-plan-digest`. There is no `--confirm`.
+`--json` is global. Always pass it. `eval run` and `eval component run`
+require `--expected-plan-digest`. There is no `--confirm`. A setup plan
+includes only adaptations for that setup's harness. A component plan
+includes every advertised adaptation of the version.
 
 ## Profile
 

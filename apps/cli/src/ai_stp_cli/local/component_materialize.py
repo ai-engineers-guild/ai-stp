@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Final, cast
+from typing import Final, Literal, cast
 
 from pydantic import ValidationError
 
@@ -13,6 +13,7 @@ from ai_stp_cli.local.database import transaction
 from ai_stp_contracts.machine_help import (
     ComponentMaterializePlan,
     ComponentMaterializeResult,
+    ComponentMaterializeTarget,
     SetupRecastMember,
 )
 from ai_stp_foundation.canonical import JsonValue, canonize
@@ -22,7 +23,7 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.provider_surfaces import TargetScope, provider_surface
 from ai_stp_foundation.versioning import format_version, parse_version
 from ai_stp_passports import adaptation_for, seal_envelope
-from ai_stp_passports.versions import ComponentVersionPassport
+from ai_stp_passports.versions import ComponentAdaptation, ComponentVersionPassport
 
 PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 
@@ -33,42 +34,98 @@ def plan(
     stable_id: str,
     version: str | None,
     source_harness: str,
-    target_harness: str,
+    target_harness: str | tuple[str, ...],
     overlay_id: str,
     created_at: str,
     local_only: bool,
+    all_missing: bool = False,
 ) -> ComponentMaterializePlan:
-    """Preview one adaptation without writing."""
+    """Preview one or more adaptations without writing."""
     passport, recorded = _held(connection, stable_id, version)
     source = _source_harness(passport, source_harness)
-    target = _target_harness(target_harness, source)
+    requested = _requested_targets(passport, source, target_harness, all_missing)
     member = (recorded.stable_id, recorded.version, recorded.passport_digest)
-    classified = setup_recast.classify_member(connection, source, target, member)
+    targets: list[ComponentMaterializeTarget] = []
+    all_losses: list[str] = []
+    all_filesystem: list[str] = []
+    all_network: list[str] = []
+    all_process: list[str] = []
+    all_profiles: list[str] = []
+    all_parts: list[JsonValue] = []
+    for target in requested:
+        classified = setup_recast.classify_member(connection, source, target, member)
+        losses, filesystem, network, process, profiles, parts = _bound_outputs(
+            connection, passport, source, target, classified
+        )
+        projection_digest = digest_canonical(
+            "ai-stp:plan:v1",
+            cast(
+                JsonValue,
+                {
+                    "kind": "planned-projection",
+                    "disposition": classified.disposition,
+                    "parts": parts,
+                },
+            ),
+        )
+        targets.append(
+            ComponentMaterializeTarget(
+                target_harness_id=target,
+                disposition=classified.disposition,
+                reason=classified.reason,
+                projection_digest=projection_digest,
+                semantic_losses=losses,
+                filesystem_permissions=filesystem,
+                network_permissions=network,
+                process_permissions=process,
+            )
+        )
+        all_losses.extend(losses)
+        all_filesystem.extend(filesystem)
+        all_network.extend(network)
+        all_process.extend(process)
+        all_profiles.extend(profiles)
+        all_parts.extend(parts)
     overlay = overlay_id or (new_id("component") if local_only else recorded.stable_id)
+    needs_version = any(item.disposition == "derive" for item in targets)
     if local_only:
         target_version = versions.FIRST_VERSION
-    elif classified.disposition == "reuse":
+    elif not needs_version:
         target_version = recorded.version
     else:
         major, minor = parse_version(recorded.version)
         target_version = format_version(major, minor + 1)
-    losses, filesystem, network, process, profiles, parts = _bound_outputs(
-        connection, passport, source, target, classified
-    )
+    primary = targets[0]
+    if any(item.disposition == "blocked" for item in targets):
+        summary_disposition: Literal["reuse", "derive", "blocked"] = "blocked"
+        summary_reason = next(item.reason for item in targets if item.disposition == "blocked")
+    elif needs_version:
+        summary_disposition = "derive"
+        summary_reason = "derive a native adaptation for every requested harness"
+    else:
+        summary_disposition = "reuse"
+        summary_reason = "the pinned version already has every requested adaptation"
+    losses = list(dict.fromkeys(all_losses))
+    filesystem = list(dict.fromkeys(all_filesystem))
+    network = list(dict.fromkeys(all_network))
+    process = list(dict.fromkeys(all_process))
     projection_digest = digest_canonical(
         "ai-stp:plan:v1",
         cast(
             JsonValue,
             {
-                "kind": "planned-projection",
-                "disposition": classified.disposition,
-                "parts": parts,
+                "kind": "planned-projection-set",
+                "targets": [
+                    {"harness_id": item.target_harness_id, "digest": item.projection_digest}
+                    for item in targets
+                ],
+                "parts": all_parts,
             },
         ),
     )
     profile_digest = digest_canonical(
         "ai-stp:plan:v1",
-        cast(JsonValue, {"kind": "provider-profile-set", "digests": sorted(set(profiles))}),
+        cast(JsonValue, {"kind": "provider-profile-set", "digests": sorted(set(all_profiles))}),
     )
     body = cast(
         dict[str, JsonValue],
@@ -78,7 +135,7 @@ def plan(
             "source_version": recorded.version,
             "target_version": target_version,
             "source_harness_id": source,
-            "target_harness_id": target,
+            "target_harness_id": primary.target_harness_id,
             "source_passport_digest": recorded.passport_digest,
             "transform": {
                 "transform_id": setup_recast.TRANSFORM_ID,
@@ -86,13 +143,15 @@ def plan(
             },
             "provider_profile_digest": profile_digest,
             "projection_digest": projection_digest,
-            "disposition": classified.disposition,
-            "reason": classified.reason,
+            "disposition": summary_disposition,
+            "reason": summary_reason,
             "semantic_losses": losses,
             "filesystem_permissions": filesystem,
             "network_permissions": network,
             "process_permissions": process,
+            "targets": [cast(JsonValue, item.model_dump(mode="json")) for item in targets],
             "local_only": local_only,
+            "all_missing": all_missing,
             "created_at": created_at,
         },
     )
@@ -102,20 +161,21 @@ def plan(
         source_version=recorded.version,
         target_version=target_version,
         source_harness_id=source,
-        target_harness_id=target,
+        target_harness_id=primary.target_harness_id,
         source_passport_digest=recorded.passport_digest,
         transform_id=setup_recast.TRANSFORM_ID,
         transform_version=setup_recast.TRANSFORM_VERSION,
         provider_profile_digest=profile_digest,
         projection_digest=projection_digest,
-        disposition=classified.disposition,
-        reason=classified.reason,
+        disposition=summary_disposition,
+        reason=summary_reason,
         semantic_losses=losses,
         filesystem_permissions=filesystem,
         network_permissions=network,
         process_permissions=process,
+        targets=targets,
         local_only=local_only,
-        complete=classified.disposition != "blocked",
+        complete=all(item.disposition != "blocked" for item in targets),
         created_at=created_at,
         plan_digest=digest_bytes(PLAN_DOMAIN, canonize(body)),
     )
@@ -127,13 +187,14 @@ def apply(
     stable_id: str,
     version: str | None,
     source_harness: str,
-    target_harness: str,
+    target_harness: str | tuple[str, ...],
     overlay_id: str,
     created_at: str,
     local_only: bool,
     expected_plan_digest: str,
     device_id: str,
     owner_id: str,
+    all_missing: bool = False,
 ) -> ComponentMaterializeResult:
     """Record the exact still-current materialize plan."""
     preview = plan(
@@ -145,6 +206,7 @@ def apply(
         overlay_id=overlay_id,
         created_at=created_at,
         local_only=local_only,
+        all_missing=all_missing,
     )
     if preview.plan_digest != expected_plan_digest:
         raise CliFailure(
@@ -160,10 +222,6 @@ def apply(
         )
     passport, recorded = _held(connection, stable_id, version)
     source = preview.source_harness_id
-    target = preview.target_harness_id
-    member = (recorded.stable_id, recorded.version, recorded.passport_digest)
-    classified = setup_recast.classify_member(connection, source, target, member)
-    bound = classified.model_copy(update={"target_version": preview.target_version})
     with transaction(connection):
         if local_only:
             result = _apply_local(
@@ -171,9 +229,7 @@ def apply(
                 passport=passport,
                 recorded=recorded,
                 source=source,
-                target=target,
-                classified=bound,
-                overlay_id=preview.overlay_id,
+                preview=preview,
                 created_at=created_at,
                 device_id=device_id,
                 owner_id=owner_id,
@@ -183,17 +239,18 @@ def apply(
                 connection,
                 recorded=recorded,
                 source=source,
-                target=target,
-                classified=bound,
+                preview=preview,
                 created_at=created_at,
                 device_id=device_id,
             )
+    harnesses: list[HarnessId] = [item.target_harness_id for item in preview.targets]
     return ComponentMaterializeResult(
         stable_id=result[0],
         version=result[1],
         source_stable_id=recorded.stable_id,
         source_version=recorded.version,
-        target_harness_id=target,
+        target_harness_id=harnesses[0],
+        target_harness_ids=harnesses,
         created_at=created_at,
         passport_digest=result[2],
         plan_digest=preview.plan_digest,
@@ -207,27 +264,29 @@ def _apply_owned(
     *,
     recorded: versions.Recorded,
     source: HarnessId,
-    target: HarnessId,
-    classified: SetupRecastMember,
+    preview: ComponentMaterializePlan,
     created_at: str,
     device_id: str,
 ) -> tuple[str, str, str, bool]:
-    member = (recorded.stable_id, recorded.version, recorded.passport_digest)
-    if classified.disposition == "reuse":
+    if all(item.disposition == "reuse" for item in preview.targets):
         return recorded.stable_id, recorded.version, recorded.passport_digest, False
-    existing = versions.held(connection, recorded.stable_id, classified.target_version)
+    existing = versions.held(connection, recorded.stable_id, preview.target_version)
     if existing is not None:
         return existing.stable_id, existing.version, existing.passport_digest, False
-    ref = setup_recast.materialize_member(
+    passport, _current = _held(connection, recorded.stable_id, recorded.version)
+    added = _derived_adaptations(connection, passport, source, preview, created_at)
+    replaced = {item.harness_id for item in added}
+    kept = [item for item in passport.adaptations if item.harness_id not in replaced]
+    digest = _record_version(
         connection,
-        source_harness=source,
-        target=target,
-        member=member,
-        classified=classified,
+        passport=passport,
+        stable_id=recorded.stable_id,
+        version=preview.target_version,
+        adaptations=(*kept, *added),
+        created_at=created_at,
         device_id=device_id,
-        at=created_at,
     )
-    return ref.stable_id, ref.version, ref.passport_digest, True
+    return recorded.stable_id, preview.target_version, digest, True
 
 
 def _apply_local(
@@ -236,27 +295,18 @@ def _apply_local(
     passport: ComponentVersionPassport,
     recorded: versions.Recorded,
     source: HarnessId,
-    target: HarnessId,
-    classified: SetupRecastMember,
-    overlay_id: str,
+    preview: ComponentMaterializePlan,
     created_at: str,
     device_id: str,
     owner_id: str,
 ) -> tuple[str, str, str, bool]:
+    overlay_id = preview.overlay_id
     existing = versions.held(connection, overlay_id, versions.FIRST_VERSION)
     if existing is not None:
         return overlay_id, existing.version, existing.passport_digest, False
-    derived = None
-    if classified.disposition != "reuse":
-        derived = setup_recast.derive_adaptation(
-            connection, passport, source, target, at=created_at
-        )
-        if derived is None:
-            raise CliFailure(
-                "AI_STP_CONFLICT",
-                "the component can no longer be derived for that harness",
-                details={"stable_id": recorded.stable_id},
-            )
+    added = _derived_adaptations(connection, passport, source, preview, created_at)
+    replaced = {item.harness_id for item in added}
+    kept = [item for item in passport.adaptations if item.harness_id not in replaced]
     connection.execute(
         "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, ?, ?)",
         (overlay_id, "component", created_at),
@@ -275,33 +325,20 @@ def _apply_local(
             created_at,
         ),
     )
-    body = cast(dict[str, JsonValue], passport.model_dump(mode="json", exclude={"revision_id"}))
-    body["stable_id"] = overlay_id
-    body["version"] = versions.FIRST_VERSION
-    body["created_at"] = created_at
-    body["owner_id"] = owner_id
-    body["visibility"] = "private"
-    kept = [item for item in passport.adaptations if item.harness_id != target]
-    held = derived if derived is not None else adaptation_for(passport, target)
-    body["adaptations"] = [
-        *[cast(JsonValue, item.model_dump(mode="json")) for item in kept],
-        cast(JsonValue, held.model_dump(mode="json")),
-    ]
-    sealed = seal_envelope(body)
-    stored = revisions.commit(
+    digest = _record_version(
         connection,
-        cast(dict[str, JsonValue], sealed.model_dump(mode="json", exclude={"revision_id"})),
-        device_id=device_id,
-    )
-    digest = cache.digest_of(cast(JsonValue, stored.envelope.model_dump(mode="json")))
-    versions.record(
-        connection,
+        passport=passport,
         stable_id=overlay_id,
         version=versions.FIRST_VERSION,
-        passport_digest=digest,
-        revision_id=stored.revision_id,
-        at=created_at,
+        adaptations=(*kept, *added),
+        created_at=created_at,
+        device_id=device_id,
+        owner_id=owner_id,
+        visibility="private",
     )
+    stored = versions.held(connection, overlay_id, versions.FIRST_VERSION)
+    if stored is None:  # pragma: no cover - recorded above
+        raise CliFailure("AI_STP_INTERNAL", "the overlay version vanished after being written")
     lifecycle.record_overlay(
         connection,
         revision_id=stored.revision_id,
@@ -311,6 +348,119 @@ def _apply_local(
         at=created_at,
     )
     return overlay_id, versions.FIRST_VERSION, digest, True
+
+
+def _derived_adaptations(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    source: HarnessId,
+    preview: ComponentMaterializePlan,
+    created_at: str,
+) -> tuple[ComponentAdaptation, ...]:
+    added: list[ComponentAdaptation] = []
+    for item in preview.targets:
+        if item.disposition == "reuse":
+            added.append(adaptation_for(passport, item.target_harness_id))
+            continue
+        derived = setup_recast.derive_adaptation(
+            connection, passport, source, item.target_harness_id, at=created_at
+        )
+        if derived is None:
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the component can no longer be derived for that harness",
+                details={
+                    "stable_id": passport.stable_id,
+                    "harness_id": item.target_harness_id,
+                },
+            )
+        added.append(derived)
+    return tuple(added)
+
+
+def _record_version(
+    connection: sqlite3.Connection,
+    *,
+    passport: ComponentVersionPassport,
+    stable_id: str,
+    version: str,
+    adaptations: tuple[ComponentAdaptation, ...],
+    created_at: str,
+    device_id: str,
+    owner_id: str | None = None,
+    visibility: str | None = None,
+) -> str:
+    body = cast(dict[str, JsonValue], passport.model_dump(mode="json", exclude={"revision_id"}))
+    body["stable_id"] = stable_id
+    body["version"] = version
+    body["created_at"] = created_at
+    if owner_id is not None:
+        body["owner_id"] = owner_id
+    if visibility is not None:
+        body["visibility"] = visibility
+    body["adaptations"] = [cast(JsonValue, item.model_dump(mode="json")) for item in adaptations]
+    sealed = seal_envelope(body)
+    stored = revisions.commit(
+        connection,
+        cast(dict[str, JsonValue], sealed.model_dump(mode="json", exclude={"revision_id"})),
+        device_id=device_id,
+    )
+    digest = cache.digest_of(cast(JsonValue, stored.envelope.model_dump(mode="json")))
+    versions.record(
+        connection,
+        stable_id=stable_id,
+        version=version,
+        passport_digest=digest,
+        revision_id=stored.revision_id,
+        at=created_at,
+    )
+    return digest
+
+
+def _requested_targets(
+    passport: ComponentVersionPassport,
+    source: HarnessId,
+    named: str | tuple[str, ...],
+    all_missing: bool,
+) -> tuple[HarnessId, ...]:
+    held = {item.harness_id for item in passport.adaptations}
+    names = _string_tuple(named)
+    if all_missing:
+        if names:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "all-missing cannot be combined with an explicit target harness",
+            )
+        missing = tuple(
+            harness for harness in HARNESS_ID_ORDER if harness != source and harness not in held
+        )
+        if not missing:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "the version already names an adaptation for every other harness",
+            )
+        return cast(tuple[HarnessId, ...], missing)
+    if not names:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "the target harness is required")
+    resolved: list[HarnessId] = []
+    seen: set[HarnessId] = set()
+    for item in names:
+        target = _target_harness(item, source)
+        if target in seen:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a target harness was named more than once",
+                details={"harness_id": target},
+            )
+        seen.add(target)
+        resolved.append(target)
+    return tuple(resolved)
+
+
+def _string_tuple(value: str | tuple[str, ...]) -> tuple[str, ...]:
+    if isinstance(value, str):
+        return (value,) if value else ()
+    return tuple(item for item in value if item)
 
 
 def _bound_outputs(

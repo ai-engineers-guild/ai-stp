@@ -28,7 +28,11 @@ catalog presentation, server persistence, mutating a published version in place.
 ## Requirements
 
 - `REQ-6301`: Plan names the pinned component, optional source harness, and
-  target harness from the closed set. Same-harness materialize is refused.
+  one or more target harnesses from the closed set. `--all-missing` targets
+  every closed harness that does not yet have an adaptation. Same-harness
+  materialize is refused. `--all-missing` with an explicit `--to-harness` is
+  refused. Apply of `--all-missing` is complete only when every requested
+  target is `reuse` or `derive`; a blocked member fails the whole set.
 - `REQ-6302`: The plan digest binds source passport digest, transform identity
   and version, provider profile digest, target harness, produced projection
   identity, declared losses, and whether the result is a local overlay.
@@ -37,7 +41,9 @@ catalog presentation, server persistence, mutating a published version in place.
   same plan is idempotent.
 - `REQ-6304`: A local overlay forks a new private `stable_id` and never mutates
   the source version. Public publication still requires an exact published
-  adaptation of the public object.
+  adaptation of the public object. A public setup composition and setup
+  publication refuse an overlay or other private member. A private local setup
+  may include the overlay.
 - `REQ-6305`: Unsupported or unmapped surfaces are `blocked`. Apply refuses an
   incomplete or stale plan.
 
@@ -63,8 +69,8 @@ generation. The native transform is the recast table at revision `1.3`.
 
 | Requirement | Executable verification method |
 |---|---|
-| `REQ-6301` | Claude instruction onto Codex is `derive`; same harness is refused. |
+| `REQ-6301` | Claude instruction onto Codex is `derive`; same harness is refused. `--all-missing` on that instruction is incomplete because Cursor and Antigravity stay `blocked`; the four derivable targets in one apply produce `1.1`. |
 | `REQ-6302` | Identical inputs share a plan digest; a stale digest is `AI_STP_PLAN_STALE`. |
 | `REQ-6303` | Apply creates `1.1`; a second apply of the same digest returns `created=false`. |
-| `REQ-6304` | Portability apply leaves source 1.0 without the target adaptation. |
+| `REQ-6304` | Portability apply leaves source 1.0 without the target adaptation; the overlay is `private` and recorded in `overlay_origin`. |
 | `REQ-6305` | A setting cannot materialize across harnesses. |

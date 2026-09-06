@@ -9,7 +9,9 @@ Resolve from machine help: `ai-stp select eligibility`,
 `ai-stp setup compose apply`, `ai-stp setup recast plan`,
 `ai-stp setup recast apply`, `ai-stp component materialize plan`,
 `ai-stp component materialize apply`, `ai-stp component portability plan`,
-`ai-stp component portability apply`.
+`ai-stp component portability apply`,
+`ai-stp eval plan`, `ai-stp eval run`,
+`ai-stp eval component plan`, `ai-stp eval component run`.
 
 Read eligibility and reports before proposing. Confirm only the proposal just
 returned, not an older row from a listing. `experimental` or unverified-author
@@ -22,6 +24,10 @@ blocked member is not a setup. MCP files and host-file contributions derive;
 settings, non-MCP contributions, and MCP plugin packages stay blocked.
 
 To materialize one missing target adaptation of a pinned component, resolve
-`component materialize plan` and `component materialize apply`. A claimed-portable
-install without a published adaptation is `component portability plan` /
-`apply`, which forks a private overlay and never mutates the public version.
+`component materialize plan` and `component materialize apply`. Repeat
+`--to-harness` or pass `--all-missing` when the source is already correct for
+every remaining closed harness. A blocked member fails the whole `--all-missing`
+set. A claimed-portable install without a published adaptation is
+`component portability plan` / `apply`, which forks a private overlay and never
+mutates the public version. Compose the overlay into a private setup through
+`select propose`; a public setup composition and publication refuse it.
