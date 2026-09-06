@@ -57,17 +57,17 @@ def test_every_supported_harness_has_a_declared_detector() -> None:
 def test_the_primary_harnesses_are_the_ones_the_specification_names() -> None:
     """The set is owned by `SPEC-033` `REQ-3315`, not by this test.
 
-    It used to be `claude-code` and `codex`. `grok-build` joined them as a
-    product decision, which is what a support *tier* is: `REQ-3306` says
-    evidence never raises a tier, and whether an end-to-end run has been
-    recorded is answered separately by support state.
+    Membership is `SUPPORT_TIERS`. `REQ-3306` says evidence never raises a
+    tier; whether an end-to-end run has been recorded is support *state*.
 
     Read from the owner rather than restated, so this file cannot become the
     place where the set silently disagrees with the specification.
     """
     primary = {item.harness_id for item in harnesses.DETECTORS if item.support == "primary"}
     assert primary == {name for name, tier in SUPPORT_TIERS.items() if tier == "primary"}
-    assert primary == {"claude-code", "codex", "grok-build"}
+    # Open beta: every shipped harness is `beta`. `primary` stays a valid later
+    # GA label and currently has no members (`SPEC-033` REQ-3315).
+    assert primary == set()
 
 
 def test_present_installations_exclude_supported_but_absent_harnesses(tmp_path: Path) -> None:

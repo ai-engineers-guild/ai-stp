@@ -193,7 +193,7 @@ step from the process exit class alone.
 | `ai-stp` not found | the tool is missing or not on `PATH` | reinstall with `uv tool install ai-stp-cli`, then check `uv tool list` |
 | doctor `device_identity` is not `ready` | identity was never created, or the store cannot read it | `ai-stp device init --json` if it was never created; otherwise read `detail` |
 | doctor `local_registry` is not `ready` | the registry file is missing, unreadable, or not a registry | follow `detail`; do not delete the file to “retry” |
-| capabilities omit a harness | this build cannot drive that target | stay on a primary harness, or read [Harnesses](../harnesses.md) |
+| capabilities omit a harness | this build cannot drive that target | pick a shipped harness, or read [Harnesses](../harnesses.md) |
 | a command is absent from `help --agent` | this install does not have it | stop; do not substitute a similar command |
 | `ok: false` with `retryable: false` | repeating the same argv will not help | read `error.code` and `next_actions` |
 

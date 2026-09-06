@@ -41,7 +41,7 @@ last_verified: "2026-08-03"
 | [SPEC-030-cli-web-deep-links.md](SPEC-030-cli-web-deep-links.md) | SPEC-030: Canonical bidirectional links between CLI and web. | 2026-08-09 |
 | [SPEC-031-public-documents-policies-and-errors.md](SPEC-031-public-documents-policies-and-errors.md) | SPEC-031: Public documents, versioned policies, and error pages. | 2026-08-08 |
 | [SPEC-032-production-readiness-governance.md](SPEC-032-production-readiness-governance.md) | SPEC-032: Evidence-based production readiness, data governance, abuse protection, and recovery. | 2026-08-22 |
-| [SPEC-033-beta-support-evidence-and-labels.md](SPEC-033-beta-support-evidence-and-labels.md) | SPEC-033: Public beta-support labels, evidence, and freshness. | 2026-08-09 |
+| [SPEC-033-beta-support-evidence-and-labels.md](SPEC-033-beta-support-evidence-and-labels.md) | SPEC-033: Public beta-support labels, evidence, and freshness. | 2026-09-05 |
 | [SPEC-034-catalog-search-and-web-experience.md](SPEC-034-catalog-search-and-web-experience.md) | SPEC-034: Powerful catalog search, compact web UX and media profile. | 2026-09-04 |
 | [SPEC-035-component-detail-media-and-reactions.md](SPEC-035-component-detail-media-and-reactions.md) | Grouped component page, author media gallery, and reactions. | 2026-08-17 |
 | [SPEC-036-machine-projection-route-and-documents.md](SPEC-036-machine-projection-route-and-documents.md) | SPEC-036: Addressable machine projection web and page machine documents. | 2026-09-05 |

@@ -34,7 +34,7 @@ FORM: MVP documentation site, category-standard static docs chosen deliberately 
 - [CLI](cli/index.md): рабочая поверхность — JSON-конверты, планы и
   подтверждение.
 - [Веб](web/index.md): аккаунт, карточки каталога, публикации и жалобы.
-- [Харнессы](harnesses.md): основная поддержка, beta-линии и `undefined`.
+- [Харнессы](harnesses.md): семь харнессов открытой беты и `undefined`.
 - [Понятия](concepts/index.md): харнесс, сетап, provider, сборщик, устройство,
   проект и три режима.
 - [Компоненты](components/index.md): закрытые виды и чем они отличаются.
@@ -47,11 +47,10 @@ FORM: MVP documentation site, category-standard static docs chosen deliberately 
 
 ## Что поддерживает MVP
 
-Основная поддержка — **Claude Code**, **Codex** и **Grok Build**.
-
-Beta-линии — **Pi**, **OpenCode**, **Cursor** и **Antigravity**. Каталог и
-совместимость работают; provider-путь может требовать дополнительного
-подтверждения.
+Открытая бета выпускает все семь харнессов на уровне `beta`: **Claude Code**,
+**Codex**, **Grok Build**, **Pi**, **OpenCode**, **Cursor** и **Antigravity**.
+Отсутствующее доказательство — `not_verified`; харнесс из продукта не
+вычёркивается.
 
 Неизвестный харнесс попадает в ограниченный режим **`undefined`**. Чтение,
 импорт и локальные проверки допустимы. Автоматическая установка не считается

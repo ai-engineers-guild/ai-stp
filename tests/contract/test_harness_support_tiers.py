@@ -18,9 +18,9 @@ from ai_stp_platform.catalog_support import support_tier_for_harness
 ROOT = Path(__file__).resolve().parents[2]
 
 EXPECTED: dict[str, str] = {
-    "claude-code": "primary",
-    "codex": "primary",
-    "grok-build": "primary",
+    "claude-code": "beta",
+    "codex": "beta",
+    "grok-build": "beta",
     "pi": "beta",
     "opencode": "beta",
     "cursor": "beta",
@@ -111,6 +111,7 @@ GENERATED_OR_VENDORED: Final[frozenset[str]] = frozenset(
         ".venv",
         "node_modules",
         "public",
+        ".next",
         ".work",
         ".tmp",
         "dist",

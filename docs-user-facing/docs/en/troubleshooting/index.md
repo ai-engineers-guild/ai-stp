@@ -130,7 +130,7 @@ ai-stp toolchain harness-capabilities --json
 ai-stp doctor --json
 ```
 
-Stay on a primary harness (Claude Code, Codex, Grok Build), or import and
+Pick any of the seven shipped harnesses, or import and
 inspect locally without applying:
 
 ```bash

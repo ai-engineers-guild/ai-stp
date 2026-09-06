@@ -23,16 +23,16 @@ Passports carry provenance, compatibility, constraints and check results in a fo
 
 | Harness | Status on 0.0.15 |
 | --- | --- |
-| Claude Code | primary |
-| Codex | primary |
-| Grok Build | primary |
+| Claude Code | beta |
+| Codex | beta |
+| Grok Build | beta |
 | Pi | beta |
 | OpenCode | beta |
 | Cursor | beta |
 | Antigravity | beta |
 | unknown | `undefined` — no automatic install |
 
-Primary means the production path is designed for it first: passports, graph, provider plan, apply. Beta means the product already tells the harness apart and can work with its objects, but parts of the provider path or the native surface still ask for more confirmation. Start on a primary harness if you need the shortest checked path.
+Open beta ships all seven harnesses at the `beta` tier. Missing evidence is `not_verified`; it does not drop a harness from the product. `primary` is reserved for a later generally-available line.
 
 ## What the MVP still is not
 

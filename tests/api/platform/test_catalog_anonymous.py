@@ -101,7 +101,7 @@ async def test_component_detail_non_contiguous_versions(seeded_client: AsyncClie
     assert body["summary"]["latest_version"] == "1.2"
     assert body["summary"]["latest_trust"]["trust_lane"] == "experimental"
     assert body["summary"]["latest_trust"]["component_verified"] is False
-    assert body["summary"]["latest_support"]["tier"] == "primary"
+    assert body["summary"]["latest_support"]["tier"] == "beta"
     assert body["summary"]["latest_support"]["state"] == "missing"
 
 
@@ -113,7 +113,7 @@ async def test_support_filters_are_public_and_do_not_change_trust_consent(
         params={
             "page_size": "20",
             "include_experimental": "true",
-            "support_tier": "primary",
+            "support_tier": "beta",
             "support_state": "missing",
         },
     )
@@ -204,7 +204,7 @@ async def test_version_read_serves_public_passport(seeded_client: AsyncClient) -
     assert body["passport"]["name"] == "fixture-component"
     assert body["lifecycle"] == "active"
     assert body["trust"]["trust_lane"] == "experimental"
-    assert body["support"]["tier"] == "primary"
+    assert body["support"]["tier"] == "beta"
     assert body["support"]["state"] == "missing"
 
 

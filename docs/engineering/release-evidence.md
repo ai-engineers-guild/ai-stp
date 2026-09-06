@@ -88,7 +88,7 @@ The launch-catalog composition is a release barrier under `ADR-0034`, not a sche
 - launch-catalog object content— instructions, descriptions, and components—is maintained in English under `ADR-0035`;
 - every exact launch-catalog reference resolves, and no object has expired or missing required evidence.
 
-Guild owners divide the role families among themselves, and peer review of every launch object is mandatory. Baseline setups for beta harnesses are minimal: definition, installation, and an honest label below the primary support tier; the depth of Pi, OpenCode, and Grok Build does not block the release. Specific object content is created during the content phase against real harnesses and is not fixed here.
+Guild owners divide the role families among themselves, and peer review of every launch object is mandatory. Open beta ships all seven harnesses at the `beta` tier. A missing run is `not_verified` and does not drop a harness from the product. Specific object content is created during the content phase against real harnesses and is not fixed here.
 
 ## Release lines
 

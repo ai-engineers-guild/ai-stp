@@ -13,13 +13,13 @@ setup for one target, and only that harness's provider writes the final state.
 
 | Harness | MVP status | What is available | What to remember |
 | --- | --- | --- | --- |
-| Claude Code | primary support | passports, compatibility, setup assembly, provider plan | the production path is designed for it first |
-| Codex | primary support | passports, compatibility, setup assembly, provider plan | the second primary MVP target |
-| Grok Build | primary support | passports, compatibility, setup assembly, provider plan | the third primary MVP target |
-| Pi | beta | catalog and compatibility, limited provider path | behaviour may still be refined as integration proceeds |
-| OpenCode | beta | catalog and compatibility, adapter/projection checks | the format is open, but not all of the UX is settled |
-| Cursor | beta | catalog and compatibility, native plugin pack and cli-config | a plugin pack is recognised by its `.cursor-plugin` manifest |
-| Antigravity | beta | catalog and compatibility, provider plan | its configuration lives inside `~/.gemini` rather than a home of its own |
+| Claude Code | beta | passports, compatibility, setup assembly, provider plan | ships in the open beta with the other six harnesses |
+| Codex | beta | passports, compatibility, setup assembly, provider plan | ships in the open beta with the other six harnesses |
+| Grok Build | beta | passports, compatibility, setup assembly, provider plan | ships in the open beta with the other six harnesses |
+| Pi | beta | passports, compatibility, setup assembly, provider plan | ships in the open beta with the other six harnesses |
+| OpenCode | beta | passports, compatibility, setup assembly, provider plan | ships in the open beta with the other six harnesses |
+| Cursor | beta | passports, compatibility, setup assembly, provider plan | a plugin pack is recognised by its `.cursor-plugin` manifest |
+| Antigravity | beta | passports, compatibility, setup assembly, provider plan | its configuration lives inside `~/.gemini` rather than a home of its own |
 | `undefined` | limited mode | reading, import, local checks | automatic installation is not considered safe |
 
 ## What "supported" means
@@ -35,16 +35,12 @@ be ready for the next.
 | Provider plan | the provider builds a plan to change the target | so you see the diff before anything is applied |
 | Apply | the provider applies the change and records it | so there is a rollback and a checkable result |
 
-=== "Primary: Claude Code, Codex, Grok Build"
+=== "Open beta: all seven harnesses"
 
-    For these the MVP is meant to give the shortest path: find a setup, check
-    compatibility, see the plan, confirm, and apply through the provider.
-
-=== "Beta: Pi, OpenCode, Cursor, Antigravity"
-
-    Beta means `ai_stp` already tells the harness apart and can work with its
-    objects, but part of the provider path, the UX or the checks may be
-    stricter and may ask for manual confirmation.
+    Claude Code, Codex, Grok Build, Pi, OpenCode, Cursor, and Antigravity ship
+    together. Find a setup, check compatibility, see the plan, and apply
+    through the provider. Missing evidence is labelled `not_verified`; it does
+    not drop a harness from the product.
 
 === "`undefined`"
 
@@ -59,7 +55,7 @@ be ready for the next.
     created for one harness, and moving it means an explicit new version or an
     adaptation.
 
-## What lands on disk for the three primary harnesses
+## What lands on disk for the seven harnesses
 
 `ai_stp` does not copy files into a target. The assembler builds a native
 package; the provider writes it. Exact paths for a machine come from
