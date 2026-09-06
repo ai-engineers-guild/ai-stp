@@ -1,6 +1,6 @@
 ---
 description: "SPEC-008: Providers, installation and recovery."
-last_verified: "2026-09-04"
+last_verified: "2026-09-06"
 ---
 
 # SPEC-008: Providers, installation and recovery
@@ -28,7 +28,7 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
 ## Requirements
 
 - `REQ-801`: Providers are delivered as versionable release artifacts rather than working Git submodules. Installation using the v3 protocol requires a private release manifest - signed by Ed25519 or linked by the consumer from attested bytes and the assigned rule `build_attestations`; a provider without it is installed only by an explicit separate option, and the plan reports such an installation as unverified. The changing path is limited by this rule, the observing provider calls are not.
-- `REQ-802`: All seven closed set providers implement a common versioned protocol core and machine-readable `provider-info`; product-specific software lifecycle and launch are declared capabilities, not fictitious required commands. The announcement differs by product and this is not a defect: on `0.0.4`+ six announce `software_install` / `software_update` / `software_remove`, `pi` does not announce any, and antigravity announces three and does not announce `launch`.
+- `REQ-802`: All seven closed set providers implement a common versioned protocol core and machine-readable `provider-info`; product-specific software lifecycle and launch are declared capabilities, not fictitious required commands. The announcement differs by product and this is not a defect: six announce `software_install` / `software_update` / `software_remove`, `pi` does not announce any. Launch is announced only when the product can be pointed at `--target` for every owned surface. Antigravity announces `launch` bound to the documented `~/.gemini` home with an empty `config_home_env`; an alternate root is refused by name. Do not invent `ANTIGRAVITY_*`.
 - `REQ-803`: The provider has sole ownership of native projection, locks, staging directory, target change, backup, state and restore; he owns the program and launches only with an explicitly declared capability.
 - `REQ-804`: Package checking disallows absolute and parent paths, directory escaping, symbolic and hard links, special devices, normalized path repeat, and exceeding limits.
 - `REQ-805`: The plan has no side effects and is bound to the current target hash, provider and environment versions, and expiration date.
