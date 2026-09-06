@@ -252,7 +252,9 @@ mean that missing metadata is equivalent to empty requirements.
 
 A setup has no `variant_id` field. The relationship between two setups for different
 harnesses is expressed through provenance links and creates neither a shared version,
-shared version number, nor shared access right.
+shared version number, nor shared access right. `setup recast` is the command that
+writes `ported_from` and `related_setup_ids` for a complete recast; compose and
+select leave those fields empty.
 
 ## Number of components
 
