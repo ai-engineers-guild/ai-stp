@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import stat
+from itertools import islice
 from pathlib import Path, PurePosixPath
 from typing import Final, Literal, cast
 
@@ -29,6 +30,7 @@ from ai_stp_passports.versions import ComponentType
 
 INVENTORY_DIGEST_DOMAIN: Final[str] = "ai-stp:path-inventory:v1"
 MAX_INVENTORY_DIRECTORIES: Final[int] = 2000
+MAX_INVENTORY_ENTRIES: Final[int] = 1000
 MAX_PASSPORT_BYTES: Final[int] = components.MAX_COMPONENT_BYTES
 EXCLUDED_NAMES: Final[frozenset[str]] = components.PORTABLE_SKILL_EXCLUDED_NAMES | {".git"}
 SKIP_DESCEND: Final[frozenset[str]] = frozenset({"source", "projections"})
@@ -50,8 +52,11 @@ def inventory_root(root: Path, cursor: str | None = None) -> PathInventory:
         walk, frames, covered_rel = discovery_continuation.decode(cursor)
         if walk == "portable_skills":
             skip_authoring = True
-            native_cursor = cursor
+            native_cursor = discovery_continuation.encode("portable_skills", frames)
             stack = []
+            prior_covered = [
+                discovery_continuation.join(place, relative) for relative in covered_rel
+            ]
         elif walk == "path_inventory":
             stack = [discovery_continuation.join(place, relative) for relative, _depth in frames]
             prior_covered = [
@@ -119,7 +124,7 @@ def inventory_root(root: Path, cursor: str | None = None) -> PathInventory:
                 if kind == "component":
                     continue
             try:
-                entries = sorted(directory.iterdir(), key=lambda item: item.name, reverse=True)
+                listed = list(islice(directory.iterdir(), MAX_INVENTORY_ENTRIES + 1))
             except OSError:
                 diagnostics.append(
                     NativeDiscoveryDiagnostic(
@@ -134,6 +139,21 @@ def inventory_root(root: Path, cursor: str | None = None) -> PathInventory:
                 )
                 complete = False
                 continue
+            if len(listed) > MAX_INVENTORY_ENTRIES:
+                complete = False
+                diagnostics.append(
+                    NativeDiscoveryDiagnostic(
+                        code="bounded_limit",
+                        source="path-inventory",
+                        reason=(
+                            "the directory at "
+                            f"{discovery_continuation.relative_to(place, directory)} "
+                            "exceeded its bounded entry limit"
+                        ),
+                    )
+                )
+                listed = listed[:MAX_INVENTORY_ENTRIES]
+            entries = sorted(listed, key=lambda item: item.name, reverse=True)
             for entry in entries:
                 if entry.name in EXCLUDED_NAMES or entry.name in SKIP_DESCEND:
                     continue
@@ -195,7 +215,9 @@ def inventory_root(root: Path, cursor: str | None = None) -> PathInventory:
             complete = False
     if native.continuation:
         complete = False
-        continuation = native.continuation
+        walk, frames, _ignored = discovery_continuation.decode(native.continuation)
+        held = [discovery_continuation.relative_to(place, path) for path in covered]
+        continuation = discovery_continuation.encode(walk, frames, held)
     for item in native.components:
         if _inside(item.absolute, covered_roots):
             continue

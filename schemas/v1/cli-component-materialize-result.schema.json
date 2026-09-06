@@ -1,0 +1,88 @@
+{
+  "$defs": {
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-component-materialize-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A recorded target adaptation, either on the source line or a local overlay.",
+  "properties": {
+    "created": {
+      "title": "Created",
+      "type": "boolean"
+    },
+    "created_at": {
+      "minLength": 1,
+      "title": "Created At",
+      "type": "string"
+    },
+    "local_only": {
+      "title": "Local Only",
+      "type": "boolean"
+    },
+    "passport_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Passport Digest",
+      "type": "string"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_stable_id": {
+      "minLength": 1,
+      "title": "Source Stable Id",
+      "type": "string"
+    },
+    "source_version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Source Version",
+      "type": "string"
+    },
+    "stable_id": {
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "target_harness_id": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "stable_id",
+    "version",
+    "source_stable_id",
+    "source_version",
+    "target_harness_id",
+    "created_at",
+    "passport_digest",
+    "plan_digest",
+    "local_only",
+    "created"
+  ],
+  "title": "ComponentMaterializeResult",
+  "type": "object"
+}

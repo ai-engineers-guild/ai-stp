@@ -48,7 +48,7 @@ last_verified: "2026-08-03"
 | [SPEC-037-catalog-navigation-and-onboarding.md](SPEC-037-catalog-navigation-and-onboarding.md) | SPEC-037: Compact catalog, owner/public navigation, and CLI onboarding. | 2026-08-17 |
 | [SPEC-038-cli-publication-access-reports.md](SPEC-038-cli-publication-access-reports.md) | SPEC-038: CLI client for publication, access rights, and reports. | 2026-08-13 |
 | [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI synchronization of the private registry between devices. | 2026-08-13 |
-| [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-09-05 |
+| [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-09-06 |
 | [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-09-05 |
 | [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-08-13 |
 | [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-08-15 |
@@ -68,8 +68,11 @@ last_verified: "2026-08-03"
 | [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-09-04 |
 | [SPEC-058-multi-root-installation-transactions.md](SPEC-058-multi-root-installation-transactions.md) | SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots. | 2026-09-05 |
 | [SPEC-059-public-identities-and-catalog-lines.md](SPEC-059-public-identities-and-catalog-lines.md) | SPEC-059: Unique account identities, component names, and owner-fenced catalog lines. | 2026-09-04 |
-| [SPEC-060-standard-family-identity.md](SPEC-060-standard-family-identity.md) | SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3. | 2026-09-05 |
+| [SPEC-060-standard-family-identity.md](SPEC-060-standard-family-identity.md) | SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3. | 2026-09-06 |
 | [SPEC-061-estate-release-qualification.md](SPEC-061-estate-release-qualification.md) | SPEC-061: Estate-release complete requires the seven-harness launch matrix. | 2026-09-05 |
 | [SPEC-062-setup-recast.md](SPEC-062-setup-recast.md) | SPEC-062: Recast a complete setup onto another harness with provenance. | 2026-09-06 |
+| [SPEC-063-component-materialize.md](SPEC-063-component-materialize.md) | SPEC-063: Materialize one target-harness adaptation from a pinned component. | 2026-09-06 |
+| [SPEC-064-adaptation-evidence.md](SPEC-064-adaptation-evidence.md) | SPEC-064: Per-adaptation evaluation evidence for a component version. | 2026-09-06 |
+| [SPEC-065-cli-program-lifecycle.md](SPEC-065-cli-program-lifecycle.md) | SPEC-065: Shared executable lifecycle for catalog cli components. | 2026-09-06 |
 
 <!-- END CONTENTS -->

@@ -121,7 +121,7 @@ class Plan:
     recovery_action: str
     expires_at: str
     created_at: str
-    provider_protocol_version: int = 1
+    provider_protocol_version: int = 3
     provider_target: str = ""
     provider_release_manifest: str = ""
     provider_release_recovery: bool = False
@@ -262,7 +262,7 @@ def propose(
     idempotency_key: str,
     at: str,
     expires_at: str,
-    provider_protocol_version: int = 1,
+    provider_protocol_version: int = 3,
     provider_target: str = "",
     provider_release_manifest: str = "",
     provider_release_recovery: bool = False,

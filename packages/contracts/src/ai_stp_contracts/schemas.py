@@ -15,7 +15,7 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from typing import Final
+from typing import Final, cast
 
 from ai_stp_assurance.schemas import EXPORTED_MODELS as ASSURANCE_STACK_MODELS
 from ai_stp_contracts.auth import (
@@ -124,7 +124,10 @@ from ai_stp_contracts.machine_help import (
     CatalogSearchResult,
     CatalogSetupAcquisition,
     CatalogVersionView,
+    CliProgram,
     CliSignedAttestation,
+    ComponentMaterializePlan,
+    ComponentMaterializeResult,
     ComponentPassportSuggestions,
     ComponentPassportValidation,
     ComponentPromotionPlan,
@@ -269,6 +272,7 @@ from ai_stp_contracts.sync import (
     SyncPushResponse,
     SyncStreamEvent,
 )
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.schemas import ExportedSchema, check, schema_id, write
 
 #: The `/v1` HTTP boundary. Every one of these is served by a route, and a test
@@ -445,6 +449,9 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-setup-export-result": SetupExportResult,
     "cli-setup-recast-plan": SetupRecastPlan,
     "cli-setup-recast-result": SetupRecastResult,
+    "cli-component-materialize-plan": ComponentMaterializePlan,
+    "cli-component-materialize-result": ComponentMaterializeResult,
+    "cli-component-program": CliProgram,
     "cli-source-search": SourceSearchResult,
     "cli-composition-reports": CompositionReports,
     "cli-component-promotion-plan": ComponentPromotionPlan,
@@ -520,7 +527,14 @@ def current_inventory() -> StandardInventory:
     members = tuple(("http_schema", schema_id(name)) for name in HTTP_MODELS) + tuple(
         ("exported_schema", schema_id(name)) for name in EXPORTED_MODELS if name not in HTTP_MODELS
     )
-    return inventory_for(members)
+    bodies = {schema_id(name): _schema_body(model) for name, model in EXPORTED_MODELS.items()}
+    return inventory_for(members, schema_bodies=bodies)
+
+
+def _schema_body(model: ExportedSchema) -> JsonValue:
+    if isinstance(model, dict):
+        return cast(JsonValue, model)
+    return cast(JsonValue, model.model_json_schema())
 
 
 #: The OpenAPI document is generated beside the schemas and checked by the same

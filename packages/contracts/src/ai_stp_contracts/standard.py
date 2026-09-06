@@ -117,8 +117,16 @@ class Classification(BaseModel):
     problems: tuple[str, ...] = ()
 
 
-def inventory_for(schema_members: Sequence[tuple[str, str]]) -> StandardInventory:
-    """Build the inventory from exported schema ids plus the closed protocol axes."""
+def inventory_for(
+    schema_members: Sequence[tuple[str, str]],
+    *,
+    schema_bodies: Mapping[str, JsonValue] | None = None,
+) -> StandardInventory:
+    """Build the inventory from exported schema ids plus the closed protocol axes.
+
+    `schema_bodies` binds the digest to schema content, not only `$id`s, so a
+    field change that keeps the same identity still moves the contract.
+    """
     axes = [
         InventoryAxis(name=name, current_identity=identity, description=description)
         for name, identity, description in _PROTOCOL_AXES
@@ -131,11 +139,24 @@ def inventory_for(schema_members: Sequence[tuple[str, str]]) -> StandardInventor
         axis = cast(ContractAxis, axis_name)
         members.append(InventoryMember(axis=axis, identity=identity))
     members.sort(key=lambda item: (item.axis, item.identity))
-    payload: dict[str, JsonValue] = {
-        "standard_family": STANDARD_FAMILY,
-        "axes": [{"name": axis.name, "current_identity": axis.current_identity} for axis in axes],
-        "members": [{"axis": member.axis, "identity": member.identity} for member in members],
-    }
+    bodies = [
+        {
+            "identity": identity,
+            "digest": digest_canonical("ai-stp:schema-body:v1", body),
+        }
+        for identity, body in sorted((schema_bodies or {}).items())
+    ]
+    payload = cast(
+        dict[str, JsonValue],
+        {
+            "standard_family": STANDARD_FAMILY,
+            "axes": [
+                {"name": axis.name, "current_identity": axis.current_identity} for axis in axes
+            ],
+            "members": [{"axis": member.axis, "identity": member.identity} for member in members],
+            "schema_bodies": bodies,
+        },
+    )
     digest = digest_canonical(STANDARD_INVENTORY_DOMAIN, payload)
     return StandardInventory(contract_digest=digest, axes=axes, members=members)
 

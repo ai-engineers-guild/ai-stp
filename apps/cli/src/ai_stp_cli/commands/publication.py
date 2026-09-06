@@ -93,7 +93,9 @@ def validated_attestations(
         if not local_attestations.verify(record, signer):
             raise CliFailure("AI_STP_VALIDATION_ERROR", "an attestation signature is invalid")
         seen.add(digest)
-        result.append(AuthorAttestation.model_validate(record.model_dump(mode="json")))
+        result.append(
+            AuthorAttestation.model_validate(record.model_dump(mode="json", exclude_none=True))
+        )
     return result
 
 

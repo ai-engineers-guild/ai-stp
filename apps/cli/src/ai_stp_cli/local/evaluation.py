@@ -30,6 +30,10 @@ from ai_stp_passports.versions import (
 
 PROFILE_VERSION: Final[str] = "setup-eval/1"
 RUNNER_VERSION: Final[str] = "ai-stp-local-static/1"
+_STATIC_MESSAGE: Final[dict[bool, str]] = {
+    True: "The declared deterministic assertion passed.",
+    False: "At least one component lacks its type-specific declared static surface.",
+}
 _TYPES: Final[tuple[ComponentType, ...]] = COMPONENT_TYPES
 _SURFACES: Final[dict[ComponentType, tuple[str, ...]]] = {
     "instruction": ("managed_paths",),
@@ -174,8 +178,9 @@ def plan(
         )
     selected_refs = [item for item in setup.components if not wanted or item.stable_id in wanted]
     loaded = tuple(
-        _component(connection, item.stable_id, item.version, item.passport_digest)
-        for item in selected_refs
+        item
+        for ref in selected_refs
+        for item in _components(connection, ref.stable_id, ref.version, ref.passport_digest)
     )
     types = cast(
         tuple[ComponentType, ...],
@@ -232,23 +237,24 @@ def run(
     selected = show_plan(connection, plan_id)
     if selected.plan_digest != expected_digest:
         raise CliFailure("AI_STP_PRECONDITION_FAILED", "the eval plan digest changed before run")
-    loaded = {
-        item.coordinate.stable_id: item
-        for item in (
-            _component(
-                connection, coordinate.stable_id, coordinate.version, coordinate.passport_digest
-            )
-            for coordinate in selected.components
+    loaded = tuple(
+        item
+        for coordinate in selected.components
+        for item in _components(
+            connection,
+            coordinate.stable_id,
+            coordinate.version,
+            coordinate.passport_digest,
+            adaptation_id=coordinate.adaptation_id,
         )
-    }
+    )
     checks: list[EvaluationCheckResult] = []
     for check in selected.profile.checks:
         matching = [
             item
-            for item in loaded.values()
+            for item in loaded
             if check.component_type in {None, item.coordinate.component_type}
         ]
-        component_ids = [item.coordinate.stable_id for item in matching]
         if check.runner != "local_static":
             checks.append(
                 EvaluationCheckResult(
@@ -257,29 +263,55 @@ def run(
                     runner=check.runner,
                     status="not_run",
                     message=f"Runner {check.runner!r} is not configured for this local run.",
-                    component_ids=component_ids,
+                    component_ids=[item.coordinate.stable_id for item in matching],
+                    adaptation_ids=[
+                        item.coordinate.adaptation_id
+                        for item in matching
+                        if item.coordinate.adaptation_id
+                    ],
                 )
             )
             continue
-        passed = (
-            bool(matching)
-            if check.component_type is None
-            else all(_static_contract(item) for item in matching)
-        )
-        checks.append(
-            EvaluationCheckResult(
-                check_id=check.check_id,
-                method=check.method,
-                runner=RUNNER_VERSION,
-                status="passed" if passed else "failed",
-                message=(
-                    "The declared deterministic assertion passed."
-                    if passed
-                    else "At least one component lacks its type-specific declared static surface."
-                ),
-                component_ids=component_ids,
+        if check.component_type is None:
+            passed = bool(matching)
+            checks.append(
+                EvaluationCheckResult(
+                    check_id=check.check_id,
+                    method=check.method,
+                    runner=RUNNER_VERSION,
+                    status="passed" if passed else "failed",
+                    message=_STATIC_MESSAGE[passed],
+                    component_ids=[item.coordinate.stable_id for item in matching],
+                )
             )
-        )
+            continue
+        if not matching:
+            checks.append(
+                EvaluationCheckResult(
+                    check_id=check.check_id,
+                    method=check.method,
+                    runner=RUNNER_VERSION,
+                    status="failed",
+                    message=_STATIC_MESSAGE[False],
+                    component_ids=[],
+                )
+            )
+            continue
+        for item in matching:
+            passed = _static_contract(item)
+            checks.append(
+                EvaluationCheckResult(
+                    check_id=check.check_id,
+                    method=check.method,
+                    runner=RUNNER_VERSION,
+                    status="passed" if passed else "failed",
+                    message=_STATIC_MESSAGE[passed],
+                    component_ids=[item.coordinate.stable_id],
+                    adaptation_ids=(
+                        [item.coordinate.adaptation_id] if item.coordinate.adaptation_id else []
+                    ),
+                )
+            )
     aggregate = (
         "failed"
         if any(item.status == "failed" for item in checks)
@@ -330,9 +362,14 @@ def show_result(connection: sqlite3.Connection, run_id: str) -> SetupEvalResult:
     return SetupEvalResult.model_validate_json(str(row[0]))
 
 
-def _component(
-    connection: sqlite3.Connection, stable_id: str, version: str, expected: str
-) -> _Loaded:
+def _components(
+    connection: sqlite3.Connection,
+    stable_id: str,
+    version: str,
+    expected: str,
+    *,
+    adaptation_id: str | None = None,
+) -> tuple[_Loaded, ...]:
     recorded = versions.held(connection, stable_id, version)
     if recorded is None or recorded.passport_digest != expected:
         raise CliFailure(
@@ -363,19 +400,49 @@ def _component(
         kind, digest, surfaces = _draft_surfaces(
             stable_id, version, cast(dict[str, JsonValue], document)
         )
-    else:
-        if not verify_revision_id(passport):
-            raise CliFailure(
-                "AI_STP_CONFLICT", "a component passport no longer matches its exact digest"
-            )
-        kind = passport.component_type
-        digest = passport.artifact.digest
-        members = [
-            member
-            for adaptation in passport.adaptations
-            for scope in adaptation.scope_adaptations
-            for member in scope.members
-        ]
+        artifact = content.get(connection, digest)
+        return (
+            _Loaded(
+                EvalComponentCoordinate(
+                    stable_id=stable_id,
+                    version=version,
+                    passport_digest=expected,
+                    artifact_digest=digest,
+                    component_type=kind,
+                ),
+                surfaces,
+                artifact,
+            ),
+        )
+    if not verify_revision_id(passport):
+        raise CliFailure(
+            "AI_STP_CONFLICT", "a component passport no longer matches its exact digest"
+        )
+    return _adaptations(connection, passport, stable_id, version, expected, adaptation_id)
+
+
+def _adaptations(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    stable_id: str,
+    version: str,
+    expected: str,
+    adaptation_id: str | None,
+) -> tuple[_Loaded, ...]:
+    selected = [
+        item
+        for item in passport.adaptations
+        if adaptation_id is None or item.adaptation_id == adaptation_id
+    ]
+    if not selected:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "an evaluation coordinate names an adaptation that is not on this version",
+            details={"stable_id": stable_id, "adaptation_id": adaptation_id or ""},
+        )
+    loaded: list[_Loaded] = []
+    for adaptation in selected:
+        members = [member for scope in adaptation.scope_adaptations for member in scope.members]
         declared = {
             "managed_paths": tuple(member.path for member in members),
             "native_ids": tuple(native_id for member in members for native_id in member.native_ids),
@@ -383,19 +450,26 @@ def _component(
                 str(item) for item in (passport.model_extra or {}).get("entry_points", [])
             ),
         }
-        surfaces = {field: declared[field] for field in _SURFACES[kind]}
-    artifact = content.get(connection, digest)
-    return _Loaded(
-        EvalComponentCoordinate(
-            stable_id=stable_id,
-            version=version,
-            passport_digest=expected,
-            artifact_digest=digest,
-            component_type=kind,
-        ),
-        surfaces,
-        artifact,
-    )
+        surfaces = {field: declared[field] for field in _SURFACES[passport.component_type]}
+        projection = adaptation.scope_adaptations[0].projection_artifact
+        artifact = content.get(connection, projection.digest)
+        loaded.append(
+            _Loaded(
+                EvalComponentCoordinate(
+                    stable_id=stable_id,
+                    version=version,
+                    passport_digest=expected,
+                    artifact_digest=projection.digest,
+                    component_type=passport.component_type,
+                    adaptation_id=adaptation.adaptation_id,
+                    harness_id=adaptation.harness_id,
+                    projection_digest=projection.digest,
+                ),
+                surfaces,
+                artifact,
+            )
+        )
+    return tuple(loaded)
 
 
 def _draft_surfaces(

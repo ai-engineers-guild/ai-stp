@@ -60,6 +60,29 @@ def test_unknown_fields_fail_closed() -> None:
         _record(api_token="secret-value")
 
 
+def test_target_specific_fields_are_in_the_signed_payload() -> None:
+    plain = _record()
+    targeted = _record(
+        adaptation_id="adaptation_" + "a" * 64,
+        projection_digest=digest_canonical("ai-stp:artifact:v1", {"p": 2}),
+        scope="global",
+        os="linux",
+        arch="x86_64",
+    )
+    payload = attestation_payload(plain)
+    assert isinstance(payload, dict)
+    assert "adaptation_id" not in payload
+    assert attestation_digest(targeted) != attestation_digest(plain)
+    replay = _record(
+        adaptation_id="adaptation_" + "b" * 64,
+        projection_digest=digest_canonical("ai-stp:artifact:v1", {"p": 2}),
+        scope="global",
+        os="linux",
+        arch="x86_64",
+    )
+    assert attestation_digest(replay) != attestation_digest(targeted)
+
+
 def test_empty_test_cases_and_bad_signature_are_rejected() -> None:
     with pytest.raises(ValidationError):
         _record(test_case_ids=[])

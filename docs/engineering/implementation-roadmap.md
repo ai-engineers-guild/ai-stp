@@ -9,11 +9,9 @@ This is the sole owner of the current plan. GitHub issues remain backlog, ADRs
 record decisions, and specifications define requirements; review and session
 plans are not continued literally after the implementation changes.
 
-The 2026-09-06 re-audit read `main` at
-`eb242b7c3716321bc6b9825da4e47cdf8537b043`. Source availability, a merged PR,
-an issue closure, and a measured released artifact are separate claims.
-`#145` proposes bounded recast corrections; `#146` tracks the platform closure
-mismatches. Neither is evidence that the entire OBT release is complete.
+The remaining-work owner tracks current `main`. Recast file identity, modes,
+and per-scope constraints landed in `#145` / `#147` (transform `1.2`).
+`#146` tracks platform closure mismatches. Merged PRs are not the OBT release.
 
 ## Decision-making vision
 
@@ -172,10 +170,10 @@ dependency.
 
 | # | Item | Why it is still open | First proof |
 |---|---|---|---|
-| G0 | Complete the owned v1 contract cutover | `ai-stp-standard/1` inventories several still-active generations; the family label alone does not standardize the implementations. The current inventory digest binds identifiers, not schema bodies. | One active owned contract family, coordinated readers/writers, content-bound contract inventory, historical bytes retained without active fallback ambiguity |
-| G1 | Setup recast (core value) | Commands exist. `#145` fixes lossy path mapping, file modes and transform-bound planning; semantic conversion and scope/metadata preservation require further qualification. | Recast retains every required file and mode, source identity, applicable scope constraints and native behavior; unsupported conversions are explicit |
-| G2 | First-run skill and inventory closure | Bootstrap uses supplied roots and requests them only when absent. Multi-page inventory must retain authoring ownership across continuation stages; the presence of a cursor is not proof of complete discovery. | Provided roots need no repeat question; paged and unpaged fixtures return the same owned objects exactly once, with bounded traversal |
-| G3 | Cross-harness component adaptations and executable lifecycle | MCP wrapper/contribution conversion exists, but native server fields and executable behavior require per-harness validation. A `cli` kind/scaffold is not its complete shared executable lifecycle. Pi MCP packages remain blocked without a measured transform. | Native format-specific positive and negative controls; one shared executable with verified install/invoke/remove on supported platforms; no sevenfold runtime duplication |
+| G0 | Complete the owned v1 contract cutover | Family inventory now binds schema bodies; new operation plans default to live protocol `3`; historical `NULL` stays `1`. Remaining: coordinated provider-estate writers and 0.1.0 tags. | One active owned contract family, coordinated readers/writers, content-bound contract inventory, historical bytes retained without active fallback ambiguity |
+| G1 | Setup recast (core value) | File identity, modes, scopes, and native MCP/agent/hook/plugin syntax are in tree (transform `1.3`). | Native-positive Claude→Codex case; unsupported syntax is `blocked` or named in `semantic_losses`; files/modes/scopes stay preserved |
+| G2 | First-run skill and inventory closure | Bootstrap uses supplied roots. Inventory continuation now keeps authoring `covered` and caps directory listings. | Provided roots need no repeat question; paged and unpaged fixtures return the same owned objects exactly once, with bounded traversal |
+| G3 | Cross-harness component adaptations and executable lifecycle | Component materialize, per-adaptation eval, claimed-portable overlay, and shared `cli` program lifecycle are in tree. Pi MCP packages remain blocked without a measured package transform. | Native format-specific positive and negative controls; one shared executable with verified install/invoke/remove; no sevenfold runtime duplication |
 | G4 | Antigravity launch against the documented home | Reported provider authoring direction, not reverified by this source audit: `LaunchBinding::DocumentedHome`. `config_home_env` stays empty. Launch is honest when `--target` is `~/.gemini`; alternate-root launch is refused by name. Do not invent `ANTIGRAVITY_*`. | `can_launch` true for the documented home; alternate-root launch still refused by name |
 | G5 | Native 7 × 3 OS × x86/arm qualification | Estate record `ai-stp-estate-release/1` already refuses `complete` without 42 launch cells. Installed-artifact and launched-process rows remain `NOT_MEASURED` on current main. | Filled estate record with retained evidence; skipped cells keep the verdict `incomplete` |
 | G6 | Coordinated 0.1.0 / OBT cut | Consumer `0.0.17`, providers `0.0.65`, first-party objects at mixed `1.0`/`1.x`. Re-resolve those coordinates, then coordinate ai-stp and all seven providers after G0–G5 and the platform dependencies. One standard family is not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |

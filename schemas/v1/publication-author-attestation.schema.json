@@ -109,6 +109,34 @@
       "title": "Account Id",
       "type": "string"
     },
+    "adaptation_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Adaptation Id"
+    },
+    "arch": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arch"
+    },
     "attested_at": {
       "$ref": "#/$defs/Timestamp"
     },
@@ -133,8 +161,44 @@
     "object_digest": {
       "$ref": "#/$defs/ContentDigest"
     },
+    "os": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Os"
+    },
     "policy_version": {
       "$ref": "#/$defs/PolicyVersion"
+    },
+    "projection_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentDigest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "provider_profile_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentDigest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "provider_version": {
       "maxLength": 64,
@@ -155,6 +219,20 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "scope": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scope"
     },
     "signature": {
       "pattern": "^[A-Za-z0-9+/]{86}==$",

@@ -125,6 +125,38 @@ def test_inventory_digest_is_stable_for_the_same_members() -> None:
     assert first.contract_digest == second.contract_digest
 
 
+def test_inventory_digest_binds_schema_bodies_not_only_identities() -> None:
+    from ai_stp_contracts.schemas import EXPORTED_MODELS
+    from ai_stp_contracts.standard import inventory_for
+    from ai_stp_foundation.canonical import JsonValue
+    from ai_stp_foundation.schemas import ExportedSchema, schema_id
+
+    def schema_body(model: ExportedSchema) -> JsonValue:
+        if isinstance(model, dict):
+            return model  # type: ignore[return-value]
+        return model.model_json_schema()  # type: ignore[no-any-return]
+
+    inventory = current_inventory()
+    members = tuple(("http_schema", schema_id(name)) for name in HTTP_MODELS) + tuple(
+        ("exported_schema", schema_id(name)) for name in EXPORTED_MODELS if name not in HTTP_MODELS
+    )
+    bodies = {schema_id(name): schema_body(model) for name, model in EXPORTED_MODELS.items()}
+    first = inventory_for(members, schema_bodies=bodies)
+    assert first.contract_digest == inventory.contract_digest
+    changed = dict(bodies)
+    sample = next(iter(changed))
+    sample_body = changed[sample]
+    held: dict[str, JsonValue]
+    if isinstance(sample_body, dict):  # noqa: SIM108
+        held = dict(sample_body)
+    else:
+        held = {"title": "x"}
+    held["title"] = "schema-body-mutation"
+    changed[sample] = held
+    second = inventory_for(members, schema_bodies=changed)
+    assert second.contract_digest != first.contract_digest
+
+
 def test_http_and_exported_schema_axes_do_not_overlap() -> None:
     inventory = current_inventory()
     http_ids = {m.identity for m in inventory.members if m.axis == "http_schema"}

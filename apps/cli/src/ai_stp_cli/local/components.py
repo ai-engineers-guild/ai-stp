@@ -71,6 +71,7 @@ MAX_COMPONENT_TREE_BYTES: Final[int] = 32 * 1024 * 1024
 MAX_COMPONENT_FILES: Final[int] = 1000
 MAX_PORTABLE_SKILL_DEPTH: Final[int] = 4
 MAX_PORTABLE_SKILL_DIRECTORIES: Final[int] = 2000
+MAX_PORTABLE_SKILL_ENTRIES: Final[int] = 1000
 PORTABLE_SKILL_SOURCE: Final[str] = "agentskills.io/specification"
 PORTABLE_SKILL_EXCLUDED_NAMES: Final[frozenset[str]] = frozenset(
     {".git", ".venv", "__pycache__", "cache", "fixtures", "node_modules", "vendor"}
@@ -1415,11 +1416,21 @@ def _portable_skills(
             )
             return found, diagnostics, [(directory, depth), *stack]
         try:
-            entries = sorted(directory.iterdir(), key=lambda item: item.name, reverse=True)
+            listed = list(islice(directory.iterdir(), MAX_PORTABLE_SKILL_ENTRIES + 1))
         except OSError as error:
             if not _is_absent(error):
                 diagnostics.append(_unreadable(project, directory, "portable skill directory"))
             continue
+        if len(listed) > MAX_PORTABLE_SKILL_ENTRIES:
+            diagnostics.append(
+                component_sources.Diagnostic(
+                    code="bounded_limit",
+                    source="portable-skills",
+                    reason="a portable skill directory exceeded its bounded entry limit",
+                )
+            )
+            listed = listed[:MAX_PORTABLE_SKILL_ENTRIES]
+        entries = sorted(listed, key=lambda item: item.name, reverse=True)
         for entry in entries:
             if entry.name in PORTABLE_SKILL_EXCLUDED_NAMES:
                 continue

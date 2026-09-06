@@ -89,6 +89,9 @@ class EvalComponentCoordinate(BaseModel):
     passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     component_type: ComponentType
+    adaptation_id: Annotated[str, Field(min_length=1)] | None = None
+    harness_id: Annotated[str, Field(min_length=1)] | None = None
+    projection_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)] | None = None
 
 
 class SetupEvalPlan(BaseModel):
@@ -123,6 +126,7 @@ class EvaluationCheckResult(BaseModel):
     status: EvaluationStatus
     message: Annotated[str, Field(min_length=1, max_length=1000)]
     component_ids: list[str] = []
+    adaptation_ids: list[str] = []
 
 
 class SetupEvalResult(BaseModel):

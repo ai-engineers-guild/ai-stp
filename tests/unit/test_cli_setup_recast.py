@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -584,6 +585,117 @@ def test_unreadable_mcp_contribution_blocks_planning_instead_of_raising() -> Non
             source_id=source_id,
             source_version="1.0",
             target_harness="cursor",
+            setup_id=new_id("setup"),
+            created_at=CREATED,
+        )
+        assert not preview.complete
+        assert preview.members[0].disposition == "blocked"
+
+
+def test_recast_writes_opencode_local_mcp_command_arrays() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="mcp",
+            harness_id="cursor",
+            payload=CURSOR_MCP,
+            managed_path="mcp.json",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="cursor", member=member)
+        setup_id = new_id("setup")
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="opencode",
+            setup_id=setup_id,
+            created_at=CREATED,
+        )
+        assert preview.complete
+        setup_recast.apply(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="opencode",
+            setup_id=setup_id,
+            created_at=CREATED,
+            expected_plan_digest=preview.plan_digest,
+            device_id=DEVICE,
+            owner_id=OWNER,
+        )
+        derived = component_passports.version_passport(
+            connection, member[0], preview.members[0].target_version
+        )
+        scope = adaptation_for(derived, "opencode").scope_adaptations[0]
+        owned = scope.members[0]
+        assert owned.content_artifact is not None
+        document = json.loads(
+            content.get(connection, owned.content_artifact.digest).decode("utf-8")
+        )
+        assert document["docs"]["type"] == "local"
+        assert document["docs"]["command"] == ["npx", "docs-mcp"]
+
+
+def test_recast_rewrites_a_claude_agent_as_codex_toml() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="agent",
+            harness_id="claude-code",
+            payload=b"# review\n\nReview the change.\n",
+            managed_path="agents/review.md",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="claude-code", member=member)
+        setup_id = new_id("setup")
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="codex",
+            setup_id=setup_id,
+            created_at=CREATED,
+        )
+        assert preview.complete
+        assert preview.members[0].disposition == "derive"
+        setup_recast.apply(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="codex",
+            setup_id=setup_id,
+            created_at=CREATED,
+            expected_plan_digest=preview.plan_digest,
+            device_id=DEVICE,
+            owner_id=OWNER,
+        )
+        derived = component_passports.version_passport(
+            connection, member[0], preview.members[0].target_version
+        )
+        scope = adaptation_for(derived, "codex").scope_adaptations[0]
+        paths = {item.path for item in scope.members if item.object_type == "file"}
+        assert paths == {"agents/review.toml"}
+        owned = next(item for item in scope.members if item.object_type == "file")
+        assert owned.content_artifact is not None
+        text = content.get(connection, owned.content_artifact.digest).decode("utf-8")
+        assert "name = " in text
+        assert "description = " in text
+
+
+def test_a_remote_only_mcp_server_cannot_derive_to_a_stdio_host() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="mcp",
+            harness_id="cursor",
+            payload=b'{"mcpServers":{"docs":{"url":"https://example.invalid/mcp"}}}\n',
+            managed_path="mcp.json",
+        )
+        source_id, _digest = _record_setup(connection, harness_id="cursor", member=member)
+        preview = setup_recast.plan(
+            connection,
+            source_id=source_id,
+            source_version="1.0",
+            target_harness="codex",
             setup_id=new_id("setup"),
             created_at=CREATED,
         )
