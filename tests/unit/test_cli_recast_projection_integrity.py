@@ -8,7 +8,7 @@ from typing import cast
 
 import pytest
 
-from ai_stp_cli.local import setup_recast
+from ai_stp_cli.local import composition, content, setup_recast, versions
 from ai_stp_cli.local.components import Rule
 from ai_stp_contracts.machine_help import SetupRecastMember
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
@@ -22,7 +22,7 @@ def skill_rules(monkeypatch: pytest.MonkeyPatch) -> tuple[Rule, Rule]:
     def source_rule(*_args: object, **_kwargs: object) -> Rule:
         return source
 
-    monkeypatch.setattr(setup_recast.composition, "rule_for", source_rule)
+    monkeypatch.setattr(composition, "rule_for", source_rule)
     return source, target
 
 
@@ -71,7 +71,7 @@ def test_recast_does_not_invent_an_unknown_source_root(
     def no_rule(*_args: object, **_kwargs: object) -> None:
         return None
 
-    monkeypatch.setattr(setup_recast.composition, "rule_for", no_rule)
+    monkeypatch.setattr(composition, "rule_for", no_rule)
     assert (
         setup_recast._remap_files(  # pyright: ignore[reportPrivateUsage]
             {"unknown/SKILL.md": b"unknown"}, "skill", "claude-code", "global", target
@@ -123,7 +123,7 @@ def test_recast_blocks_a_member_whose_actual_projection_cannot_be_mapped(
 
     monkeypatch.setattr(setup_recast, "_blocked_reason", unavailable)
     monkeypatch.setattr(setup_recast, "_preview_projection", unavailable, raising=False)
-    monkeypatch.setattr(setup_recast.versions, "next_minor", next_minor)
+    monkeypatch.setattr(versions, "next_minor", next_minor)
     result = setup_recast._classify(  # pyright: ignore[reportPrivateUsage]
         cast(sqlite3.Connection, object()),
         "claude-code",
@@ -165,15 +165,15 @@ def test_recast_preview_carries_source_modes_without_writing(
 
     monkeypatch.setattr(setup_recast, "_blocked_reason", permitted)
     monkeypatch.setattr(setup_recast, "adaptation_for", source_adaptation)
-    monkeypatch.setattr(setup_recast.composition, "rule_for", rule_for)
+    monkeypatch.setattr(composition, "rule_for", rule_for)
     monkeypatch.setattr(setup_recast, "PROVIDER_SURFACES", {("grok-build", "global"): object()})
-    monkeypatch.setattr(setup_recast.content, "get", projection_bytes)
+    monkeypatch.setattr(content, "get", projection_bytes)
     monkeypatch.setattr(setup_recast, "_projection_files", projection_files)
 
     def no_writes(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("planning wrote to the content store")
 
-    monkeypatch.setattr(setup_recast.content, "put", no_writes)
+    monkeypatch.setattr(content, "put", no_writes)
     result = setup_recast._preview_projection(  # pyright: ignore[reportPrivateUsage]
         cast(sqlite3.Connection, object()), passport, "claude-code", "grok-build"
     )
