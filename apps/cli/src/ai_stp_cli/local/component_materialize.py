@@ -23,6 +23,7 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.provider_surfaces import TargetScope, provider_surface
 from ai_stp_foundation.versioning import format_version, parse_version
 from ai_stp_passports import adaptation_for, seal_envelope
+from ai_stp_passports.envelope import verify_revision_id
 from ai_stp_passports.versions import ComponentAdaptation, ComponentVersionPassport
 
 PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
@@ -271,8 +272,8 @@ def _apply_owned(
     if all(item.disposition == "reuse" for item in preview.targets):
         return recorded.stable_id, recorded.version, recorded.passport_digest, False
     existing = versions.held(connection, recorded.stable_id, preview.target_version)
-    if existing is not None:
-        return existing.stable_id, existing.version, existing.passport_digest, False
+    # A coordinate already being occupied is not proof of an identical retry.
+    # Reconstruct the intended passport and compare it before reusing that version.
     passport, _current = _held(connection, recorded.stable_id, recorded.version)
     added = _derived_adaptations(connection, passport, source, preview, created_at)
     replaced = {item.harness_id for item in added}
@@ -286,7 +287,7 @@ def _apply_owned(
         created_at=created_at,
         device_id=device_id,
     )
-    return recorded.stable_id, preview.target_version, digest, True
+    return recorded.stable_id, preview.target_version, digest, existing is None
 
 
 def _apply_local(
@@ -303,28 +304,43 @@ def _apply_local(
     overlay_id = preview.overlay_id
     existing = versions.held(connection, overlay_id, versions.FIRST_VERSION)
     if existing is not None:
-        return overlay_id, existing.version, existing.passport_digest, False
+        origin = connection.execute(
+            "SELECT source_stable_id, source_version, source_digest FROM fork_origin "
+            "WHERE stable_id = ?",
+            (overlay_id,),
+        ).fetchone()
+        if (
+            origin is None
+            or tuple(origin) != (recorded.stable_id, recorded.version, recorded.passport_digest)
+            or not lifecycle.version_is_overlay(connection, overlay_id, existing.version)
+        ):
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the overlay identity already belongs to a different origin",
+                details={"stable_id": overlay_id},
+            )
     added = _derived_adaptations(connection, passport, source, preview, created_at)
     replaced = {item.harness_id for item in added}
     kept = [item for item in passport.adaptations if item.harness_id not in replaced]
-    connection.execute(
-        "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, ?, ?)",
-        (overlay_id, "component", created_at),
-    )
-    connection.execute(
-        """
-        INSERT INTO fork_origin
-            (stable_id, source_stable_id, source_version, source_digest, created_at)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (
-            overlay_id,
-            recorded.stable_id,
-            recorded.version,
-            recorded.passport_digest,
-            created_at,
-        ),
-    )
+    if existing is None:
+        connection.execute(
+            "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, ?, ?)",
+            (overlay_id, "component", created_at),
+        )
+        connection.execute(
+            """
+            INSERT INTO fork_origin
+                (stable_id, source_stable_id, source_version, source_digest, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                overlay_id,
+                recorded.stable_id,
+                recorded.version,
+                recorded.passport_digest,
+                created_at,
+            ),
+        )
     digest = _record_version(
         connection,
         passport=passport,
@@ -336,6 +352,8 @@ def _apply_local(
         owner_id=owner_id,
         visibility="private",
     )
+    if existing is not None:
+        return overlay_id, existing.version, digest, False
     stored = versions.held(connection, overlay_id, versions.FIRST_VERSION)
     if stored is None:  # pragma: no cover - recorded above
         raise CliFailure("AI_STP_INTERNAL", "the overlay version vanished after being written")
@@ -400,6 +418,22 @@ def _record_version(
         body["visibility"] = visibility
     body["adaptations"] = [cast(JsonValue, item.model_dump(mode="json")) for item in adaptations]
     sealed = seal_envelope(body)
+    expected = cache.digest_of(cast(JsonValue, sealed.model_dump(mode="json")))
+    existing = versions.held(connection, stable_id, version)
+    if existing is not None:
+        held = revisions.get(connection, existing.revision_id)
+        if (
+            existing.passport_digest != expected
+            or held is None
+            or held.revision_id != sealed.revision_id
+            or cache.digest_of(cast(JsonValue, held.envelope.model_dump(mode="json"))) != expected
+        ):
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "that component version already stands for different materialized content",
+                details={"stable_id": stable_id, "version": version},
+            )
+        return expected
     stored = revisions.commit(
         connection,
         cast(dict[str, JsonValue], sealed.model_dump(mode="json", exclude={"revision_id"})),
@@ -564,6 +598,18 @@ def _held(
             "the recorded component is not an immutable version passport",
             details={"id": stable_id},
         ) from error
+    if (
+        passport.stable_id != recorded.stable_id
+        or passport.version != recorded.version
+        or not verify_revision_id(passport)
+        or cache.digest_of(cast(JsonValue, passport.model_dump(mode="json")))
+        != recorded.passport_digest
+    ):
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the recorded component no longer matches its exact passport identity",
+            details={"id": stable_id, "version": recorded.version},
+        )
     return passport, recorded
 
 
