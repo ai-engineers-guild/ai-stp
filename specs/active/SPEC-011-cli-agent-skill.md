@@ -47,6 +47,7 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
 - `REQ-1124`: Diagnostics reports the preconditions for creating a setup with a separate check, the state of which remains `ready` in their absence, and `detail` names the exact commands for creating missing passports. The list of these commands has one owner and matches the list named by the corresponding command's refusal.
 - `REQ-1125`: Diagnostics names registered objects that hold no head revision, because every command reaches an object through its head and such an object is addressable by none of them; the check reports them and changes nothing, and the state remains `ready` because the installation is sound.
 - `REQ-1123`: For integration scenarios, machine help allows you to build argv without parsing prose: mandatory, type, repeatability and private parameter values ​​are structured, and each payload is associated with a published schema; the update is expressed by an exact version selection and `install plan` with `action=update`, rather than a hidden automatic command.
+- `REQ-1126`: After the bootstrap pair, a first-run Skill playbook asks which project directories to index, then uses machine-help command paths `project discover`, `project index`, `component inventory`, and `component adopt`. It does not scan the home directory and does not invent roots.
 
 ## States and errors
 
@@ -89,3 +90,4 @@ Machine JSON, help and skill projection have versions. Unknown optional fields a
 | `REQ-1124` | The test proves that the installation without passports gives `ready` with `detail` calling both commands, and that there is only one owner of the command list. |
 | `REQ-1125` | A registry holding an entity without a head revision reports it by count and kind in the `addressable_objects` check, the check stays `ready`, and the row is still there afterwards. |
 | `REQ-1123` | The contract test for search, discover, adopt, status, diff and rollback builds the required parameters and enum from machine help only, checks the existence of each `result_schema`; update plan only accepts the declared value `action=update`. |
+| `REQ-1126` | Canonical bootstrap names `project discover`, `project index`, `component inventory`, and `component adopt` as command paths and tells the agent to ask which project directories to index. |
