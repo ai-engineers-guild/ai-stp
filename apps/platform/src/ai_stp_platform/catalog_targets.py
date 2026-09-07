@@ -17,6 +17,7 @@ from ai_stp_contracts.assurance import (
     TargetMatrix,
 )
 from ai_stp_contracts.families import SelectedAdaptation, SetupCompositionMember
+from ai_stp_contracts.safety_checks import SafetyCheckEntry
 from ai_stp_passports.versions import (
     ComponentVersionPassport,
     ScopeAdaptation,
@@ -36,6 +37,7 @@ class EffectiveAssessment:
     state: AssessmentState
     freshness: str | None = None
     evidence_refs: tuple[PublicEvidenceRef, ...] = ()
+    safety_checks: tuple[SafetyCheckEntry, ...] = ()
 
 
 def homogeneous_projection_kind(passport: ComponentVersionPassport) -> str | None:
@@ -126,6 +128,7 @@ def project_target_matrix(
                         eligible_for_full_auto=eligible_for_full_auto,
                     ),
                     evidence_refs=list(evidence.evidence_refs) if evidence is not None else [],
+                    safety_checks=list(evidence.safety_checks) if evidence is not None else [],
                 )
             )
     return TargetMatrix(exact=rows)

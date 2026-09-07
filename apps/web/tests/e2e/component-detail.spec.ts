@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const stableId = "component_01JQZK7B8N4M6P2R9T5V0X3YBE";
+const multiHarnessStableId = "component_01M0QZ1H6KVCCCTXNSTAP3KVBD";
 
 test.describe("component detail actions and media (SPEC-035)", () => {
   test.beforeEach(async ({ page }) => {
@@ -86,5 +87,51 @@ test.describe("component detail actions and media (SPEC-035)", () => {
       page.getByRole("button", { name: /\u041d\u0440\u0430\u0432\u0438\u0442\u0441\u044f/ }),
     ).toBeVisible();
     expect(errors).toEqual([]);
+  });
+});
+
+test.describe("exact harness projection presentation", () => {
+  test("keeps header actions in the right rail and exposes target checks", async ({ page }) => {
+    await page.goto(`/en/catalog/components/${multiHarnessStableId}`);
+    await expect(page.getByRole("heading", { level: 1, name: "workflow-herdr" })).toBeVisible();
+    await expect(page.getByText("Harness projections verified: 7 / 7 (100%)")).toBeVisible();
+
+    const header = page.locator('[data-ui="component-detail-header"]');
+    const actions = page.locator('[data-ui="component-actions"]');
+    const overflow = page.locator('[data-ui="component-overflow"]');
+    const headerBox = await header.boundingBox();
+    const actionsBox = await actions.boundingBox();
+    const overflowBox = await overflow.boundingBox();
+    expect(headerBox).not.toBeNull();
+    expect(actionsBox).not.toBeNull();
+    expect(overflowBox).not.toBeNull();
+    if (!headerBox || !actionsBox || !overflowBox) throw new Error("header geometry unavailable");
+    expect(actionsBox.x).toBeGreaterThan(headerBox.x + headerBox.width * 0.35);
+    expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(overflowBox.x + 8);
+
+    const projection = page.locator("details").filter({ hasText: "antigravity" }).first();
+    await projection.locator("summary").click();
+    await expect(projection).toHaveAttribute("open", "");
+    await expect(projection).toContainText("Safety check");
+    await expect(projection).toContainText("Full-auto recommendation");
+    await expect(projection).toContainText("Technical support");
+    await expect(projection).toContainText("Support note");
+  });
+
+  test("renders harness overflow as an overlay without changing card height", async ({ page }) => {
+    await page.goto("/en/catalog?include_experimental=1&resource=components");
+    const card = page
+      .getByRole("heading", { name: "workflow-herdr" })
+      .locator("xpath=ancestor::article");
+    await expect(card).toBeVisible();
+    const before = await card.boundingBox();
+    await card.locator("summary").filter({ hasText: "+4" }).click();
+    await expect(card.locator("details[open] > div")).toBeVisible();
+    await expect(card.locator("details[open] > div")).toHaveCSS("position", "absolute");
+    const after = await card.boundingBox();
+    expect(before).not.toBeNull();
+    expect(after).not.toBeNull();
+    if (!before || !after) throw new Error("card geometry unavailable");
+    expect(after.height).toBe(before.height);
   });
 });

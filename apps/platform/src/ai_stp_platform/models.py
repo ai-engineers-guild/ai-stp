@@ -1523,6 +1523,7 @@ class TargetAssessment(Base):
     stored_state: Mapped[str] = mapped_column(String(32))
     compatibility_result: Mapped[str] = mapped_column(String(16), default="not_run")
     reason_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    checks_summary: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     evidence_refs: Mapped[list[str]] = mapped_column(JSON, default=list)
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

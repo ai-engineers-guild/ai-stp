@@ -7,6 +7,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ai_stp_contracts.http import Timestamp, open_wire_object, strict_request_object
+from ai_stp_contracts.safety_checks import SafetyCheckEntry
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
@@ -159,6 +160,7 @@ class ExactTargetRow(BaseModel):
     freshness: Timestamp | None = None
     recommendation: RecommendationState = "ineffective"
     evidence_refs: list[PublicEvidenceRef] = Field(default_factory=list[PublicEvidenceRef])
+    safety_checks: list[SafetyCheckEntry] = Field(default_factory=list[SafetyCheckEntry])
 
 
 class TargetMatrix(BaseModel):

@@ -7,9 +7,12 @@ export type TargetMatrixLabels = {
   score: string;
   harness: string;
   scope: string;
+  operatingSystems: string;
+  architectures: string;
   implementation: string;
   projectionKind: string;
   technicalSupport: string;
+  supportReason: string;
   supportSupported: string;
   supportExperimental: string;
   supportUnsupported: string;
@@ -27,6 +30,13 @@ export type TargetMatrixLabels = {
   freshness: string;
   semanticLosses: string;
   permissions: string;
+  evidence: string;
+  checksNotRecorded: string;
+  checkPassed: string;
+  checkWarning: string;
+  checkFailed: string;
+  checkNotRun: string;
+  checkIncomplete: string;
 };
 
 export function targetMatrixLabels(t: (key: string) => string): TargetMatrixLabels {
@@ -36,9 +46,12 @@ export function targetMatrixLabels(t: (key: string) => string): TargetMatrixLabe
     score: t("targetMatrixScore"),
     harness: t("harness"),
     scope: t("targetScope"),
+    operatingSystems: t("operatingSystems"),
+    architectures: t("architectures"),
     implementation: t("implementationMode"),
     projectionKind: t("projectionKind"),
     technicalSupport: t("technicalSupport"),
+    supportReason: t("supportReason"),
     supportSupported: t("supportSupported"),
     supportExperimental: t("supportExperimental"),
     supportUnsupported: t("supportUnsupported"),
@@ -56,6 +69,13 @@ export function targetMatrixLabels(t: (key: string) => string): TargetMatrixLabe
     freshness: t("freshness"),
     semanticLosses: t("semanticLosses"),
     permissions: t("permissionsSummary"),
+    evidence: t("evidenceReferences"),
+    checksNotRecorded: t("checksNotRecorded"),
+    checkPassed: t("checkPassed"),
+    checkWarning: t("checkWarning"),
+    checkFailed: t("checkFailed"),
+    checkNotRun: t("checkNotRun"),
+    checkIncomplete: t("checkIncomplete"),
   };
 }
 
@@ -130,6 +150,14 @@ function ProjectionDetails({
           <dd>{recommendationLabel(row.recommendation, labels)}</dd>
         </div>
         <div>
+          <dt className="text-foreground font-medium">{labels.scope}</dt>
+          <dd>{row.scope}</dd>
+        </div>
+        <div>
+          <dt className="text-foreground font-medium">{labels.projectionKind}</dt>
+          <dd>{row.projection_kind}</dd>
+        </div>
+        <div>
           <dt className="text-foreground font-medium">{labels.technicalSupport}</dt>
           <dd>{supportLabel(row.technical_support, labels)}</dd>
         </div>
@@ -139,7 +167,7 @@ function ProjectionDetails({
         </div>
         {row.technical_support_reason ? (
           <div className="sm:col-span-2">
-            <dt className="text-foreground font-medium">{labels.technicalSupport}</dt>
+            <dt className="text-foreground font-medium">{labels.supportReason}</dt>
             <dd>{row.technical_support_reason}</dd>
           </div>
         ) : null}
@@ -151,13 +179,13 @@ function ProjectionDetails({
         ) : null}
         {row.supported_os.length ? (
           <div>
-            <dt className="text-foreground font-medium">{labels.scope}</dt>
+            <dt className="text-foreground font-medium">{labels.operatingSystems}</dt>
             <dd>{row.supported_os.join(", ")}</dd>
           </div>
         ) : null}
         {row.supported_arch.length ? (
           <div>
-            <dt className="text-foreground font-medium">{labels.scope}</dt>
+            <dt className="text-foreground font-medium">{labels.architectures}</dt>
             <dd>{row.supported_arch.join(", ")}</dd>
           </div>
         ) : null}
@@ -171,6 +199,58 @@ function ProjectionDetails({
           <div className="sm:col-span-2">
             <dt className="text-foreground font-medium">{labels.semanticLosses}</dt>
             <dd>{row.semantic_losses.join(", ")}</dd>
+          </div>
+        ) : null}
+        <div className="sm:col-span-2">
+          <dt className="text-foreground font-medium">{labels.safetyCheck}</dt>
+          {row.safety_checks.length ? (
+            <dd>
+              <ul className="mt-1 space-y-1" aria-label={labels.safetyCheck}>
+                {row.safety_checks.map((check) => (
+                  <li
+                    key={check.check_id}
+                    className="border-border flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-md border px-2 py-1"
+                  >
+                    <span className="min-w-0 font-mono break-words">{check.check_id}</span>
+                    <span>{checkResultLabel(check.result, labels)}</span>
+                    {check.reason ? (
+                      <span className="text-muted-foreground basis-full break-words">
+                        {check.reason}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          ) : (
+            <dd>{labels.checksNotRecorded}</dd>
+          )}
+        </div>
+        {row.evidence_refs.length ? (
+          <div className="sm:col-span-2">
+            <dt className="text-foreground font-medium">{labels.evidence}</dt>
+            <dd>
+              <ul className="mt-1 space-y-1">
+                {row.evidence_refs.map((ref) => (
+                  <li key={`${ref.kind}:${ref.value}`} className="break-words">
+                    {ref.kind === "url" ? (
+                      <a
+                        href={ref.value}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline underline-offset-2"
+                      >
+                        {ref.value}
+                      </a>
+                    ) : (
+                      <span>
+                        {ref.kind}: {ref.value}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </dd>
           </div>
         ) : null}
       </dl>
@@ -202,4 +282,12 @@ function recommendationLabel(value: string, labels: TargetMatrixLabels): string 
   if (value === "recommended") return labels.recommended;
   if (value === "not_recommended") return labels.notRecommended;
   return labels.ineffective;
+}
+
+function checkResultLabel(value: string, labels: TargetMatrixLabels): string {
+  if (value === "passed") return labels.checkPassed;
+  if (value === "warning") return labels.checkWarning;
+  if (value === "failed") return labels.checkFailed;
+  if (value === "not_run") return labels.checkNotRun;
+  return labels.checkIncomplete;
 }

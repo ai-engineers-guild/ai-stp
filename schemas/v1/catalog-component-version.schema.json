@@ -728,6 +728,13 @@
           "$ref": "#/$defs/RecommendationState",
           "default": "ineffective"
         },
+        "safety_checks": {
+          "items": {
+            "$ref": "#/$defs/SafetyCheckEntry"
+          },
+          "title": "Safety Checks",
+          "type": "array"
+        },
         "schema_version": {
           "const": 1,
           "default": 1,
@@ -787,6 +794,7 @@
         "permissions_summary",
         "projection_kind",
         "recommendation",
+        "safety_checks",
         "schema_version",
         "scope",
         "semantic_losses",

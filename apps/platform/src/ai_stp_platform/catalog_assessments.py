@@ -24,6 +24,7 @@ from ai_stp_contracts.assurance import (
     TargetAssessmentIngestRequest,
     TargetAssessmentIngestResponse,
 )
+from ai_stp_contracts.safety_checks import SafetyCheckEntry
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.invariants import target_assessment_key_digest
 from ai_stp_foundation.provider_surfaces import provider_surface
@@ -45,6 +46,7 @@ from ai_stp_platform.models import (
     TargetAssessment,
     TargetAssessmentLatest,
 )
+from ai_stp_platform.safety.percent import build_checks_summary
 from ai_stp_platform.safety.policy import POLICY_VERSION
 from ai_stp_platform.safety.types import SafetyScanResult
 
@@ -215,6 +217,26 @@ def stored_state_from_scan(scan: SafetyScanResult | None) -> tuple[str, str | No
 def _publication_idempotency_key(plan_id: str, target_key: str) -> str:
     digest = hashlib.sha256(f"{plan_id}:{target_key}".encode()).hexdigest()
     return f"va.{digest[:40]}"
+
+
+def _public_safety_checks(value: object) -> tuple[SafetyCheckEntry, ...]:
+    """Read bounded worker check rows without exposing scanner payloads."""
+    if not isinstance(value, dict):
+        return ()
+    mapping = cast(dict[str, object], value)
+    raw_value = mapping.get("checks")
+    if not isinstance(raw_value, list):
+        return ()
+    raw = cast(list[object], raw_value)
+    checks: list[SafetyCheckEntry] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            checks.append(SafetyCheckEntry.model_validate(item))
+        except ValueError:
+            continue
+    return tuple(checks)
 
 
 def _harness_version(scope: ScopeAdaptation) -> str:
@@ -462,6 +484,7 @@ async def load_effective_assessments_for_versions(
             if history is not None
             else None,
             evidence_refs=tuple(refs),
+            safety_checks=_public_safety_checks(history.checks_summary if history else None),
         )
     return result
 
@@ -605,6 +628,7 @@ async def record_component_scan_assessments(
                 stored_state=stored_state,
                 compatibility_result="not_run",
                 reason_code=reason_code,
+                checks_summary=build_checks_summary(scan.bindings()) if scan is not None else None,
                 evidence_refs=evidence_refs,
                 observed_at=observed_at,
                 expires_at=expires_at,

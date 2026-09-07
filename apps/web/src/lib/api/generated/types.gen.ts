@@ -2115,6 +2115,10 @@ export type ExactTargetRow = {
   projection_kind: ProjectionKind;
   recommendation: RecommendationState;
   /**
+   * Safety Checks
+   */
+  safety_checks: Array<SafetyCheckEntry>;
+  /**
    * Schema Version
    */
   schema_version: 1;

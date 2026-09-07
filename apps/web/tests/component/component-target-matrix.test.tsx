@@ -19,9 +19,12 @@ const labels = {
   harness: "Harness",
   exact: "Exact projection",
   scope: "Scope",
+  operatingSystems: "Operating systems",
+  architectures: "Architectures",
   implementation: "Implementation",
   projectionKind: "Projection",
   technicalSupport: "Technical support",
+  supportReason: "Support note",
   supportSupported: "Supported",
   supportExperimental: "Experimental",
   supportUnsupported: "Unsupported",
@@ -39,6 +42,13 @@ const labels = {
   freshness: "Evidence freshness",
   semanticLosses: "Semantic losses",
   permissions: "Permissions",
+  evidence: "Evidence references",
+  checksNotRecorded: "Per-target check details are not recorded.",
+  checkPassed: "Passed",
+  checkWarning: "Warning",
+  checkFailed: "Failed",
+  checkNotRun: "Not run",
+  checkIncomplete: "Incomplete",
   noneListed: "None listed",
 };
 
@@ -63,6 +73,7 @@ const matrix: TargetMatrix = {
       freshness: "2026-09-06T00:00:00.000Z",
       recommendation: "recommended",
       evidence_refs: [],
+      safety_checks: [],
     },
   ],
 };
@@ -80,5 +91,54 @@ describe("ComponentTargetMatrix", () => {
     expect(screen.getAllByText("Safety check").length).toBeGreaterThan(0);
     expect(screen.queryByText(/risk-install/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /install/i })).not.toBeInTheDocument();
+  });
+
+  it("shows every target-bound safety check and exact target facts when expanded", async () => {
+    const detailed: TargetMatrix = {
+      ...matrix,
+      exact: [
+        {
+          ...matrix.exact[0],
+          scope: "project",
+          projection_kind: "native_files",
+          technical_support_reason: "projection reviewed",
+          evidence_refs: [{ kind: "digest", value: "sha256:abc" }],
+          safety_checks: [
+            {
+              schema_version: 1,
+              check_id: "secret_scan",
+              result: "passed",
+              mandatory: true,
+              source: "ai-stp-safety",
+              family: "content",
+              reason: null,
+              finding_summary: null,
+            },
+            {
+              schema_version: 1,
+              check_id: "optional_external",
+              result: "not_run",
+              mandatory: false,
+              source: "ai-stp-safety",
+              family: "external",
+              reason: "runner unavailable",
+              finding_summary: null,
+            },
+          ],
+        },
+      ],
+    };
+    render(<ComponentTargetMatrix matrix={detailed} labels={labels} />);
+
+    const summary = screen.getByText("claude-code");
+    summary.closest("summary")?.click();
+
+    expect(screen.getByText("secret_scan")).toBeVisible();
+    expect(screen.getByText("Passed")).toBeVisible();
+    expect(screen.getByText("optional_external")).toBeVisible();
+    expect(screen.getByText("Not run")).toBeVisible();
+    expect(screen.getByText("project")).toBeVisible();
+    expect(screen.getByText("Support note")).toBeVisible();
+    expect(screen.getByText("digest: sha256:abc")).toBeVisible();
   });
 });

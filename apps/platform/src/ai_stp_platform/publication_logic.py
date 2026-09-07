@@ -1142,6 +1142,7 @@ async def _exact_adaptation_bindings(
 
     missing = missing_exact_adaptation_pins(setup, components)
     if missing:
+        missing_ids = sorted(missing)
         return [
             {
                 "check_id": "setup_exact_adaptation",
@@ -1150,9 +1151,11 @@ async def _exact_adaptation_bindings(
                 "source": "platform_structure_verified",
                 "mandatory": True,
                 "reason": "adaptation_unavailable",
-                "detail": {"stable_id": stable_id, "harness_id": setup.harness_id},
+                "finding_summary": {
+                    "missing_component_ids": missing_ids,
+                    "harness_id": setup.harness_id,
+                },
             }
-            for stable_id in missing
         ]
     return [
         {

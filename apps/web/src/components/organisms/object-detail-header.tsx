@@ -55,7 +55,7 @@ export function ObjectDetailHeader({
         </div>
         <div className="flex min-w-0 items-start gap-3 pr-12 sm:gap-4">
           <div className="shrink-0">{icon}</div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 lg:pr-[42%]">
             <h1 className="max-w-4xl text-xl leading-tight font-semibold tracking-tight [overflow-wrap:anywhere] break-words sm:text-2xl lg:text-3xl">
               {title}
             </h1>
@@ -65,7 +65,7 @@ export function ObjectDetailHeader({
             </div>
             <div
               data-ui={UI.component.actions}
-              className="mt-5 flex min-w-0 flex-wrap items-center gap-2"
+              className="mt-5 flex min-w-0 flex-wrap items-center gap-2 lg:absolute lg:right-12 lg:bottom-8 lg:max-w-[40%] lg:justify-end"
             >
               <ObjectLikeControl
                 stableId={like.stableId}
