@@ -3,17 +3,11 @@
 Runs after alembic upgrade and before api/web accept traffic. Idempotent:
 re-runs create no duplicate catalog rows. Logs only counts, never secrets.
 
-Two steps, and only one of them belongs everywhere. The integrity reconcile
-reads what is published and checks it against the projection's own rules; that
-is worth doing wherever a catalogue is served. The fixture seed writes
-`fixture-component`, `river-*` and `northwind-*` into the catalogue, and those
-are development scaffolding — `REQ-2110` bound the seed to its environment for
-exactly this reason, back when Sprint-1 had no validation pipeline and nothing
-real to publish.
-
-That era ended. The first-party corpus is published through the ordinary
-authenticated pipeline, so on a serving environment the seed adds nothing and
-puts twenty-two invented objects on a public site beside the real ones.
+Integrity reconciliation runs in every environment. Development seeding loads
+the canonical first-party passports and verified artifact bytes; frozen
+Sprint-1 fixtures are available only through their explicit test loader.
+Normal production publication still uses the authenticated publication pipeline.
+The historical AI_STP_SEED_FIXTURES override retains its environment-gate role.
 """
 
 from __future__ import annotations
@@ -28,6 +22,10 @@ from ai_stp_contracts.first_party import OWNER_ID as OFFICIAL_ACCOUNT_ID
 from ai_stp_contracts.public_profile import ProfileFields, ProfileLink, content_digest
 from ai_stp_foundation.identity import OFFICIAL_DISPLAY_NAME, OFFICIAL_HANDLE
 from ai_stp_platform.catalog_reconcile import reconcile_catalog_integrity
+from ai_stp_platform.catalog_search import (
+    lock_catalog_search_projection,
+    rebuild_catalog_search_projection,
+)
 from ai_stp_platform.catalog_seed import SeedResult, load_first_party_seed
 from ai_stp_platform.db import make_engine, make_sessionmaker
 from ai_stp_platform.identity import allocate_account_identity
@@ -52,11 +50,11 @@ def configure_logging_from_env() -> None:
 
 
 def fixtures_wanted() -> bool:
-    """Whether this environment wants the development fixture corpus.
+    """Whether this environment opts into development corpus seeding.
 
     Named rather than inferred. `AI_STP_API_ENVIRONMENT` already carries the
     environment's own name (`ADR-0086`), and anything that is not `dev` is a
-    place where invented objects would be served to somebody. Setting
+    serving environment which should use the publication pipeline. Setting
     `AI_STP_SEED_FIXTURES` overrides it in either direction, because a
     disposable environment that calls itself something else is a real case and
     guessing at it is not.
@@ -136,6 +134,9 @@ async def _run() -> int:
         store = await open_env_object_store()
         try:
             async with sessionmaker() as session:
+                # Acquire before any per-object projection writes, avoiding a
+                # table-lock upgrade while another writer waits on our rows.
+                await lock_catalog_search_projection(session)
                 official_created = await ensure_official_publisher(session)
                 official_manifest = await reconcile_official_manifest(session)
                 result = (
@@ -144,12 +145,14 @@ async def _run() -> int:
                     else SeedResult(0, 0, 0, 0)
                 )
                 report = await reconcile_catalog_integrity(session)
+                indexed = await rebuild_catalog_search_projection(session)
                 await session.commit()
         finally:
             await close_env_object_store(store)
         log.info(
             "seed_complete",
-            fixtures_seeded=seeding,
+            fixtures_seeded=False,
+            first_party_seeded=seeding,
             created_accounts=result.created_accounts + int(official_created),
             created_versions=result.created_versions,
             reused_versions=result.reused_versions,
@@ -160,6 +163,7 @@ async def _run() -> int:
             + len(official_manifest.preserved),
             catalog_checked=report.checked,
             catalog_unreadable=len(report.unreadable),
+            catalog_indexed=indexed,
         )
         return 0
     except Exception:

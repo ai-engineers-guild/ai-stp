@@ -46,6 +46,9 @@ resolver, embedded components, and explicit transfer request.
   Official account. Reconciliation projects one exact manifest revision into
   PostgreSQL idempotently and audits additions, changes, disables, and removals;
   production rejects an Official source absent from the manifest.
+  Source validation and PostgreSQL constraints accept the canonical component
+  kinds from the passport contract, including standalone `cli` artifacts.
+  A `cli` component is not rewritten into a slash `command`.
 - `REQ-5602`: For every due enabled source, the scheduler creates one sync
   attempt and one outbox event in the same transaction. An idempotent dispatcher
   inserts `official_upstream_sync` into the existing worker queue; the payload

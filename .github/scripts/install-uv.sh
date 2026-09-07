@@ -45,9 +45,11 @@ mkdir -p "${destination}"
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
-curl --fail --silent --show-error --location --retry 3 \
+curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+  --connect-timeout 15 --max-time 120 --retry-max-time 180 \
   --output "${work}/${archive}" "${base}/${archive}"
-curl --fail --silent --show-error --location --retry 3 \
+curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+  --connect-timeout 15 --max-time 120 --retry-max-time 180 \
   --output "${work}/${archive}.sha256" "${base}/${archive}.sha256"
 
 expected="$(cut -d' ' -f1 <"${work}/${archive}.sha256")"

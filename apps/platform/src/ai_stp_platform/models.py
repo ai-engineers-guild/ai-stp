@@ -30,6 +30,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from ai_stp_passports.versions import COMPONENT_TYPES
 from ai_stp_platform.db import Base
 
 
@@ -370,7 +371,7 @@ class CatalogSearchProjection(Base):
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     likes_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    support_tier: Mapped[str] = mapped_column(String(32), default="primary")
+    support_tier: Mapped[str] = mapped_column(String(32))
     support_state: Mapped[str] = mapped_column(String(32), default="missing")
     support_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -1267,8 +1268,7 @@ class OfficialUpstreamSource(Base):
     __tablename__ = "official_upstream_source"
     __table_args__ = (
         CheckConstraint(
-            "component_type in ("
-            "'instruction', 'skill', 'mcp', 'hook', 'command', 'agent', 'plugin', 'setting')",
+            "component_type in (" + ", ".join(repr(kind) for kind in COMPONENT_TYPES) + ")",
             name="ck_official_upstream_source_component_type",
         ),
         CheckConstraint(

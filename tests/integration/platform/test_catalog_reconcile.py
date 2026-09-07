@@ -6,9 +6,9 @@ from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from tests.support.catalog_seed import seed_corpus
 
 from ai_stp_platform.catalog_reconcile import reconcile_catalog_integrity
-from ai_stp_platform.catalog_seed import seed_corpus
 from ai_stp_platform.models import Account, CatalogMetadata
 
 pytestmark = pytest.mark.platform

@@ -19,6 +19,7 @@ from sqlalchemy import (
     literal,
     or_,
     select,
+    text,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
@@ -48,6 +49,7 @@ from ai_stp_platform.catalog_read import (
     public_version_row,
 )
 from ai_stp_platform.catalog_support import project_support
+from ai_stp_platform.logging import get_logger
 from ai_stp_platform.models import (
     AccountAuthorVerification,
     CatalogExternalProduct,
@@ -59,6 +61,7 @@ from ai_stp_platform.models import (
 
 ObjectKind = Literal["component", "setup"]
 _DESCRIPTION_LIMIT = 8000
+_log = get_logger("catalog")
 
 
 def inclusive_updated_bounds(
@@ -196,10 +199,7 @@ def _passport_description(passport: dict[str, Any]) -> str:
 def _support_fields(
     passport: dict[str, Any], evidence: list[dict[str, Any]] | None, *, now: datetime
 ) -> tuple[str, str, datetime | None]:
-    try:
-        support = project_support(passport, evidence, now=now)
-    except CatalogIntegrityError:
-        return "primary", "not_verified", None
+    support = project_support(passport, evidence, now=now)
     expires: datetime | None = None
     if support.state == "verified":
         moments: list[datetime] = []
@@ -288,6 +288,26 @@ async def _latest_public_metadata(
     return latest
 
 
+def _add_projection(session: AsyncSession, meta: CatalogMetadata, *, now: datetime) -> bool:
+    try:
+        projection = _projection_row(meta, now=now)
+    except CatalogIntegrityError as exc:
+        _log.warning(
+            "catalog_search_projection_unreadable",
+            object_kind=meta.object_kind,
+            stable_id=meta.stable_id,
+            reason=str(exc),
+        )
+        return False
+    session.add(projection)
+    return True
+
+
+async def lock_catalog_search_projection(session: AsyncSession) -> None:
+    """Serialize a rebuild with SQL writers without blocking ordinary SELECTs."""
+    await session.execute(text("LOCK TABLE catalog_search_projection IN SHARE ROW EXCLUSIVE MODE"))
+
+
 async def upsert_catalog_search_projection(
     session: AsyncSession, *, object_kind: str, stable_id: str
 ) -> None:
@@ -316,12 +336,13 @@ async def upsert_catalog_search_projection(
     latest = await _latest_public_metadata(session, object_kind=object_kind, stable_id=stable_id)
     if latest is None:
         return
-    session.add(_projection_row(latest, now=datetime.now(UTC)))
+    _add_projection(session, latest, now=datetime.now(UTC))
     await session.flush()
 
 
 async def rebuild_catalog_search_projection(session: AsyncSession) -> int:
     """Rebuild every search row from public catalog metadata."""
+    await lock_catalog_search_projection(session)
     await session.execute(delete(CatalogSearchProjection))
     rows = list(
         (
@@ -351,10 +372,9 @@ async def rebuild_catalog_search_projection(session: AsyncSession) -> int:
         ):
             latest_by_id[key] = row
     now = datetime.now(UTC)
-    for meta in latest_by_id.values():
-        session.add(_projection_row(meta, now=now))
+    indexed = sum(_add_projection(session, meta, now=now) for meta in latest_by_id.values())
     await session.flush()
-    return len(latest_by_id)
+    return indexed
 
 
 def compile_expression(

@@ -507,8 +507,8 @@ class SetupVersionPassport(_VersionPassportBase):
     #: one, or a conformance bundle.
     #:
     #: **`full-auto` here is not `execution_profile` below.** One word, two
-    #: independent axes: a posture is a statement about how much the harness
-    #: configuration asks and sandboxes, and the execution profile is about how
+    #: independent axes: a posture describes the payload composition; all
+    #: shipped postures share task autonomy. The execution profile is about how
     #: this CLI runs. Reading either as the other is the mistake `AGENTS.md`
     #: names about the three automation axes.
     posture: str | None = None

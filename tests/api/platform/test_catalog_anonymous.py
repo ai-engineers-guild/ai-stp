@@ -12,14 +12,14 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from tests.api.platform.conftest import make_settings
+from tests.support.catalog_seed import (
+    FIXTURE_COMPONENT_ID,
+    FIXTURE_SETUP_ID,
+    load_fixture_seed,
+)
 
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
-from ai_stp_platform.catalog_seed import (
-    FIXTURE_COMPONENT_ID,
-    FIXTURE_SETUP_ID,
-    load_first_party_seed,
-)
 from ai_stp_platform.models import CatalogMetadata
 
 pytestmark = pytest.mark.platform
@@ -35,7 +35,7 @@ async def seeded_client(
     engine = create_async_engine(migrated_database_url)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     async with sessionmaker() as session:
-        await load_first_party_seed(session)
+        await load_fixture_seed(session)
         await session.commit()
     app = create_app(settings)
     async with app.router.lifespan_context(app):
@@ -127,7 +127,7 @@ async def test_fresh_support_evidence_is_exposed_on_detail_and_version(
 ) -> None:
     client, sessionmaker, _settings = db_api_client
     async with sessionmaker() as session:
-        await load_first_party_seed(session)
+        await load_fixture_seed(session)
         row = await session.scalar(
             select(CatalogMetadata).where(
                 CatalogMetadata.object_kind == "component",
@@ -519,7 +519,7 @@ async def lifecycle_harness(
     engine = create_async_engine(migrated_database_url)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     async with sessionmaker() as session:
-        await load_first_party_seed(session)
+        await load_fixture_seed(session)
         await session.commit()
     app = create_app(settings)
     async with app.router.lifespan_context(app):
