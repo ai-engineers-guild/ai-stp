@@ -56,7 +56,7 @@ export function targetMatrixLabels(t: (key: string) => string): TargetMatrixLabe
     supportExperimental: t("supportExperimental"),
     supportUnsupported: t("supportUnsupported"),
     assessment: t("assessmentState"),
-    safetyCheck: t("safetyCheck"),
+    safetyCheck: t("safetyCheckColumn"),
     projectionDetails: t("projectionDetails"),
     notVerified: t("assessmentNotVerified"),
     verified: t("assessmentVerified"),
