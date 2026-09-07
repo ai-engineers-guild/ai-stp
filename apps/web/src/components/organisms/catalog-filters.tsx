@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Catalog toolbar, chips, and display controls stay one owner. */
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -27,6 +28,10 @@ import { Icon } from "@/theme";
 type CatalogFiltersProps = {
   query: ParsedCatalogQuery;
   locale?: string;
+  basePath?: string;
+  hideSearch?: boolean;
+  hideAuthorFilter?: boolean;
+  fixedAuthors?: string[];
   services?: ExternalProduct[];
   intro?: string;
   labels: CatalogFilterPanelLabels & {
@@ -80,24 +85,34 @@ const FILTER_QUERY_KEYS = new Set([
   "updated_to",
 ]);
 
-function hrefFor(query: ParsedCatalogQuery) {
-  return `/catalog?${new URLSearchParams(catalogQueryToRecord(query)).toString()}`;
+function hrefFor(query: ParsedCatalogQuery, basePath = "/catalog") {
+  return `${basePath}?${new URLSearchParams(catalogQueryToRecord(query)).toString()}`;
 }
 
+// eslint-disable-next-line complexity
 export function CatalogFilters({
   query,
   labels,
   services = [],
   intro = "",
   locale = "en",
+  basePath = "/catalog",
+  hideSearch = false,
+  hideAuthorFilter = false,
+  fixedAuthors = [],
 }: CatalogFiltersProps) {
-  const [searchOpen, setSearchOpen] = useState(Boolean(query.q));
+  const [searchOpen, setSearchOpen] = useState(!hideSearch && Boolean(query.q));
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const appliedCount = countAppliedFilters(query);
-  const chips = appliedFilterChips(query);
-  const resetHref = hrefFor(defaultCatalogQuery(query.resource));
+  const visibleQuery = fixedAuthors.length > 0 ? { ...query, authors: [] } : query;
+  const appliedCount = countAppliedFilters(visibleQuery);
+  const chips = appliedFilterChips(visibleQuery);
+  const resetHref = hrefFor(
+    { ...defaultCatalogQuery(query.resource), authors: fixedAuthors },
+    basePath,
+  );
   const hiddenOmit = new Set(["page", "page_size", "resource"]);
-  if (searchOpen) hiddenOmit.add("q");
+  if (searchOpen || hideSearch) hiddenOmit.add("q");
+  if (fixedAuthors.length > 0) hiddenOmit.add("authors");
   if (filtersOpen) {
     for (const key of FILTER_QUERY_KEYS) hiddenOmit.add(key);
   }
@@ -118,17 +133,19 @@ export function CatalogFilters({
       <div className="grid min-w-0 items-start gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
         <p className="text-muted-foreground max-w-3xl min-w-0 text-sm leading-relaxed">{intro}</p>
         <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
-          <DisclosureButton
-            open={searchOpen}
-            controls="catalog-text-search"
-            ui={UI.catalog.search}
-            label={labels.search}
-            onToggle={() => {
-              setSearchOpen((value) => !value);
-            }}
-          >
-            <Icon name="search" size="sm" />
-          </DisclosureButton>
+          {!hideSearch ? (
+            <DisclosureButton
+              open={searchOpen}
+              controls="catalog-text-search"
+              ui={UI.catalog.search}
+              label={labels.search}
+              onToggle={() => {
+                setSearchOpen((value) => !value);
+              }}
+            >
+              <Icon name="search" size="sm" />
+            </DisclosureButton>
+          ) : null}
           <DisclosureButton
             open={filtersOpen}
             controls="catalog-refine"
@@ -140,7 +157,7 @@ export function CatalogFilters({
           >
             <Icon name="controls" size="sm" />
           </DisclosureButton>
-          <CatalogDisplayControls query={query} labels={labels} />
+          <CatalogDisplayControls query={query} labels={labels} basePath={basePath} />
         </div>
       </div>
 
@@ -177,7 +194,13 @@ export function CatalogFilters({
             <div className="mb-5 max-w-xs">
               <ResourceSwitch query={query} labels={labels} />
             </div>
-            <CatalogFilterPanel query={query} labels={labels} services={services} locale={locale} />
+            <CatalogFilterPanel
+              query={query}
+              labels={labels}
+              services={services}
+              locale={locale}
+              hideAuthorFilter={hideAuthorFilter}
+            />
             <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
               <Link
                 href={resetHref}
@@ -200,7 +223,7 @@ export function CatalogFilters({
           {chips.map((chip) => (
             <Link
               key={chip.key}
-              href={hrefFor(chip.without)}
+              href={hrefFor(chip.without, basePath)}
               prefetch={false}
               className="border-border bg-muted inline-flex min-h-11 max-w-full items-center rounded-md border px-3 py-1 font-mono text-xs break-all"
             >
@@ -209,6 +232,9 @@ export function CatalogFilters({
           ))}
         </div>
       ) : null}
+      {fixedAuthors.map((author) => (
+        <input key={author} type="hidden" name="authors" value={author} />
+      ))}
     </CatalogSearchForm>
   );
 }
@@ -216,9 +242,11 @@ export function CatalogFilters({
 function CatalogDisplayControls({
   query,
   labels,
+  basePath,
 }: {
   query: ParsedCatalogQuery;
   labels: CatalogFiltersProps["labels"];
+  basePath: string;
 }) {
   return (
     <>
@@ -228,13 +256,13 @@ function CatalogDisplayControls({
         options={[
           {
             label: labels.listView,
-            href: hrefFor({ ...query, view: "list", pageNumber: 1 }),
+            href: hrefFor({ ...query, view: "list", pageNumber: 1 }, basePath),
             active: query.view === "list",
             icon: "list",
           },
           {
             label: labels.cardsView,
-            href: hrefFor({ ...query, view: "cards", pageNumber: 1 }),
+            href: hrefFor({ ...query, view: "cards", pageNumber: 1 }, basePath),
             active: query.view === "cards",
             icon: "cards",
           },
@@ -247,28 +275,28 @@ function CatalogDisplayControls({
         options={[
           {
             label: labels.sortRelevance,
-            href: hrefFor({ ...query, sort: "relevance", pageNumber: 1 }),
+            href: hrefFor({ ...query, sort: "relevance", pageNumber: 1 }, basePath),
             active: query.sort === "relevance",
           },
           {
             label: labels.sortUpdated,
-            href: hrefFor({ ...query, sort: "updated_at", pageNumber: 1 }),
+            href: hrefFor({ ...query, sort: "updated_at", pageNumber: 1 }, basePath),
             active: query.sort === "updated_at",
           },
           {
             label: labels.sortLikes,
-            href: hrefFor({ ...query, sort: "likes", pageNumber: 1 }),
+            href: hrefFor({ ...query, sort: "likes", pageNumber: 1 }, basePath),
             active: query.sort === "likes",
           },
           {
             label: labels.sortAscending,
-            href: hrefFor({ ...query, sortDirection: "asc", pageNumber: 1 }),
+            href: hrefFor({ ...query, sortDirection: "asc", pageNumber: 1 }, basePath),
             active: query.sortDirection === "asc",
             separatorBefore: true,
           },
           {
             label: labels.sortDescending,
-            href: hrefFor({ ...query, sortDirection: "desc", pageNumber: 1 }),
+            href: hrefFor({ ...query, sortDirection: "desc", pageNumber: 1 }, basePath),
             active: query.sortDirection === "desc",
           },
         ]}

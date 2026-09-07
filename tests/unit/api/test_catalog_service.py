@@ -38,8 +38,13 @@ READERS = [
 
 
 def _arrange(monkeypatch: pytest.MonkeyPatch, loader_name: str, projector_name: str) -> None:
-    loaded = [object()] if loader_name == "get_public_object_versions" else object()
+    loaded = (
+        [SimpleNamespace(version="1.0")]
+        if loader_name == "get_public_object_versions"
+        else SimpleNamespace(version="1.0")
+    )
     monkeypatch.setattr(service, loader_name, AsyncMock(return_value=loaded))
+    monkeypatch.setattr(service, "load_effective_assessments", AsyncMock(return_value={}))
 
     def fail_projection(*args: object, **kwargs: object) -> None:
         del args, kwargs

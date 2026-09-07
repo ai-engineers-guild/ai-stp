@@ -9,9 +9,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.reports import service
+from ai_stp_contracts.assurance import TargetAssessmentIngestRequest
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.reports import (
     ReportCaseCreateRequest,
@@ -147,3 +149,24 @@ async def staff_author_verification(
         db, ctx=ctx, staff_ids=_staff_ids(request), body=body
     )
     return _resource(result)
+
+
+@router.post("/staff/target-assessments", response_model=None)
+async def ingest_target_assessment(
+    body: TargetAssessmentIngestRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    await service.require_staff(ctx, _staff_ids(request))
+    from ai_stp_platform.catalog_assessments import AssessmentError, ingest_assessment
+
+    try:
+        result = await ingest_assessment(db, body)
+        await db.commit()
+    except AssessmentError as exc:
+        category = (
+            ErrorCategory.CONFLICT if exc.code == "AI_STP_CONFLICT" else ErrorCategory.VALIDATION
+        )
+        raise ApiError(category, str(exc)) from exc
+    return _resource(result, status_code=201)

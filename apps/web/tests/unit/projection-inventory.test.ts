@@ -55,7 +55,7 @@ describe("machine route inventory (REQ-3622)", () => {
     );
   });
 
-  it("lists the closed contract component types", () => {
+  it("lists the nine contract component types", () => {
     expect([...COMPONENT_TYPES]).toEqual([
       "instruction",
       "skill",

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { Button } from "@/components/atoms/button";
 import { MediaItemEditor } from "@/components/organisms/object-presentation-media-item";
 import { useObjectPresentationForm } from "@/components/organisms/use-object-presentation-form";
@@ -39,6 +41,9 @@ type Labels = {
   sourceGithub: string;
   sourceYoutube: string;
   sourceChoice: string;
+  sourceUrl?: string;
+  urlHint?: string;
+  urlPlaceholder?: string;
   uploadedReady: string;
   uploadError: string;
   itemStatusIdle: string;
@@ -46,31 +51,37 @@ type Labels = {
   itemStatusReady: string;
   itemStatusError: string;
   altRequired: string;
-  mediaCount: string;
   kindImage: string;
   kindVideo: string;
   kindYoutube: string;
+  mediaCount: string;
 };
 
 const FIELD_CLASS =
   "border-input bg-background focus-visible:ring-ring min-h-11 w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60";
 
+// eslint-disable-next-line max-lines-per-function
 export function ObjectPresentationForm({
+  objectKind,
   locale,
   stableId,
   csrfToken,
   initialBio,
   initialMedia,
   labels,
+  afterMedia,
 }: {
+  objectKind?: "component" | "setup" | undefined;
   locale: string;
   stableId: string;
   csrfToken: string;
   initialBio: string;
   initialMedia: OwnerPresentationMedia[];
   labels: Labels;
+  afterMedia?: ReactNode;
 }) {
   const form = useObjectPresentationForm({
+    objectKind,
     locale,
     stableId,
     csrfToken,
@@ -108,9 +119,11 @@ export function ObjectPresentationForm({
         </label>
         <textarea
           id="presentation-bio"
-          className={`${FIELD_CLASS} min-h-36 resize-y`}
+          className={`${FIELD_CLASS} min-h-36 resize-y ${form.fieldErrors.bio ? "border-destructive focus-visible:ring-destructive" : ""}`}
           maxLength={2000}
           value={form.bio}
+          aria-invalid={Boolean(form.fieldErrors.bio)}
+          aria-describedby={form.fieldErrors.bio ? "presentation-bio-error" : undefined}
           onChange={(event) => {
             form.setBio(event.target.value);
           }}
@@ -118,6 +131,11 @@ export function ObjectPresentationForm({
         <p className="text-muted-foreground text-xs" aria-live="polite">
           {form.bio.length}/2000
         </p>
+        {form.fieldErrors.bio ? (
+          <p id="presentation-bio-error" className="text-destructive text-sm" role="alert">
+            {form.fieldErrors.bio}
+          </p>
+        ) : null}
       </section>
 
       <section className="space-y-4" aria-labelledby="presentation-media-heading">
@@ -158,6 +176,18 @@ export function ObjectPresentationForm({
                 onRemove={() => {
                   form.removeMedia(index);
                 }}
+                errors={{
+                  url:
+                    form.fieldErrors[`media.${index}.url`] ??
+                    form.fieldErrors[`media[${index}].url`],
+                  alt:
+                    form.fieldErrors[`media.${index}.alt`] ??
+                    form.fieldErrors[`media[${index}].alt`],
+                  item:
+                    form.fieldErrors[`media.${index}`] ??
+                    form.fieldErrors[`media[${index}]`] ??
+                    form.fieldErrors[`media.${index}.kind`],
+                }}
               />
             </li>
           ))}
@@ -176,15 +206,23 @@ export function ObjectPresentationForm({
         ) : null}
       </section>
 
+      {afterMedia}
+
       <div
         className="border-border bg-background/95 sticky bottom-0 z-10 -mx-1 space-y-3 border-t px-1 py-4 backdrop-blur-sm"
         role="region"
         aria-label={labels.save}
       >
         {form.error ? (
-          <p className="text-destructive text-sm" role="alert">
-            {form.error}
-          </p>
+          <div
+            className="border-destructive/60 bg-destructive/10 rounded-md border p-3"
+            role="alert"
+          >
+            <p className="text-destructive text-sm font-medium">{form.error}</p>
+            {form.errorCode ? (
+              <code className="text-muted-foreground mt-1 block text-xs">{form.errorCode}</code>
+            ) : null}
+          </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
           <Button

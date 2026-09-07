@@ -5,9 +5,11 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { updateObjectPresentationAction } from "@/actions/object-presentation";
 import {
   isGithubRawUrl,
+  isExternalMediaUrl,
   isUploadedMediaUrl,
   isYoutubeVideoId,
   kindFromMime,
+  kindFromMediaUrl,
   validateComponentMediaFile,
 } from "@/lib/component-media";
 import type { OwnerPresentationMedia } from "@/lib/api/owner";
@@ -15,6 +17,7 @@ import type { OwnerPresentationMedia } from "@/lib/api/owner";
 export type MediaUploadState = "idle" | "uploading" | "ready" | "error";
 
 export type PresentationMediaDraft = OwnerPresentationMedia & {
+  sourceMode: "upload" | "url";
   clientKey: string;
   localPreview: string | null;
   uploadState: MediaUploadState;
@@ -34,6 +37,7 @@ export type PresentationFormLabels = {
 };
 
 type UploadCtx = {
+  objectKind: "component" | "setup";
   stableId: string;
   labels: PresentationFormLabels;
   mediaRef: { current: PresentationMediaDraft[] };
@@ -53,6 +57,7 @@ function newClientKey(): string {
 function emptyItem(): PresentationMediaDraft {
   return {
     clientKey: newClientKey(),
+    sourceMode: "upload",
     kind: "image",
     url: "",
     alt: "",
@@ -65,13 +70,22 @@ function emptyItem(): PresentationMediaDraft {
 }
 
 function fromInitial(item: OwnerPresentationMedia): PresentationMediaDraft {
+  const inferredKind =
+    item.kind === "youtube" ? item.kind : (kindFromMediaUrl(item.url) ?? item.kind);
   const hasSource =
-    item.kind === "youtube"
+    inferredKind === "youtube"
       ? isYoutubeVideoId(item.url)
-      : isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url);
+      : isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url);
   return {
     ...item,
+    kind: inferredKind,
     clientKey: newClientKey(),
+    sourceMode:
+      inferredKind === "youtube" ||
+      isGithubRawUrl(item.url) ||
+      (isExternalMediaUrl(item.url) && !isUploadedMediaUrl(item.url))
+        ? "url"
+        : "upload",
     localPreview: null,
     uploadState: hasSource ? "ready" : "idle",
     pendingFile: null,
@@ -90,20 +104,29 @@ export function previewSrc(item: PresentationMediaDraft): string | null {
   if (item.kind === "youtube" && isYoutubeVideoId(item.url)) {
     return `https://i.ytimg.com/vi/${item.url}/hqdefault.jpg`;
   }
-  if (item.url && (isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url))) {
+  if (
+    item.url &&
+    (isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url))
+  ) {
     return item.url;
   }
   return null;
 }
 
 function mediaValid(item: PresentationMediaDraft): boolean {
-  if (!item.alt.trim()) return false;
-  if (item.kind === "youtube") return isYoutubeVideoId(item.url);
-  return isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url);
+  if (!item.url && !item.localPreview && !item.pendingFile) return true;
+  if (item.itemError) return false;
+  if (item.kind === "youtube") return isYoutubeVideoId(item.url) && item.uploadState === "ready";
+  return (
+    (isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url)) &&
+    item.uploadState === "ready"
+  );
 }
 
 function itemBlocksSave(item: PresentationMediaDraft): boolean {
-  return item.uploadState === "uploading" || item.uploadState === "error";
+  return (
+    item.uploadState === "uploading" || item.uploadState === "error" || Boolean(item.itemError)
+  );
 }
 
 async function readUploadResponse(
@@ -172,9 +195,26 @@ function validationMessage(
       item.kind !== "youtube" &&
       !isUploadedMediaUrl(item.url) &&
       !isGithubRawUrl(item.url) &&
+      !isExternalMediaUrl(item.url) &&
       (item.localPreview || item.uploadState === "idle"),
   );
   return missingUpload ? labels.uploadRequired : labels.invalid;
+}
+
+function localFieldErrors(
+  items: PresentationMediaDraft[],
+  labels: PresentationFormLabels,
+): Record<string, string> {
+  return Object.fromEntries(
+    items.flatMap((item, index) => {
+      if (item.itemError) return [[`media.${index}.url`, item.itemError]];
+      if (item.uploadState === "uploading") {
+        return [[`media.${index}.url`, labels.uploadInProgress]];
+      }
+      if (!mediaValid(item)) return [[`media.${index}.url`, labels.uploadRequired]];
+      return [];
+    }),
+  );
 }
 
 async function runUpload(
@@ -201,7 +241,7 @@ async function runUpload(
 
   try {
     const response = await fetch(
-      `/api/objects/component/${encodeURIComponent(ctx.stableId)}/media`,
+      `/api/objects/${ctx.objectKind}/${encodeURIComponent(ctx.stableId)}/media`,
       {
         method: "POST",
         headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -233,7 +273,9 @@ async function runUpload(
   }
 }
 
+// eslint-disable-next-line max-lines-per-function
 export function useObjectPresentationForm(input: {
+  objectKind?: "component" | "setup" | undefined;
   locale: string;
   stableId: string;
   csrfToken: string;
@@ -241,13 +283,23 @@ export function useObjectPresentationForm(input: {
   initialMedia: OwnerPresentationMedia[];
   labels: PresentationFormLabels;
 }) {
-  const { locale, stableId, csrfToken, initialBio, initialMedia, labels } = input;
+  const {
+    objectKind = "component",
+    locale,
+    stableId,
+    csrfToken,
+    initialBio,
+    initialMedia,
+    labels,
+  } = input;
   const [bio, setBio] = useState(initialBio);
   const [media, setMedia] = useState<PresentationMediaDraft[]>(() =>
     initialMedia.length > 0 ? initialMedia.map(fromInitial) : [emptyItem()],
   );
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, startSaveTransition] = useTransition();
   // Assigned after commit, not during render: the unmount cleanup below reads
   // it to revoke object URLs, and a discarded render must not decide which
@@ -271,12 +323,20 @@ export function useObjectPresentationForm(input: {
   }
 
   function patchMedia(index: number, patch: Partial<PresentationMediaDraft>) {
+    setFieldErrors((current) => {
+      return Object.fromEntries(
+        Object.entries(current).filter(
+          ([key]) => !key.startsWith(`media.${index}.`) && !key.startsWith(`media[${index}]`),
+        ),
+      );
+    });
     setMedia((items) =>
       items.map((item, itemIndex) => (itemIndex === index ? mergeItem(item, patch) : item)),
     );
   }
 
   const uploadCtx: UploadCtx = {
+    objectKind,
     stableId,
     labels,
     mediaRef,
@@ -294,6 +354,7 @@ export function useObjectPresentationForm(input: {
     if (reason === "unsupported" || reason === "size") {
       const messageText = reason === "size" ? labels.sizeExceeded : labels.unsupportedType;
       setError(messageText);
+      setFieldErrors((current) => ({ ...current, [`media.${index}.url`]: messageText }));
       patchMediaByKey(item.clientKey, {
         uploadState: "error",
         itemError: messageText,
@@ -304,6 +365,7 @@ export function useObjectPresentationForm(input: {
     const kind = kindFromMime(file.type);
     if (!kind) {
       setError(labels.unsupportedType);
+      setFieldErrors((current) => ({ ...current, [`media.${index}.url`]: labels.unsupportedType }));
       patchMediaByKey(item.clientKey, {
         uploadState: "error",
         itemError: labels.unsupportedType,
@@ -327,28 +389,37 @@ export function useObjectPresentationForm(input: {
 
   function save() {
     setError(null);
+    setErrorCode(null);
+    setFieldErrors({});
     setMessage("");
     const items = mediaRef.current;
     if (items.some(itemBlocksSave) || !items.every(mediaValid)) {
       setError(validationMessage(items, labels));
+      setErrorCode("CLIENT_VALIDATION_ERROR");
+      setFieldErrors(localFieldErrors(items, labels));
       return;
     }
     startSaveTransition(async () => {
-      const payload = mediaRef.current.map(({ kind, url, alt, caption }) => ({
-        kind,
-        url,
-        alt: alt.trim(),
-        caption: caption.trim(),
-      }));
+      const payload = mediaRef.current
+        .filter((item) => item.url || item.localPreview || item.pendingFile)
+        .map(({ kind, url, alt, caption }) => ({
+          kind,
+          url,
+          alt: alt.trim(),
+          caption: caption.trim(),
+        }));
       const result = await updateObjectPresentationAction({
         csrfToken,
         stableId,
+        objectKind,
         locale,
         bio,
         media: payload,
       });
       if (result.ok) {
         setMessage(labels.saved);
+        setFieldErrors({});
+        setErrorCode(null);
         setMedia((current) =>
           current.map((item) => ({
             ...item,
@@ -359,6 +430,8 @@ export function useObjectPresentationForm(input: {
         );
       } else {
         setError(result.message || labels.saveFailed);
+        setErrorCode(result.code);
+        setFieldErrors(result.fieldErrors);
       }
     });
   }
@@ -369,7 +442,14 @@ export function useObjectPresentationForm(input: {
 
   return {
     bio,
-    setBio,
+    setBio: (value: string) => {
+      setBio(value);
+      setFieldErrors((current) => {
+        const next = { ...current };
+        delete next.bio;
+        return next;
+      });
+    },
     media,
     saving,
     uploading,
@@ -377,6 +457,8 @@ export function useObjectPresentationForm(input: {
     canSave,
     message,
     error,
+    errorCode,
+    fieldErrors,
     previewSrc,
     patchMedia,
     addMedia: () => {

@@ -55,4 +55,26 @@ describe("ObjectVersionHistory", () => {
     await user.click(screen.getByRole("button", { name: /Version history/ }));
     expect(screen.getByText("No offered versions.")).toBeVisible();
   });
+
+  it("renders the newest version first", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ObjectVersionHistory
+        title="Version history"
+        note="Gaps are intentional."
+        currentLabel="Current"
+        emptyLabel="No offered versions."
+        hrefFor={(version) => `/versions/${version}`}
+        versions={["1.1", "1.3", "1.2"].map((version) => ({
+          version,
+          lifecycle: "active",
+          support: { state: "verified" },
+        }))}
+        current="1.3"
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Version history/ }));
+    const links = [...container.querySelectorAll("a")].map((link) => link.textContent);
+    expect(links).toEqual(["v1.3", "v1.2", "v1.1"]);
+  });
 });

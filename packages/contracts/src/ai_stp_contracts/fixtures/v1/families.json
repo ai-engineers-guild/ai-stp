@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "readSetupFamily.publicMembers",
+      "operation_id": "readSetupFamily",
+      "kind": "positive",
+      "why": "A public family lists only accessible members and is never an installable catalog object.",
+      "request": {
+        "path_params": {
+          "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "fixture-family",
+        "baseline": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe"
+        },
+        "current_member": null,
+        "members": [
+          {
+            "schema_version": 1,
+            "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "harness_id": "claude-code",
+            "latest_version": "1.0",
+            "exact_version": "1.0",
+            "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+            "alignment": "unknown",
+            "ported_from": null
+          }
+        ],
+        "created_from": "owner"
+      }
+    },
+    {
+      "case_id": "readOwnerSetupFamily.detail",
+      "operation_id": "readOwnerSetupFamily",
+      "kind": "positive",
+      "why": "The owner family read adds revision, diagnostics and allowed actions without naming inaccessible members.",
+      "request": {
+        "path_params": {
+          "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "fixture-family",
+        "baseline": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe"
+        },
+        "current_member": null,
+        "members": [
+          {
+            "schema_version": 1,
+            "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "harness_id": "claude-code",
+            "latest_version": "1.0",
+            "exact_version": "1.0",
+            "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+            "alignment": "unknown",
+            "ported_from": null
+          }
+        ],
+        "created_from": "owner",
+        "revision": 1,
+        "diagnostics": [],
+        "allowed_actions": [
+          "update_name",
+          "change_baseline",
+          "add_member",
+          "remove_member"
+        ]
+      }
+    },
+    {
+      "case_id": "createOwnerSetupFamily.created",
+      "operation_id": "createOwnerSetupFamily",
+      "kind": "positive",
+      "why": "Authorized family creation binds an exact baseline that is one of the members.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "name": "fixture-family",
+          "baseline": {
+            "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "1.0",
+            "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe"
+          },
+          "members": [
+            "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "setup_01JQZK7B8N4M6P2R9T5V0X3YC1"
+          ],
+          "expected_revision": 0,
+          "idempotency_key": "family-create-0001",
+          "reason": "owner_create"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "fixture-family",
+        "baseline": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe"
+        },
+        "current_member": null,
+        "members": [
+          {
+            "schema_version": 1,
+            "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "harness_id": "claude-code",
+            "latest_version": "1.0",
+            "exact_version": "1.0",
+            "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+            "alignment": "unknown",
+            "ported_from": null
+          },
+          {
+            "schema_version": 1,
+            "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3YC1",
+            "harness_id": "codex",
+            "latest_version": "1.0",
+            "exact_version": "1.0",
+            "passport_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "alignment": "unknown",
+            "ported_from": null
+          }
+        ],
+        "created_from": "owner",
+        "revision": 1,
+        "diagnostics": [],
+        "allowed_actions": [
+          "update_name",
+          "change_baseline",
+          "add_member",
+          "remove_member"
+        ]
+      }
+    },
+    {
+      "case_id": "patchOwnerSetupFamily.rename",
+      "operation_id": "patchOwnerSetupFamily",
+      "kind": "positive",
+      "why": "A family patch at the expected revision changes the name and appends one audit revision.",
+      "request": {
+        "path_params": {
+          "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 1,
+          "idempotency_key": "family-patch-0001",
+          "name": "fixture-family-renamed",
+          "reason": "owner_update"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "fixture-family-renamed",
+        "baseline": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe"
+        },
+        "current_member": null,
+        "members": [
+          {
+            "schema_version": 1,
+            "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "harness_id": "claude-code",
+            "latest_version": "1.0",
+            "exact_version": "1.0",
+            "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
+            "alignment": "unknown",
+            "ported_from": null
+          }
+        ],
+        "created_from": "owner",
+        "revision": 2,
+        "diagnostics": [],
+        "allowed_actions": [
+          "update_name",
+          "change_baseline",
+          "add_member",
+          "remove_member"
+        ]
+      }
+    },
+    {
+      "case_id": "ingestTargetAssessment.accepted",
+      "operation_id": "ingestTargetAssessment",
+      "kind": "positive",
+      "why": "Staff evidence binds the full target key and does not let an author issue verification.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "identity": {
+            "component_stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "1.2",
+            "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
+            "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+            "harness_id": "claude-code",
+            "scope": "global",
+            "projection_artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "provider_id": "claude-code",
+            "provider_version": "1.0",
+            "surface_profile_id": "claude-code/fixture/1",
+            "surface_profile_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "target_scope": "global",
+            "harness_version": "2.1.0",
+            "operating_system": "linux",
+            "architecture": "x86_64",
+            "policy_version": "1"
+          },
+          "stored_state": "verified",
+          "observations": [],
+          "compatibility_result": "passed",
+          "reason_code": null,
+          "evidence_refs": [
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ],
+          "observed_at": "2026-09-06T00:00:00.000Z",
+          "expires_at": "2026-12-06T00:00:00.000Z",
+          "idempotency_key": "target-assessment-01"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "target_key_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "stored_state": "verified",
+        "effective_state": "verified",
+        "created": true
+      }
+    },
+    {
+      "case_id": "readSetupFamily.unknown",
+      "operation_id": "readSetupFamily",
+      "kind": "rejected_request",
+      "why": "An unknown family id is not-found, not an empty member list that would enumerate absence.",
+      "request": {
+        "path_params": {
+          "family_id": "family_01JQZK7B8N4M6P2R9T5V0X3Y70"
+        }
+      },
+      "status": 404,
+      "error_code": "AI_STP_NOT_FOUND"
+    }
+  ]
+}

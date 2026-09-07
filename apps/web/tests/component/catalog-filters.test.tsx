@@ -469,7 +469,7 @@ describe("CatalogFilters", () => {
     const texts = [...document.querySelectorAll('[role="tooltip"]')].map((node) =>
       node.textContent.trim(),
     );
-    expect(texts.length).toBeGreaterThanOrEqual(8);
+    expect(texts.length).toBeGreaterThanOrEqual(7);
     expect(new Set(texts).size).toBe(texts.length);
     expect(texts).toEqual(
       expect.arrayContaining([

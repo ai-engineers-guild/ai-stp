@@ -12,7 +12,8 @@ plans are not continued literally after the implementation changes.
 The remaining-work owner tracks current `main`. Recast file identity, modes,
 scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 `#151` (transform `1.3`). Shared `cli` prefix containment landed in `#152`.
-`#146` tracks platform closure mismatches. Merged PRs are not the OBT release.
+The `#146`/`#155` platform closeout is implemented in this tree; GitHub issue
+state remains a separate maintainer action. Merged PRs are not the OBT release.
 
 ## September 7 audit and execution order
 
@@ -90,7 +91,7 @@ follow from finding an incomplete deployed user flow.
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven provider integrations with native configuration, backup/recovery and software lifecycle interfaces. Current consumer contracts still name protocol v3; per-provider launch completeness requires G4/G5 evidence. |
 | Release | Recorded published line is `0.0.18` as one `ai-stp-cli` wheel (`ADR-0146`, tag `v0.0.18`); GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Current release qualification and deployed state require exact-SHA evidence, not this row. |
-| Catalog | The canonical first-party corpus models seven harness families and four postures. Development bootstrap loads its exact passports and retrievable artifacts; production keeps the ordinary publication path. Startup rebuilds derived search rows from the current registry. Remaining assessment/matrix consumers are tracked by `#146` / `#155`. |
+| Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
 ## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut
@@ -238,13 +239,17 @@ for the new standard family.
 
 ### OBT remaining — platform/web
 
-| Issue | State | Implementation and remaining evidence |
+The platform closeout for #146/#155 is implemented in the current tree. This
+table keeps only the remaining work and records the evidence boundary for the
+completed rows:
+
+| Issue | State | Remaining for the colleague |
 |---|---|---|
 | `#100` | open | PyPI distribution leftovers (delete the five former internal index projects). CLI install path is already `uv tool install ai-stp-cli`. |
-| `#125` → `#146` | implemented | Source validation and ORM use the canonical component kinds. Migration `0048` adds `cli` to the persisted constraint; the PostgreSQL regression preserves it as a standalone kind. |
-| `#127` → `#146` | implemented | `load_first_party_seed` consumes the canonical corpus, checks exact graph/digests and writes retrievable bytes. Frozen Sprint-1 fixtures live in test support. Reseeding preserves private/blocked state and refuses conflicting immutable versions. Production seeding is not a publication bypass. |
-| `#111` `#112` → `#146` | closed in GitHub; cited implementation is insufficient | Locate the actual assessment persistence/migration and per-harness matrix implementation, then complete the current server/web consumers. |
-| `#155` | open | Persist per-adaptation assessments from CLI coordinates. Do not collapse `component_verified` from the first projection. No catalog `portability_claim`. |
+| `#125` → `#146` | closeout implemented; GitHub status is maintained separately | Canonical component taxonomy includes `cli` and continues to reject `marketplace`; migration `0033` remains unchanged. |
+| `#127` → `#146` | closeout implemented; GitHub status is maintained separately | Fixture seeding remains dev/test only; canonical first-party publication uses the authenticated publication tool and requires catalog/object-store readback and setup provenance evidence. |
+| `#111` `#112` → `#146` | closeout implemented; GitHub status is maintained separately | Exact adaptation/scope assessments, worker projection scans, target matrix, and exact-only harness filters are owned by the current platform path. |
+| `#155` | implemented in current platform closeout | Public catalog is exact-only; assessment identity is server-validated and target-bound; latest is atomic; recommendations mean current verified full-auto eligibility. |
 | `#117` `#118` | source repairs present | Cache admission/freshness and shared in-flight task ownership changed. Preserve the regression tests; do not infer all platform work completed from these two fixes. |
 | `#139` | web remaining | Canonical seed preserves `ported_from` and `related_setup_ids`. Setup detail still needs to present their actual values; generated types already carry them. |
 | `#140` | implemented | Search rebuild derives tiers from the shared registry and no longer invents `primary`. Bootstrap rebuilds existing rows; web harness/type facets derive from generated contracts and fixture defaults are all-beta. `primary` remains a valid empty OBT filter. |
@@ -276,8 +281,8 @@ closed or forbade. Those findings are not re-opened here:
 | Provider-owned multi-root commit (LAY-002) | Superseded by `ADR-0145` / SPEC-058: the consumer owns a recoverable transaction over unchanged provider v3 (one target). |
 | PyPI as the default provider channel (PYP-002) | Not claimed. GitHub attested releases remain the default until six-leg evidence exists for the index path. |
 | Public provider disclosure (PUB-001/002) | Owned by the provider estate, not this consumer. Public documentation remains self-contained. |
-| Persist adaptation assessments (CMP-003) | Closure not established by PR `#122`; platform follow-up `#146` retains the requirement from `#111`. |
-| Catalog/web per-harness matrix (CMP-004) | Closure not established by PR `#122`; platform follow-up `#146` retains the requirement from `#112`. |
+| Persist adaptation assessments (CMP-003) | Implemented by the target-bound assessment history/latest model and migration `0050`; PostgreSQL concurrency evidence is required at release time. |
+| Catalog/web per-harness matrix (CMP-004) | Implemented by exact adaptation target matrices and exact-only harness filters; aggregate fields remain compatibility-only. |
 | Scaffold v5 (SCA-001) | Historical milestone, superseded by the `/6` writer below: `source/AGENTS.md` canon, generated `projections/<harness>/` in the native layout, no speculative adaptation document, no invented passport tags, and one reported Git root. |
 | Portable hook handler (`#116`) | Done: `component-scaffold/6` writes the derived closed-set manifest and runnable handler under `source/` for portable hooks; `/5` remains validatable. `setup-scaffold/5` embeds `/6`. |
 | Authoring freeze (SCA-004) | Done: `setup-scaffold/5` points nested members at `projections/<harness>` with `managed_paths`; compose and `component version release` refuse `TODO(ai-stp-scaffold):` markers and freeze a content-addressed `ComponentAdaptation` on the exact provider surface. |

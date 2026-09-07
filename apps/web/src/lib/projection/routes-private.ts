@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { listDevices } from "@/lib/api/devices";
 import { listGrants } from "@/lib/api/grants";
-import { listOwnReports } from "@/lib/api/reports";
+import { listOwnReports, readOwnReport } from "@/lib/api/reports";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { privacyFieldsFromAccount, readAccount } from "@/lib/api/account";
 import { previewOwnerPublicProfile, readOwnerPublicProfile } from "@/lib/api/public-profile";
@@ -248,6 +248,30 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
           vulnerability: tm("vulnerability"),
           createdAt: tm("createdAt"),
         },
+      });
+    },
+  },
+  {
+    pattern: "reports/:caseId",
+    resolve: async ({ segments }) => {
+      const t = await getTranslations("reports");
+      const tm = await getTranslations("machineDoc");
+      const detail = await orNotFound(
+        readOwnReport((await sessionCookieValue()) ?? "", segments[1] ?? ""),
+      );
+      if (!detail) return null;
+      return presentPage({
+        title: t("caseDetails"),
+        fields: [
+          [tm("caseId"), detail.case_id],
+          [tm("state"), detail.state],
+          [tm("objectKind"), detail.object_kind || "-"],
+          [tm("stableId"), detail.stable_id || "-"],
+          [tm("version"), detail.version || "-"],
+          [tm("vulnerability"), detail.vulnerability ? "true" : "false"],
+          [tm("createdAt"), detail.created_at],
+        ],
+        links: [["Reports", "/reports"]],
       });
     },
   },

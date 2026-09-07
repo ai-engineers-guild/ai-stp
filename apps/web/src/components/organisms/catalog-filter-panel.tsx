@@ -53,11 +53,13 @@ export function CatalogFilterPanel({
   labels,
   services,
   locale = "en",
+  hideAuthorFilter = false,
 }: {
   query: ParsedCatalogQuery;
   labels: CatalogFilterPanelLabels;
   services: ExternalProduct[];
   locale?: string;
+  hideAuthorFilter?: boolean;
 }) {
   const unspecifiedLabel = labels.unspecifiedOption ?? "Not specified";
   const [countryCodes, setCountryCodes] = useState(() => {
@@ -149,22 +151,24 @@ export function CatalogFilterPanel({
                 : []
           }
         />
-        <label className="min-w-0 space-y-2 text-sm">
-          <span className="flex min-w-0 items-center gap-1 font-medium">
-            {labels.authorFilter}
-            <Help
-              label={labels.filterHelpLabel}
-              text={labels.authorFilterHelp ?? labels.filterHelpBody}
+        {hideAuthorFilter ? null : (
+          <label className="min-w-0 space-y-2 text-sm">
+            <span className="flex min-w-0 items-center gap-1 font-medium">
+              {labels.authorFilter}
+              <Help
+                label={labels.filterHelpLabel}
+                text={labels.authorFilterHelp ?? labels.filterHelpBody}
+              />
+            </span>
+            <input
+              name="authors"
+              type="search"
+              aria-label={labels.authorFilter}
+              className={selectClassName}
+              defaultValue={query.authors.join(", ")}
             />
-          </span>
-          <input
-            name="authors"
-            type="search"
-            aria-label={labels.authorFilter}
-            className={selectClassName}
-            defaultValue={query.authors.join(", ")}
-          />
-        </label>
+          </label>
+        )}
         <UpdatedRangeFields
           labels={labels}
           updatedFrom={updatedFrom}

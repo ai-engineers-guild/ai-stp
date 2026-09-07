@@ -83,6 +83,19 @@ The third copy of the projection table no longer exists. It was located in `ai_s
 
 The imported data owner is `ai_stp_contracts.first_party`. It supplies exact bytes of artifacts, full sealed passports, and their hashes in a single set and is used by both parties instead of independent copies. `catalog_identity(harness, posture)` is the compact catalog projection of those identities (`ADR-0156`): setup id, version, passport digest, and per-component stable id, version, passport digest, and adaptation id. It does not mint identifiers.
 
-## Unclosed integration
+## Publication integration
 
-The server is seeding **not this chassis**: `load_first_party_seed` distributes the manually written Sprint-1 set, while `ai_stp_contracts.first_party.CORPUS` is not imported by anything into `apps/` — `#374` owns this. As long as this is the case, `#162` remains open: a match between CLI and web must be proven on a single published version, not inferred from a local fixture.
+`load_first_party_seed()` remains dev/test fixture scaffolding and is gated by
+the fixture seed environment. It is not the production publication path.
+`apps/cli/tools/first_party_launch_publication.py` is the canonical operator
+workflow: it creates an authenticated plan from the exact corpus bytes, binds
+the exact artifact, confirms the plan, waits for publication, and resumes by
+the saved corpus digest and idempotency keys. Components are always processed
+before setups, and a setup is confirmed only after its exact component pins are
+published.
+
+The closeout oracle must read the published component and setup back through the
+catalog service, read their artifact bytes through the normal object-store path,
+and compare stable IDs, versions, passport/adaptation digests, artifact bytes,
+and setup provenance with `ai_stp_contracts.first_party`. A fixture seed is not
+evidence for that oracle and must never run in production or staging.

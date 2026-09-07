@@ -1,5 +1,9 @@
 {
   "$defs": {
+    "AdaptationId": {
+      "pattern": "^adaptation_[0-9a-f]{64}$",
+      "type": "string"
+    },
     "ArtifactRef": {
       "additionalProperties": false,
       "description": "Content-addressed artifact bytes: digest and size.",
@@ -21,6 +25,15 @@
       ],
       "title": "ArtifactRef",
       "type": "object"
+    },
+    "AssessmentState": {
+      "enum": [
+        "not_verified",
+        "verified",
+        "failed",
+        "stale"
+      ],
+      "type": "string"
     },
     "BoundedNativeId": {
       "maxLength": 512,
@@ -660,6 +673,139 @@
       "title": "EnvVarRequirement",
       "type": "object"
     },
+    "ExactTargetRow": {
+      "additionalProperties": true,
+      "description": "One exact adaptation/scope row in the public harness matrix.",
+      "properties": {
+        "adaptation_id": {
+          "$ref": "#/$defs/AdaptationId"
+        },
+        "assessment_state": {
+          "$ref": "#/$defs/AssessmentState",
+          "default": "not_verified"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/PublicEvidenceRef"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "implementation_mode": {
+          "$ref": "#/$defs/ImplementationMode"
+        },
+        "kind": {
+          "const": "exact",
+          "default": "exact",
+          "title": "Kind",
+          "type": "string"
+        },
+        "permissions_summary": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Permissions Summary",
+          "type": "array"
+        },
+        "projection_kind": {
+          "$ref": "#/$defs/ProjectionKind"
+        },
+        "recommendation": {
+          "$ref": "#/$defs/RecommendationState",
+          "default": "ineffective"
+        },
+        "safety_checks": {
+          "items": {
+            "$ref": "#/$defs/SafetyCheckEntry"
+          },
+          "title": "Safety Checks",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "$ref": "#/$defs/TargetScope"
+        },
+        "semantic_losses": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Semantic Losses",
+          "type": "array"
+        },
+        "supported_arch": {
+          "items": {
+            "$ref": "#/$defs/SupportedArch"
+          },
+          "title": "Supported Arch",
+          "type": "array"
+        },
+        "supported_os": {
+          "items": {
+            "$ref": "#/$defs/SupportedOs"
+          },
+          "title": "Supported Os",
+          "type": "array"
+        },
+        "technical_support": {
+          "$ref": "#/$defs/TechnicalSupport"
+        },
+        "technical_support_reason": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technical Support Reason"
+        }
+      },
+      "required": [
+        "adaptation_id",
+        "assessment_state",
+        "evidence_refs",
+        "freshness",
+        "harness_id",
+        "implementation_mode",
+        "kind",
+        "permissions_summary",
+        "projection_kind",
+        "recommendation",
+        "safety_checks",
+        "schema_version",
+        "scope",
+        "semantic_losses",
+        "supported_arch",
+        "supported_os",
+        "technical_support",
+        "technical_support_reason"
+      ],
+      "title": "ExactTargetRow",
+      "type": "object"
+    },
     "Fact": {
       "additionalProperties": true,
       "description": "One passport fact: value, provenance axes and bounded source links.",
@@ -1054,11 +1200,71 @@
       "title": "ProviderSurfaceRef",
       "type": "object"
     },
+    "PublicEvidenceRef": {
+      "additionalProperties": true,
+      "description": "Allowlisted public evidence pointer. No storage keys or raw reports.",
+      "properties": {
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "enum": [
+            "policy",
+            "profile",
+            "digest",
+            "url"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "value": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expires_at",
+        "kind",
+        "observed_at",
+        "value"
+      ],
+      "title": "PublicEvidenceRef",
+      "type": "object"
+    },
     "PublicLifecycle": {
       "enum": [
         "active",
         "deprecated",
         "blocked"
+      ],
+      "type": "string"
+    },
+    "RecommendationState": {
+      "enum": [
+        "recommended",
+        "not_recommended",
+        "ineffective"
       ],
       "type": "string"
     },
@@ -1485,6 +1691,31 @@
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "type": "string"
     },
+    "TargetMatrix": {
+      "additionalProperties": true,
+      "description": "Detail/version projection of exact published adaptations.",
+      "properties": {
+        "exact": {
+          "items": {
+            "$ref": "#/$defs/ExactTargetRow"
+          },
+          "title": "Exact",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "exact",
+        "schema_version"
+      ],
+      "title": "TargetMatrix",
+      "type": "object"
+    },
     "TargetScope": {
       "enum": [
         "global",
@@ -1587,6 +1818,9 @@
     "support": {
       "$ref": "#/$defs/CatalogSupport"
     },
+    "target_matrix": {
+      "$ref": "#/$defs/TargetMatrix"
+    },
     "trust": {
       "$ref": "#/$defs/CatalogTrust"
     },
@@ -1610,6 +1844,7 @@
     "published_at",
     "schema_version",
     "support",
+    "target_matrix",
     "trust",
     "usage_metrics"
   ],

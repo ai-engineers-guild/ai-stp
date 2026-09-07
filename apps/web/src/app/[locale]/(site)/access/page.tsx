@@ -9,16 +9,21 @@ import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ object_kind?: string; stable_id?: string }>;
 };
 
-export default async function AccessPage({ params }: PageProps) {
+export default async function AccessPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/access`);
   const t = await getTranslations("access");
   const tc = await getTranslations("common");
   const token = await sessionCookieValue();
   const csrf = await readCsrfToken();
+  const objectKind =
+    sp.object_kind === "setup" || sp.object_kind === "component" ? sp.object_kind : undefined;
+  const stableId = sp.stable_id?.trim() || undefined;
 
   let grants;
   try {
@@ -40,6 +45,12 @@ export default async function AccessPage({ params }: PageProps) {
         <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground max-w-2xl text-sm">{t("subtitle")}</p>
       </div>
+      {objectKind && stableId ? (
+        <div className="border-border bg-muted/20 rounded-lg border p-4">
+          <p className="text-sm font-medium">{t("objectContext")}</p>
+          <p className="text-muted-foreground mt-1 font-mono text-xs break-all">{stableId}</p>
+        </div>
+      ) : null}
       <AccessWorkspace
         invitations={grants.invitations}
         grants={grants.grants}
@@ -65,7 +76,12 @@ export default async function AccessPage({ params }: PageProps) {
           confirm: tc("confirm"),
           cancel: tc("cancel"),
           referenceId: tc("referenceId"),
+          objectContext: t("objectContext"),
+          objectContextHint: t("objectContextHint"),
+          githubNote: t("githubNote"),
         }}
+        initialObjectKind={objectKind}
+        initialStableId={stableId}
       />
     </div>
   );

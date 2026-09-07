@@ -2,9 +2,10 @@ const RICKROLL_ID = "dQw4w9WgXcQ";
 
 export function NotFoundRickroll({ label }: { label: string }) {
   return (
-    <div className="aspect-video w-full overflow-hidden rounded-lg">
+    <div className="border-border bg-card aspect-video w-full overflow-hidden rounded-lg border">
       <iframe
-        src={`https://www.youtube-nocookie.com/embed/${RICKROLL_ID}?autoplay=1&mute=0&controls=1`}
+        suppressHydrationWarning
+        src={`https://www.youtube-nocookie.com/embed/${RICKROLL_ID}?autoplay=1&mute=1&controls=1`}
         title={label}
         allow="autoplay; encrypted-media; picture-in-picture"
         referrerPolicy="strict-origin-when-cross-origin"

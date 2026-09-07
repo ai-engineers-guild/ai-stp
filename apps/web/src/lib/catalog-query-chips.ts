@@ -19,6 +19,9 @@ export function countAppliedFilters(query: ParsedCatalogQuery): number {
   n += (query.serviceDomains?.length ?? 0) + (query.countryCodes?.length ?? 0);
   if (query.updatedFrom) n += 1;
   if (query.updatedTo) n += 1;
+  if (query.familyId) n += 1;
+  if (query.familyAlignment) n += 1;
+  if (query.memberHarnessId) n += 1;
   if (!query.includeExperimental) n += 1;
   return n;
 }
@@ -183,5 +186,21 @@ export function appliedFilterChips(query: ParsedCatalogQuery): AppliedFilterChip
       without: { ...query, includeExperimental: true, cursor: undefined },
     });
   }
+  appendCompatibilityAndFamilyChips(chips, query);
   return chips.map((chip) => ({ ...chip, without: resetCatalogPage(chip.without) }));
+}
+
+function appendCompatibilityAndFamilyChips(chips: AppliedFilterChip[], query: ParsedCatalogQuery) {
+  if (query.familyId) {
+    const { familyId, ...rest } = query;
+    chips.push({ key: "family_id", label: familyId, without: rest });
+  }
+  if (query.familyAlignment) {
+    const { familyAlignment, ...rest } = query;
+    chips.push({ key: "family_alignment", label: familyAlignment, without: rest });
+  }
+  if (query.memberHarnessId) {
+    const { memberHarnessId, ...rest } = query;
+    chips.push({ key: "member_harness_id", label: memberHarnessId, without: rest });
+  }
 }

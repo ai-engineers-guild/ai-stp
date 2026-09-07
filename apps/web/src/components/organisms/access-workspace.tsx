@@ -37,6 +37,9 @@ type Labels = {
   confirm: string;
   cancel: string;
   referenceId: string;
+  objectContext?: string;
+  objectContextHint?: string;
+  githubNote?: string;
 };
 
 type AccessWorkspaceProps = {
@@ -44,6 +47,8 @@ type AccessWorkspaceProps = {
   grants: readonly AccessGrantResponse[];
   csrfToken: string;
   labels: Labels;
+  initialObjectKind?: "component" | "setup" | undefined;
+  initialStableId?: string | undefined;
 };
 
 function Field({
@@ -82,9 +87,13 @@ function InviteForm({
   labels,
   pending,
   onCreate,
+  initialObjectKind,
+  initialStableId,
 }: {
   labels: Labels;
   pending: boolean;
+  initialObjectKind?: "component" | "setup" | undefined;
+  initialStableId?: string | undefined;
   onCreate: (input: {
     recipientKind: "verified_email" | "github_username" | "user_id";
     recipient: string;
@@ -97,9 +106,9 @@ function InviteForm({
   const [recipientKind, setRecipientKind] = useState<
     "verified_email" | "github_username" | "user_id"
   >("verified_email");
-  const [stableId, setStableId] = useState("");
+  const [stableId, setStableId] = useState(initialStableId ?? "");
   const [major, setMajor] = useState("1");
-  const [kind, setKind] = useState<"component" | "setup">("component");
+  const [kind, setKind] = useState<"component" | "setup">(initialObjectKind ?? "component");
   return (
     <section className="border-border mx-auto max-w-lg space-y-3 rounded-lg border p-4">
       <h2 className="text-lg font-medium tracking-tight">{labels.create}</h2>
@@ -140,6 +149,7 @@ function InviteForm({
           id="invite-kind"
           className="border-input bg-background h-9 w-full rounded-sm border px-2 text-sm"
           value={kind}
+          disabled={Boolean(initialObjectKind)}
           onChange={(event) => {
             setKind(event.target.value as "component" | "setup");
           }}
@@ -155,6 +165,12 @@ function InviteForm({
         onChange={setStableId}
         mono
       />
+      {initialObjectKind ? (
+        <p className="text-muted-foreground text-xs">{labels.objectContextHint}</p>
+      ) : null}
+      {recipientKind === "github_username" ? (
+        <p className="text-muted-foreground text-xs">{labels.githubNote}</p>
+      ) : null}
       <Field id="invite-major" label={labels.major} value={major} onChange={setMajor} mono />
       <Button
         type="button"
@@ -176,7 +192,15 @@ function InviteForm({
   );
 }
 
-export function AccessWorkspace({ invitations, grants, csrfToken, labels }: AccessWorkspaceProps) {
+// eslint-disable-next-line max-lines-per-function
+export function AccessWorkspace({
+  invitations,
+  grants,
+  csrfToken,
+  labels,
+  initialObjectKind,
+  initialStableId,
+}: AccessWorkspaceProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [operationId, setOperationId] = useState<string | null>(null);
@@ -208,6 +232,8 @@ export function AccessWorkspace({ invitations, grants, csrfToken, labels }: Acce
       <InviteForm
         labels={labels}
         pending={pending}
+        initialObjectKind={initialObjectKind}
+        initialStableId={initialStableId}
         onCreate={(input) => {
           run(() =>
             input.recipientKind === "verified_email"
@@ -229,6 +255,12 @@ export function AccessWorkspace({ invitations, grants, csrfToken, labels }: Acce
           );
         }}
       />
+
+      {initialObjectKind && initialStableId ? (
+        <p className="text-muted-foreground -mt-4 text-sm">
+          {labels.objectContext}: <span className="font-mono">{initialStableId}</span>
+        </p>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-lg font-medium tracking-tight">{labels.invitations}</h2>

@@ -201,6 +201,8 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
     unlike: t("unlike"),
     likeMenu: t("likeMenu"),
     unlikeMenu: t("unlikeMenu"),
+    assuranceCounts: t("assuranceCounts"),
+    familyMemberCount: t("familyMemberCount"),
   };
 
   let likedIds: string[] = [];

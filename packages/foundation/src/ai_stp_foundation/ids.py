@@ -26,6 +26,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "component": "component logical entity",
         "developer": "developer passport",
         "device": "device passport",
+        "family": "setup family grouping",
         "grant": "major-line access grant",
         "invite": "access grant invitation",
         "operation": "durable mutating operation",

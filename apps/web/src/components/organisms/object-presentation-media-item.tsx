@@ -1,10 +1,19 @@
 "use client";
 
-import { useId, useRef } from "react";
+/* eslint-disable max-lines */
+
+import { useId, useRef, useState } from "react";
 
 import { Button } from "@/components/atoms/button";
 import type { PresentationMediaDraft } from "@/components/organisms/use-object-presentation-form";
-import { COMPONENT_MEDIA_ACCEPT, isUploadedMediaUrl } from "@/lib/component-media";
+import {
+  COMPONENT_MEDIA_ACCEPT,
+  isExternalMediaUrl,
+  isUploadedMediaUrl,
+  kindFromMediaUrl,
+  normalizeGithubUrl,
+  normalizeYoutubeUrl,
+} from "@/lib/component-media";
 import { Icon } from "@/theme/icons";
 
 export type MediaItemLabels = {
@@ -25,17 +34,21 @@ export type MediaItemLabels = {
   sourceGithub: string;
   sourceYoutube: string;
   sourceChoice: string;
+  sourceUrl?: string;
+  urlHint?: string;
+  urlPlaceholder?: string;
   uploadedReady: string;
   itemStatusIdle: string;
   itemStatusUploading: string;
   itemStatusReady: string;
   itemStatusError: string;
   altRequired: string;
+  invalid: string;
   kindImage: string;
   kindVideo: string;
 };
 
-type SourceMode = "upload" | "github" | "youtube";
+type SourceMode = "upload" | "url";
 
 function statusLabel(
   state: PresentationMediaDraft["uploadState"],
@@ -47,45 +60,27 @@ function statusLabel(
   return labels.itemStatusIdle;
 }
 
-function isGithubRawUrlSafe(url: string): boolean {
-  return url.startsWith("https://raw.githubusercontent.com/");
-}
-
-function isYoutubeVideoIdSafe(url: string): boolean {
-  return /^[A-Za-z0-9_-]{11}$/.test(url);
-}
-
 function resolveSourceMode(item: PresentationMediaDraft): SourceMode {
-  if (item.kind === "youtube") return "youtube";
-  if (isGithubRawUrlSafe(item.url)) return "github";
-  return "upload";
+  return item.sourceMode;
 }
 
 function applySourceMode(
   item: PresentationMediaDraft,
   mode: SourceMode,
 ): Partial<PresentationMediaDraft> {
-  if (mode === "youtube") {
+  if (mode === "url") {
     return {
-      kind: "youtube",
-      url: isYoutubeVideoIdSafe(item.url) ? item.url : "",
-      localPreview: null,
+      sourceMode: "url",
+      kind: item.kind,
+      url: item.kind === "youtube" || isExternalMediaUrl(item.url) ? item.url : "",
       uploadState: "idle",
-      pendingFile: null,
-      itemError: null,
-    };
-  }
-  if (mode === "github") {
-    return {
-      kind: item.kind === "video" ? "video" : "image",
-      url: isGithubRawUrlSafe(item.url) ? item.url : "",
       localPreview: null,
-      uploadState: "idle",
       pendingFile: null,
       itemError: null,
     };
   }
   return {
+    sourceMode: "upload",
     kind: item.kind === "video" ? "video" : "image",
     url: isUploadedMediaUrl(item.url) ? item.url : "",
     uploadState: isUploadedMediaUrl(item.url) ? "ready" : "idle",
@@ -98,22 +93,74 @@ function MediaPreview(props: {
   previewSrc: string | null;
   labels: MediaItemLabels;
   uploading: boolean;
+  onPatch: (patch: Partial<PresentationMediaDraft>) => void;
 }) {
-  const { item, previewSrc, labels, uploading } = props;
+  const { item, previewSrc, labels, uploading, onPatch } = props;
+  const [mode, setMode] = useState<"image" | "video" | "error">(
+    item.kind === "video" ? "video" : "image",
+  );
+
+  const youtubeId = item.kind === "youtube" ? normalizeYoutubeUrl(item.url) : null;
+  if (youtubeId) {
+    return (
+      <iframe
+        src={`https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0`}
+        title={item.alt || labels.preview}
+        className="h-full w-full border-0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+    );
+  }
+
   if (previewSrc) {
-    if (item.kind === "video" && !previewSrc.includes("ytimg")) {
+    if (mode === "video") {
       return (
         <video
           src={previewSrc}
-          muted
           playsInline
-          loop
-          autoPlay
+          controls
+          preload="metadata"
+          aria-label={item.alt || labels.preview}
+          crossOrigin="anonymous"
+          onError={() => {
+            setMode("error");
+            onPatch({ uploadState: "error", itemError: labels.invalid });
+          }}
+          onLoadedMetadata={() => {
+            onPatch({ kind: "video", uploadState: "ready", itemError: null });
+          }}
+        >
+          <track
+            kind="captions"
+            srcLang="en"
+            label={labels.preview}
+            src="data:text/vtt,WEBVTT%0A%0A"
+          />
+        </video>
+      );
+    }
+    if (mode === "image") {
+      return (
+        <img
+          src={previewSrc}
+          alt={item.alt || ""}
           className="h-full w-full object-cover"
+          onLoad={() => {
+            onPatch({ kind: "image", uploadState: "ready", itemError: null });
+          }}
+          onError={() => {
+            if (item.kind !== "video") {
+              setMode("video");
+              onPatch({ kind: "video", uploadState: "idle", itemError: null });
+            } else {
+              setMode("error");
+              onPatch({ uploadState: "error", itemError: labels.invalid });
+            }
+          }}
         />
       );
     }
-    return <img src={previewSrc} alt={item.alt || ""} className="h-full w-full object-cover" />;
   }
   return (
     <div className="text-muted-foreground flex flex-col items-center gap-2 p-4 text-center text-xs">
@@ -199,136 +246,117 @@ function MediaMetadataFields(props: {
   labels: MediaItemLabels;
   fieldClass: string;
   sourceMode: SourceMode;
-  isYoutube: boolean;
-  showGithubField: boolean;
-  uploadedReady: boolean;
   controlsDisabled: boolean;
-  kindId: string;
   sourceModeId: string;
   urlId: string;
   altId: string;
-  captionId: string;
   onPatch: (patch: Partial<PresentationMediaDraft>) => void;
   onRemove: () => void;
   busy: boolean;
+  urlError?: string | undefined;
+  altError?: string | undefined;
+  itemError?: string | undefined;
 }) {
   const {
     item,
     labels,
     fieldClass,
     sourceMode,
-    isYoutube,
-    showGithubField,
-    uploadedReady,
     controlsDisabled,
     onPatch,
     onRemove,
     busy,
+    urlError,
+    altError,
+    itemError,
   } = props;
 
   return (
     <div className="grid gap-3">
-      <div className="space-y-1">
-        <label htmlFor={props.sourceModeId} className="text-sm font-medium">
-          {labels.sourceChoice}
-        </label>
-        <select
-          id={props.sourceModeId}
-          className={fieldClass}
-          value={sourceMode}
-          disabled={controlsDisabled}
-          onChange={(event) => {
-            onPatch(applySourceMode(item, event.target.value as SourceMode));
-          }}
-        >
-          <option value="upload">{labels.sourceUpload}</option>
-          <option value="github">{labels.sourceGithub}</option>
-          <option value="youtube">{labels.sourceYoutube}</option>
-        </select>
-      </div>
-
-      {!isYoutube ? (
-        <div className="space-y-1">
-          <label htmlFor={props.kindId} className="text-sm font-medium">
-            {labels.kind}
-          </label>
-          <select
-            id={props.kindId}
-            className={fieldClass}
-            value={item.kind === "video" ? "video" : "image"}
-            disabled={controlsDisabled || uploadedReady}
-            onChange={(event) => {
-              onPatch({ kind: event.target.value as "image" | "video" });
-            }}
-          >
-            <option value="image">{labels.kindImage}</option>
-            <option value="video">{labels.kindVideo}</option>
-          </select>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">{labels.sourceChoice}</legend>
+        <div id={props.sourceModeId} className="flex flex-wrap gap-2">
+          {(["upload", "url"] as const).map((mode) => (
+            <Button
+              key={mode}
+              type="button"
+              variant={sourceMode === mode ? "secondary" : "outline"}
+              className="min-h-11"
+              aria-pressed={sourceMode === mode}
+              disabled={controlsDisabled}
+              onClick={() => {
+                onPatch(applySourceMode(item, mode));
+              }}
+            >
+              <Icon name={mode === "upload" ? "camera" : "link"} size="sm" />
+              {mode === "upload" ? labels.sourceUpload : (labels.sourceUrl ?? labels.sourceGithub)}
+            </Button>
+          ))}
         </div>
-      ) : null}
+      </fieldset>
 
-      {isYoutube || showGithubField ? (
+      {sourceMode === "url" ? (
         <div className="space-y-1">
           <label htmlFor={props.urlId} className="text-sm font-medium">
-            {isYoutube ? labels.sourceYoutube : labels.sourceGithub}
+            {labels.sourceUrl ?? labels.sourceGithub}
             <span className="text-destructive"> *</span>
           </label>
           <input
             id={props.urlId}
-            className={fieldClass}
+            className={`${fieldClass} ${urlError || itemError ? "border-destructive focus-visible:ring-destructive" : ""}`}
             required
             maxLength={2048}
             value={item.url}
-            placeholder={isYoutube ? labels.youtubePlaceholder : labels.githubPlaceholder}
+            aria-invalid={Boolean(urlError || itemError)}
+            aria-describedby={urlError || itemError ? `${props.urlId}-error` : undefined}
+            placeholder={labels.urlPlaceholder ?? "https://…"}
             disabled={controlsDisabled}
             onChange={(event) => {
+              const value = event.target.value;
+              const youtube = normalizeYoutubeUrl(value);
+              const normalized = normalizeGithubUrl(value);
               onPatch({
-                url: event.target.value,
+                kind: kindFromMediaUrl(normalized) ?? "image",
+                url: youtube ?? normalized,
                 uploadState: "idle",
                 localPreview: null,
                 pendingFile: null,
-                itemError: null,
+                itemError:
+                  value && !youtube && !isExternalMediaUrl(normalized) ? labels.invalid : null,
+                ...(youtube ? { uploadState: "ready" as const } : {}),
               });
             }}
           />
-          <p className="text-muted-foreground text-xs">
-            {isYoutube ? labels.youtubeHint : labels.githubHint}
-          </p>
+          <p className="text-muted-foreground text-xs">{labels.urlHint ?? labels.githubHint}</p>
+          {urlError || itemError ? (
+            <p id={`${props.urlId}-error`} className="text-destructive text-xs" role="alert">
+              {urlError ?? itemError}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
       <div className="space-y-1">
         <label htmlFor={props.altId} className="text-sm font-medium">
           {labels.alt}
-          <span className="text-destructive"> *</span>
         </label>
         <input
           id={props.altId}
-          className={fieldClass}
-          required
+          className={`${fieldClass} ${altError ? "border-destructive focus-visible:ring-destructive" : ""}`}
           maxLength={240}
           value={item.alt}
-          aria-required="true"
+          aria-invalid={Boolean(altError)}
+          aria-describedby={altError ? `${props.altId}-error` : undefined}
           onChange={(event) => {
             onPatch({ alt: event.target.value });
           }}
         />
         <p className="text-muted-foreground text-xs">{labels.altRequired}</p>
-      </div>
-
-      <div className="space-y-1">
-        <label htmlFor={props.captionId} className="text-sm font-medium">
-          {labels.caption}
-        </label>
-        <input
-          id={props.captionId}
-          className={fieldClass}
-          maxLength={500}
-          value={item.caption}
-          onChange={(event) => {
-            onPatch({ caption: event.target.value });
-          }}
-        />
+        {altError ? (
+          <p id={`${props.altId}-error`} className="text-destructive text-xs" role="alert">
+            {altError}
+          </p>
+        ) : null}
       </div>
 
       <div className="pt-1">
@@ -357,12 +385,30 @@ export function MediaItemEditor(props: {
   onFile: (file: File | null) => void;
   onRetry: () => void;
   onRemove: () => void;
+  errors?:
+    | {
+        url?: string | undefined;
+        alt?: string | undefined;
+        item?: string | undefined;
+      }
+    | undefined;
 }) {
-  const { index, item, labels, fieldClass, previewSrc, busy, onPatch, onFile, onRetry, onRemove } =
-    props;
+  const {
+    index,
+    item,
+    labels,
+    fieldClass,
+    previewSrc,
+    busy,
+    onPatch,
+    onFile,
+    onRetry,
+    onRemove,
+    errors,
+  } = props;
   const baseId = useId();
   const sourceMode = resolveSourceMode(item);
-  const isYoutube = sourceMode === "youtube";
+  const isYoutube = item.kind === "youtube";
   const uploading = item.uploadState === "uploading";
   const uploadedReady =
     sourceMode === "upload" && isUploadedMediaUrl(item.url) && item.uploadState === "ready";
@@ -376,7 +422,7 @@ export function MediaItemEditor(props: {
 
   return (
     <article
-      className="border-border bg-card grid gap-4 rounded-lg border p-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:gap-5"
+      className={`${errors?.url || errors?.alt || errors?.item ? "border-destructive" : "border-border"} bg-card grid gap-4 rounded-lg border p-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:gap-5`}
       aria-labelledby={`${baseId}-status`}
     >
       <div className="space-y-3">
@@ -392,9 +438,16 @@ export function MediaItemEditor(props: {
           className="bg-muted relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-md"
           aria-label={labels.preview}
         >
-          <MediaPreview item={item} previewSrc={previewSrc} labels={labels} uploading={uploading} />
+          <MediaPreview
+            key={`${item.kind}:${previewSrc ?? ""}`}
+            item={item}
+            previewSrc={previewSrc}
+            labels={labels}
+            uploading={uploading}
+            onPatch={onPatch}
+          />
         </div>
-        {!isYoutube ? (
+        {sourceMode === "upload" && !isYoutube ? (
           <UploadActions
             baseId={baseId}
             statusId={`${baseId}-status`}
@@ -423,18 +476,16 @@ export function MediaItemEditor(props: {
         labels={labels}
         fieldClass={fieldClass}
         sourceMode={sourceMode}
-        isYoutube={isYoutube}
-        showGithubField={sourceMode === "github"}
-        uploadedReady={uploadedReady}
         controlsDisabled={controlsDisabled}
-        kindId={`${baseId}-kind`}
         sourceModeId={`${baseId}-source-mode`}
         urlId={`${baseId}-url`}
         altId={`${baseId}-alt`}
-        captionId={`${baseId}-caption`}
         onPatch={onPatch}
         onRemove={onRemove}
         busy={busy}
+        urlError={errors?.url}
+        altError={errors?.alt}
+        itemError={errors?.item}
       />
     </article>
   );

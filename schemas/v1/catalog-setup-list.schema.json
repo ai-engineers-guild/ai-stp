@@ -284,6 +284,18 @@
       "minLength": 1,
       "type": "string"
     },
+    "FamilyId": {
+      "pattern": "^family_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "FamilyMatchKind": {
+      "enum": [
+        "family",
+        "member_harness",
+        "alignment"
+      ],
+      "type": "string"
+    },
     "FindingSeverity": {
       "enum": [
         "info",
@@ -580,6 +592,41 @@
       "additionalProperties": true,
       "description": "Search-result card for a setup. A setup has no variant axis (ADR-0014).\n\n`latest_harness_id` keeps the prefix even though a setup belongs to one\nharness from creation: the value is still read out of the version passport,\nand one rule with no exceptions is cheaper to verify than a rule with one.",
       "properties": {
+        "family_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FamilyId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "family_match_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FamilyMatchKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "family_member_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Family Member Count"
+        },
         "github_stars": {
           "anyOf": [
             {
@@ -716,6 +763,9 @@
         }
       },
       "required": [
+        "family_id",
+        "family_match_kind",
+        "family_member_count",
         "github_stars",
         "latest_checks",
         "latest_description",

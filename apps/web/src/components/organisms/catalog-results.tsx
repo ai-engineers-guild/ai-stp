@@ -73,6 +73,8 @@ type CatalogLabels = {
   unlike?: string;
   likeMenu?: string;
   unlikeMenu?: string;
+  assuranceCounts?: string;
+  familyMemberCount?: string;
 };
 
 type CatalogResultsProps = {
@@ -156,6 +158,8 @@ function objectCardLabels(labels: CatalogLabels): Parameters<typeof ObjectCard>[
     unlike: labels.unlike,
     likeMenu: labels.likeMenu,
     unlikeMenu: labels.unlikeMenu,
+    assuranceCounts: labels.assuranceCounts,
+    familyMemberCount: labels.familyMemberCount,
   };
 }
 
@@ -167,14 +171,19 @@ function mixedCatalogRows({
   visible,
   pageNumber,
   setupsTotalPages,
+  componentsTotalPages,
 }: {
   visible: Array<ComponentSummary | SetupSummary>;
   pageNumber: number;
   setupsTotalPages: number | null;
+  componentsTotalPages: number | null;
 }) {
   const setupRows = visible.filter((item) => !isComponentSummary(item));
   const componentRows = visible.filter(isComponentSummary);
   if (setupsTotalPages === null) return [...setupRows, ...componentRows];
+  if (setupsTotalPages === 1 && componentsTotalPages === 1 && pageNumber === 1) {
+    return [...setupRows, ...componentRows];
+  }
   return pageNumber <= setupsTotalPages ? setupRows : componentRows;
 }
 
@@ -205,6 +214,7 @@ export function CatalogResults({
           visible,
           pageNumber,
           setupsTotalPages,
+          componentsTotalPages,
         })
       : visible;
   const gridClass =
@@ -305,7 +315,7 @@ function MixedPager({
 >) {
   const setupPages = setupsTotalPages ?? 0;
   const componentPages = componentsTotalPages ?? 0;
-  const totalPages = setupPages + componentPages;
+  const totalPages = setupPages === 1 && componentPages === 1 ? 1 : setupPages + componentPages;
   if (totalPages <= 1) return null;
   return (
     <PageNav

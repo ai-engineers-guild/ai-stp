@@ -19,6 +19,7 @@ export class ApiError extends Error {
   readonly status: number;
   readonly operationId: string | null;
   readonly requestId: string | null;
+  readonly details: Record<string, unknown>;
 
   constructor(input: {
     code: ApiErrorCode;
@@ -26,6 +27,7 @@ export class ApiError extends Error {
     status: number;
     operationId?: string | null;
     requestId?: string | null;
+    details?: Record<string, unknown>;
   }) {
     super(input.message);
     this.name = "ApiError";
@@ -33,6 +35,7 @@ export class ApiError extends Error {
     this.status = input.status;
     this.operationId = input.operationId ?? null;
     this.requestId = input.requestId ?? null;
+    this.details = input.details ?? {};
   }
 }
 
@@ -110,6 +113,10 @@ export function mapHttpError(status: number, body: unknown, headers?: Headers): 
     (typeof record["request_id"] === "string" ? record["request_id"] : null) ??
     headers?.get("x-request-id") ??
     null;
+  const details =
+    errorObj["details"] !== null && typeof errorObj["details"] === "object"
+      ? (errorObj["details"] as Record<string, unknown>)
+      : {};
   const code = codeFromBody === "AI_STP_UNKNOWN" ? codeFromStatus(status) : codeFromBody;
-  return new ApiError({ code, message, status, operationId, requestId });
+  return new ApiError({ code, message, status, operationId, requestId, details });
 }

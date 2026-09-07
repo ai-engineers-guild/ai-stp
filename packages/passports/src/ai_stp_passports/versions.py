@@ -11,14 +11,23 @@ outside these hashed bytes per SPEC-005: it never changes the snapshot.
 """
 
 import re
-from typing import Annotated, Final, Literal, cast, get_args
+from typing import Annotated, Any, Final, Literal, cast, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
+from pydantic.json_schema import JsonSchemaValue
 
 from ai_stp_foundation.adaptations import ADAPTATION_ID_PATTERN, adaptation_id
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
-from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.refs import ComponentRef, SetupRef, Version
 from ai_stp_passports.envelope import PassportEnvelope
@@ -428,8 +437,26 @@ class _VersionPassportBase(PassportEnvelope):
         return self
 
 
+def _open_wire_omitting(*omitted: str):
+    """Require every declared field except historically omitted empty dumps."""
+    skip = frozenset(omitted)
+
+    def hook(schema: JsonSchemaValue) -> None:
+        properties = schema.get("properties")
+        names: list[str] = []
+        if isinstance(properties, dict):
+            properties_map = cast(dict[str, object], properties)
+            names = [key for key in properties_map if key not in skip]
+        schema["required"] = sorted(names)
+        schema["additionalProperties"] = True
+
+    return hook
+
+
 class ComponentVersionPassport(_VersionPassportBase):
     """Immutable component version passport."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=_open_wire_omitting())
 
     # Narrowing the envelope kind to one literal is safe on a frozen model.
     kind: Literal["component"] = "component"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -450,6 +477,7 @@ class ComponentVersionPassport(_VersionPassportBase):
             "native_ids",
             "projection_kind",
             "supported_os",
+            "portability_claims",
             "variant_id",
         }
         if flat_fields.intersection(self.model_extra or {}):
@@ -457,6 +485,10 @@ class ComponentVersionPassport(_VersionPassportBase):
         harnesses = [adaptation.harness_id for adaptation in self.adaptations]
         if len(harnesses) != len(set(harnesses)):
             raise ValueError("component adaptations must not repeat a harness")
+        if len(self.adaptations) > len(HARNESS_IDS):
+            raise ValueError(
+                "a component version cannot contain more adaptations than canonical harnesses"
+            )
         if any(
             adaptation.logical_component_type != self.component_type
             for adaptation in self.adaptations
@@ -491,6 +523,12 @@ def scope_for(
 
 class SetupVersionPassport(_VersionPassportBase):
     """Immutable setup version passport with one native harness and projections."""
+
+    model_config = ConfigDict(
+        extra="allow",
+        frozen=True,
+        json_schema_extra=_open_wire_omitting("harness_invariant_digest"),
+    )
 
     # Narrowing the envelope kind to one literal is safe on a frozen model.
     kind: Literal["setup"] = "setup"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -527,6 +565,7 @@ class SetupVersionPassport(_VersionPassportBase):
     related_setup_ids: list[Annotated[str, Field(pattern=stable_id_pattern("setup"))]] = Field(
         default_factory=list
     )
+    harness_invariant_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)] | None = None
     execution_profile: Literal["full-auto"] = "full-auto"
     supported_harness_versions: list[str] = Field(default_factory=list)
     #: Windows is here because refusing it in the type was the wrong place for
@@ -551,3 +590,10 @@ class SetupVersionPassport(_VersionPassportBase):
         if "variant_id" in extras:
             raise ValueError("a setup has no variant axis (ADR-0014)")
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_invariant(self, serializer: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        payload = serializer(self)
+        if payload.get("harness_invariant_digest") is None:
+            payload.pop("harness_invariant_digest", None)
+        return payload

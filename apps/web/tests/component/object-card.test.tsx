@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
-import { componentSummaryFixture } from "@/mocks/fixtures/catalog";
+import { componentSummaryFixture, setupSummaryFixture } from "@/mocks/fixtures/catalog";
 
 vi.mock("@/lib/features/gate", () => ({
   isFeatureEnabled: (key: string) => key === "catalog_usage_metrics",
@@ -198,7 +198,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.queryByLabelText(/GitHub stars:/)).not.toBeInTheDocument();
     expect(container.querySelector('[role="meter"]')).toHaveAttribute(
       "title",
-      expect.stringContaining("Safety check"),
+      expect.stringContaining("Publication checks"),
     );
   });
 
@@ -573,5 +573,44 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
       />,
     );
     expect(screen.queryByLabelText(/Detail views:/)).not.toBeInTheDocument();
+  });
+
+  it("shows exact harness badges and bounded assurance counts", () => {
+    render(
+      <ObjectCard
+        kind="component"
+        item={{
+          ...componentSummaryFixture,
+          latest_harness_ids: ["claude-code"],
+          latest_assurance: { verified_targets: 1, assessed_targets: 2 },
+        }}
+        href="/catalog/x"
+        labels={{
+          ...labels,
+          assuranceCounts: "Verified targets",
+        }}
+        view="list"
+      />,
+    );
+    expect(screen.getByText("claude-code")).toBeInTheDocument();
+    expect(screen.queryByText("pi")).not.toBeInTheDocument();
+    expect(screen.getByText("Verified targets: 1 / 2 (50%)")).toBeInTheDocument();
+  });
+
+  it("shows family member count on a setup card without turning the family into an action", () => {
+    render(
+      <ObjectCard
+        kind="setup"
+        item={{
+          ...setupSummaryFixture,
+          family_id: "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          family_member_count: 3,
+        }}
+        href="/catalog/setups/x"
+        labels={{ ...labels, familyMemberCount: "Family members" }}
+        view="list"
+      />,
+    );
+    expect(screen.getByText("Family members: 3")).toBeInTheDocument();
   });
 });

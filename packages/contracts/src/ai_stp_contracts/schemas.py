@@ -18,6 +18,10 @@ from pathlib import Path
 from typing import Final, cast
 
 from ai_stp_assurance.schemas import EXPORTED_MODELS as ASSURANCE_STACK_MODELS
+from ai_stp_contracts.assurance import (
+    TargetAssessmentIngestRequest,
+    TargetAssessmentIngestResponse,
+)
 from ai_stp_contracts.auth import (
     AuthLogoutResponse,
     AuthMeResponse,
@@ -81,6 +85,12 @@ from ai_stp_contracts.evaluation import (
     SetupEvalPlan,
     SetupEvalProfile,
     SetupEvalResult,
+)
+from ai_stp_contracts.families import (
+    SetupFamilyCreateRequest,
+    SetupFamilyOwner,
+    SetupFamilyPatchRequest,
+    SetupFamilyPublic,
 )
 from ai_stp_contracts.federation import (
     CatalogExternalCoordinate,
@@ -293,6 +303,12 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "catalog-setup-list": SetupListResponse,
     "catalog-setup-search": SetupSearchRequest,
     "catalog-setup-version": SetupVersionResponse,
+    "catalog-setup-family": SetupFamilyPublic,
+    "owner-setup-family": SetupFamilyOwner,
+    "owner-setup-family-create": SetupFamilyCreateRequest,
+    "owner-setup-family-patch": SetupFamilyPatchRequest,
+    "staff-target-assessment-ingest-request": TargetAssessmentIngestRequest,
+    "staff-target-assessment-ingest-response": TargetAssessmentIngestResponse,
     "catalog-github-metadata": GitHubMetadata,
     "catalog-usage-metrics": CatalogUsageMetrics,
     "catalog-reaction-list": CatalogReactionList,

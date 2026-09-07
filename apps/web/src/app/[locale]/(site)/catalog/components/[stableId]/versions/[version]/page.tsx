@@ -6,14 +6,18 @@ import { Badge } from "@/components/atoms/badge";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { ExactSourceLink } from "@/components/molecules/exact-source-link";
+import {
+  ComponentTargetMatrix,
+  targetMatrixLabels,
+} from "@/components/molecules/component-target-matrix";
 import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { StatePanel } from "@/components/molecules/state-panel";
-import {
-  SafetyChecksSummaryView,
-  safetyChecksLabels,
-} from "@/components/molecules/safety-checks-summary";
 import { SupportSummary, supportLabels } from "@/components/molecules/support-summary";
-import { readComponentGithubMetadata, readComponentVersion } from "@/lib/api/catalog";
+import {
+  readComponent,
+  readComponentGithubMetadata,
+  readComponentVersion,
+} from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsComponentId } from "@/lib/brands";
 import {
@@ -64,6 +68,8 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   const tCli = await getTranslations("cli");
 
   const passport = response.passport;
+  const catalogDetail = await readComponent(componentId).catch(() => null);
+  const publisherId = catalogDetail?.summary.publisher_id || passport.owner_id;
   const harnesses = namedPassportHarnesses(passport);
   const supportedOperatingSystems = namedOperatingSystems(passport);
   const projectionKinds = namedProjectionKinds(passport);
@@ -147,8 +153,8 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         <div className="sm:col-span-2">
           <dt className="text-muted-foreground text-sm">{t("publisher")}</dt>
           <dd>
-            <Link href={`/publishers/${passport.owner_id}`} className="font-mono text-sm underline">
-              {passport.owner_id}
+            <Link href={`/publishers/${publisherId}`} className="font-mono text-sm underline">
+              {publisherId}
             </Link>
           </dd>
         </div>
@@ -183,6 +189,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
           <dd>{response.trust.component_verified ? tc("yes") : tc("no")}</dd>
         </div>
       </dl>
+      <ComponentTargetMatrix matrix={response.target_matrix} labels={targetMatrixLabels(t)} />
       <ExactSourceLink source={passport.source} links={sourceLinks} label={t("viewSource")} />
       <CatalogUsageStats
         metrics={response.usage_metrics}
@@ -212,7 +219,6 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         <p className="text-muted-foreground text-sm">{t("reportSectionBody")}</p>
         <p className="font-mono text-xs break-all">{canonical.web_url}</p>
       </section>
-      <SafetyChecksSummaryView summary={response.checks} labels={safetyChecksLabels(t)} />
       <SupportSummary support={response.support} labels={supportLabels(t)} />
     </article>
   );

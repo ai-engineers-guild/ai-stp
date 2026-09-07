@@ -72,7 +72,9 @@ last_verified: "2026-08-03"
 | [SPEC-061-estate-release-qualification.md](SPEC-061-estate-release-qualification.md) | SPEC-061: Estate-release complete requires the seven-harness launch matrix. | 2026-09-05 |
 | [SPEC-062-setup-recast.md](SPEC-062-setup-recast.md) | SPEC-062: Recast a complete setup onto another harness with provenance. | 2026-09-06 |
 | [SPEC-063-component-materialize.md](SPEC-063-component-materialize.md) | SPEC-063: Materialize one target-harness adaptation from a pinned component. | 2026-09-06 |
-| [SPEC-064-adaptation-evidence.md](SPEC-064-adaptation-evidence.md) | SPEC-064: Per-adaptation evaluation evidence for a component version. | 2026-09-06 |
-| [SPEC-065-cli-program-lifecycle.md](SPEC-065-cli-program-lifecycle.md) | SPEC-065: Shared executable lifecycle for catalog cli components. | 2026-09-06 |
+| [SPEC-064-component-projections-assurance-and-portability.md](SPEC-064-component-projections-assurance-and-portability.md) | SPEC-064: Complete platform contract for one component with exact harness projections, target-bound assurance, search, and web presentation. | 2026-09-06 |
+| [SPEC-065-setup-families-and-harness-invariant-alignment.md](SPEC-065-setup-families-and-harness-invariant-alignment.md) | SPEC-065: Complete platform contract for harness-specific setup families, invariant alignment, provenance, exact component projection display, and canonical OBT support. | 2026-09-06 |
+| [SPEC-066-adaptation-evidence.md](SPEC-066-adaptation-evidence.md) | SPEC-066: Per-adaptation evaluation evidence for a component version. | 2026-09-06 |
+| [SPEC-067-cli-program-lifecycle.md](SPEC-067-cli-program-lifecycle.md) | SPEC-067: Shared executable lifecycle for catalog cli components. | 2026-09-06 |
 
 <!-- END CONTENTS -->

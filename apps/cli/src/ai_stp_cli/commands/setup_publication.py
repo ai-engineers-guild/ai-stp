@@ -40,7 +40,9 @@ from ai_stp_contracts.publication import (
     PublicationPlanCreateRequest,
     PublicationPlanResponse,
 )
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_passports import SetupVersionPassport
+from ai_stp_passports.envelope import derive_revision_id
 
 #: Terminal, and not published. Confirming further members after one of these
 #: would publish a graph the refused member is part of.
@@ -343,7 +345,17 @@ def _setup_passport(
             details={"id": stable_id, "version": version},
             next_actions=[f"publication plan --id {stable_id} --version {version} --json"],
         )
-    return SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    if passport.visibility == "public":
+        return passport
+
+    # A recast/locally composed setup is private in SQLite. Publication needs
+    # the same immutable snapshot with public visibility, but must not rewrite
+    # the local passport while preparing that request (SPEC-038).
+    document = cast(dict[str, object], passport.model_dump(mode="json"))
+    document["visibility"] = "public"
+    document["revision_id"] = derive_revision_id(cast(dict[str, JsonValue], document))
+    return SetupVersionPassport.model_validate(document)
 
 
 def _refuse_overlay_pins(connection: sqlite3.Connection, pins: Sequence[tuple[str, str]]) -> None:

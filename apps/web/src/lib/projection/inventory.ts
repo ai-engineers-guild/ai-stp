@@ -71,6 +71,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "objects", access: "session", presenter: "domain" },
   { pattern: "likes", access: "session", presenter: "domain" },
   { pattern: "objects/component/:stableId/edit", access: "session", presenter: "domain" },
+  { pattern: "objects/setup/:stableId/edit", access: "session", presenter: "domain" },
   {
     pattern: "objects/:kind/:stableId/versions/:version",
     access: "session",
@@ -79,6 +80,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "objects/:kind/:stableId", access: "session", presenter: "domain" },
   { pattern: "access", access: "session", presenter: "domain" },
   { pattern: "reports", access: "session", presenter: "domain" },
+  { pattern: "reports/:caseId", access: "session", presenter: "domain" },
   { pattern: "publications/:planId", access: "session", presenter: "domain" },
   { pattern: "invitations/:invitationId", access: "session", presenter: "domain" },
   { pattern: "staff/reports", access: "session", presenter: "domain" },

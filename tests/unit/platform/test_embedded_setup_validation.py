@@ -19,7 +19,11 @@ from ai_stp_platform.embedded_validation import (
     resolve_embedded_setup,
     setup_trust_lane,
 )
-from ai_stp_platform.publication_logic import execute_publish, execute_validate
+from ai_stp_platform.publication_logic import (
+    _exact_adaptation_bindings,  # pyright: ignore[reportPrivateUsage]
+    execute_publish,
+    execute_validate,
+)
 from ai_stp_platform.safety.policy import POLICY_VERSION
 from ai_stp_platform.safety.types import CheckOutcome, Finding, SafetyScanResult
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN, ImmutableObjectStore
@@ -682,3 +686,30 @@ async def test_execute_publish_keeps_axes_and_caps_embedded_at_experimental(
     assert metadata.author_verified is True
     assert metadata.component_verified is True
     assert published is metadata
+
+
+@pytest.mark.asyncio
+async def test_setup_exact_adaptation_is_one_unique_check_for_many_missing_pins() -> None:
+    passport = _public_setup_passport(
+        components=[
+            {"stable_id": EMBEDDED_ID, "version": "1.0", "passport_digest": DIGEST},
+            {"stable_id": CATALOG_ID, "version": "1.0", "passport_digest": DIGEST},
+        ],
+        artifact_digest=DIGEST,
+        size_bytes=1,
+    )
+    session = AsyncMock()
+    session.execute = AsyncMock(
+        return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: []))
+    )
+
+    bindings = await _exact_adaptation_bindings(session, passport)
+
+    assert len(bindings) == 1
+    assert bindings[0]["check_id"] == "setup_exact_adaptation"
+    assert bindings[0]["result"] == "failed"
+    assert bindings[0]["finding_summary"]["count"] == 2
+    assert bindings[0]["finding_summary"]["severity_max"] == "high"
+    assert bindings[0]["finding_summary"]["missing_component_ids"] == sorted(
+        [EMBEDDED_ID, CATALOG_ID]
+    )

@@ -3,11 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { FIXTURE_COMPONENT_ID } from "../../src/mocks/fixtures/catalog-ids";
 
 async function selectUploadSource(page: Page): Promise<void> {
-  const sourceSelect = page
-    .locator("select")
-    .filter({ has: page.locator('option[value="upload"]') })
-    .first();
-  await sourceSelect.selectOption("upload");
+  await page.getByRole("button", { name: "Upload file" }).first().click();
   await expect(page.locator('input[type="file"]').first()).toBeAttached({ timeout: 10_000 });
 }
 
@@ -32,7 +28,7 @@ test.describe("component presentation media editor", () => {
     await page.goto(`/en/objects/component/${FIXTURE_COMPONENT_ID}/edit`);
     await expect(
       page.getByRole("heading", {
-        name: /Edit bio and media|\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u0431\u0438\u043e \u0438 \u043c\u0435\u0434\u0438\u0430/i,
+        name: /Edit public presentation|\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u043eе \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
       }),
     ).toBeVisible();
     await expect(page.getByText(/JPEG, PNG, WebP, GIF, MP4 or WebM/i)).toBeVisible();

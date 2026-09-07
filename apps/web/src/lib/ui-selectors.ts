@@ -69,6 +69,10 @@ export const UI = {
     results: "catalog-results",
     card: "catalog-object-card",
     usage: "catalog-usage-metrics",
+    targetMatrix: "catalog-target-matrix",
+    setupFamily: "catalog-setup-family",
+    assurance: "catalog-assurance-counts",
+    claimedMatch: "catalog-claimed-portable-match",
   },
   component: {
     detailHeader: "component-detail-header",

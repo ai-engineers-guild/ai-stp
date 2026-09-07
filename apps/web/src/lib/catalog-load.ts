@@ -59,6 +59,13 @@ export function catalogSearchInput(
   if (query.countryCodes?.length) input.country_codes = query.countryCodes;
   if (query.updatedFrom) input.updated_from = query.updatedFrom;
   if (query.updatedTo) input.updated_to = query.updatedTo;
+  if (resource === "setups" && query.familyId) input.family_id = query.familyId;
+  if (resource === "setups" && query.familyAlignment) {
+    input.family_alignment = query.familyAlignment;
+  }
+  if (resource === "setups" && query.memberHarnessId) {
+    input.member_harness_id = query.memberHarnessId;
+  }
   if (query.resource === "all" || !query.cursor) {
     input.page = resource === "setups" ? setupsPageNumber : componentsPageNumber;
   }

@@ -6,6 +6,7 @@ import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { ObjectAuthorRail } from "@/components/molecules/catalog-author-link";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
+import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
@@ -17,11 +18,11 @@ import {
   requirementLabels,
   RequirementsSummary,
 } from "@/components/molecules/requirements-summary";
-import {
-  SafetyChecksSummaryView,
-  safetyChecksLabels,
-} from "@/components/molecules/safety-checks-summary";
 import { StatePanel } from "@/components/molecules/state-panel";
+import {
+  ComponentTargetMatrix,
+  targetMatrixLabels,
+} from "@/components/molecules/component-target-matrix";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ComponentContextBudgetPanel } from "@/components/organisms/context-budget-panel";
@@ -94,7 +95,9 @@ export default async function ComponentDetailPage({ params }: PageProps) {
     ...item,
     label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
   }));
-  const ownerId = passport?.owner_id || summary.publisher_id;
+  const ownerId = summary.publisher_id || passport?.owner_id || "";
+  const targetMatrix = (detail as unknown as { target_matrix?: typeof detail.target_matrix })
+    .target_matrix;
   const author = await readAuthor(ownerId);
   const token = await sessionCookieValue();
   const isOwner = token ? await canEditComponent(token, stableId) : false;
@@ -135,14 +138,13 @@ export default async function ComponentDetailPage({ params }: PageProps) {
         icon={<ComponentTypeIcon type={summary.latest_component_type} />}
         title={summary.latest_name}
         badges={
-          <>
-            <Badge variant="secondary">{summary.latest_component_type}</Badge>
-            {namedHarnesses(summary).map((harness) => (
-              <Badge key={harness} variant="outline">
-                {harness}
-              </Badge>
-            ))}
-          </>
+          <div className="min-w-0 space-y-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              <Badge variant="secondary">{summary.latest_component_type}</Badge>
+              <CompactChipList values={namedHarnesses(summary)} label={t("harness")} />
+            </div>
+            <CompactChipList values={summary.latest_tags} label={t("tags")} />
+          </div>
         }
         versionLabel={`v${summary.latest_version}`}
         githubStars={metadata.stars}
@@ -231,7 +233,10 @@ export default async function ComponentDetailPage({ params }: PageProps) {
                 summary={summary.latest_lifecycle}
                 facts={[
                   { label: t("lifecycle"), value: summary.latest_lifecycle },
-                  { label: t("projectionKind"), value: summary.latest_projection_kind },
+                  {
+                    label: t("projectionKind"),
+                    value: summary.latest_projection_kind ?? t("noneListed"),
+                  },
                   { label: t("publishedAt"), value: summary.latest_published_at },
                   { label: t("harness"), value: namedHarnesses(summary).join(", ") },
                 ]}
@@ -242,10 +247,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
             {passport ? (
               <RequirementsSummary requirements={passport} labels={requirementLabels(t, tc)} />
             ) : null}
-            <SafetyChecksSummaryView
-              summary={summary.latest_checks}
-              labels={safetyChecksLabels(t)}
-            />
+            <ComponentTargetMatrix matrix={targetMatrix ?? null} labels={targetMatrixLabels(t)} />
           </>
         }
         rail={
