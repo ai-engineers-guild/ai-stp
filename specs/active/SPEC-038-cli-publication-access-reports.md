@@ -28,15 +28,20 @@ This excludes the server-side state machine, background jobs, PostgreSQL, modera
   component version, materializes a formal `ComponentVersionPassport` from the
   pinned revision, and passes the digest of its artifact. The current head must
   not substitute for the released version's revision.
+  Private defaults and explicit owner visibility changes follow SPEC-071 and
+  ADR-0169. Distribution planning never rewrites an existing version passport.
 - `REQ-3810`: `setup publish plan` accepts an exact locally released setup
   version and creates one plan for each pinned component that is not yet public,
   plus one for the setup itself. An already public participant is listed with
   `already_published` and is not planned again. Public status is determined by
-  the platform response, not by local `visibility`.
+  a live exact-digest platform response, not local `visibility` or cached metadata.
+  Private distribution may reuse accessible private and public participants;
+  public distribution must not expose private pins (SPEC-071).
 - `REQ-3811`: The set returns a `set_digest` over the ordered list of
   participants: role, object kind, `stable_id`, version, `plan_hash`, and the
   `already_published` flag. The state of an individual plan is not included in
-  the digest. The set is stored locally because `plan_id` cannot be reconstructed
+  the digest. Private participants also bind distribution visibility; existing
+  public set digests retain their representation. The set is stored locally because `plan_id` cannot be reconstructed
   by calculation; a repeated `plan` for the same setup version replaces the open
   set.
 - `REQ-3812`: `setup publish confirm` requires the exact `set_digest` and an

@@ -1,12 +1,12 @@
 {
-  "aggregate_digest": "sha256:0578235bbec7bb23c6643651b6f105826d3a05a01bea0bd0cffac940b9cea4f3",
+  "aggregate_digest": "sha256:6ab195790be1c7dfacf6e6ab5a892244097cc2002f97090ff9a4b3c3174ed357",
   "files": [
     "conformance-cases.json",
     "manifest.json",
     "provider-info.schema.json",
     "status-response.schema.json"
   ],
-  "kit_version": "0.2.10",
+  "kit_version": "0.2.11",
   "protocol_version": 3,
   "schema": "ai-stp-provider-kit-identity/1"
 }

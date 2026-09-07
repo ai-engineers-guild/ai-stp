@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "PreservedSetupView": {
+      "additionalProperties": false,
+      "description": "A complete local setup and the provider snapshot retaining its native state.",
+      "properties": {
+        "backup_ref": {
+          "title": "Backup Ref",
+          "type": "string"
+        },
+        "base_root": {
+          "default": "target",
+          "enum": [
+            "target",
+            "parent"
+          ],
+          "title": "Base Root",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "harness_id": {
+          "title": "Harness Id",
+          "type": "string"
+        },
+        "held": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Held"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_target": {
+          "title": "Provider Target",
+          "type": "string"
+        },
+        "roots": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roots",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "snapshot_digest": {
+          "title": "Snapshot Digest",
+          "type": "string"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "target_scope": {
+          "title": "Target Scope",
+          "type": "string"
+        },
+        "target_state": {
+          "default": "not_observed",
+          "enum": [
+            "not_observed",
+            "matches",
+            "differs",
+            "unavailable"
+          ],
+          "title": "Target State",
+          "type": "string"
+        },
+        "verification": {
+          "default": "recorded_verified",
+          "enum": [
+            "recorded_verified",
+            "verified",
+            "unavailable"
+          ],
+          "title": "Verification",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "operation_id",
+        "project_id",
+        "harness_id",
+        "target_scope",
+        "provider_target",
+        "provider_id",
+        "backup_ref",
+        "snapshot_digest",
+        "roots",
+        "created_at"
+      ],
+      "title": "PreservedSetupView",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-preserved-setups",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Saved local setups remain addressable after restarting the CLI.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setups": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PreservedSetupView"
+      },
+      "title": "Setups",
+      "type": "array"
+    }
+  },
+  "title": "PreservedSetupsView",
+  "type": "object"
+}

@@ -1539,6 +1539,19 @@
       "title": "Composition",
       "type": "array"
     },
+    "distribution_visibility": {
+      "anyOf": [
+        {
+          "const": "public",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Distribution Visibility"
+    },
     "family": {
       "anyOf": [
         {
@@ -1590,6 +1603,7 @@
     "checks",
     "component_checks",
     "composition",
+    "distribution_visibility",
     "family",
     "lifecycle",
     "passport",

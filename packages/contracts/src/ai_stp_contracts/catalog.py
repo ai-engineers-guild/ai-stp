@@ -771,7 +771,7 @@ class SetupDetail(BaseModel):
     )
 
 
-def _require_published(visibility: str) -> None:
+def _require_published(visibility: str, distribution_visibility: str | None = None) -> None:
     """Refuse a passport that is not published.
 
     The passport models are shared with the local registry, where `visibility`
@@ -783,7 +783,7 @@ def _require_published(visibility: str) -> None:
     The contract cannot fix the server's authorization, but it can refuse to
     represent the mistake.
     """
-    if visibility != "public":
+    if visibility != "public" and distribution_visibility != "public":
         raise ValueError(f"the public catalog cannot represent a {visibility!r} passport")
 
 
@@ -798,6 +798,7 @@ class ComponentVersionResponse(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    distribution_visibility: Literal["public"] | None = None
     passport: ComponentVersionPassport
     passport_digest: PassportDigest
     lifecycle: PublicLifecycle
@@ -811,7 +812,7 @@ class ComponentVersionResponse(BaseModel):
 
     @model_validator(mode="after")
     def _passport_is_published(self) -> "ComponentVersionResponse":
-        _require_published(self.passport.visibility)
+        _require_published(self.passport.visibility, self.distribution_visibility)
         return self
 
 
@@ -821,6 +822,7 @@ class SetupVersionResponse(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    distribution_visibility: Literal["public"] | None = None
     passport: SetupVersionPassport
     passport_digest: PassportDigest
     lifecycle: PublicLifecycle
@@ -841,7 +843,7 @@ class SetupVersionResponse(BaseModel):
 
     @model_validator(mode="after")
     def _passport_is_published(self) -> "SetupVersionResponse":
-        _require_published(self.passport.visibility)
+        _require_published(self.passport.visibility, self.distribution_visibility)
         return self
 
 

@@ -336,6 +336,43 @@ refuse with `recovery_required`. The only command authorized to resolve this sta
 is `recover-operation`: `prepared` restores the exact pre-operation target;
 `committed` only verifies the exact result and cleans up remnants. `resume` may
 invoke this command after read-only `status`, but never repeats `apply-operation`.
+An incomplete capture without a published journal is retained in an archive by
+`recover-operation`; recovery changes no target configuration in that case.
+
+### Complete native capture
+
+Providers supporting complete preservation declare `capture_mode` in
+`plan_request_fields`. The CLI requests `--capture-mode complete_native` for
+configuration install, replace, remove and explicit preservation. Missing support
+refuses instead of silently accepting a narrower backup. Program operations do
+not accept this field.
+
+The optional digest-bound plan object `native_capture` contains `base_root`,
+`roots`, `excluded`, `current_digest`, and nullable `restore_digest`. An absent
+`base_root` means `target`; supported values are `target` and `parent`. Relative
+paths are canonical and roots form a non-overlapping cover. `parent` is restricted
+to global `claude-setup-system` targets named `.claude`: roots must be inside
+`.claude/` or exactly `.claude.json`. Other siblings and arbitrary ancestors refuse.
+Isolation explicitly mounts the parent needed to create or delete the companion;
+provider writes remain limited to the exact plan coverage.
+
+The current digest includes covered bytes, paths, directories and supported
+permissions. Return binds the snapshot digest in `restore_digest` and preserves
+current coverage before replacement. Apply remeasures under the target lock.
+Ordinary managed-target identity fields keep their meaning. Preserved unmanaged
+files do not become provider installation ownership; return retains the previous
+installed setup identity while recording its new operation.
+
+Each `status.backups` entry may carry `native_snapshot`: `digest`, `base_root`,
+`operation_id`, `roots`, `excluded`, `verification` (`verified` or `unavailable`),
+and `target_state` (`matches`, `differs`, `unavailable`). Verification requires
+fresh readback of the full recovery payload; matches requires measuring the full
+target, including additions outside the written inventory. Damaged snapshots remain
+reportable as unavailable. `held=true` protects them from rolling retention. Raw
+recovery bytes never appear in this response.
+
+The [preserved setup contract](preserved-setups.md) owns local bindings and recovery
+commands; SPEC-068 owns requirements.
 
 After finalization, a prepared exact graph and a composed graph form one immutable
 setup, `SetupDefinition`, and pass through the same HarnessBundle, plan,

@@ -28,6 +28,17 @@
           "default": null,
           "title": "Backup Ref"
         },
+        "harness_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarnessId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "operation_id": {
           "minLength": 1,
           "title": "Operation Id",
@@ -53,6 +64,30 @@
           "title": "Scope",
           "type": "string"
         },
+        "setup_stable_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Stable Id"
+        },
+        "setup_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Setup Version"
+        },
         "state": {
           "minLength": 1,
           "title": "State",
@@ -66,10 +101,13 @@
       },
       "required": [
         "backup_ref",
+        "harness_id",
         "operation_id",
         "plan_digest",
         "schema_version",
         "scope",
+        "setup_stable_id",
+        "setup_version",
         "state",
         "target_id"
       ],
@@ -90,13 +128,20 @@
       "items": {
         "$ref": "#/$defs/MultiRootChildView"
       },
-      "maxItems": 3,
+      "maxItems": 21,
       "minItems": 2,
       "title": "Children",
       "type": "array"
     },
     "harness_id": {
-      "$ref": "#/$defs/HarnessId"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HarnessId"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "next_actions": {
       "default": [],
@@ -113,14 +158,28 @@
       "type": "integer"
     },
     "setup_stable_id": {
-      "minLength": 1,
-      "title": "Setup Stable Id",
-      "type": "string"
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Setup Stable Id"
     },
     "setup_version": {
-      "minLength": 1,
-      "title": "Setup Version",
-      "type": "string"
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Setup Version"
     },
     "state": {
       "enum": [
@@ -144,6 +203,15 @@
       "minLength": 1,
       "title": "Transaction Id",
       "type": "string"
+    },
+    "transaction_kind": {
+      "default": "single_setup",
+      "enum": [
+        "single_setup",
+        "environment"
+      ],
+      "title": "Transaction Kind",
+      "type": "string"
     }
   },
   "required": [
@@ -156,7 +224,8 @@
     "setup_version",
     "state",
     "transaction_digest",
-    "transaction_id"
+    "transaction_id",
+    "transaction_kind"
   ],
   "title": "MultiRootTransactionView",
   "type": "object"

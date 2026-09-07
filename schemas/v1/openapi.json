@@ -2630,6 +2630,19 @@
             ],
             "default": null
           },
+          "distribution_visibility": {
+            "anyOf": [
+              {
+                "const": "public",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Distribution Visibility"
+          },
           "lifecycle": {
             "$ref": "#/components/schemas/PublicLifecycle"
           },
@@ -2671,6 +2684,7 @@
         },
         "required": [
           "checks",
+          "distribution_visibility",
           "lifecycle",
           "passport",
           "passport_digest",
@@ -6682,6 +6696,15 @@
           },
           "version": {
             "$ref": "#/components/schemas/ai_stp_contracts__publication__Version"
+          },
+          "visibility": {
+            "default": "public",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "title": "Visibility",
+            "type": "string"
           }
         },
         "required": [
@@ -6761,6 +6784,15 @@
           },
           "version": {
             "$ref": "#/components/schemas/ai_stp_contracts__publication__Version"
+          },
+          "visibility": {
+            "default": "public",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "title": "Visibility",
+            "type": "string"
           }
         },
         "required": [
@@ -6778,7 +6810,8 @@
           "schema_version",
           "stable_id",
           "state",
-          "version"
+          "version",
+          "visibility"
         ],
         "title": "PublicationPlanResponse",
         "type": "object"
@@ -10001,6 +10034,19 @@
             "title": "Composition",
             "type": "array"
           },
+          "distribution_visibility": {
+            "anyOf": [
+              {
+                "const": "public",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Distribution Visibility"
+          },
           "family": {
             "anyOf": [
               {
@@ -10052,6 +10098,7 @@
           "checks",
           "component_checks",
           "composition",
+          "distribution_visibility",
           "family",
           "lifecycle",
           "passport",
@@ -15251,6 +15298,7 @@
                     "summary": "The passport is the description of the version (ADR-0012); its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
                     "value": {
                       "checks": null,
+                      "distribution_visibility": null,
                       "lifecycle": "active",
                       "passport": {
                         "adaptations": [
@@ -16990,6 +17038,7 @@
                           "version": "1.2"
                         }
                       ],
+                      "distribution_visibility": null,
                       "family": null,
                       "lifecycle": "active",
                       "passport": {
@@ -23015,7 +23064,8 @@
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
-                      "version": "1.0"
+                      "version": "1.0",
+                      "visibility": "public"
                     }
                   }
                 },
@@ -24600,7 +24650,8 @@
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
-                      "version": "1.0"
+                      "version": "1.0",
+                      "visibility": "public"
                     }
                   }
                 },
@@ -24819,7 +24870,8 @@
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
-                      "version": "1.0"
+                      "version": "1.0",
+                      "visibility": "public"
                     }
                   }
                 },
@@ -25051,7 +25103,8 @@
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
-                      "version": "1.0"
+                      "version": "1.0",
+                      "visibility": "public"
                     }
                   }
                 },
@@ -25319,7 +25372,8 @@
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "validating",
-                      "version": "1.0"
+                      "version": "1.0",
+                      "visibility": "public"
                     }
                   }
                 },

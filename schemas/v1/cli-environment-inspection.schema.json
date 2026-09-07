@@ -1,0 +1,285 @@
+{
+  "$defs": {
+    "EnvironmentRequirement": {
+      "additionalProperties": false,
+      "description": "One exact prerequisite, measured without executing its preparation.",
+      "properties": {
+        "actions": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Actions",
+          "type": "array"
+        },
+        "digest": {
+          "default": "",
+          "title": "Digest",
+          "type": "string"
+        },
+        "identity": {
+          "title": "Identity",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "harness_program",
+            "shared_program",
+            "environment_variable",
+            "authorization",
+            "toolchain_tool"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "state": {
+          "enum": [
+            "satisfied",
+            "action_required",
+            "not_observed",
+            "blocked"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "default": "",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "identity",
+        "state",
+        "reason"
+      ],
+      "title": "EnvironmentRequirement",
+      "type": "object"
+    },
+    "HarnessInstallation": {
+      "additionalProperties": true,
+      "description": "One place a harness was found (`SPEC-014` REQ-1417).",
+      "properties": {
+        "diagnostic": {
+          "default": "version_reported",
+          "minLength": 1,
+          "title": "Diagnostic",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "surface": {
+          "default": "cli",
+          "enum": [
+            "cli",
+            "desktop"
+          ],
+          "title": "Surface",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "version_source": {
+          "default": "process",
+          "enum": [
+            "process",
+            "package_metadata",
+            "windows_package_metadata",
+            "unavailable"
+          ],
+          "title": "Version Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "diagnostic",
+        "path",
+        "reason",
+        "schema_version",
+        "surface",
+        "version",
+        "version_source"
+      ],
+      "title": "HarnessInstallation",
+      "type": "object"
+    },
+    "HarnessPresence": {
+      "additionalProperties": true,
+      "description": "What is known about one harness on this machine (`REQ-1415`).",
+      "properties": {
+        "configuration": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Configuration"
+        },
+        "harness_id": {
+          "minLength": 1,
+          "title": "Harness Id",
+          "type": "string"
+        },
+        "installations": {
+          "items": {
+            "$ref": "#/$defs/HarnessInstallation"
+          },
+          "title": "Installations",
+          "type": "array"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "configured",
+            "installed",
+            "unknown_version",
+            "available"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "support": {
+          "enum": [
+            "primary",
+            "beta"
+          ],
+          "title": "Support",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "configuration",
+        "harness_id",
+        "installations",
+        "reason",
+        "schema_version",
+        "state",
+        "support",
+        "title"
+      ],
+      "title": "HarnessPresence",
+      "type": "object"
+    },
+    "HarnessSurvey": {
+      "additionalProperties": true,
+      "description": "Every declared harness, whether or not it is here.\n\nTotal by construction. A harness absent from the answer would be\nindistinguishable from one this build does not support, and `REQ-1414`\nmakes the supported set the point.",
+      "properties": {
+        "harnesses": {
+          "items": {
+            "$ref": "#/$defs/HarnessPresence"
+          },
+          "title": "Harnesses",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "harnesses",
+        "schema_version"
+      ],
+      "title": "HarnessSurvey",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-environment-inspection",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Preparation evidence stays distinct from verified native configuration.",
+  "properties": {
+    "configuration_state": {
+      "const": "not_observed",
+      "default": "not_observed",
+      "title": "Configuration State",
+      "type": "string"
+    },
+    "detected_harnesses": {
+      "$ref": "#/$defs/HarnessSurvey"
+    },
+    "prerequisites_satisfied": {
+      "title": "Prerequisites Satisfied",
+      "type": "boolean"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "requirements": {
+      "items": {
+        "$ref": "#/$defs/EnvironmentRequirement"
+      },
+      "title": "Requirements",
+      "type": "array"
+    },
+    "setups": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Setups",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "setups",
+    "prerequisites_satisfied",
+    "requirements",
+    "detected_harnesses"
+  ],
+  "title": "EnvironmentInspection",
+  "type": "object"
+}

@@ -93,7 +93,7 @@ def _resolve(
         intent = setup_compose.source_intent(component)
         if isinstance(intent, CatalogIntent):
             acquired = registry_commands.acquire_version(
-                "component", intent.stable_id, intent.version, offline=False
+                "component", intent.stable_id, intent.version, offline=False, include_private=True
             )
             if acquired.view.passport_digest != intent.passport_digest:
                 raise CliFailure(
@@ -113,12 +113,6 @@ def _resolve(
                     "the component has no adaptation for the requested harness",
                     details={"stable_id": intent.stable_id, "code": "adaptation_unavailable"},
                 ) from error
-            if acquired.passport.visibility != "public":
-                raise CliFailure(
-                    "AI_STP_CONFLICT",
-                    "a private overlay cannot enter a public setup composition",
-                    details={"stable_id": intent.stable_id},
-                )
             catalog.append(
                 setup_compose.CatalogMaterial(
                     ComponentRef(

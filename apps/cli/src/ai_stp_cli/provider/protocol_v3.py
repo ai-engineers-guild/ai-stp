@@ -76,7 +76,9 @@ OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset(
 #: already uses. The consumer does not send that bundle yet — a released
 #: `0.0.52` answers a bundle on `remove` with `unsupported_operation`, correctly
 #: — and it will not until a provider declares this name.
-PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset({"target_scope", "end_state"})
+PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset(
+    {"target_scope", "end_state", "capture_mode"}
+)
 
 #: Request-side arguments a provider says it accepts on `status`, by the same
 #: rule as `PLAN_REQUEST_FIELDS` and for the same reason. Measured on 0.0.54:
@@ -915,6 +917,27 @@ def _status_backup_schema() -> dict[str, object]:
             "setup_id": _nullable({"type": "string", "minLength": 1}),
             "held": {"type": "boolean"},
             "hold_reason": _nullable({"type": "string", "minLength": 1}),
+            "native_snapshot": {
+                "type": "object",
+                "properties": {
+                    "base_root": {"enum": ["target", "parent"]},
+                    "digest": {"$ref": "#/$defs/digest"},
+                    "operation_id": {"type": "string", "minLength": 1},
+                    "roots": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "excluded": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "verification": {"enum": ["verified", "unavailable"]},
+                    "target_state": {"enum": ["matches", "differs", "unavailable"]},
+                },
+                "required": [
+                    "digest",
+                    "operation_id",
+                    "roots",
+                    "excluded",
+                    "verification",
+                    "target_state",
+                ],
+                "additionalProperties": False,
+            },
         },
         "required": ["backup_ref", "operation", "setup_id", "held", "hold_reason"],
         "additionalProperties": False,

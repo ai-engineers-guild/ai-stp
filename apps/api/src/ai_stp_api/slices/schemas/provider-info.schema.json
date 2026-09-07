@@ -18,6 +18,7 @@
     "plan_request_fields": {
       "items": {
         "enum": [
+          "capture_mode",
           "end_state",
           "target_scope"
         ],

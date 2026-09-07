@@ -2,12 +2,13 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Literal, cast
 
 from jsonschema import Draft202012Validator
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import is_digest
 
 AUTHORIZATION_KINDS: Final[frozenset[str]] = frozenset({"user_account", "external_service"})
 AUTHORIZATION_STATES: Final[frozenset[str]] = frozenset({"pending", "ready"})
@@ -79,6 +80,58 @@ BACKUP_HOLD_PLACEHOLDER: Final[str] = "no reason recorded"
 
 
 @dataclass(frozen=True)
+class NativeSnapshotObservation:
+    """Fresh full-snapshot integrity and target comparison from the provider."""
+
+    digest: str
+    operation_id: str
+    roots: tuple[str, ...]
+    excluded: tuple[str, ...]
+    verification: Literal["verified", "unavailable"]
+    target_state: Literal["matches", "differs", "unavailable"]
+    base_root: Literal["target", "parent"] = "target"
+
+
+def _native_snapshot(value: JsonValue | None) -> NativeSnapshotObservation | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise _malformed_backup("native_snapshot")
+    digest = value.get("digest")
+    operation_id = value.get("operation_id")
+    verification, target_state = value.get("verification"), value.get("target_state")
+    if (
+        not isinstance(digest, str)
+        or not is_digest(digest)
+        or not isinstance(operation_id, str)
+        or not operation_id
+        or not isinstance(verification, str)
+        or verification not in {"verified", "unavailable"}
+        or not isinstance(target_state, str)
+        or target_state not in {"matches", "differs", "unavailable"}
+    ):
+        raise _malformed_backup("native_snapshot")
+    base_root = value.get("base_root", "target")
+    if not isinstance(base_root, str) or base_root not in {"target", "parent"}:
+        raise _malformed_backup("native_snapshot.base_root")
+    paths: list[tuple[str, ...]] = []
+    for name in ("roots", "excluded"):
+        raw = value.get(name)
+        if not isinstance(raw, list) or any(not isinstance(item, str) or not item for item in raw):
+            raise _malformed_backup(f"native_snapshot.{name}")
+        paths.append(tuple(str(item) for item in raw))
+    return NativeSnapshotObservation(
+        digest,
+        operation_id,
+        paths[0],
+        paths[1],
+        cast(Literal["verified", "unavailable"], verification),
+        cast(Literal["matches", "differs", "unavailable"], target_state),
+        cast(Literal["target", "parent"], base_root),
+    )
+
+
+@dataclass(frozen=True)
 class BackupObservation:
     """One provider-owned copy as the provider reports it *now*.
 
@@ -95,6 +148,7 @@ class BackupObservation:
     held: bool | None
     #: Free text typed by a person. Opaque: displayed, never branched on.
     hold_reason: str | None
+    native_snapshot: NativeSnapshotObservation | None = None
 
     @property
     def reason_recorded(self) -> bool:
@@ -132,7 +186,14 @@ def backups(answer: Mapping[str, JsonValue]) -> tuple[BackupObservation, ...] | 
         reason = item.get("hold_reason")
         if reason is not None and not isinstance(reason, str):
             raise _malformed_backup(f"backups[{index}].hold_reason")
-        observed.append(BackupObservation(backup_ref=ref, held=held, hold_reason=reason))
+        observed.append(
+            BackupObservation(
+                backup_ref=ref,
+                held=held,
+                hold_reason=reason,
+                native_snapshot=_native_snapshot(item.get("native_snapshot")),
+            )
+        )
     return tuple(observed)
 
 

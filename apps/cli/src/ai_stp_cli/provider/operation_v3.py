@@ -10,6 +10,7 @@ from typing import cast
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider import bundle_protocol, protocol, protocol_v3
+from ai_stp_cli.provider import status as provider_status
 from ai_stp_foundation.canonical import JsonValue, from_json_bytes
 from ai_stp_foundation.digests import digest_canonical, is_digest
 
@@ -157,6 +158,7 @@ def plan_operation_arguments(
     bundle: bundle_protocol.Binding | None = None,
     target_scope: str = "global",
     accepted_request_fields: frozenset[str] = frozenset(),
+    capture_mode: str | None = None,
 ) -> tuple[str, ...]:
     """Build the `plan-operation` argv once, for every caller that needs one.
 
@@ -202,6 +204,20 @@ def plan_operation_arguments(
         arguments = (*arguments, "--prefix", str(prefix.resolve()))
     if backup_ref is not None:
         arguments = (*arguments, "--backup-ref", backup_ref)
+    if capture_mode is not None:
+        if capture_mode != "complete_native" or operation not in {
+            protocol_v3.Operation.BACKUP,
+            protocol_v3.Operation.INSTALL,
+            protocol_v3.Operation.REPLACE,
+            protocol_v3.Operation.REMOVE,
+            protocol_v3.Operation.RESET,
+        }:
+            raise _refused(
+                "complete native capture is supported only for native configuration mutations"
+            )
+        if "capture_mode" not in accepted_request_fields:
+            raise _refused("this provider does not declare complete native capture")
+        arguments = (*arguments, "--capture-mode", capture_mode)
     if permission_profile is not None:
         arguments = (*arguments, "--permission-profile", permission_profile)
     if bundle is not None:
@@ -329,6 +345,59 @@ def profile_digest(capabilities: protocol_v3.ProviderCapabilities, target_scope:
     raise _refused("the provider declares no projection profile for this scope", scope=target_scope)
 
 
+def require_native_capture(
+    artifact: dict[str, JsonValue], *, operation: protocol_v3.Operation, capture_mode: str | None
+) -> None:
+    """Validate complete preservation separately from the managed-path identity."""
+    native = artifact.get("native_capture")
+    if native is None:
+        if capture_mode is not None:
+            raise _refused("the provider omitted the requested complete native capture")
+        return
+    if operation in SOFTWARE_OPERATIONS or operation is protocol_v3.Operation.LAUNCH:
+        raise _refused("this operation cannot bind complete native preservation")
+    if not isinstance(native, dict) or set(native) - {"base_root"} != {
+        "roots",
+        "excluded",
+        "current_digest",
+        "restore_digest",
+    }:
+        raise _refused("the provider returned an invalid native capture binding")
+    base_root = native.get("base_root", "target")
+    if not isinstance(base_root, str) or base_root not in {"target", "parent"}:
+        raise _refused("native capture names an unsupported base root")
+    if native.get("base_root") == "parent":
+        target = Path(str(artifact.get("canonical_target", "")))
+        if (
+            artifact.get("provider_id") != "claude-setup-system"
+            or artifact.get("target_scope") not in (None, "global")
+            or target.name != ".claude"
+        ):
+            raise _refused("native parent coverage is not the declared Claude companion")
+    for name in ("roots", "excluded"):
+        paths = native[name]
+        if not isinstance(paths, list) or any(
+            not isinstance(path, str)
+            or not _within_prefix(path)
+            or "\\" in path
+            or any(part in {"", ".", ".."} for part in path.split("/"))
+            for path in paths
+        ):
+            raise _refused("native capture coverage contains an invalid relative path")
+    if native.get("base_root") == "parent" and any(
+        root != ".claude.json" and not str(root).startswith(".claude/")
+        for root in cast(list[JsonValue], native["roots"])
+    ):
+        raise _refused("native parent coverage exceeds the declared Claude companion")
+    if not native["roots"] or not is_digest(str(native["current_digest"])):
+        raise _refused("native capture has no complete current-state identity")
+    if operation is protocol_v3.Operation.RESTORE:
+        if not is_digest(str(native["restore_digest"])):
+            raise _refused("native restoration has no exact full-state identity")
+    elif native["restore_digest"] is not None:
+        raise _refused("a native backup cannot bind a restored identity")
+
+
 def require_plan(
     answer: dict[str, JsonValue],
     *,
@@ -344,6 +413,7 @@ def require_plan(
     expires_at: str,
     target_scope: str = "global",
     surviving: tuple[Surviving, ...] | None = None,
+    capture_mode: str | None = None,
 ) -> ProviderPlan:
     """Require the provider's exact canonical plan and its redundant echoes."""
     if answer.get("state") != "planned":
@@ -373,6 +443,7 @@ def require_plan(
             raise _refused("the provider restore plan has no exact result target digest")
     elif restore_target_digest is not None:
         raise _refused("a non-restore provider plan binds a restored target digest")
+    require_native_capture(artifact, operation=operation, capture_mode=capture_mode)
     expected: dict[str, JsonValue] = {
         "format": "ai-stp-provider-plan/3",
         "protocol_version": protocol_v3.VERSION,
@@ -574,6 +645,24 @@ def require_verified_status(
         expected_restore = str(plan.artifact.get("restore_target_digest", ""))
         if target_digest != expected_restore:
             raise _refused("provider restore status differs from the exact BackupRef identity")
+        native = plan.artifact.get("native_capture")
+        if isinstance(native, dict):
+            saved = next(
+                (
+                    item
+                    for item in provider_status.backups(answer) or ()
+                    if item.backup_ref == plan.artifact.get("backup_ref")
+                ),
+                None,
+            )
+            if (
+                saved is None
+                or saved.native_snapshot is None
+                or saved.native_snapshot.verification != "verified"
+                or saved.native_snapshot.digest != native.get("restore_digest")
+                or saved.native_snapshot.target_state != "matches"
+            ):
+                raise _refused("provider status does not prove complete native restoration")
         _require_belongs_here(
             answer,
             capabilities=capabilities,

@@ -127,17 +127,19 @@ def invoke(
     )
 
 
-def status(connection: sqlite3.Connection, *, stable_id: str) -> CliProgram:
+def status(
+    connection: sqlite3.Connection, *, stable_id: str, version: str | None = None
+) -> CliProgram:
     """Report the version and bytes actually selected by the installed pointer."""
     _require_component_id(stable_id)
-    installed = _installed(connection, stable_id, None)
+    installed = _installed(connection, stable_id, version)
     return CliProgram(
         stable_id=stable_id,
         version=installed[0].version if installed is not None else "0.0",
         operation="status",
         state="present" if installed is not None else "never_installed",
         prefix=str(prefix()),
-        executable=str(prefix() / stable_id / CURRENT) if installed is not None else "",
+        executable=str(installed[1]) if installed is not None else "",
     )
 
 

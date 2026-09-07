@@ -285,6 +285,15 @@
     },
     "version": {
       "$ref": "#/$defs/Version"
+    },
+    "visibility": {
+      "default": "public",
+      "enum": [
+        "public",
+        "private"
+      ],
+      "title": "Visibility",
+      "type": "string"
     }
   },
   "required": [
@@ -302,7 +311,8 @@
     "schema_version",
     "stable_id",
     "state",
-    "version"
+    "version",
+    "visibility"
   ],
   "title": "PublicationPlanView",
   "type": "object"

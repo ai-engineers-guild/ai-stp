@@ -11,7 +11,7 @@ import sqlite3
 from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
@@ -795,6 +795,9 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
     """
     stable_id = _required(parameters, "id", "a stable id is required")
     wants_major = bool(parameters.get("major"))
+    visibility = str(parameters.get("visibility") or "private")
+    if visibility not in {"public", "private"}:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "invalid release visibility")
 
     def work(connection: sqlite3.Connection) -> VersionLine:
         stored = revisions.head(connection, stable_id)
@@ -818,6 +821,7 @@ def version_release(parameters: Mapping[str, object]) -> Answer[VersionLine]:
             number,
             device_id=current.device_id,
             at=released_at,
+            visibility=cast(Literal["public", "private"], visibility),
         )
         versions.record(
             connection,

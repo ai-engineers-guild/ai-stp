@@ -11,6 +11,7 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+from tests.support.cli_database import historical_registry
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import consent, content, database, lifecycle, revisions
@@ -588,8 +589,7 @@ def test_a_representative_database_of_an_older_schema_migrates(
     with what that version could hold, and then brought forward.
     """
     place = tmp_path / f"registry-v{from_version}.sqlite3"
-    with closing(open_registry(place, create=True)) as connection:
-        database.downgrade(connection, from_version)
+    with closing(historical_registry(place, from_version)) as connection:
         assert database.schema_version(connection) == from_version
         connection.execute(
             "INSERT INTO entity (stable_id, kind, created_at) VALUES (?, 'component', ?)",

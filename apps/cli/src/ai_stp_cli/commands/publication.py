@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from ai_stp_assurance import AuthorAttestation as FullAuthorAttestation
 from ai_stp_assurance import attestation_digest
@@ -115,8 +115,15 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
             "a local overlay cannot be published; materialize an owner version",
             details={"stable_id": stable_id, "version": version},
         )
+    visibility = str(parameters.get("visibility") or "private")
+    if visibility not in {"public", "private"}:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "invalid release visibility",
+        )
     request = PublicationPlanCreateRequest(
         object_kind="component",
+        visibility=cast(Literal["public", "private"], visibility),
         stable_id=stable_id,
         version=version,
         content_digest=passport.artifact.digest,
@@ -164,10 +171,13 @@ def confirm(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
     held = _session()
     where = endpoint()
     current = publication.status(where, held.access_token, plan_id)
+    if current.plan_id != plan_id or current.plan_hash != plan_hash:
+        raise CliFailure("AI_STP_PRECONDITION_FAILED", "the distribution plan changed after review")
     if current.state in {"ready", "draft"}:
         with closing(open_readonly(configured_path())) as connection:
             artifact = content.get(connection, current.content_digest)
-        publication.bind(where, held.access_token, plan_id, artifact)
+        bound = publication.bind(where, held.access_token, plan_id, artifact)
+        publication.require_same_plan(current, bound)
     request = PublicationConfirmRequest(
         plan_hash=plan_hash,
         confirmed=True,
@@ -185,4 +195,5 @@ def confirm(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
                 next_actions=[f"publication status --plan-id {plan_id} --json"],
             ) from failure
         raise
+    publication.require_same_plan(current, result)
     return Answer(PublicationPlanView.model_validate(result.model_dump(mode="json")))

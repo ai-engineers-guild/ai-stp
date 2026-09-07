@@ -33,7 +33,9 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
 - `REQ-804`: Package checking disallows absolute and parent paths, directory escaping, symbolic and hard links, special devices, normalized path repeat, and exceeding limits.
 - `REQ-805`: The plan has no side effects and is bound to the current target hash, provider and environment versions, and expiration date.
 - `REQ-806`: The application requires an exact hash of the plan, a lock, and re-validation of the target after acquiring the lock.
-- `REQ-807`: A backup is created before the first change, and the unmanaged state is retained by contract.
+- `REQ-807`: A backup is created before the first change. Preserved native setup
+  capture and exact return follow SPEC-068; narrower mutation recovery retains
+  unrelated unmanaged state.
 - `REQ-808`: The new target directory remains inactive until verified, ready to run, and status checked.
 - `REQ-809`: The states of `applied_unverified`, `verified`, `partial` and `failed` differ as a result of the provider and durable operation; Only `verified` is called success.
 - `REQ-810`: The current agent session does not half-update its own active target directory in place. A change of the running environment is staged, recorded as a handoff, switched, and confirmed after restart (`ADR-0150`).
@@ -62,7 +64,11 @@ The closed authoring loop of setup systems is a check and coordination loop: it 
 - `REQ-833`: Precise provider projection profile declares component and projection views, native identifier spaces, bundle formats, limits, OS/architecture and digest; compiler and provider independently reject an unsupported component, surface, collision, or profile change.
 - `REQ-834`: `plan-operation` is clean and bundles operation, provider build, verified consumer release digest/protocol, target snapshot, optional exact bundle/BackupRef, permission profile, platform/runtime identity, term and effects; `apply-operation` requires an accurate plan artifact/digest and re-checking after acquiring the lock.
 - `REQ-835`: Permission/execution profile is not a setup identity and does not change SetupDefinition/component graph digest; standalone legacy identities migrate only in a confirmed mutation after a backup.
-- `REQ-836`: Provider state and backup metadata link exact SetupVersion, SetupDefinition, components, bundle, projection profile, provider plan/release, target and native ownership; `status` does not migrate state, and secret values are not preserved.
+- `REQ-836`: Provider state and backup metadata link exact SetupVersion,
+  SetupDefinition, components, bundle, projection profile, provider plan/release,
+  target and native ownership. `status` does not migrate state. Metadata and
+  portable passports contain no secret values; protected local native recovery
+  follows SPEC-068 and excludes product credential files.
 - `REQ-837`: Provider v3 conformance is distributed as an immutable public artifact with no runtime dependency on private `ai_stp` or authoring loops and includes schemas, canonical examples, hostile corpus and expected digests.
 - `REQ-838`: Software download is allowed only in a separate phase; subsequent local apply again requires proven network isolation, and launch uses only the explicitly declared `runtime_external` capability.
 - `REQ-839`: Provider durable journal has closed phases `prepared` and `committed`, binds exact plan/operation/target-bound BackupRef and blocks the new plan until recovery; prepared restores the exact pre-operation target, committed only checks the result and drains cleanup.
