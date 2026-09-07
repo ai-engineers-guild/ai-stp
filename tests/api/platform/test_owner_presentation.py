@@ -184,7 +184,9 @@ async def test_owner_can_upload_component_media_and_save_presentation(
     assert served.status_code == 200
     assert served.headers["content-type"].startswith("image/")
     assert served.content == png
-    assert served.headers["cache-control"] == "private, no-store"
+    assert served.headers["cache-control"] == (
+        "public, max-age=300" if visibility == "public" else "private, no-store"
+    )
 
     saved = await client.put(
         f"/v1/owner/objects/{object_kind}/{stable_id}/presentation",
@@ -369,7 +371,6 @@ async def test_private_component_media_requires_owner_or_active_grant(
                 object_kind="component",
                 stable_id=stable_id,
                 version="1.0",
-                version_major=1,
                 current_revision_id="revision_" + "0" * 64,
                 visibility="private",
                 lifecycle_state="active",

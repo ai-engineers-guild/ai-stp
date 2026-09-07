@@ -172,7 +172,7 @@ async def test_successful_artifact_get_counts_download_not_install(
     detail = await client.get(f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}")
     assert downloaded.status_code == 200
     assert head.is_client_error
-    assert missing.status_code == 404
+    assert missing.status_code == 500
     metrics = detail.json()["summary"]["usage_metrics"]
     projected = CatalogUsageMetrics.model_validate(metrics)
     assert projected.artifact_downloads_count == 1

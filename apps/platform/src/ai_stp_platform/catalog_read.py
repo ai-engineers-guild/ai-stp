@@ -363,11 +363,14 @@ async def get_visible_metadata(
     account_id: str | None,
 ) -> CatalogMetadata | None:
     """Return public metadata or private metadata authorized by ownership/grant."""
-    public = await get_public_version(
-        session, object_kind=object_kind, stable_id=stable_id, version=version
+    public = await session.scalar(
+        _public_base(object_kind).where(
+            CatalogMetadata.stable_id == stable_id,
+            CatalogMetadata.version == version,
+        )
     )
     if public is not None:
-        return public.metadata
+        return public
     if not account_id:
         return None
     owned = await session.scalar(

@@ -529,7 +529,7 @@ async def test_publication_requires_every_declared_projection_artifact(
 ) -> None:
     client, sessionmaker, _settings = harness
     account_id, device_id, token = await _seed_account_device(sessionmaker)
-    passport = _passport(owner_id=account_id, extra_projection=True)
+    passport = _passport(owner_id=account_id, version="4.0", extra_projection=True)
     create = await client.post(
         "/v1/publications/plans",
         headers=_auth(token),

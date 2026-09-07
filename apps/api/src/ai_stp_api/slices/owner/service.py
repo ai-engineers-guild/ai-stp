@@ -449,10 +449,11 @@ async def read_component_media_bytes(
     row = await db.get(ComponentMedia, media_id)
     if row is None or row.state != "ready" or not row.object_key:
         return None
+    object_kind = "setup" if row.stable_id.startswith("setup_") else "component"
     is_public = (
         await db.scalar(
             select(CatalogMetadata.id).where(
-                CatalogMetadata.object_kind == "component",
+                CatalogMetadata.object_kind == object_kind,
                 CatalogMetadata.stable_id == row.stable_id,
                 CatalogMetadata.owner_account_id == row.owner_account_id,
                 CatalogMetadata.visibility == "public",

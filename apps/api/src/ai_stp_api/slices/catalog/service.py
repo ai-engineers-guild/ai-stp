@@ -1016,6 +1016,16 @@ async def read_github_metadata(
         version=version,
         account_id=account_id,
     )
+    if row is None and account_id is not None:
+        row = await session.scalar(
+            select(CatalogMetadata).where(
+                CatalogMetadata.owner_account_id == account_id,
+                CatalogMetadata.object_kind == object_kind,
+                CatalogMetadata.stable_id == stable_id,
+                CatalogMetadata.version == version,
+                CatalogMetadata.visibility == "private",
+            )
+        )
     if row is None:
         raise CatalogNotFound
     repository = repository_from_passport(row.passport_document)
