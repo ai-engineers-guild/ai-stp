@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import subprocess
 import sys
@@ -66,6 +67,14 @@ def main() -> int:
     checked = 0
     with tempfile.TemporaryDirectory() as tmp_raw:
         tmp = Path(tmp_raw)
+        puppeteer_config = tmp / "puppeteer.json"
+        mmdc_args: list[str] = []
+        if sys.platform == "linux":
+            puppeteer_config.write_text(
+                json.dumps({"args": ["--no-sandbox", "--disable-setuid-sandbox"]}),
+                encoding="utf-8",
+            )
+            mmdc_args = ["-p", str(puppeteer_config)]
         for path in documents():
             text = path.read_text(encoding="utf-8")
             for index, block in enumerate(BLOCK_RE.findall(text), start=1):
@@ -75,7 +84,7 @@ def main() -> int:
                 source.write_text(block, encoding="utf-8")
                 try:
                     result = subprocess.run(
-                        [str(MMDC), "-i", str(source), "-o", str(output)],
+                        [str(MMDC), *mmdc_args, "-i", str(source), "-o", str(output)],
                         capture_output=True,
                         text=True,
                         timeout=45,
