@@ -541,6 +541,7 @@
     "alignmentMissingHint": "This member is not available.",
     "browseFamily": "Browse family in catalog",
     "selectedAdaptation": "Selected harness projection",
+    "harnessProjection": "harness projection",
     "safetyCheck": "Safety check",
     "projectionDetails": "Open projection details",
     "passport": "Passport",

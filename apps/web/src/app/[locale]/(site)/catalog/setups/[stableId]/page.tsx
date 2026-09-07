@@ -173,12 +173,12 @@ export default async function SetupDetailPage({ params }: PageProps) {
         }
         title={summary.latest_name}
         badges={
-          <>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge variant="secondary">{t("setupKind")}</Badge>
             <Badge variant="outline">
               {t("harness")}: {summary.latest_harness_id}
             </Badge>
-          </>
+          </div>
         }
         versionLabel={`v${summary.latest_version}`}
         githubStars={metadata.stars}

@@ -6,6 +6,7 @@ import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { ObjectAuthorRail } from "@/components/molecules/catalog-author-link";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
+import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
@@ -95,10 +96,6 @@ export default async function ComponentDetailPage({ params }: PageProps) {
     label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
   }));
   const ownerId = summary.publisher_id || passport?.owner_id || "";
-  const summaryData = summary as unknown as {
-    latest_assurance?: { verified_targets: number; assessed_targets: number };
-  };
-  const assurance = summaryData.latest_assurance ?? { verified_targets: 0, assessed_targets: 0 };
   const targetMatrix = (detail as unknown as { target_matrix?: typeof detail.target_matrix })
     .target_matrix;
   const author = await readAuthor(ownerId);
@@ -141,20 +138,13 @@ export default async function ComponentDetailPage({ params }: PageProps) {
         icon={<ComponentTypeIcon type={summary.latest_component_type} />}
         title={summary.latest_name}
         badges={
-          <>
-            <Badge variant="secondary">{summary.latest_component_type}</Badge>
-            {namedHarnesses(summary).map((harness) => (
-              <Badge key={harness} variant="outline">
-                {harness}
-              </Badge>
-            ))}
-            <Badge variant="outline" data-ui={UI.catalog.assurance}>
-              {t("assuranceCounts")}: {assurance.verified_targets} / {assurance.assessed_targets}
-              {assurance.assessed_targets > 0
-                ? ` (${Math.round((assurance.verified_targets / assurance.assessed_targets) * 100)}%)`
-                : ""}
-            </Badge>
-          </>
+          <div className="min-w-0 space-y-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              <Badge variant="secondary">{summary.latest_component_type}</Badge>
+              <CompactChipList values={namedHarnesses(summary)} label={t("harness")} />
+            </div>
+            <CompactChipList values={summary.latest_tags} label={t("tags")} />
+          </div>
         }
         versionLabel={`v${summary.latest_version}`}
         githubStars={metadata.stars}

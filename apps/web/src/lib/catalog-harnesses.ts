@@ -11,7 +11,7 @@ export function namedHarnesses(item: {
 }): string[] {
   const extra = item.latest_harness_ids;
   if (extra && extra.length > 0) {
-    return Array.from(extra);
+    return [...new Set(extra)].sort((left, right) => left.localeCompare(right));
   }
   return [item.latest_harness_id];
 }

@@ -115,7 +115,6 @@ export function ComponentTargetMatrix({
           {matrixScore(matrix, labels)}
         </p>
       </div>
-      <MatrixTable matrix={matrix} labels={labels} />
       <MatrixCards matrix={matrix} labels={labels} />
       <RiskCommands matrix={matrix} labels={labels} />
       <div className="sr-only">
@@ -133,103 +132,11 @@ export function ComponentTargetMatrix({
   );
 }
 
-function MatrixTable({ matrix, labels }: { matrix: TargetMatrix; labels: TargetMatrixLabels }) {
-  return (
-    <div className="hidden min-w-0 overflow-x-auto md:block">
-      <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
-        <caption className="sr-only">{labels.heading}</caption>
-        <thead>
-          <tr className="border-border border-b">
-            <th scope="col" className="py-2 pr-3 font-medium">
-              {labels.harness}
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              {labels.availability}
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              {labels.scope}
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              {labels.technicalSupport}
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              {labels.assessment}
-            </th>
-            <th scope="col" className="py-2 font-medium">
-              {labels.recommendation}
-            </th>
-            <th scope="col" className="py-2 font-medium">
-              {labels.projectionKind}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {matrix.exact.map((row) => (
-            <tr
-              key={`${row.adaptation_id}:${row.scope}`}
-              className="border-border border-b align-top"
-            >
-              <th scope="row" className="py-3 pr-3 font-medium">
-                {row.harness_id}
-              </th>
-              <td className="py-3 pr-3">{labels.exact}</td>
-              <td className="py-3 pr-3">{row.scope}</td>
-              <td className="py-3 pr-3">{supportLabel(row.technical_support, labels)}</td>
-              <td className="py-3 pr-3">{assessmentLabel(row.assessment_state, labels)}</td>
-              <td className="py-3">{recommendationLabel(row.recommendation, labels)}</td>
-              <td className="py-3">
-                <ProjectionDetails row={row} labels={labels} />
-              </td>
-            </tr>
-          ))}
-          {matrix.claimed_portable.map((row) => (
-            <tr key={row.claim_id} className="border-border border-b align-top">
-              <th scope="row" className="py-3 pr-3 font-medium">
-                {row.harness_id}
-              </th>
-              <td className="py-3 pr-3">{labels.claimedPortable}</td>
-              <td className="py-3 pr-3">{row.scopes.join(", ") || labels.noneListed}</td>
-              <td className="py-3 pr-3">{labels.noneListed}</td>
-              <td className="py-3 pr-3">{labels.notVerified}</td>
-              <td className="py-3">{labels.ineffective}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function MatrixCards({ matrix, labels }: { matrix: TargetMatrix; labels: TargetMatrixLabels }) {
   return (
-    <ul className="space-y-3 md:hidden">
+    <ul className="space-y-2">
       {matrix.exact.map((row) => (
-        <li
-          key={`${row.adaptation_id}:${row.scope}`}
-          className="border-border space-y-2 rounded-md border p-3"
-        >
-          <p className="font-medium">{row.harness_id}</p>
-          <p className="text-sm">
-            {labels.availability}: {labels.exact}
-          </p>
-          <p className="text-sm">
-            {labels.scope}: {row.scope}
-          </p>
-          <p className="text-sm">
-            {labels.implementation}: {row.implementation_mode}
-          </p>
-          <p className="text-sm">
-            {labels.projectionKind}: {row.projection_kind}
-          </p>
-          <p className="text-sm">
-            {labels.technicalSupport}: {supportLabel(row.technical_support, labels)}
-          </p>
-          <p className="text-sm">
-            {labels.assessment}: {assessmentLabel(row.assessment_state, labels)}
-          </p>
-          <p className="text-sm">
-            {labels.recommendation}: {recommendationLabel(row.recommendation, labels)}
-          </p>
+        <li key={`${row.adaptation_id}:${row.scope}`}>
           <ProjectionDetails row={row} labels={labels} />
         </li>
       ))}
@@ -277,11 +184,18 @@ function ProjectionDetails({
   labels: TargetMatrixLabels;
 }) {
   return (
-    <details className="border-border mt-2 rounded-md border p-2">
-      <summary className="cursor-pointer text-sm font-medium underline underline-offset-4">
-        {labels.projectionDetails}: {row.harness_id} · {row.projection_kind}
+    <details className="border-border bg-card rounded-lg border shadow-sm">
+      <summary className="focus-visible:ring-ring flex min-w-0 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 rounded-lg p-3 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1 font-medium break-words">{row.harness_id}</span>
+        <span className="text-muted-foreground text-sm">
+          {labels.assessment}: {assessmentLabel(row.assessment_state, labels)}
+        </span>
+        <span className="text-muted-foreground text-sm">
+          {labels.implementation}: {row.implementation_mode}
+        </span>
+        <span className="sr-only">{labels.projectionDetails}</span>
       </summary>
-      <dl className="text-muted-foreground mt-3 grid gap-2 text-xs sm:grid-cols-2">
+      <dl className="border-border text-muted-foreground grid gap-3 border-t px-3 py-3 text-xs sm:grid-cols-2">
         <div>
           <dt className="text-foreground font-medium">{labels.safetyCheck}</dt>
           <dd>{assessmentLabel(row.assessment_state, labels)}</dd>

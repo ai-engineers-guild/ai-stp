@@ -24,8 +24,8 @@ describe("compatibility lists", () => {
   it("reads every named harness and OS from the passport-shaped inputs", () => {
     expect(
       namedHarnesses({
-        latest_harness_id: "claude-code",
-        latest_harness_ids: ["claude-code", "codex"],
+        latest_harness_id: "codex",
+        latest_harness_ids: ["codex", "claude-code", "codex"],
       }),
     ).toEqual(["claude-code", "codex"]);
     expect(namedHarnesses({ latest_harness_id: "pi", latest_harness_ids: [] })).toEqual(["pi"]);

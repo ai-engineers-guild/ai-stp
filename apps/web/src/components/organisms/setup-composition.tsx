@@ -1,9 +1,9 @@
 import { Badge } from "@/components/atoms/badge";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
 import type {
   ComponentType,
-  SelectedAdaptation,
   SetupComponentChecks,
   SetupCompositionMember,
   SetupVersionPassport,
@@ -76,22 +76,33 @@ export function SetupComposition({
                   };
 
               return (
-                <li key={key} className={embedded ? "bg-muted/20 p-4 sm:p-5" : "p-4 sm:p-5"}>
+                <li key={key} className={`relative ${embedded ? "bg-muted/20" : ""} p-4 sm:p-5`}>
+                  {!embedded ? (
+                    <Link
+                      href={`/catalog/components/${ref.stable_id}`}
+                      prefetch={false}
+                      aria-label={name}
+                      className="focus-visible:ring-ring absolute inset-0 z-10 rounded-lg focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                      <span className="sr-only">{name}</span>
+                    </Link>
+                  ) : null}
                   <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                     <ComponentTypeIcon type={componentType} compact />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div
+                      className={`min-w-0 flex-1 ${
+                        !embedded ? "pointer-events-none relative z-20" : ""
+                      }`}
+                    >
+                      <div className="flex min-w-0 flex-wrap items-start gap-2">
                         {embedded ? (
                           <span className="font-medium [overflow-wrap:anywhere] break-words">
                             {name}
                           </span>
                         ) : (
-                          <Link
-                            href={`/catalog/components/${ref.stable_id}`}
-                            className="font-medium [overflow-wrap:anywhere] break-words underline underline-offset-4"
-                          >
+                          <span className="font-medium [overflow-wrap:anywhere] break-words underline underline-offset-4">
                             {name}
-                          </Link>
+                          </span>
                         )}
                         <Badge variant="outline">{componentType}</Badge>
                         <Badge variant="outline">
@@ -100,6 +111,29 @@ export function SetupComposition({
                         {embedded ? (
                           <Badge variant="secondary">{t("externalComponent")}</Badge>
                         ) : null}
+                        {selected ? (
+                          <Badge variant="outline">
+                            {selected.harness_id} {t("harnessProjection")}
+                          </Badge>
+                        ) : null}
+                        <div className="pointer-events-auto relative z-30 ml-auto shrink-0">
+                          <CatalogItemMenu
+                            kind="component"
+                            stableId={ref.stable_id}
+                            version={ref.version}
+                            href={`/catalog/components/${ref.stable_id}/versions/${ref.version}`}
+                            labels={{
+                              more: t("moreActions"),
+                              copyUrl: t("copyUrl"),
+                              copyCli: t("copyCli"),
+                              copyId: t("copyId"),
+                              copied: t("copied"),
+                              report: t("report"),
+                              like: t("like"),
+                              unlike: t("unlike"),
+                            }}
+                          />
+                        </div>
                       </div>
 
                       <div className="text-muted-foreground mt-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
@@ -108,7 +142,7 @@ export function SetupComposition({
                           {identity.accountId ? (
                             <Link
                               href={`/publishers/${identity.accountId}`}
-                              className="text-foreground underline underline-offset-4"
+                              className="text-foreground pointer-events-auto relative z-20 underline underline-offset-4"
                             >
                               {identity.displayName || identity.accountId}
                             </Link>
@@ -121,14 +155,13 @@ export function SetupComposition({
                             href={sourceUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-foreground inline-flex min-w-0 items-center gap-1.5 underline underline-offset-4"
+                            className="text-foreground pointer-events-auto relative z-20 inline-flex min-w-0 items-center gap-1.5 underline underline-offset-4"
                           >
                             <Icon name={sourceIcon(sourceUrl)} size="sm" />
                             <span className="truncate">{sourceLabel(sourceUrl)}</span>
                           </a>
                         ) : null}
                       </div>
-                      {selected ? <SelectedAdaptationFacts selected={selected} t={t} /> : null}
                     </div>
                   </div>
                 </li>
@@ -140,46 +173,6 @@ export function SetupComposition({
         <StatePanel kind="empty" title={t("noneListed")} />
       )}
     </DetailAccordion>
-  );
-}
-
-function SelectedAdaptationFacts({
-  selected,
-  t,
-}: {
-  selected: SelectedAdaptation;
-  t: (key: string) => string;
-}) {
-  return (
-    <details className="border-border mt-3 rounded-md border p-3">
-      <summary className="cursor-pointer text-sm font-medium underline underline-offset-4">
-        {t("selectedAdaptation")}: {selected.harness_id} · {selected.projection_kind}
-      </summary>
-      <dl className="text-muted-foreground mt-3 grid gap-2 text-xs sm:grid-cols-2">
-        <div>
-          <dt className="text-foreground font-medium">{t("safetyCheck")}</dt>
-          <dd>{selected.assessment_state}</dd>
-        </div>
-        <div>
-          <dt className="text-foreground font-medium">{t("technicalSupport")}</dt>
-          <dd>{selected.technical_support}</dd>
-        </div>
-        <div>
-          <dt className="text-foreground font-medium">{t("implementationMode")}</dt>
-          <dd>{selected.implementation_mode}</dd>
-        </div>
-        <div>
-          <dt className="text-foreground font-medium">{t("recommendation")}</dt>
-          <dd>{selected.recommendation}</dd>
-        </div>
-        {selected.limitations.length ? (
-          <div className="sm:col-span-2">
-            <dt className="text-foreground font-medium">{t("semanticLosses")}</dt>
-            <dd>{selected.limitations.join(", ")}</dd>
-          </div>
-        ) : null}
-      </dl>
-    </details>
   );
 }
 

@@ -37,6 +37,11 @@ already public participant is listed and is not replanned. The decision is
 `ADR-0114`; the requirements are `SPEC-038`
 `REQ-3810`–`REQ-3812`.
 
+The local setup snapshot may remain private while the publication request carries
+an equivalent public-visibility copy with a recomputed revision id. This does not
+rewrite the local passport; local privacy and the public publication boundary
+remain separate.
+
 The set returns a `set_digest` over the ordered list of participants: role, kind,
 `stable_id`, version, `plan_hash`, and an “already published” marker. Participant
 state is not included in the digest: a plan that moves from `draft` to `ready`

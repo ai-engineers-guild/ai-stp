@@ -17,6 +17,10 @@ vi.mock("@/lib/i18n/navigation", () => ({
   ),
 }));
 
+vi.mock("@/components/organisms/contact-report-dialog", () => ({
+  ContactReportDialog: () => null,
+}));
+
 const labels: Record<string, string> = {
   composition: "Components",
   compositionDescription: "Exact components included in this setup.",
@@ -24,6 +28,7 @@ const labels: Record<string, string> = {
   componentPublisher: "Published by",
   externalComponent: "Third-party source",
   noneListed: "None listed",
+  harnessProjection: "harness projection",
   selectedAdaptation: "Selected harness projection",
   safetyCheck: "Safety check",
   technicalSupport: "Technical support",
@@ -111,7 +116,7 @@ describe("SetupComposition", () => {
     expect(screen.queryByText(/tokens/i)).not.toBeInTheDocument();
   });
 
-  it("shows the exact selected harness projection and its safety state", async () => {
+  it("shows the selected harness projection as a compact card badge", async () => {
     const user = userEvent.setup();
     render(
       <SetupComposition
@@ -124,13 +129,8 @@ describe("SetupComposition", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: /Components/ }));
-    const projectionSummary = screen.getByText(/Selected harness projection/, {
-      selector: "summary",
-    });
-    await user.click(projectionSummary);
-    expect(screen.getByText("Safety check")).toBeVisible();
-    expect(screen.getByText("not_verified")).toBeVisible();
-    expect(projectionSummary).toHaveTextContent("claude-code");
-    expect(projectionSummary).toHaveTextContent("native_files");
+    expect(screen.getByText("claude-code harness projection")).toBeVisible();
+    expect(screen.queryByText(/Selected harness projection/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "moreActions" })).toBeVisible();
   });
 });

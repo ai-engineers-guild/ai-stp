@@ -2,6 +2,7 @@
 import { Badge } from "@/components/atoms/badge";
 import { CatalogEngagement } from "@/components/molecules/catalog-engagement";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
+import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { VerifiedAvatar } from "@/components/molecules/verified-avatar";
 import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
@@ -156,14 +157,24 @@ function Author({
     </Link>
   );
 }
-function Harnesses({ values, label }: { values: string[]; label: string }) {
+function MetadataRows({
+  type,
+  harnesses,
+  tags,
+  labels,
+}: {
+  type: string;
+  harnesses: readonly string[];
+  tags: readonly string[];
+  labels: Labels;
+}) {
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1" aria-label={label}>
-      {values.map((value) => (
-        <Badge key={value} variant="secondary">
-          {value}
-        </Badge>
-      ))}
+    <div className="mt-2 min-w-0 space-y-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
+        <Badge variant="secondary">{type}</Badge>
+        <CompactChipList values={harnesses} label={labels.harness} />
+      </div>
+      <CompactChipList values={tags} label={labels.tags} />
     </div>
   );
 }
@@ -271,18 +282,12 @@ export function ObjectCard({
                 {reason}
               </p>
             ) : null}
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <Badge variant="outline">{type}</Badge>
-              <Harnesses values={harnesses} label={labels.harness} />
-              <ClaimedMatch item={item} labels={labels} />
-              <div className="flex min-w-0 flex-wrap gap-1">
-                {item.latest_tags.slice(0, 2).map((tag) => (
-                  <Badge key={tag} variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+            <MetadataRows
+              type={type}
+              harnesses={harnesses}
+              tags={item.latest_tags}
+              labels={labels}
+            />
             <CardFacts item={item} kind={kind} labels={labels} />
           </div>
           <div className="relative z-20 col-start-3 row-start-1 md:col-start-6">
@@ -341,11 +346,7 @@ export function ObjectCard({
               />
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1">
-            <Badge variant="secondary">{type}</Badge>
-            <Harnesses values={harnesses} label={labels.harness} />
-            <ClaimedMatch item={item} labels={labels} />
-          </div>
+          <MetadataRows type={type} harnesses={harnesses} tags={item.latest_tags} labels={labels} />
           <CardFacts item={item} kind={kind} labels={labels} />
           {reason ? (
             <p className="text-muted-foreground mt-1 line-clamp-1 text-xs" data-why-open="">
@@ -360,13 +361,6 @@ export function ObjectCard({
       <div className="flex flex-wrap items-center justify-between gap-3 py-1">
         {metrics}
         {kind === "component" ? <SafetyScore item={item} labels={labels} /> : null}
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {item.latest_tags.map((tag) => (
-          <Badge key={tag} variant="outline">
-            {tag}
-          </Badge>
-        ))}
       </div>
       <div className="border-border relative z-20 mt-auto flex items-end justify-between gap-3 border-t pt-3">
         <RequirementCount item={item} labels={labels} />
@@ -414,6 +408,7 @@ function CardFacts({
     : { verified_targets: 0, assessed_targets: 0 };
   return (
     <div className="text-muted-foreground mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs">
+      {kind === "component" ? <ClaimedMatch item={item} labels={labels} /> : null}
       {kind === "component" && isComponentSummary(item) ? (
         <p data-ui={UI.catalog.assurance}>
           {formatAssuranceCounts(
