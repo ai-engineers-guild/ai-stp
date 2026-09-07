@@ -20,6 +20,11 @@ export type ContextBudgetLabels = {
   unavailable: string;
   empty: string;
   error: string;
+  artifactCorrupt?: string;
+  invalidGraph?: string;
+  dependencyFailure?: string;
+  nonUtf8?: string;
+  adaptationRequired?: string;
   tokens: string;
   checkLocally: string;
   localCommandTitle: string;
@@ -48,6 +53,11 @@ export function contextBudgetLabels(
     unavailable: t("contextBudgetUnavailable"),
     empty: t("contextBudgetEmpty"),
     error: t("contextBudgetError"),
+    artifactCorrupt: t("contextBudgetArtifactCorrupt"),
+    invalidGraph: t("contextBudgetInvalidGraph"),
+    dependencyFailure: t("contextBudgetDependencyFailure"),
+    nonUtf8: t("contextBudgetNonUtf8"),
+    adaptationRequired: t("contextBudgetAdaptationRequired"),
     tokens: t("contextBudgetTokens"),
     checkLocally: t("contextBudgetCheckLocally"),
     localCommandTitle: t("localImpactCommandTitle"),
@@ -65,4 +75,22 @@ export function contextBudgetLabels(
       hint: t("contextCostHint"),
     },
   };
+}
+
+export function contextBudgetMessage(labels: ContextBudgetLabels, reason?: string | null): string {
+  switch (reason) {
+    case "artifact_corrupt":
+    case "artifact_invalid":
+      return labels.artifactCorrupt ?? labels.error;
+    case "invalid_graph":
+      return labels.invalidGraph ?? labels.error;
+    case "dependency_unavailable":
+      return labels.dependencyFailure ?? labels.error;
+    case "content_is_not_utf8":
+      return labels.nonUtf8 ?? labels.error;
+    case "adaptation_selection_required":
+      return labels.adaptationRequired ?? labels.error;
+    default:
+      return labels.error;
+  }
 }

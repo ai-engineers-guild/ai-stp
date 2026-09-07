@@ -59,9 +59,24 @@ word boundaries; roots and suffixes are not matched.
 
 - Sources: upload (`image/jpeg`, `image/png`, `image/webp`, ≤ 5 MiB) or a linked
   OAuth identity (GitHub/Google) already read by the server.
-- The client does not submit an arbitrary remote URL.
+- Uploads use a bounded binary request body with the image MIME type.
+- The client does not submit an arbitrary remote URL. Profile mutations resolve
+  the session from the server cookie and validate the form CSRF token; the session
+  token is never serialized into browser component props.
+- A successful upload or provider import replaces any local preview with the
+  processed URL. Provider errors retain their typed code and safe message across
+  the server-action boundary.
 - A provider URL never becomes the public avatar URL: the server normalizes it,
   removes EXIF, stores the processed asset in object storage, and returns a safe URL.
+- Provider fetches use HTTPS image hosts belonging to the chosen provider, validate
+  every redirect (at most three), and stop at 5 MiB of decoded response bytes.
+  Credentials and arbitrary client URLs are never sent to the image host.
+- Inputs are decoded as JPEG, PNG or WebP with at most 16,777,216 pixels.
+  The first frame is oriented and resized proportionally to fit 512×512 pixels,
+  then encoded as a fresh PNG without EXIF, XMP, ICC or text metadata.
+  MIME mismatch, malformed images and exceeded limits are validation errors;
+  HTTP and storage failures are dependency errors. The current profile stays unchanged.
+- Upload/import responses carry the asset id and processed URL, never an object key.
 - Asset states: `processing`, `ready`, `rejected`, `deleted`.
 
 ## Public projection (allowlist)

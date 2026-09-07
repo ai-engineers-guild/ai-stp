@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "OwnerPresentationMedia": {
+      "additionalProperties": false,
+      "description": "One safe mutable media item shown on a component catalog page.",
+      "properties": {
+        "alt": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Caption",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "image",
+            "video",
+            "youtube"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "alt"
+      ],
+      "title": "OwnerPresentationMedia",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:owner-presentation-update-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Mutable component/setup presentation; never changes passport identity.",
+  "properties": {
+    "bio": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Bio",
+      "type": "string"
+    },
+    "media": {
+      "items": {
+        "$ref": "#/$defs/OwnerPresentationMedia"
+      },
+      "maxItems": 5,
+      "title": "Media",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "OwnerPresentationUpdateRequest",
+  "type": "object"
+}

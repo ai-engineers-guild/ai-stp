@@ -152,7 +152,140 @@ _VERSION_OPTION: Final[CommandParameter] = option(
     " the newest is provider update.",
 )
 
+_PRESERVED_PROVIDER_OPTIONS: Final[tuple[CommandParameter, ...]] = (
+    option(
+        "provider", "string", "Exact provider executable; planning can resolve it automatically."
+    ),
+    option("provider-manifest", "string", "Trusted manifest for the provider's exact bytes."),
+    option(
+        "provider-build-attestation", "boolean", "Verify the pinned provider build attestation."
+    ),
+    option("provider-attestation-bundle", "string", "Offline provider attestation bundle."),
+    option("unverified-provider", "boolean", "Explicitly use an unverified local provider."),
+    option(
+        "provider-release-recovery", "boolean", "Use an exact previously verified provider release."
+    ),
+)
+
 DECLARATIONS: Final[tuple[Declaration, ...]] = (
+    Declaration(
+        path=["publication", "visibility", "plan"],
+        summary="Plan an explicit owner visibility change without rewriting the exact version.",
+        result_schema="urn:ai-stp:schema:v1:visibility-plan-response",
+        handler="visibility:plan",
+        mutability="plan",
+        parameters=(
+            option("kind", "string", "Object kind.", required=True, choices=("component", "setup")),
+            option("id", "string", "Exact stored object identifier.", required=True),
+            option("version", "string", "Exact stored X.Y version.", required=True),
+            option(
+                "visibility",
+                "string",
+                "Requested distribution visibility.",
+                required=True,
+                choices=("public", "private"),
+            ),
+        ),
+        next_actions=("publication visibility confirm",),
+    ),
+    Declaration(
+        path=["publication", "visibility", "status"],
+        summary="Read an owner visibility plan and its exact access effects.",
+        result_schema="urn:ai-stp:schema:v1:visibility-plan-response",
+        handler="visibility:status",
+        parameters=(option("plan-id", "string", "Visibility plan identifier.", required=True),),
+        next_actions=("publication visibility confirm",),
+    ),
+    Declaration(
+        path=["publication", "visibility", "confirm"],
+        summary="Confirm the exact owner visibility plan hash and its listed effects.",
+        result_schema="urn:ai-stp:schema:v1:visibility-plan-response",
+        handler="visibility:confirm",
+        mutability="apply",
+        confirmation="explicit_flag",
+        parameters=(
+            option("plan-id", "string", "Visibility plan identifier.", required=True),
+            option("plan-hash", "string", "Exact visibility plan hash.", required=True),
+            option("confirm", "boolean", "Explicitly approve these access changes."),
+        ),
+        next_actions=("publication visibility status",),
+    ),
+    Declaration(
+        path=["setup", "preserve", "plan"],
+        summary="Plan a complete retained snapshot of the user's existing native setup.",
+        result_schema="urn:ai-stp:schema:v1:cli-installation",
+        handler="preserved_setups:preserve_plan",
+        mutability="plan",
+        parameters=(
+            option("project", "string", "Project passport stable id.", required=True),
+            option(
+                "harness",
+                "string",
+                "Harness whose native setup is preserved.",
+                required=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+            option("target", "string", "Existing native target directory.", required=True),
+            option(
+                "scope",
+                "string",
+                "Native target scope; defaults to global.",
+                choices=("global", "project", "user_root"),
+            ),
+            *_PRESERVED_PROVIDER_OPTIONS,
+        ),
+        next_actions=("install approve", "install apply", "setup preserved list"),
+    ),
+    Declaration(
+        path=["setup", "preserve", "recover"],
+        summary="Recover the saved setup identity after a lost response without repeating effects.",
+        result_schema="urn:ai-stp:schema:v1:cli-installation",
+        handler="install:recover_preserved",
+        mutability="apply",
+        parameters=(
+            option("operation", "string", "Original capture operation id.", required=True),
+            *_PRESERVED_PROVIDER_OPTIONS,
+        ),
+        next_actions=("setup preserved list", "setup restore plan"),
+    ),
+    Declaration(
+        path=["setup", "preserved", "list"],
+        summary="List saved native setups by stable local identity after restarting the CLI.",
+        result_schema="urn:ai-stp:schema:v1:cli-preserved-setups",
+        handler="preserved_setups:list_saved",
+        parameters=(
+            option(
+                "harness",
+                "string",
+                "Limit saved setups to one harness.",
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+        ),
+        next_actions=("setup preserved show", "setup restore plan"),
+    ),
+    Declaration(
+        path=["setup", "preserved", "show"],
+        summary="Inspect a saved setup; a named provider verifies its bytes and current target.",
+        result_schema="urn:ai-stp:schema:v1:cli-preserved-setup",
+        handler="preserved_setups:show",
+        parameters=(
+            option("setup", "string", "Preserved setup stable id.", required=True),
+            *_PRESERVED_PROVIDER_OPTIONS,
+        ),
+        next_actions=("setup restore plan",),
+    ),
+    Declaration(
+        path=["setup", "restore", "plan"],
+        summary="Plan an exact return to a saved setup after preserving the current configuration.",
+        result_schema="urn:ai-stp:schema:v1:cli-installation",
+        handler="preserved_setups:restore_plan",
+        mutability="plan",
+        parameters=(
+            option("preserved-setup", "string", "Exact saved setup stable id.", required=True),
+            *_PRESERVED_PROVIDER_OPTIONS,
+        ),
+        next_actions=("install approve", "install apply", "setup preserved show"),
+    ),
     Declaration(
         path=["eval", "profile"],
         summary="Show the versioned reference evaluation profile for all or one component type.",
@@ -286,6 +419,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="publication:plan",
         mutability="plan",
         parameters=(
+            option(
+                "visibility",
+                "string",
+                "Plan private (default) or explicitly public distribution.",
+                choices=("public", "private"),
+            ),
             option("id", "string", "Stable identifier of the released component.", required=True),
             option("version", "string", "Exact local X.Y version to publish.", required=True),
             option(
@@ -982,6 +1121,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="cli_program:status",
         parameters=(
             option("id", "string", "Stable identifier of the cli component.", required=True),
+            option("version", "string", "Inspect this exact installed version instead of current."),
         ),
         next_actions=("component program install", "component program remove"),
     ),
@@ -1334,6 +1474,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("id", "string", "Stable identifier of a registered object.", required=True),
             option("major", "boolean", "Open the next major line instead of the next minor."),
+            option(
+                "visibility",
+                "string",
+                "Visibility of the new immutable snapshot.",
+                choices=("public", "private"),
+            ),
         ),
         next_actions=("component version list",),
     ),
@@ -1877,6 +2023,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="registry:acquire",
         mutability="apply",
         parameters=(
+            option(
+                "private",
+                "boolean",
+                "Allow authenticated owner/grant reads after an anonymous miss.",
+            ),
             option("id", "string", "Stable identifier of the published setup.", required=True),
             option("version", "string", "Exact two-integer setup version.", required=True),
             option("offline", "boolean", "Use only verified cached passports and artifacts."),
@@ -1939,6 +2090,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # addressed by content, so a second call is a no-op.
         mutability="apply",
         parameters=(
+            option(
+                "private",
+                "boolean",
+                "Allow authenticated owner/grant reads after an anonymous miss.",
+            ),
             option("kind", "string", "Object kind.", required=True, choices=("component", "setup")),
             option("id", "string", "Typed stable identifier of the object.", required=True),
             option(
@@ -1980,6 +2136,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-catalog-version",
         handler="registry:version",
         parameters=(
+            option(
+                "private",
+                "boolean",
+                "Allow authenticated owner/grant reads after an anonymous miss.",
+            ),
             option(
                 "kind",
                 "string",
@@ -2348,6 +2509,57 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("install apply",),
     ),
     Declaration(
+        path=["environment", "inspect"],
+        summary="Inspect exact setup prerequisites and preparation steps without effects.",
+        result_schema="urn:ai-stp:schema:v1:cli-environment-inspection",
+        handler="environment:inspect",
+        parameters=(
+            option("project", "string", "Project passport stable id.", required=True),
+            option(
+                "setup", "string", "Repeated exact setup id@X.Y.", required=True, repeatable=True
+            ),
+            option(
+                "target", "string", "Existing absolute project target directory.", required=True
+            ),
+            option(
+                "harness-prefix",
+                "string",
+                "Repeated harness=absolute program prefix.",
+                repeatable=True,
+            ),
+            option(
+                "tool",
+                "string",
+                "Repeated tool id from the managed toolchain profile.",
+                repeatable=True,
+            ),
+            option("offline", "boolean", "Report preparation using only cached artifacts."),
+        ),
+        next_actions=(
+            "harness install",
+            "toolchain install",
+            "component program install",
+            "install plan",
+        ),
+    ),
+    Declaration(
+        path=["environment", "plan"],
+        summary="Compose exact plans for separate harnesses of one project before effects.",
+        result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
+        handler="install_transaction:compose_environment",
+        mutability="plan",
+        parameters=(
+            option(
+                "operation",
+                "string",
+                "Repeated unapproved native operation id.",
+                required=True,
+                repeatable=True,
+            ),
+        ),
+        next_actions=("install transaction approve", "install transaction cancel"),
+    ),
+    Declaration(
         path=["install", "transaction", "plan"],
         summary="Plan one exact SetupVersion across every required provider root.",
         result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
@@ -2406,6 +2618,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("transaction", "string", "Approved transaction to apply.", required=True),
             option(
+                "provider-for",
+                "string",
+                "Repeated harness=executable override for an environment.",
+                repeatable=True,
+            ),
+            option(
                 "provider",
                 "string",
                 "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
@@ -2428,6 +2646,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="apply",
         parameters=(
             option("transaction", "string", "Transaction requiring recovery.", required=True),
+            option(
+                "provider-for",
+                "string",
+                "Repeated harness=executable override for an environment.",
+                repeatable=True,
+            ),
             option(
                 "provider",
                 "string",
@@ -2978,6 +3202,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # nothing: the whole point of the set is that one confirmation follows.
         mutability="plan",
         parameters=(
+            option(
+                "visibility",
+                "string",
+                "Plan private (default) or explicitly public distribution.",
+                choices=("public", "private"),
+            ),
             option("id", "string", "Stable identifier of the released setup.", required=True),
             option("version", "string", "Exact local X.Y version to publish.", required=True),
         ),

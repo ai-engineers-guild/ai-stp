@@ -6,7 +6,7 @@ an estate that had been transferred to a personal account and archived — nothi
 here could rebuild it, so nothing here noticed.
 
 What it does. For each harness it reads all four posture trees under `setups/`
-of that harness's setup-system at `main`, maps every path to a component using
+of that harness's setup-system at one attested release commit, maps every path to a component using
 this repository's own projection rules, packages each one, and emits a manifest
 beside the artifacts. This sentence said `setups/nddev-builder/` alone, which
 was true until 2026-08-30 and then went on describing a quarter of the work the
@@ -123,14 +123,17 @@ def source_commit(repository: str, posture: str) -> str:
     docstring on `_tree` describes, one level up.
     """
     path = source_path(posture)
-    commit = _gh(f"repos/{ORGANISATION}/{repository}/commits?path={path}&per_page=1", ".[0].sha")
+    head = _head(repository)
+    commit = _gh(
+        f"repos/{ORGANISATION}/{repository}/commits?path={path}&sha={head}&per_page=1", ".[0].sha"
+    )
     if not commit:
         raise RuntimeError(f"{repository}: no commit has touched {path}")
     return commit
 
 
 def _tree(repository: str) -> list[dict[str, Any]]:
-    """Every entry of the repository at `main`, for all four postures at once.
+    """Every entry at the captured commit, for all four postures at once.
 
     This asked for `commits/main` — the repository's HEAD — until 2026-08-29.
     HEAD moves on every provider release, and `source.commit` is inside a
@@ -173,7 +176,7 @@ READ_HEADS: dict[str, str] = {}
 
 
 def _head(repository: str) -> str:
-    """The commit `main` names right now, resolved once per repository per run."""
+    """Use the attested build commit, or resolve current main once for drift."""
     held = READ_HEADS.get(repository)
     if held is not None:
         return held
@@ -182,63 +185,6 @@ def _head(repository: str) -> str:
         raise RuntimeError(f"{repository}: main names no commit")
     READ_HEADS[repository] = head
     return head
-
-
-#: The asset every setup-system publishes for the platform this script runs on.
-#: Only Linux, and deliberately so: the point is to *ask* the provider, and a
-#: build host that cannot run it must say so rather than guess.
-LINUX_ASSET = "{name}-x86_64-unknown-linux-gnu"
-
-
-def _platform_support(repository: str) -> tuple[list[str], list[str]]:
-    """The operating systems and architectures the provider itself declares.
-
-    This was two literals — `["linux"]` and `["x86_64"]` — written into the
-    setup body below. All seven providers declare three systems and two
-    architectures, so every published setup understated its own platform support,
-    and it had done since the value was first typed. A value copied from a source
-    and never compared to it again: the same defect as the archived provenance
-    this builder exists to fix, one field along.
-
-    The repair is one fewer copy rather than one more check. There is no
-    fallback: a literal that stands in when the question cannot be asked is the
-    copy coming back.
-    """
-    with tempfile.TemporaryDirectory() as held:
-        directory = Path(held)
-        name = LINUX_ASSET.format(name=repository)
-        result = subprocess.run(
-            [
-                "gh",
-                "release",
-                "download",
-                "--repo",
-                f"{ORGANISATION}/{repository}",
-                "--pattern",
-                name,
-                "--dir",
-                str(directory),
-                "--clobber",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"{repository}: could not download {name}: {result.stderr.strip()}")
-        binary = directory / name
-        binary.chmod(0o755)
-        answer = subprocess.run(
-            [str(binary), "provider-info"], capture_output=True, text=True, check=False
-        )
-        if answer.returncode != 0:
-            raise RuntimeError(f"{repository}: provider-info failed: {answer.stderr.strip()}")
-        declared = json.loads(answer.stdout)
-    systems = [str(item) for item in declared["supported_os"]]
-    machines = [str(item) for item in declared["supported_arch"]]
-    if not systems or not machines:
-        raise RuntimeError(f"{repository}: provider-info declares an empty platform set")
-    return sorted(systems), sorted(machines)
 
 
 def _components(
@@ -502,11 +448,16 @@ def build(
     harnesses: Sequence[str],
     *,
     out: Path,
+    release_tag: str,
     bump_all: bool = False,
     bump_ids: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
+    from ai_stp_cli.provider.attested_bind import fetch, sequence_from_tag
     from ai_stp_foundation.ids import new_id
 
+    sequence_from_tag(release_tag)
+    READ_HEADS.clear()
+    release_pins: dict[str, dict[str, str]] = {}
     known_components, known_setups = held_identities(out)
     known_versions = held_versions(out)
     # What the *previous* manifest recorded for each object, so "did this move"
@@ -526,8 +477,19 @@ def build(
     written: dict[str, bytes] = {}
     for harness_id in harnesses:
         repository = REPOSITORIES[harness_id]
+        with tempfile.TemporaryDirectory(prefix="ai-stp-corpus-provider-") as directory:
+            bound = fetch(harness=harness_id, tag=release_tag, directory=Path(directory))
+        READ_HEADS[repository] = bound.commit
+        release_pins[harness_id] = {
+            "repository": bound.repository,
+            "tag": bound.tag,
+            "commit": bound.commit,
+            "artifact_digest": bound.artifact_digest,
+            "trust_level": bound.trust_level,
+        }
         entries = _tree(repository)
-        systems, machines = _platform_support(repository)
+        systems = sorted(bound.manifest.supported_os)
+        machines = sorted(bound.manifest.supported_arch)
         by_posture = {posture: _components(harness_id, entries, posture) for posture in POSTURES}
         for posture in POSTURES:
             components, unrouted = by_posture[posture]
@@ -628,6 +590,7 @@ def build(
             if unrouted:
                 report["unrouted"][f"{harness_id}/{posture}"] = unrouted
     report["manifest"] = {"harnesses": manifest, "schema_version": 1}
+    report["release_pins"] = release_pins
     report["heads"] = dict(READ_HEADS)
     return report
 
@@ -654,6 +617,7 @@ def drift(manifest: dict[str, Any], harnesses: Sequence[str]) -> dict[str, Any]:
     and a tool that exits non-zero on it would reinstate exactly the block this
     measurement removes.
     """
+    READ_HEADS.clear()
     moved: dict[str, Any] = {"components": {}, "setups": [], "unchanged": 0, "changed": 0}
     recorded: dict[str, list[dict[str, Any]]] = {}
     for item in manifest["harnesses"]:
@@ -684,6 +648,7 @@ def drift(manifest: dict[str, Any], harnesses: Sequence[str]) -> dict[str, Any]:
 def main(arguments: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--release", help="exact setup-system release tag for every built harness")
     parser.add_argument("--harness", action="append", choices=sorted(REPOSITORIES))
     parser.add_argument(
         "--bump-all",
@@ -720,10 +685,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
         measured["heads"] = dict(READ_HEADS)
         print(json.dumps(measured, indent=2, sort_keys=True, ensure_ascii=False))
         return 0
+    if not options.release:
+        parser.error("--release is required when building a corpus")
     options.out.mkdir(parents=True, exist_ok=True)
     report = build(
         options.harness or sorted(REPOSITORIES),
         out=options.out,
+        release_tag=options.release,
         bump_all=options.bump_all,
         bump_ids=frozenset(options.bump_id),
     )
@@ -732,6 +700,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
             report.pop("manifest"), separators=(",", ":"), sort_keys=True, ensure_ascii=False
         ),
         encoding="utf-8",
+    )
+    (options.out / "corpus-release-pins.json").write_text(
+        json.dumps(report["release_pins"], indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     print(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False))
     return 0

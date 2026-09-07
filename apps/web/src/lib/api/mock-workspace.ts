@@ -49,6 +49,10 @@ const presentationByStableId: Map<string, MockPresentation> = (() => {
   return globalStore.__aiStpMockPresentations;
 })();
 
+export function readMockPresentation(stableId: string) {
+  return presentationByStableId.get(stableId);
+}
+
 const externalProductsByObject: Map<string, MockExternalProduct[]> = (() => {
   const globalStore = globalThis as typeof globalThis & {
     __aiStpMockExternalProducts?: Map<string, MockExternalProduct[]>;
@@ -290,7 +294,7 @@ function ownerHandlers(
   );
   if (method === "POST" && mediaUploadMatch) {
     const mediaId = `media_mock_${Date.now().toString(36)}`;
-    const publicUrl = `/v1/media/${mediaUploadMatch[1]}/${mediaId}`;
+    const publicUrl = `/v1/media/component/${mediaId}`;
     return {
       status: 201,
       body: {

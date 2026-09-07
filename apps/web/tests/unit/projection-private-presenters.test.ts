@@ -337,14 +337,15 @@ describe("private machine documents (REQ-3611, REQ-3612)", () => {
       presentPresentationEdit({
         title: "Edit",
         note: "Presentation only",
-        objectKind: "component",
-        stableId: "component_01H",
+        objectKind: "setup",
+        stableId: "setup_01H",
         bio: "Public bio",
         labels: { stableId: "stable_id", bio: "bio" },
       }),
       "en",
     );
     expect(edit).toContain("bio: Public bio");
+    expect(edit).toContain("objects/setup/setup_01H");
     expect(edit).not.toMatch(/media|youtube|avatar/i);
 
     const privacy = machineDocumentToText(

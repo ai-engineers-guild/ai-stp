@@ -25,8 +25,10 @@ from ai_stp_cli.local import (
     cache,
     component_passports,
     components,
+    composition,
     content,
     installation,
+    journal,
     passports,
     project_passport,
     provider_installations,
@@ -208,12 +210,19 @@ def _confirmed(
     requires_authorization: str = "none",
     harness_id: str = "claude-code",
     component_type: str = "skill",
+    scope: str = "global",
+    required_env: tuple[str, ...] = (),
 ) -> str:
     """One confirmed composition, which is the only thing installable."""
     passports.init_developer(registry, device_id=DEVICE)
     passports.ensure_device(registry, device_id=DEVICE)
     found = project_passport.scan(registry, tmp_path)
     project_passport.record(registry, found, device_id=DEVICE)
+
+    rule = composition.rule_for(component_type, harness_id, scope=scope)
+    native_path = (
+        rule.relative if rule is not None and rule.shape == "file" else "skills/component.md"
+    )
 
     stable_id = f"component_01J0000000000000000000000{suffix}"
     artifact = content.put(
@@ -265,13 +274,13 @@ def _confirmed(
                 "observed_at": MOMENT,
             },
             "source_path": {
-                "value": "skills/component.md",
+                "value": native_path,
                 "origin": "observed",
                 "confirmation": "none",
                 "observed_at": MOMENT,
             },
             "scope": {
-                "value": "global",
+                "value": scope,
                 "origin": "observed",
                 "confirmation": "none",
                 "observed_at": MOMENT,
@@ -303,12 +312,17 @@ def _confirmed(
                 "confirmation": "user_confirmed",
             },
             "managed_paths": {
-                "value": ["skills/component.md"],
+                "value": [native_path],
                 "origin": "declared",
                 "confirmation": "user_confirmed",
             },
             "requires_authorization": {
                 "value": requires_authorization,
+                "origin": "declared",
+                "confirmation": "user_confirmed",
+            },
+            "required_env": {
+                "value": [{"name": name, "purpose": "test requirement"} for name in required_env],
                 "origin": "declared",
                 "confirmation": "user_confirmed",
             },
@@ -875,6 +889,7 @@ def _v3_test_invoker(
         "supported_arch": cast(list[JsonValue], [architecture]),
         "permission_profiles": cast(list[JsonValue], []),
         "projection_profile": {**profile, "digest": projection_digest},
+        "plan_request_fields": ["capture_mode"],
     }
     state: dict[str, JsonValue] = {
         "installed": False,
@@ -916,6 +931,21 @@ def _v3_test_invoker(
             "projection_profile_digest": projection_digest,
             "bundle_digest": bound["bundle_digest"],
             "artifact_digest": bound["artifact_digest"],
+            "backups": [
+                {
+                    "backup_ref": "slot-000000000001",
+                    "held": True,
+                    "hold_reason": "preserved native setup",
+                    "native_snapshot": {
+                        "digest": TARGET,
+                        "operation_id": held["operation_id"],
+                        "roots": ["skills"],
+                        "excluded": [],
+                        "verification": "verified",
+                        "target_state": "differs",
+                    },
+                }
+            ],
         }
         if state["cleanup_state"]:
             answer["cleanup_state"] = state["cleanup_state"]
@@ -967,6 +997,12 @@ def _v3_test_invoker(
                 "platform": {"os": os_name, "arch": architecture},
                 "expires_at": supplied["--expires-at"],
                 "effects": ["write the exact v3 projection"],
+                "native_capture": {
+                    "roots": ["skills"],
+                    "excluded": [],
+                    "current_digest": TARGET,
+                    "restore_digest": None,
+                },
             }
             digest = digest_canonical(protocol_v3.PLAN_DOMAIN, artifact)
             state["plan"] = artifact
@@ -987,6 +1023,7 @@ def _v3_test_invoker(
                 "state": "verified",
                 "plan_digest": state["plan_digest"],
                 "expected_target_digest": TARGET,
+                "backup_ref": "slot-000000000001",
                 **bound,
             }
         raise AssertionError(command)
@@ -1744,6 +1781,8 @@ def test_real_v3_full_setup_lifecycle_uses_one_exact_bundle_path(
                 parameters["backup-ref"] = backup_ref
             if manifest_path:
                 parameters["provider-manifest"] = manifest_path
+            else:
+                parameters["unverified-provider"] = True
             planned = install.plan(parameters).payload
             if action in {"install", "update"}:
                 assert planned.managed_paths
@@ -3218,3 +3257,124 @@ def test_a_newer_unverified_plan_does_not_hide_the_release_an_older_one_bound(
     )
 
     assert asked["reason"] == network_launcher.TRUSTED_RELEASE
+
+
+@pytest.mark.parametrize("failure", ["none", "changed", "lost_response"])
+def test_real_environment_installs_two_harnesses_in_one_project(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+) -> None:
+    from ai_stp_cli.commands import install_transaction, preserved_setups
+
+    providers = {
+        "claude-code": os.environ.get("AI_STP_CLAUDE_PROVIDER_V3"),
+        "codex": os.environ.get("AI_STP_CODEX_PROVIDER_V3"),
+    }
+    if any(executable is None for executable in providers.values()):
+        pytest.skip("set Claude and Codex provider paths for a real shared-project environment")
+    (tmp_path / "CLAUDE.md").write_bytes(b"original Claude instructions\n")
+    (tmp_path / "AGENTS.md").write_bytes(b"original Codex instructions\n")
+    first = _confirmed(
+        registry,
+        tmp_path,
+        "A",
+        harness_id="claude-code",
+        component_type="instruction",
+        scope="project",
+    )
+    second = _confirmed(
+        registry, tmp_path, "B", harness_id="codex", component_type="instruction", scope="project"
+    )
+    operations: list[str] = []
+    for harness, proposal in [("claude-code", first), ("codex", second)]:
+        planned = install.plan(
+            {
+                "proposal": proposal,
+                "provider": providers[harness],
+                "protocol-version": 3,
+                "unverified-provider": True,
+                "target": str(tmp_path),
+                "scope": "project",
+            }
+        ).payload
+        operations.append(planned.operation_id)
+    transaction = install_transaction.compose_environment({"operation": operations}).payload
+    assert transaction.harness_id is None
+    assert [child.harness_id for child in transaction.children] == ["claude-code", "codex"]
+    assert len({child.setup_stable_id for child in transaction.children}) == 2
+    assert (tmp_path / "CLAUDE.md").read_bytes() == b"original Claude instructions\n"
+    install_transaction.approve(
+        {
+            "transaction": transaction.transaction_id,
+            "transaction-digest": transaction.transaction_digest,
+        }
+    )
+    if failure == "changed":
+        (tmp_path / "AGENTS.md").write_bytes(b"changed after planning\n")
+    calls: list[tuple[str, str]] = []
+    if failure == "lost_response":
+        original_invoker = invocation.provider_invoker
+        faulted = False
+
+        def interrupted_invoker(
+            executable: str,
+            target: str,
+            version: int,
+            *,
+            unisolated_reason: str | None = None,
+            writable: tuple[Path, ...] = (),
+        ) -> conformance.Invoker:
+            invoke = original_invoker(
+                executable, target, version, unisolated_reason=unisolated_reason, writable=writable
+            )
+
+            def interrupted(command: str, arguments: Sequence[str]) -> JsonValue:
+                nonlocal faulted
+                answer = invoke(command, arguments)
+                if command == "apply-operation":
+                    harness = "codex" if executable == providers["codex"] else "claude-code"
+                    artifact = json.loads(
+                        Path(arguments[arguments.index("--plan") + 1]).read_text()
+                    )
+                    calls.append((harness, artifact["operation"]))
+                    if harness == "codex" and not faulted:
+                        faulted = True
+                        raise TimeoutError("the second provider applied but its response was lost")
+                return answer
+
+            return interrupted
+
+        monkeypatch.setattr(invocation, "provider_invoker", interrupted_invoker)
+    options = {
+        "transaction": transaction.transaction_id,
+        "provider-for": [f"{harness}={executable}" for harness, executable in providers.items()],
+        "unverified-provider": True,
+    }
+    result = install_transaction.apply(options).payload
+    if failure != "none":
+        assert result.state == "rolled_back"
+        assert (tmp_path / "CLAUDE.md").read_bytes() == b"original Claude instructions\n"
+        assert (tmp_path / "AGENTS.md").read_bytes() == (
+            b"changed after planning\n"
+            if failure == "changed"
+            else b"original Codex instructions\n"
+        )
+        assert install_transaction.recover(options).payload.state == "rolled_back"
+        if failure == "lost_response":
+            assert calls == [
+                ("claude-code", "install"),
+                ("codex", "install"),
+                ("codex", "restore"),
+                ("claude-code", "restore"),
+            ]
+            original = journal.get(registry, operations[1])
+            assert original is not None and original.state == "partial"
+    else:
+        assert result.state == "verified"
+        assert b"exact claude-code instruction" in (tmp_path / "CLAUDE.md").read_bytes()
+        assert b"exact codex instruction" in (tmp_path / "AGENTS.md").read_bytes()
+        saved = preserved_setups.list_saved({}).payload.setups
+        assert {item.harness_id for item in saved} == {"claude-code", "codex"}
+        assert install_transaction.apply(options).payload == result

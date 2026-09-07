@@ -68,7 +68,7 @@ from ai_stp_contracts.impact import (
 )
 from ai_stp_contracts.safety_checks import SafetyChecksSummary, SetupComponentChecks
 from ai_stp_foundation.digests import DIGEST_PATTERN
-from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.refs import SetupRef
 from ai_stp_foundation.versioning import VERSION_PATTERN
@@ -426,7 +426,7 @@ class ComponentSummary(BaseModel):
     latest_description: DescriptionExcerpt
     latest_harness_id: HarnessId
     #: Every harness the latest version names; includes `latest_harness_id`.
-    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
+    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=len(HARNESS_IDS))] = Field(
         default_factory=list[HarnessId]
     )
     latest_component_type: ComponentType
@@ -534,7 +534,7 @@ class ComponentSearchRequest(BaseModel):
     tags: Annotated[list[TagId], Field(max_length=MAX_TAGS)] = Field(default_factory=list[TagId])
     harness_id: HarnessId | None = None
     component_type: ComponentType | None = None
-    harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
+    harness_ids: Annotated[list[HarnessId], Field(max_length=len(HARNESS_IDS))] = Field(
         default_factory=list[HarnessId]
     )
     component_types: Annotated[list[ComponentType], Field(max_length=9)] = Field(
@@ -620,7 +620,7 @@ class SetupSearchRequest(BaseModel):
     q: Annotated[str, Field(min_length=1, max_length=200)] | None = None
     tags: Annotated[list[TagId], Field(max_length=MAX_TAGS)] = Field(default_factory=list[TagId])
     harness_id: HarnessId | None = None
-    harness_ids: Annotated[list[HarnessId], Field(max_length=7)] = Field(
+    harness_ids: Annotated[list[HarnessId], Field(max_length=len(HARNESS_IDS))] = Field(
         default_factory=list[HarnessId]
     )
     authors: Annotated[list[str], Field(max_length=20)] = Field(default_factory=list[str])
@@ -753,6 +753,7 @@ class ComponentDetail(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    presentation_bio: Annotated[str, Field(max_length=2000)] | None = None
     summary: ComponentSummary
     versions: Annotated[list[VersionListEntry], Field(min_length=1)]
     media: Annotated[list[ComponentMediaItem], Field(max_length=5)] = Field(
@@ -774,10 +775,14 @@ class SetupDetail(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    presentation_bio: Annotated[str, Field(max_length=2000)] | None = None
     summary: SetupSummary
     versions: Annotated[list[VersionListEntry], Field(min_length=1)]
     ported_from: SetupRef | None = None
     related_setup_ids: Annotated[list[SetupId], Field(max_length=100)] = Field(default_factory=list)
+    media: Annotated[list[ComponentMediaItem], Field(max_length=5)] = Field(
+        default_factory=list[ComponentMediaItem]
+    )
     #: ISO country codes implied by linked services; never an exclusivity claim.
     country_codes: Annotated[list[CountryCode], Field(max_length=249)] = Field(
         default_factory=list[CountryCode]
@@ -796,7 +801,7 @@ class SetupDetail(BaseModel):
     )
 
 
-def _require_published(visibility: str) -> None:
+def _require_published(visibility: str, distribution_visibility: str | None = None) -> None:
     """Refuse a passport that is not published.
 
     The passport models are shared with the local registry, where `visibility`
@@ -808,7 +813,7 @@ def _require_published(visibility: str) -> None:
     The contract cannot fix the server's authorization, but it can refuse to
     represent the mistake.
     """
-    if visibility != "public":
+    if visibility != "public" and distribution_visibility != "public":
         raise ValueError(f"the public catalog cannot represent a {visibility!r} passport")
 
 
@@ -823,6 +828,7 @@ class ComponentVersionResponse(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    distribution_visibility: Literal["public"] | None = None
     passport: ComponentVersionPassport
     passport_digest: PassportDigest
     lifecycle: PublicLifecycle
@@ -836,7 +842,7 @@ class ComponentVersionResponse(BaseModel):
 
     @model_validator(mode="after")
     def _passport_is_published(self) -> "ComponentVersionResponse":
-        _require_published(self.passport.visibility)
+        _require_published(self.passport.visibility, self.distribution_visibility)
         return self
 
 
@@ -846,6 +852,7 @@ class SetupVersionResponse(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    distribution_visibility: Literal["public"] | None = None
     passport: SetupVersionPassport
     passport_digest: PassportDigest
     lifecycle: PublicLifecycle
@@ -866,7 +873,7 @@ class SetupVersionResponse(BaseModel):
 
     @model_validator(mode="after")
     def _passport_is_published(self) -> "SetupVersionResponse":
-        _require_published(self.passport.visibility)
+        _require_published(self.passport.visibility, self.distribution_visibility)
         return self
 
 
@@ -895,6 +902,7 @@ class SetupContextBudget(BaseModel):
     unavailable_components: Annotated[int, Field(ge=0)]
     status: Literal["ready", "unavailable", "invalid_graph"]
     components: list[ComponentTokenMeasurement]
+    reason: str | None = None
 
 
 class ComponentContextBudget(BaseModel):

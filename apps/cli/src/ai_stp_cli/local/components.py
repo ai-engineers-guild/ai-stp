@@ -24,11 +24,9 @@ import os
 import sqlite3
 import stat
 import zipfile
-from base64 import b64decode
-from binascii import Error as Base64Error
 from dataclasses import KW_ONLY, dataclass, replace
 from itertools import islice
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Final, cast
 
 from ai_stp_cli.errors import CliFailure
@@ -48,7 +46,35 @@ from ai_stp_cli.local import (
 )
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
-from ai_stp_foundation.canonical import JsonValue, canonize, from_json_bytes
+from ai_stp_contracts.component_artifacts import (
+    COMPONENT_FILE_FORMAT as COMPONENT_FILE_FORMAT,
+)
+from ai_stp_contracts.component_artifacts import (
+    COMPONENT_TREE_FORMAT as COMPONENT_TREE_FORMAT,
+)
+from ai_stp_contracts.component_artifacts import (
+    IMPORTED_COMPONENT_FORMAT as IMPORTED_COMPONENT_FORMAT,
+)
+from ai_stp_contracts.component_artifacts import (
+    MAX_COMPONENT_BYTES as MAX_COMPONENT_BYTES,
+)
+from ai_stp_contracts.component_artifacts import (
+    MAX_COMPONENT_FILES as MAX_COMPONENT_FILES,
+)
+from ai_stp_contracts.component_artifacts import (
+    MAX_COMPONENT_TREE_BYTES as MAX_COMPONENT_TREE_BYTES,
+)
+from ai_stp_contracts.component_artifacts import (
+    PROJECTION_FORMAT as PROJECTION_FORMAT,
+)
+from ai_stp_contracts.component_artifacts import (
+    ComponentArtifactError,
+    expand_component_artifact,
+)
+from ai_stp_contracts.component_artifacts import (
+    ComponentFile as ComponentFile,
+)
+from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports.versions import COMPONENT_TYPES as PASSPORT_COMPONENT_TYPES
@@ -66,9 +92,6 @@ SCOPE_PROJECT: Final[str] = "project"
 
 #: The largest native file adoption will read. A component is something a person
 #: wrote; past this it is data that happens to live in a config directory.
-MAX_COMPONENT_BYTES: Final[int] = 4 * 1024 * 1024
-MAX_COMPONENT_TREE_BYTES: Final[int] = 32 * 1024 * 1024
-MAX_COMPONENT_FILES: Final[int] = 1000
 MAX_PORTABLE_SKILL_DEPTH: Final[int] = 4
 MAX_PORTABLE_SKILL_DIRECTORIES: Final[int] = 2000
 MAX_PORTABLE_SKILL_ENTRIES: Final[int] = 1000
@@ -88,9 +111,6 @@ CODEX_PLUGIN_SOURCE: Final[str] = "learn.chatgpt.com/docs/build-plugins"
 CLAUDE_PLUGIN_SOURCE: Final[str] = "code.claude.com/docs/en/plugins"
 CLAUDE_MCP_SOURCE: Final[str] = "code.claude.com/docs/en/mcp"
 CURSOR_PLUGIN_SOURCE: Final[str] = "cursor.com/docs/reference/plugins"
-COMPONENT_FILE_FORMAT: Final[str] = "ai-stp-component-file/1"
-PROJECTION_FORMAT: Final[str] = "ai-stp-adaptation-projection/1"
-COMPONENT_TREE_FORMAT: Final[str] = "ai-stp-component-tree/1"
 #: What `setup import register` stored until 2026-09-02: a canonical JSON
 #: envelope of scrubbed members at their harness-root-relative paths. It
 #: reached `select impact` and stopped there, then reached the compiler and
@@ -101,7 +121,6 @@ COMPONENT_TREE_FORMAT: Final[str] = "ai-stp-component-tree/1"
 #: The importer now stores the two formats above, members relative to the
 #: component boundary. This name stays decodable so a draft registered before
 #: that rule is not orphaned; nothing produces it any more.
-IMPORTED_COMPONENT_FORMAT: Final[str] = "ai-stp-imported-component/1"
 COMPONENT_TREE_TIMESTAMP: Final[tuple[int, int, int, int, int, int]] = (
     1980,
     1,
@@ -651,15 +670,6 @@ class ComponentContent:
 
     payload: bytes
     format: str
-
-
-@dataclass(frozen=True)
-class ComponentFile:
-    """One verified member expanded from a stored component artifact."""
-
-    path: str
-    content: bytes
-    mode: int
 
 
 @dataclass(frozen=True)
@@ -1647,19 +1657,27 @@ def _cursor_project_plugins(
 ) -> tuple[list[Found], list[component_sources.Diagnostic], int]:
     """Find a Cursor plugin pack by its exact manifest, the way a setup ships it.
 
-    Cursor does not scatter skills next to `.cursor/`. The unit is
-    `plugins/<name>/.cursor-plugin/plugin.json`, with rules, skills, agents
-    and commands inside that plugin. The JSON is proof the directory is a
-    plugin; its values are not read.
+    Source packs use `plugins/<name>`; native local collections use
+    `plugins/local/<name>`. Both require `.cursor-plugin/plugin.json` before
+    reading the names of their component subtrees. Manifest values are not read.
     """
-    return _manifest_backed_plugins(
-        project,
-        harness_id="cursor",
-        manifest=(".cursor-plugin", "plugin.json"),
-        source=CURSOR_PLUGIN_SOURCE,
-        subtrees=_CURSOR_PLUGIN_SUBTREES,
-        collection="cursor-plugins",
-    )
+    found: list[Found] = []
+    diagnostics: list[component_sources.Diagnostic] = []
+    directories = 0
+    for relative in ("plugins", "plugins/local"):
+        plugins, messages, seen = _manifest_backed_plugins(
+            project,
+            harness_id="cursor",
+            manifest=(".cursor-plugin", "plugin.json"),
+            source=CURSOR_PLUGIN_SOURCE,
+            subtrees=_CURSOR_PLUGIN_SUBTREES,
+            collection="cursor-plugins",
+            relative=relative,
+        )
+        found.extend(plugins)
+        diagnostics.extend(messages)
+        directories += seen
+    return found, diagnostics, directories
 
 
 def _manifest_backed_plugins(
@@ -1670,17 +1688,20 @@ def _manifest_backed_plugins(
     source: str,
     subtrees: tuple[_PluginSubtree, ...],
     collection: str,
+    relative: str = "plugins",
 ) -> tuple[list[Found], list[component_sources.Diagnostic], int]:
     """Every manifest-backed plugin in one collection, and how many it looked at."""
     found: list[Found] = []
     diagnostics: list[component_sources.Diagnostic] = []
-    root = project / "plugins"
-    try:
-        root_mode = root.lstat().st_mode
-    except OSError:
-        return found, diagnostics, 0
-    if stat.S_ISLNK(root_mode) or not stat.S_ISDIR(root_mode):
-        return found, diagnostics, 0
+    root = project
+    for part in Path(relative).parts:
+        root = root / part
+        try:
+            root_mode = root.lstat().st_mode
+        except OSError:
+            return found, diagnostics, 0
+        if stat.S_ISLNK(root_mode) or not stat.S_ISDIR(root_mode):
+            return found, diagnostics, 0
     try:
         entries = list(islice(root.iterdir(), MAX_CODEX_PLUGIN_ENTRIES + 1))
     except OSError:
@@ -1695,7 +1716,7 @@ def _manifest_backed_plugins(
         )
         return found, diagnostics, 0
 
-    plugin_rule = Rule("plugin", "plugins", "directory", harness_id, source)
+    plugin_rule = Rule("plugin", relative, "directory", harness_id, source)
     directories = 0
     for plugin in sorted(entries, key=lambda item: item.name):
         try:
@@ -2060,149 +2081,12 @@ def encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> bytes
     return output.getvalue()
 
 
-def _expand_imported(payload: bytes) -> tuple[ComponentFile, ...]:
-    """The captured envelope, decoded under the same bounds as a stored tree.
-
-    Bounds rather than trust: this artifact is built from bytes found on a
-    machine, so the per-member and total limits that guard an adopted tree guard
-    it too, and a member path is refused when it is absolute, escapes, or
-    repeats. A `declared_key` member keeps its `path#key` spelling, which is the
-    same shape the adopt path already hands the compiler.
-    """
-    try:
-        document = from_json_bytes(payload)
-        if not isinstance(document, dict) or set(document) != {"format", "files"}:
-            raise ValueError("imported component envelope is not closed")
-        raw_files = document.get("files")
-        if document.get("format") != IMPORTED_COMPONENT_FORMAT or not isinstance(raw_files, list):
-            raise ValueError("imported component format differs")
-        answer: list[ComponentFile] = []
-        seen: set[str] = set()
-        total = 0
-        for raw in raw_files:
-            if not isinstance(raw, dict) or set(raw) != {"path", "content_base64"}:
-                raise ValueError("imported component member is invalid")
-            path = raw.get("path")
-            encoded = raw.get("content_base64")
-            if (
-                not isinstance(path, str)
-                or not path
-                or path in seen
-                or path.startswith(("/", "~"))
-                or any(part in {"", ".", ".."} for part in PurePosixPath(path).parts)
-                or not isinstance(encoded, str)
-            ):
-                raise ValueError("imported component member identity is invalid")
-            seen.add(path)
-            content_bytes = b64decode(encoded, validate=True)
-            total += len(content_bytes)
-            if len(content_bytes) > MAX_COMPONENT_BYTES or total > MAX_COMPONENT_TREE_BYTES:
-                raise ValueError("imported component member is larger than one may be")
-            answer.append(ComponentFile(path, content_bytes, 0o644))
-        if len(answer) > MAX_COMPONENT_FILES:
-            raise ValueError("imported component has more members than one may hold")
-        return tuple(answer)
-    except (UnicodeError, ValueError, Base64Error) as error:
-        raise CliFailure("AI_STP_CONFLICT", "the stored imported component is corrupt") from error
-
-
 def expand(payload: bytes, content_format: str) -> tuple[ComponentFile, ...]:
-    """Expand only the closed component artifact formats stored at adoption."""
-    if content_format == COMPONENT_FILE_FORMAT:
-        return (ComponentFile("", payload, 0o644),)
-    if content_format == IMPORTED_COMPONENT_FORMAT:
-        return _expand_imported(payload)
-    if content_format == PROJECTION_FORMAT:
-        try:
-            with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
-                answer: list[ComponentFile] = []
-                names = archive.namelist()
-                if len(names) != len(set(names)) or len(names) > MAX_COMPONENT_FILES:
-                    raise ValueError("projection members are repeated or excessive")
-                for info in archive.infolist():
-                    mode = info.external_attr >> 16
-                    if info.is_dir():
-                        continue
-                    if info.compress_type != zipfile.ZIP_STORED or not stat.S_ISREG(mode):
-                        raise ValueError("projection member metadata is unsafe")
-                    answer.append(
-                        ComponentFile(info.filename, archive.read(info), stat.S_IMODE(mode))
-                    )
-                return tuple(answer)
-        except (OSError, ValueError, zipfile.BadZipFile) as error:
-            raise CliFailure("AI_STP_CONFLICT", "the stored projection is corrupt") from error
-    if content_format != COMPONENT_TREE_FORMAT:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the component content format is unsupported",
-            details={"content_format": content_format},
-        )
+    """Use the shared decoder and retain the CLI error envelope."""
     try:
-        with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
-            names = archive.namelist()
-            if len(names) != len(set(names)) or "component.json" not in names:
-                raise ValueError("component artifact members are incomplete or repeated")
-            total_size = 0
-            for info in archive.infolist():
-                mode = info.external_attr >> 16
-                total_size += info.file_size
-                if (
-                    info.compress_type != zipfile.ZIP_STORED
-                    or not stat.S_ISREG(mode)
-                    or info.file_size > MAX_COMPONENT_BYTES
-                    or total_size > MAX_COMPONENT_TREE_BYTES
-                ):
-                    raise ValueError("component artifact member metadata is unsafe")
-            parsed = from_json_bytes(archive.read("component.json"))
-            if not isinstance(parsed, dict) or set(parsed) != {"format", "files"}:
-                raise ValueError("component artifact manifest is not closed")
-            files_value = parsed.get("files")
-            if parsed.get("format") != COMPONENT_TREE_FORMAT or not isinstance(files_value, list):
-                raise ValueError("component artifact format differs")
-            if canonize(parsed) != archive.read("component.json"):
-                raise ValueError("component artifact manifest is not canonical")
-            answer: list[ComponentFile] = []
-            expected = {"component.json"}
-            for raw in files_value:
-                if not isinstance(raw, dict) or set(raw) != {
-                    "path",
-                    "digest",
-                    "byte_length",
-                    "mode",
-                }:
-                    raise ValueError("component artifact file entry is invalid")
-                path = raw.get("path")
-                if (
-                    not isinstance(path, str)
-                    or not path
-                    or path.startswith(("/", "~"))
-                    or any(part in {"", ".", ".."} for part in Path(path).parts)
-                ):
-                    raise ValueError("component artifact path is unsafe")
-                name = f"files/{path}"
-                if name in expected:
-                    raise ValueError("component artifact path is repeated")
-                expected.add(name)
-                content_bytes = archive.read(name)
-                mode_value = raw.get("mode")
-                if (
-                    digest_bytes("ai-stp:artifact:v1", content_bytes) != raw.get("digest")
-                    or len(content_bytes) != raw.get("byte_length")
-                    or not isinstance(mode_value, int)
-                    or isinstance(mode_value, bool)
-                    or mode_value not in {0o644, 0o755}
-                ):
-                    raise ValueError("component artifact member identity differs")
-                answer.append(ComponentFile(path, content_bytes, mode_value))
-            if set(names) != expected or len(answer) > MAX_COMPONENT_FILES:
-                raise ValueError("component artifact has undeclared members")
-            return tuple(answer)
-    except (KeyError, ValueError, zipfile.BadZipFile) as error:
-        raise CliFailure(
-            "AI_STP_CONFLICT",
-            "the stored component artifact is corrupt",
-            details={"reason": str(error)},
-        ) from error
+        return expand_component_artifact(payload, content_format)
+    except ComponentArtifactError as exc:
+        raise CliFailure(exc.code, exc.message, details=exc.details) from exc
 
 
 def declared_consistently() -> tuple[str, ...]:

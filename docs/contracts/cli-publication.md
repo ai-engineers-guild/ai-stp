@@ -7,8 +7,9 @@ last_verified: "2026-08-25"
 
 `publication plan --id <stable_id> --version <X.Y>` builds a server-side plan for
 an exact locally released component version. The command reads the revision stored
-with that version, not the current draft head. It produces a public immutable
-version passport; the wire format and server states belong to the `publication-*`
+with that version, not the current draft head. It sends the immutable passport
+with private distribution by default; public distribution is an explicit choice.
+The wire format and server states belong to the `publication-*`
 schemas in `packages/contracts`.
 
 Creating a plan does not itself publish the object. The resulting `plan_id`,
@@ -29,22 +30,26 @@ outcome: first read the status of the previously known plan.
 
 ## Setup publication
 
-A setup cannot become public before its exact pins, so it is published not as a
+A setup cannot be distributed before its exact pins are accessible, so it uses a
 separate plan but as a **set**. The
 `setup publish plan --id <setup> --version <X.Y>` command creates one plan for
-each pinned component that is not yet public and one for the setup itself. An
-already public participant is listed and is not replanned. The decision is
+each pinned component that is not already available and one for the setup itself.
+An accessible participant is reused only after a live exact-digest check. Private
+distribution may reuse public pins; public distribution cannot expose private
+pins. The decision is
 `ADR-0114`; the requirements are `SPEC-038`
 `REQ-3810`–`REQ-3812`.
 
-The local setup snapshot may remain private while the publication request carries
-an equivalent public-visibility copy with a recomputed revision id. This does not
-rewrite the local passport; local privacy and the public publication boundary
-remain separate.
+The request preserves the local setup snapshot, revision and digest. Distribution
+visibility is separate from that immutable declaration (`ADR-0169`). Opening an
+existing version uses a dedicated owner visibility plan. The full private access
+and visibility wire boundary belongs to [private-distribution.md](private-distribution.md).
 
 The set returns a `set_digest` over the ordered list of participants: role, kind,
 `stable_id`, version, `plan_hash`, and an “already published” marker. Participant
-state is not included in the digest: a plan that moves from `draft` to `ready`
+Private participants additionally bind their distribution visibility; existing
+public set digests keep their representation. Participant state is not included
+in the digest: a plan that moves from `draft` to `ready`
 while the operator reads the set does not represent a different decision.
 
 `setup publish confirm --set-digest <digest> --confirm` confirms participants in

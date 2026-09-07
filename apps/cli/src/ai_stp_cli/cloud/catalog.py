@@ -20,7 +20,7 @@ from typing import cast
 import httpx
 from pydantic import ValidationError
 
-from ai_stp_cli.cloud import client
+from ai_stp_cli.cloud import client, private_access
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache
@@ -158,7 +158,12 @@ def show(endpoint: Endpoint, kind: CatalogKind, stable_id: str) -> CatalogObject
 
 
 def version(
-    endpoint: Endpoint, kind: CatalogKind, stable_id: str, number: str
+    endpoint: Endpoint,
+    kind: CatalogKind,
+    stable_id: str,
+    number: str,
+    *,
+    include_private: bool = False,
 ) -> CatalogVersionView:
     """One exact version, with its passport verified against the published digest.
 
@@ -181,6 +186,8 @@ def version(
                 attempts=endpoint.max_attempts,
             )
     except CliFailure as failure:
+        if include_private and failure.code == "AI_STP_NOT_FOUND":
+            return private_access.version(endpoint, kind, stable_id, number)
         if failure.code not in UNREACHABLE:
             raise
         return _version_from_cache(kind, key, failure)
@@ -290,6 +297,7 @@ def fetch_artifact(
     expected: ArtifactRef,
     *,
     transport: httpx.BaseTransport | None = None,
+    include_private: bool = False,
 ) -> Path:
     """Fetch the exact bytes of one version, verified, into the local cache.
 
@@ -322,6 +330,29 @@ def fetch_artifact(
         f"{API_BASE_PATH}/catalog/{'components' if kind == 'component' else 'setups'}/{stable_id}"
     )
     path = f"{path}/versions/{version_number}/artifact"
+    try:
+        return _download_artifact(endpoint, path, expected, transport=transport)
+    except CliFailure as failure:
+        if not include_private or failure.code != "AI_STP_NOT_FOUND":
+            raise
+        held_session = private_access.held_session()
+        return _download_artifact(
+            endpoint,
+            path.replace("/catalog/", "/access/", 1),
+            expected,
+            transport=transport,
+            access_token=held_session.access_token,
+        )
+
+
+def _download_artifact(
+    endpoint: Endpoint,
+    path: str,
+    expected: ArtifactRef,
+    *,
+    transport: httpx.BaseTransport | None = None,
+    access_token: str | None = None,
+) -> Path:
     directory = cache.version_artifact_path(expected.digest).parent
     ensure_directory(directory)
     handle, temporary = tempfile.mkstemp(dir=directory, prefix=".artifact.")
@@ -329,7 +360,7 @@ def fetch_artifact(
 
     try:
         with (
-            client.open_client(endpoint, transport=transport) as http,
+            client.open_client(endpoint, transport=transport, access_token=access_token) as http,
             os.fdopen(handle, "wb") as sink,
             http.stream("GET", path) as answer,
         ):

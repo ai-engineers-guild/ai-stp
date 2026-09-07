@@ -16,7 +16,7 @@ import { PROFILE_BIO_MAX, useProfileForm } from "@/components/organisms/use-prof
 
 type ProfileFormProps = {
   initial: OwnerPublicProfile;
-  sessionToken: string;
+  csrfToken: string;
 };
 
 type TAccount = ReturnType<typeof useTranslations<"account">>;
@@ -282,8 +282,8 @@ function BioEditor(props: {
 /**
  * Public profile editor. Preview stays browser-only; save and publish remain explicit actions.
  */
-export function ProfileForm({ initial, sessionToken }: ProfileFormProps) {
-  const form = useProfileForm(initial, sessionToken);
+export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
+  const form = useProfileForm(initial, csrfToken);
   const statusVariant =
     form.status === "published" ? "success" : form.status === "draft" ? "warning" : "outline";
   const statusLabel =

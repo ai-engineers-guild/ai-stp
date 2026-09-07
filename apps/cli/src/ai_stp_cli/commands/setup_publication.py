@@ -25,7 +25,7 @@ from contextlib import closing
 from typing import Final, Literal, cast
 
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.cloud import catalog, login, publication, session
+from ai_stp_cli.cloud import catalog, login, private_access, publication, session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
@@ -41,8 +41,8 @@ from ai_stp_contracts.publication import (
     PublicationPlanResponse,
 )
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import digest_canonical
 from ai_stp_passports import SetupVersionPassport
-from ai_stp_passports.envelope import derive_revision_id
 
 #: Terminal, and not published. Confirming further members after one of these
 #: would publish a graph the refused member is part of.
@@ -77,11 +77,12 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
     """
     stable_id = _required(parameters, "id")
     version = _required(parameters, "version")
+    visibility = cast(Literal["public", "private"], parameters.get("visibility", "private"))
     held = _session()
     where = endpoint()
 
     with closing(open_readonly(configured_path())) as connection:
-        setup = _setup_passport(connection, stable_id, version)
+        setup = _setup_passport(connection, stable_id, version, visibility=visibility)
         pins = _catalog_pins(connection, setup)
         _refuse_overlay_pins(connection, pins)
         artifacts = {
@@ -100,6 +101,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
                 version=pin_version,
                 passport=_passport_document(pin_id, pin_version),
                 artifact_digest=artifacts[pin_id][0],
+                distribution_visibility=visibility,
             )
         )
     members.append(
@@ -112,6 +114,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
             version=version,
             passport=cast(dict[str, object], setup.model_dump(mode="json")),
             artifact_digest=setup.artifact.digest,
+            distribution_visibility=visibility,
         )
     )
 
@@ -208,11 +211,21 @@ def _confirm_one(
     pause: Callable[[float], None],
 ) -> PublicationPlanResponse:
     current = publication.status(where, held.access_token, member.plan_id)
+    if (
+        current.plan_id != member.plan_id
+        or current.plan_hash != member.plan_hash
+        or current.visibility != member.visibility
+        or current.object_kind != member.object_kind
+        or current.stable_id != member.stable_id
+        or current.version != member.version
+    ):
+        raise CliFailure("AI_STP_PRECONDITION_FAILED", "the distribution plan changed after review")
     if current.state == _PUBLISHED or current.state in _TERMINAL_FAILURES:
         return current
     if current.state in {"ready", "draft"}:
-        publication.bind(where, held.access_token, member.plan_id, artifact, pause=pause)
-        current = publication.confirm(
+        bound = publication.bind(where, held.access_token, member.plan_id, artifact, pause=pause)
+        publication.require_same_plan(current, bound)
+        confirmed = publication.confirm(
             where,
             held.access_token,
             member.plan_id,
@@ -222,6 +235,8 @@ def _confirm_one(
                 idempotency_key=login.new_idempotency_key(),
             ),
         )
+        publication.require_same_plan(current, confirmed)
+        current = confirmed
     return _wait_terminal(where, held, current, pause)
 
 
@@ -236,7 +251,9 @@ def _wait_terminal(
         if current.state == _PUBLISHED or current.state in _TERMINAL_FAILURES:
             return current
         pause(_POLL_SECONDS)
-        current = publication.status(where, held.access_token, current.plan_id)
+        observed = publication.status(where, held.access_token, current.plan_id)
+        publication.require_same_plan(current, observed)
+        current = observed
     return current
 
 
@@ -250,9 +267,18 @@ def _member(
     version: str,
     passport: Mapping[str, object],
     artifact_digest: str,
+    distribution_visibility: Literal["public", "private"] = "public",
 ) -> PublicationSetMemberView:
-    """One member: already public, or a fresh plan for making it public."""
-    if _already_public(where, held, object_kind, stable_id, version):
+    """One exact available member, or an explicit plan with matching visibility."""
+    available = _already_published(
+        where,
+        object_kind,
+        stable_id,
+        version,
+        passport,
+        include_private=distribution_visibility == "private",
+    )
+    if available is not None:
         return PublicationSetMemberView(
             role=role,
             object_kind=object_kind,
@@ -260,12 +286,14 @@ def _member(
             version=version,
             already_published=True,
             state=_PUBLISHED,
+            visibility=available,
         )
     created = publication.create(
         where,
         held.access_token,
         PublicationPlanCreateRequest(
             object_kind=object_kind,
+            visibility=distribution_visibility,
             stable_id=stable_id,
             version=version,
             content_digest=artifact_digest,
@@ -283,30 +311,41 @@ def _member(
         plan_id=created.plan_id,
         plan_hash=created.plan_hash,
         state=created.state,
+        visibility=created.visibility,
     )
 
 
-def _already_public(
+def _already_published(
     where: Endpoint,
-    held: session.Session,
     object_kind: PublicationObjectKind,
     stable_id: str,
     version: str,
-) -> bool:
-    """Whether this exact version is public already, asked of the platform.
-
-    Local visibility cannot answer it: a passport says what this machine
-    believes, and what is public is a fact about the platform. Absent is not
-    public — a catalog 404 is exactly the case a plan exists for. The owner
-    endpoint cannot answer this for components published by another account.
-    """
+    passport: Mapping[str, object],
+    *,
+    include_private: bool,
+) -> Literal["public", "private"] | None:
+    """Require a live response and the exact passport before omitting a plan."""
     try:
-        catalog.version(where, object_kind, stable_id, version)
+        found = catalog.version(where, object_kind, stable_id, version)
     except CliFailure as failure:
-        if failure.code == "AI_STP_NOT_FOUND":
-            return False
-        raise
-    return True
+        if failure.code != "AI_STP_NOT_FOUND":
+            raise
+        if not include_private:
+            return None
+        try:
+            found = private_access.version(where, object_kind, stable_id, version)
+        except CliFailure as private_failure:
+            if private_failure.code in {"AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED"}:
+                return None
+            raise
+    expected = digest_canonical("ai-stp:passport:v1", cast(JsonValue, dict(passport)))
+    if found.source != "online" or found.passport_digest != expected:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the exact publication passport could not be confirmed online",
+            details={"stable_id": stable_id, "version": version},
+        )
+    return found.distribution_visibility
 
 
 def _view(stored: publication_sets.StoredSet) -> PublicationSetView:
@@ -328,7 +367,11 @@ def _set_state(members: Sequence[PublicationSetMemberView]) -> str:
 
 
 def _setup_passport(
-    connection: sqlite3.Connection, stable_id: str, version: str
+    connection: sqlite3.Connection,
+    stable_id: str,
+    version: str,
+    *,
+    visibility: Literal["public", "private"] = "public",
 ) -> SetupVersionPassport:
     recorded = versions.held(connection, stable_id, version)
     if recorded is None:
@@ -346,16 +389,17 @@ def _setup_passport(
             next_actions=[f"publication plan --id {stable_id} --version {version} --json"],
         )
     passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
-    if passport.visibility == "public":
-        return passport
-
-    # A recast/locally composed setup is private in SQLite. Publication needs
-    # the same immutable snapshot with public visibility, but must not rewrite
-    # the local passport while preparing that request (SPEC-038).
-    document = cast(dict[str, object], passport.model_dump(mode="json"))
-    document["visibility"] = "public"
-    document["revision_id"] = derive_revision_id(cast(dict[str, JsonValue], document))
-    return SetupVersionPassport.model_validate(document)
+    if (
+        passport.stable_id != stable_id
+        or passport.version != version
+        or digest_canonical("ai-stp:passport:v1", passport.model_dump(mode="json"))
+        != recorded.passport_digest
+    ):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the exact publication passport could not be confirmed locally",
+        )
+    return passport
 
 
 def _refuse_overlay_pins(connection: sqlite3.Connection, pins: Sequence[tuple[str, str]]) -> None:

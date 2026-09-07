@@ -133,6 +133,18 @@
       "title": "Plan Digest",
       "type": "string"
     },
+    "preserved_setup_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Preserved Setup Id"
+    },
     "provider_plan_digest": {
       "default": "",
       "title": "Provider Plan Digest",
@@ -249,6 +261,7 @@
     "managed_paths",
     "operation_id",
     "plan_digest",
+    "preserved_setup_id",
     "provider_plan_digest",
     "provider_protocol_version",
     "provider_release_recovery",

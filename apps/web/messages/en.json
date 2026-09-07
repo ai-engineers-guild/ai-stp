@@ -336,6 +336,7 @@
     "safetyPaths": "Files",
     "safetyPayloadHidden": "Finding content is hidden because it may contain secrets or malicious instructions.",
     "safetyHelp": "About safety checks",
+    "safetyCheckColumn": "Safety check",
     "safetyCheck": {
       "structure": {
         "name": "Passport structure",
@@ -425,7 +426,10 @@
         "name": "pip-audit",
         "description": "Audits pinned Python requirements offline when a lock file exists."
       },
-      "sast_gosec": { "name": "gosec", "description": "Runs gosec on Go sources." },
+      "sast_gosec": {
+        "name": "gosec",
+        "description": "Runs gosec on Go sources."
+      },
       "sca_govulncheck": {
         "name": "govulncheck",
         "description": "Checks Go modules for known vulnerabilities."
@@ -547,7 +551,6 @@
     "alignmentMissingHint": "This member is not available.",
     "browseFamily": "Browse family in catalog",
     "harnessProjection": "harness projection",
-    "safetyCheck": "Safety check",
     "projectionDetails": "Open projection details",
     "passport": "Passport",
     "passportHint": "Full machine-readable record; the useful fields are summarized above",
@@ -563,7 +566,12 @@
     "technicalDetails": "Technical details",
     "versionHistory": "Version history",
     "currentVersion": "Current",
-    "seoDescription": "Catalog of AI setups and components: skills, MCP servers, hooks, subagents. Checks, agent install, and maintenance across an organization."
+    "seoDescription": "Catalog of AI setups and components: skills, MCP servers, hooks, subagents. Checks, agent install, and maintenance across an organization.",
+    "contextBudgetArtifactCorrupt": "The stored artifact did not pass its integrity check.",
+    "contextBudgetInvalidGraph": "The exact component graph cannot be verified.",
+    "contextBudgetDependencyFailure": "Artifact storage or the API is unavailable. Try again.",
+    "contextBudgetNonUtf8": "This artifact is not UTF-8 text.",
+    "contextBudgetAdaptationRequired": "A target-specific estimate is required for this version with multiple adaptations."
   },
   "publisher": {
     "title": "Publisher",
@@ -970,7 +978,10 @@
     "countryNameRu": "Russian country name",
     "countryNameEn": "English country name",
     "countryRequest": "Request country",
-    "countryRequested": "Country request submitted:"
+    "countryRequested": "Country request submitted:",
+    "externalLinkedHeading": "Linked services",
+    "externalRequestHeading": "Request a service",
+    "countryRequestHeading": "Request a country"
   },
   "publications": {
     "title": "Publication plan",

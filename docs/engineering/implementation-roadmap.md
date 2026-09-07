@@ -17,9 +17,10 @@ state remains a separate maintainer action. Merged PRs are not the OBT release.
 
 ## September 7 audit and execution order
 
-This measurement starts at `44116426`, after reviewing September 4–7 GitHub
-history and the available Claude, Codex and Grok session handoffs. Session
-closure and a green source check do not establish a healthy deployed product.
+The initial measurement started at `44116426`, after reviewing September 4–7
+GitHub history and available Claude, Codex and Grok session handoffs. The table
+below preserves that baseline; the execution results following it are current.
+Session closure and a green source check do not establish a healthy deployed product.
 
 | Recent work | Current evidence and limitation |
 |---|---|
@@ -30,7 +31,31 @@ closure and a green source check do not establish a healthy deployed product.
 | Platform and web | The current open issues `#139`, `#140`, `#146`, `#155`, `#162`–`#169` retain specific consumer and user-flow gaps. The unmerged colleague branch must be compared before duplicating its implementation. |
 | Production | `/v1/system/version` returned `0.0.16`, commit `aa9314ff`, schema `0036_official_projection`. The latest deploy run `34068205176` failed while expecting schema `0047_repair_official_locale_collisions`. Host logs reproduce an account identity collision in migration `0040`. |
 
-Execute in this order, updating each result from the actual commands:
+Current execution results on September 7:
+
+- Deployment recovery is complete: `#171` repairs account-handle collisions;
+  normal main checks and public deployment have passed. The public origin serves
+  `9ed36dae`, schema `0052`; API package `0.0.16` is independent of CLI versioning.
+- Provider authoring is complete for `0.0.67`: seven native builder collections,
+  refreshed vendor pins, read-only generator checking, exact public renders,
+  release artifacts and released-consumer conformance are verified.
+- Canonical ingestion, `cli` storage taxonomy and derived beta support landed
+  before the combined platform/web integration. `#173` and `#174` are included
+  in `#175`, together with setup presentation, catalog navigation, avatar/logging
+  and context-budget repairs. `#175` passed all PR checks and deployed normally.
+- Additional complete-identity/freshness assessment repairs merged in `#176`
+  (`96bb1ca8`) after the full backend gate and all PR checks. They resolve real
+  PostgreSQL failures and validation/read/search disagreement after expiry.
+  Migration `0053` passed twice on a restored production snapshot; its normal
+  main-check/deployment progression remains a separate result.
+- The corpus in this change is captured from attested `0.0.67` releases. Two
+  captures agree and preserve all identities; native graph/placement tests pass.
+  Normal-path publication still requires a current owner session. Browser policy
+  verification failure currently prevents completing that login through automation.
+- Private owner/grantee storage and source closure (`#162`–`#164`), final CLI
+  candidate publication, and current G5 launch cells remain open.
+
+Continue in the original dependency order:
 
 1. **Restore deployment progression.** Reproduce the unnamed-account collision
    against an isolated database upgraded from the deployed schema. Preserve
@@ -193,13 +218,12 @@ adoption reconciliation, autonomy policy, and the safety cache/singleflight
 changes associated with `#117`/`#118`. Each wider completion still needs its
 own evidence.
 
-The claimed `#111`/`#112` completion is not supplied by the cited PR `#122`.
-`catalog_support.py` still projects aggregate support at the audited commit.
-`#125` and `#127` were closed against producer PRs `#126` and `#128` which
-explicitly excluded their platform consumers. `#146`, assigned to the platform
-owner, tracks reconciliation and actual completion without duplicating unseen
-work. The OBT target remains standard v1, seven harnesses, three operating
-systems, agent-first operation, and an evidence-derived estate record.
+The producer-only closures of `#125` and `#127` did not prove their platform
+consumers. Those consumers and the `#111`/`#112` assessment path are now included
+in the merged platform integration. The additional assessment audit passed its
+final gate and merged in `#176`; deployment still needs its served-SHA proof. The OBT target remains standard v1, seven
+harnesses, three operating systems, agent-first operation, and an estate record
+based on the required evidence.
 
 Prepare the coordinated `0.1.0` cut only after the ordered work is measured.
 Never move an existing published tag. Do not invent a
@@ -226,7 +250,7 @@ dependency.
 | G3 | Cross-harness component adaptations and executable lifecycle | Component materialize, per-adaptation eval, claimed-portable overlay, and shared `cli` program lifecycle are in tree (`#151`, prefix containment `#152`). Occupied next-minor and overlay identities refuse a different intended passport; install/invoke/status bind to installed bytes and the requested version, not a newer registry `current` or first ZIP member. Setup eval is the setup harness only; `eval component` enumerates every advertised adaptation. `--all-missing` stamps every remaining derivable harness in one owner version. Overlay stays private. Pi MCP packages remain blocked without a measured package transform. | Native format-specific positive and negative controls; one shared executable with verified install/invoke/remove; no sevenfold runtime duplication |
 | G4 | Antigravity launch against the documented home | Public `antigravity-setup-system` `main` (`#113`, merge `a4e817de`) declares `LaunchBinding::DocumentedHome`; `config_home_env` stays empty. Six siblings received the shared runtime on the same render. Native `can_launch` against `~/.gemini` is still an evidence run, not this merge. Do not invent `ANTIGRAVITY_*`. | `can_launch` true for the documented home on the published public tree; alternate-root launch still refused by name |
 | G5 | Native 7 × 3 OS × x86/arm qualification | Estate record `ai-stp-estate-release/1` already refuses `complete` without 42 launch cells. Installed-artifact and launched-process rows remain `NOT_MEASURED` on current main. | Filled estate record with retained evidence; skipped cells keep the verdict `incomplete` |
-| G6 | Coordinated 0.1.0 / OBT cut | Consumer `0.0.18`, providers `0.0.66`, first-party objects at mixed `1.0`/`1.x`. Re-resolve those coordinates, then coordinate ai-stp and all seven providers after G0–G5 and the platform dependencies. One standard family is not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
+| G6 | Coordinated 0.1.0 / OBT cut | Published consumer `0.0.18`, providers `0.0.67`; the refreshed corpus preserves independent `X.Y` lines and awaits normal-path publication. Re-resolve those coordinates, then coordinate ai-stp and all seven providers after G0–G5 and the platform dependencies. One standard family is not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
 
 Posture (`minimal` / `baseline` / `full-auto` / `nddev-builder`) is the
 content footprint of a setup (`ADR-0130`). `execution_profile` is independently
@@ -243,16 +267,22 @@ The platform closeout for #146/#155 is implemented in the current tree. This
 table keeps only the remaining work and records the evidence boundary for the
 completed rows:
 
-| Issue | State | Remaining for the colleague |
+| Issue | State | Evidence boundary or remaining action |
 |---|---|---|
-| `#100` | open | PyPI distribution leftovers (delete the five former internal index projects). CLI install path is already `uv tool install ai-stp-cli`. |
+| `#100` | one deletion remains | Four former internal projects return 404. The explicitly authorized `ai-stp-sources` deletion is blocked by browser policy verification; the clean installed CLI has no dependency on those projects. |
 | `#125` → `#146` | closeout implemented; GitHub status is maintained separately | Canonical component taxonomy includes `cli` and continues to reject `marketplace`; migration `0033` remains unchanged. |
 | `#127` → `#146` | closeout implemented; GitHub status is maintained separately | Fixture seeding remains dev/test only; canonical first-party publication uses the authenticated publication tool and requires catalog/object-store readback and setup provenance evidence. |
 | `#111` `#112` → `#146` | closeout implemented; GitHub status is maintained separately | Exact adaptation/scope assessments, worker projection scans, target matrix, and exact-only harness filters are owned by the current platform path. |
 | `#155` | implemented in current platform closeout | Public catalog is exact-only; assessment identity is server-validated and target-bound; latest is atomic; recommendations mean current verified full-auto eligibility. |
 | `#117` `#118` | source repairs present | Cache admission/freshness and shared in-flight task ownership changed. Preserve the regression tests; do not infer all platform work completed from these two fixes. |
-| `#139` | web remaining | Canonical seed preserves `ported_from` and `related_setup_ids`. Setup detail still needs to present their actual values; generated types already carry them. |
+| `#139` | implemented | Setup detail and exact-version pages show `ported_from` as an exact-version link and `related_setup_ids` as separate setup links. Null lineage is omitted. |
 | `#140` | implemented | Search rebuild derives tiers from the shared registry and no longer invents `primary`. Bootstrap rebuilds existing rows; web harness/type facets derive from generated contracts and fixture defaults are all-beta. `primary` remains a valid empty OBT filter. |
+| `#165`–`#166` | implemented | Both object kinds share owner presentation routes, full public bio/media readback and atomic search refresh. Service editing has separate labeled groups. Upload forwarding enforces CSRF and a streamed byte limit; private media requires its owner. |
+| `#167` | implemented | Detail links preserve the catalog query in a validated local `return_to`; the back link restores filtering, sorting, page and view. |
+
+| `#168` | implemented and deployed | Provider avatar import validates bounded image bytes and stores normalized metadata-free media; real decoder, ASGI, and browser UI regressions pass. |
+| `#169` | implemented and deployed | Exact stored artifacts and original passport seals drive context estimates; incomplete, corrupt, runtime-only, and unavailable measurements have distinct UI explanations. |
+| `#162`–`#164` | open | Complete linked-recipient authorization, private metadata/artifact acquisition, and real S3 durability/race evidence; keep public reads credential-free. |
 
 Backlog issues `#18`–`#60` stay backlog.
 
@@ -294,11 +324,14 @@ closed or forbade. Those findings are not re-opened here:
 commit `4aa64c36`. A clean index install returned `cli_version: 0.0.18` and
 accepted `reset`. `#100` published `0.0.17` from candidate `33850604873`, tag
 `v0.0.17`, commit `9e03ab27`. Obsolete GitHub `pypi` / `pypi-*` environments
-except `pypi-cli` are removed. The earlier record assigned deletion of the five
-former internal PyPI projects to their owners; current index deletion was not
-verified by this source audit: `ai-stp-sources` is `rldyourmnd`;
-`ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`, and
-`ai-stp-contracts` are `artemletya`. There is no deletion API.
+except `pypi-cli` are removed. `#100` now has one authorized remaining task:
+delete `ai-stp-sources` from the owner's PyPI settings. The four other former
+internal projects return 404 as measured on 2026-09-07. A fresh uncached
+`ai-stp-cli==0.0.18` installation has one first-party distribution, no internal
+`Requires-Dist`, and working imports of all bundled runtime namespaces. The
+browser denied access to PyPI because administrative policy could not be verified;
+the remaining deletion is blocked, not complete. Internal source modules remain
+workspace boundaries inside the single public CLI wheel.
 
 ## Explicitly out of scope for this pass
 

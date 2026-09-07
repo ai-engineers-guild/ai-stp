@@ -312,7 +312,8 @@
               "safety_checks": []
             }
           ]
-        }
+        },
+        "presentation_bio": null
       }
     },
     {
@@ -604,7 +605,8 @@
               "safety_checks": []
             }
           ]
-        }
+        },
+        "distribution_visibility": null
       }
     },
     {

@@ -896,6 +896,10 @@ export type ComponentDetail = {
    */
   media: Array<ComponentMediaItem>;
   /**
+   * Presentation Bio
+   */
+  presentation_bio: string | null;
+  /**
    * Schema Version
    */
   schema_version: 1;
@@ -2775,6 +2779,43 @@ export type OwnerLifecycleResponse = {
 };
 
 /**
+ * OwnerMediaUploadResponse
+ *
+ * Ready upload reference; the owning object's access policy still applies.
+ */
+export type OwnerMediaUploadResponse = {
+  /**
+   * Content Type
+   */
+  content_type: string;
+  /**
+   * Kind
+   */
+  kind: "image" | "video";
+  /**
+   * Media Id
+   */
+  media_id: string;
+  /**
+   * Public Url
+   */
+  public_url: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Size Bytes
+   */
+  size_bytes: number;
+  /**
+   * State
+   */
+  state: "ready";
+  [key: string]: unknown;
+};
+
+/**
  * OwnerObjectDetail
  *
  * Owner object detail with versions.
@@ -2869,6 +2910,75 @@ export type OwnerObjectSummary = {
    */
   visibility: "public" | "private";
   [key: string]: unknown;
+};
+
+/**
+ * OwnerPresentationMedia
+ *
+ * One safe mutable media item shown on a component catalog page.
+ */
+export type OwnerPresentationMedia = {
+  /**
+   * Alt
+   */
+  alt: string;
+  /**
+   * Caption
+   */
+  caption?: string;
+  /**
+   * Kind
+   */
+  kind: "image" | "video" | "youtube";
+  /**
+   * Url
+   */
+  url: string;
+};
+
+/**
+ * OwnerPresentationResponse
+ *
+ * Current mutable object presentation for its owner.
+ */
+export type OwnerPresentationResponse = {
+  /**
+   * Bio
+   */
+  bio: string;
+  /**
+   * Media
+   */
+  media: Array<OwnerPresentationMedia>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  [key: string]: unknown;
+};
+
+/**
+ * OwnerPresentationUpdateRequest
+ *
+ * Mutable component/setup presentation; never changes passport identity.
+ */
+export type OwnerPresentationUpdateRequest = {
+  /**
+   * Bio
+   */
+  bio?: string;
+  /**
+   * Media
+   */
+  media?: Array<OwnerPresentationMedia>;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
 };
 
 /**
@@ -4408,6 +4518,10 @@ export type SetupContextBudget = {
   coordinate: ExactCoordinate;
   estimator: TokenEstimator;
   /**
+   * Reason
+   */
+  reason: string | null;
+  /**
    * Schema Version
    */
   schema_version: 1;
@@ -4461,7 +4575,15 @@ export type SetupDetail = {
    */
   country_codes: Array<CountryCode>;
   family: SetupFamilyPublic | null;
+  /**
+   * Media
+   */
+  media: Array<ComponentMediaItem>;
   ported_from: SetupRef | null;
+  /**
+   * Presentation Bio
+   */
+  presentation_bio: string | null;
   /**
    * Related Setup Ids
    */
@@ -8683,6 +8805,204 @@ export type ReadOwnerObjectResponses = {
 };
 
 export type ReadOwnerObjectResponse = ReadOwnerObjectResponses[keyof ReadOwnerObjectResponses];
+
+export type ReadOwnerPresentationData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Catalog object kind.
+     */
+    object_kind: string;
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+  };
+  query?: never;
+  url: "/v1/owner/objects/{object_kind}/{stable_id}/presentation";
+};
+
+export type ReadOwnerPresentationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadOwnerPresentationError =
+  ReadOwnerPresentationErrors[keyof ReadOwnerPresentationErrors];
+
+export type ReadOwnerPresentationResponses = {
+  /**
+   * Read the current owner's mutable component or setup presentation.
+   */
+  200: OwnerPresentationResponse;
+};
+
+export type ReadOwnerPresentationResponse =
+  ReadOwnerPresentationResponses[keyof ReadOwnerPresentationResponses];
+
+export type UpdateOwnerPresentationData = {
+  body: OwnerPresentationUpdateRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Catalog object kind.
+     */
+    object_kind: string;
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+  };
+  query?: never;
+  url: "/v1/owner/objects/{object_kind}/{stable_id}/presentation";
+};
+
+export type UpdateOwnerPresentationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UpdateOwnerPresentationError =
+  UpdateOwnerPresentationErrors[keyof UpdateOwnerPresentationErrors];
+
+export type UpdateOwnerPresentationResponses = {
+  /**
+   * Replace an owned object's presentation without changing its passport.
+   */
+  200: OwnerPresentationResponse;
+};
+
+export type UpdateOwnerPresentationResponse =
+  UpdateOwnerPresentationResponses[keyof UpdateOwnerPresentationResponses];
+
+export type UploadOwnerPresentationMediaData = {
+  body: Blob | File;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Catalog object kind.
+     */
+    object_kind: string;
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+  };
+  query?: never;
+  url: "/v1/owner/objects/{object_kind}/{stable_id}/presentation/media";
+};
+
+export type UploadOwnerPresentationMediaErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UploadOwnerPresentationMediaError =
+  UploadOwnerPresentationMediaErrors[keyof UploadOwnerPresentationMediaErrors];
+
+export type UploadOwnerPresentationMediaResponses = {
+  /**
+   * Upload image or video bytes for an owned object's presentation.
+   */
+  201: OwnerMediaUploadResponse;
+};
+
+export type UploadOwnerPresentationMediaResponse =
+  UploadOwnerPresentationMediaResponses[keyof UploadOwnerPresentationMediaResponses];
 
 export type ReadOwnerVersionData = {
   body?: never;

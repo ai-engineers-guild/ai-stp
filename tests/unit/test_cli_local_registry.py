@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from tests.support.cli_database import historical_registry
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import journal, passports, revisions
@@ -124,7 +125,8 @@ def test_a_failed_transaction_leaves_nothing_behind(registry: sqlite3.Connection
 
 
 def test_migrations_roll_back_where_a_reverse_is_declared(tmp_path: Path) -> None:
-    connection = open_registry(tmp_path / "registry.sqlite")
+    reversible = next((item.version - 1 for item in MIGRATIONS if not item.down), SCHEMA_VERSION)
+    connection = historical_registry(tmp_path / "registry.sqlite", reversible)
     downgrade(connection, 0)
     assert schema_version(connection) == 0
     assert (
@@ -136,8 +138,7 @@ def test_migrations_roll_back_where_a_reverse_is_declared(tmp_path: Path) -> Non
 
 def test_event_order_migration_materializes_existing_insertion_order(tmp_path: Path) -> None:
     path = tmp_path / "registry.sqlite"
-    connection = open_registry(path)
-    downgrade(connection, 14)
+    connection = historical_registry(path, 14)
     with transaction(connection):
         for number in (1, 2):
             operation_id = f"operation_legacy_{number}"
@@ -517,7 +518,8 @@ def test_a_migration_that_fails_leaves_the_version_where_it_was(
 
 
 def test_downgrading_past_what_is_applied_does_nothing(tmp_path: Path) -> None:
-    connection = open_registry(tmp_path / "registry.sqlite")
+    reversible = next((item.version - 1 for item in MIGRATIONS if not item.down), SCHEMA_VERSION)
+    connection = historical_registry(tmp_path / "registry.sqlite", reversible)
     downgrade(connection, 0)
     downgrade(connection, 0)
     assert schema_version(connection) == 0

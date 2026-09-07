@@ -50,6 +50,8 @@ stops in `references/decisions.md`. Uncertainty is research, not a pause.
 | what harnesses, projects, components, targets exist | inspect |
 | find or show a catalog object | catalog |
 | select, eligibility, compose a setup | compose |
+| prepare a project environment or several harnesses | environment |
+| save the current setup or return to its original state | install |
 | install, update, roll back a setup | install |
 | drift, selected vs installed | daily |
 | timeout, partial install, stuck operation | recover |

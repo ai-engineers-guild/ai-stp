@@ -1,5 +1,8 @@
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
-import type { ContextBudgetLabels } from "@/components/organisms/context-budget-labels";
+import {
+  contextBudgetMessage,
+  type ContextBudgetLabels,
+} from "@/components/organisms/context-budget-labels";
 import type { ComponentContextBudget, SetupContextBudget } from "@/lib/api/catalog";
 import { UI } from "@/lib/ui-selectors";
 
@@ -9,12 +12,18 @@ export { contextBudgetLabels } from "@/components/organisms/context-budget-label
 export function ContextBudgetPanel({
   budget,
   labels,
+  failure,
 }: {
   budget: SetupContextBudget | null;
   labels: ContextBudgetLabels;
+  failure?: string | null;
 }) {
-  const ready = budget !== null && budget.status !== "invalid_graph";
-  const summary = ready ? `${budget.total_tokens} ${labels.tokens}` : labels.error;
+  const ready = budget !== null && budget.status === "ready";
+  const unavailable = contextBudgetMessage(
+    labels,
+    budget?.status === "invalid_graph" ? "invalid_graph" : (budget?.reason ?? failure),
+  );
+  const summary = ready ? `${budget.total_tokens} ${labels.tokens}` : unavailable;
 
   return (
     <div data-ui={UI.component.contextBudget}>
@@ -43,10 +52,11 @@ export function ContextBudgetPanel({
           </div>
         ) : (
           <p className="text-sm" role="status">
-            {labels.error}
+            {unavailable}
           </p>
         )}
       </DetailAccordion>
+      <p className="text-muted-foreground mt-2 text-xs">{labels.lead}</p>
     </div>
   );
 }
@@ -54,18 +64,22 @@ export function ContextBudgetPanel({
 export function ComponentContextBudgetPanel({
   budget,
   labels,
+  failure,
 }: {
   budget: ComponentContextBudget | null;
   labels: ContextBudgetLabels;
+  failure?: string | null;
 }) {
   const tokens = budget?.tokens;
   const runtimeDerived = labels.runtimeDerived ?? labels.error;
-  const measured = typeof tokens === "number";
+  const measured =
+    (budget?.status === "exact" || budget?.status === "estimated") && typeof tokens === "number";
+  const unavailable = contextBudgetMessage(labels, budget?.reason ?? failure);
   const summary = measured
     ? `${tokens.toLocaleString()} ${labels.tokens}`
     : budget?.status === "not_applicable"
       ? runtimeDerived
-      : labels.error;
+      : unavailable;
   return (
     <div data-ui={UI.component.contextBudget}>
       <DetailAccordion title={labels.title} summary={summary}>
@@ -78,16 +92,17 @@ export function ComponentContextBudgetPanel({
             <div>
               <dt className="text-muted-foreground">{labels.conditional}</dt>
               <dd className="mt-1 text-xl font-medium tabular-nums">
-                {(budget?.loading === "conditional" ? tokens : 0).toLocaleString()}
+                {(budget.loading === "conditional" ? tokens : 0).toLocaleString()}
               </dd>
             </div>
           </dl>
         ) : (
           <p className="text-muted-foreground text-sm" role="status">
-            {budget?.status === "not_applicable" ? runtimeDerived : labels.error}
+            {budget?.status === "not_applicable" ? runtimeDerived : unavailable}
           </p>
         )}
       </DetailAccordion>
+      <p className="text-muted-foreground mt-2 text-xs">{labels.componentLead ?? labels.lead}</p>
     </div>
   );
 }

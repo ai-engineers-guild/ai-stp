@@ -23,6 +23,7 @@ class Coordinator:
         children: tuple[multi_root.Child, ...],
         idempotency_key: str,
         at: str,
+        transaction_kind: multi_root.TransactionKind = "single_setup",
     ) -> multi_root.MultiRootTransaction:
         return multi_root.propose(
             self.connection,
@@ -32,6 +33,7 @@ class Coordinator:
             children=children,
             idempotency_key=idempotency_key,
             at=at,
+            transaction_kind=transaction_kind,
         )
 
     def approve(

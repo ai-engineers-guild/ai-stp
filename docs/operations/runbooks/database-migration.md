@@ -84,3 +84,21 @@ Development bootstrap now requires configured artifact storage and loads the
 canonical corpus with exact identities, complete setup references and verified
 bytes. Frozen Sprint-1 fixtures live in test support and are not a production
 seed path. See `SPEC-021` for the environment and immutability boundaries.
+
+## Canonical support after target assessments
+
+Revision `0052_restore_canonical_support_tiers` removes the SQL support-tier
+fallback reintroduced with target assessments. It changes no passport, identity,
+visibility, or version. The normal bootstrap rebuilds the derived catalog index
+from the stored passports, preserving actual support declarations and excluding
+unreadable records. Rollback restores only the preceding SQL default; it does not
+rewrite any stored tier or immutable version.
+
+## Current assurance expiry
+
+Revision `0053_component_assurance_expiry` adds the derived expiry described in
+[`target-assessments`](../../contracts/target-assessments.md). It clears legacy
+component badges from the search index; the normal bootstrap rebuilds them from
+current target and common evidence. Passports and evidence history stay intact.
+Rollback drops only the derived column. Keep the preceding application version
+and rebuild the index after rolling back both code and schema.

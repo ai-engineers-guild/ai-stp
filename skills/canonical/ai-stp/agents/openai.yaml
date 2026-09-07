@@ -1,0 +1,6 @@
+interface:
+  display_name: "ai-stp"
+  short_description: "Prepare, preserve, and manage harness setups"
+  default_prompt: >-
+    Use $ai-stp to inspect my project, prepare its harness environment,
+    and manage exact setups with verified recovery.

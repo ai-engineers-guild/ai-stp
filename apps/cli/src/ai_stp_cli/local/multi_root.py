@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Final, Literal
 
@@ -16,6 +16,7 @@ from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 
 type Scope = Literal["global", "user_root", "project"]
+type TransactionKind = Literal["single_setup", "environment"]
 type TransactionState = Literal[
     "planned",
     "applying",
@@ -41,6 +42,14 @@ class Child:
     backup_ref: str | None = None
     undo_operation_id: str | None = None
     resource_prefixes: tuple[str, ...] = ()
+    resource_chains: tuple[tuple[str, ...], ...] = ()
+    harness_id: str = ""
+    setup_stable_id: str = ""
+    setup_version: str = ""
+
+    @property
+    def footprints(self) -> tuple[tuple[str, ...], ...]:
+        return self.resource_chains or ((self.resource_prefixes,) if self.resource_prefixes else ())
 
 
 @dataclass(frozen=True)
@@ -54,6 +63,7 @@ class MultiRootTransaction:
     created_at: str
     updated_at: str
     approved_digest: str | None = None
+    transaction_kind: TransactionKind = "single_setup"
 
     @property
     def digest(self) -> str:
@@ -73,6 +83,8 @@ class MultiRootTransaction:
                 for child in self.children
             ],
         }
+        if self.transaction_kind == "environment":
+            value["transaction_kind"] = self.transaction_kind
         return digest_canonical(TRANSACTION_DOMAIN, value)
 
 
@@ -85,13 +97,33 @@ def propose(
     children: tuple[Child, ...],
     idempotency_key: str,
     at: str,
+    transaction_kind: TransactionKind = "single_setup",
 ) -> MultiRootTransaction:
     """Record one exact multi-root decision after every child was purely planned."""
-    ordered = tuple(sorted(children, key=lambda child: SCOPE_ORDER[child.scope]))
+    children = tuple(_with_setup(connection, child) for child in children)
+    ordered = tuple(
+        sorted(children, key=lambda child: (SCOPE_ORDER[child.scope], child.harness_id))
+    )
     if len(ordered) < 2:
         raise _invalid("a multi-root transaction requires at least two scopes")
-    if len({child.scope for child in ordered}) != len(ordered):
+    if transaction_kind == "single_setup" and len({child.scope for child in ordered}) != len(
+        ordered
+    ):
         raise _invalid("a multi-root transaction contains a duplicate scope")
+    if transaction_kind == "environment":
+        pairs = {
+            installation.target_pair(installation.plan(connection, child.operation_id).target_id)
+            for child in ordered
+        }
+        if (
+            len({project for project, _ in pairs}) != 1
+            or len({harness for _, harness in pairs}) < 2
+        ):
+            raise _invalid("an environment requires separate harnesses of one project")
+        if len({(child.harness_id, child.scope) for child in ordered}) != len(ordered):
+            raise _invalid("an environment repeats a harness and scope")
+        if not all(child.resource_chains for child in ordered):
+            raise _invalid("an environment requires complete native footprints")
     if len({child.target_id for child in ordered}) != len(ordered):
         raise _invalid("a multi-root transaction contains a duplicate target")
     for child in ordered:
@@ -99,8 +131,10 @@ def propose(
         current = journal.get(connection, child.operation_id)
         if (
             plan.digest != child.plan_digest
-            or plan.setup_stable_id != setup_stable_id
-            or plan.setup_version != setup_version
+            or (
+                transaction_kind == "single_setup"
+                and (plan.setup_stable_id != setup_stable_id or plan.setup_version != setup_version)
+            )
             or current is None
             or current.state != installation.STATE_PLANNED
         ):
@@ -116,6 +150,7 @@ def propose(
             ordered,
             held.created_at,
             held.updated_at,
+            transaction_kind,
         )
         if candidate.digest != held.digest:
             raise CliFailure(
@@ -136,19 +171,21 @@ def propose(
                     "a target already belongs to an active multi-root transaction",
                     details={"target_id": child.target_id},
                 )
-            held_transaction = overlapping_reservation(connection, child.resource_prefixes)
-            if held_transaction is not None:
-                raise CliFailure(
-                    "AI_STP_CONFLICT",
-                    "a target already belongs to an active multi-root transaction",
-                    details={
-                        "target_id": child.target_id,
-                        "transaction_id": held_transaction,
-                    },
-                )
+            for footprint in child.footprints:
+                held_transaction = overlapping_reservation(connection, footprint)
+                if held_transaction is not None:
+                    raise CliFailure(
+                        "AI_STP_CONFLICT",
+                        "a native resource already belongs to an active transaction",
+                        details={"target_id": child.target_id, "transaction_id": held_transaction},
+                    )
         for index, child in enumerate(ordered):
             for other in ordered[index + 1 :]:
-                if prefixes_overlap(child.resource_prefixes, other.resource_prefixes):
+                if any(
+                    prefixes_overlap(left, right)
+                    for left in child.footprints
+                    for right in other.footprints
+                ):
                     raise CliFailure(
                         "AI_STP_CONFLICT",
                         "a multi-root transaction contains overlapping physical roots",
@@ -163,14 +200,15 @@ def propose(
             ordered,
             at,
             at,
+            transaction_kind,
         )
         connection.execute(
             """
             INSERT INTO installation_transaction (
                 transaction_id, idempotency_key, transaction_digest,
                 setup_stable_id, setup_version, harness_id, state,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'planned', ?, ?)
+                created_at, updated_at, transaction_kind
+            ) VALUES (?, ?, ?, ?, ?, ?, 'planned', ?, ?, ?)
             """,
             (
                 transaction_id,
@@ -181,6 +219,7 @@ def propose(
                 harness_id,
                 at,
                 at,
+                transaction_kind,
             ),
         )
         for position, child in enumerate(ordered):
@@ -401,6 +440,7 @@ def get(connection: sqlite3.Connection, transaction_id: str) -> MultiRootTransac
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
         approved_digest=None if row["approved_digest"] is None else str(row["approved_digest"]),
+        transaction_kind=str(row["transaction_kind"]),  # type: ignore[arg-type]
     )
 
 
@@ -426,18 +466,31 @@ def _children(connection: sqlite3.Connection, transaction_id: str) -> tuple[Chil
         (transaction_id,),
     ).fetchall()
     return tuple(
-        Child(
-            scope=str(row["scope"]),  # type: ignore[arg-type]
-            operation_id=str(row["operation_id"]),
-            target_id=str(row["target_id"]),
-            plan_digest=str(row["plan_digest"]),
-            state=str(row["state"]),
-            backup_ref=None if row["backup_ref"] is None else str(row["backup_ref"]),
-            undo_operation_id=(
-                None if row["undo_operation_id"] is None else str(row["undo_operation_id"])
+        _with_setup(
+            connection,
+            Child(
+                scope=str(row["scope"]),  # type: ignore[arg-type]
+                operation_id=str(row["operation_id"]),
+                target_id=str(row["target_id"]),
+                plan_digest=str(row["plan_digest"]),
+                state=str(row["state"]),
+                backup_ref=None if row["backup_ref"] is None else str(row["backup_ref"]),
+                undo_operation_id=(
+                    None if row["undo_operation_id"] is None else str(row["undo_operation_id"])
+                ),
             ),
         )
         for row in rows
+    )
+
+
+def _with_setup(connection: sqlite3.Connection, child: Child) -> Child:
+    held = installation.plan(connection, child.operation_id)
+    return replace(
+        child,
+        harness_id=installation.target_pair(held.target_id)[1],
+        setup_stable_id=held.setup_stable_id,
+        setup_version=held.setup_version,
     )
 
 
@@ -457,6 +510,7 @@ def _candidate(
     children: tuple[Child, ...],
     created_at: str,
     updated_at: str,
+    transaction_kind: TransactionKind = "single_setup",
 ) -> MultiRootTransaction:
     return MultiRootTransaction(
         transaction_id=transaction_id,
@@ -467,6 +521,7 @@ def _candidate(
         children=children,
         created_at=created_at,
         updated_at=updated_at,
+        transaction_kind=transaction_kind,
     )
 
 
@@ -559,18 +614,19 @@ def overlapping_reservation(
 def _record_resource_prefixes(
     connection: sqlite3.Connection, transaction_id: str, child: Child
 ) -> None:
-    if not child.resource_prefixes:
-        return
-    last = len(child.resource_prefixes) - 1
-    for index, digest in enumerate(child.resource_prefixes):
-        connection.execute(
-            """
-            INSERT INTO installation_transaction_resource (
-                resource_digest, target_id, transaction_id, is_exact
-            ) VALUES (?, ?, ?, ?)
-            """,
-            (digest, child.target_id, transaction_id, 1 if index == last else 0),
-        )
+    for chain in child.footprints:
+        last = len(chain) - 1
+        for index, digest in enumerate(chain):
+            connection.execute(
+                """
+                INSERT INTO installation_transaction_resource (
+                    resource_digest, target_id, transaction_id, is_exact
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(resource_digest, target_id) DO UPDATE
+                SET is_exact = max(is_exact, excluded.is_exact)
+                """,
+                (digest, child.target_id, transaction_id, 1 if index == last else 0),
+            )
 
 
 def _release_reservations(connection: sqlite3.Connection, transaction_id: str) -> None:

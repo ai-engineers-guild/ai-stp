@@ -55,7 +55,13 @@ def status(parameters: Mapping[str, object]) -> Answer[CliProgram]:
             )
         )
     with closing(open_readonly(path)) as connection:
-        return Answer(cli_program.status(connection, stable_id=stable_id))
+        return Answer(
+            cli_program.status(
+                connection,
+                stable_id=stable_id,
+                version=str(parameters.get("version") or "") or None,
+            )
+        )
 
 
 def remove(parameters: Mapping[str, object]) -> Answer[CliProgram]:

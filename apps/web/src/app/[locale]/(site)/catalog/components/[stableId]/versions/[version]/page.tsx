@@ -1,3 +1,8 @@
+import { loadContextBudget } from "@/lib/context-budget";
+import {
+  ComponentContextBudgetPanel,
+  contextBudgetLabels,
+} from "@/components/organisms/context-budget-panel";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -15,6 +20,7 @@ import { StatePanel } from "@/components/molecules/state-panel";
 import { SupportSummary, supportLabels } from "@/components/molecules/support-summary";
 import {
   readComponent,
+  readComponentContextBudget,
   readComponentGithubMetadata,
   readComponentVersion,
 } from "@/lib/api/catalog";
@@ -67,6 +73,9 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   const tc = await getTranslations("common");
   const tCli = await getTranslations("cli");
 
+  const { budget, failure } = await loadContextBudget(
+    readComponentContextBudget(componentId, asVersionId(version)),
+  );
   const passport = response.passport;
   const catalogDetail = await readComponent(componentId).catch(() => null);
   const publisherId = catalogDetail?.summary.publisher_id || passport.owner_id;
@@ -111,6 +120,11 @@ export default async function ComponentVersionPage({ params }: PageProps) {
           </Badge>
         ))}
       </div>
+      <ComponentContextBudgetPanel
+        budget={budget}
+        failure={failure}
+        labels={contextBudgetLabels(t, tCli)}
+      />
       <dl className="grid gap-3 sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground text-sm">{t("lifecycle")}</dt>

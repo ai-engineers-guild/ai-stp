@@ -127,6 +127,9 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
 - `REQ-2611`: A grant permits reading, installing, and forking the `X.*` major
   line; writing to the original and re-granting are prohibited (`SPEC-002`
   REQ-216/217).
+  Private distribution defaults, exact access routes and explicit owner public
+  opening follow SPEC-071. ADR-0169 separates distribution access from immutable
+  passport identity; a grant never permits changing that visibility.
 - `REQ-2612`: Invitation revocation and grant revocation are separate and apply
   prospectively; bytes already obtained are not deleted, and the owner is
   informed of this (`SPEC-002` REQ-212/218).

@@ -778,6 +778,37 @@ def _page_info(page: SearchPage) -> PageInfo | CatalogPageInfo:
     )
 
 
+async def _object_media(session: AsyncSession, stable_id: str) -> list[ComponentMediaItem]:
+    media_rows = (
+        await session.execute(
+            select(ComponentMedia)
+            .where(ComponentMedia.stable_id == stable_id, ComponentMedia.state == "ready")
+            .order_by(ComponentMedia.position)
+            .limit(5)
+        )
+    ).scalars()
+    media: list[ComponentMediaItem] = []
+    for row in media_rows:
+        url = row.youtube_video_id if row.kind == "youtube" else row.public_url
+        if not url:
+            continue
+        media.append(
+            ComponentMediaItem(
+                id=row.id,
+                kind=row.kind,  # type: ignore[arg-type]
+                url=url,
+                alt=row.alt,
+                caption=row.caption,
+                source_label={
+                    "upload": "ai_stp storage",
+                    "github": "GitHub",
+                    "youtube": "YouTube",
+                }[row.source_type],
+            )
+        )
+    return media
+
+
 async def read_component(session: AsyncSession, stable_id: str) -> ComponentDetail:
     versions = await get_public_object_versions(
         session, object_kind="component", stable_id=stable_id
@@ -790,33 +821,7 @@ async def read_component(session: AsyncSession, stable_id: str) -> ComponentDeta
             session, component_stable_id=stable_id, version=latest.version
         )
         detail = component_detail(versions, now=datetime.now(UTC), assessments=assessments)
-        media_rows = (
-            await session.execute(
-                select(ComponentMedia)
-                .where(ComponentMedia.stable_id == stable_id, ComponentMedia.state == "ready")
-                .order_by(ComponentMedia.position)
-                .limit(5)
-            )
-        ).scalars()
-        media: list[ComponentMediaItem] = []
-        for row in media_rows:
-            url = row.youtube_video_id if row.kind == "youtube" else row.public_url
-            if not url:
-                continue
-            media.append(
-                ComponentMediaItem(
-                    id=row.id,
-                    kind=row.kind,  # type: ignore[arg-type]
-                    url=url,
-                    alt=row.alt,
-                    caption=row.caption,
-                    source_label={
-                        "upload": "ai_stp storage",
-                        "github": "GitHub",
-                        "youtube": "YouTube",
-                    }[row.source_type],
-                )
-            )
+        media = await _object_media(session, stable_id)
         country_codes, services = await read_object_relations(
             session, object_kind="component", stable_id=stable_id
         )
@@ -833,6 +838,7 @@ async def read_setup(session: AsyncSession, stable_id: str) -> SetupDetail:
         raise CatalogNotFound
     try:
         detail = setup_detail(versions, now=datetime.now(UTC))
+        media = await _object_media(session, stable_id)
         country_codes, services = await read_object_relations(
             session, object_kind="setup", stable_id=stable_id
         )
@@ -849,6 +855,7 @@ async def read_setup(session: AsyncSession, stable_id: str) -> SetupDetail:
         composition = await _setup_composition(session, versions)
         return detail.model_copy(
             update={
+                "media": media,
                 "country_codes": country_codes,
                 "services": services,
                 "family": family_view,

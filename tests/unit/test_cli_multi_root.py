@@ -32,13 +32,20 @@ def registry() -> Iterator[sqlite3.Connection]:
         yield connection
 
 
-def _child(registry: sqlite3.Connection, suffix: str, scope: multi_root.Scope) -> multi_root.Child:
+def _child(
+    registry: sqlite3.Connection,
+    suffix: str,
+    scope: multi_root.Scope,
+    *,
+    harness_id: str = "claude-code",
+    project_id: str = "project_test",
+) -> multi_root.Child:
     operation_id = f"operation_01J0000000000000000000000{suffix}"
     plan = installation.propose(
         registry,
         action="install",
         author="account_test",
-        target_id="project_test:claude-code",
+        target_id=f"{project_id}:{harness_id}",
         expected_target_digest="sha256:" + suffix.lower() * 64,
         provider_version="1.0.0",
         effects=(f"write {scope}",),
@@ -927,3 +934,121 @@ def test_another_process_refuses_an_overlapping_physical_root(
     process.join(timeout=15)
     assert process.exitcode == 0
     assert result.read_text(encoding="utf-8") == "AI_STP_CONFLICT"
+
+
+def _environment_children(
+    registry: sqlite3.Connection,
+    root: Path,
+    *,
+    second_path: str = "AGENTS.md",
+    second_project: str = "project_test",
+    second_harness: str = "codex",
+) -> tuple[multi_root.Child, ...]:
+    return (
+        replace(
+            _child(registry, "A", "project"),
+            target_id="claude-native",
+            resource_chains=(multi_root.resource_prefix_digests(root / "CLAUDE.md"),),
+        ),
+        replace(
+            _child(registry, "B", "project", harness_id=second_harness, project_id=second_project),
+            target_id="second-native",
+            resource_chains=(multi_root.resource_prefix_digests(root / second_path),),
+        ),
+    )
+
+
+def test_environment_reserves_disjoint_native_surfaces_in_one_project(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+) -> None:
+    children = _environment_children(registry, tmp_path)
+    planned = multi_root.propose(
+        registry,
+        setup_stable_id="",
+        setup_version="",
+        harness_id="",
+        children=children,
+        idempotency_key="environment",
+        at=AT,
+        transaction_kind="environment",
+    )
+    assert planned.transaction_kind == "environment"
+    assert [child.harness_id for child in planned.children] == ["claude-code", "codex"]
+    repeated = multi_root.propose(
+        registry,
+        setup_stable_id="",
+        setup_version="",
+        harness_id="",
+        children=tuple(reversed(children)),
+        idempotency_key="environment",
+        at=LATER,
+        transaction_kind="environment",
+    )
+    assert repeated.digest == planned.digest
+    assert (
+        multi_root.overlapping_reservation(
+            registry, multi_root.resource_prefix_digests(tmp_path / "CLAUDE.md")
+        )
+        == planned.transaction_id
+    )
+    assert (
+        multi_root.overlapping_reservation(
+            registry, multi_root.resource_prefix_digests(tmp_path / "unrelated.md")
+        )
+        is None
+    )
+    assert (
+        multi_root.overlapping_reservation(registry, multi_root.resource_prefix_digests(tmp_path))
+        == planned.transaction_id
+    )
+    reopened = install_transaction.status({"transaction": planned.transaction_id}).payload
+    assert reopened.harness_id is None
+    assert reopened.setup_stable_id is None
+    assert [child.harness_id for child in reopened.children] == ["claude-code", "codex"]
+    Coordinator(registry).cancel(planned.transaction_id, at=LATER, reason="planning verified")
+    assert (
+        multi_root.overlapping_reservation(registry, multi_root.resource_prefix_digests(tmp_path))
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "defect", ["same_path", "nested_path", "different_project", "duplicate_harness"]
+)
+def test_environment_refuses_conflicts_before_reserving_or_approving(
+    registry: sqlite3.Connection,
+    tmp_path: Path,
+    defect: str,
+) -> None:
+    children = _environment_children(
+        registry,
+        tmp_path,
+        second_path="CLAUDE.md"
+        if defect == "same_path"
+        else "CLAUDE.md/nested"
+        if defect == "nested_path"
+        else "AGENTS.md",
+        second_project="project_other" if defect == "different_project" else "project_test",
+        second_harness="claude-code" if defect == "duplicate_harness" else "codex",
+    )
+    with pytest.raises(CliFailure) as refused:
+        multi_root.propose(
+            registry,
+            setup_stable_id="",
+            setup_version="",
+            harness_id="",
+            children=children,
+            idempotency_key="refused-environment",
+            at=AT,
+            transaction_kind="environment",
+        )
+    assert refused.value.code == (
+        "AI_STP_CONFLICT"
+        if defect in {"same_path", "nested_path"}
+        else "AI_STP_PRECONDITION_FAILED"
+    )
+    assert registry.execute("SELECT count(*) FROM installation_transaction").fetchone()[0] == 0
+    for child in children:
+        recorded = journal.get(registry, child.operation_id)
+        assert recorded is not None and recorded.state == installation.STATE_PLANNED

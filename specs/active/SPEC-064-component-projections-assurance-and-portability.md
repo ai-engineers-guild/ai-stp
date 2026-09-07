@@ -77,16 +77,8 @@ public publication and setup composition.
 ### Mutable platform data
 
 Artifact observations and target assessments are append-only evidence records
-with a latest-effective projection. Assessment identity contains:
-
-```text
-component stable id + version + passport digest
-+ adaptation id + harness id + scope adaptation id
-+ projection artifact digest
-+ provider id + provider version + surface profile id + profile digest
-+ target scope + harness version + operating system + architecture
-+ policy version
-```
+with a latest-effective projection. The complete identity and aggregation rules belong to
+[`target-assessments`](../../docs/contracts/target-assessments.md).
 
 The latest-effective pointer may advance; evidence history is retained according
 to existing audit retention. Assessment rows cannot modify immutable version
@@ -145,10 +137,14 @@ may be calculated at read time from expiry or current policy/profile identity.
 - `REQ-6410`: `component_verified` MUST be true only when common mandatory checks
   and every policy-required advertised adaptation/scope target are current and
   verified. Mixed, missing, failed, and stale required targets MUST produce
-  false without mutating the component version.
+  false without mutating the component version. Validation snapshots, publication
+  plans, public reads, and SQL filtering/counts MUST use this same current result;
+  expiry MUST take effect without waiting for a background refresh.
 - `REQ-6411`: Assessment refresh MUST append evidence and atomically advance the
   latest-effective projection. Concurrent retries with the same idempotency key
-  and complete identity MUST produce one effective result.
+  and complete identity MUST produce one effective result. Equal observation
+  timestamps MUST NOT let a less restrictive state overwrite a more restrictive
+  state. Replays MUST report the current effective result.
 - `REQ-6412`: Public component passports, catalog rows, facets, cursors,
   search predicates, and UI MUST contain no portability-claim model. The CLI
   portability plan/apply commands MAY write only a private local overlay.
@@ -200,10 +196,14 @@ may be calculated at read time from expiry or current policy/profile identity.
   source and cover every harness in canonical `HARNESS_IDS`.
 - `REQ-6426`: Publication validation MUST scan each unique exact projection
   artifact digest in the component version, persist artifact observations, and
-  write one target assessment per exact adaptation/scope. Identical bytes MUST
+  verify each scope's canonical archive closure and write one target assessment
+  per exact adaptation/scope. Identical bytes MUST
   reuse the observation identity. Missing projection bytes MUST project
   `not_verified`. A failed projection MUST NOT change another projection's
-  stored state. The version-level publish gate remains the common-source scan.
+  stored state. The worker MUST refuse to issue target evidence on an unknown
+  OS or architecture rather than substitute a supported platform. A byte scan
+  MUST NOT claim execution of a harness version copied from the passport. The
+  version-level publish gate remains the common-source scan.
 
 ## API contract
 

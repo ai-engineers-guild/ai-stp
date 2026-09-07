@@ -39,9 +39,7 @@ export function presentOwnerObjectDetail(input: {
     link("Objects", "/objects"),
     link(input.labels.viewPublic, catalogHref),
   ];
-  if (input.kind === "component") {
-    doc.push(link(input.labels.editPresentation, `/objects/component/${input.stableId}/edit`));
-  }
+  doc.push(link(input.labels.editPresentation, `/objects/${input.kind}/${input.stableId}/edit`));
   doc.push(heading(2, input.labels.versions));
   if (input.versions.length === 0) {
     doc.push(paragraph(input.labels.emptyVersions));

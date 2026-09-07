@@ -8,13 +8,15 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import get_db, optional_auth, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.media_upload import read_media_upload
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.owner import service
 from ai_stp_contracts.families import SetupFamilyCreateRequest, SetupFamilyPatchRequest
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.owner import (
+    COMPONENT_MEDIA_MAX_BYTES,
     OwnerExternalProductAttachRequest,
     OwnerLifecycleRequest,
     OwnerPresentationUpdateRequest,
@@ -81,52 +83,45 @@ async def list_owner_objects(
     return _resource(result)
 
 
-@router.get("/owner/objects/component/{stable_id}/presentation", response_model=None)
+@router.get("/owner/objects/{object_kind}/{stable_id}/presentation", response_model=None)
 async def read_component_presentation(
+    object_kind: Literal["component", "setup"],
     stable_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
-    return _resource(await service.read_owner_presentation(db, ctx=ctx, stable_id=stable_id))
+    return _resource(
+        await service.read_owner_presentation(
+            db, ctx=ctx, stable_id=stable_id, object_kind=object_kind
+        )
+    )
 
 
-@router.put("/owner/objects/component/{stable_id}/presentation", response_model=None)
+@router.put("/owner/objects/{object_kind}/{stable_id}/presentation", response_model=None)
 async def update_component_presentation(
+    object_kind: Literal["component", "setup"],
     stable_id: str,
     body: OwnerPresentationUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     return _resource(
-        await service.update_owner_presentation(db, ctx=ctx, stable_id=stable_id, body=body)
+        await service.update_owner_presentation(
+            db, ctx=ctx, stable_id=stable_id, body=body, object_kind=object_kind
+        )
     )
 
 
-@router.post("/owner/objects/component/{stable_id}/presentation/media", response_model=None)
+@router.post("/owner/objects/{object_kind}/{stable_id}/presentation/media", response_model=None)
 async def upload_component_presentation_media(
+    object_kind: Literal["component", "setup"],
     stable_id: str,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Upload author image/video for the mutable component gallery (SPEC-035)."""
-    content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
-    payload: bytes
-    if content_type.startswith("multipart/"):
-        form = await request.form()
-        upload = form.get("file")
-        if upload is None or not hasattr(upload, "read"):
-            raise ApiError(ErrorCategory.VALIDATION, "file required")
-        raw = await upload.read()  # type: ignore[misc]
-        if not isinstance(raw, (bytes, bytearray)):
-            raise ApiError(ErrorCategory.VALIDATION, "file required")
-        payload = bytes(raw)
-        content_type = str(getattr(upload, "content_type", None) or "application/octet-stream")
-        content_type = content_type.split(";")[0].strip().lower()
-    else:
-        payload = await request.body()
-    if not content_type:
-        raise ApiError(ErrorCategory.VALIDATION, "content-type required")
+    payload, content_type = await read_media_upload(request, max_bytes=COMPONENT_MEDIA_MAX_BYTES)
     body = await service.upload_owner_component_media(
         db,
         _avatar_store(request),
@@ -134,6 +129,7 @@ async def upload_component_presentation_media(
         stable_id=stable_id,
         content_type=content_type,
         payload=payload,
+        object_kind=object_kind,
     )
     return JSONResponse(content=body, status_code=201)
 
@@ -143,16 +139,22 @@ async def get_component_media(
     media_id: str,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> Response:
     """Serve ready component media bytes; never expose object keys."""
-    result = await service.read_component_media_bytes(db, _avatar_store(request), media_id=media_id)
+    result = await service.read_component_media_bytes(
+        db,
+        _avatar_store(request),
+        media_id=media_id,
+        account_id=ctx.account_id if ctx else None,
+    )
     if result is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "not found")
     body, content_type = result
     return Response(
         content=body,
         media_type=content_type,
-        headers={"Cache-Control": "public, max-age=300"},
+        headers={"Cache-Control": "private, no-store"},
     )
 
 

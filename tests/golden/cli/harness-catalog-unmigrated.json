@@ -33,7 +33,7 @@
       "shape": "directory",
       "scope": "project",
       "root": "config",
-      "source": "cursor.com/docs/agents",
+      "source": "cursor.com/docs/subagents",
       "declared_key": ""
     },
     {
@@ -105,7 +105,7 @@
       "shape": "directory",
       "scope": "global",
       "root": "config",
-      "source": "cursor.com/docs/agents",
+      "source": "cursor.com/docs/subagents",
       "declared_key": ""
     },
     {

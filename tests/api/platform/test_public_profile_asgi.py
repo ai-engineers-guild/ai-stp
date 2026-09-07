@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
+from io import BytesIO
 from typing import Any
 
 import httpx
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from tests.support.images import image_bytes
 
 from ai_stp_api.app import create_app
+from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.profile import service as profile_service
+from ai_stp_contracts.public_profile import AVATAR_MAX_BYTES
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account, AccountAuthorVerification, OAuthIdentity
 from ai_stp_platform.storage.avatar_store import AvatarObjectStore
@@ -116,11 +121,7 @@ async def test_avatar_upload_writes_object_store_and_serves_media(
     client, sessionmaker, app_state = harness
     account_id, token = await _seed_session(sessionmaker)
     headers = _auth(token)
-    png = (
-        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
-        b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00"
-        b"\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
-    )
+    png = image_bytes(metadata=True)
 
     upload = await client.post(
         "/v1/account/public-profile/avatar",
@@ -131,16 +132,18 @@ async def test_avatar_upload_writes_object_store_and_serves_media(
     data = upload.json()
     assert data["state"] == "ready"
     assert data["public_url"] == f"/v1/media/avatars/{data['avatar_asset_id']}"
-    assert data["object_key"]
+    assert "object_key" not in data
     assert data["content_digest"].startswith("sha256:")
 
     mem: MemoryObjectClient = app_state.object_client
     assert mem.put_count >= 1
-    assert any(isinstance(v.get("body"), bytes) and v["body"] == png for v in mem.objects.values())
+    assert mem.put_count == 1
 
     media = await client.get(data["public_url"])
     assert media.status_code == 200
-    assert media.content == png
+    with Image.open(BytesIO(media.content)) as image:
+        assert image.size == Image.open(BytesIO(png)).size
+        assert "private_note" not in image.info
     assert media.headers["content-type"].startswith("image/png")
 
     draft = await client.put(
@@ -189,7 +192,16 @@ async def test_avatar_rejects_bad_mime_and_oversize(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("provider", "avatar_url"),
+    [
+        ("github", "https://avatars.githubusercontent.com/u/1?v=4"),
+        ("google", "https://lh3.googleusercontent.com/avatar"),
+    ],
+)
 async def test_avatar_from_identity_fetches_and_stores_bytes(
+    provider: str,
+    avatar_url: str,
     harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
 ) -> None:
     _client, sessionmaker, app_state = harness
@@ -198,21 +210,21 @@ async def test_avatar_from_identity_fetches_and_stores_bytes(
         db.add(
             OAuthIdentity(
                 account_id=account_id,
-                provider="github",
+                provider=provider,
                 provider_subject="gh-1",
                 email="a@example.com",
                 email_verified=True,
-                avatar_url="https://avatars.githubusercontent.com/u/1?v=4",
+                avatar_url=avatar_url,
                 display_name="gh",
                 state="linked",
             )
         )
         await db.commit()
 
-    png = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+    png = image_bytes(metadata=True)
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.host == "avatars.githubusercontent.com"
+        assert str(request.url) == avatar_url
         return httpx.Response(200, content=png, headers={"content-type": "image/png"})
 
     store: AvatarObjectStore = app_state.avatar_store
@@ -223,17 +235,21 @@ async def test_avatar_from_identity_fetches_and_stores_bytes(
                 db,
                 store,
                 account_id=account_id,
-                provider="github",
+                provider=provider,
                 http_client=http,
             )
         await db.commit()
 
     assert result["state"] == "ready"
-    assert result["object_key"]
+    assert "object_key" not in result
     assert result["public_url"].startswith("/v1/media/avatars/")
     mem: MemoryObjectClient = app_state.object_client
     assert mem.put_count >= 1
-    assert any(v.get("body") == png for v in mem.objects.values())
+    media = await _client.get(result["public_url"])
+    assert media.status_code == 200
+    with Image.open(BytesIO(media.content)) as image:
+        assert image.size == Image.open(BytesIO(png)).size
+        assert "private_note" not in image.info
 
 
 @pytest.mark.asyncio
@@ -384,3 +400,127 @@ async def test_ssrf_blocked_for_private_identity_url(
             "not allowed" in str(excinfo.value).lower()
             or getattr(excinfo.value, "category", None) is not None
         )
+
+
+@pytest.mark.asyncio
+async def test_avatar_oversized_stream_stops_before_storage(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
+) -> None:
+    client, sessionmaker, app_state = harness
+    _, token = await _seed_session(sessionmaker)
+    consumed: list[int] = []
+
+    async def chunks() -> AsyncIterator[bytes]:
+        for index, chunk in enumerate([b"x" * AVATAR_MAX_BYTES, b"x", b"must not be consumed"]):
+            consumed.append(index)
+            yield chunk
+
+    response = await client.post(
+        "/v1/account/public-profile/avatar",
+        headers={**_auth(token), "Content-Type": "image/png"},
+        content=chunks(),
+    )
+    assert response.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]
+    assert len(consumed) == 2
+    assert app_state.object_client.put_count == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("damage", ["missing", "corrupt"])
+async def test_avatar_read_never_returns_missing_or_corrupt_stored_bytes(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
+    damage: str,
+) -> None:
+    client, sessionmaker, app_state = harness
+    _, token = await _seed_session(sessionmaker)
+    upload = await client.post(
+        "/v1/account/public-profile/avatar",
+        headers={**_auth(token), "Content-Type": "image/png"},
+        content=image_bytes(),
+    )
+    assert upload.status_code == 201
+    objects = app_state.object_client.objects
+    if damage == "missing":
+        objects.clear()
+    else:
+        for stored in objects.values():
+            stored["body"] = b"corrupt stored body"
+    response = await client.get(upload.json()["public_url"])
+    assert response.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.DEPENDENCY]
+    assert b"corrupt stored body" not in response.content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("linked", [False, True])
+async def test_avatar_import_requires_a_linked_identity_with_an_image(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
+    linked: bool,
+) -> None:
+    client, sessionmaker, app_state = harness
+    account_id, token = await _seed_session(sessionmaker)
+    if linked:
+        async with sessionmaker() as db:
+            db.add(
+                OAuthIdentity(
+                    account_id=account_id,
+                    provider="github",
+                    provider_subject="no-image",
+                    email="fixture@example.test",
+                    state="linked",
+                    avatar_url=None,
+                )
+            )
+            await db.commit()
+    before = await client.get("/v1/account/public-profile", headers=_auth(token))
+    response = await client.post(
+        "/v1/account/public-profile/avatar/from-identity",
+        headers=_auth(token),
+        json={"provider": "github"},
+    )
+    assert response.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]
+    assert app_state.object_client.put_count == 0
+    after = await client.get("/v1/account/public-profile", headers=_auth(token))
+    assert after.json() == before.json()
+
+
+@pytest.mark.asyncio
+async def test_avatar_storage_failure_keeps_the_current_profile(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, sessionmaker, app_state = harness
+    _, token = await _seed_session(sessionmaker)
+    headers = _auth(token)
+    upload = await client.post(
+        "/v1/account/public-profile/avatar",
+        headers={**headers, "Content-Type": "image/png"},
+        content=image_bytes(),
+    )
+    assert upload.status_code == 201
+    saved = await client.put(
+        "/v1/account/public-profile/draft",
+        headers=headers,
+        json={
+            "display_name": None,
+            "bio": None,
+            "links": [],
+            "avatar_asset_id": upload.json()["avatar_asset_id"],
+        },
+    )
+    assert saved.status_code == 200
+    before = await client.get("/v1/account/public-profile", headers=headers)
+
+    async def unavailable(**_kwargs: object) -> None:
+        raise ConnectionError("storage backend failed with sensitive internal details")
+
+    monkeypatch.setattr(app_state.object_client, "put_object", unavailable)
+    failed = await client.post(
+        "/v1/account/public-profile/avatar",
+        headers={**headers, "Content-Type": "image/png"},
+        content=image_bytes(size=(31, 19)),
+    )
+    assert failed.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.DEPENDENCY]
+    assert "sensitive internal" not in failed.text
+    after = await client.get("/v1/account/public-profile", headers=headers)
+    assert after.json() == before.json()
+    assert (await client.get(upload.json()["public_url"])).status_code == 200

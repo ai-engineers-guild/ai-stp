@@ -1,13 +1,14 @@
 # Setup
 
-Add or revise a setup in this system.
+Create or improve a complete native tool collection for the user's tasks.
+Start from the builder's ai-stp lifecycle guidance: define acceptance scenarios,
+inventory existing components, select exact versions, fill missing capabilities,
+compose the graph, validate it, and deliver invocation and recovery instructions.
 
-Every harness offers the same three postures, and the names are the estate's
-rather than each product's so that learning them once is enough:
-
-- `baseline` — a working floor
-- `minimal` — the product's own defaults
-- `full-auto` — nothing asked, nothing sandboxed
+Ask `pi-setup-system list` for the shipped presets. Their names describe
+payload composition, not different authority levels. Read the selected payload
+and its documented policy; do not assume `minimal` means product defaults or
+that only a preset named `full-auto` supports autonomous work.
 
 Rules a setup must satisfy, each held by a guard:
 
@@ -22,7 +23,8 @@ Rules a setup must satisfy, each held by a guard:
 - **No two files may differ only in case.** They are one file on macOS and
   Windows and two on Linux.
 
-Say which of these the change touches, then run this tree's checks:
+Exercise the setup's intended tasks and backup/restore in disposable targets.
+If changing provider implementation, also run this tree's checks:
 
 ```bash
 cargo fmt --all --check

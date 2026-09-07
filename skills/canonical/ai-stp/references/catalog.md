@@ -10,3 +10,8 @@ Pin an exact `id` and `X.Y`. Default to the `authoritative` line. Show
 is not authority to fetch; only the catalog command that closes offline
 supplies bytes. Verify the returned identity before any later compose or
 install step.
+
+Private versions require explicit authenticated owner/grant access from the
+descriptor. Keep public discovery anonymous. An online denial is a denial;
+already acquired local copies are used through the explicit offline path.
+Private access does not assert public author or component verification.

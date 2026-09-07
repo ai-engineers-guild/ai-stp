@@ -9,9 +9,10 @@ import pytest
 from pydantic import ValidationError
 from tests.support.catalog_seed import seed_corpus
 
-from ai_stp_contracts.catalog import CatalogTrust
+from ai_stp_contracts.catalog import CatalogTrust, ComponentSummary
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
+from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
 from ai_stp_platform.catalog_projection import (
@@ -735,3 +736,10 @@ def test_setup_summary_family_fields_are_optional() -> None:
     assert card.family_id == "family_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
     assert card.family_member_count == 2
     assert card.family_match_kind == "family"
+
+
+def test_component_summary_accepts_every_registered_harness() -> None:
+    summary = component_summary(_row_from_seed())
+    wire = summary.model_dump(mode="json")
+    wire["latest_harness_ids"] = list(HARNESS_IDS)
+    assert ComponentSummary.model_validate(wire).latest_harness_ids == list(HARNESS_IDS)

@@ -14,9 +14,6 @@ from tests.api.platform.conftest import make_settings
 from tests.support.catalog_seed import (
     FIXTURE_COMPONENT_ID,
     FIXTURE_SETUP_ID,
-    INCIDENT_SUBAGENT_ARTIFACT,
-    SEED_A1_INCIDENT_AGENT_ID,
-    SEED_A1_INCIDENT_SETUP_ID,
     SEED_A1_MCP_ID,
     load_fixture_seed,
 )
@@ -25,9 +22,10 @@ from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_contracts.catalog import GitHubMetadata
-from ai_stp_contracts.context_estimator import EstimatorInput, estimate_context, estimator_for
-from ai_stp_contracts.impact import ExactCoordinate
+from ai_stp_contracts.first_party import versions as canonical_versions
 from ai_stp_foundation.ids import new_id
+from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
+from ai_stp_platform.catalog_seed import load_first_party_seed
 from ai_stp_platform.github_metadata import unavailable_metadata
 from ai_stp_platform.models import Account, CatalogMetadata
 from ai_stp_platform.storage import ImmutableObjectStore
@@ -41,6 +39,7 @@ def _auth(token: str) -> dict[str, str]:
 
 @pytest_asyncio.fixture
 async def seeded_client(
+    request: pytest.FixtureRequest,
     migrated_database_url: str,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> AsyncIterator[AsyncClient]:
@@ -52,7 +51,10 @@ async def seeded_client(
     async with app.router.lifespan_context(app):
         store = ImmutableObjectStore(settings=settings.storage, client=app.state.object_client)
         async with sessionmaker() as session:
-            await load_fixture_seed(session, store=store)
+            if getattr(request, "param", "contract") == "canonical":
+                await load_first_party_seed(session, store=store)
+            else:
+                await load_fixture_seed(session, store=store)
             await session.commit()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -203,65 +205,90 @@ async def test_public_context_budget_does_not_include_account_inventory(
 
 
 @pytest.mark.asyncio
-async def test_incident_setup_budget_reports_conditional_subagent_tokens(
+@pytest.mark.parametrize("seeded_client", ["canonical"], indirect=True)
+async def test_canonical_setup_budget_includes_conditional_subagent_tokens(
     seeded_client: AsyncClient,
 ) -> None:
-    estimator = estimator_for("ai-stp:unicode-chars-div4/1")
-    assert estimator is not None
-    expected = estimate_context(
-        [
-            EstimatorInput(
-                coordinate=ExactCoordinate(
-                    stable_id=SEED_A1_INCIDENT_AGENT_ID,
-                    version="1.0",
-                    passport_digest="sha256:" + "a" * 64,
-                ),
-                component_type="agent",
-                files=(INCIDENT_SUBAGENT_ARTIFACT,),
-            )
-        ],
-        estimator,
+    corpus = canonical_versions()
+    agent_ids = {
+        item.passport.stable_id
+        for item in corpus
+        if isinstance(item.passport, ComponentVersionPassport)
+        and item.passport.component_type == "agent"
+    }
+    setup = next(
+        item.passport
+        for item in corpus
+        if isinstance(item.passport, SetupVersionPassport)
+        and any(ref.stable_id in agent_ids for ref in item.passport.components)
     )
-    listed = await seeded_client.get(
-        "/v1/catalog/components",
-        params={"page_size": "50", "include_experimental": "true"},
+    component_ids = {ref.stable_id for ref in setup.components}
+    agent = next(
+        item.passport
+        for item in corpus
+        if isinstance(item.passport, ComponentVersionPassport)
+        and item.passport.component_type == "agent"
+        and item.passport.stable_id in component_ids
     )
-    assert listed.status_code == 200
-    names = [item["latest_name"] for item in listed.json()["experimental"]]
-    assert "firstparty-incident-subagent" in names
+    expected_bytes = sum(
+        member.content_artifact.size_bytes
+        for scope in agent.adaptations[0].scope_adaptations
+        for member in scope.members
+        if member.content_artifact is not None
+    )
     response = await seeded_client.get(
-        f"/v1/catalog/setups/{SEED_A1_INCIDENT_SETUP_ID}/versions/1.0/context-budget"
+        f"/v1/catalog/setups/{setup.stable_id}/versions/{setup.version}/context-budget",
+        params={"estimator_profile": "ai-stp:utf8-bytes/1"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     body = response.json()
     assert body["status"] == "ready"
-    assert body["always_tokens"] == 0
-    assert body["conditional_tokens"] == expected.conditional_tokens
-    assert body["total_tokens"] == expected.conditional_tokens
-    assert body["components"][0]["component"]["stable_id"] == SEED_A1_INCIDENT_AGENT_ID
-    assert body["components"][0]["loading"] == "conditional"
-    assert body["components"][0]["tokens"] == expected.components[0].tokens
+    measured = next(
+        row for row in body["components"] if row["component"]["stable_id"] == agent.stable_id
+    )
+    assert measured["loading"] == "conditional"
+    assert measured["tokens"] == expected_bytes > 0
+    assert body["conditional_tokens"] >= expected_bytes
+    assert body["total_tokens"] == body["always_tokens"] + body["conditional_tokens"]
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("seeded_client", ["canonical"], indirect=True)
 async def test_component_budget_measures_text_and_explains_runtime_context(
     seeded_client: AsyncClient,
 ) -> None:
-    agent = await seeded_client.get(
-        f"/v1/catalog/components/{SEED_A1_INCIDENT_AGENT_ID}/versions/1.0/context-budget"
+    corpus = canonical_versions()
+    agent = next(
+        item.passport
+        for item in corpus
+        if isinstance(item.passport, ComponentVersionPassport)
+        and item.passport.component_type == "agent"
     )
-    assert agent.status_code == 200
-    assert agent.json()["status"] == "estimated"
-    assert agent.json()["tokens"] == (len(INCIDENT_SUBAGENT_ARTIFACT.decode("utf-8")) + 3) // 4
-    assert agent.json()["loading"] == "conditional"
+    expected_bytes = sum(
+        member.content_artifact.size_bytes
+        for scope in agent.adaptations[0].scope_adaptations
+        for member in scope.members
+        if member.content_artifact is not None
+    )
+    response = await seeded_client.get(
+        f"/v1/catalog/components/{agent.stable_id}/versions/{agent.version}/context-budget",
+        params={"estimator_profile": "ai-stp:utf8-bytes/1"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "exact"
+    assert response.json()["tokens"] == expected_bytes
+    assert response.json()["loading"] == "conditional"
 
-    mcp = await seeded_client.get(
+
+@pytest.mark.asyncio
+async def test_component_budget_explains_runtime_mcp_context(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get(
         f"/v1/catalog/components/{SEED_A1_MCP_ID}/versions/1.0/context-budget"
     )
-    assert mcp.status_code == 200
-    assert mcp.json()["status"] == "not_applicable"
-    assert mcp.json()["tokens"] is None
-    assert mcp.json()["reason"] == "runtime_context_not_statically_measurable"
+    assert response.status_code == 200
+    assert response.json()["status"] == "not_applicable"
+    assert response.json()["tokens"] is None
+    assert response.json()["reason"] == "runtime_context_not_statically_measurable"
 
 
 async def _account(

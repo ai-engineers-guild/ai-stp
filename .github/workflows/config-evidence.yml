@@ -129,13 +129,16 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           bwrap --unshare-net --dev-bind / / true && echo "unshare-net works"
       - name: Install the consumer and nothing else
+        # The standalone CLI bundles its first-party modules only in a wheel.
+        # Keep sync and run non-editable so uv cannot replace it with an
+        # editable install that depends on the absent workspace modules.
         # The slice drives `ai-stp` the way a user's machine does, and a user's
         # machine holds no server. A workspace-wide sync would also demand a
         # cryptography build on windows/arm64, where the locked version ships
         # no wheel — a fact about the server's dependencies, not this slice's.
         run: |
           set -euo pipefail
-          uv sync --locked --package ai-stp-cli
+          uv sync --locked --no-editable --package ai-stp-cli
       - name: Drive every released provider through the configuration path
         run: |
           set -euo pipefail
@@ -150,7 +153,7 @@ jobs:
           if [ -n "${PROVIDER_SCOPE}" ]; then
             arguments+=(--scope "${PROVIDER_SCOPE}")
           fi
-          uv run --locked --package ai-stp-cli \
+          uv run --locked --no-editable --package ai-stp-cli \
             python -m release_scripts.verify_config_slice "${arguments[@]}" \
             | tee "evidence/config-${{ matrix.id }}.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

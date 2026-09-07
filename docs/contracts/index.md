@@ -25,12 +25,13 @@ last_verified: "2026-08-03"
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
 | [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-06 |
-| [component-presentation.md](component-presentation.md) | Mutable component presentation in the catalog without changing the version passport. | 2026-09-04 |
+| [component-presentation.md](component-presentation.md) | Mutable component and setup presentation in the catalog without changing the version passport. | 2026-09-04 |
 | [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-09-05 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |
 | [device-passport.md](device-passport.md) | Device passport fields, privacy, and the permitted summary for the server and web. | 2026-08-04 |
 | [eligibility-constraints.md](eligibility-constraints.md) | Mechanical constraints before agent selection: a closed list of rejection reasons, check order, and two independent eligibility axes. | 2026-09-03 |
+| [environments.md](environments.md) | Project environment composition, native reservations and prerequisite inspection. | 2026-09-07 |
 | [estate-release.md](estate-release.md) | Immutable estate release record binding one consumer cut to exact provider evidence. | 2026-09-05 |
 | [federated-sources.md](federated-sources.md) | Machine contract for shared descriptors used by local ports and metadata adapters. | 2026-08-16 |
 | [fixture-corpus.md](fixture-corpus.md) | Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides. | 2026-08-05 |
@@ -42,6 +43,8 @@ last_verified: "2026-08-03"
 | [operation.md](operation.md) | States, plan, journal, and recovery of a mutating operation. | 2026-08-09 |
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |
 | [path-inventory.md](path-inventory.md) | Machine contract for passport-first inventory of one explicit authoring root. | 2026-09-05 |
+| [preserved-setups.md](preserved-setups.md) | Local setup identities, verified native recovery bindings and CLI selection. | 2026-09-07 |
+| [private-distribution.md](private-distribution.md) | Private upload, exact access reads and owner visibility plans shared with the platform owner. | 2026-09-07 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
 | [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |
@@ -56,8 +59,10 @@ last_verified: "2026-08-03"
 | [setup-store-ports.md](setup-store-ports.md) | Contract for local discovery, preview, and component import from SX and APM. | 2026-08-13 |
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
 | [standard-family.md](standard-family.md) | Coordinated standard-family identity, contract digest, and classification axes. | 2026-09-05 |
+| [structured-logging.md](structured-logging.md) | Closed event fields and redaction at the API and worker log sinks. | 2026-09-07 |
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
+| [target-assessments.md](target-assessments.md) | Exact target assessment identity, conservative projection, and concurrent ingestion contract. | 2026-09-07 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable records by publisher, major line, and authorized task profile. | 2026-09-05 |
 | [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-06 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Cookie categories and the rule for starting optional Web integrations. | 2026-08-22 |

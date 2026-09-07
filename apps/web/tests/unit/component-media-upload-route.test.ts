@@ -1,3 +1,5 @@
+import type * as AuthSession from "@/lib/auth/session";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { COMPONENT_MEDIA_MAX_BYTES } from "@/lib/component-media";
@@ -8,6 +10,11 @@ async function jsonBody(response: Response): Promise<unknown> {
 
 vi.mock("@/lib/auth/require-session", () => ({
   sessionCookieValue: vi.fn(() => Promise.resolve("mock-session")),
+}));
+
+vi.mock("@/lib/auth/session", async (importOriginal) => ({
+  ...(await importOriginal<typeof AuthSession>()),
+  readCsrfToken: vi.fn(() => Promise.resolve("test-csrf")),
 }));
 
 function stubEnv(): void {
@@ -27,14 +34,14 @@ describe("component media binary route", () => {
 
   it("forwards supported image bytes and returns a public media path", async () => {
     stubEnv();
-    const { POST } = await import("@/app/api/objects/component/[stableId]/media/route");
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
     const response = await POST(
       new Request("http://localhost/api/objects/component/component_01TESTSTABILITY/media", {
         method: "POST",
-        headers: { "Content-Type": "image/png" },
+        headers: { "X-CSRF-Token": "test-csrf", "Content-Type": "image/png" },
         body: new Uint8Array([137, 80, 78, 71]),
       }),
-      { params: Promise.resolve({ stableId: "component_01TESTSTABILITY" }) },
+      { params: Promise.resolve({ kind: "component", stableId: "component_01TESTSTABILITY" }) },
     );
 
     expect(response.status).toBe(201);
@@ -49,16 +56,60 @@ describe("component media binary route", () => {
     expect(body.public_url).toMatch(/^\/v1\/media\/component\//);
   });
 
+  it("rejects missing CSRF before reading or forwarding the body", async () => {
+    stubEnv();
+    const binary = vi.fn();
+    vi.doMock("@/lib/api/http", () => ({ apiRequestBinary: binary }));
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
+    const request = new Request("http://localhost/api/objects/setup/setup_01TESTSTABILITY/media", {
+      method: "POST",
+      headers: { "Content-Type": "image/png" },
+      body: new Uint8Array([1]),
+    });
+    const response = await POST(request, {
+      params: Promise.resolve({ kind: "setup", stableId: "setup_01TESTSTABILITY" }),
+    });
+    expect(response.status).toBe(403);
+    expect(request.bodyUsed).toBe(false);
+    expect(binary).not.toHaveBeenCalled();
+  });
+
+  it("bounds streamed bytes even without content-length", async () => {
+    stubEnv();
+    const binary = vi.fn();
+    vi.doMock("@/lib/api/http", () => ({ apiRequestBinary: binary }));
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
+    const cancel = vi.fn();
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(COMPONENT_MEDIA_MAX_BYTES));
+      },
+      cancel,
+    });
+    const request = new Request("http://localhost/api/objects/setup/setup_01TESTSTABILITY/media", {
+      method: "POST",
+      headers: { "Content-Type": "image/png", "X-CSRF-Token": "test-csrf" },
+      body: stream,
+      duplex: "half",
+    } as RequestInit);
+    const response = await POST(request, {
+      params: Promise.resolve({ kind: "setup", stableId: "setup_01TESTSTABILITY" }),
+    });
+    expect(response.status).toBe(413);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(binary).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported mime before forwarding", async () => {
     stubEnv();
-    const { POST } = await import("@/app/api/objects/component/[stableId]/media/route");
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
     const response = await POST(
       new Request("http://localhost/api/objects/component/component_01TESTSTABILITY/media", {
         method: "POST",
-        headers: { "Content-Type": "image/svg+xml" },
+        headers: { "X-CSRF-Token": "test-csrf", "Content-Type": "image/svg+xml" },
         body: "<svg />",
       }),
-      { params: Promise.resolve({ stableId: "component_01TESTSTABILITY" }) },
+      { params: Promise.resolve({ kind: "component", stableId: "component_01TESTSTABILITY" }) },
     );
 
     expect(response.status).toBe(400);
@@ -69,14 +120,14 @@ describe("component media binary route", () => {
 
   it("rejects invalid stable ids", async () => {
     stubEnv();
-    const { POST } = await import("@/app/api/objects/component/[stableId]/media/route");
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
     const response = await POST(
       new Request("http://localhost/api/objects/component/short/media", {
         method: "POST",
-        headers: { "Content-Type": "image/png" },
+        headers: { "X-CSRF-Token": "test-csrf", "Content-Type": "image/png" },
         body: new Uint8Array([1, 2, 3]),
       }),
-      { params: Promise.resolve({ stableId: "short" }) },
+      { params: Promise.resolve({ kind: "component", stableId: "short" }) },
     );
 
     expect(response.status).toBe(400);
@@ -92,17 +143,18 @@ describe("component media binary route", () => {
     vi.doMock("@/lib/auth/require-session", () => ({
       sessionCookieValue: vi.fn(() => Promise.resolve("mock-session")),
     }));
-    const { POST } = await import("@/app/api/objects/component/[stableId]/media/route");
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
     const response = await POST(
       new Request("http://localhost/api/objects/component/component_01TESTSTABILITY/media", {
         method: "POST",
         headers: {
+          "X-CSRF-Token": "test-csrf",
           "Content-Type": "image/png",
           "Content-Length": String(COMPONENT_MEDIA_MAX_BYTES + 1),
         },
         body: new Uint8Array([1, 2, 3]),
       }),
-      { params: Promise.resolve({ stableId: "component_01TESTSTABILITY" }) },
+      { params: Promise.resolve({ kind: "component", stableId: "component_01TESTSTABILITY" }) },
     );
 
     expect(response.status).toBe(413);
@@ -114,14 +166,14 @@ describe("component media binary route", () => {
 
   it("rejects empty payloads", async () => {
     stubEnv();
-    const { POST } = await import("@/app/api/objects/component/[stableId]/media/route");
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
     const response = await POST(
       new Request("http://localhost/api/objects/component/component_01TESTSTABILITY/media", {
         method: "POST",
-        headers: { "Content-Type": "image/png" },
+        headers: { "X-CSRF-Token": "test-csrf", "Content-Type": "image/png" },
         body: new Uint8Array([]),
       }),
-      { params: Promise.resolve({ stableId: "component_01TESTSTABILITY" }) },
+      { params: Promise.resolve({ kind: "component", stableId: "component_01TESTSTABILITY" }) },
     );
 
     expect(response.status).toBe(400);
@@ -150,14 +202,14 @@ describe("component media binary route", () => {
     vi.doMock("@/lib/auth/require-session", () => ({
       sessionCookieValue: vi.fn(() => Promise.resolve("mock-session")),
     }));
-    const { POST } = await import("@/app/api/objects/component/[stableId]/media/route");
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
     const response = await POST(
       new Request("http://localhost/api/objects/component/component_01TESTSTABILITY/media", {
         method: "POST",
-        headers: { "Content-Type": "image/png" },
+        headers: { "X-CSRF-Token": "test-csrf", "Content-Type": "image/png" },
         body: new Uint8Array([137, 80, 78, 71]),
       }),
-      { params: Promise.resolve({ stableId: "component_01TESTSTABILITY" }) },
+      { params: Promise.resolve({ kind: "component", stableId: "component_01TESTSTABILITY" }) },
     );
 
     expect(response.status).toBe(404);
@@ -176,14 +228,14 @@ describe("component media binary route", () => {
     vi.doMock("@/lib/auth/require-session", () => ({
       sessionCookieValue: vi.fn(() => Promise.resolve("mock-session")),
     }));
-    const { POST } = await import("@/app/api/objects/component/[stableId]/media/route");
+    const { POST } = await import("@/app/api/objects/[kind]/[stableId]/media/route");
     const response = await POST(
       new Request("http://localhost/api/objects/component/component_01TESTSTABILITY/media", {
         method: "POST",
-        headers: { "Content-Type": "video/webm" },
+        headers: { "X-CSRF-Token": "test-csrf", "Content-Type": "video/webm" },
         body: new Uint8Array([1, 2, 3, 4]),
       }),
-      { params: Promise.resolve({ stableId: "component_01TESTSTABILITY" }) },
+      { params: Promise.resolve({ kind: "component", stableId: "component_01TESTSTABILITY" }) },
     );
 
     expect(response.status).toBe(502);

@@ -5,11 +5,13 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, Final
+from typing import Final
 
 import pytest
 
 from ai_stp_cli.local import composition
+from ai_stp_cli.provider import protocol_v3
+from ai_stp_foundation.harnesses import HARNESS_IDS
 
 CONTRACT = Path("docs/contracts/composition-reports.md")
 
@@ -862,125 +864,16 @@ def test_the_operation_registry_matches_the_contract() -> None:
         assert name in text
 
 
-#: Projection rules a released provider does not accept, and why each may stay.
-#:
-#: Empty is the goal. An entry means a component of that kind cannot be
-#: installed on that harness by the provider people actually have.
-_UNDECLARED_BY_PROVIDER: dict[tuple[str, str], str] = {
-    ("codex", "skill"): (
-        "`ADR-0127`. The provider withdrew `skill` from codex's declaration at "
-        "0.0.7 exactly as that record predicted, so the 62 corpus skills — 61 "
-        "published — now refuse rather than installing where codex cannot read. "
-        "The refusal is the improvement; removing the rule first would leave "
-        "nothing to install once corrected versions exist. Closes with the "
-        "corpus re-seed."
-    ),
-}
-
-
-def test_a_projection_rule_names_a_kind_the_released_provider_accepts() -> None:
-    """The one table that is not ours, asked directly instead of remembered.
-
-    Every other guard here compares two of our own tables, so both can be wrong
-    together — and twice now they were, agreeing on a surface no product reads.
-    `provider-info` is the provider's own declaration of what it will accept and
-    where it writes, so it settles those cases from outside.
-
-    It found cursor's `instruction -> AGENTS.md`: the released provider declares
-    `plugin` and `setting` only, because `cursor.com/docs/rules` puts AGENTS.md
-    at a project root and there is no global `~/.cursor/AGENTS.md`. Our rule and
-    the catalog row both cited that page. The kind-level guard above could not
-    see it, since cursor's project `.cursor/rules` makes `instruction` a
-    declared kind for the harness — a kind without a scope is not a surface.
-
-    Skipped unless real providers are wired, because it is evidence rather than
-    a unit: what it asserts is a property of built binaries, not of this file.
-    """
+def _real_provider_capabilities() -> dict[str, protocol_v3.ProviderCapabilities]:
     directory = os.environ.get("AI_STP_PROVIDER_V3_DIR")
     if directory is None:
         pytest.skip("set AI_STP_PROVIDER_V3_DIR to a directory of v3 provider binaries")
-
-    from ai_stp_cli.local import harness_catalog
-
-    binaries = {
-        definition.harness_id: name
-        for definition in harness_catalog.DEFINITIONS
-        for name in [
-            f"{definition.harness_id.removesuffix('-code').removesuffix('-build')}-setup-system"
-        ]
-        if (Path(directory) / name).is_file()
-    }
-    assert binaries, f"no provider binaries found under {directory}"
-
-    undeclared: list[str] = []
-    unnamed: list[str] = []
-    for harness_id, binary in sorted(binaries.items()):
-        completed = subprocess.run(
-            [str(Path(directory) / binary), "provider-info"],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=60,
-        )
-        answer: dict[str, Any] = json.loads(completed.stdout)
-        profile: dict[str, Any] = answer.get("projection_profile") or {}
-        kinds = {str(item) for item in profile.get("component_kinds", [])}
-        namespaces = {str(item) for item in profile.get("native_namespaces", [])}
-        for rule in composition.PROVIDER_RULES:
-            if rule.harness_id != harness_id:
-                continue
-            if rule.component_type not in kinds:
-                undeclared.append(f"{harness_id}/{rule.component_type} -> {rule.relative}")
-            elif rule.relative not in namespaces:
-                unnamed.append(f"{harness_id}/{rule.component_type} -> {rule.relative}")
-
-    allowed = {f"{h}/{k}" for h, k in _UNDECLARED_BY_PROVIDER}
-    named = {item.split(" ->")[0] for item in undeclared}
-    assert named <= allowed, sorted(undeclared)
-    # And the other direction, without which this list outlives its reasons.
-    # Every other exception register here has this pair; this one shipped
-    # without it, so a `codex/skill` entry would have sat unopposed the day the
-    # corpus re-seed paid the debt. An allowlist nobody prunes is a hiding
-    # place — the same sentence that removed two entries from
-    # `_CONVENTION_BACKED` when the catalog learned their rows.
-    assert allowed <= named, sorted(allowed - named)
-    # A declared kind written to a path the provider does not own is the same
-    # defect one level down, and has no standing exception.
-    assert not unnamed, sorted(unnamed)
-
-
-#: Kinds a released provider accepts that this program cannot compose.
-#:
-#: Not defects — nothing is written to a wrong place — but capability a person
-#: cannot reach, and invisible until measured. The guard above catches a
-#: provider *dropping* a kind we project; nothing caught a provider *gaining*
-#: one, so a surface could be installable for months with no rule to reach it.
-#:
-#: An inventory rather than a threshold: adding a rule needs the vendor page and
-#: the provider's agreement, so the value here is that a change arrives as a
-#: reviewed diff and asks the question out loud.
-_PROVIDER_OFFERS_UNUSED: dict[str, tuple[str, ...]] = {
-    "claude-code": ("plugin", "setting"),
-    "codex": ("command", "hook"),
-    "pi": ("command",),
-}
-
-
-def test_the_capability_this_program_leaves_unused_is_the_measured_set() -> None:
-    """What the providers can install and nothing here can ask for."""
-    directory = os.environ.get("AI_STP_PROVIDER_V3_DIR")
-    if directory is None:
-        pytest.skip("set AI_STP_PROVIDER_V3_DIR to a directory of v3 provider binaries")
-
-    from ai_stp_cli.local import harness_catalog
-
-    unused: dict[str, tuple[str, ...]] = {}
-    for definition in harness_catalog.DEFINITIONS:
-        harness_id = definition.harness_id
+    capabilities: dict[str, protocol_v3.ProviderCapabilities] = {}
+    for harness_id in sorted(HARNESS_IDS):
         stem = harness_id.removesuffix("-code").removesuffix("-build")
-        binary = Path(directory) / f"{stem}-setup-system"
-        if not binary.is_file():
-            continue
+        suffix = ".exe" if os.name == "nt" else ""
+        binary = Path(directory) / f"{stem}-setup-system{suffix}"
+        assert binary.is_file(), f"missing provider: {binary.name}"
         completed = subprocess.run(
             [str(binary), "provider-info"],
             capture_output=True,
@@ -988,18 +881,49 @@ def test_the_capability_this_program_leaves_unused_is_the_measured_set() -> None
             check=True,
             timeout=60,
         )
-        answer: dict[str, Any] = json.loads(completed.stdout)
-        profile: dict[str, Any] = answer.get("projection_profile") or {}
-        kinds = {str(item) for item in profile.get("component_kinds", [])}
-        projected = {
-            rule.component_type
-            for rule in composition.PROVIDER_RULES
-            if rule.harness_id == harness_id
-        }
-        if kinds - projected:
-            unused[harness_id] = tuple(sorted(kinds - projected))
+        capabilities[harness_id] = protocol_v3.parse_capabilities(json.loads(completed.stdout))
+        assert capabilities[harness_id].harness_id == harness_id
+    return capabilities
 
-    assert unused == _PROVIDER_OFFERS_UNUSED
+
+def test_a_projection_rule_names_a_kind_the_released_provider_accepts() -> None:
+    """Compare the transported kind against the profile for its actual scope.
+
+    A project rule is not a claim about the global profile; an MCP contribution
+    transported as a setting is not a claim that the provider declares MCP.
+    Neither distinction can be checked by comparing logical kinds to one
+    global table. Every configured provider must be present and parseable.
+    """
+    for harness_id, capabilities in _real_provider_capabilities().items():
+        profiles = {
+            profile.scope: profile
+            for profile in (capabilities.projection, *capabilities.scoped_projections)
+        }
+        for rule in composition.PROVIDER_RULES:
+            if rule.harness_id != harness_id:
+                continue
+            identity = (harness_id, rule.target_scope, rule.component_type, rule.relative)
+            assert rule.target_scope in profiles, identity
+            profile = profiles[rule.target_scope]
+            kinds = {kind.value for kind in profile.component_kinds}
+            assert (rule.provider_kind or rule.component_type) in kinds, identity
+            assert rule.relative in profile.native_namespaces, identity
+
+
+def test_the_capability_this_program_leaves_unused_is_the_measured_set() -> None:
+    """Every offered kind has a consumer route in the same target scope."""
+    unused: dict[tuple[str, str], list[str]] = {}
+    for harness_id, capabilities in _real_provider_capabilities().items():
+        for profile in (capabilities.projection, *capabilities.scoped_projections):
+            kinds = {kind.value for kind in profile.component_kinds}
+            projected = {
+                rule.provider_kind or rule.component_type
+                for rule in composition.PROVIDER_RULES
+                if rule.harness_id == harness_id and rule.target_scope == profile.scope
+            }
+            if kinds - projected:
+                unused[(harness_id, profile.scope)] = sorted(kinds - projected)
+    assert not unused, unused
 
 
 def test_a_managed_path_outside_its_kinds_projection_root_is_refused() -> None:

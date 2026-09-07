@@ -343,6 +343,15 @@
     },
     "version": {
       "$ref": "#/$defs/Version"
+    },
+    "visibility": {
+      "default": "public",
+      "enum": [
+        "public",
+        "private"
+      ],
+      "title": "Visibility",
+      "type": "string"
     }
   },
   "required": [

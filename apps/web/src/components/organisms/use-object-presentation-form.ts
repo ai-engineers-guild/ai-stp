@@ -38,6 +38,7 @@ export type PresentationFormLabels = {
 
 type UploadCtx = {
   objectKind: "component" | "setup";
+  csrfToken: string;
   stableId: string;
   labels: PresentationFormLabels;
   mediaRef: { current: PresentationMediaDraft[] };
@@ -244,7 +245,10 @@ async function runUpload(
       `/api/objects/${ctx.objectKind}/${encodeURIComponent(ctx.stableId)}/media`,
       {
         method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+          "X-CSRF-Token": ctx.csrfToken,
+        },
         body: file,
       },
     );
@@ -283,15 +287,8 @@ export function useObjectPresentationForm(input: {
   initialMedia: OwnerPresentationMedia[];
   labels: PresentationFormLabels;
 }) {
-  const {
-    objectKind = "component",
-    locale,
-    stableId,
-    csrfToken,
-    initialBio,
-    initialMedia,
-    labels,
-  } = input;
+  const { locale, stableId, csrfToken, initialBio, initialMedia, labels } = input;
+  const objectKind = input.objectKind ?? "component";
   const [bio, setBio] = useState(initialBio);
   const [media, setMedia] = useState<PresentationMediaDraft[]>(() =>
     initialMedia.length > 0 ? initialMedia.map(fromInitial) : [emptyItem()],
@@ -301,9 +298,7 @@ export function useObjectPresentationForm(input: {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, startSaveTransition] = useTransition();
-  // Assigned after commit, not during render: the unmount cleanup below reads
-  // it to revoke object URLs, and a discarded render must not decide which
-  // ones those are.
+  // Only committed state owns the preview URLs released by unmount cleanup.
   const mediaRef = useRef(media);
   useEffect(() => {
     mediaRef.current = media;
@@ -337,6 +332,7 @@ export function useObjectPresentationForm(input: {
 
   const uploadCtx: UploadCtx = {
     objectKind,
+    csrfToken,
     stableId,
     labels,
     mediaRef,

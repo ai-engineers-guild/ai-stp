@@ -1,0 +1,51 @@
+{
+  "antigravity": {
+    "artifact_digest": "sha256:87b132deac7ef834f0a56336ddbe6d1e378b25d2b0f21e6205fc2f703fb832a5",
+    "commit": "b3ebf52ee6d91e023bf4456a4977be4bea82cdaf",
+    "repository": "github.com/NDDev-OpenNetwork/antigravity-setup-system",
+    "tag": "0.0.67",
+    "trust_level": "verified_publisher"
+  },
+  "claude-code": {
+    "artifact_digest": "sha256:72ccd2d6e440e530a0c907416c683802614e302988d60d9b13e0df105d874d3f",
+    "commit": "8cdd9b474f3321c4ac6ab1240fbbe3be1c707d01",
+    "repository": "github.com/NDDev-OpenNetwork/claude-setup-system",
+    "tag": "0.0.67",
+    "trust_level": "verified_publisher"
+  },
+  "codex": {
+    "artifact_digest": "sha256:2f955de060322dc05a3590bf6e8cff6397f0c4ef52dc28ef5e0458ef04cb2591",
+    "commit": "838d1fd93d272220227252c584b4fd8001939e98",
+    "repository": "github.com/NDDev-OpenNetwork/codex-setup-system",
+    "tag": "0.0.67",
+    "trust_level": "verified_publisher"
+  },
+  "cursor": {
+    "artifact_digest": "sha256:7f20949fcc32cbe90e75af59e686a113b65b2a7ac89104dbe7935c56da9723b9",
+    "commit": "480aac7fb461d5a78b20d6477624d373115e88ab",
+    "repository": "github.com/NDDev-OpenNetwork/cursor-setup-system",
+    "tag": "0.0.67",
+    "trust_level": "verified_publisher"
+  },
+  "grok-build": {
+    "artifact_digest": "sha256:2bd61bf06adcfd8b932aa4b6ac9560518bd320eb88cbe2e62da63d4ee428dc00",
+    "commit": "26f262bb583e1948ca03ac9a7d62e6b8b1598abe",
+    "repository": "github.com/NDDev-OpenNetwork/grok-setup-system",
+    "tag": "0.0.67",
+    "trust_level": "verified_publisher"
+  },
+  "opencode": {
+    "artifact_digest": "sha256:fc436cde9b0c581b3667ab3f71532f201c43dad70c3281dd9872acee1506b605",
+    "commit": "9d3d6b6a73d169bc228b26993de09929e2458f3a",
+    "repository": "github.com/NDDev-OpenNetwork/opencode-setup-system",
+    "tag": "0.0.67",
+    "trust_level": "verified_publisher"
+  },
+  "pi": {
+    "artifact_digest": "sha256:b510a60c9df471b5eb99ef4c9cb3df778b741296cf90d0aa3a7f6d3480342b4a",
+    "commit": "2b131edda39a167df0c31e9fc2858c500ed9f23b",
+    "repository": "github.com/NDDev-OpenNetwork/pi-setup-system",
+    "tag": "0.0.67",
+    "trust_level": "verified_publisher"
+  }
+}

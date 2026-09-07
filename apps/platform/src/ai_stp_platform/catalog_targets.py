@@ -36,6 +36,7 @@ class EffectiveAssessment:
     scope: str
     state: AssessmentState
     freshness: str | None = None
+    expires_at: datetime | None = None
     evidence_refs: tuple[PublicEvidenceRef, ...] = ()
     safety_checks: tuple[SafetyCheckEntry, ...] = ()
 

@@ -11,6 +11,8 @@ def main() -> None:
     uvicorn.run(
         "ai_stp_api.app:create_app",
         factory=True,
+        log_config=None,
+        access_log=False,
         host="0.0.0.0",
         port=8000,
     )

@@ -671,7 +671,7 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # discovery glob is `**/`-anchored, so it reads the workspace's
             # `.cursor/agents` exactly as it reads the home's.
             _layout(
-                "agent", ".cursor/agents", "directory", f"{CURSOR}/agents", P, evidence="bytes"
+                "agent", ".cursor/agents", "directory", f"{CURSOR}/subagents", P, evidence="bytes"
             ),
             _layout("plugin", ".cursor/plugins", "directory", f"{CURSOR}/reference/plugins", P),
             # Four more workspace surfaces, read off the product's bytes by the
@@ -715,7 +715,7 @@ DEFINITIONS: Final[tuple[HarnessDefinition, ...]] = (
             # authority. The provider estate does not manage it yet
             # (0.0.53 declares no `agents` namespace); discovery must still
             # see it, or a person's agent files read as loose notes.
-            _layout("agent", "agents", "directory", f"{CURSOR}/agents", G, evidence="bytes"),
+            _layout("agent", "agents", "directory", f"{CURSOR}/subagents", G, evidence="bytes"),
             _layout("instruction", "rules", "directory", f"{CURSOR}/rules", G, evidence="bytes"),
             _layout("command", "commands", "directory", CURSOR_COMMANDS, G, evidence="bytes"),
             _layout("hook", "hooks.json", "file", f"{CURSOR}/hooks", G, evidence="bytes"),

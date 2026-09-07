@@ -1,6 +1,6 @@
 ---
 description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-09-04"
+last_verified: "2026-09-07"
 ---
 
 # Release evidence
@@ -70,7 +70,10 @@ release network or on a deployed environment being reachable.
 `software-evidence` and `config-evidence` are the two workflows that run their
 slice on all six native legs (`ubuntu-24.04`, `ubuntu-24.04-arm`,
 `macos-15-intel`, `macos-15`, `windows-2025`, `windows-11-arm`). They are
-`workflow_dispatch` only and take the exact provider tag as input.
+`workflow_dispatch` only and take the exact provider tag as input. Their
+package-only environment installs the CLI with `--no-editable` in both `uv sync`
+and `uv run`: only the wheel bundles the first-party modules (`ADR-0146`),
+and an editable CLI without sibling workspace projects cannot start.
 `software-evidence` takes `transparent_acquisition` to make `harness install`
 acquire and remember the attested release while every later lifecycle command
 omits `--provider` and `--provider-manifest`; the report verifies that the

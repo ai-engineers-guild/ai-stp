@@ -8,12 +8,20 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, cast
 
+from ai_stp_contracts.component_artifacts import (
+    COMPONENT_TREE_FORMAT,
+    IMPORTED_COMPONENT_FORMAT,
+    MAX_COMPONENT_FILES,
+    MAX_COMPONENT_TREE_BYTES,
+    expand_component_artifact,
+)
 from ai_stp_contracts.impact import (
     ComponentTokenMeasurement,
     ContextBudget,
     ExactCoordinate,
     TokenEstimator,
 )
+from ai_stp_foundation.canonical import from_json_bytes
 
 TOKENIZED_TYPES = frozenset({"instruction", "skill", "agent", "command"})
 type TokenizedType = Literal["instruction", "skill", "agent", "command"]
@@ -39,6 +47,7 @@ class EstimatorInput:
     component_type: str
     files: tuple[bytes, ...]
     missing: bool = False
+    missing_reason: str = "artifact_unavailable"
 
 
 def estimator_for(profile: str) -> TokenEstimator | None:
@@ -46,14 +55,33 @@ def estimator_for(profile: str) -> TokenEstimator | None:
     return ESTIMATORS.get(profile)
 
 
-def extract_file_payloads(payload: bytes) -> tuple[bytes, ...]:
-    """Expand a raw file or ZIP into file bodies. Directories are skipped."""
+def extract_file_payloads(payload: bytes, content_format: str | None = None) -> tuple[bytes, ...]:
+    """Decode canonical component envelopes; retain bounded legacy file/ZIP reads."""
+    if content_format:
+        return tuple(item.content for item in expand_component_artifact(payload, content_format))
+    if len(payload) > MAX_COMPONENT_TREE_BYTES:
+        raise ValueError("component artifact exceeds the context byte limit")
     buffer = io.BytesIO(payload)
     if zipfile.is_zipfile(buffer):
         with zipfile.ZipFile(buffer, "r") as archive:
-            return tuple(
-                archive.read(name) for name in archive.namelist() if not name.endswith("/")
-            )
+            if "component.json" in archive.namelist():
+                return extract_file_payloads(payload, COMPONENT_TREE_FORMAT)
+            infos = archive.infolist()
+            names = [item.filename for item in infos]
+            if (
+                len(infos) > MAX_COMPONENT_FILES
+                or len(names) != len(set(names))
+                or sum(item.file_size for item in infos) > MAX_COMPONENT_TREE_BYTES
+            ):
+                raise ValueError("component ZIP exceeds the accepted bounds")
+            return tuple(archive.read(item) for item in infos if not item.is_dir())
+    if payload.lstrip().startswith(b"{"):
+        try:
+            document = from_json_bytes(payload)
+        except ValueError:
+            document = None
+        if isinstance(document, dict) and document.get("format") == IMPORTED_COMPONENT_FORMAT:
+            return extract_file_payloads(payload, IMPORTED_COMPONENT_FORMAT)
     return (payload,)
 
 
@@ -79,7 +107,7 @@ def estimate_context(inputs: Sequence[EstimatorInput], estimator: TokenEstimator
                     status="unavailable",
                     tokens=None,
                     utf8_bytes=0,
-                    reason="artifact_unavailable",
+                    reason=item.missing_reason,
                 )
             )
             continue

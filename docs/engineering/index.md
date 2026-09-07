@@ -10,20 +10,20 @@ last_verified: "2026-08-03"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [article-publication-implementation-plan.md](article-publication-implementation-plan.md) | Migration sequence for moving the content hub to unified API serving for repository and staff publications. | 2026-08-29 |
-| [audit-remediation-status.md](audit-remediation-status.md) | Verifiable disposition of findings from the current CLI, CI, and integration audit. | 2026-09-04 |
+| [audit-remediation-status.md](audit-remediation-status.md) | Historical audit dispositions reconciled with current mechanism owners. | 2026-09-07 |
 | [catalog-search-benchmark.md](catalog-search-benchmark.md) | How to measure catalog search latency on PostgreSQL 16 without a new harness. | 2026-09-04 |
 | [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-08-29 |
 | [coding-rules.md](coding-rules.md) | Rules for errors, I/O, security, and predictable behavior. | 2026-08-03 |
 | [dependency-policy.md](dependency-policy.md) | Rules of Python, Node, external tools, and provider dependencies. | 2026-08-15 |
 | [failure-catalog.md](failure-catalog.md) | Historical failure lessons extracted from retired experiments, with current regression owners. | 2026-09-04 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Threat model for federated local ports and metadata adapters. | 2026-08-16 |
-| [first-party-corpus.md](first-party-corpus.md) | Verifiable inventory of the actual bytes and passports in the first-party launch corpus. | 2026-09-05 |
+| [first-party-corpus.md](first-party-corpus.md) | Rebuilding and publishing the first-party corpus from exact attested setup-system releases. | 2026-09-07 |
 | [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-08-12 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-07 |
 | [official-registry-identity-and-requests-implementation-plan.md](official-registry-identity-and-requests-implementation-plan.md) | Implementation sequence for unique public identities, the Git-owned Official registry, recoverable updates, and unified ownership and verification requests. | 2026-09-04 |
 | [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-04 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
-| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-04 |
+| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-07 |
 | [repository-structure.md](repository-structure.md) | Target monorepository structure and code ownership rules. | 2026-08-05 |
 | [runner-separation-readiness.md](runner-separation-readiness.md) | Dated images of inventory of separate CI/deploy trust domains and the solutions that replaced the planned barrier. | 2026-08-16 |
 | [schema-evolution.md](schema-evolution.md) | Versioning, compatibility, and migration of persisted and transmitted schemas. | 2026-08-03 |

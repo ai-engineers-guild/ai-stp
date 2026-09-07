@@ -102,7 +102,9 @@
               "limitations": []
             }
           }
-        ]
+        ],
+        "presentation_bio": null,
+        "media": []
       }
     },
     {
@@ -225,7 +227,8 @@
               "limitations": []
             }
           }
-        ]
+        ],
+        "distribution_visibility": null
       }
     },
     {
@@ -281,7 +284,8 @@
         "total_tokens": 0,
         "unavailable_components": 0,
         "status": "ready",
-        "components": []
+        "components": [],
+        "reason": null
       }
     }
   ]

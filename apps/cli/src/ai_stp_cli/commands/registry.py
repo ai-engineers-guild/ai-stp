@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import TypedDict, cast
 
 from pydantic import ValidationError
 
@@ -68,6 +68,14 @@ from ai_stp_sources.definition import (
 from ai_stp_sources.errors import SourceError
 
 KINDS: tuple[CatalogKind, ...] = ("component", "setup")
+
+
+class _PrivateOptions(TypedDict, total=False):
+    include_private: bool
+
+
+def _private_options(enabled: bool) -> _PrivateOptions:
+    return {"include_private": True} if enabled else {}
 
 
 def _artifact_format(document: Mapping[str, JsonValue]) -> str:
@@ -237,7 +245,13 @@ def version(parameters: Mapping[str, object]) -> Answer[CatalogVersionView]:
             next_actions=["registry show --kind component --id <id> --json"],
         )
     return Answer(
-        catalog.version(endpoint(), _kind(parameters.get("kind")), str(stable_id), str(number))
+        catalog.version(
+            endpoint(),
+            _kind(parameters.get("kind")),
+            str(stable_id),
+            str(number),
+            **_private_options(bool(parameters.get("private"))),
+        )
     )
 
 
@@ -280,10 +294,24 @@ def fetch(parameters: Mapping[str, object]) -> Answer[CatalogArtifactView]:
             next_actions=["registry show --kind component --id <id> --json"],
         )
     kind = _kind(parameters.get("kind"))
-    view = catalog.version(endpoint(), kind, str(stable_id), str(number))
+    include_private = bool(parameters.get("private"))
+    view = catalog.version(
+        endpoint(),
+        kind,
+        str(stable_id),
+        str(number),
+        **_private_options(include_private),
+    )
     expected = _artifact_of(view)
     held = cache.stored_version_artifact(expected.digest)
-    path = catalog.fetch_artifact(endpoint(), kind, str(stable_id), str(number), expected)
+    path = catalog.fetch_artifact(
+        endpoint(),
+        kind,
+        str(stable_id),
+        str(number),
+        expected,
+        **_private_options(include_private),
+    )
     return Answer(
         CatalogArtifactView(
             kind=kind,
@@ -310,6 +338,7 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
     stable_id = str(parameters.get("id") or "")
     number = str(parameters.get("version") or "")
     offline = bool(parameters.get("offline"))
+    include_private = bool(parameters.get("private"))
     if not stable_id or not number:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
@@ -317,7 +346,13 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
             next_actions=["registry search --kind setup --json"],
         )
 
-    setup = acquire_version("setup", stable_id, number, offline=offline)
+    setup = acquire_version(
+        "setup",
+        stable_id,
+        number,
+        offline=offline,
+        **_private_options(include_private),
+    )
     assert isinstance(setup.passport, SetupVersionPassport)
     embedded = _embedded_components(setup)
 
@@ -340,7 +375,11 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
         item = embedded.get(reference.stable_id)
         if item is None:
             item = acquire_version(
-                "component", reference.stable_id, reference.version, offline=offline
+                "component",
+                reference.stable_id,
+                reference.version,
+                offline=offline,
+                **_private_options(include_private),
             )
         if item.view.passport_digest != reference.passport_digest:
             raise CliFailure(
@@ -432,13 +471,25 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
 
 
 def acquire_version(
-    kind: CatalogKind, stable_id: str, number: str, *, offline: bool
+    kind: CatalogKind, stable_id: str, number: str, *, offline: bool, include_private: bool = False
 ) -> AcquiredCatalogVersion:
-    view = (
-        catalog.cached_version(kind, stable_id, number)
-        if offline
-        else catalog.version(endpoint(), kind, stable_id, number)
-    )
+    if offline:
+        try:
+            view = catalog.cached_version(kind, stable_id, number)
+        except CliFailure as failure:
+            if not include_private or failure.code != "AI_STP_DEPENDENCY_UNAVAILABLE":
+                raise
+            from ai_stp_cli.cloud import private_access
+
+            view = private_access.cached_version(endpoint(), kind, stable_id, number)
+    else:
+        view = catalog.version(
+            endpoint(),
+            kind,
+            stable_id,
+            number,
+            **_private_options(include_private),
+        )
     model = ComponentVersionPassport if kind == "component" else SetupVersionPassport
     try:
         passport = model.model_validate(view.passport)
@@ -471,7 +522,14 @@ def acquire_version(
             details={"kind": kind, "stable_id": stable_id, "version": number},
             next_actions=[f"registry acquire --id {stable_id} --version {number} --json"],
         )
-    path = held or catalog.fetch_artifact(endpoint(), kind, stable_id, number, expected)
+    path = held or catalog.fetch_artifact(
+        endpoint(),
+        kind,
+        stable_id,
+        number,
+        expected,
+        **_private_options(include_private),
+    )
     artifact = Path(path).read_bytes()
     if (
         len(artifact) != expected.size_bytes

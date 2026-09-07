@@ -641,6 +641,15 @@ def validate_setup_definition(
             passport = ComponentVersionPassport.model_validate(record.passport)
         except ValidationError as exc:
             raise SourceError(INCOMPLETE_PASSPORT, "embedded passport is incomplete") from exc
+        if (
+            passport.stable_id != record.ref.stable_id
+            or passport.version != record.ref.version
+            or passport.artifact.digest != record.artifact_digest
+            or passport.artifact.size_bytes != record.artifact_size_bytes
+        ):
+            raise SourceError(
+                INTEGRITY_MISMATCH, "embedded reference or artifact differs from its passport"
+            )
         if len(passport.adaptations) != 1:
             raise SourceError(INCOMPLETE_PASSPORT, "embedded adaptation must name one scope")
         adaptation = passport.adaptations[0]

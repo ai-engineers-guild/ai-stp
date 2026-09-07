@@ -76,6 +76,33 @@
         }
       ]
     },
+    "PrivateVersionTrust": {
+      "additionalProperties": true,
+      "description": "Exact local acquisition authority does not assert public verification.",
+      "properties": {
+        "author_verified": {
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "component_verified": {
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "trust_lane": {
+          "const": "local_owner_or_pinned",
+          "default": "local_owner_or_pinned",
+          "title": "Trust Lane",
+          "type": "string"
+        }
+      },
+      "required": [
+        "author_verified",
+        "component_verified",
+        "trust_lane"
+      ],
+      "title": "PrivateVersionTrust",
+      "type": "object"
+    },
     "PublicLifecycle": {
       "enum": [
         "active",
@@ -96,6 +123,15 @@
   "properties": {
     "checked_at": {
       "$ref": "#/$defs/Timestamp"
+    },
+    "distribution_visibility": {
+      "default": "public",
+      "enum": [
+        "public",
+        "private"
+      ],
+      "title": "Distribution Visibility",
+      "type": "string"
     },
     "kind": {
       "$ref": "#/$defs/CatalogKind"
@@ -128,11 +164,20 @@
       "$ref": "#/$defs/AnswerSource"
     },
     "trust": {
-      "$ref": "#/$defs/CatalogTrust"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CatalogTrust"
+        },
+        {
+          "$ref": "#/$defs/PrivateVersionTrust"
+        }
+      ],
+      "title": "Trust"
     }
   },
   "required": [
     "checked_at",
+    "distribution_visibility",
     "kind",
     "lifecycle",
     "passport",

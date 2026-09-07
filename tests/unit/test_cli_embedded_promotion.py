@@ -137,6 +137,9 @@ def _store_setup(*, complete: bool = False) -> tuple[str, str]:
         members = facts.get("members")
         if isinstance(members, dict):
             members["value"] = frozen.document["components"]
+    document = cast(
+        dict[str, JsonValue], SetupVersionPassport.model_validate(document).model_dump(mode="json")
+    )
     document.pop("revision_id", None)
     document["revision_id"] = derive_revision_id(document)
     with closing(open_registry(configured_path(), create=True)) as connection:

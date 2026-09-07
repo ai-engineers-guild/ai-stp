@@ -184,7 +184,8 @@ def test_a_claude_plugin_pack_is_a_project_inventory(tmp_path: Path) -> None:
     assert [item.native_role for item in mcp] == ["mcp_client_config"]
 
 
-def test_a_cursor_plugin_pack_is_a_project_inventory(tmp_path: Path) -> None:
+@pytest.mark.parametrize("collection", ["plugins", "plugins/local"])
+def test_a_cursor_plugin_pack_is_a_project_inventory(tmp_path: Path, collection: str) -> None:
     """Cursor ships components inside `.cursor-plugin/plugin.json`, not beside it.
 
     The measured OpenNetwork nddev-builder pack declares rules, skills, agents
@@ -192,7 +193,7 @@ def test_a_cursor_plugin_pack_is_a_project_inventory(tmp_path: Path) -> None:
     invent those kinds from a neighbouring directory name.
     """
     pack = tmp_path / "cursor-home"
-    plugin = pack / "plugins" / "nddev-builder"
+    plugin = pack / collection / "nddev-builder"
     (plugin / ".cursor-plugin").mkdir(parents=True)
     (plugin / ".cursor-plugin" / "plugin.json").write_text(
         '{"name": "nddev-builder", "rules": "./rules", "skills": "./skills",'
@@ -222,6 +223,35 @@ def test_a_cursor_plugin_pack_is_a_project_inventory(tmp_path: Path) -> None:
     assert any(item.absolute == plugin / "rules" / "nddev-builder.mdc" for item in cursor)
     assert not any(item.component_type in {"hook", "mcp"} for item in cursor)
     assert not any(item.absolute == plugin / "hooks" for item in cursor)
+
+
+@pytest.mark.parametrize("linked_level", ["plugins", "plugins/local"])
+def test_cursor_local_plugin_collection_does_not_follow_links(
+    tmp_path: Path, linked_level: str
+) -> None:
+    pack = tmp_path / "pack"
+    outside = tmp_path / "outside"
+    plugin = outside / ("local" if linked_level == "plugins" else "") / "sample"
+    (plugin / ".cursor-plugin").mkdir(parents=True)
+    (plugin / ".cursor-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+    link = pack / linked_level
+    link.parent.mkdir(parents=True)
+    link.symlink_to(outside, target_is_directory=True)
+
+    found = components.discover(project=pack)
+
+    assert not any(item.harness_id == "cursor" for item in found)
+
+
+def test_cursor_local_collection_does_not_enable_arbitrary_nested_plugins(tmp_path: Path) -> None:
+    plugin = tmp_path / "plugins" / "elsewhere" / "sample"
+    (plugin / ".cursor-plugin").mkdir(parents=True)
+    (plugin / ".cursor-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+
+    report = components.discover_report(project=tmp_path)
+
+    assert not any(item.harness_id == "cursor" for item in report.components)
+    assert any(item.code == "unsupported_manifest" for item in report.diagnostics)
 
 
 def test_a_plugins_directory_without_a_manifest_is_not_a_pack(tmp_path: Path) -> None:

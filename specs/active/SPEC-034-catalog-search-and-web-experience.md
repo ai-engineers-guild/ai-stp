@@ -78,7 +78,10 @@ Browser editor setups and arbitrary HTML are not included.
   with page mode.
 - `REQ-3411`: Results have card/list view. The entire entry is clickable, the author has
   separate link, information is not duplicated, image depends on object/type.
-- `REQ-3412`: The object page has a compact header, a back button and a type icon,
+- `REQ-3412`: Catalog detail links carry the current catalog URL in `return_to`;
+  the back button restores its filters, sort, page and view. Only the catalog path
+  in the current locale is accepted; invalid or external paths use the default catalog URL.
+  The object page has a compact header, a back button and a type icon,
   localized dates and responsive metadata layout without excessive indentation.
 - `REQ-3413`: Account shows `Edit profile` and `View public profile`; avatar
   goes through upload, validation, object storage, linking to draft, publishing, and

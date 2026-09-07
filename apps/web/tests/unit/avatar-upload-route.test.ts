@@ -1,7 +1,14 @@
+import type * as AuthSession from "@/lib/auth/session";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth/require-session", () => ({
   sessionCookieValue: vi.fn(() => Promise.resolve("mock-session")),
+}));
+
+vi.mock("@/lib/auth/session", async (importOriginal) => ({
+  ...(await importOriginal<typeof AuthSession>()),
+  readCsrfToken: vi.fn(() => Promise.resolve("test-csrf")),
 }));
 
 function stubEnv(): void {
@@ -24,7 +31,7 @@ describe("account avatar binary route", () => {
     const response = await POST(
       new Request("http://localhost/api/account/avatar", {
         method: "POST",
-        headers: { "Content-Type": "image/png" },
+        headers: { "X-CSRF-Token": "test-csrf", "Content-Type": "image/png" },
         body: new Uint8Array([137, 80, 78, 71]),
       }),
     );
@@ -36,13 +43,25 @@ describe("account avatar binary route", () => {
     });
   });
 
+  it("rejects missing CSRF before consuming the upload", async () => {
+    stubEnv();
+    const { POST } = await import("@/app/api/account/avatar/route");
+    const request = new Request("http://localhost/api/account/avatar", {
+      method: "POST",
+      headers: { "Content-Type": "image/png" },
+      body: new Uint8Array([1]),
+    });
+    expect((await POST(request)).status).toBe(403);
+    expect(request.bodyUsed).toBe(false);
+  });
+
   it("rejects non-image payloads before forwarding", async () => {
     stubEnv();
     const { POST } = await import("@/app/api/account/avatar/route");
     const response = await POST(
       new Request("http://localhost/api/account/avatar", {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: { "X-CSRF-Token": "test-csrf", "Content-Type": "text/plain" },
         body: "not an image",
       }),
     );

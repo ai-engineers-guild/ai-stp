@@ -161,6 +161,7 @@ from ai_stp_contracts.machine_help import (
     DoctorReport,
     EligibilityMatrix,
     EligibilityReport,
+    EnvironmentInspection,
     ExternalSourceIdentity,
     HarnessBundle,
     HarnessCapabilityTable,
@@ -177,6 +178,8 @@ from ai_stp_contracts.machine_help import (
     NativeComponents,
     PassportView,
     PathInventory,
+    PreservedSetupsView,
+    PreservedSetupView,
     ProjectCandidates,
     ProjectIndex,
     ProjectSymbols,
@@ -223,10 +226,13 @@ from ai_stp_contracts.owner import (
     CliOwnerVersionDetailView,
     OwnerLifecycleRequest,
     OwnerLifecycleResponse,
+    OwnerMediaUploadResponse,
     OwnerObjectDetail,
     OwnerObjectListQuery,
     OwnerObjectListResponse,
     OwnerObjectSummary,
+    OwnerPresentationResponse,
+    OwnerPresentationUpdateRequest,
     OwnerStartPublicationRequest,
     OwnerVersionDetail,
     OwnerVersionSummary,
@@ -241,6 +247,11 @@ from ai_stp_contracts.ownership import (
     OwnershipClaimResponse,
     OwnershipRevisionListResponse,
     OwnershipRevisionView,
+)
+from ai_stp_contracts.private_access import (
+    PrivateVersionResponse,
+    VisibilityPlanCreateRequest,
+    VisibilityPlanResponse,
 )
 from ai_stp_contracts.publication import (
     AuthorAttestation,
@@ -367,6 +378,9 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "staff-lifecycle-request": StaffLifecycleRequest,
     "staff-author-verification-request": StaffAuthorVerificationRequest,
     "staff-action-response": StaffActionResponse,
+    "owner-presentation-response": OwnerPresentationResponse,
+    "owner-presentation-update-request": OwnerPresentationUpdateRequest,
+    "owner-media-upload-response": OwnerMediaUploadResponse,
     "owner-object-list-query": OwnerObjectListQuery,
     "owner-object-list-response": OwnerObjectListResponse,
     "owner-object-summary": OwnerObjectSummary,
@@ -416,6 +430,10 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
 #: no route serves it, and a test pins that it never leaks into the OpenAPI
 #: document, so the two surfaces cannot be confused for one.
 CLI_MODELS: Final[dict[str, ExportedSchema]] = {
+    # Client contracts; the server routes are an explicit SPEC-071 dependency.
+    "private-version-response": PrivateVersionResponse,
+    "visibility-plan-create-request": VisibilityPlanCreateRequest,
+    "visibility-plan-response": VisibilityPlanResponse,
     "cli-signed-attestation": CliSignedAttestation,
     "cli-owner-object-list": CliOwnerObjectListView,
     "cli-owner-object-detail": CliOwnerObjectDetailView,
@@ -509,6 +527,7 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-installation": InstallationView,
     "cli-installation-status": InstallationStatus,
     "cli-multi-root-transaction": MultiRootTransactionView,
+    "cli-environment-inspection": EnvironmentInspection,
     "cli-recovery-report": RecoveryView,
     "cli-import-inspection": ImportInspection,
     "cli-setup-import-plan": SetupImportPlan,
@@ -517,6 +536,8 @@ CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-target-diff": TargetDiff,
     "cli-rollback-target": RollbackTarget,
     "cli-target-backups": TargetBackups,
+    "cli-preserved-setup": PreservedSetupView,
+    "cli-preserved-setups": PreservedSetupsView,
     "cli-telemetry-status": TelemetryStatus,
     "cli-native-components": NativeComponents,
     "cli-path-inventory": PathInventory,

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal, cast
 
+import structlog
 from sqlalchemy import (
     Select,
     and_,
@@ -63,6 +64,8 @@ from ai_stp_platform.models import (
     ExternalProduct,
     ExternalProductCountry,
 )
+
+_log = structlog.get_logger("catalog_search")
 
 ObjectKind = Literal["component", "setup"]
 _DESCRIPTION_LIMIT = 8000
@@ -203,10 +206,7 @@ def _passport_description(passport: dict[str, Any]) -> str:
 def _support_fields(
     passport: dict[str, Any], evidence: list[dict[str, Any]] | None, *, now: datetime
 ) -> tuple[str, str, datetime | None]:
-    try:
-        support = project_support(passport, evidence, now=now)
-    except CatalogIntegrityError:
-        return "beta", "not_verified", None
+    support = project_support(passport, evidence, now=now)
     expires: datetime | None = None
     if support.state == "verified":
         moments: list[datetime] = []
@@ -229,7 +229,11 @@ def _projection_row(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchPro
     component_type = passport.get("component_type")
     tier, state, expires = _support_fields(passport, list(meta.support_evidence or []), now=now)
     aliases = search_terms_for_tags(tags)
-    description = _passport_description(passport)
+    description = (
+        meta.presentation_bio[:_DESCRIPTION_LIMIT]
+        if meta.presentation_bio is not None
+        else _passport_description(passport)
+    )
     name = str(meta.name or passport.get("name") or "")
     verified = 0
     assessed = 0
@@ -319,6 +323,19 @@ async def _latest_public_metadata(
     return latest
 
 
+def _read_projection(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchProjection | None:
+    try:
+        return _projection_row(meta, now=now)
+    except CatalogIntegrityError as exc:
+        _log.warning(
+            "catalog_search_projection_unreadable",
+            object_kind=meta.object_kind,
+            stable_id=meta.stable_id,
+            reason=str(exc),
+        )
+        return None
+
+
 async def lock_catalog_search_projection(session: AsyncSession) -> None:
     """Serialize a rebuild with SQL writers without blocking ordinary SELECTs."""
     await session.execute(text("LOCK TABLE catalog_search_projection IN SHARE ROW EXCLUSIVE MODE"))
@@ -352,7 +369,9 @@ async def upsert_catalog_search_projection(
     latest = await _latest_public_metadata(session, object_kind=object_kind, stable_id=stable_id)
     if latest is None:
         return
-    row = _projection_row(latest, now=datetime.now(UTC))
+    row = _read_projection(latest, now=datetime.now(UTC))
+    if row is None:
+        return
     if object_kind == "component":
         from ai_stp_platform.catalog_assessments import refresh_component_assurance
 
@@ -401,7 +420,9 @@ async def rebuild_catalog_search_projection(session: AsyncSession) -> int:
     from ai_stp_platform.catalog_assessments import refresh_component_assurance
 
     for meta in latest_by_id.values():
-        row = _projection_row(meta, now=now)
+        row = _read_projection(meta, now=now)
+        if row is None:
+            continue
         if meta.object_kind == "component":
             await refresh_component_assurance(session, meta, row)
         projections.append(row)
@@ -411,7 +432,7 @@ async def rebuild_catalog_search_projection(session: AsyncSession) -> int:
     for row in projections:
         session.add(row)
     await session.flush()
-    return len(latest_by_id)
+    return len(projections)
 
 
 def compile_expression(
@@ -448,6 +469,17 @@ def compile_expression(
     return _compile_predicate(expression, projection=projection, author_verified=author_verified)
 
 
+def _current_component_verified(projection: type[CatalogSearchProjection]) -> ColumnElement[bool]:
+    """Expire the indexed badge in SQL before filtering, counting, and pagination."""
+    return and_(
+        projection.component_verified.is_(True),
+        or_(
+            projection.component_verified_expires_at.is_(None),
+            projection.component_verified_expires_at > func.now(),
+        ),
+    )
+
+
 def _compile_predicate(
     predicate: Predicate,
     *,
@@ -466,7 +498,7 @@ def _compile_predicate(
     elif predicate.field == "AUTHOR":
         present = func.lower(projection.owner_account_id).in_(wanted)
     else:
-        flag = and_(author_verified.is_(True), projection.component_verified.is_(True))
+        flag = and_(author_verified.is_(True), _current_component_verified(projection))
         present = or_(*[flag.is_(True) if value == "true" else flag.is_(False) for value in wanted])
     if predicate.operator == "NOT IN":
         return ~present
@@ -633,9 +665,9 @@ async def search_catalog(
     harness_ids: Sequence[str],
     component_types: Sequence[str],
     authors: Sequence[str],
-    verification: Sequence[str],
-    verified_only: bool,
-    min_safety_percent: int | None,
+    verification: Sequence[str] = (),
+    verified_only: bool = False,
+    min_safety_percent: int | None = None,
     sort: str,
     sort_direction: str,
     support_tier: str | None,
@@ -685,22 +717,22 @@ async def search_catalog(
 
     is_authoritative = and_(
         author_verified.is_(True),
-        projection.component_verified.is_(True),
+        _current_component_verified(projection),
         projection.trust_lane == "authoritative",
     )
     if not include_experimental:
         stmt = stmt.where(is_authoritative)
     if verified_only:
-        stmt = stmt.where(author_verified.is_(True), projection.component_verified.is_(True))
+        stmt = stmt.where(author_verified.is_(True), _current_component_verified(projection))
     if verification_filter:
         verification_clauses: list[ColumnElement[bool]] = []
         if "verified" in verification_filter:
             verification_clauses.append(
-                and_(author_verified.is_(True), projection.component_verified.is_(True))
+                and_(author_verified.is_(True), _current_component_verified(projection))
             )
         if "not_verified" in verification_filter:
             verification_clauses.append(
-                or_(author_verified.is_(False), projection.component_verified.is_(False))
+                or_(author_verified.is_(False), ~_current_component_verified(projection))
             )
         stmt = stmt.where(or_(*verification_clauses))
     if min_safety_percent is not None:
