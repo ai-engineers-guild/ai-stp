@@ -93,3 +93,12 @@ visibility, or version. The normal bootstrap rebuilds the derived catalog index
 from the stored passports, preserving actual support declarations and excluding
 unreadable records. Rollback restores only the preceding SQL default; it does not
 rewrite any stored tier or immutable version.
+
+## Current assurance expiry
+
+Revision `0053_component_assurance_expiry` adds the derived expiry described in
+[`target-assessments`](../../contracts/target-assessments.md). It clears legacy
+component badges from the search index; the normal bootstrap rebuilds them from
+current target and common evidence. Passports and evidence history stay intact.
+Rollback drops only the derived column. Keep the preceding application version
+and rebuild the index after rolling back both code and schema.

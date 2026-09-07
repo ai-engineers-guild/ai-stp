@@ -59,6 +59,7 @@ last_verified: "2026-08-03"
 | [structured-logging.md](structured-logging.md) | Closed event fields and redaction at the API and worker log sinks. | 2026-09-07 |
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
+| [target-assessments.md](target-assessments.md) | Exact target assessment identity, conservative projection, and concurrent ingestion contract. | 2026-09-07 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable records by publisher, major line, and authorized task profile. | 2026-09-05 |
 | [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-06 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Cookie categories and the rule for starting optional Web integrations. | 2026-08-22 |

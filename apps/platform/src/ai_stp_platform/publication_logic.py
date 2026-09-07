@@ -342,9 +342,9 @@ def bind_author_attestations(
 
 
 def snapshot_outcome(bindings: list[dict[str, Any]]) -> tuple[str, bool]:
-    """Return (snapshot_state, component_verified).
+    """Return (snapshot_state, common_checks_passed).
 
-    ``component_verified`` is true only when every mandatory binding is
+    The common result is true only when every mandatory binding is
     ``passed``. A completed ``warning`` allows publish without the badge.
     """
     mandatory = [b for b in bindings if b.get("mandatory")]
@@ -573,7 +573,7 @@ async def execute_validate(
                 bindings.extend(extra)
             if plan.object_kind == "component":
                 projection_scans: dict[str, SafetyScanResult] = {plan.content_digest: safety}
-                extra_scans = await _scan_unique_projection_artifacts(
+                extra_scans, projection_payloads = await _scan_unique_projection_artifacts(
                     session,
                     passport_dict=passport_dict,
                     content_digest=plan.content_digest,
@@ -590,6 +590,7 @@ async def execute_validate(
                     passport_digest=bound_passport_digest,
                     policy_version=policy_ver,
                     scans_by_digest=projection_scans,
+                    payloads_by_digest=projection_payloads,
                 )
     finally:
         await close_env_object_store(owned_store)
@@ -598,6 +599,19 @@ async def execute_validate(
         bindings.extend(await _exact_adaptation_bindings(session, dict(plan.passport or {})))
     state, component_verified = snapshot_outcome(bindings)
     summary = build_checks_summary(bindings)
+    if plan.object_kind == "component" and bound_passport_digest:
+        from ai_stp_platform.catalog_assessments import assess_passport
+        from ai_stp_platform.catalog_targets import (
+            conservative_component_verified,
+            project_target_matrix,
+        )
+
+        component = ComponentVersionPassport.model_validate(dict(plan.passport or {}))
+        assessments = await assess_passport(session, component, bound_passport_digest)
+        component_verified = conservative_component_verified(
+            checks_summary=summary,
+            matrix=project_target_matrix(component, assessments=assessments),
+        )
     if setup_pin_context is not None:
         summary["components"] = setup_pin_context
 
@@ -866,6 +880,11 @@ async def execute_publish(
             msg = "version already published with different digest"
             raise ValueError(msg)
         plan.state = "published"
+        if plan.object_kind == "component":
+            from ai_stp_platform.catalog_assessments import apply_component_verified
+
+            await apply_component_verified(session, existing)
+        plan.component_verified = existing.component_verified
         from ai_stp_platform.seo.enqueue import enqueue_seo_build
 
         await enqueue_seo_build(
@@ -973,6 +992,7 @@ async def execute_publish(
     await upsert_catalog_search_projection(
         session, object_kind=plan.object_kind, stable_id=plan.stable_id
     )
+    plan.component_verified = metadata.component_verified
     await _apply_setup_family_publication_effect(session, metadata)
     if plan.object_kind == "component":
         official_attempts = (
@@ -1036,16 +1056,15 @@ async def _scan_unique_projection_artifacts(
     source: ArtifactBytesSource | None,
     resolved_bytes: bytes | None,
     already: dict[str, SafetyScanResult],
-) -> dict[str, SafetyScanResult]:
+) -> tuple[dict[str, SafetyScanResult], dict[str, bytes]]:
     """Scan projection bytes that differ from the common-source suite."""
     try:
         passport = ComponentVersionPassport.model_validate(passport_dict)
     except (TypeError, ValidationError):
-        return {}
+        return {}, {}
     extra: dict[str, SafetyScanResult] = {}
+    payloads: dict[str, bytes] = {}
     for digest, size in _unique_projection_artifacts(passport).items():
-        if digest in already or digest in extra:
-            continue
         payload: bytes | None = None
         if resolved_bytes is not None and digest == content_digest:
             payload = resolved_bytes
@@ -1055,6 +1074,9 @@ async def _scan_unique_projection_artifacts(
             except ObjectIntegrityError:
                 payload = None
         if payload is None:
+            continue
+        payloads[digest] = payload
+        if digest in already:
             continue
         safety = await run_safety_suite(
             passport=passport_dict,
@@ -1067,7 +1089,7 @@ async def _scan_unique_projection_artifacts(
         )
         await _persist_safety_run(session, safety)
         extra[digest] = safety
-    return extra
+    return extra, payloads
 
 
 async def _record_component_projection_assessments(
@@ -1077,6 +1099,7 @@ async def _record_component_projection_assessments(
     passport_digest: str,
     policy_version: str,
     scans_by_digest: Mapping[str, SafetyScanResult],
+    payloads_by_digest: Mapping[str, bytes],
 ) -> None:
     if not passport_digest:
         return
@@ -1093,6 +1116,7 @@ async def _record_component_projection_assessments(
         passport_digest=passport_digest,
         policy_version=policy_version,
         scans_by_digest=scans_by_digest,
+        payloads_by_digest=payloads_by_digest,
         expires_at=datetime.now(UTC) + EVIDENCE_TTL,
     )
 
