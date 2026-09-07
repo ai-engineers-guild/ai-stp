@@ -1,16 +1,17 @@
 ---
-description: "SPEC-020: Server-side storage, PostgreSQL migrations and immutable object storage."
-last_verified: "2026-09-04"
+description: "SPEC-020: Server-side storage, PostgreSQL migrations, artifact storage, and asset storage."
+last_verified: "2026-09-07"
 ---
 
-# SPEC-020: Server storage, migrations and immutable object storage
+# SPEC-020: Server storage, migrations, and object storage
 
 ## Purpose
 
 The server platform gets a durable foundation: a single `Alembic` migration tree
 for PostgreSQL, the initial Sprint-1 schema with its constraints, a separate
-object location table and `RustFS`/`S3` adapter for immutable bytes with
-integrity checks. The platform mechanism is defined in `ADR-0009`; content ID and
+object location table and separate `RustFS`/`S3` buckets for immutable artifacts
+and append-only assets with integrity checks. The platform mechanism is defined
+in `ADR-0009` and `ADR-0166`; content ID and
 canonicalization belong to `SPEC-015` and `ADR-0036`; the queue model and its migration
 belong to `SPEC-018`, but live in the same migration tree.
 
@@ -20,8 +21,9 @@ Includes: `SQLAlchemy 2` and `Alembic` configuration for server-side PostgreSQL;
 policies for applying, repeating, rolling back, and forward-fixing migrations; initial
 Sprint-1 tables and constraints for accounts, `OAuth` identities, devices,
 sessions, public catalog metadata, object locations, and audit events;
-object location table as a link between metadata and the storage key; adapter
-`RustFS`/`S3` immutable record with digest and size check; definition
+object location table as a link between metadata and the storage bucket and key;
+separate private buckets for artifacts and assets; adapter `RustFS`/`S3`
+immutable record with digest and size check; definition
 migration readiness as reaching `head`; deterministic test fixtures
 and complete state cleanup.
 
@@ -42,10 +44,14 @@ retention policy (`SPEC-013`); production infrastructure and public access.
   common to all platform tables, including the queue table from `SPEC-018`.
 - `Forward-fix` - eliminating the defect of the applied migration with a new forward migration, and
   not a rollback of an already advanced schema.
-- `Object location` - a string linking the metadata of the catalog or passport with
-  an opaque content-addressable key of an object in the store.
+- `Object location` - a record linking metadata with an owner-bound bucket role,
+  opaque key, digest, content ID, and size of an object in the store.
 - `Immutable object write` - recording bytes under the key, which checks digest and
   size and rejects other bytes under the same key.
+- `Artifact bucket` - the private server-only bucket for immutable component and
+  setup packages.
+- `Asset bucket` - the private server-only bucket for append-only user,
+  component-presentation, and platform media.
 
 ## Requirements
 
@@ -66,13 +72,14 @@ retention policy (`SPEC-013`); production infrastructure and public access.
   reduced to one row per object (an evolution of the earlier constraint, issue
   `#143`, `SPEC-005`). Publication state (`published_at`, trust line, verification
   axes) is stored in columns of the same table under `ADR-0042` / `SPEC-021`.
-- `REQ-2004`: Object location table associates metadata record with key
-  object in storage; the object key is opaque, content-addressed, and does not by
-  itself grant access to bytes. Multiple catalog rows (different
-  `version` of the same object or different objects) can point to the same
-  key when the artifact digest matches. A row is unique by the pair
-  `(catalog_metadata_id, purpose)`. The immutability of the bytes under the key belongs to
-  storage adapter (`REQ-2005`) rather than a unique constraint on the pointer.
+- `REQ-2004`: An object location associates metadata with a bucket role,
+  owner account, opaque server-derived key, digest, content ID, and size. The
+  artifact key contains the owner namespace and digest and does not by itself
+  grant access to bytes. Catalog rows owned by the
+  same account may share a location when the artifact digest matches; rows owned
+  by different accounts use different locations. A row is unique by
+  `(catalog_metadata_id, purpose)`. Byte immutability belongs to the storage
+  adapter (`REQ-2005`) rather than to the pointer constraint.
 - `REQ-2005`: The `RustFS`/`S3` adapter writes immutable bytes only after
   digest and size checks; writing other bytes under an existing key
   is rejected by a typed conflict error, and re-writing identical bytes
@@ -94,6 +101,23 @@ retention policy (`SPEC-013`); production infrastructure and public access.
   harnesses, a stored weighted `tsvector` with GIN, and composite B-tree
   indexes for `updated_at` and `likes` sorts. The migration is reversible.
   `pg_trgm` is not enabled unless a query uses it.
+- `REQ-2011`: Runtime configuration names exactly one artifact bucket and one
+  asset bucket. Both block public access and accept only server credentials.
+  The asset bucket uses closed `users/`, `components/`, and `platform/`
+  namespaces; callers cannot supply a bucket, owner prefix, or unrestricted
+  object key.
+- `REQ-2012`: Repeating an artifact upload with the same plan, digest, size, and
+  bytes is idempotent after a request failure or lost response. The client can
+  read plan state and retry the same bounded upload; a conflicting body is
+  rejected and an incomplete write never becomes a catalog location.
+- `REQ-2013`: Every artifact read verifies the stored size and digest. Missing,
+  unavailable, or mismatched bytes produce distinct typed dependency or
+  integrity errors and never an empty response, unrelated bytes, or a public
+  projection.
+- `REQ-2014`: Asset bytes are append-only. Replacement creates a new verified
+  object and changes the owning metadata pointer atomically; rejected or
+  quarantined bytes are not deliverable, and old bytes remain eligible for
+  retention cleanup only after no live pointer references them.
 
 ## States and errors
 
@@ -131,10 +155,14 @@ canonicalization of an object requires a new version under `SPEC-015`.
 | `REQ-2001` | The test applies `upgrade head` on an empty base, repeats the application without discrepancy and confirms the only head of the story. |
 | `REQ-2002` | The migration test confirms the presence of a reverse operation or irreversibility mark and follows the forward-fix on the runbook. |
 | `REQ-2003` | The migration creates Sprint-1 tables with primary, foreign and unique keys, which are confirmed by negative constraint violation tests. |
-| `REQ-2004` | The object location test associates metadata with an opaque key and confirms that the key itself does not provide access to bytes; two versions with one artifact digest each receive the line `object_location` with one `object_key`. |
+| `REQ-2004` | Migration and storage tests bind bucket role and owner to each location, reject a foreign owner binding, permit same-owner digest reuse, keep different owners in distinct locations, and confirm that knowledge of the key grants no access. |
 | `REQ-2005` | The adapter test confirms digest and size checks, idempotency of identical bytes and a conflict error for other bytes under the same key. |
 | `REQ-2006` | The digest test uses the `SPEC-015` reference vectors and does not introduce a second canonicalization. |
 | `REQ-2007` | The readiness test confirms that migration readiness is only true when `head` is reached. |
 | `REQ-2008` | The audit test confirms the rejection of a row change and deletion in the normal write path. |
 | `REQ-2009` | Running the test suite confirms that teardown does not leave shared state between tests. |
 | `REQ-2010` | Migration tests create `catalog_search_projection` with unique `(object_kind, stable_id)`, GIN on `search_vector`, array GIN, and partial B-tree sort indexes, and the downgrade drops the table. |
+| `REQ-2011` | A real RustFS test creates both buckets, confirms public access is blocked, rejects caller-selected bucket/prefix values, and writes only through server credentials. |
+| `REQ-2012` | Fault injection loses the upload request and response; retrying the same plan creates one verified object, while changed bytes fail without a catalog location. |
+| `REQ-2013` | Real-store tests distinguish missing, unavailable, size-mismatched, and digest-mismatched objects and never return bytes from another location. |
+| `REQ-2014` | Asset tests replace a pointer only after validation, retain the prior object during the retention window, and keep quarantined bytes unavailable. |

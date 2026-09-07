@@ -43,6 +43,8 @@ from ai_stp_contracts.authoring import (
     SetupScaffoldResult,
 )
 from ai_stp_contracts.catalog import (
+    CatalogAuthorListResponse,
+    CatalogAuthorOption,
     CatalogReactionList,
     CatalogReactionState,
     CatalogUsageMetrics,
@@ -52,6 +54,7 @@ from ai_stp_contracts.catalog import (
     ComponentSearchRequest,
     ComponentVersionResponse,
     GitHubMetadata,
+    PrivateVersionResponse,
     SetupContextBudget,
     SetupContextBudgetQuery,
     SetupDetail,
@@ -249,7 +252,6 @@ from ai_stp_contracts.ownership import (
     OwnershipRevisionView,
 )
 from ai_stp_contracts.private_access import (
-    PrivateVersionResponse,
     VisibilityPlanCreateRequest,
     VisibilityPlanResponse,
 )
@@ -321,6 +323,8 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "staff-target-assessment-ingest-request": TargetAssessmentIngestRequest,
     "staff-target-assessment-ingest-response": TargetAssessmentIngestResponse,
     "catalog-github-metadata": GitHubMetadata,
+    "catalog-author-list": CatalogAuthorListResponse,
+    "catalog-private-version": PrivateVersionResponse,
     "catalog-usage-metrics": CatalogUsageMetrics,
     "catalog-reaction-list": CatalogReactionList,
     "catalog-reaction-state": CatalogReactionState,
@@ -564,6 +568,7 @@ CONTRACT_MODELS: Final[dict[str, ExportedSchema]] = {**HTTP_MODELS, **CLI_MODELS
 EXPORTED_MODELS: Final[dict[str, ExportedSchema]] = {
     **ASSURANCE_STACK_MODELS,
     **CONTRACT_MODELS,
+    "catalog-author-option": CatalogAuthorOption,
 }
 
 

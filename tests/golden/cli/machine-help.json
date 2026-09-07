@@ -5133,6 +5133,18 @@
           "repeatable": true,
           "summary": "Full locally signed attestation bound to this exact version.",
           "choices": []
+        },
+        {
+          "name": "visibility",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Catalog visibility; private by default, use public explicitly.",
+          "choices": [
+            "private",
+            "public"
+          ]
         }
       ],
       "parameter_rules": [],
@@ -7272,6 +7284,18 @@
           "repeatable": false,
           "summary": "Exact local X.Y version to publish.",
           "choices": []
+        },
+        {
+          "name": "visibility",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Catalog visibility; private by default, use public explicitly.",
+          "choices": [
+            "private",
+            "public"
+          ]
         }
       ],
       "parameter_rules": [],

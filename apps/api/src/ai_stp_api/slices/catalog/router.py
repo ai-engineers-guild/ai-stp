@@ -24,6 +24,7 @@ from ai_stp_api.slices.catalog.artifact_service import (
 from ai_stp_contracts.catalog import (
     CATALOG_UNSPECIFIED_FILTER,
     ComponentSearchRequest,
+    PrivateVersionResponse,
     SetupContextBudgetQuery,
     SetupSearchRequest,
 )
@@ -526,6 +527,37 @@ async def read_component_version(
     return _resource(request, result)
 
 
+@router.get(
+    "/catalog/components/{stable_id}/versions/{version}/private",
+    response_model=PrivateVersionResponse,
+)
+async def read_private_component_version(
+    request: Request,
+    stable_id: str,
+    version: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    """Return an authorized private passport for CLI acquisition."""
+    stable_id = require_component_id(stable_id)
+    version = require_version(version)
+    try:
+        result = await service.read_private_version_document(
+            db,
+            object_kind="component",
+            stable_id=stable_id,
+            version=version,
+            account_id=ctx.account_id,
+        )
+    except service.CatalogNotFound as exc:
+        raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
+    except service.CatalogCorrupt as exc:
+        raise ApiError(
+            ErrorCategory.CATALOG_INTEGRITY, "catalog version failed integrity verification"
+        ) from exc
+    return _resource(request, result)
+
+
 @router.get("/catalog/components/{stable_id}/versions/{version}/checks", response_model=None)
 async def read_component_version_checks(
     request: Request,
@@ -552,6 +584,7 @@ async def read_component_artifact(
     version: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> StreamingResponse:
     """Return verified component bytes without exposing the opaque object key."""
     stable_id = require_component_id(stable_id)
@@ -564,6 +597,7 @@ async def read_component_artifact(
             object_kind="component",
             stable_id=stable_id,
             version=version,
+            account_id=ctx.account_id if ctx is not None else None,
         )
         await _count_artifact_download(request, db, stable_id)
     except ArtifactNotFound as exc:
@@ -659,6 +693,37 @@ async def read_setup_version(
     return _resource(request, result)
 
 
+@router.get(
+    "/catalog/setups/{stable_id}/versions/{version}/private",
+    response_model=PrivateVersionResponse,
+)
+async def read_private_setup_version(
+    request: Request,
+    stable_id: str,
+    version: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    """Return an authorized private passport for CLI acquisition."""
+    stable_id = require_setup_id(stable_id)
+    version = require_version(version)
+    try:
+        result = await service.read_private_version_document(
+            db,
+            object_kind="setup",
+            stable_id=stable_id,
+            version=version,
+            account_id=ctx.account_id,
+        )
+    except service.CatalogNotFound as exc:
+        raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
+    except service.CatalogCorrupt as exc:
+        raise ApiError(
+            ErrorCategory.CATALOG_INTEGRITY, "catalog version failed integrity verification"
+        ) from exc
+    return _resource(request, result)
+
+
 @router.get("/catalog/setups/{stable_id}/versions/{version}/checks", response_model=None)
 async def read_setup_version_checks(
     request: Request,
@@ -685,6 +750,7 @@ async def read_setup_artifact(
     version: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> StreamingResponse:
     """Return verified setup bytes without exposing the opaque object key."""
     stable_id = require_setup_id(stable_id)
@@ -697,6 +763,7 @@ async def read_setup_artifact(
             object_kind="setup",
             stable_id=stable_id,
             version=version,
+            account_id=ctx.account_id if ctx is not None else None,
         )
         await _count_artifact_download(request, db, stable_id)
     except ArtifactNotFound as exc:

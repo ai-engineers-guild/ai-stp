@@ -9,8 +9,9 @@ from typing import Final, cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_platform.catalog_read import ObjectKind, get_visible_metadata
 from ai_stp_platform.logging import get_logger
-from ai_stp_platform.models import CatalogMetadata, ObjectLocation
+from ai_stp_platform.models import ObjectLocation
 from ai_stp_platform.storage.object_store import ImmutableObjectStore, ObjectIntegrityError
 
 _log = get_logger("catalog")
@@ -67,25 +68,52 @@ async def read_public_artifact(
     object_kind: str,
     stable_id: str,
     version: str,
+    account_id: str | None = None,
 ) -> bytes:
     """Authorize metadata first, then read and verify all bytes before response."""
-    result = await session.execute(
-        select(CatalogMetadata, ObjectLocation)
-        .join(ObjectLocation, ObjectLocation.catalog_metadata_id == CatalogMetadata.id)
-        .where(
-            CatalogMetadata.object_kind == object_kind,
-            CatalogMetadata.stable_id == stable_id,
-            CatalogMetadata.version == version,
-            CatalogMetadata.visibility == "public",
-            CatalogMetadata.lifecycle_state.in_(INSTALLABLE_LIFECYCLES),
-            CatalogMetadata.published_at.is_not(None),
+    if object_kind not in {"component", "setup"}:
+        raise ArtifactNotFound
+    metadata = await get_visible_metadata(
+        session,
+        object_kind=cast(ObjectKind, object_kind),
+        stable_id=stable_id,
+        version=version,
+        account_id=account_id,
+    )
+    if (
+        metadata is None
+        or metadata.lifecycle_state not in INSTALLABLE_LIFECYCLES
+        or metadata.published_at is None
+    ):
+        raise ArtifactNotFound
+    location = await session.scalar(
+        select(ObjectLocation).where(
+            ObjectLocation.catalog_metadata_id == metadata.id,
             ObjectLocation.purpose == "artifact",
         )
     )
-    row = result.one_or_none()
-    if row is None:
-        raise ArtifactNotFound
-    metadata, location = row
+    if location is None:
+        raise _corrupt(
+            "reachable version has no artifact location",
+            object_kind=object_kind,
+            stable_id=stable_id,
+            version=version,
+        )
+    if location.owner_account_id is not None and (
+        location.owner_account_id != metadata.owner_account_id
+        or location.bucket != store.bucket
+        or location.object_key
+        != store.key_for_digest(
+            location.digest,
+            owner_account_id=metadata.owner_account_id,
+        )
+    ):
+        raise _corrupt(
+            "stored object location is not bound to its owner",
+            object_kind=object_kind,
+            stable_id=stable_id,
+            version=version,
+        )
     fail = partial(_corrupt, object_kind=object_kind, stable_id=stable_id, version=version)
     passport = metadata.passport_document
     if not isinstance(passport, Mapping):
@@ -105,6 +133,7 @@ async def read_public_artifact(
             object_key=location.object_key,
             expected_digest=location.digest,
             expected_size=location.size_bytes,
+            bucket=location.bucket or store.bucket,
         )
     except ObjectIntegrityError as exc:
         raise fail("stored bytes failed verification") from exc

@@ -22,11 +22,26 @@ class ArtifactBytesSource(Protocol):
 class StoreArtifactBytesSource:
     """Fetch verified bytes from ImmutableObjectStore."""
 
-    def __init__(self, store: ImmutableObjectStore) -> None:
+    def __init__(
+        self,
+        store: ImmutableObjectStore,
+        *,
+        owner_account_id: str | None = None,
+        allow_legacy_public: bool = False,
+    ) -> None:
         self._store = store
+        self._owner_account_id = owner_account_id
+        self._allow_legacy_public = allow_legacy_public
 
     async def fetch_bytes(self, content_digest: str, size_bytes: int | None) -> bytes | None:
-        return await self._store.read_by_digest(content_digest, expected_size=size_bytes)
+        payload = await self._store.read_by_digest(
+            content_digest,
+            expected_size=size_bytes,
+            owner_account_id=self._owner_account_id,
+        )
+        if payload is None and self._allow_legacy_public:
+            return await self._store.read_by_digest(content_digest, expected_size=size_bytes)
+        return payload
 
 
 class BytesArtifactBytesSource:
@@ -61,6 +76,9 @@ async def open_env_object_store() -> ImmutableObjectStore | None:
         return None
     client = S3ObjectClient(settings)
     await client.__aenter__()
+    ensure_buckets = getattr(client, "ensure_buckets", None)
+    if ensure_buckets is not None:
+        await ensure_buckets()
     store = ImmutableObjectStore(settings=settings, client=client)
     _OWNED_CLIENTS[id(store)] = client
     return store

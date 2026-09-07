@@ -509,6 +509,7 @@ class ComponentMedia(Base):
     youtube_video_id: Mapped[str | None] = mapped_column(String(11), nullable=True)
     content_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    content_digest: Mapped[str | None] = mapped_column(String(80), nullable=True)
     alt: Mapped[str] = mapped_column(String(240))
     caption: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -557,6 +558,10 @@ class ObjectLocation(Base):
         ForeignKey("catalog_metadata.id", ondelete="CASCADE"), index=True
     )
     purpose: Mapped[str] = mapped_column(String(64))
+    bucket: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    owner_account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     object_key: Mapped[str] = mapped_column(String(512))
     digest: Mapped[str] = mapped_column(String(71))
     content_id: Mapped[str] = mapped_column(String(71))
@@ -719,6 +724,10 @@ class PublicationPlan(Base):
             "object_kind in ('component', 'setup')",
             name="ck_publication_plan_object_kind",
         ),
+        CheckConstraint(
+            "visibility in ('public', 'private')",
+            name="ck_publication_plan_visibility",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -730,6 +739,8 @@ class PublicationPlan(Base):
     stable_id: Mapped[str] = mapped_column(String(64), index=True)
     version: Mapped[str] = mapped_column(String(32))
     content_digest: Mapped[str] = mapped_column(String(71))
+    artifact_inventory: Mapped[list[str]] = mapped_column(JSON, default=list)
+    visibility: Mapped[str] = mapped_column(String(16), default="private", server_default="private")
     policy_version: Mapped[str] = mapped_column(String(32), default="1")
     plan_hash: Mapped[str] = mapped_column(String(128))
     state: Mapped[str] = mapped_column(String(32), default="ready")

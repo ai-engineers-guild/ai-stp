@@ -12,14 +12,17 @@ usage() {
   cat <<'EOF'
 Usage: deploy/backup.sh [--label NAME]
 
-Creates a timestamped backup under AI_STP_BACKUP_DIR (default: .backups/):
+Creates a timestamped backup under AI_STP_BACKUP_DIR on a separate mounted
+backup filesystem:
   - PostgreSQL logical dump via pg_dump inside the postgres service
   - RustFS/object data directory copy from the rustfs volume mount
+  - database-backed object manifest with bucket, owner, digest and size
 
 Environment:
   AI_STP_COMPOSE_FILE   compose file (default docker-compose.prod.yml)
   AI_STP_BACKUP_DIR     backup root directory
   AI_STP_BACKUP_RETENTION  number of newest backups to keep (default 7)
+  AI_STP_ALLOW_LOCAL_BACKUP=1 permits a same-filesystem development backup
 
 Does not print connection strings, credentials, or object payload bytes.
 EOF
@@ -44,7 +47,14 @@ done
 
 require_cmd docker
 require_cmd sha256sum
+require_cmd findmnt
 ensure_state_dir
+
+ROOT_MOUNT="$(findmnt -n -o TARGET -T "${AI_STP_ROOT}")"
+BACKUP_MOUNT="$(findmnt -n -o TARGET -T "${AI_STP_BACKUP_DIR}")"
+if [[ "${ROOT_MOUNT}" == "${BACKUP_MOUNT}" && "${AI_STP_ALLOW_LOCAL_BACKUP:-0}" != "1" ]]; then
+  die "off_host_backup_mount_required"
+fi
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 if [[ -n "${LABEL}" ]]; then
@@ -69,6 +79,10 @@ resume_writers() {
 trap resume_writers EXIT
 compose pause api worker >/dev/null
 WRITERS_PAUSED=1
+
+if ! compose run --rm --no-deps api python -m ai_stp_platform.storage.verify >/dev/null; then
+  die "source_object_verification_failed"
+fi
 
 # PostgreSQL logical dump. Credentials stay inside the container env; not logged.
 if ! compose exec -T postgres \
@@ -95,6 +109,24 @@ if ! compose cp postgres:/tmp/ai_stp.dump "${DEST}/postgres/ai_stp.dump" >/dev/n
 fi
 compose exec -T postgres rm -f /tmp/ai_stp.dump >/dev/null 2>&1 || true
 
+# Keep the database/object-store boundary auditable without putting payloads in
+# the dump. The manifest covers both application buckets and legacy rows.
+if ! compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F "\t" -c "
+   SELECT '\''artifact'\'', COALESCE(bucket, '\''artifact'\''), COALESCE(owner_account_id, '\''<legacy>'\''), object_key, digest, content_id, size_bytes FROM object_location WHERE purpose = '\''artifact'\''
+   UNION ALL
+   SELECT '\''avatar'\'', '\''asset'\'', account_id, object_key, content_digest, '\''<not-applicable>'\'', size_bytes FROM avatar_asset WHERE object_key IS NOT NULL
+   UNION ALL
+   SELECT '\''component_media'\'', '\''asset'\'', owner_account_id, object_key, content_digest, '\''<not-applicable>'\'', size_bytes FROM component_media WHERE object_key IS NOT NULL
+   ORDER BY 1, 2, 3, 4"' \
+  >"${DEST}/postgres/object_manifest.tsv"; then
+  die "object_manifest_failed"
+fi
+if ! sha256sum "${DEST}/postgres/object_manifest.tsv" \
+  >"${DEST}/postgres/object_manifest.tsv.sha256"; then
+  die "object_manifest_checksum_failed"
+fi
+
 # RustFS object copy: copy the service data volume contents without listing object bytes.
 # Uses a temporary alpine helper sharing the rustfs volume.
 RUSTFS_VOLUME="$(compose_service_volume rustfs /data)"
@@ -113,6 +145,8 @@ fi
   echo "created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "git_commit=$(current_git_commit)"
   echo "postgres_dump=postgres/ai_stp.dump"
+  echo "object_manifest=postgres/object_manifest.tsv"
+  echo "object_manifest_sha256=$(tr -s ' ' <"${DEST}/postgres/object_manifest.tsv.sha256" | cut -d' ' -f1)"
   echo "account_count=${ACCOUNT_COUNT}"
   echo "oauth_identity_count=${OAUTH_IDENTITY_COUNT}"
   echo "oauth_identity_fingerprint=${OAUTH_IDENTITY_FINGERPRINT}"

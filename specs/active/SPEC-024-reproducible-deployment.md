@@ -1,6 +1,6 @@
 ---
 description: "SPEC-024: Reproducible deployment with web tier, health, logs, backups and rollback."
-last_verified: "2026-08-10"
+last_verified: "2026-09-07"
 ---
 
 # SPEC-024: Reproducible deployment
@@ -109,9 +109,12 @@ providers; secrets in GitHub or issue text; contents of domain handlers
 - `REQ-2408`: Structural logs are collected with correlation between request and operation and
   limited storage; the log does not contain OAuth tokens, cookies, object bytes,
   private paths and environment values (`SPEC-017`, `SPEC-013`).
-- `REQ-2409`: Backup and restore PostgreSQL metadata and objects
-  RustFS are defined and rehearsed on the restored copy; recovery is checked and
-  the backup and its log do not contain secrets or object bytes.
+- `REQ-2409`: PostgreSQL metadata and both RustFS working buckets are backed up
+  to a destination outside the deployment host. The backup contains a committed
+  object inventory without object bytes in logs, and an isolated restore is
+  accepted only after every referenced object passes bucket-role, key, owner,
+  size, and digest verification. Backup credentials are separate from
+  application write credentials and cannot mutate live application data.
 - `REQ-2410`: Deployment is serialized by locking, re-deployment
   idempotent, abort criteria are defined, and rollback returns the previous exact
   an application artifact and does not change the schema revision in any way.
@@ -186,7 +189,7 @@ are committed and updated with a separate verifiable change.
 | `REQ-2406` | The deployment host serves production TLS and the domain through `nginx` with a certbot certificate for the configured name; local dev uses plain HTTP on the `web` port without a reverse proxy. |
 | `REQ-2407` | Deploy smoke on the deployed slice covers the landing page, catalog, OAuth, and device listing and revocation. |
 | `REQ-2408` | Checking the logs confirms the request-operation correlation, limited storage, and the absence of tokens, cookies, object bytes, paths, and environment values. |
-| `REQ-2409` | Rehearsing a PostgreSQL and RustFS backup and restore on the restored copy confirms the recovery and the absence of secrets in the copy. |
+| `REQ-2409` | A rehearsal destroys an isolated copy, restores PostgreSQL and both buckets from the off-host backup, verifies the complete committed-object inventory and authorization matrix, and confirms that logs and manifests contain no secrets or object bytes. |
 | `REQ-2410` | The test confirms deployment serialization, retry idempotency, abort criterion, and rollback to a previous artifact leaving the schema revision unchanged. |
 | `REQ-2418` | The test confirms that the downgrade requires an explicit target revision and fails without a backup of that run. |
 | `REQ-2411` | Safe diagnostics shows version, commit and schema without secrets and environment values. |

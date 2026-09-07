@@ -1,6 +1,6 @@
 ---
 description: "SPEC-007: Tests, evidence and publication."
-last_verified: "2026-09-05"
+last_verified: "2026-09-07"
 ---
 
 # SPEC-007: Validation, evidence, and publication
@@ -42,15 +42,15 @@ The proof source accepts exactly five values, and they are not combined into one
 - `REQ-703`: The confirmation is signed with the device key and is associated with the account, device, tool versions and hash.
 - `REQ-704`: The server rechecks the device state, signature, hash, schema, and non-executable structure rules.
 - `REQ-705`: The author's confirmation is not called a platform independent execution or an absolute security verdict.
-- `REQ-706`: The public version requires a full passport, a public GitHub repository with the exact commit and subpath, license metadata, non-empty tags and declared harness; branch, tag and `latest` are not the source.
+- `REQ-706`: The public version requires a full passport, a public GitHub repository with the exact commit and subpath, license metadata, non-empty tags and declared harness; branch, tag and `latest` are not the source. A private version does not become public merely because its uploaded artifact is valid.
 - `REQ-707`: Arbitrary binaries, floating dependencies and post-installation scripts are not allowed by default.
 - `REQ-708`: Publishing uses an immutable plan, expiration date, exact hash, and separate user confirmation.
 - `REQ-709`: The mandatory set of checks is determined by the check policy matrix by object type and execution class; an unknown type or transport is closed by a refusal, not a pass.
 - `REQ-710`: `author_verified` and `component_verified` are stored, displayed, and filtered separately and are not derived from one another.
 - `REQ-711`: The verification result stores the source of evidence, tool and policy versions and expiration date; an expired proof is not considered relevant for the line `authoritative`.
 - `REQ-712`: Re-publication of other content under an already released version number is rejected.
-- `REQ-713`: Publishing a component located inside a repository with project code uses the explicit root of the component and the list of allowed files from its passport, and not the entire repository.
-- `REQ-714`: The exact inventory of the artifact files is shown to the user before publishing, and component-root traversals, links, secret-like files, binaries, and undeclared files are rejected.
+- `REQ-713`: Publishing a component located inside a repository with project code packages the explicit component root, not the entire repository. The inventory contains tracked files and untracked files not excluded by the applicable Git ignore rules; repository metadata and ignored untracked files are absent.
+- `REQ-714`: The exact deterministic inventory of artifact files is shown before publishing and is bound to the plan digest. Component-root traversals, links, special files, secret-like files, prohibited binaries, and files outside that inventory are rejected.
 - `REQ-715`: `author_verified` is issued manually by the platform owners to the account ID or to a confirmed email address and is not derived from any automatic sign.
 - `REQ-716`: Issue and revocation of `author_verified` create an audit event with the decision author, reason and time.
 - `REQ-717`: Revocation of `author_verified` applies prospectively: it excludes the author's objects from the `authoritative` trust line and does not rewrite historical validation snapshots or already installed targets.
@@ -68,6 +68,14 @@ The proof source accepts exactly five values, and they are not combined into one
 - `REQ-729`: The public result of a failed check shows a limited structured summary: number of hits, maximum severity, canonical rule IDs, and safe relative paths. Raw payload, source code lines, scanner stdout/stderr, absolute paths, secret values ​​and arbitrary external tool messages are not published; exceeding the limit is clearly indicated.
 - `REQ-730`: The transition of a version to `deprecated` and back is carried out by its author, not staff: obsolescence is a statement about the future of one's own object, and not about its acceptability, and moderation actions are closed `SPEC-026` `REQ-2617`. The basis is the author's explicit action with the reason and `AuditEvent`; the observation about archiving the source (`SPEC-044`) remains a proposal and does not change the state itself. `deprecated` does not limit what is already allowed: the version remains readable, its bytes remain accessible, and it is exactly as published - because the published `X.Y` is immutable, consumers pin the exact versions, and the setup pins its components according to the exact digest. Denying bytes would break every pin already allowed, which is disproportionately more than "don't select this next time." The restrictions are `blocked` and `hidden`. Selection and recommendation sites have the right not to offer an outdated version: this is the meaning of the mark. The transition can be reversed using the same route; The author cannot exit from `blocked` and `hidden`.
 - `REQ-731`: In-process safety results are reusable only while a bounded cache TTL and assessment-context fingerprint (scanner versions, policy assets, vulnerability database state, and configured generation) still match; unavailable, transient, degraded, and unfinished evidence is not reusable as a completed assessment. Concurrent requests for one exact subject share one in-flight scan, while different subjects remain independent, and cancellation or failure releases the in-flight entry.
+- `REQ-732`: Publication visibility is an explicit plan field with `private` as
+  its default. A source known to be private or whose visibility cannot be
+  established remains private; public publication requires an explicit request
+  and all public-source requirements of `REQ-706`.
+- `REQ-733`: Private publication uses the same immutable version, inventory,
+  digest, archive safety, validation, durable binding, and confirmation barrier
+  as public publication. Successful private publication creates no anonymous
+  catalog projection.
 
 ## States and errors
 
@@ -116,3 +124,5 @@ Versions of the validation scheme, tools, and policies are recorded. Re-checking
 | `REQ-729` | Contract, platform and web tests show rule IDs and relative paths, discard payload, absolute and traversal paths and indicate bounded summary truncation. |
 | `REQ-730` | The author translates his own published version into `deprecated` and back with reason and audit; reading the version and loading its artifact continues to respond, but `blocked` and `hidden` do not; from `blocked`/`hidden` the transition fails. |
 | `REQ-731` | Platform regressions cover unavailable evidence followed by availability, temporary fetch failure, TTL and generation expiry, valid cache hits, three-way same-subject singleflight, waiter/owner cancellation, scanner failure, cleanup, and different-subject concurrency. |
+| `REQ-732` | Plan tests default omitted, private, and unknown source visibility to private; only an explicit public request with a verified public source reaches public validation. |
+| `REQ-733` | The same artifact corpus passes or fails identically for public and private plans, while only the public result appears in anonymous catalog reads. |

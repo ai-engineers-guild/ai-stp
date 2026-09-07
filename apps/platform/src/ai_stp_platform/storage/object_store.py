@@ -48,10 +48,24 @@ class ObjectClient(Protocol):
     async def get_object_bytes(self, *, bucket: str, key: str) -> bytes | None: ...
 
 
-def content_key(settings: StorageSettings, digest: str) -> str:
-    """Build an opaque content-addressed key from a validated digest string."""
+def content_key(
+    settings: StorageSettings,
+    digest: str,
+    *,
+    owner_account_id: str | None = None,
+    namespace: str | None = None,
+) -> str:
+    """Build an owner-scoped content-addressed key."""
     prefix = settings.key_prefix.strip("/")
-    return f"{prefix}/sha256/{digest.removeprefix('sha256:')}"
+    if owner_account_id is None:
+        return f"{prefix}/sha256/{digest.removeprefix('sha256:')}"
+    if "/" in owner_account_id or not owner_account_id:
+        raise ValueError("invalid owner account id for object key")
+    scope = namespace.strip("/") if namespace else "artifacts"
+    parts = scope.split("/")
+    if not scope or any(not part or part in {".", ".."} for part in parts):
+        raise ValueError("invalid object namespace")
+    return f"{prefix}/accounts/{owner_account_id}/{scope}/sha256/{digest.removeprefix('sha256:')}"
 
 
 def content_id(digest: str) -> str:
@@ -62,9 +76,16 @@ def content_id(digest: str) -> str:
 class ImmutableObjectStore:
     """Write bytes once, accepting repeated writes only for identical content."""
 
-    def __init__(self, *, settings: StorageSettings, client: ObjectClient) -> None:
+    def __init__(
+        self,
+        *,
+        settings: StorageSettings,
+        client: ObjectClient,
+        bucket: str | None = None,
+    ) -> None:
         self._settings = settings
         self._client = client
+        self._bucket = bucket or getattr(settings, "artifact_bucket_name", None) or settings.bucket
 
     @property
     def settings(self) -> StorageSettings:
@@ -74,17 +95,36 @@ class ImmutableObjectStore:
     def client(self) -> ObjectClient:
         return self._client
 
-    def key_for_digest(self, digest: str) -> str:
-        return content_key(self._settings, digest)
+    @property
+    def bucket(self) -> str:
+        return self._bucket
+
+    def key_for_digest(
+        self,
+        digest: str,
+        *,
+        owner_account_id: str | None = None,
+        namespace: str | None = None,
+    ) -> str:
+        return content_key(
+            self._settings,
+            digest,
+            owner_account_id=owner_account_id,
+            namespace=namespace,
+        )
 
     async def read_by_digest(
         self,
         content_digest: str,
         *,
         expected_size: int | None = None,
+        owner_account_id: str | None = None,
+        namespace: str | None = None,
     ) -> bytes | None:
         """Read content-addressed bytes; verify size when known."""
-        key = self.key_for_digest(content_digest)
+        key = self.key_for_digest(
+            content_digest, owner_account_id=owner_account_id, namespace=namespace
+        )
         if expected_size is not None:
             return await self.read_verified(
                 object_key=key,
@@ -92,7 +132,7 @@ class ImmutableObjectStore:
                 expected_size=expected_size,
             )
         payload = await self._client.get_object_bytes(
-            bucket=self._settings.bucket,
+            bucket=self._bucket,
             key=key,
         )
         if payload is None:
@@ -107,6 +147,8 @@ class ImmutableObjectStore:
         *,
         expected_digest: str,
         expected_size: int,
+        owner_account_id: str | None = None,
+        namespace: str | None = None,
     ) -> StoredObject:
         """Write bytes after digest/size verification and conflict checks."""
         actual_size = len(payload)
@@ -114,17 +156,21 @@ class ImmutableObjectStore:
         if actual_size != expected_size or actual_digest != expected_digest:
             raise ObjectIntegrityError("object bytes do not match declared digest and size")
 
-        key = content_key(self._settings, actual_digest)
+        key = self.key_for_digest(
+            actual_digest, owner_account_id=owner_account_id, namespace=namespace
+        )
         metadata = {
             "ai-stp-digest": actual_digest,
             "ai-stp-size-bytes": str(actual_size),
             "ai-stp-content-id": content_id(actual_digest),
         }
-        existing = await self._client.head_object(bucket=self._settings.bucket, key=key)
+        if owner_account_id is not None:
+            metadata["ai-stp-owner-account-id"] = owner_account_id
+        existing = await self._client.head_object(bucket=self._bucket, key=key)
         if existing is not None:
             if _metadata_matches(existing, metadata):
                 return StoredObject(
-                    bucket=self._settings.bucket,
+                    bucket=self._bucket,
                     key=key,
                     digest=actual_digest,
                     content_id=content_id(actual_digest),
@@ -134,13 +180,13 @@ class ImmutableObjectStore:
             raise ObjectConflict("different object already exists at content-addressed key")
 
         await self._client.put_object(
-            bucket=self._settings.bucket,
+            bucket=self._bucket,
             key=key,
             body=payload,
             metadata=metadata,
         )
         return StoredObject(
-            bucket=self._settings.bucket,
+            bucket=self._bucket,
             key=key,
             digest=actual_digest,
             content_id=content_id(actual_digest),
@@ -154,10 +200,11 @@ class ImmutableObjectStore:
         object_key: str,
         expected_digest: str,
         expected_size: int,
+        bucket: str | None = None,
     ) -> bytes | None:
         """Read the complete object and verify integrity before returning bytes."""
         payload = await self._client.get_object_bytes(
-            bucket=self._settings.bucket,
+            bucket=bucket or self._bucket,
             key=object_key,
         )
         if payload is None:

@@ -23,3 +23,12 @@ def required(purpose: str) -> session.Session:
             next_actions=["device reset --confirm --json", "auth login --provider github --json"],
         )
     return held
+
+
+def optional() -> session.Session | None:
+    """Return a usable held session when one exists, otherwise stay anonymous."""
+    store, _warning = open_store()
+    held = session.load(store)
+    if held is None or held.state() != "authenticated":
+        return None
+    return held

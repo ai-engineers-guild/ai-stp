@@ -13,7 +13,13 @@ from tests.support.catalog_seed import seed_corpus
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform.models import Account, CatalogMetadata, CatalogSearchProjection, ComponentMedia
+from ai_stp_platform.models import (
+    AccessGrant,
+    Account,
+    CatalogMetadata,
+    CatalogSearchProjection,
+    ComponentMedia,
+)
 
 pytestmark = pytest.mark.platform
 
@@ -141,6 +147,7 @@ async def test_owner_can_upload_component_media_and_save_presentation(
                 visibility=visibility,
                 lifecycle_state="active",
                 name="with-media",
+                published_at=datetime.now(tz=UTC),
             )
         )
         await db.commit()
@@ -345,3 +352,66 @@ async def test_saved_presentation_reaches_public_detail_and_search_without_passp
             )
             assert projection is not None
             assert projection.description == bio.strip()
+
+
+async def test_private_component_media_requires_owner_or_active_grant(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    owner_id, owner_token = await _account_with_session(sessionmaker)
+    grantee_id, grantee_token = await _account_with_session(sessionmaker)
+    _stranger_id, stranger_token = await _account_with_session(sessionmaker)
+    stable_id = new_id("component")
+    async with sessionmaker() as db:
+        db.add(
+            CatalogMetadata(
+                owner_account_id=owner_id,
+                object_kind="component",
+                stable_id=stable_id,
+                version="1.0",
+                version_major=1,
+                current_revision_id="revision_" + "0" * 64,
+                visibility="private",
+                lifecycle_state="active",
+                name="private-media",
+                published_at=datetime.now(tz=UTC),
+            )
+        )
+        db.add(
+            AccessGrant(
+                id=new_id("grant"),
+                object_kind="component",
+                stable_id=stable_id,
+                major=1,
+                owner_account_id=owner_id,
+                grantee_account_id=grantee_id,
+                state="active",
+            )
+        )
+        await db.commit()
+
+    upload = await client.post(
+        f"/v1/owner/objects/component/{stable_id}/presentation/media",
+        headers={"Authorization": f"Bearer {owner_token}", "Content-Type": "image/png"},
+        content=b"\x89PNG\r\n\x1a\nprivate-image",
+    )
+    assert upload.status_code == 201
+    url = upload.json()["public_url"]
+
+    assert (await client.get(url)).status_code == 404
+    assert (
+        await client.get(url, headers={"Authorization": f"Bearer {stranger_token}"})
+    ).status_code == 404
+    owner = await client.get(url, headers={"Authorization": f"Bearer {owner_token}"})
+    granted = await client.get(url, headers={"Authorization": f"Bearer {grantee_token}"})
+    assert owner.status_code == granted.status_code == 200
+    assert owner.headers["cache-control"] == "private, no-store"
+
+    async with sessionmaker() as db:
+        grant = await db.scalar(select(AccessGrant).where(AccessGrant.stable_id == stable_id))
+        assert grant is not None
+        grant.state = "revoked"
+        await db.commit()
+    assert (
+        await client.get(url, headers={"Authorization": f"Bearer {grantee_token}"})
+    ).status_code == 404

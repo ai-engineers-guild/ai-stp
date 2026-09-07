@@ -3533,6 +3533,7 @@ export type PublicationPlanCreateRequest = {
    */
   stable_id: string;
   version: AiStpContractsPublicationVersion;
+  visibility?: PublicationVisibility;
 };
 
 /**
@@ -3574,8 +3575,14 @@ export type PublicationPlanResponse = {
   stable_id: string;
   state: PlanState;
   version: AiStpContractsPublicationVersion;
+  visibility: PublicationVisibility;
   [key: string]: unknown;
 };
+
+export const PublicationVisibility = { PUBLIC: "public", PRIVATE: "private" } as const;
+
+export type PublicationVisibility =
+  (typeof PublicationVisibility)[keyof typeof PublicationVisibility];
 
 /**
  * ReadinessChecks
@@ -9746,6 +9753,80 @@ export type BindPublicationArtifactResponses = {
 
 export type BindPublicationArtifactResponse =
   BindPublicationArtifactResponses[keyof BindPublicationArtifactResponses];
+
+export type BindPublicationProjectionArtifactData = {
+  body: Blob | File;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Publication plan identifier.
+     */
+    plan_id: string;
+    /**
+     * Declared projection artifact digest.
+     */
+    projection_digest: string;
+  };
+  query?: never;
+  url: "/v1/publications/plans/{plan_id}/artifacts/{projection_digest}";
+};
+
+export type BindPublicationProjectionArtifactErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type BindPublicationProjectionArtifactError =
+  BindPublicationProjectionArtifactErrors[keyof BindPublicationProjectionArtifactErrors];
+
+export type BindPublicationProjectionArtifactResponses = {
+  /**
+   * Bind one declared exact projection artifact to a publication plan.
+   */
+  200: PublicationPlanResponse;
+};
+
+export type BindPublicationProjectionArtifactResponse =
+  BindPublicationProjectionArtifactResponses[keyof BindPublicationProjectionArtifactResponses];
 
 export type ConfirmPublicationPlanData = {
   body: PublicationConfirmRequest;

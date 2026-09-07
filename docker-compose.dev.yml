@@ -6,7 +6,11 @@
 x-app-env: &app-env
   AI_STP_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@postgres:5432/ai_stp
   AI_STP_STORAGE_ENDPOINT: http://rustfs:9000
+  # Legacy source for the one-bucket storage migration; new writes use the
+  # explicit artifact and asset buckets below.
   AI_STP_STORAGE_BUCKET: ai-stp-dev
+  AI_STP_STORAGE_ARTIFACT_BUCKET: ai-stp-dev-artifacts
+  AI_STP_STORAGE_ASSET_BUCKET: ai-stp-dev-assets
   AI_STP_STORAGE_ACCESS_KEY_ID: ai_stp
   AI_STP_STORAGE_SECRET_ACCESS_KEY: ai_stp_dev
   AI_STP_STORAGE_REGION: us-east-1

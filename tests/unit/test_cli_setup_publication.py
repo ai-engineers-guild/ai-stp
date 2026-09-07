@@ -255,16 +255,20 @@ def _plan() -> Any:
     ).payload
 
 
-def test_distribution_planning_preserves_the_exact_immutable_setup_passport() -> None:
+def test_setup_is_private_by_default_and_publicization_is_explicit() -> None:
     _materialize()
 
     with closing(open_registry(configured_path(), create=False)) as connection:
-        public = setup_publication._setup_passport(connection, SETUP, SETUP_VERSION)
+        private = setup_publication._setup_passport(connection, SETUP, SETUP_VERSION)
+        public = setup_publication._setup_passport(
+            connection, SETUP, SETUP_VERSION, visibility="public"
+        )
         recorded = versions.held(connection, SETUP, SETUP_VERSION)
         assert recorded is not None
         stored = revisions.get(connection, recorded.revision_id)
 
-    assert public.visibility == "private"
+    assert private.visibility == "private"
+    assert public.visibility == "public"
     assert stored is not None
     assert stored.envelope.visibility == "private"
 

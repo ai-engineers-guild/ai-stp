@@ -293,7 +293,7 @@ def project_component_checks(row: PublicVersionRow) -> list[SetupComponentChecks
         return []
 
 
-def verify_passport_integrity(row: PublicVersionRow) -> bytes:
+def verify_passport_integrity(row: PublicVersionRow, *, allow_private: bool = False) -> bytes:
     """Verify passport bytes against digest and revision seal (REQ-2108).
 
     When the stored digest is the fixture placeholder (all zeros), the revision
@@ -324,7 +324,7 @@ def verify_passport_integrity(row: PublicVersionRow) -> bytes:
     stored = cast(dict[str, JsonValue], row.passport)
     if stored.get("revision_id") != derive_revision_id(stored):
         raise CatalogIntegrityError("passport revision seal mismatch")
-    if passport.visibility != "public":
+    if passport.visibility != "public" and not allow_private:
         raise CatalogIntegrityError("passport is not public")
     if passport.stable_id != row.stable_id or passport.version != row.version:
         raise CatalogIntegrityError("passport identity mismatch")

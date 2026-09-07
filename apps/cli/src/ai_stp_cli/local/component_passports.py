@@ -686,6 +686,29 @@ def materialize_version_passport(
     """Freeze a draft into one immutable adaptation snapshot and native CAS artifact."""
     current = _component_head(connection, stable_id)
     document = cast(dict[str, JsonValue], current.envelope.model_dump(mode="json"))
+    # Releasing an existing immutable version must preserve its complete
+    # adaptation graph. Rebuilding from flat draft facts would silently reduce
+    # a seven-harness passport to the one harness represented by those facts.
+    try:
+        complete = ComponentVersionPassport.model_validate(document)
+    except ValidationError:
+        complete = None
+    if complete is not None:
+        snapshot_document = cast(dict[str, JsonValue], complete.model_dump(mode="json"))
+        snapshot_document.pop("revision_id", None)
+        snapshot_document["version"] = version
+        snapshot_document["parent_revision_ids"] = []
+        normalized = ComponentVersionPassport.model_validate(
+            seal_envelope(snapshot_document).model_dump(mode="json")
+        ).model_dump(mode="json")
+        snapshot = revisions.store_snapshot(
+            connection, cast(dict[str, JsonValue], normalized), device_id=device_id
+        )
+        passport = ComponentVersionPassport.model_validate(
+            snapshot.envelope.model_dump(mode="json")
+        )
+        return passport, snapshot.revision_id
+
     values = declared_values(document)
     required = ("name", "description", "tags", "harness_id", "component_type", "projection_kind")
     missing = [name for name in required if values.get(name) is None]

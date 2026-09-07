@@ -96,6 +96,8 @@ def compute_plan_hash(
     policy_version: str,
     passport: dict[str, object],
     attestations: list[dict[str, object]],
+    artifact_inventory: list[str] | None = None,
+    visibility: str = "public",
 ) -> str:
     """Content hash of the immutable plan surface."""
     body = {
@@ -108,6 +110,8 @@ def compute_plan_hash(
         "policy_version": policy_version,
         "passport": passport,
         "attestations": attestations,
+        "artifact_inventory": artifact_inventory or [],
+        "visibility": visibility,
     }
     digest = hashlib.sha256(_canonical_json(body)).hexdigest()
     return f"plan_{digest}"
@@ -152,6 +156,7 @@ def validate_publication_passport(
     version: str,
     content_digest: str,
     owner_account_id: str | None = None,
+    expected_visibility: str = "public",
 ) -> tuple[ComponentVersionPassport | SetupVersionPassport | None, list[str]]:
     """Validate the exact immutable passport accepted by the public catalog."""
     model_type = ComponentVersionPassport if object_kind == "component" else SetupVersionPassport
@@ -168,7 +173,7 @@ def validate_publication_passport(
         invalid.append("stable_id")
     if model.version != version:
         invalid.append("version")
-    if model.visibility != "public":
+    if model.visibility != expected_visibility:
         invalid.append("visibility")
     if owner_account_id is not None and model.owner_id != owner_account_id:
         invalid.append("owner_id")
@@ -446,15 +451,29 @@ async def execute_validate(
             policy_ver = plan.policy_version or POLICY_VERSION
             passport_dict = dict(plan.passport or {})
             size = passport_artifact_size(passport_dict)
+            plan_visibility = getattr(plan, "visibility", "private")
+            legacy_public = (
+                plan_visibility == "public"
+                or passport_dict.get("visibility") == "public"
+                or "visibility" not in passport_dict
+            )
             source: ArtifactBytesSource | None = artifact_source
             if artifact_bytes is not None:
                 source = BytesArtifactBytesSource(artifact_bytes)
             elif source is None and object_store is not None:
-                source = StoreArtifactBytesSource(object_store)
+                source = StoreArtifactBytesSource(
+                    object_store,
+                    owner_account_id=plan.actor_account_id,
+                    allow_legacy_public=legacy_public,
+                )
             elif source is None:
                 owned_store = await open_env_object_store()
                 if owned_store is not None:
-                    source = StoreArtifactBytesSource(owned_store)
+                    source = StoreArtifactBytesSource(
+                        owned_store,
+                        owner_account_id=plan.actor_account_id,
+                        allow_legacy_public=legacy_public,
+                    )
 
             resolved_bytes: bytes | None = None
             fetch_failed = False
@@ -831,6 +850,10 @@ async def execute_publish(
     if plan is None:
         msg = f"unknown plan {plan_id}"
         raise ValueError(msg)
+    plan_visibility = getattr(plan, "visibility", "private")
+    if plan_visibility == "private" and plan.passport.get("visibility") == "public":
+        # Rows created before 0052 did not have a plan visibility column.
+        plan_visibility = "public"
     passport, invalid = validate_publication_passport(
         dict(plan.passport),
         object_kind=plan.object_kind,
@@ -838,6 +861,7 @@ async def execute_publish(
         version=plan.version,
         content_digest=plan.content_digest,
         owner_account_id=plan.actor_account_id,
+        expected_visibility=plan_visibility,
     )
     if passport is None:
         msg = f"publish passport failed integrity validation: {', '.join(invalid)}"
@@ -860,10 +884,18 @@ async def execute_publish(
         msg = "publish requires an available artifact object store"
         raise ValueError(msg)
     artifact_size = int(passport.artifact.size_bytes)
+    artifact_key = store.key_for_digest(plan.content_digest, owner_account_id=plan.actor_account_id)
     artifact_bytes = await store.read_by_digest(
         plan.content_digest,
         expected_size=artifact_size,
+        owner_account_id=plan.actor_account_id,
     )
+    if artifact_bytes is None and plan_visibility == "public":
+        artifact_key = store.key_for_digest(plan.content_digest)
+        artifact_bytes = await store.read_by_digest(
+            plan.content_digest,
+            expected_size=artifact_size,
+        )
     if artifact_bytes is None:
         msg = "publish requires durable verified artifact bytes"
         raise ValueError(msg)
@@ -932,7 +964,7 @@ async def execute_publish(
             session,
             definition_bytes=artifact_bytes,
             publisher_id=plan.actor_account_id,
-            public=True,
+            public=plan_visibility == "public",
             safety_profile=SafetyProfile.STANDARD,
             policy_version=plan.policy_version,
         )
@@ -972,7 +1004,7 @@ async def execute_publish(
         stable_id=plan.stable_id,
         version=plan.version,
         current_revision_id=passport.revision_id,
-        visibility="public",
+        visibility=plan_visibility,
         lifecycle_state="active",
         name=str(name) if name is not None else None,
         published_at=datetime.now(UTC),
@@ -1008,7 +1040,9 @@ async def execute_publish(
         ObjectLocation(
             catalog_metadata_id=metadata.id,
             purpose="artifact",
-            object_key=store.key_for_digest(plan.content_digest),
+            bucket=store.bucket,
+            owner_account_id=plan.actor_account_id,
+            object_key=artifact_key,
             digest=plan.content_digest,
             content_id=plan.content_digest,
             size_bytes=artifact_size,
@@ -1298,6 +1332,8 @@ def plan_to_wire(
         "stable_id": plan.stable_id,
         "version": plan.version,
         "content_digest": plan.content_digest,
+        "artifact_inventory": list(getattr(plan, "artifact_inventory", []) or []),
+        "visibility": getattr(plan, "visibility", "private"),
         "policy_version": plan.policy_version,
         "actor_id": plan.actor_account_id,
         "device_id": plan.device_id,

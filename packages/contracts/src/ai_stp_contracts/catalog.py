@@ -67,6 +67,7 @@ from ai_stp_contracts.impact import (
     TokenEstimator,
 )
 from ai_stp_contracts.safety_checks import SafetyChecksSummary, SetupComponentChecks
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
@@ -372,6 +373,26 @@ class CatalogTrust(BaseModel):
             raise ValueError(
                 "trust_lane 'authoritative' requires author_verified and component_verified"
             )
+        return self
+
+
+class PrivateVersionResponse(BaseModel):
+    """Exact private version metadata after owner/grant authorization."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    passport: dict[str, JsonValue]
+    passport_digest: PassportDigest
+    lifecycle: Literal["active", "deprecated"]
+    trust: CatalogTrust
+    published_at: Timestamp
+    visibility: Literal["private"] = "private"
+
+    @model_validator(mode="after")
+    def _passport_is_private(self) -> "PrivateVersionResponse":
+        if self.passport.get("visibility") != "private":
+            raise ValueError("the private catalog cannot represent a public passport")
         return self
 
 

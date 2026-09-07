@@ -39,6 +39,7 @@ import {
   Star,
   Pencil,
   Play,
+  Plus,
   type LucideIcon,
   type LucideProps,
   Moon,
@@ -90,6 +91,7 @@ export type IconName =
   | "download"
   | "edit"
   | "play"
+  | "plus"
   | "logout"
   | "objects"
   | "devices"
@@ -143,6 +145,7 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   download: Download,
   edit: Pencil,
   play: Play,
+  plus: Plus,
   logout: LogOut,
   objects: Boxes,
   devices: Monitor,
