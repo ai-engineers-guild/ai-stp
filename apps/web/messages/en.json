@@ -413,7 +413,10 @@
         "name": "pip-audit",
         "description": "Audits pinned Python requirements offline when a lock file exists."
       },
-      "sast_gosec": { "name": "gosec", "description": "Runs gosec on Go sources." },
+      "sast_gosec": {
+        "name": "gosec",
+        "description": "Runs gosec on Go sources."
+      },
       "sca_govulncheck": {
         "name": "govulncheck",
         "description": "Checks Go modules for known vulnerabilities."
@@ -496,7 +499,12 @@
     "technicalDetails": "Technical details",
     "versionHistory": "Version history",
     "currentVersion": "Current",
-    "seoDescription": "Catalog of AI setups and components: skills, MCP servers, hooks, subagents. Checks, agent install, and maintenance across an organization."
+    "seoDescription": "Catalog of AI setups and components: skills, MCP servers, hooks, subagents. Checks, agent install, and maintenance across an organization.",
+    "contextBudgetArtifactCorrupt": "The stored artifact did not pass its integrity check.",
+    "contextBudgetInvalidGraph": "The exact component graph cannot be verified.",
+    "contextBudgetDependencyFailure": "Artifact storage or the API is unavailable. Try again.",
+    "contextBudgetNonUtf8": "This artifact is not UTF-8 text.",
+    "contextBudgetAdaptationRequired": "A target-specific estimate is required for this version with multiple adaptations."
   },
   "publisher": {
     "title": "Publisher",

@@ -1,3 +1,8 @@
+import { loadContextBudget } from "@/lib/context-budget";
+import {
+  ComponentContextBudgetPanel,
+  contextBudgetLabels,
+} from "@/components/organisms/context-budget-panel";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -13,7 +18,11 @@ import {
   safetyChecksLabels,
 } from "@/components/molecules/safety-checks-summary";
 import { SupportSummary, supportLabels } from "@/components/molecules/support-summary";
-import { readComponentGithubMetadata, readComponentVersion } from "@/lib/api/catalog";
+import {
+  readComponentContextBudget,
+  readComponentGithubMetadata,
+  readComponentVersion,
+} from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsComponentId } from "@/lib/brands";
 import {
@@ -63,6 +72,9 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   const tc = await getTranslations("common");
   const tCli = await getTranslations("cli");
 
+  const { budget, failure } = await loadContextBudget(
+    readComponentContextBudget(componentId, asVersionId(version)),
+  );
   const passport = response.passport;
   const harnesses = namedPassportHarnesses(passport);
   const supportedOperatingSystems = namedOperatingSystems(passport);
@@ -105,6 +117,11 @@ export default async function ComponentVersionPage({ params }: PageProps) {
           </Badge>
         ))}
       </div>
+      <ComponentContextBudgetPanel
+        budget={budget}
+        failure={failure}
+        labels={contextBudgetLabels(t, tCli)}
+      />
       <dl className="grid gap-3 sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground text-sm">{t("lifecycle")}</dt>

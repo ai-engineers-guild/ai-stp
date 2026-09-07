@@ -81,13 +81,22 @@ only where they are not explicitly superseded by this specification.
   validates the exact graph/digests, counts `instruction` as always-loaded,
   `skill`, `agent`, and `command` as conditionally-loaded, distinguishes exact
   UTF-8 bytes from estimated Unicode codepoints/4, and does not treat
-  unreadable/missing bytes as zero.
+  unreadable/missing bytes as zero. Historical passports are checked against
+  their stored canonical bytes and revision seal; parsing a current model never
+  changes the digest being verified. CLI and platform use the same canonical
+  component-artifact decoder so ZIP manifests and imported envelope metadata do
+  not become context text.
 
 - `REQ-4908`: An exact setup context estimate is publicly available only for a
   public version, while a private version is available only to its owner. The
   response contains the coordinate, estimator, always/conditional/total,
   unavailable-component count, and a breakdown by component, but not artifact
-  bytes, the account inventory, local selection, or installation.
+  bytes, the account inventory, local selection, or installation. Missing or
+  corrupt artifacts return `unavailable` with a stable reason; a failed storage
+  dependency returns a typed dependency error. `ready` requires the setup's own
+  artifact and all tokenized members to be available. Existing numeric aggregates
+  under `unavailable` describe only known members and must not be displayed or used
+  as a complete total.
 
 - `REQ-4909`: The setup card shows the context estimate to everyone who can view
   the exact version. The panel resides in the right rail, not the left/main
@@ -97,7 +106,8 @@ only where they are not explicitly superseded by this specification.
   total; the always/conditional breakdown, component contributions, and cost
   estimate open in the first disclosure. The estimator profile is not shown by
   default. The unavailable state is explicit; the interface states directly
-  that this is an estimate of potential context, not actual model usage.
+  that this is an estimate of potential context, not actual model usage. The
+  unavailable/invalid-graph/dependency states do not show a numeric total.
 
 - `REQ-4910`: The cost calculator runs only in the browser using the formula
   `total * input_per_million / 1_000_000`, does not persist input, and does not
@@ -181,3 +191,8 @@ only where they are not explicitly superseded by this specification.
 | `REQ-4912` | Policy test/agent review verifies global/effective identity parity and prohibits hardcoding/overrides; signing behavior is inherited unchanged. |
 | `REQ-4913` | API tests cover a textual component, a runtime-derived MCP state, and an embedded setup component resolved from setup-definition bytes; Web shows the component estimate or the explicit reason. |
 | `REQ-4914` | Web component tests cover the two-value context panel and catalog-like setup composition; pagination tests cover the setup-to-component boundary and one combined navigator. |
+
+Context reads use the persisted exact-version artifact location after visibility
+checks. A historical object under another storage prefix remains readable;
+missing or conflicting locations cannot produce a numeric estimate. Embedded
+setup-definition integrity failures return the existing typed validation error.

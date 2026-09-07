@@ -1,3 +1,4 @@
+import { loadContextBudget } from "@/lib/context-budget";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -133,8 +134,8 @@ export default async function SetupDetailPage({ params }: PageProps) {
     setupId,
     asVersionId(summary.latest_version),
   ).catch(() => ({ schema_version: 1 as const, stars: null, archived: null }));
-  const budget = await readSetupContextBudget(setupId, asVersionId(summary.latest_version)).catch(
-    () => null,
+  const { budget, failure: budgetFailure } = await loadContextBudget(
+    readSetupContextBudget(setupId, asVersionId(summary.latest_version)),
   );
   const cliCommand = registryVersion("setup", summary.stable_id, summary.latest_version);
   const canonical = buildDeepLink(
@@ -275,7 +276,11 @@ export default async function SetupDetailPage({ params }: PageProps) {
                 downloadsLabel={t("artifactDownloads")}
               />
             </div>
-            <ContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
+            <ContextBudgetPanel
+              budget={budget}
+              failure={budgetFailure}
+              labels={contextBudgetLabels(t, tCli)}
+            />
             <CliCopyBlock
               command={cliCommand}
               title={tCli("useTitle")}

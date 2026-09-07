@@ -54,6 +54,7 @@ const setupBudget: SetupContextBudget = {
   total_tokens: 1000,
   unavailable_components: 0,
   status: "ready",
+  reason: null,
   components: [],
 };
 
@@ -66,6 +67,27 @@ describe("ContextBudgetPanel", () => {
     expect(screen.getByText("Potential total").parentElement).toHaveTextContent(/1[\s,]?000/);
     expect(screen.getByText("Loaded when used").parentElement).toHaveTextContent("750");
     expect(screen.queryByText("Always loaded")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("hides partial totals and costs when an exact member is unavailable", async () => {
+    const user = userEvent.setup();
+    render(
+      <ContextBudgetPanel
+        budget={{
+          ...setupBudget,
+          status: "unavailable",
+          unavailable_components: 1,
+          reason: "artifact_corrupt",
+        }}
+        labels={{ ...labels, artifactCorrupt: "Artifact verification failed" }}
+      />,
+    );
+    expect(screen.getByText("Artifact verification failed")).toBeVisible();
+    expect(screen.getByText("Potential context")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Context budget/ }));
+    expect(screen.queryByText("Potential total")).not.toBeInTheDocument();
+    expect(screen.queryByText(/1,?000 tokens/)).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 

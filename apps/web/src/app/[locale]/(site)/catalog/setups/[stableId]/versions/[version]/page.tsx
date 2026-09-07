@@ -1,3 +1,4 @@
+import { loadContextBudget } from "@/lib/context-budget";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -64,7 +65,9 @@ export default async function SetupVersionPage({ params }: PageProps) {
     stars: null,
     archived: null,
   }));
-  const budget = await readSetupContextBudget(setupId, asVersionId(version)).catch(() => null);
+  const { budget, failure: budgetFailure } = await loadContextBudget(
+    readSetupContextBudget(setupId, asVersionId(version)),
+  );
   const canonical = buildDeepLink(
     publicOrigin().origin,
     normalizeTarget({
@@ -146,7 +149,11 @@ export default async function SetupVersionPage({ params }: PageProps) {
       {metadata.archived === true ? (
         <p className="text-sm font-medium">{t("githubArchived")}</p>
       ) : null}
-      <ContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
+      <ContextBudgetPanel
+        budget={budget}
+        failure={budgetFailure}
+        labels={contextBudgetLabels(t, tCli)}
+      />
       <SetupComposition
         passport={passport}
         components={response.component_checks}

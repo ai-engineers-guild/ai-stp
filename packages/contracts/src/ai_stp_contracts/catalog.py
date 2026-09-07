@@ -833,6 +833,7 @@ class SetupContextBudget(BaseModel):
     unavailable_components: Annotated[int, Field(ge=0)]
     status: Literal["ready", "unavailable", "invalid_graph"]
     components: list[ComponentTokenMeasurement]
+    reason: str | None = None
 
 
 class ComponentContextBudget(BaseModel):

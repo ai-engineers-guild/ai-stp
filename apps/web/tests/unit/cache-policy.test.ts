@@ -37,6 +37,11 @@ describe("public catalog cache policy", () => {
         "/v1/catalog/setups/setup_01JQZK7B8N4M6P2R9T5V0X3Y70/versions/1.0/context-budget",
       ),
     ).toBe(true);
+    expect(
+      isPublicCatalogGetPath(
+        "/v1/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y70/versions/1.0/context-budget",
+      ),
+    ).toBe(true);
     expect(isPublicCatalogGetPath("/v1/catalog/setups")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/publishers/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z")).toBe(true);
     expect(

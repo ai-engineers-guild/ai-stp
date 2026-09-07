@@ -1,3 +1,4 @@
+import { loadContextBudget } from "@/lib/context-budget";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -103,10 +104,9 @@ export default async function ComponentDetailPage({ params }: PageProps) {
     componentId,
     asVersionId(summary.latest_version),
   ).catch(() => ({ schema_version: 1 as const, stars: null, archived: null }));
-  const budget = await readComponentContextBudget(
-    componentId,
-    asVersionId(summary.latest_version),
-  ).catch(() => null);
+  const { budget, failure: budgetFailure } = await loadContextBudget(
+    readComponentContextBudget(componentId, asVersionId(summary.latest_version)),
+  );
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=component&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
     : undefined;
@@ -266,7 +266,11 @@ export default async function ComponentDetailPage({ params }: PageProps) {
                 downloadsLabel={t("artifactDownloads")}
               />
             </div>
-            <ComponentContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
+            <ComponentContextBudgetPanel
+              budget={budget}
+              failure={budgetFailure}
+              labels={contextBudgetLabels(t, tCli)}
+            />
             <CliCopyBlock
               command={cliCommand}
               title={tCli("useTitle")}

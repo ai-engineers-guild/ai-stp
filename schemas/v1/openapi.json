@@ -7811,6 +7811,18 @@
           "estimator": {
             "$ref": "#/components/schemas/TokenEstimator"
           },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -7843,6 +7855,7 @@
           "conditional_tokens",
           "coordinate",
           "estimator",
+          "reason",
           "schema_version",
           "status",
           "total_tokens",
@@ -15531,6 +15544,7 @@
                         "profile": "ai-stp:utf8-bytes/1",
                         "schema_version": 1
                       },
+                      "reason": null,
                       "schema_version": 1,
                       "status": "ready",
                       "total_tokens": 0,

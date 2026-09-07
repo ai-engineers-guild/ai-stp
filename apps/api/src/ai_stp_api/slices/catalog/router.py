@@ -37,6 +37,7 @@ from ai_stp_platform.catalog_usage import (
     record_usage,
 )
 from ai_stp_platform.selection_impact import (
+    SelectionDependency,
     SelectionInvalid,
     SelectionNotFound,
     component_context_budget,
@@ -757,6 +758,8 @@ async def read_setup_context_budget(
         )
     except SelectionNotFound as exc:
         raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
+    except SelectionDependency as exc:
+        raise ApiError(ErrorCategory.DEPENDENCY, "artifact storage is unavailable") from exc
     except SelectionInvalid as exc:
         raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
     return _resource(request, result)
@@ -794,6 +797,8 @@ async def read_component_context_budget(
         )
     except SelectionNotFound as exc:
         raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
+    except SelectionDependency as exc:
+        raise ApiError(ErrorCategory.DEPENDENCY, "artifact storage is unavailable") from exc
     except SelectionInvalid as exc:
         raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
     return _resource(request, result)

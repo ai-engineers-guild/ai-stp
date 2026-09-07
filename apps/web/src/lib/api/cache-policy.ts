@@ -16,6 +16,7 @@ const PUBLIC_GET_PATHS: readonly RegExp[] = [
   /^\/v1\/catalog\/components\/[^/?]+$/,
   /^\/v1\/catalog\/components\/[^/?]+\/versions\/[^/?]+$/,
   /^\/v1\/catalog\/components\/[^/?]+\/versions\/[^/?]+\/github-metadata$/,
+  /^\/v1\/catalog\/components\/[^/?]+\/versions\/[^/?]+\/context-budget$/,
   /^\/v1\/catalog\/setups$/,
   /^\/v1\/catalog\/setups\/[^/?]+$/,
   /^\/v1\/catalog\/setups\/[^/?]+\/versions\/[^/?]+$/,

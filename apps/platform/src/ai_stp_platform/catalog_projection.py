@@ -304,7 +304,7 @@ def verify_passport_integrity(row: PublicVersionRow) -> bytes:
     model = ComponentVersionPassport if row.object_kind == "component" else SetupVersionPassport
     try:
         passport = (
-            _component_passport(row.passport)
+            read_component_passport(row.passport)
             if row.object_kind == "component"
             else model.model_validate(row.passport)
         )
@@ -324,7 +324,7 @@ def verify_passport_integrity(row: PublicVersionRow) -> bytes:
     return payload
 
 
-def _component_passport(passport: dict[str, JsonValue]) -> ComponentVersionPassport:
+def read_component_passport(passport: dict[str, JsonValue]) -> ComponentVersionPassport:
     """Read old flat component passports without changing their stored bytes."""
     if "adaptations" in passport:
         return ComponentVersionPassport.model_validate(passport)
@@ -405,7 +405,7 @@ def _component_passport(passport: dict[str, JsonValue]) -> ComponentVersionPassp
 def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> ComponentSummary:
     """Card projection: latest_* fields from the version passport (REQ-2103)."""
     verify_passport_integrity(row)
-    passport = _component_passport(row.passport)
+    passport = read_component_passport(row.passport)
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
@@ -522,7 +522,7 @@ def version_list_entry(row: PublicVersionRow, *, now: datetime | None = None) ->
         ComponentVersionPassport if row.object_kind == "component" else SetupVersionPassport
     )
     passport = (
-        _component_passport(row.passport)
+        read_component_passport(row.passport)
         if row.object_kind == "component"
         else passport_model.model_validate(row.passport)
     )
@@ -567,7 +567,7 @@ def component_version_response(
     row: PublicVersionRow, *, now: datetime | None = None
 ) -> ComponentVersionResponse:
     verify_passport_integrity(row)
-    passport = _component_passport(row.passport)
+    passport = read_component_passport(row.passport)
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )

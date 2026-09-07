@@ -359,3 +359,21 @@ def test_secret_file_and_absolute_path_fail_closed() -> None:
     with pytest.raises(SourceError) as invalid:
         _freeze(embedded=(_draft(absolute, stable_id=PATH_ID),))
     assert invalid.value.code == INVALID_SOURCE
+
+
+@pytest.mark.parametrize("field", ["stable_id", "version"])
+def test_embedded_reference_must_match_its_passport_identity(field: str) -> None:
+    frozen = _freeze(embedded=(_draft(_path_snapshot(), stable_id=PATH_ID),))
+    document = from_json_bytes(frozen.payload)
+    assert isinstance(document, dict)
+    record = cast(dict[str, JsonValue], cast(list[JsonValue], document["embedded"])[0])
+    ref = cast(dict[str, JsonValue], record["ref"])
+    if field == "stable_id":
+        assert ref[field] != CATALOG_ID
+        ref[field] = CATALOG_ID
+    else:
+        major, minor = str(ref[field]).split(".")
+        ref[field] = f"{major}.{int(minor) + 1}"
+    with pytest.raises(SourceError) as mismatch:
+        validate_setup_definition(canonize(document))
+    assert mismatch.value.code == INTEGRITY_MISMATCH

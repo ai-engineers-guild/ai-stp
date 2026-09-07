@@ -4089,6 +4089,10 @@ export type SetupContextBudget = {
   coordinate: ExactCoordinate;
   estimator: TokenEstimator;
   /**
+   * Reason
+   */
+  reason: string | null;
+  /**
    * Schema Version
    */
   schema_version: 1;
