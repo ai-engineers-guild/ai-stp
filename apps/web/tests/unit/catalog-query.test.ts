@@ -83,10 +83,7 @@ describe("parseCatalogSearchParams", () => {
     });
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) {
-      expect(parsed.invalidSupport).toEqual([
-        "verification=maybe",
-        "min_safety_percent=80",
-      ]);
+      expect(parsed.invalidSupport).toEqual(["verification=maybe", "min_safety_percent=80"]);
     }
   });
 

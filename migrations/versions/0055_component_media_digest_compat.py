@@ -25,8 +25,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    columns = {
-        column["name"] for column in sa.inspect(op.get_bind()).get_columns("component_media")
-    }
-    if "content_digest" in columns:
-        op.drop_column("component_media", "content_digest")
+    # Migration 0052 owns this column. This compatibility repair cannot know
+    # whether it added the column, so 0052 must remain responsible for removal.
+    pass
