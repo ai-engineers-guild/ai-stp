@@ -15,7 +15,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Collection, Iterator
 from contextlib import closing
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -90,12 +90,15 @@ class _Platform:
 class _Detail:
     def __init__(self, stable_id: str, version: str) -> None:
         with closing(open_registry(configured_path())) as connection:
-            passport = (
-                setup_publication._setup_passport(connection, stable_id, version)
-                if stable_id.startswith("setup_")
-                else component_passports.version_passport(connection, stable_id, version)
-            )
-        self.passport = passport.model_dump(mode="json")
+            if stable_id.startswith("setup_"):
+                passport = setup_publication._setup_passport(
+                    connection, stable_id, version
+                ).model_dump(mode="json")
+            else:
+                passport = setup_publication._passport_document(
+                    stable_id, version, visibility="public"
+                )
+        self.passport = cast(dict[str, JsonValue], passport)
         self.passport_digest = digest_canonical("ai-stp:passport:v1", self.passport)
         self.source = "online"
         self.distribution_visibility = "public"

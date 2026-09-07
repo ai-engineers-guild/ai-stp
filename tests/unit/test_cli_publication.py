@@ -35,6 +35,7 @@ def _response(state: str = "ready") -> dict[str, object]:
         "stable_id": STABLE,
         "version": "1.0",
         "content_digest": DIGEST,
+        "visibility": "private",
         "policy_version": "1",
         "actor_id": ACCOUNT,
         "device_id": DEVICE,
