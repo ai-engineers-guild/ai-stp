@@ -10,10 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.deps import get_db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.media_upload import read_media_upload
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.owner import service
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.owner import (
+    COMPONENT_MEDIA_MAX_BYTES,
     OwnerExternalProductAttachRequest,
     OwnerLifecycleRequest,
     OwnerPresentationUpdateRequest,
@@ -109,23 +111,7 @@ async def upload_component_presentation_media(
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Upload author image/video for the mutable component gallery (SPEC-035)."""
-    content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
-    payload: bytes
-    if content_type.startswith("multipart/"):
-        form = await request.form()
-        upload = form.get("file")
-        if upload is None or not hasattr(upload, "read"):
-            raise ApiError(ErrorCategory.VALIDATION, "file required")
-        raw = await upload.read()  # type: ignore[misc]
-        if not isinstance(raw, (bytes, bytearray)):
-            raise ApiError(ErrorCategory.VALIDATION, "file required")
-        payload = bytes(raw)
-        content_type = str(getattr(upload, "content_type", None) or "application/octet-stream")
-        content_type = content_type.split(";")[0].strip().lower()
-    else:
-        payload = await request.body()
-    if not content_type:
-        raise ApiError(ErrorCategory.VALIDATION, "content-type required")
+    payload, content_type = await read_media_upload(request, max_bytes=COMPONENT_MEDIA_MAX_BYTES)
     body = await service.upload_owner_component_media(
         db,
         _avatar_store(request),

@@ -1,5 +1,9 @@
 "use server";
 
+import { assertCsrf, readCsrfToken } from "@/lib/auth/session";
+import { sessionCookieValue } from "@/lib/auth/require-session";
+
+import { ApiError, type ApiErrorCode } from "./errors";
 import { apiRequest } from "@/lib/api/http";
 import { publicApiGet } from "@/lib/api/public-http";
 import type { AccountId } from "@/lib/brands";
@@ -59,12 +63,19 @@ export type OwnerPreview = {
   projection: PublicProfileProjection;
 };
 
+async function profileMutationSession(csrfToken: string): Promise<string> {
+  assertCsrf(csrfToken, await readCsrfToken());
+  const token = await sessionCookieValue();
+  if (!token) throw new Error("not signed in");
+  return token;
+}
+
 export async function readOwnerPublicProfile(sessionToken: string): Promise<OwnerPublicProfile> {
   return apiRequest<OwnerPublicProfile>("/v1/account/public-profile", { sessionToken });
 }
 
 export async function saveOwnerPublicProfileDraft(
-  sessionToken: string,
+  csrfToken: string,
   body: {
     display_name: string | null;
     bio: string | null;
@@ -73,6 +84,7 @@ export async function saveOwnerPublicProfileDraft(
   },
   ifMatch?: string | null,
 ): Promise<OwnerPublicProfile> {
+  const sessionToken = await profileMutationSession(csrfToken);
   const options: {
     method: "PUT";
     sessionToken: string;
@@ -90,9 +102,10 @@ export async function saveOwnerPublicProfileDraft(
 }
 
 export async function publishOwnerPublicProfile(
-  sessionToken: string,
+  csrfToken: string,
   contentDigest: string,
 ): Promise<{ operation_id: string; published: boolean }> {
+  const sessionToken = await profileMutationSession(csrfToken);
   const idempotencyKey = crypto.randomUUID();
   return apiRequest("/v1/account/public-profile/publish", {
     method: "POST",
@@ -107,10 +120,11 @@ export async function previewOwnerPublicProfile(sessionToken: string): Promise<O
 }
 
 export async function registerAvatarUpload(
-  sessionToken: string,
+  csrfToken: string,
   file: File | Blob,
   contentType: string,
-): Promise<{ avatar_asset_id: string; public_url: string | null; object_key?: string }> {
+): Promise<{ avatar_asset_id: string; public_url: string | null }> {
+  const sessionToken = await profileMutationSession(csrfToken);
   // Binary body goes through raw fetch so we can set Content-Type image/* (not JSON).
   const { apiRequestBinary } = await import("@/lib/api/http");
   return apiRequestBinary("/v1/account/public-profile/avatar", {
@@ -122,14 +136,29 @@ export async function registerAvatarUpload(
 }
 
 export async function importAvatarFromIdentity(
-  sessionToken: string,
+  csrfToken: string,
   provider: "github" | "google",
-): Promise<{ avatar_asset_id: string; public_url: string | null }> {
-  return apiRequest("/v1/account/public-profile/avatar/from-identity", {
-    method: "POST",
-    sessionToken,
-    body: { provider },
-  });
+): Promise<
+  | { ok: true; avatar: { avatar_asset_id: string; public_url: string | null } }
+  | { ok: false; code: ApiErrorCode; message: string; status: number }
+> {
+  try {
+    const sessionToken = await profileMutationSession(csrfToken);
+    const avatar = await apiRequest<{ avatar_asset_id: string; public_url: string | null }>(
+      "/v1/account/public-profile/avatar/from-identity",
+      { method: "POST", sessionToken, body: { provider } },
+    );
+    return { ok: true, avatar };
+  } catch (error) {
+    return error instanceof ApiError
+      ? { ok: false, code: error.code, message: error.message, status: error.status }
+      : {
+          ok: false,
+          code: "AI_STP_UNAUTHORIZED",
+          message: "Reload the page and sign in again.",
+          status: 401,
+        };
+  }
 }
 
 export async function readPublisherProfile(accountId: AccountId): Promise<PublicProfileProjection> {

@@ -24,6 +24,18 @@ fails the installation. Retry behavior follows the
 
 Each entry below is a sign-off for adding to `apps/api/pyproject.toml` and the root `uv.lock`. The exact version is fixed by the lock file during `uv lock` / `uv sync`.
 
+### Pillow
+
+`apps/api` owns Pillow for the SPEC-028 avatar decoder, orientation, bounded resize
+and metadata removal. The exact version is locked in `uv.lock` (minimum 12.3.0).
+Upstream is [python-pillow/Pillow](https://github.com/python-pillow/Pillow), with
+HPND licensing and maintained Linux/macOS/Windows wheels. The decoder accepts
+only JPEG/PNG/WebP after byte and pixel bounds; failures are typed validation
+errors, and processing runs off the event loop. Image round-trip, metadata,
+malformed-input and limit regressions cover this dependency. Platform maintainers
+own advisory updates. Removing avatar normalization or replacing its tested
+codec boundary removes Pillow from the API dependency graph; the CLI does not depend on it.
+
 ### authlib
 
 | Field | Value |

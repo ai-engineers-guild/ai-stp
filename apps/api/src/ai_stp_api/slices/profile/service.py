@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import ipaddress
+import asyncio
 import secrets
 from typing import Any, cast
-from urllib.parse import urlparse
 
 import httpx
 from pydantic import ValidationError
@@ -13,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.slices.profile.avatar import fetch_provider_avatar, normalize_avatar
 from ai_stp_contracts.public_profile import (
     LINKS_MAX,
     ProfileFields,
@@ -22,6 +22,7 @@ from ai_stp_contracts.public_profile import (
     public_projection,
     validate_avatar_upload,
 )
+from ai_stp_foundation.digests import digest_bytes
 from ai_stp_platform.models import (
     AccountAuthorVerification,
     AvatarAsset,
@@ -30,6 +31,7 @@ from ai_stp_platform.models import (
     PublicProfile,
 )
 from ai_stp_platform.storage.avatar_store import AvatarObjectStore
+from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
 
 
 def _new_id(prefix: str) -> str:
@@ -315,6 +317,9 @@ async def create_avatar_from_bytes(
     if not payload:
         raise ApiError(ErrorCategory.VALIDATION, "empty avatar payload")
 
+    payload = await asyncio.to_thread(normalize_avatar, payload, content_type)
+    content_type = "image/png"
+
     asset_id = _new_id("avatar")
     asset = AvatarAsset(
         id=asset_id,
@@ -352,27 +357,9 @@ async def create_avatar_from_bytes(
         "avatar_asset_id": asset_id,
         "state": asset.state,
         "public_url": asset.public_url,
-        "object_key": asset.object_key,
         "content_digest": asset.content_digest,
         "size_bytes": asset.size_bytes,
     }
-
-
-def _reject_ssrf_url(url: str) -> None:
-    parsed = urlparse(url)
-    if parsed.scheme != "https":
-        raise ApiError(ErrorCategory.VALIDATION, "avatar source must be https")
-    host = parsed.hostname or ""
-    if not host or host.lower() in {"localhost", "metadata.google.internal"}:
-        raise ApiError(ErrorCategory.VALIDATION, "avatar source host not allowed")
-    try:
-        ip = ipaddress.ip_address(host)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
-            raise ApiError(ErrorCategory.VALIDATION, "avatar source host not allowed")
-    except ValueError:
-        # Hostname not an IP literal — DNS is resolved by httpx; still block obvious local names.
-        if host.endswith(".local") or host.endswith(".internal"):
-            raise ApiError(ErrorCategory.VALIDATION, "avatar source host not allowed") from None
 
 
 async def create_avatar_from_identity(
@@ -403,21 +390,10 @@ async def create_avatar_from_identity(
             ErrorCategory.VALIDATION,
             f"linked {provider} identity has no avatar URL; re-link the identity",
         )
-    source_url = identity.avatar_url
-    _reject_ssrf_url(source_url)
-
-    client = http_client or httpx.AsyncClient(timeout=10.0, follow_redirects=True, max_redirects=3)
+    client = http_client or httpx.AsyncClient(timeout=10.0, follow_redirects=False)
     owns_client = http_client is None
     try:
-        response = await client.get(source_url)
-        if response.status_code >= 400:
-            raise ApiError(ErrorCategory.DEPENDENCY, "avatar source fetch failed")
-        content_type = response.headers.get("content-type", "image/jpeg").split(";")[0].strip()
-        payload = response.content
-    except ApiError:
-        raise
-    except Exception as exc:
-        raise ApiError(ErrorCategory.DEPENDENCY, "avatar source fetch failed") from exc
+        payload, content_type = await fetch_provider_avatar(client, identity.avatar_url, provider)
     finally:
         if owns_client:
             await client.aclose()
@@ -464,7 +440,14 @@ async def read_avatar_bytes(
     asset = await db.get(AvatarAsset, asset_id)
     if asset is None or asset.state != "ready" or not asset.object_key:
         return None
-    body = await store.read_bytes(object_key=asset.object_key)
-    if body is None:
-        return None
+    try:
+        body = await store.read_bytes(object_key=asset.object_key)
+    except Exception as exc:
+        raise ApiError(ErrorCategory.DEPENDENCY, "avatar storage unavailable") from exc
+    if (
+        body is None
+        or len(body) != asset.size_bytes
+        or digest_bytes(ARTIFACT_DIGEST_DOMAIN, body) != asset.content_digest
+    ):
+        raise ApiError(ErrorCategory.DEPENDENCY, "avatar stored bytes are unavailable or invalid")
     return body, asset.content_type

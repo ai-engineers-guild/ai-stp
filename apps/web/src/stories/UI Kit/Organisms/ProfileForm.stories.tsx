@@ -6,6 +6,18 @@ const initial = {
   schema_version: 1,
   account_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
   state: "draft",
+  editable: {
+    source: "draft" as const,
+    base_revision_id: "prevision_story",
+    base_content_digest: "sha256:story",
+    fields: {
+      display_name: "Story Author",
+      bio: "Short bio",
+      links: [{ label: "GitHub", url: "https://github.com/example" }],
+      avatar_asset_id: null,
+    },
+    avatar_url: null,
+  },
   draft: {
     revision_id: "prevision_story",
     content_digest: "sha256:story",
@@ -26,7 +38,7 @@ const meta = {
   tags: ["autodocs"],
   args: {
     initial,
-    sessionToken: "mock-session",
+    csrfToken: "mock-session",
   },
   parameters: {
     docs: {
