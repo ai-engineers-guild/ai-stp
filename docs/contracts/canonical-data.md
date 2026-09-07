@@ -51,6 +51,7 @@ ai-stp:passport:v1
 ai-stp:revision:v1
 ai-stp:plan:v1
 ai-stp:standard-inventory:v1
+ai-stp:schema-body:v1
 ai-stp:scaffold-plan:v1
 ai-stp:setup-scaffold-plan:v1
 ai-stp:setup-export:v1

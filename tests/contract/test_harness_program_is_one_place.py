@@ -25,9 +25,10 @@ from ai_stp_contracts.schemas import CLI_MODELS
 #: configuration and `--prefix` holds the program. A model that names a prefix
 #: is therefore talking about the program, and every one of them has to belong
 #: to this family. A third place reporting program state needs a prefix to say
-#: which one, so this set is where it would show up.
+#: which one, so this set is where it would show up. Catalog `cli` components
+#: share the same noun under a different subject: one executable, not a harness.
 _PROGRAM_FAMILY: Final[frozenset[str]] = frozenset(
-    {"cli-harness-program", "cli-harness-program-status"}
+    {"cli-harness-program", "cli-harness-program-status", "cli-component-program"}
 )
 
 

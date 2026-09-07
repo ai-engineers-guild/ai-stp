@@ -55,6 +55,17 @@ def test_the_canonical_skill_names_only_commands_that_exist() -> None:
             _command_for(invocation)
 
 
+def test_bootstrap_asks_which_project_directories_to_index() -> None:
+    text = (PACKAGE / "references" / "bootstrap.md").read_text(encoding="utf-8")
+    assert "project discover" in text
+    assert "project index" in text
+    assert "component inventory" in text
+    assert "component adopt" in text
+    assert "home directory" in text
+    assert "already named" in text
+    assert "Do not ask again" in text
+
+
 def test_the_canonical_skill_starts_from_doctor_and_machine_help() -> None:
     # `#77` fixes the opening move: look at the installation, then read the
     # registry. Anything else would be the Skill guessing.

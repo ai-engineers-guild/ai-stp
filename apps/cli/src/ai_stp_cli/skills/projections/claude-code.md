@@ -44,7 +44,7 @@ stops in `references/decisions.md`. Uncertainty is research, not a pause.
 
 | User intent | Open |
 |---|---|
-| first run, “is it installed?”, version | bootstrap |
+| first run, “is it installed?”, version, which projects to index | bootstrap |
 | local config, developer or device passport | onboard |
 | sign in, logout, grants, sync, complain | account |
 | what harnesses, projects, components, targets exist | inspect |

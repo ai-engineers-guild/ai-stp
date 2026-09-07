@@ -11,6 +11,15 @@ The external LSP, scanner, or tool is installed in an isolated set of tools and 
 
 A Git source is pinned to a specific commit. A dependency from the package registry has an exact version and integrity check. Arbitrary URLs are prohibited.
 
+## CI tool bootstrap
+
+The repository's Bun and uv bootstrap scripts download the exact release
+archive and its published checksums before installing the binary. They retry
+idempotent downloads after transport failures, with bounded connection,
+transfer and total retry time. A checksum or installed-version mismatch still
+fails the installation. Retry behavior follows the
+[curl retry contract](https://curl.se/docs/manpage.html#--retry-all-errors).
+
 ## Approved dependencies `apps/api` (issue #80, ADR-0041)
 
 Each entry below is a sign-off for adding to `apps/api/pyproject.toml` and the root `uv.lock`. The exact version is fixed by the lock file during `uv lock` / `uv sync`.

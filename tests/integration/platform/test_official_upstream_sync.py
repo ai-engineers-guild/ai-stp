@@ -95,6 +95,30 @@ def _command(**overrides: object) -> SourceUpsert:
     return SourceUpsert(**payload)  # type: ignore[arg-type]
 
 
+@pytest.mark.asyncio
+async def test_official_cli_source_is_preserved_as_a_standalone_kind(
+    db_session: AsyncSession,
+) -> None:
+    """The platform must not retain the former eight-kind validation or SQL constraint."""
+    from ai_stp_platform.seed_cli import ensure_official_publisher
+
+    await ensure_official_publisher(db_session)
+    source = await upsert_source(
+        db_session,
+        _command(
+            source_id="standalone-cli-probe",
+            component_type="cli",
+            component_subpath="tools/cli",
+            projection_root="bin/cli",
+            projection_shape="file",
+        ),
+    )
+    await db_session.flush()
+    await db_session.refresh(source)
+    assert source.component_type == "cli"
+    assert source.projection_root == "bin/cli"
+
+
 def _tar(body: str, *, name: str = "skills/demo/SKILL.md") -> bytes:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:

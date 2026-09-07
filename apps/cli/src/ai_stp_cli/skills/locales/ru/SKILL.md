@@ -48,7 +48,7 @@ CLI.
 
 | User intent | Open |
 |---|---|
-| первый запуск, «установлен ли», version | bootstrap |
+| первый запуск, «установлен ли», version, какие проекты индексировать | bootstrap |
 | локальный config, developer или device passport | onboard |
 | вход, выход, grants, sync, жалоба | account |
 | какие харнессы, проекты, компоненты, targets | inspect |

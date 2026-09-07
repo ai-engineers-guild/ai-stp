@@ -135,6 +135,23 @@ def error_details(envelope: Mapping[str, Any]) -> dict[str, Any]:
     return cast(dict[str, Any], details) if isinstance(details, dict) else {}
 
 
+def contribution_probe_present(target: Path, relative: str) -> bool:
+    """Whether the native surface still carries the `mcp01` probe as files.
+
+    0.0.66 remove deletes the files the provider recorded writing, not the
+    namespace they sat in. An empty leftover `extensions/mcp01` is not the
+    component still being there; a `package.json` under that path is.
+    """
+    host = target / relative
+    if not relative or not host.exists():
+        return False
+    if host.is_file():
+        return "mcp01" in host.read_text(encoding="utf-8", errors="replace")
+    return any(
+        item.is_file() and "mcp01" in item.relative_to(host).as_posix() for item in host.rglob("*")
+    )
+
+
 def error_message(envelope: Mapping[str, Any]) -> str:
     """The refusal's sentence, or an empty string when the call succeeded.
 
@@ -151,6 +168,65 @@ def error_message(envelope: Mapping[str, Any]) -> str:
         return ""
     message = cast(dict[str, Any], held).get("message")
     return message if isinstance(message, str) else ""
+
+
+#: Facts a local adopted draft still lacks after `component adopt`. Adoption
+#: records observed native facts only. The immutable version passport then
+#: requires these declared fields — measured 2026-09-06 when the config and
+#: contribution slices jumped from adopt to release: first `name, description,
+#: tags`, then `license` on the version snapshot itself.
+RELEASE_DRAFT_FIELDS: tuple[str, ...] = ("name", "description", "tags", "license")
+
+
+def release_draft_patch(*, name: str, description: str | None = None) -> dict[str, object]:
+    """The closed passport patch a local draft needs before it can be released.
+
+    Kept as a function rather than inlined in each slice so the three places
+    that release an adopted probe cannot drift from each other, and so a test
+    can ask the patch rather than grep a script.
+    """
+    return {
+        "name": name,
+        "description": description
+        or (
+            "Evidence-slice probe: a local native surface taken into management "
+            "so a released provider can install and remove it."
+        ),
+        "tags": ["evidence"],
+        "license": {
+            "spdx_id": "AGPL-3.0-or-later",
+            "redistribution_allowed": True,
+        },
+    }
+
+
+def write_release_draft_patch(
+    path: Path,
+    *,
+    name: str,
+    description: str | None = None,
+) -> Path:
+    """Write `release_draft_patch` as canonical JSON at `path`."""
+    path.write_text(
+        json.dumps(release_draft_patch(name=name, description=description), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def release_draft_update_arguments(stable_id: str, revision_id: str, patch: Path) -> list[str]:
+    """The exact `component passport update` argv that binds one closed patch."""
+    return [
+        "component",
+        "passport",
+        "update",
+        "--id",
+        stable_id,
+        "--expected-revision",
+        revision_id,
+        "--from",
+        str(patch),
+    ]
 
 
 def without_credentials(report: dict[str, Any]) -> dict[str, Any]:

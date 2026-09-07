@@ -1,6 +1,6 @@
 ---
 description: "SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3."
-last_verified: "2026-09-05"
+last_verified: "2026-09-06"
 ---
 
 # SPEC-060: Coordinated standard-family identity
@@ -44,6 +44,10 @@ platform persistence of the family field.
 - `REQ-6005`: `contract inventory` and `version` report the family and the
   current contract digest. The inventory schema is a CLI model, not an HTTP
   `/v1` route.
+- `REQ-6006`: The contract digest binds exported schema bodies, not only
+  identity strings. Changing a schema field while keeping `$id` changes the
+  digest. New operation plans default to live provider protocol `3`; a stored
+  `NULL` protocol version remains historical `1`.
 
 ## States and errors
 
@@ -72,3 +76,4 @@ protocol v3→v1 rename is not a migration path.
 | `REQ-6003` | Historical `component-scaffold/3` golden remains validatable and classifies as generator. |
 | `REQ-6004` | New `scaffold_plan` descriptor and `.ai-stp-template.json` contain `ai-stp-standard/1`; historical JSON without the field still validates. |
 | `REQ-6005` | Process tests: `contract inventory --json` and `version --json` carry the family and a `sha256:` digest; `cli-standard-inventory` is not an HTTP model. |
+| `REQ-6006` | Unit test mutates a schema body with the same `$id` and observes a new contract digest; a NULL protocol row still decodes as `1`. |

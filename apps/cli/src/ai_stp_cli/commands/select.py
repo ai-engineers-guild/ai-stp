@@ -106,7 +106,12 @@ from ai_stp_foundation.canonical import JsonValue, from_json_bytes
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
-from ai_stp_passports import ComponentVersionPassport, scope_for, verify_projection
+from ai_stp_passports import (
+    ComponentVersionPassport,
+    adaptation_for,
+    scope_for,
+    verify_projection,
+)
 from ai_stp_passports.versions import TargetScope
 from ai_stp_sources.definition import (
     DEFINITION_V2,
@@ -1111,7 +1116,12 @@ def reports(parameters: Mapping[str, object]) -> Answer[CompositionReports]:
             )
 
         proposal = selection.held(connection, proposal_id)
-        surfaces = _surfaces(connection, closure, () if proposal is None else proposal.members)
+        surfaces = _surfaces(
+            connection,
+            closure,
+            () if proposal is None else proposal.members,
+            setup_harness=harness,
+        )
         target = _composition_target(harness, surfaces)
         composed = composition.compose(surfaces, target)
         converted = composition.convert(surfaces, target)
@@ -1200,6 +1210,7 @@ def _surfaces(
     closure: graph.Closure,
     members: Sequence[selection.Member] = (),
     *,
+    setup_harness: str,
     scope: str = "global",
 ) -> tuple[composition.Surface, ...]:
     """Read what each node in the closure contributes, from its passport.
@@ -1239,14 +1250,10 @@ def _surfaces(
         except ValueError:
             passport = None
         if passport is not None:
-            if len(passport.adaptations) != 1:
-                raise CliFailure(
-                    "AI_STP_CONFLICT",
-                    "a setup component reference does not select one adaptation",
-                    details={"stable_id": node.stable_id},
-                )
-            adaptation = passport.adaptations[0]
-            harness_id = adaptation.harness_id
+            try:
+                adaptation = adaptation_for(passport, cast(HarnessId, setup_harness))
+            except ValueError:
+                continue
             component_type = passport.component_type
             selected_scope = next(
                 (item for item in adaptation.scope_adaptations if item.scope == scope), None
@@ -1547,7 +1554,7 @@ def compile_setup_version_bundle(
             details={"refusals": ", ".join(item.code for item in closure.refusals)},
         )
 
-    surfaces = _surfaces(connection, closure, members, scope=scope)
+    surfaces = _surfaces(connection, closure, members, setup_harness=harness, scope=scope)
     if closure.nodes and not surfaces:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -1890,7 +1897,7 @@ def compile_withdrawal_bundle(
             "the prepared SetupVersion no longer resolves to its exact component graph",
             details={"refusals": ", ".join(item.code for item in closure.refusals)},
         )
-    surfaces = _surfaces(connection, closure, scope=scope)
+    surfaces = _surfaces(connection, closure, setup_harness=harness, scope=scope)
     target = _composition_target(harness, surfaces, scope=scope)
     sources: list[bundle.Source] = []
     withdrawn: set[str] = set()

@@ -46,9 +46,13 @@ mkdir -p "${destination}"
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
-curl --fail --silent --show-error --location --retry 3 \
+# Both downloads are idempotent GETs into disposable files. TLS connection
+# resets are not retried by --retry alone; keep their recovery bounded too.
+curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+  --connect-timeout 15 --max-time 120 --retry-max-time 180 \
   --output "${work}/${target}.zip" "${base}/${target}.zip"
-curl --fail --silent --show-error --location --retry 3 \
+curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+  --connect-timeout 15 --max-time 120 --retry-max-time 180 \
   --output "${work}/SHASUMS256.txt" "${base}/SHASUMS256.txt"
 
 # The published sums cover every asset of the release; check only the one that

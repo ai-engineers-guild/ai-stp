@@ -89,6 +89,9 @@ class EvalComponentCoordinate(BaseModel):
     passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     component_type: ComponentType
+    adaptation_id: Annotated[str, Field(min_length=1)] | None = None
+    harness_id: Annotated[str, Field(min_length=1)] | None = None
+    projection_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)] | None = None
 
 
 class SetupEvalPlan(BaseModel):
@@ -123,10 +126,40 @@ class EvaluationCheckResult(BaseModel):
     status: EvaluationStatus
     message: Annotated[str, Field(min_length=1, max_length=1000)]
     component_ids: list[str] = []
+    adaptation_ids: list[str] = []
+
+
+class ComponentEvalPlan(BaseModel):
+    """Content-addressed evaluation plan bound to every adaptation of one version."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    plan_id: Annotated[str, Field(pattern=r"^eval_plan_[0-9a-f]{24}$")]
+    plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    profile: SetupEvalProfile
+    stable_id: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(pattern=r"^[0-9]+\.[0-9]+$")]
+    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    artifact_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    harness_version: Annotated[str, Field(min_length=1)]
+    provider_version: Annotated[str, Field(min_length=1)]
+    runner_version: Annotated[str, Field(min_length=1)]
+    components: Annotated[list[EvalComponentCoordinate], Field(min_length=1)]
+    planned_at: Annotated[str, Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def enumerates_adaptations(self) -> Self:
+        if self.profile.scope != "component":
+            raise ValueError("a component evaluation plan uses the component profile scope")
+        harnesses = [item.harness_id for item in self.components if item.harness_id is not None]
+        if len(harnesses) != len(set(harnesses)):
+            raise ValueError("a component evaluation plan repeats a harness adaptation")
+        return self
 
 
 class SetupEvalResult(BaseModel):
-    """Immutable local evaluation evidence for one exact plan."""
+    """Immutable local evaluation evidence for one exact setup plan."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
@@ -134,6 +167,36 @@ class SetupEvalResult(BaseModel):
     run_id: Annotated[str, Field(pattern=r"^eval_run_[0-9a-f]{24}$")]
     result_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     plan: SetupEvalPlan
+    status: EvaluationStatus
+    executed_at: Annotated[str, Field(min_length=1)]
+    checks: Annotated[list[EvaluationCheckResult], Field(min_length=1)]
+    immutable_published_bytes_changed: Literal[False] = False
+    provider_permissions_used: Literal[False] = False
+
+    @model_validator(mode="after")
+    def aggregate_matches_checks(self) -> Self:
+        statuses = {item.status for item in self.checks}
+        expected: EvaluationStatus
+        if "failed" in statuses:
+            expected = "failed"
+        elif "degraded" in statuses or "not_run" in statuses:
+            expected = "degraded"
+        else:
+            expected = "passed"
+        if self.status != expected:
+            raise ValueError("evaluation result status disagrees with check results")
+        return self
+
+
+class ComponentEvalResult(BaseModel):
+    """Immutable local evaluation evidence for every advertised adaptation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    run_id: Annotated[str, Field(pattern=r"^eval_run_[0-9a-f]{24}$")]
+    result_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    plan: ComponentEvalPlan
     status: EvaluationStatus
     executed_at: Annotated[str, Field(min_length=1)]
     checks: Annotated[list[EvaluationCheckResult], Field(min_length=1)]

@@ -271,9 +271,9 @@
           "name": "harness",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Concrete harness to add. Portable is refused.",
+          "summary": "Concrete harness to add. Portable is refused. Omit with --all-missing.",
           "choices": [
             "claude-code",
             "codex",
@@ -283,6 +283,15 @@
             "cursor",
             "antigravity"
           ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Add every remaining concrete harness the type can project without loss.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -556,6 +565,218 @@
     {
       "path": [
         "component",
+        "materialize",
+        "apply"
+      ],
+      "summary": "Record the exact still-current target-harness adaptation.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the source component.",
+          "choices": []
+        },
+        {
+          "name": "to-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness the new adaptation will belong to. Repeatable. Omit with --all-missing.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Target every closed harness that does not yet have an adaptation.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y source version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "from-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Source adaptation when the version names more than one.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "overlay-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact overlay id returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "local-only",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Fork a private overlay instead of minting the next owner version.",
+          "choices": []
+        },
+        {
+          "name": "created-at",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact timestamp returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-result",
+      "next_actions": [
+        "eval component plan",
+        "select propose",
+        "setup compose plan"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "materialize",
+        "plan"
+      ],
+      "summary": "Preview materializing target-harness adaptations from a pinned component.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the source component.",
+          "choices": []
+        },
+        {
+          "name": "to-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness the new adaptation will belong to. Repeatable. Omit with --all-missing.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Target every closed harness that does not yet have an adaptation.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y source version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "from-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Source adaptation when the version names more than one.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "overlay-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Overlay id returned by an earlier plan.",
+          "choices": []
+        },
+        {
+          "name": "local-only",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Fork a private overlay instead of minting the next owner version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-plan",
+      "next_actions": [
+        "component materialize apply"
+      ]
+    },
+    {
+      "path": [
+        "component",
         "passport",
         "quality"
       ],
@@ -713,6 +934,341 @@
       "next_actions": [
         "component passport update",
         "component version release"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "portability",
+        "apply"
+      ],
+      "summary": "Record a private local overlay from an explicit portability claim.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the source component.",
+          "choices": []
+        },
+        {
+          "name": "to-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness the local overlay will belong to. Repeatable. Omit with --all-missing.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Target every closed harness that does not yet have an adaptation.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y source version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "from-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Source adaptation when the version names more than one.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "overlay-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact overlay id returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "created-at",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact timestamp returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-result",
+      "next_actions": [
+        "select propose",
+        "install plan"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "portability",
+        "plan"
+      ],
+      "summary": "Preview a claimed-portable local overlay for a missing target adaptation.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the source component.",
+          "choices": []
+        },
+        {
+          "name": "to-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Harness the local overlay will belong to. Repeatable. Omit with --all-missing.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "all-missing",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Target every closed harness that does not yet have an adaptation.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y source version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "from-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Source adaptation when the version names more than one.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "overlay-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Overlay id returned by an earlier plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-plan",
+      "next_actions": [
+        "component portability apply"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "program",
+        "install"
+      ],
+      "summary": "Install one catalog cli component as a shared executable.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the cli component.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y version. Omitted, the newest recorded.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-program",
+      "next_actions": [
+        "component program invoke",
+        "component program status"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "program",
+        "invoke"
+      ],
+      "summary": "Run the shared cli executable by exact installed path.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the cli component.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "arg",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Argument passed to the executable.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-program",
+      "next_actions": [
+        "component program status"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "program",
+        "remove"
+      ],
+      "summary": "Remove the shared cli executable this installation created.",
+      "mutability": "destructive",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the cli component.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Required confirmation that the executable may be removed.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-program",
+      "next_actions": [
+        "component program status"
+      ]
+    },
+    {
+      "path": [
+        "component",
+        "program",
+        "status"
+      ],
+      "summary": "Report whether the shared cli executable is present.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the cli component.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-program",
+      "next_actions": [
+        "component program install",
+        "component program remove"
       ]
     },
     {
@@ -1617,9 +2173,157 @@
     {
       "path": [
         "eval",
+        "component",
         "plan"
       ],
-      "summary": "Bind a reference evaluation profile to one exact local setup graph.",
+      "summary": "Bind a reference evaluation profile to every adaptation of one component version.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local component identifier.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact local component X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "harness-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluated harness version.",
+          "choices": []
+        },
+        {
+          "name": "provider-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluated provider version.",
+          "choices": []
+        },
+        {
+          "name": "runner-version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact evaluation runner version.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-plan",
+      "next_actions": [
+        "eval component run"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "component",
+        "run"
+      ],
+      "summary": "Run local deterministic checks for one confirmed component evaluation plan.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stored component evaluation plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact content digest shown by eval component plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-result",
+      "next_actions": [
+        "eval component status",
+        "eval component show"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "component",
+        "show"
+      ],
+      "summary": "Show full immutable local evidence for one component evaluation run.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "run-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Evaluation run identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-result",
+      "next_actions": []
+    },
+    {
+      "path": [
+        "eval",
+        "component",
+        "status"
+      ],
+      "summary": "Read the immutable status of one local component evaluation run.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "run-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Evaluation run identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-result",
+      "next_actions": [
+        "eval component show"
+      ]
+    },
+    {
+      "path": [
+        "eval",
+        "plan"
+      ],
+      "summary": "Bind a reference evaluation profile to the setup's own harness adaptations.",
       "mutability": "plan",
       "confirmation": "none",
       "parameters": [
@@ -1724,7 +2428,7 @@
         "eval",
         "run"
       ],
-      "summary": "Run local deterministic checks for one confirmed exact evaluation plan.",
+      "summary": "Run local deterministic checks for one confirmed exact setup evaluation plan.",
       "mutability": "apply",
       "confirmation": "plan_digest",
       "parameters": [
@@ -1759,7 +2463,7 @@
         "eval",
         "show"
       ],
-      "summary": "Show full immutable local evidence for one evaluation run.",
+      "summary": "Show full immutable local evidence for one setup evaluation run.",
       "mutability": "read",
       "confirmation": "none",
       "parameters": [
@@ -1782,7 +2486,7 @@
         "eval",
         "status"
       ],
-      "summary": "Read the immutable status of one local evaluation run.",
+      "summary": "Read the immutable status of one local setup evaluation run.",
       "mutability": "read",
       "confirmation": "none",
       "parameters": [
@@ -5940,6 +6644,148 @@
       "next_actions": [
         "setup publish confirm",
         "publication status"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "recast",
+        "apply"
+      ],
+      "summary": "Record the exact still-current recast as one immutable local setup.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the source setup.",
+          "choices": []
+        },
+        {
+          "name": "to-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness the new setup will belong to.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y source version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "setup-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact setup id returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "created-at",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact timestamp returned by plan.",
+          "choices": []
+        },
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-recast-result",
+      "next_actions": [
+        "setup export",
+        "install plan",
+        "select session"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "recast",
+        "plan"
+      ],
+      "summary": "Preview recasting one recorded setup onto another harness.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable identifier of the source setup.",
+          "choices": []
+        },
+        {
+          "name": "to-harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness the new setup will belong to.",
+          "choices": [
+            "claude-code",
+            "codex",
+            "pi",
+            "opencode",
+            "grok-build",
+            "cursor",
+            "antigravity"
+          ]
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact X.Y source version. Omitted, the newest recorded.",
+          "choices": []
+        },
+        {
+          "name": "setup-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Setup id returned by an earlier plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-setup-recast-plan",
+      "next_actions": [
+        "setup recast apply"
       ]
     },
     {

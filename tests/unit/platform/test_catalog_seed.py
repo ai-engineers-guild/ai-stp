@@ -5,17 +5,17 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
-from ai_stp_contracts.context_estimator import EstimatorInput, estimate_context, estimator_for
-from ai_stp_contracts.impact import ExactCoordinate
-from ai_stp_platform.catalog_seed import (
+from tests.support.catalog_seed import (
     INCIDENT_SUBAGENT_ARTIFACT,
     INCIDENT_SUBAGENT_NAME,
     SEED_A1_INCIDENT_AGENT_ID,
     SEED_A1_INCIDENT_SETUP_ID,
-    load_first_party_seed,
+    load_fixture_seed,
     seed_corpus,
 )
+
+from ai_stp_contracts.context_estimator import EstimatorInput, estimate_context, estimator_for
+from ai_stp_contracts.impact import ExactCoordinate
 from ai_stp_platform.models import Account, CatalogMetadata, ComponentMedia
 
 pytestmark = pytest.mark.platform
@@ -105,7 +105,7 @@ def test_every_seed_passport_id_derives_from_its_own_body() -> None:
 @pytest.mark.asyncio
 async def test_seed_loader_is_idempotent_in_session() -> None:
     session = RecordingSession()
-    first = await load_first_party_seed(session)  # type: ignore[arg-type]
+    first = await load_fixture_seed(session)  # type: ignore[arg-type]
     # Second pass: scalar still returns None so this simple session creates again;
     # the real DB path is covered by the integration test. Here we only assert
     # the first run creates the owner account and versions.

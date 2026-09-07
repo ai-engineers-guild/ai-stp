@@ -128,9 +128,6 @@ EXEMPT: dict[str, str] = {
     "catalog_read.list_latest_public_objects": (
         "public catalog read helper consumed by API adapters"
     ),
-    "catalog_search.rebuild_catalog_search_projection": (
-        "operator rebuild command invoked by maintenance tooling"
-    ),
     "catalog_support.support_matches_filters": (
         "public support filter helper consumed by catalog tests and adapters"
     ),

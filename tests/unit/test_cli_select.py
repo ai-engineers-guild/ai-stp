@@ -1626,7 +1626,7 @@ def test_a_mixed_scope_setup_compiles_one_closed_bundle_per_scope(
     assert project_bundle.manifest["bundle_format"] == "ai-stp-bundle/2"
 
 
-def _contributed(registry: sqlite3.Connection, tmp_path: Path) -> tuple[str, str]:
+def _contributed(registry: sqlite3.Connection, tmp_path: Path) -> tuple[str, str, str, str]:
     """One `mcp` component adopted from codex's owned `config.toml`, proposed and confirmed."""
     import os
 
@@ -1649,7 +1649,7 @@ def _contributed(registry: sqlite3.Connection, tmp_path: Path) -> tuple[str, str
     ).payload
     assert session.proposal_id is not None
     confirmed = select.confirm({"proposal": session.proposal_id}).payload
-    return confirmed.stable_id, confirmed.version
+    return stable_id, confirmed.stable_id, confirmed.version, session.proposal_id
 
 
 def test_a_withdrawal_bundle_keeps_what_the_person_wrote_beside_the_contribution(
@@ -1662,7 +1662,7 @@ def test_a_withdrawal_bundle_keeps_what_the_person_wrote_beside_the_contribution
     file as the one member whose bytes survive.
     """
     _ready(registry, tmp_path)
-    stable_id, version = _contributed(registry, tmp_path)
+    _component_id, stable_id, version, _proposal = _contributed(registry, tmp_path)
     host_root = tmp_path / "target"
     host_root.mkdir()
     (host_root / "config.toml").write_text(
@@ -1690,7 +1690,7 @@ def test_a_host_that_would_end_empty_is_not_packed(
 ) -> None:
     """Nothing survives: the removal goes whole and no bundle says otherwise."""
     _ready(registry, tmp_path)
-    stable_id, version = _contributed(registry, tmp_path)
+    _component_id, stable_id, version, _proposal = _contributed(registry, tmp_path)
     host_root = tmp_path / "target"
     host_root.mkdir()
     (host_root / "config.toml").write_text(
@@ -1711,3 +1711,46 @@ def test_a_host_that_would_end_empty_is_not_packed(
             )
             is None
         )
+
+
+def test_an_adopted_mcp_contribution_compiles_as_a_key_inside_the_owned_file(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    """Adopt extracted the MCP table and freeze still treated the file as owned whole.
+
+    Codex does not declare `mcp` as a provider kind: servers live under
+    `[mcp_servers]` in `config.toml`, which is a `setting`. Recast already
+    freezes `provider_component_kind=setting` and `ownership=contribution`.
+    The adopt → version path did not, so `install plan` handed the provider a
+    whole-file `mcp` adaptation and `validate-bundle` answered
+    `adaptation_binding_mismatch` (`evidence-contribution` 0.0.66).
+    """
+    _ready(registry, tmp_path)
+    component_id, _setup_id, version, proposal_id = _contributed(registry, tmp_path)
+    passport = component_passports.version_passport(registry, component_id, version)
+    scope = passport.adaptations[0].scope_adaptations[0]
+    assert scope.provider_component_kind == "setting"
+    owned = scope.members[0]
+    assert owned.ownership == "contribution"
+    assert owned.ownership_key == "mcp_servers"
+    assert owned.path == "config.toml"
+
+    host_root = tmp_path / "target"
+    host_root.mkdir()
+    (host_root / "config.toml").write_text(
+        '# kept by the person\nmodel = "sibling"\n', encoding="utf-8"
+    )
+    with closing(open_readonly(configured_path())) as connection:
+        compiled = select.compile_harness_bundle(connection, proposal_id, "codex", host_root)
+    assert compiled.compiled
+    assert not compiled.refusals
+    with zipfile.ZipFile(io.BytesIO(compiled.archive), "r") as archive:
+        landed = archive.read("files/config.toml")
+    assert b"# kept by the person" in landed
+    assert b'model = "sibling"' in landed
+    assert b"mcp01" in landed
+    bindings = compiled.manifest.get("component_adaptations")
+    assert isinstance(bindings, list) and bindings
+    first = bindings[0]
+    assert isinstance(first, dict)
+    assert first.get("provider_component_kind") == "setting"

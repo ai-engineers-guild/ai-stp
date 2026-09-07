@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- Catalog query parsing and serialization share one boundary suite. */
 import { describe, expect, it } from "vitest";
 
+import { HarnessId } from "@/lib/api/generated/types.gen";
 import {
   CATALOG_DEFAULT_PAGE_SIZE,
   appliedFilterChips,
@@ -13,6 +14,13 @@ import {
 import { defaultCatalogQuery } from "@/lib/catalog-query-defaults";
 
 describe("parseCatalogSearchParams", () => {
+  it.each(Object.values(HarnessId))("accepts the contracted harness %s", (harness) => {
+    const parsed = parseCatalogSearchParams({ harness_ids: harness });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("A contracted harness was rejected");
+    expect(parsed.value.harnessIds).toEqual([harness]);
+  });
+
   it("defaults to experimental on, page size 25, and a mixed catalog", () => {
     expect(catalogHref("/catalog", {})).toBe("/catalog");
     const result = parseCatalogSearchParams({});

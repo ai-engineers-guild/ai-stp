@@ -43,6 +43,10 @@ def passport_content(
     snapshot: str,
     members: tuple[MemberRef, ...],
     at: str,
+    ported_from: dict[str, JsonValue] | None = None,
+    related_setup_ids: list[str] | None = None,
+    name: str | None = None,
+    description: str | None = None,
 ) -> dict[str, JsonValue]:
     """Build and validate a full passport, storing its independent artifact."""
     ordered = tuple(sorted(members, key=lambda item: (item.stable_id, item.version)))
@@ -74,8 +78,8 @@ def passport_content(
             "snapshot": _fact(snapshot, at),
             "member_metadata_complete": _fact(aggregate.complete, at),
         },
-        "name": f"{harness_id} local setup",
-        "description": "Private setup frozen from an exact local selection.",
+        "name": name or f"{harness_id} local setup",
+        "description": description or "Private setup frozen from an exact local selection.",
         "version": version,
         "tags": ["local-setup"],
         "source": None,
@@ -98,8 +102,8 @@ def passport_content(
         "posture": None,
         "supported_tasks": [],
         "components": member_documents,
-        "ported_from": None,
-        "related_setup_ids": [],
+        "ported_from": ported_from,
+        "related_setup_ids": list(related_setup_ids or []),
         "execution_profile": "full-auto",
         "supported_harness_versions": [],
         "supported_os": [],

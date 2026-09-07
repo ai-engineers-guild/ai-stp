@@ -1,6 +1,6 @@
 ---
 description: "Versioned scaffold plans and safe projection of component authoring templates."
-last_verified: "2026-09-05"
+last_verified: "2026-09-06"
 ---
 
 # Component authoring templates
@@ -38,8 +38,14 @@ are not assigned the family on read.
 
 `component adaptation add` renders a second concrete harness projection under
 `projections/<harness>/` without changing the original `harness_variant`.
-Release freezes every `adaptation_contents` source into the version passport
-(`ADR-0143`); a singular `harness_id` draft still produces one adaptation.
+`--all-missing` adds every remaining concrete harness, or refuses before any
+write if one projection is blocked. A portable skill or MCP that already has
+correct source can receive every harness projection in that one call; a setting
+cannot. Release freezes every `adaptation_contents` source into the version
+passport (`ADR-0143`); a singular `harness_id` draft still produces one
+adaptation. After release, `component materialize --all-missing` is the same
+rule on an immutable version: one next minor with every derivable remaining
+harness, or a blocked plan.
 
 The current `component-scaffold/6` directory contains `.ai-stp-template.json`,
 `.gitignore`, `component-passport.json`, `eval-profile.json`, README, and editable

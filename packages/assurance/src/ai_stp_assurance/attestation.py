@@ -25,6 +25,14 @@ from ai_stp_foundation.refs import ComponentRef, SetupRef
 from ai_stp_foundation.timestamps import TIMESTAMP_PATTERN
 
 _ATTESTATION_DOMAIN: Final[str] = "ai-stp:attestation:v1"
+_OPTIONAL_TARGET_KEYS: Final[tuple[str, ...]] = (
+    "adaptation_id",
+    "projection_digest",
+    "scope",
+    "provider_profile_digest",
+    "os",
+    "arch",
+)
 
 # An Ed25519 signature is exactly 64 bytes: 86 base64 characters plus padding.
 SIGNATURE_PATTERN: Final[str] = r"^[A-Za-z0-9+/]{86}==$"
@@ -50,12 +58,21 @@ class AuthorAttestation(BaseModel):
     device_id: Annotated[str, Field(pattern=stable_id_pattern("device"))]
     attested_at: Annotated[str, Field(pattern=TIMESTAMP_PATTERN)]
     signature: Annotated[str, Field(pattern=SIGNATURE_PATTERN)]
+    adaptation_id: Annotated[str, Field(min_length=1)] | None = None
+    projection_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)] | None = None
+    scope: Annotated[str, Field(min_length=1)] | None = None
+    provider_profile_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)] | None = None
+    os: Annotated[str, Field(min_length=1)] | None = None
+    arch: Annotated[str, Field(min_length=1)] | None = None
 
 
 def attestation_payload(record: AuthorAttestation) -> JsonValue:
     """Return the signed portion of the record: everything but the signature."""
     data = cast(dict[str, JsonValue], record.model_dump(mode="json"))
     del data["signature"]
+    for key in _OPTIONAL_TARGET_KEYS:
+        if data.get(key) is None:
+            del data[key]
     return data
 
 

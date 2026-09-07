@@ -1,0 +1,763 @@
+"""Recast one complete setup onto another harness (SPEC-062)."""
+
+from __future__ import annotations
+
+import io
+import json
+import sqlite3
+import zipfile
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import PurePosixPath
+from typing import Final, Literal, cast
+
+import tomlkit
+from pydantic import ValidationError
+
+from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.local import (
+    cache,
+    composition,
+    content,
+    contribution,
+    native_transform,
+    revisions,
+    setup_versions,
+    versions,
+)
+from ai_stp_cli.local.components import Rule
+from ai_stp_cli.local.database import transaction
+from ai_stp_contracts.machine_help import SetupRecastMember, SetupRecastPlan, SetupRecastResult
+from ai_stp_foundation.canonical import JsonValue, canonize
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
+from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId
+from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.provider_surfaces import PROVIDER_SURFACES, provider_surface
+from ai_stp_foundation.refs import SetupRef
+from ai_stp_passports import (
+    ComponentVersionPassport,
+    SetupVersionPassport,
+    adaptation_for,
+    build_projection,
+    seal_adaptation,
+    seal_envelope,
+)
+from ai_stp_passports.versions import ComponentAdaptation, ScopeAdaptation, TargetScope
+
+PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
+TRANSFORM_ID: Final[str] = "harness-native-rewrite"
+TRANSFORM_VERSION: Final[str] = "1.3"
+_NON_DERIVABLE: Final[frozenset[str]] = frozenset({"setting", "cli"})
+Disposition = Literal["reuse", "derive", "blocked"]
+
+
+@dataclass(frozen=True)
+class _MappedScope:
+    """One source scope after a read-only projection mapping."""
+
+    source: ScopeAdaptation
+    rule: Rule
+    files: dict[str, bytes]
+    modes: dict[str, int]
+    source_paths: dict[str, str]
+    losses: tuple[str, ...]
+
+
+def plan(
+    connection: sqlite3.Connection,
+    *,
+    source_id: str,
+    source_version: str | None,
+    target_harness: str,
+    setup_id: str,
+    created_at: str,
+) -> SetupRecastPlan:
+    """Preview one recast without writing."""
+    source, members = _source_graph(connection, source_id, source_version)
+    target = _target_harness(target_harness, source.harness_id)
+    planned = tuple(_classify(connection, source.harness_id, target, item) for item in members)
+    return _plan_view(source, target, setup_id, created_at, planned)
+
+
+def apply(
+    connection: sqlite3.Connection,
+    *,
+    source_id: str,
+    source_version: str | None,
+    target_harness: str,
+    setup_id: str,
+    created_at: str,
+    expected_plan_digest: str,
+    device_id: str,
+    owner_id: str,
+) -> SetupRecastResult:
+    """Record the exact recast the caller reviewed."""
+    source, members = _source_graph(connection, source_id, source_version)
+    target = _target_harness(target_harness, source.harness_id)
+    planned = tuple(_classify(connection, source.harness_id, target, item) for item in members)
+    preview = _plan_view(source, target, setup_id, created_at, planned)
+    if preview.plan_digest != expected_plan_digest:
+        raise CliFailure(
+            "AI_STP_PLAN_STALE",
+            "the setup recast changed after it was reviewed",
+            details={"expected": expected_plan_digest, "found": preview.plan_digest},
+        )
+    if not preview.complete:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the recast is not complete",
+            details={
+                "blocked": ",".join(
+                    item.stable_id for item in preview.members if item.disposition == "blocked"
+                )
+            },
+        )
+    if versions.held(connection, setup_id, preview.version) is not None:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "that setup version already exists",
+            details={"id": setup_id, "version": preview.version},
+        )
+    with transaction(connection):
+        refs: list[setup_versions.MemberRef] = []
+        for item, classified in zip(members, planned, strict=True):
+            refs.append(
+                _materialize_member(
+                    connection,
+                    source_harness=source.harness_id,
+                    target=target,
+                    member=item,
+                    classified=classified,
+                    device_id=device_id,
+                    at=created_at,
+                )
+            )
+        source_digest = cache.digest_of(cast(JsonValue, source.model_dump(mode="json")))
+        passport = setup_versions.passport_content(
+            connection,
+            stable_id=setup_id,
+            version=preview.version,
+            owner_id=owner_id,
+            project_id="",
+            harness_id=target,
+            snapshot=source_digest,
+            members=tuple(refs),
+            at=created_at,
+            ported_from=cast(
+                dict[str, JsonValue],
+                SetupRef(
+                    stable_id=source.stable_id,
+                    version=source.version,
+                    passport_digest=source_digest,
+                ).model_dump(mode="json"),
+            ),
+            related_setup_ids=[source.stable_id],
+            name=source.name,
+            description=source.description,
+        )
+        stored = revisions.commit(connection, passport, device_id=device_id)
+        passport_digest = cache.digest_of(cast(JsonValue, stored.envelope.model_dump(mode="json")))
+        versions.record(
+            connection,
+            stable_id=setup_id,
+            version=preview.version,
+            passport_digest=passport_digest,
+            revision_id=stored.revision_id,
+            at=created_at,
+        )
+    return SetupRecastResult(
+        setup_id=setup_id,
+        version=preview.version,
+        source_setup_id=source.stable_id,
+        source_version=source.version,
+        created_at=created_at,
+        passport_digest=passport_digest,
+        plan_digest=preview.plan_digest,
+        created=True,
+    )
+
+
+def _target_harness(target: str, source: str) -> HarnessId:
+    for harness in HARNESS_IDS:
+        if harness != target:
+            continue
+        if harness == source:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "recast requires a different target harness",
+                details={"harness_id": source},
+            )
+        return harness
+    raise CliFailure("AI_STP_VALIDATION_ERROR", "the target harness is unknown")
+
+
+def _source_graph(
+    connection: sqlite3.Connection, source_id: str, source_version: str | None
+) -> tuple[SetupVersionPassport, tuple[tuple[str, str, str], ...]]:
+    recorded = _held_setup(connection, source_id, source_version)
+    stored = revisions.get(connection, recorded.revision_id)
+    if stored is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "the recorded setup revision is missing",
+            details={"id": source_id, "version": recorded.version},
+        )
+    try:
+        passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    except ValidationError as error:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the recorded setup is not an immutable version passport",
+            details={"id": source_id},
+        ) from error
+    members = tuple(
+        (item.stable_id, item.version, item.passport_digest) for item in passport.components
+    )
+    if not members:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the source setup has no components to recast",
+            details={"id": source_id},
+        )
+    return passport, members
+
+
+def _classify(
+    connection: sqlite3.Connection,
+    source_harness: HarnessId,
+    target: HarnessId,
+    member: tuple[str, str, str],
+) -> SetupRecastMember:
+    passport = _component_passport(connection, member)
+    try:
+        existing = adaptation_for(passport, target)
+    except ValueError:
+        existing = None
+    stale = (
+        existing is not None
+        and existing.implementation_mode == "derived"
+        and (existing.transform is None or existing.transform.version != TRANSFORM_VERSION)
+    )
+    if existing is not None and not stale:
+        return SetupRecastMember(
+            stable_id=member[0],
+            source_version=member[1],
+            target_version=member[1],
+            component_type=passport.component_type,
+            disposition="reuse",
+            reason="the pinned version already has the target adaptation",
+        )
+    reason = _blocked_reason(passport, source_harness, target)
+    if reason is None and _preview_projection(connection, passport, source_harness, target) is None:
+        reason = "the recorded projection cannot be mapped without losing files or modes"
+    if reason is None:
+        return SetupRecastMember(
+            stable_id=member[0],
+            source_version=member[1],
+            target_version=versions.next_minor(connection, member[0]),
+            component_type=passport.component_type,
+            disposition="derive",
+            reason="derive a native adaptation for the target harness",
+        )
+    return SetupRecastMember(
+        stable_id=member[0],
+        source_version=member[1],
+        target_version=member[1],
+        component_type=passport.component_type,
+        disposition="blocked",
+        reason=reason,
+    )
+
+
+def _blocked_reason(
+    passport: ComponentVersionPassport, source_harness: HarnessId, target: HarnessId
+) -> str | None:
+    if passport.component_type in _NON_DERIVABLE:
+        return "settings and cli components do not derive across harnesses"
+    try:
+        source_adaptation = adaptation_for(passport, source_harness)
+    except ValueError:
+        return "the source setup pin has no adaptation for its own harness"
+    for source_scope in source_adaptation.scope_adaptations:
+        source_rule = composition.rule_for(
+            passport.component_type, source_harness, scope=source_scope.scope
+        ) or composition.rule_for(passport.component_type, source_harness)
+        rule = composition.rule_for(
+            passport.component_type, target, scope=source_scope.scope
+        ) or composition.rule_for(passport.component_type, target)
+        if (source_rule is not None and source_rule.projection_kind == "package") or (
+            rule is not None and rule.projection_kind == "package"
+        ):
+            return "an MCP plugin package cannot be derived automatically"
+        if (
+            rule is not None
+            and rule.declared_key
+            and passport.component_type not in {"mcp", "hook"}
+        ):
+            return "a host-file contribution cannot be derived automatically"
+        if (
+            source_rule is not None
+            and source_rule.declared_key
+            and passport.component_type not in {"mcp", "hook"}
+        ):
+            return "a host-file contribution cannot be derived automatically"
+    return None
+
+
+def _materialize_member(
+    connection: sqlite3.Connection,
+    *,
+    source_harness: HarnessId,
+    target: HarnessId,
+    member: tuple[str, str, str],
+    classified: SetupRecastMember,
+    device_id: str,
+    at: str,
+) -> setup_versions.MemberRef:
+    passport = _component_passport(connection, member)
+    if classified.disposition == "reuse":
+        return setup_versions.MemberRef(member[0], member[1], member[2])
+    derived = _derive_adaptation(connection, passport, source_harness, target, at=at)
+    if derived is None:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the recast member can no longer be derived",
+            details={"stable_id": member[0]},
+        )
+    body = cast(dict[str, JsonValue], passport.model_dump(mode="json", exclude={"revision_id"}))
+    body["version"] = classified.target_version
+    body["created_at"] = at
+    kept = [item for item in passport.adaptations if item.harness_id != target]
+    body["adaptations"] = [
+        *[cast(JsonValue, item.model_dump(mode="json")) for item in kept],
+        cast(JsonValue, derived.model_dump(mode="json")),
+    ]
+    sealed = seal_envelope(body)
+    stored = revisions.commit(
+        connection,
+        cast(dict[str, JsonValue], sealed.model_dump(mode="json", exclude={"revision_id"})),
+        device_id=device_id,
+    )
+    digest = cache.digest_of(cast(JsonValue, stored.envelope.model_dump(mode="json")))
+    versions.record(
+        connection,
+        stable_id=member[0],
+        version=classified.target_version,
+        passport_digest=digest,
+        revision_id=stored.revision_id,
+        at=at,
+    )
+    return setup_versions.MemberRef(member[0], classified.target_version, digest)
+
+
+def _preview_projection(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    source_harness: HarnessId,
+    target: HarnessId,
+) -> tuple[_MappedScope, ...] | None:
+    """Read and map every recorded scope without creating registry state."""
+    if _blocked_reason(passport, source_harness, target) is not None:
+        return None
+    mapped: list[_MappedScope] = []
+    for source_scope in adaptation_for(passport, source_harness).scope_adaptations:
+        held = _preview_scope(connection, passport, source_harness, target, source_scope)
+        if held is None:
+            continue
+        mapped.append(held)
+    if not mapped:
+        return None
+    return tuple(mapped)
+
+
+def _preview_scope(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    source_harness: HarnessId,
+    target: HarnessId,
+    source_scope: ScopeAdaptation,
+) -> _MappedScope | None:
+    rule = composition.rule_for(passport.component_type, target, scope=source_scope.scope)
+    if rule is None or (target, rule.target_scope) not in PROVIDER_SURFACES:
+        return None
+    try:
+        payload = content.get(connection, source_scope.projection_artifact.digest)
+        files = _projection_files(source_scope, payload)
+    except CliFailure as error:
+        if error.code not in {"AI_STP_NOT_FOUND", "AI_STP_CONFLICT"}:
+            raise
+        return None
+    except (KeyError, OSError, zipfile.BadZipFile, zipfile.LargeZipFile):
+        return None
+    source_modes = {
+        member.path: member.mode for member in source_scope.members if member.object_type == "file"
+    }
+    identities = {path: path for path in files}
+    losses: list[str] = []
+    if passport.component_type == "mcp":
+        derived = _derive_mcp_files(files, source_harness, source_scope.scope, rule)
+        if derived is None:
+            return None
+        remapped, mcp_losses = derived
+        losses.extend(mcp_losses)
+        modes = (
+            {rule.relative: next(iter(source_modes.values()))} if len(source_modes) == 1 else None
+        )
+        source_paths = {rule.relative: next(iter(files))} if len(files) == 1 else None
+    else:
+        remapped = _remap_files(
+            files, passport.component_type, source_harness, source_scope.scope, rule
+        )
+        modes = _remap_files(
+            source_modes, passport.component_type, source_harness, source_scope.scope, rule
+        )
+        source_paths = _remap_files(
+            identities, passport.component_type, source_harness, source_scope.scope, rule
+        )
+        if remapped is not None and modes is not None and source_paths is not None:
+            native = native_transform.transform(
+                component_type=passport.component_type,
+                source_harness=source_harness,
+                target=rule,
+                files=remapped,
+                modes=modes,
+                source_paths=source_paths,
+            )
+            if native is None:
+                return None
+            remapped, modes, source_paths = native.files, native.modes, native.source_paths
+            losses.extend(native.losses)
+    if (
+        not remapped
+        or modes is None
+        or source_paths is None
+        or remapped.keys() != modes.keys()
+        or remapped.keys() != source_paths.keys()
+    ):
+        return None
+    if rule.target_scope != source_scope.scope:
+        losses.append(
+            f"source scope {source_scope.scope} lands on target scope {rule.target_scope}"
+        )
+    return _MappedScope(source_scope, rule, remapped, modes, source_paths, tuple(losses))
+
+
+def _derive_adaptation(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    source_harness: HarnessId,
+    target: HarnessId,
+    *,
+    at: str,
+) -> ComponentAdaptation | None:
+    preview = _preview_projection(connection, passport, source_harness, target)
+    if preview is None:
+        return None
+    source_scopes = adaptation_for(passport, source_harness).scope_adaptations
+    mapped_scopes = {item.source.scope for item in preview}
+    dropped = [
+        f"source scope {item.scope} has no lossless target mapping"
+        for item in source_scopes
+        if item.scope not in mapped_scopes
+    ]
+    scope_documents: list[dict[str, JsonValue]] = []
+    for item in preview:
+        contributing = bool(item.rule.declared_key)
+        scope_name = cast(TargetScope, item.rule.target_scope)
+        members: list[JsonValue] = []
+        source_members = {
+            member.path: member for member in item.source.members if member.object_type == "file"
+        }
+        for path, payload in sorted(item.files.items()):
+            stored = content.put(connection, payload, at=at)
+            origin = source_members.get(item.source_paths[path])
+            members.append(
+                _projection_member(
+                    path,
+                    stored.digest,
+                    stored.byte_length,
+                    item.rule if contributing else None,
+                    mode=item.modes[path],
+                    native_ids=list(origin.native_ids) if origin is not None else [],
+                    content_format=(
+                        origin.content_format if origin is not None else "application/octet-stream"
+                    ),
+                    parser_id=origin.parser_id if origin is not None else None,
+                )
+            )
+        surface = provider_surface(target, scope_name)
+        provider_kind = item.rule.provider_kind or passport.component_type
+        losses = list(item.losses) + dropped
+        scope_document: dict[str, JsonValue] = {
+            "scope": scope_name,
+            "projection_format": "ai-stp-adaptation-projection/1",
+            "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
+            "provider_component_kind": provider_kind,
+            "projection_kind": item.rule.projection_kind,
+            "required_surface": {
+                "profile_id": surface.profile_id,
+                "profile_digest": surface.profile_digest,
+                "bundle_format": surface.bundle_format,
+            },
+            "permissions": item.source.permissions.model_dump(mode="json"),
+            "members": members,
+            "supported_harness_versions": list(item.source.supported_harness_versions),
+            "supported_os": list(item.source.supported_os),
+            "supported_arch": list(item.source.supported_arch),
+            "technical_support": "experimental",
+            "technical_support_reason": "derived recast adaptation pending assessment",
+            "semantic_losses": list(dict.fromkeys(losses)),
+        }
+        provisional = ScopeAdaptation.model_validate(scope_document)
+        projection = build_projection(provisional, item.files)
+        stored_projection = content.put(connection, projection, at=at)
+        scope_document["projection_artifact"] = {
+            "digest": stored_projection.digest,
+            "size_bytes": stored_projection.byte_length,
+        }
+        scope_documents.append(scope_document)
+    transform_body: dict[str, JsonValue] = {
+        "transform_id": TRANSFORM_ID,
+        "version": TRANSFORM_VERSION,
+        "source_harness": source_harness,
+        "target_harness": target,
+        "component_type": passport.component_type,
+        "target_paths": [item.rule.relative for item in preview],
+        "target_scopes": [item.rule.target_scope for item in preview],
+    }
+    source_artifact: dict[str, JsonValue] | None
+    if len(preview) == 1:
+        held = preview[0].source.projection_artifact
+        source_artifact = {"digest": held.digest, "size_bytes": held.size_bytes}
+    else:
+        source_artifact = None
+    return seal_adaptation(
+        {
+            "harness_id": target,
+            "implementation_mode": "derived",
+            "source_artifact": source_artifact,
+            "transform": {
+                "transform_id": TRANSFORM_ID,
+                "version": TRANSFORM_VERSION,
+                "digest": digest_canonical("ai-stp:component-adaptation:v1", transform_body),
+            },
+            "logical_component_type": passport.component_type,
+            "scope_adaptations": cast(list[JsonValue], scope_documents),
+        }
+    )
+
+
+def _projection_member(
+    path: str,
+    digest: str,
+    byte_length: int,
+    contributing: Rule | None,
+    *,
+    mode: int,
+    native_ids: list[str] | None = None,
+    content_format: str = "application/octet-stream",
+    parser_id: str | None = None,
+) -> dict[str, JsonValue]:
+    key = contributing.declared_key if contributing is not None else ""
+    suffix = PurePosixPath(path).suffix.casefold()
+    parser = "toml/1" if suffix == ".toml" else "json/1" if key else parser_id
+    return {
+        "path": path,
+        "object_type": "file",
+        "mode": mode,
+        "content_artifact": {"digest": digest, "size_bytes": byte_length},
+        "native_ids": list(native_ids or []),
+        "content_format": content_format,
+        "parser_id": parser,
+        "ownership": "contribution" if key else "whole",
+        "ownership_key": key or None,
+        "write_semantics": "merge" if key else "replace",
+        "withdrawal_semantics": "preserve_unowned" if key else "remove_path",
+    }
+
+
+def _derive_mcp_files(
+    files: Mapping[str, bytes],
+    source_harness: HarnessId,
+    source_scope: str,
+    target: Rule,
+) -> tuple[dict[str, bytes], tuple[str, ...]] | None:
+    source_rule = composition.rule_for("mcp", source_harness, scope=source_scope) or (
+        composition.rule_for("mcp", source_harness)
+    )
+    servers = _logical_mcp_servers(files, source_rule)
+    encoded = native_transform.encode_mcp_servers(servers, target) if servers is not None else None
+    if encoded is None:
+        return None
+    payload, losses = encoded
+    return {target.relative: payload}, losses
+
+
+def _logical_mcp_servers(
+    files: Mapping[str, bytes], source_rule: Rule | None
+) -> dict[str, JsonValue] | None:
+    if len(files) != 1:
+        return None
+    path, payload = next(iter(files.items()))
+    host = source_rule.relative if source_rule is not None else path
+    if source_rule is not None and source_rule.declared_key:
+        try:
+            parsed = contribution.parse_value(host=host, content=payload)
+        except CliFailure:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+    parsed = _parse_mcp_document(host, payload)
+    return native_transform.logical_mcp_servers(parsed) if parsed is not None else None
+
+
+def _parse_mcp_document(host: str, payload: bytes) -> JsonValue | None:
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    suffix = PurePosixPath(host).suffix.casefold()
+    try:
+        if suffix == ".toml":
+            return cast("JsonValue", tomlkit.parse(text).unwrap())
+        return cast("JsonValue", json.loads(text))
+    except ValueError:
+        return None
+
+
+def _projection_files(scope: ScopeAdaptation, payload: bytes) -> dict[str, bytes]:
+    files: dict[str, bytes] = {}
+    with zipfile.ZipFile(io.BytesIO(payload), mode="r") as archive:
+        for member in scope.members:
+            if member.object_type != "file":
+                continue
+            files[member.path] = archive.read(member.path)
+    return files
+
+
+def _remap_files[T](
+    files: Mapping[str, T],
+    component_type: str,
+    source_harness: HarnessId,
+    source_scope: str,
+    target: Rule,
+) -> dict[str, T] | None:
+    """Map a complete declared subtree without flattening or overwriting members.
+
+    The same mapping is used for bytes and modes. A path outside the source
+    surface is not a basename alias: guessing one can silently replace another
+    file or detach a script from its package-relative resources.
+    """
+    if target.declared_key or not files:
+        return None
+    if target.shape == "file":
+        if len(files) != 1:
+            return None
+        return {target.relative: next(iter(files.values()))}
+    if target.shape != "directory":
+        return None
+    source_rule = composition.rule_for(component_type, source_harness, scope=source_scope)
+    if source_rule is None or source_rule.shape != "directory":
+        return None
+    prefix = source_rule.relative.rstrip("/") + "/"
+    remapped: dict[str, T] = {}
+    seen: set[str] = set()
+    root = target.relative.rstrip("/")
+    for path, payload in files.items():
+        if not path.startswith(prefix) or path == prefix:
+            return None
+        destination = f"{root}/{path[len(prefix) :]}"
+        folded = destination.casefold()
+        if folded in seen:
+            return None
+        seen.add(folded)
+        remapped[destination] = payload
+    return remapped
+
+
+def _component_passport(
+    connection: sqlite3.Connection, member: tuple[str, str, str]
+) -> ComponentVersionPassport:
+    recorded = versions.held(connection, member[0], member[1])
+    if recorded is None or recorded.passport_digest != member[2]:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "a recast member is not in the local registry",
+            details={"stable_id": member[0], "version": member[1]},
+        )
+    stored = revisions.get(connection, recorded.revision_id)
+    if stored is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "a recast member revision is missing",
+            details={"stable_id": member[0]},
+        )
+    try:
+        return ComponentVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
+    except ValidationError as error:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "a recast member is not an immutable component version",
+            details={"stable_id": member[0]},
+        ) from error
+
+
+def _held_setup(
+    connection: sqlite3.Connection, setup_id: str, version: str | None
+) -> versions.Recorded:
+    if version:
+        recorded = versions.held(connection, setup_id, version)
+        if recorded is None:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "that setup version is not in the local registry",
+                details={"id": setup_id, "version": version},
+            )
+        return recorded
+    held = versions.line(connection, setup_id)
+    if not held:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "that setup is not in the local registry",
+            details={"id": setup_id},
+        )
+    return held[-1]
+
+
+def _plan_view(
+    source: SetupVersionPassport,
+    target: HarnessId,
+    setup_id: str,
+    created_at: str,
+    members: tuple[SetupRecastMember, ...],
+) -> SetupRecastPlan:
+    if not setup_id:
+        setup_id = new_id("setup")
+    body: dict[str, JsonValue] = {
+        "source_setup_id": source.stable_id,
+        "source_version": source.version,
+        "source_harness_id": source.harness_id,
+        "target_harness_id": target,
+        "setup_id": setup_id,
+        "version": versions.FIRST_VERSION,
+        "created_at": created_at,
+        "transform": {"transform_id": TRANSFORM_ID, "version": TRANSFORM_VERSION},
+        "members": [cast(JsonValue, item.model_dump(mode="json")) for item in members],
+    }
+    return SetupRecastPlan(
+        setup_id=setup_id,
+        version=versions.FIRST_VERSION,
+        source_setup_id=source.stable_id,
+        source_version=source.version,
+        source_harness_id=source.harness_id,
+        target_harness_id=target,
+        created_at=created_at,
+        complete=all(item.disposition != "blocked" for item in members),
+        plan_digest=digest_bytes(PLAN_DOMAIN, canonize(body)),
+        members=list(members),
+    )
+
+
+classify_member = _classify
+preview_projection = _preview_projection
+derive_adaptation = _derive_adaptation
+materialize_member = _materialize_member

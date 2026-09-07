@@ -1,8 +1,10 @@
 /**
  * Closed tag facet list for catalog filters (ADR-0024, docs/contracts/tag-vocabulary.md).
  * Canonical ids only — display names come from i18n when needed. Facets mirror
- * the first-party seed vocabulary in ai_stp_platform.catalog_seed.SEED_TAG_VOCABULARY.
+ * the first-party seed vocabulary in tests.support.catalog_seed.SEED_TAG_VOCABULARY.
  */
+
+import { ComponentType, HarnessId } from "@/lib/api/generated/types.gen";
 
 export const TAG_FACETS = [
   "python",
@@ -23,22 +25,12 @@ export const MAX_TAG_LENGTH = 32;
 export type TagFacet = (typeof TAG_FACETS)[number];
 
 /** Harness ids offered in catalog filter dropdowns (ADR-0003). */
-export const HARNESS_FACETS = ["claude-code", "codex", "pi", "opencode", "grok-build"] as const;
+export const HARNESS_FACETS: readonly HarnessId[] = Object.values(HarnessId);
 
 export type HarnessFacet = (typeof HARNESS_FACETS)[number];
 
 /** Component type taxonomy for catalog filter dropdowns. */
-export const COMPONENT_TYPE_FACETS = [
-  "instruction",
-  "skill",
-  "mcp",
-  "hook",
-  "command",
-  "agent",
-  "plugin",
-  "setting",
-  "cli",
-] as const;
+export const COMPONENT_TYPE_FACETS: readonly ComponentType[] = Object.values(ComponentType);
 
 export type ComponentTypeFacet = (typeof COMPONENT_TYPE_FACETS)[number];
 

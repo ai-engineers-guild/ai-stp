@@ -71,6 +71,7 @@ MAX_COMPONENT_TREE_BYTES: Final[int] = 32 * 1024 * 1024
 MAX_COMPONENT_FILES: Final[int] = 1000
 MAX_PORTABLE_SKILL_DEPTH: Final[int] = 4
 MAX_PORTABLE_SKILL_DIRECTORIES: Final[int] = 2000
+MAX_PORTABLE_SKILL_ENTRIES: Final[int] = 1000
 PORTABLE_SKILL_SOURCE: Final[str] = "agentskills.io/specification"
 PORTABLE_SKILL_EXCLUDED_NAMES: Final[frozenset[str]] = frozenset(
     {".git", ".venv", "__pycache__", "cache", "fixtures", "node_modules", "vendor"}
@@ -634,6 +635,13 @@ ADOPTED_FIELDS: Final[tuple[str, ...]] = (
     "content_digest",
     "byte_length",
     "managed_paths",
+    # Import already recorded these so freeze could mark a host-file landing
+    # as a contribution (`ADR-0129`). Adopt extracted the key's value and
+    # stopped, so a released Codex MCP froze as a whole-file `mcp` adaptation
+    # and the provider refused it (`adaptation_binding_mismatch`, measured
+    # on `evidence-contribution` 0.0.66). Empty when the kind owns its path.
+    "declared_key",
+    "source_locator",
 )
 
 
@@ -1135,6 +1143,7 @@ def _passport(
     parents: list[str] | None = None,
 ) -> dict[str, JsonValue]:
     """A passport built from the allowlist, one fact per adopted field."""
+    locator = _contribution_locator(item)
     values: dict[str, JsonValue] = {
         "component_type": item.component_type,
         "projection_kind": item.projection_kind,
@@ -1164,6 +1173,8 @@ def _passport(
         "content_digest": digest,
         "byte_length": byte_length,
         "managed_paths": list(_adopted_managed_paths(item)),
+        "declared_key": locator[0],
+        "source_locator": locator[1],
     }
     facts: dict[str, JsonValue] = {
         name: {
@@ -1191,6 +1202,16 @@ def _adopted_managed_paths(item: Found) -> tuple[str, ...]:
     from ai_stp_cli.local.composition import adopted_covers
 
     return adopted_covers(item)
+
+
+def _contribution_locator(item: Found) -> tuple[str, str]:
+    """The key a contribution owns, and the host-file locator freeze projects onto."""
+    from ai_stp_cli.local import composition
+
+    rule = composition.rule_for(item.component_type, item.harness_id, scope=item.scope)
+    if rule is None or not rule.declared_key:
+        return "", ""
+    return rule.declared_key, f"{rule.relative}#{rule.declared_key}"
 
 
 def _source_name(item: Found) -> str:
@@ -1415,11 +1436,21 @@ def _portable_skills(
             )
             return found, diagnostics, [(directory, depth), *stack]
         try:
-            entries = sorted(directory.iterdir(), key=lambda item: item.name, reverse=True)
+            listed = list(islice(directory.iterdir(), MAX_PORTABLE_SKILL_ENTRIES + 1))
         except OSError as error:
             if not _is_absent(error):
                 diagnostics.append(_unreadable(project, directory, "portable skill directory"))
             continue
+        if len(listed) > MAX_PORTABLE_SKILL_ENTRIES:
+            diagnostics.append(
+                component_sources.Diagnostic(
+                    code="bounded_limit",
+                    source="portable-skills",
+                    reason="a portable skill directory exceeded its bounded entry limit",
+                )
+            )
+            listed = listed[:MAX_PORTABLE_SKILL_ENTRIES]
+        entries = sorted(listed, key=lambda item: item.name, reverse=True)
         for entry in entries:
             if entry.name in PORTABLE_SKILL_EXCLUDED_NAMES:
                 continue

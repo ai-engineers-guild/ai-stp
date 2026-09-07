@@ -280,6 +280,14 @@ export type AuthorAttestation = {
    * Account Id
    */
   account_id: string;
+  /**
+   * Adaptation Id
+   */
+  adaptation_id?: string | null;
+  /**
+   * Arch
+   */
+  arch?: string | null;
   attested_at: Timestamp;
   /**
    * Check Id
@@ -292,7 +300,13 @@ export type AuthorAttestation = {
    */
   harness_version: string;
   object_digest: ContentDigest;
+  /**
+   * Os
+   */
+  os?: string | null;
   policy_version: PolicyVersion;
+  projection_digest?: ContentDigest | null;
+  provider_profile_digest?: ContentDigest | null;
   /**
    * Provider Version
    */
@@ -305,6 +319,10 @@ export type AuthorAttestation = {
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Scope
+   */
+  scope?: string | null;
   /**
    * Signature
    */
