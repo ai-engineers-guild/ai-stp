@@ -60,6 +60,9 @@ first effect. After an effect but before result verification,
 `applied_unverified` is used. State `verified` is set only after durable
 verification of every mandatory postcondition and is the sole name for success.
 The mapping of provider states is described in `provider-protocol.md`.
+Program operations follow the same ordering: a bound `stale` refusal settles
+from `applying` without first claiming an effect; a missing or invalid apply
+response remains `partial` for recovery.
 
 The raw digest and size of the exact cached HarnessBundle are rechecked before
 calling the provider. `apply-bundle` receives the provider plan digest, not the

@@ -97,7 +97,7 @@ def _directory(parameters: Mapping[str, object], name: str) -> Path:
             "a required option must be an absolute path",
             details={"option": f"--{name}", "path": str(place)},
         )
-    return place
+    return place.resolve()
 
 
 def install(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
@@ -729,8 +729,8 @@ def _apply(
     # this path did for every outcome that was not the literal word `verified`.
     try:
         answer = _object(invoke("apply-operation", arguments))
-    except CliFailure:
-        installation.applied(connection, held.operation_id, at=moment())
+        state = operation_v3.require_applied(answer, plan=bound, bundle=None)
+    except BaseException:
         installation.interrupted(
             connection,
             held.operation_id,
@@ -738,12 +738,10 @@ def _apply(
             reason="the provider did not answer after a program operation may have landed",
         )
         raise
-    installation.applied(connection, held.operation_id, at=moment())
 
     # The canonical binder, which also refuses an apply result that names a
     # different plan or snapshot. It returns the provider's own state word, and
     # `stale` is a settled no-effect outcome rather than a failure.
-    state = operation_v3.require_applied(answer, plan=bound, bundle=None)
     mapped = protocol.operation_state(state)
     if mapped != installation.STATE_VERIFIED:
         # Each outcome recorded as itself, the way the setup path records them.
@@ -772,6 +770,7 @@ def _apply(
             "the provider did not verify this program operation",
             details={"state": state, "harness": harness_id, "operation": operation.value},
         )
+    installation.applied(connection, held.operation_id, at=moment())
     # The provider said it verified. That is testimony about the prefix, and
     # the prefix is right here — so it is read before the journal records a
     # success, rather than after somebody wonders.

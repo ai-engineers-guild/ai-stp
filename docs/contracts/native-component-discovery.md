@@ -72,7 +72,11 @@ directory containing `SKILL.md`), `agents`, `commands`, `hooks/hooks.json`, and
 `.mcp.json`.
 
 A Cursor project plugin pack differs only by manifest name:
-`plugins/<name>/.cursor-plugin/plugin.json`. Within a proven plugin, discovery reads
+`plugins/<name>/.cursor-plugin/plugin.json`. A named source root also recognizes
+the native local collection `plugins/local/<name>/.cursor-plugin/plugin.json`,
+as documented by [Cursor](https://cursor.com/docs/plugins#test-plugins-locally).
+Both collection levels reject symlinks and retain the bounded entry limit;
+arbitrary nested plugin directories are not traversed. Within a proven plugin, discovery reads
 `skills`, `agents`, `commands`, and `rules` (each file is an instruction). The official
 schema also names `hooks` and `mcpServers`; they are absent from the measured OpenNetwork
 sample, and the walker does not invent these types from an adjacent directory. JSON

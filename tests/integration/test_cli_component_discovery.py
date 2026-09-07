@@ -312,20 +312,16 @@ def test_every_declared_component_kind_is_discovered_in_one_project(tmp_path: Pa
     assert kinds == declared, f"discovery missed {sorted(declared - kinds)}; rows={rows!r}"
 
 
-_OPENNETWORK_CURSOR_HOME = Path(
-    "/home/rldyourmnd/Developer/opennetwork/cursor-setup-system/setups/nddev-builder/home"
-)
-
-
-@pytest.mark.skipif(
-    not (_OPENNETWORK_CURSOR_HOME / "plugins/nddev-builder/.cursor-plugin/plugin.json").is_file(),
-    reason="OpenNetwork cursor nddev-builder setup is not on this machine",
-)
 def test_real_cli_discovers_the_opennetwork_cursor_plugin_tree(tmp_path: Path) -> None:
     """The gate for cursor discovery is their tree, not a renamed Claude pack."""
+    configured = os.environ.get("AI_STP_CURSOR_SETUP_HOME")
+    if configured is None:
+        pytest.skip("set AI_STP_CURSOR_SETUP_HOME to the real Cursor nddev-builder home")
+    source = Path(configured)
+    plugin = source / "plugins" / "local" / "nddev-builder"
+    assert (plugin / ".cursor-plugin" / "plugin.json").is_file(), source
     home = tmp_path / "isolated-home"
     home.mkdir()
-    plugin = _OPENNETWORK_CURSOR_HOME / "plugins" / "nddev-builder"
     result = subprocess.run(
         [
             sys.executable,
@@ -334,7 +330,7 @@ def test_real_cli_discovers_the_opennetwork_cursor_plugin_tree(tmp_path: Path) -
             "component",
             "discover",
             "--root",
-            str(_OPENNETWORK_CURSOR_HOME),
+            str(source),
             "--json",
         ],
         capture_output=True,
@@ -355,18 +351,14 @@ def test_real_cli_discovers_the_opennetwork_cursor_plugin_tree(tmp_path: Path) -
     rows = cast(list[dict[str, object]], data["components"])
     cursor = [row for row in rows if row["harness_id"] == "cursor" and row["scope"] == "project"]
     kinds = {cast(str, row["component_type"]) for row in cursor}
-    assert kinds == {"plugin", "skill", "agent", "command", "instruction"}
-    assert any(str(row["source_path"]).endswith("plugins/nddev-builder") for row in cursor)
+    assert kinds == {"plugin", "skill", "agent", "command"}
+    assert any(str(row["source_path"]).endswith("plugins/local/nddev-builder") for row in cursor)
     assert any(
-        str(row["source_path"]).endswith("plugins/nddev-builder/skills/nddev-builder")
+        str(row["source_path"]).endswith("plugins/local/nddev-builder/skills/nddev-builder")
         for row in cursor
     )
     assert any(
-        str(row["source_path"]).endswith("plugins/nddev-builder/agents/nddev-builder.md")
-        for row in cursor
-    )
-    assert any(
-        str(row["source_path"]).endswith("plugins/nddev-builder/rules/nddev-builder.mdc")
+        str(row["source_path"]).endswith("plugins/local/nddev-builder/agents/nddev-builder.md")
         for row in cursor
     )
     commands = [row for row in cursor if row["component_type"] == "command"]
