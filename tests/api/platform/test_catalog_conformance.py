@@ -11,12 +11,12 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tests.api.platform.conftest import make_settings
+from tests.support.catalog_seed import load_fixture_seed
 
 from ai_stp_api.app import create_app
 from ai_stp_contracts.fixtures import FixtureCase, load_cases
 from ai_stp_contracts.http import API_BASE_PATH, REQUEST_ID_HEADER
 from ai_stp_contracts.openapi import OPERATIONS
-from ai_stp_platform.catalog_seed import load_first_party_seed
 
 pytestmark = pytest.mark.platform
 
@@ -90,7 +90,7 @@ async def seeded_async_client(
     engine = create_async_engine(migrated_database_url)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     async with sessionmaker() as session:
-        await load_first_party_seed(session)
+        await load_fixture_seed(session)
         await session.commit()
     app = create_app(settings)
     async with app.router.lifespan_context(app):

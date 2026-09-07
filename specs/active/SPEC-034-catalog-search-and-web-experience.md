@@ -171,7 +171,11 @@ Browser editor setups and arbitrary HTML are not included.
   projection. Cursor keys are the selected sort keys plus `stable_id`.
 - `REQ-3434`: The search projection is one row per `(object_kind, stable_id)`
   for the latest public `X.Y`, written in the publication transaction, with a
-  deterministic rebuild. It does not relax trust, lifecycle, or public
+  deterministic rebuild. Bootstrap rebuilds existing published rows even when
+  development seeding is disabled. Rebuilding is atomic and serialized with
+  projection writers while ordinary readers remain available. Support tiers
+  are derived from the canonical harness registry; an unsupported passport
+  receives no invented tier or search row. It does not relax trust, lifecycle, or public
   visibility rules.
 - `REQ-3435`: There is no production special case for `q=pytest` or any other
   fixture needle. A term matches stored name, description, identifiers, tags,

@@ -11,6 +11,15 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from tests.api.platform.conftest import make_settings
+from tests.support.catalog_seed import (
+    FIXTURE_COMPONENT_ID,
+    FIXTURE_SETUP_ID,
+    INCIDENT_SUBAGENT_ARTIFACT,
+    SEED_A1_INCIDENT_AGENT_ID,
+    SEED_A1_INCIDENT_SETUP_ID,
+    SEED_A1_MCP_ID,
+    load_fixture_seed,
+)
 
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
@@ -19,15 +28,6 @@ from ai_stp_contracts.catalog import GitHubMetadata
 from ai_stp_contracts.context_estimator import EstimatorInput, estimate_context, estimator_for
 from ai_stp_contracts.impact import ExactCoordinate
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform.catalog_seed import (
-    FIXTURE_COMPONENT_ID,
-    FIXTURE_SETUP_ID,
-    INCIDENT_SUBAGENT_ARTIFACT,
-    SEED_A1_INCIDENT_AGENT_ID,
-    SEED_A1_INCIDENT_SETUP_ID,
-    SEED_A1_MCP_ID,
-    load_first_party_seed,
-)
 from ai_stp_platform.github_metadata import unavailable_metadata
 from ai_stp_platform.models import Account, CatalogMetadata
 from ai_stp_platform.storage import ImmutableObjectStore
@@ -52,7 +52,7 @@ async def seeded_client(
     async with app.router.lifespan_context(app):
         store = ImmutableObjectStore(settings=settings.storage, client=app.state.object_client)
         async with sessionmaker() as session:
-            await load_first_party_seed(session, store=store)
+            await load_fixture_seed(session, store=store)
             await session.commit()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:

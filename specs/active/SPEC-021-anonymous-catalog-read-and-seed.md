@@ -130,6 +130,14 @@ storage and migrations as such (`SPEC-020`); REST ready surface
   `fixture-component`, `river-*` and `northwind-*`, that is, invented objects, and on
   on the public site they appear alongside real objects. Catalog-integrity checking is
   separate from seeding and runs everywhere: it reads published data rather than writing.
+  Development bootstrap consumes the canonical `ai_stp_contracts.first_party`
+  corpus, including exact IDs, versions, passports, setup provenance and
+  retrievable artifact bytes. Frozen Sprint-1 fixtures remain an explicitly
+  invoked test fixture loader. Canonical reseeding refuses an existing version
+  with different bytes or ownership, preserves visibility and lifecycle
+  restrictions, and never promotes verification from the fact of seeding.
+  Production publication continues through the ordinary publication pipeline;
+  this loader does not bypass its authorization.
 - `REQ-2111`: API never marks the version checked beyond the saved one
   state of evidence; `component_verified` reflects only saved received
   proof (`ADR-0026`, `ADR-0032`), and not the fact that the platform launched the check.

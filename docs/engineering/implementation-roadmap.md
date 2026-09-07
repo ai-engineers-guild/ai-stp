@@ -90,7 +90,7 @@ follow from finding an incomplete deployed user flow.
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven provider integrations with native configuration, backup/recovery and software lifecycle interfaces. Current consumer contracts still name protocol v3; per-provider launch completeness requires G4/G5 evidence. |
 | Release | Recorded published line is `0.0.18` as one `ai-stp-cli` wheel (`ADR-0146`, tag `v0.0.18`); GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Current release qualification and deployed state require exact-SHA evidence, not this row. |
-| Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection exists; completion of the platform seed consumer and artifact closure is tracked by `#146`. |
+| Catalog | The canonical first-party corpus models seven harness families and four postures. Development bootstrap loads its exact passports and retrievable artifacts; production keeps the ordinary publication path. Startup rebuilds derived search rows from the current registry. Remaining assessment/matrix consumers are tracked by `#146` / `#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
 ## Verified snapshot: 2026-09-02, updated at the 0.0.15 cut
@@ -236,21 +236,18 @@ v1 is the first product version. There is no generation-to-generation port of
 incompatible objects. Old published bytes stay immutable and are never mistaken
 for the new standard family.
 
-### OBT remaining — platform/web (colleague)
+### OBT remaining — platform/web
 
-Do not implement `apps/api`, `apps/platform`, `apps/worker`, or `migrations`
-here. Issues:
-
-| Issue | State | Remaining for the colleague |
+| Issue | State | Implementation and remaining evidence |
 |---|---|---|
 | `#100` | open | PyPI distribution leftovers (delete the five former internal index projects). CLI install path is already `uv tool install ai-stp-cli`. |
-| `#125` → `#146` | closed in GitHub; implementation gap on audited main | `_COMPONENT_TYPES` still excludes `cli`; verify the Postgres CHECK and implement a forward migration where required. PR `#126` explicitly excluded this platform work. |
-| `#127` → `#146` | closed in GitHub; consumer not completed by cited PR | `load_first_party_seed` still consumes Sprint-1 fixtures. Seed canonical identities and retrievable artifact bytes, preserve provenance, and derive support tiers. PR `#128` explicitly excluded this platform work. |
+| `#125` → `#146` | implemented | Source validation and ORM use the canonical component kinds. Migration `0048` adds `cli` to the persisted constraint; the PostgreSQL regression preserves it as a standalone kind. |
+| `#127` → `#146` | implemented | `load_first_party_seed` consumes the canonical corpus, checks exact graph/digests and writes retrievable bytes. Frozen Sprint-1 fixtures live in test support. Reseeding preserves private/blocked state and refuses conflicting immutable versions. Production seeding is not a publication bypass. |
 | `#111` `#112` → `#146` | closed in GitHub; cited implementation is insufficient | Locate the actual assessment persistence/migration and per-harness matrix implementation, then complete the current server/web consumers. |
 | `#155` | open | Persist per-adaptation assessments from CLI coordinates. Do not collapse `component_verified` from the first projection. No catalog `portability_claim`. |
 | `#117` `#118` | source repairs present | Cache admission/freshness and shared in-flight task ownership changed. Preserve the regression tests; do not infer all platform work completed from these two fixes. |
-| `#139` | open | Setup detail must show `ported_from` and `related_setup_ids` (generated types already have the fields; web mocks them as null and does not render them). |
-| `#140` | open | After the shared all-beta map in PR `#141`, catalog search/web must not hardcode three `primary` harnesses. `support_tier=primary` may be empty during OBT; that is correct. |
+| `#139` | web remaining | Canonical seed preserves `ported_from` and `related_setup_ids`. Setup detail still needs to present their actual values; generated types already carry them. |
+| `#140` | implemented | Search rebuild derives tiers from the shared registry and no longer invents `primary`. Bootstrap rebuilds existing rows; web harness/type facets derive from generated contracts and fixture defaults are all-beta. `primary` remains a valid empty OBT filter. |
 
 Backlog issues `#18`–`#60` stay backlog.
 

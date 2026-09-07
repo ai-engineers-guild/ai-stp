@@ -1,29 +1,14 @@
 import { experimentalTrust } from "./catalog-ids";
-import type { SafetyChecksSummary } from "@/lib/api/generated/types.gen";
+import type { CatalogSupport, HarnessId, SafetyChecksSummary } from "@/lib/api/generated/types.gen";
 
 export const missingSupport = {
-  schema_version: 1 as const,
-  tier: "primary" as const,
-  state: "missing" as const,
-  evidence: [],
-};
-
-export const betaMissingSupport = {
   schema_version: 1 as const,
   tier: "beta" as const,
   state: "missing" as const,
   evidence: [],
 };
 
-type SupportFixture = typeof missingSupport | typeof betaMissingSupport;
-
-function defaultSupportForHarness(
-  harnessId: ComponentSummaryFixture["latest_harness_id"],
-): SupportFixture {
-  return harnessId === "pi" || harnessId === "opencode" || harnessId === "grok-build"
-    ? betaMissingSupport
-    : missingSupport;
-}
+type SupportFixture = CatalogSupport;
 
 export type ComponentSummaryFixture = {
   schema_version: 1;
@@ -34,8 +19,8 @@ export type ComponentSummaryFixture = {
   latest_version: string;
   latest_name: string;
   latest_description: string;
-  latest_harness_id: "claude-code" | "codex" | "pi" | "opencode" | "grok-build";
-  latest_harness_ids: Array<"claude-code" | "codex" | "pi" | "opencode" | "grok-build">;
+  latest_harness_id: HarnessId;
+  latest_harness_ids: HarnessId[];
   latest_component_type:
     "instruction" | "skill" | "mcp" | "hook" | "command" | "agent" | "plugin" | "setting" | "cli";
   latest_projection_kind: "marketplace" | "plugin" | "native_files" | "package";
@@ -131,7 +116,7 @@ export function makeComponentSummary(
     schema_version: 1,
     latest_lifecycle: "active",
     latest_trust: experimentalTrust,
-    latest_support: defaultSupportForHarness(partial.latest_harness_id),
+    latest_support: missingSupport,
     latest_checks: null,
     publisher_id: partial.owner_id,
     likes_count: 0,
@@ -178,7 +163,7 @@ export function makeSetupSummary(
     schema_version: 1,
     latest_lifecycle: "active",
     latest_trust: experimentalTrust,
-    latest_support: defaultSupportForHarness(partial.latest_harness_id),
+    latest_support: missingSupport,
     latest_checks: null,
     publisher_id: partial.owner_id,
     likes_count: 0,

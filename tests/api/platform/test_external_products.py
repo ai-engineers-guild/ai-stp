@@ -9,6 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from tests.support.catalog_seed import FIXTURE_COMPONENT_ID, load_fixture_seed
 
 from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
 from ai_stp_api.session import issue_session
@@ -17,7 +18,6 @@ from ai_stp_api.slices.owner import service as owner_service
 from ai_stp_contracts.catalog import CATALOG_UNSPECIFIED_FILTER
 from ai_stp_contracts.owner import OwnerExternalProductCreateRequest
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform.catalog_seed import FIXTURE_COMPONENT_ID, load_first_party_seed
 from ai_stp_platform.models import Account, CatalogMetadata
 
 pytestmark = pytest.mark.platform
@@ -71,7 +71,7 @@ async def test_owner_creates_and_attaches_service_visible_under_country(
 ) -> None:
     client, sessionmaker, _settings = db_api_client
     async with sessionmaker() as db:
-        await load_first_party_seed(db)
+        await load_fixture_seed(db)
         metadata = await db.scalar(
             select(CatalogMetadata).where(
                 CatalogMetadata.object_kind == "component",
@@ -135,7 +135,7 @@ async def test_catalog_search_accepts_multi_and_unspecified_relation_filters(
 ) -> None:
     client, sessionmaker, _settings = db_api_client
     async with sessionmaker() as db:
-        await load_first_party_seed(db)
+        await load_fixture_seed(db)
         metadata = await db.scalar(
             select(CatalogMetadata).where(
                 CatalogMetadata.object_kind == "component",

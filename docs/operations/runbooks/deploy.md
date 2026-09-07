@@ -230,8 +230,10 @@ sets `AI_STP_USE_MOCKS=true` in `.env.dev`. Staging smoke always uses `false`.
 
 1. `postgres` healthy.
 2. `migrate`: `alembic upgrade head` (forward only).
-3. `seed`: `python -m ai_stp_platform.seed_cli`—the idempotent first-party
-   catalog (`REQ-2110` / `REQ-2405`).
+3. `seed`: `python -m ai_stp_platform.seed_cli`—publisher/manifest preparation,
+   integrity checks and an atomic search-projection rebuild. Development seed
+   loads the canonical corpus with artifact storage; normal production uses
+   the ordinary publication pipeline (`REQ-2110` / `REQ-2405`).
 4. `api` / `worker` start after a successful seed.
 5. `content-import`—a one-shot after a healthy `api`: GET
    `/v1/content/repository/state`, then POST the embedded snapshot. An empty

@@ -65,3 +65,22 @@ This correction prevents that broad update on databases which have not applied
 0047. It does not reconstruct names already overwritten elsewhere. Recovery of
 such a database requires its verified pre-migration backup and an exact,
 reviewed forward repair; do not guess original names from current slugs.
+
+## Canonical catalog consumers in revision 0048
+
+The forward migration permits the passport contract's standalone `cli` kind
+in Official sources and removes the search table's invented `primary` default.
+Bootstrap rebuilds the derived search rows from their passports and the current
+harness registry, including on production where development seeding is off.
+The rebuild holds a table lock against writers while ordinary readers retain
+the previous committed projection. Catalog metadata and immutable artifact
+bytes are not rewritten by reindexing.
+
+A downgrade to the former component constraint is refused if `cli` source rows
+already exist. Use a compatible forward repair; do not relabel programs as
+slash commands or delete their history to force a downgrade.
+
+Development bootstrap now requires configured artifact storage and loads the
+canonical corpus with exact identities, complete setup references and verified
+bytes. Frozen Sprint-1 fixtures live in test support and are not a production
+seed path. See `SPEC-021` for the environment and immutability boundaries.

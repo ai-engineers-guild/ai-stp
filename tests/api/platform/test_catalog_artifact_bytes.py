@@ -11,15 +11,15 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.api.platform.conftest import make_settings
+from tests.support.catalog_seed import (
+    FIXTURE_COMPONENT_ID,
+    FIXTURE_SETUP_ID,
+    load_fixture_seed,
+)
 
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
 from ai_stp_foundation.digests import digest_bytes
-from ai_stp_platform.catalog_seed import (
-    FIXTURE_COMPONENT_ID,
-    FIXTURE_SETUP_ID,
-    load_first_party_seed,
-)
 from ai_stp_platform.models import CatalogMetadata, ObjectLocation
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
@@ -39,7 +39,7 @@ async def artifact_harness(
     app = create_app(settings)
     async with app.router.lifespan_context(app):
         async with app.state.sessionmaker() as session:
-            await load_first_party_seed(session)
+            await load_fixture_seed(session)
             payload = b"verified catalog artifact"
             digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, payload)
             store = ImmutableObjectStore(settings=settings.storage, client=app.state.object_client)

@@ -7,6 +7,7 @@ from typing import cast
 
 import pytest
 from pydantic import ValidationError
+from tests.support.catalog_seed import seed_corpus
 
 from ai_stp_contracts.catalog import CatalogTrust
 from ai_stp_foundation.canonical import canonize
@@ -25,7 +26,6 @@ from ai_stp_platform.catalog_projection import (
     verify_passport_integrity,
 )
 from ai_stp_platform.catalog_read import CatalogIntegrityError, PublicVersionRow
-from ai_stp_platform.catalog_seed import seed_corpus
 from ai_stp_platform.models import CatalogMetadata
 
 pytestmark = pytest.mark.platform
