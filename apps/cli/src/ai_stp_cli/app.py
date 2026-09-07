@@ -211,6 +211,18 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("auth",): "Sign in, inspect or remove the optional cloud session.",
     ("component",): "Discover, adopt, describe and version single components.",
     ("component", "adaptation"): "Add another harness-native projection to one authoring tree.",
+    (
+        "component",
+        "materialize",
+    ): "Derive a missing harness adaptation from a pinned component version.",
+    (
+        "component",
+        "portability",
+    ): "Record a private local overlay from an explicit portability claim.",
+    (
+        "component",
+        "program",
+    ): "Install, invoke and remove a catalog cli component as a shared executable.",
     ("component", "passport"): "Read, enrich and validate a component's passport.",
     ("component", "scaffold"): "Start a new component from a declared layout.",
     ("component", "source"): "Resolve an external source to an exact, checkable identity.",
@@ -222,6 +234,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("contract",): "The coordinated standard family and the other contract axes this build speaks.",
     ("device",): "This machine's identity in the local registry.",
     ("eval",): "Score a setup against a profile before installing it.",
+    ("eval", "component"): "Score every advertised adaptation of one component version.",
     ("harness",): "Install, update and remove the harness program itself.",
     ("grant",): "Share a private object with another account.",
     ("grant", "invitation"): "Invitations offered but not yet accepted.",

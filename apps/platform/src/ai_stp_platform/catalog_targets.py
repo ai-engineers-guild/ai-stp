@@ -1,4 +1,4 @@
-"""Project exact and claimed-portable target rows (SPEC-064)."""
+"""Project exact published target rows (SPEC-064)."""
 
 from __future__ import annotations
 
@@ -10,13 +10,11 @@ from typing import Any, cast
 from ai_stp_contracts.assurance import (
     AssessmentState,
     AssuranceCounts,
-    ClaimTargetRow,
     ExactTargetRow,
     OwnerTargetGap,
     PublicEvidenceRef,
     RecommendationState,
     TargetMatrix,
-    risk_install_command,
 )
 from ai_stp_contracts.families import SelectedAdaptation, SetupCompositionMember
 from ai_stp_passports.versions import (
@@ -38,35 +36,6 @@ class EffectiveAssessment:
     state: AssessmentState
     freshness: str | None = None
     evidence_refs: tuple[PublicEvidenceRef, ...] = ()
-
-
-def claimed_harness_ids(passport: dict[str, Any]) -> list[str]:
-    """Harnesses named only by current portability claims."""
-    exact: set[str] = set()
-    raw_adaptations = passport.get("adaptations")
-    if isinstance(raw_adaptations, list):
-        for item in cast(list[object], raw_adaptations):
-            if isinstance(item, dict):
-                harness = cast(dict[str, object], item).get("harness_id")
-                if isinstance(harness, str):
-                    exact.add(harness)
-    harness = passport.get("harness_id")
-    if isinstance(harness, str) and harness:
-        exact.add(harness)
-    ordered: list[str] = []
-    raw_claims = passport.get("portability_claims")
-    if not isinstance(raw_claims, list):
-        return ordered
-    for claim in cast(list[object], raw_claims):
-        if not isinstance(claim, dict):
-            continue
-        targets = cast(dict[str, object], claim).get("target_harness_ids")
-        if not isinstance(targets, list):
-            continue
-        for target in cast(list[object], targets):
-            if isinstance(target, str) and target not in exact and target not in ordered:
-                ordered.append(target)
-    return ordered
 
 
 def homogeneous_projection_kind(passport: ComponentVersionPassport) -> str | None:
@@ -93,10 +62,15 @@ def _permissions_summary(scope: ScopeAdaptation) -> list[str]:
     return claims
 
 
-def _recommendation(support: TechnicalSupport, state: AssessmentState) -> RecommendationState:
-    if support == "supported" and state == "verified":
+def _recommendation(
+    support: TechnicalSupport,
+    state: AssessmentState,
+    *,
+    eligible_for_full_auto: bool = True,
+) -> RecommendationState:
+    if eligible_for_full_auto and support == "supported" and state == "verified":
         return "recommended"
-    if state == "failed":
+    if eligible_for_full_auto and state == "failed":
         return "not_recommended"
     return "ineffective"
 
@@ -115,10 +89,10 @@ def project_target_matrix(
     passport: ComponentVersionPassport,
     *,
     assessments: dict[tuple[str, str, str], EffectiveAssessment] | None = None,
-    include_risk_command: bool = True,
     now: datetime | None = None,
+    eligible_for_full_auto: bool = True,
 ) -> TargetMatrix:
-    """Build the public exact/claim matrix. Missing evidence is not_verified."""
+    """Build the public exact matrix. Missing evidence is not_verified."""
     del now
     rows: list[ExactTargetRow] = []
     found = assessments or {}
@@ -146,43 +120,19 @@ def project_target_matrix(
                     permissions_summary=_permissions_summary(scope),
                     assessment_state=state,
                     freshness=evidence.freshness if evidence is not None else None,
-                    recommendation=_recommendation(scope.technical_support, state),
+                    recommendation=_recommendation(
+                        scope.technical_support,
+                        state,
+                        eligible_for_full_auto=eligible_for_full_auto,
+                    ),
                     evidence_refs=list(evidence.evidence_refs) if evidence is not None else [],
                 )
             )
-    claims: list[ClaimTargetRow] = []
-    for claim in passport.portability_claims:
-        for harness_id in claim.target_harness_ids:
-            command = None
-            if include_risk_command:
-                command = risk_install_command(
-                    stable_id=passport.stable_id,
-                    version=passport.version,
-                    harness_id=harness_id,
-                    claim_id=claim.claim_id,
-                )
-            claims.append(
-                ClaimTargetRow(
-                    harness_id=harness_id,
-                    claim_id=claim.claim_id,  # type: ignore[arg-type]
-                    transform_family=claim.transform_family,
-                    transform_version=claim.transform_version,  # type: ignore[arg-type]
-                    component_types=list(claim.component_types),
-                    scopes=list(claim.scopes),
-                    limitations=list(claim.limitations),
-                    issued_at=claim.issued_at,  # type: ignore[arg-type]
-                    expires_at=claim.expires_at,  # type: ignore[arg-type]
-                    evidence_refs=[
-                        PublicEvidenceRef(kind="digest", value=item) for item in claim.evidence_refs
-                    ],
-                    risk_cli_command=command,
-                )
-            )
-    return TargetMatrix(exact=rows, claimed_portable=claims)
+    return TargetMatrix(exact=rows)
 
 
 def assurance_counts(matrix: TargetMatrix) -> AssuranceCounts:
-    """Card summary. Claims never increase the verified numerator."""
+    """Card summary over exact published adaptations."""
     assessed = len(matrix.exact)
     verified = sum(1 for row in matrix.exact if row.assessment_state == "verified")
     return AssuranceCounts(verified_targets=verified, assessed_targets=assessed)
@@ -322,18 +272,6 @@ def owner_target_gaps(matrix: TargetMatrix) -> list[OwnerTargetGap]:
                 state=row.assessment_state,
                 reason_code=None,
                 next_action=action,
-            )
-        )
-    for row in matrix.claimed_portable:
-        gaps.append(
-            OwnerTargetGap(
-                harness_id=row.harness_id,
-                scope=None,
-                state="not_verified",
-                reason_code="claim_only",
-                next_action="publish_exact_adaptation",
-                claim_id=row.claim_id,
-                expires_at=row.expires_at,
             )
         )
     return gaps

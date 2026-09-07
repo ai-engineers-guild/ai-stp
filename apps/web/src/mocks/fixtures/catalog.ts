@@ -183,7 +183,7 @@ type ComponentDetailFixture = {
     caption: string;
     source_label: string;
   }>;
-  target_matrix: { schema_version: 1; exact: []; claimed_portable: [] };
+  target_matrix: { schema_version: 1; exact: [] };
 };
 
 type SetupDetailFixture = {
@@ -221,7 +221,7 @@ function componentDetailFrom(
         source_label: "ai_stp signed storage",
       },
     ],
-    target_matrix: { schema_version: 1, exact: [], claimed_portable: [] },
+    target_matrix: { schema_version: 1, exact: [] },
     versions: versions.map((version) =>
       versionEntry(
         version,

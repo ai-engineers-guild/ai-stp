@@ -85,6 +85,12 @@ class AuthorAttestation(BaseModel):
     attested_at: Timestamp
     #: Ed25519 signature over attestation_digest; never logged.
     signature: Annotated[str, Field(pattern=SIGNATURE_PATTERN)]
+    adaptation_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    projection_digest: ContentDigest | None = None
+    scope: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    provider_profile_digest: ContentDigest | None = None
+    os: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    arch: Annotated[str, Field(min_length=1, max_length=64)] | None = None
 
 
 class PublicationPlanCreateRequest(BaseModel):

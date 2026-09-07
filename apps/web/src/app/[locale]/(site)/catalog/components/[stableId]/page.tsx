@@ -247,10 +247,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
             {passport ? (
               <RequirementsSummary requirements={passport} labels={requirementLabels(t, tc)} />
             ) : null}
-            <ComponentTargetMatrix
-              matrix={targetMatrix ?? null}
-              labels={targetMatrixLabels(t, tCli)}
-            />
+            <ComponentTargetMatrix matrix={targetMatrix ?? null} labels={targetMatrixLabels(t)} />
           </>
         }
         rail={

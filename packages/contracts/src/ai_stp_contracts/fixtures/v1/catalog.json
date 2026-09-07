@@ -56,7 +56,6 @@
                 "verified_targets": 0,
                 "assessed_targets": 1
               },
-              "match_kind": null,
               "latest_tags": [
                 "python",
                 "tests"
@@ -123,10 +122,6 @@
           "schema_version": 1,
           "next_cursor": null,
           "page_size": 20
-        },
-        "compatibility_facets": {
-          "exact": 0,
-          "claimed_portable": 0
         }
       }
     },
@@ -152,10 +147,6 @@
           "schema_version": 1,
           "next_cursor": null,
           "page_size": 20
-        },
-        "compatibility_facets": {
-          "exact": 0,
-          "claimed_portable": 0
         }
       }
     },
@@ -234,7 +225,6 @@
             "verified_targets": 0,
             "assessed_targets": 1
           },
-          "match_kind": null,
           "latest_tags": [
             "python",
             "tests"
@@ -320,8 +310,7 @@
               "recommendation": "ineffective",
               "evidence_refs": []
             }
-          ],
-          "claimed_portable": []
+          ]
         }
       }
     },
@@ -612,8 +601,7 @@
               "recommendation": "ineffective",
               "evidence_refs": []
             }
-          ],
-          "claimed_portable": []
+          ]
         }
       }
     },

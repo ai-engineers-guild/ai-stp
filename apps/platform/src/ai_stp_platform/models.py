@@ -375,9 +375,6 @@ class CatalogSearchProjection(Base):
     support_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    claimed_harness_ids: Mapped[list[str]] = mapped_column(
-        ARRAY(String(32)), default=list, server_default="{}"
-    )
     family_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     family_member_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     family_alignment: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -1276,7 +1273,8 @@ class OfficialUpstreamSource(Base):
     __table_args__ = (
         CheckConstraint(
             "component_type in ("
-            "'instruction', 'skill', 'mcp', 'hook', 'command', 'agent', 'plugin', 'setting')",
+            "'instruction', 'skill', 'mcp', 'hook', 'command', 'agent', 'plugin', 'setting', "
+            "'cli')",
             name="ck_official_upstream_source_component_type",
         ),
         CheckConstraint(
@@ -1514,7 +1512,7 @@ class TargetAssessment(Base):
         UniqueConstraint("idempotency_key", name="uq_target_assessment_idempotency"),
         Index("ix_target_assessment_target_key", "target_key_digest", "observed_at"),
         CheckConstraint(
-            "stored_state in ('not_verified', 'verified', 'failed')",
+            "stored_state in ('not_verified', 'verified', 'failed', 'stale')",
             name="ck_target_assessment_stored_state",
         ),
     )
@@ -1529,6 +1527,7 @@ class TargetAssessment(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String(128))
+    payload_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

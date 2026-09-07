@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import cast
 
 from sqlalchemy import select, tuple_
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.assurance import (
@@ -25,8 +26,9 @@ from ai_stp_contracts.assurance import (
 )
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.invariants import target_assessment_key_digest
+from ai_stp_foundation.provider_surfaces import provider_surface
 from ai_stp_foundation.timestamps import format_timestamp
-from ai_stp_passports.versions import ComponentVersionPassport, ScopeAdaptation
+from ai_stp_passports.versions import ComponentVersionPassport, ScopeAdaptation, adaptation_for
 from ai_stp_platform.catalog_targets import (
     EffectiveAssessment,
     assurance_counts,
@@ -43,6 +45,7 @@ from ai_stp_platform.models import (
     TargetAssessment,
     TargetAssessmentLatest,
 )
+from ai_stp_platform.safety.policy import POLICY_VERSION
 from ai_stp_platform.safety.types import SafetyScanResult
 
 _SCANNER_ID = "ai-stp-safety"
@@ -67,6 +70,112 @@ def _identity_digest(identity: TargetAssessmentIdentity) -> str:
 def _observation_digest(identity: ArtifactObservationIdentity) -> str:
     payload = cast(dict[str, JsonValue], identity.model_dump(mode="json"))
     return target_assessment_key_digest({"observation": payload})
+
+
+async def _validate_published_identity(
+    session: AsyncSession, identity: TargetAssessmentIdentity
+) -> None:
+    """Validate every writer-supplied target field against canonical catalog data."""
+    meta = (
+        await session.execute(
+            select(CatalogMetadata).where(
+                CatalogMetadata.object_kind == "component",
+                CatalogMetadata.stable_id == identity.component_stable_id,
+                CatalogMetadata.version == identity.version,
+                CatalogMetadata.visibility == "public",
+                CatalogMetadata.lifecycle_state.in_(("active", "deprecated")),
+                CatalogMetadata.published_at.is_not(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if meta is None or meta.passport_document is None or meta.passport_digest is None:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "assessment target is not published")
+    if identity.passport_digest != meta.passport_digest:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "passport digest is not canonical")
+    try:
+        passport = ComponentVersionPassport.model_validate(meta.passport_document)
+        adaptation = adaptation_for(passport, identity.harness_id)
+    except (TypeError, ValueError) as exc:
+        raise AssessmentError(
+            "AI_STP_VALIDATION_ERROR", "published adaptation is unavailable"
+        ) from exc
+    if passport.stable_id != identity.component_stable_id or passport.version != identity.version:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "component identity is not canonical")
+    if adaptation.adaptation_id != identity.adaptation_id:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "adaptation identity is not canonical")
+    scope = next(
+        (item for item in adaptation.scope_adaptations if item.scope == identity.scope), None
+    )
+    if scope is None or identity.target_scope != scope.scope:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "target scope is not canonical")
+    if identity.projection_artifact_digest != scope.projection_artifact.digest:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "projection digest is not canonical")
+    if identity.provider_id != _PUBLICATION_PROVIDER_ID:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "provider is not canonical")
+    if identity.provider_version != _PUBLICATION_PROVIDER_VERSION:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "provider version is not canonical")
+    try:
+        surface = provider_surface(identity.harness_id, identity.target_scope)
+    except KeyError as exc:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "provider surface is unknown") from exc
+    required_surface = scope.required_surface
+    if (
+        identity.surface_profile_id != required_surface.profile_id
+        or identity.surface_profile_digest != required_surface.profile_digest
+        or required_surface.profile_id != surface.profile_id
+        or required_surface.profile_digest != surface.profile_digest
+    ):
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "surface profile is not canonical")
+    if identity.policy_version != POLICY_VERSION:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "policy version is stale or unknown")
+    allowed_versions = set(scope.supported_harness_versions)
+    if (allowed_versions and identity.harness_version not in allowed_versions) or (
+        not allowed_versions and identity.harness_version != "unspecified"
+    ):
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "harness version is not allowed")
+    if scope.supported_os and identity.operating_system not in scope.supported_os:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "operating system is not allowed")
+    if scope.supported_arch and identity.architecture not in scope.supported_arch:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "architecture is not allowed")
+
+
+async def _upsert_latest(
+    session: AsyncSession,
+    *,
+    key: str,
+    assessment_id: int,
+    identity: TargetAssessmentIdentity,
+    stored_state: str,
+    expires_at: datetime | None,
+    updated_at: datetime,
+) -> None:
+    """Keep one latest pointer; an older event cannot win a concurrent race."""
+    statement = (
+        insert(TargetAssessmentLatest)
+        .values(
+            target_key_digest=key,
+            assessment_id=assessment_id,
+            component_stable_id=identity.component_stable_id,
+            version=identity.version,
+            adaptation_id=identity.adaptation_id,
+            harness_id=identity.harness_id,
+            scope=identity.scope,
+            stored_state=stored_state,
+            expires_at=expires_at,
+            updated_at=updated_at,
+        )
+        .on_conflict_do_update(
+            index_elements=[TargetAssessmentLatest.target_key_digest],
+            set_={
+                "assessment_id": assessment_id,
+                "stored_state": stored_state,
+                "expires_at": expires_at,
+                "updated_at": updated_at,
+            },
+            where=TargetAssessmentLatest.updated_at <= updated_at,
+        )
+    )
+    await session.execute(statement)
 
 
 def scan_host_platform() -> tuple[SupportedOs, SupportedArch]:
@@ -227,14 +336,17 @@ async def ingest_assessment(
     session: AsyncSession, body: TargetAssessmentIngestRequest
 ) -> TargetAssessmentIngestResponse:
     """Append evidence and atomically advance the latest-effective projection."""
+    await _validate_published_identity(session, body.identity)
     key = _identity_digest(body.identity)
+    payload = cast(dict[str, JsonValue], body.model_dump(mode="json"))
+    payload_digest = target_assessment_key_digest({"payload": payload})
     replay = (
         await session.execute(
             select(TargetAssessment).where(TargetAssessment.idempotency_key == body.idempotency_key)
         )
     ).scalar_one_or_none()
     if replay is not None:
-        if replay.target_key_digest != key or replay.stored_state != body.stored_state:
+        if replay.target_key_digest != key or replay.payload_digest != payload_digest:
             raise AssessmentError("AI_STP_CONFLICT", "idempotency key payload does not match")
         latest = await session.get(TargetAssessmentLatest, key)
         state: AssessmentState = (
@@ -264,30 +376,19 @@ async def ingest_assessment(
         observed_at=observed_at,
         expires_at=expires_at,
         idempotency_key=body.idempotency_key,
+        payload_digest=payload_digest,
     )
     session.add(row)
     await session.flush()
-    latest = await session.get(TargetAssessmentLatest, key)
-    if latest is None:
-        session.add(
-            TargetAssessmentLatest(
-                target_key_digest=key,
-                assessment_id=row.id,
-                component_stable_id=body.identity.component_stable_id,
-                version=body.identity.version,
-                adaptation_id=body.identity.adaptation_id,
-                harness_id=body.identity.harness_id,
-                scope=body.identity.scope,
-                stored_state=body.stored_state,
-                expires_at=expires_at,
-                updated_at=datetime.now(UTC),
-            )
-        )
-    else:
-        latest.assessment_id = row.id
-        latest.stored_state = body.stored_state
-        latest.expires_at = expires_at
-        latest.updated_at = datetime.now(UTC)
+    await _upsert_latest(
+        session,
+        key=key,
+        assessment_id=row.id,
+        identity=body.identity,
+        stored_state=body.stored_state,
+        expires_at=expires_at,
+        updated_at=observed_at,
+    )
     await session.flush()
     await _refresh_ingested_version(
         session,
@@ -391,7 +492,7 @@ async def apply_component_verified(session: AsyncSession, meta: CatalogMetadata)
     assessments = await load_effective_assessments(
         session, component_stable_id=meta.stable_id, version=version
     )
-    matrix = project_target_matrix(passport, assessments=assessments, include_risk_command=False)
+    matrix = project_target_matrix(passport, assessments=assessments)
     verified = conservative_component_verified(checks_summary=meta.checks_summary, matrix=matrix)
     meta.component_verified = verified
     return verified
@@ -412,7 +513,7 @@ async def refresh_component_assurance(
     assessments = await load_effective_assessments(
         session, component_stable_id=meta.stable_id, version=version
     )
-    matrix = project_target_matrix(passport, assessments=assessments, include_risk_command=False)
+    matrix = project_target_matrix(passport, assessments=assessments)
     counts = assurance_counts(matrix)
     verified = conservative_component_verified(checks_summary=meta.checks_summary, matrix=matrix)
     meta.component_verified = verified
@@ -511,18 +612,13 @@ async def record_component_scan_assessments(
             )
             session.add(row)
             await session.flush()
-            session.add(
-                TargetAssessmentLatest(
-                    target_key_digest=key,
-                    assessment_id=row.id,
-                    component_stable_id=passport.stable_id,
-                    version=passport.version,
-                    adaptation_id=adaptation.adaptation_id,
-                    harness_id=adaptation.harness_id,
-                    scope=scope.scope,
-                    stored_state=stored_state,
-                    expires_at=expires_at,
-                    updated_at=observed_at,
-                )
+            await _upsert_latest(
+                session,
+                key=key,
+                assessment_id=row.id,
+                identity=identity,
+                stored_state=stored_state,
+                expires_at=expires_at,
+                updated_at=observed_at,
             )
     await session.flush()

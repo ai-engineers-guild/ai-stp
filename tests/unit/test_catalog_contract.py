@@ -83,7 +83,6 @@ OBJECT_IDENTITY = {
     "github_stars",
     "updated_at",
     "usage_metrics",
-    "match_kind",
     "family_id",
     "family_member_count",
     "family_match_kind",

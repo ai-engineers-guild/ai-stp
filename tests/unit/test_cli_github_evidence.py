@@ -98,7 +98,11 @@ def test_refresh_sends_a_bearer_when_github_token_is_set(
     assert seen == ["Bearer github_pat_test_api"]
 
 
-def test_archived_unarchive_and_not_modified_are_append_only_with_one_request_each() -> None:
+def test_archived_unarchive_and_not_modified_are_append_only_with_one_request_each(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
     item = _materialize()
     calls: list[httpx.Request] = []
     answers = iter(

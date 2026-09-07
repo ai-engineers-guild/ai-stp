@@ -1,6 +1,6 @@
 ---
 description: "Mandatory checks by component type, MCP class, and setup."
-last_verified: "2026-09-05"
+last_verified: "2026-09-06"
 ---
 
 # Validation policy
@@ -298,7 +298,10 @@ credential-dependent check. It is bound to:
 - the validation-policy version and tool versions;
 - the harness and provider versions against which validation ran;
 - identifiers of the executed test cases and the result;
-- the author account, device, and execution time.
+- the author account, device, and execution time;
+- optionally, one adaptation identity, projection digest, scope, provider
+  profile digest, OS, and architecture. Unset optional fields are omitted from
+  the signed payload so historical records keep their digest.
 
 Secret values, tokens, credentials, credential-issuance addresses, and sensitive
 diagnostics are not included in the attestation and are not serialized. The

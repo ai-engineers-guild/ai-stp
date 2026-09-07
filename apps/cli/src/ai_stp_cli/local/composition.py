@@ -729,6 +729,8 @@ def covers(
     """
     rule = rule_for(component_type, harness_id, scope=scope)
     if rule is None:
+        if component_type == "cli" and name:
+            return (f"bin/{name}",)
         return (f"skills/{name}",) if component_type == "skill" and name else ()
     if rule.shape == "file":
         return claimed_paths(rule.relative) if component_type == "hook" else (rule.relative,)
@@ -850,6 +852,18 @@ def convert(surfaces: tuple[Surface, ...], target: Target) -> ConversionReport:
 
     entries: list[ConversionEntry] = []
     for item in ordered:
+        if item.component_type == "cli":
+            entries.append(
+                ConversionEntry(
+                    stable_id=item.stable_id,
+                    component_type="cli",
+                    native_surface="bin",
+                    projection_kind="package",
+                    provider_kind="cli",
+                    state=STATE_COMPLETE,
+                )
+            )
+            continue
         rule = rule_for(item.component_type, target.harness_id, scope=target.scope)
         if rule is None:
             # A passport with no declared kind lands here too, and says so. It
@@ -1184,6 +1198,7 @@ def _surfaces(surfaces: tuple[Surface, ...], target: Target) -> list[Conflict]:
         )
         for item in sorted(surfaces, key=lambda item: item.stable_id)
         if item.required
+        and item.component_type != "cli"
         and not native_surface(item.component_type, target.harness_id, scope=target.scope)
     ]
 

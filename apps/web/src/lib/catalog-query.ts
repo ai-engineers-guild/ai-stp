@@ -39,7 +39,6 @@ export const CATALOG_WEB_QUERY_KEYS = frozenset([
   "page",
   "setups_page",
   "components_page",
-  "compatibility",
   "family_id",
   "family_alignment",
   "member_harness_id",
@@ -63,7 +62,6 @@ export const CATALOG_API_QUERY_KEYS = frozenset([
   "updated_to",
   "page_size",
   "schema_version",
-  "compatibility",
   "family_id",
   "family_alignment",
   "member_harness_id",
@@ -99,7 +97,6 @@ export type ParsedCatalogQuery = {
   countryCodes?: string[];
   updatedFrom?: string;
   updatedTo?: string;
-  compatibility?: "claimed_portable";
   familyId?: string;
   familyAlignment?: "aligned" | "diverged" | "unknown" | "missing";
   memberHarnessId?: string;
@@ -154,7 +151,6 @@ export function parseCatalogSearchParams(
   const updatedToRaw = firstString(raw["updated_to"])?.trim() || undefined;
   const updatedFrom = updatedFromRaw ? parseIsoDate(updatedFromRaw) : undefined;
   const updatedTo = updatedToRaw ? parseIsoDate(updatedToRaw) : undefined;
-  const compatibilityRaw = firstString(raw["compatibility"])?.trim() || undefined;
   const familyIdRaw = firstString(raw["family_id"])?.trim() || undefined;
   const familyAlignmentRaw = firstString(raw["family_alignment"])?.trim() || undefined;
   const memberHarnessRaw = firstString(raw["member_harness_id"])?.trim() || undefined;
@@ -165,9 +161,6 @@ export function parseCatalogSearchParams(
     ...(supportStateRaw !== undefined &&
     !["verified", "stale", "missing", "not_verified"].includes(supportStateRaw)
       ? [`support_state=${supportStateRaw}`]
-      : []),
-    ...(compatibilityRaw !== undefined && compatibilityRaw !== "claimed_portable"
-      ? [`compatibility=${compatibilityRaw}`]
       : []),
     ...(familyAlignmentRaw !== undefined &&
     !["aligned", "diverged", "unknown", "missing"].includes(familyAlignmentRaw)
@@ -263,7 +256,6 @@ export function parseCatalogSearchParams(
       countryCodes,
       ...(updatedFrom ? { updatedFrom } : {}),
       ...(updatedTo ? { updatedTo } : {}),
-      ...(compatibilityRaw === "claimed_portable" ? { compatibility: "claimed_portable" } : {}),
       ...(familyIdRaw ? { familyId: familyIdRaw } : {}),
       ...(familyAlignmentRaw &&
       ["aligned", "diverged", "unknown", "missing"].includes(familyAlignmentRaw)
@@ -448,7 +440,6 @@ export function catalogQueryToRecord(
   if (query.countryCodes?.length) record["country_codes"] = query.countryCodes.join(",");
   writeOptional(record, "updated_from", query.updatedFrom);
   writeOptional(record, "updated_to", query.updatedTo);
-  writeOptional(record, "compatibility", query.compatibility);
   writeOptional(record, "family_id", query.familyId);
   writeOptional(record, "family_alignment", query.familyAlignment);
   writeOptional(record, "member_harness_id", query.memberHarnessId);

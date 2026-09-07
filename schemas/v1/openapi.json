@@ -615,7 +615,7 @@
       },
       "AssuranceCounts": {
         "additionalProperties": true,
-        "description": "Bounded card summary. Claims never increase the verified numerator.",
+        "description": "Bounded card summary over exact published target rows.",
         "properties": {
           "assessed_targets": {
             "default": 0,
@@ -710,6 +710,34 @@
             "title": "Account Id",
             "type": "string"
           },
+          "adaptation_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Adaptation Id"
+          },
+          "arch": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arch"
+          },
           "attested_at": {
             "$ref": "#/components/schemas/Timestamp"
           },
@@ -734,8 +762,44 @@
           "object_digest": {
             "$ref": "#/components/schemas/ContentDigest"
           },
+          "os": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Os"
+          },
           "policy_version": {
             "$ref": "#/components/schemas/PolicyVersion"
+          },
+          "projection_digest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentDigest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "provider_profile_digest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentDigest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "provider_version": {
             "maxLength": 64,
@@ -756,6 +820,20 @@
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope"
           },
           "signature": {
             "pattern": "^[A-Za-z0-9+/]{86}==$",
@@ -1244,10 +1322,6 @@
         ],
         "type": "string"
       },
-      "ClaimId": {
-        "pattern": "^claim_[0-9a-f]{64}$",
-        "type": "string"
-      },
       "ClaimState": {
         "enum": [
           "requested",
@@ -1255,112 +1329,6 @@
           "denied"
         ],
         "type": "string"
-      },
-      "ClaimTargetRow": {
-        "additionalProperties": true,
-        "description": "One claim-only target. Never exact availability or install eligibility.",
-        "properties": {
-          "claim_id": {
-            "$ref": "#/components/schemas/ClaimId"
-          },
-          "component_types": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Component Types",
-            "type": "array"
-          },
-          "evidence_refs": {
-            "items": {
-              "$ref": "#/components/schemas/PublicEvidenceRef"
-            },
-            "title": "Evidence Refs",
-            "type": "array"
-          },
-          "expires_at": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Timestamp"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          },
-          "harness_id": {
-            "$ref": "#/components/schemas/HarnessId"
-          },
-          "issued_at": {
-            "$ref": "#/components/schemas/Timestamp"
-          },
-          "kind": {
-            "const": "claimed_portable",
-            "default": "claimed_portable",
-            "title": "Kind",
-            "type": "string"
-          },
-          "limitations": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Limitations",
-            "type": "array"
-          },
-          "risk_cli_command": {
-            "anyOf": [
-              {
-                "maxLength": 512,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Risk Cli Command"
-          },
-          "schema_version": {
-            "const": 1,
-            "default": 1,
-            "title": "Schema Version",
-            "type": "integer"
-          },
-          "scopes": {
-            "items": {
-              "$ref": "#/components/schemas/TargetScope"
-            },
-            "title": "Scopes",
-            "type": "array"
-          },
-          "transform_family": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Transform Family",
-            "type": "string"
-          },
-          "transform_version": {
-            "$ref": "#/components/schemas/ai_stp_contracts__assurance__Version"
-          }
-        },
-        "required": [
-          "claim_id",
-          "component_types",
-          "evidence_refs",
-          "expires_at",
-          "harness_id",
-          "issued_at",
-          "kind",
-          "limitations",
-          "risk_cli_command",
-          "schema_version",
-          "scopes",
-          "transform_family",
-          "transform_version"
-        ],
-        "title": "ClaimTargetRow",
-        "type": "object"
       },
       "CliError": {
         "additionalProperties": true,
@@ -1395,34 +1363,6 @@
         ],
         "title": "CliError",
         "type": "object"
-      },
-      "CompatibilityFacets": {
-        "additionalProperties": true,
-        "description": "Separate exact and claimed-portable counts for the current public query.",
-        "properties": {
-          "claimed_portable": {
-            "default": 0,
-            "minimum": 0,
-            "title": "Claimed Portable",
-            "type": "integer"
-          },
-          "exact": {
-            "default": 0,
-            "minimum": 0,
-            "title": "Exact",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "claimed_portable",
-          "exact"
-        ],
-        "title": "CompatibilityFacets",
-        "type": "object"
-      },
-      "CompatibilityMode": {
-        "const": "claimed_portable",
-        "type": "string"
       },
       "ComplaintCreateRequest": {
         "additionalProperties": false,
@@ -1781,9 +1721,6 @@
         "additionalProperties": true,
         "description": "One page of component search results, partitioned by trust lane.",
         "properties": {
-          "compatibility_facets": {
-            "$ref": "#/components/schemas/CompatibilityFacets"
-          },
           "experimental": {
             "items": {
               "$ref": "#/components/schemas/ComponentSummary"
@@ -1819,7 +1756,6 @@
           }
         },
         "required": [
-          "compatibility_facets",
           "experimental",
           "items",
           "page",
@@ -1962,17 +1898,6 @@
             "maxItems": 20,
             "title": "Authors",
             "type": "array"
-          },
-          "compatibility": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CompatibilityMode"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
           },
           "component_type": {
             "anyOf": [
@@ -2300,17 +2225,6 @@
             "title": "Likes Count",
             "type": "integer"
           },
-          "match_kind": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MatchKind"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          },
           "owner_account_id": {
             "default": "",
             "maxLength": 64,
@@ -2375,7 +2289,6 @@
           "latest_trust",
           "latest_version",
           "likes_count",
-          "match_kind",
           "owner_account_id",
           "owner_handle",
           "publisher_id",
@@ -2564,13 +2477,6 @@
           },
           "permissions": {
             "$ref": "#/components/schemas/Permissions"
-          },
-          "portability_claims": {
-            "items": {
-              "$ref": "#/components/schemas/PortabilityClaim"
-            },
-            "title": "Portability Claims",
-            "type": "array"
           },
           "provides_capabilities": {
             "items": {
@@ -5078,13 +4984,6 @@
         "title": "LivenessResponse",
         "type": "object"
       },
-      "MatchKind": {
-        "enum": [
-          "exact",
-          "claimed_portable"
-        ],
-        "type": "string"
-      },
       "NonEmptyArtifactRef": {
         "additionalProperties": false,
         "description": "Content-addressed bytes for an artifact that must contain a projection.",
@@ -5542,28 +5441,6 @@
         "additionalProperties": true,
         "description": "Owner-safe coverage diagnostic. No foreign evidence or storage keys.",
         "properties": {
-          "claim_id": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ClaimId"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          },
-          "expires_at": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Timestamp"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          },
           "harness_id": {
             "$ref": "#/components/schemas/HarnessId"
           },
@@ -5609,8 +5486,6 @@
           }
         },
         "required": [
-          "claim_id",
-          "expires_at",
           "harness_id",
           "next_action",
           "reason_code",
@@ -6309,111 +6184,6 @@
         "maxLength": 32,
         "minLength": 1,
         "type": "string"
-      },
-      "PortabilityClaim": {
-        "additionalProperties": false,
-        "description": "Immutable author assertion that exact source can be transformed for named harnesses.",
-        "properties": {
-          "claim_id": {
-            "pattern": "^claim_[0-9a-f]{64}$",
-            "title": "Claim Id",
-            "type": "string"
-          },
-          "component_types": {
-            "items": {
-              "$ref": "#/components/schemas/ComponentType"
-            },
-            "maxItems": 9,
-            "minItems": 1,
-            "title": "Component Types",
-            "type": "array"
-          },
-          "evidence_refs": {
-            "items": {
-              "maxLength": 512,
-              "minLength": 1,
-              "type": "string"
-            },
-            "maxItems": 16,
-            "title": "Evidence Refs",
-            "type": "array"
-          },
-          "expires_at": {
-            "anyOf": [
-              {
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Expires At"
-          },
-          "issued_at": {
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
-            "title": "Issued At",
-            "type": "string"
-          },
-          "limitations": {
-            "items": {
-              "maxLength": 512,
-              "minLength": 1,
-              "type": "string"
-            },
-            "maxItems": 32,
-            "title": "Limitations",
-            "type": "array"
-          },
-          "scopes": {
-            "items": {
-              "$ref": "#/components/schemas/TargetScope"
-            },
-            "maxItems": 3,
-            "minItems": 1,
-            "title": "Scopes",
-            "type": "array"
-          },
-          "source_artifact_digest": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Source Artifact Digest",
-            "type": "string"
-          },
-          "target_harness_ids": {
-            "items": {
-              "$ref": "#/components/schemas/HarnessId"
-            },
-            "maxItems": 7,
-            "minItems": 1,
-            "title": "Target Harness Ids",
-            "type": "array"
-          },
-          "transform_family": {
-            "maxLength": 64,
-            "minLength": 1,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "title": "Transform Family",
-            "type": "string"
-          },
-          "transform_version": {
-            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
-            "title": "Transform Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "claim_id",
-          "source_artifact_digest",
-          "target_harness_ids",
-          "transform_family",
-          "transform_version",
-          "component_types",
-          "scopes",
-          "issued_at"
-        ],
-        "title": "PortabilityClaim",
-        "type": "object"
       },
       "ProjectedMember": {
         "additionalProperties": false,
@@ -11517,15 +11287,8 @@
       },
       "TargetMatrix": {
         "additionalProperties": true,
-        "description": "Detail/version projection of exact rows and claim-only rows.",
+        "description": "Detail/version projection of exact published adaptations.",
         "properties": {
-          "claimed_portable": {
-            "items": {
-              "$ref": "#/components/schemas/ClaimTargetRow"
-            },
-            "title": "Claimed Portable",
-            "type": "array"
-          },
           "exact": {
             "items": {
               "$ref": "#/components/schemas/ExactTargetRow"
@@ -11541,7 +11304,6 @@
           }
         },
         "required": [
-          "claimed_portable",
           "exact",
           "schema_version"
         ],
@@ -12133,7 +11895,6 @@
                             },
                             "latest_version": "1.2",
                             "likes_count": 1,
-                            "match_kind": null,
                             "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                             "owner_handle": "fixture-owner",
                             "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -14509,22 +14270,6 @@
           },
           {
             "in": "query",
-            "name": "compatibility",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/CompatibilityMode"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null
-            }
-          },
-          {
-            "in": "query",
             "name": "component_type",
             "required": false,
             "schema": {
@@ -14848,10 +14593,6 @@
                   "searchComponents.emptyAuthoritativeLane": {
                     "summary": "Without consent the experimental lane is not returned at all, and an empty authoritative lane is an honest answer rather than an error.",
                     "value": {
-                      "compatibility_facets": {
-                        "claimed_portable": 0,
-                        "exact": 0
-                      },
                       "experimental": [],
                       "items": [],
                       "page": {
@@ -14865,10 +14606,6 @@
                   "searchComponents.experimentalOnConsent": {
                     "summary": "With consent the experimental candidates arrive in their own section, never interleaved into items (SPEC-006 REQ-603). Sprint 1 has no validation pipeline, so nothing can honestly claim component_verified and the authoritative lane is legitimately empty.",
                     "value": {
-                      "compatibility_facets": {
-                        "claimed_portable": 0,
-                        "exact": 0
-                      },
                       "experimental": [],
                       "items": [],
                       "page": {
@@ -15053,7 +14790,6 @@
                         },
                         "latest_version": "1.2",
                         "likes_count": 0,
-                        "match_kind": null,
                         "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "owner_handle": "fixture-owner",
                         "publisher_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -15063,7 +14799,6 @@
                         "usage_metrics": null
                       },
                       "target_matrix": {
-                        "claimed_portable": [],
                         "exact": [
                           {
                             "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
@@ -15407,7 +15142,6 @@
                         "tier": "beta"
                       },
                       "target_matrix": {
-                        "claimed_portable": [],
                         "exact": [
                           {
                             "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",

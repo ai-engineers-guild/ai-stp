@@ -9,9 +9,9 @@ Status: superseded by `ADR-0162-component-identity-owns-an-immutable-projection-
 for component identity, versioning, and exact projection ownership; by
 `ADR-0163-assurance-is-bound-to-an-exact-adaptation-target.md` for mutable
 assessment; and by
-`ADR-0164-portability-is-an-evidence-bound-claim-not-an-adaptation.md` for
-missing-target portability. The deterministic adaptation and scope-projection
-rules in this record remain historical context for versions produced under it.
+the active component-assurance specification for missing-target portability.
+The deterministic adaptation and scope-projection rules in this record remain
+historical context for versions produced under it.
 
 ## Context
 

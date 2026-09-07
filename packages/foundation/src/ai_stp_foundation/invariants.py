@@ -1,4 +1,4 @@
-"""Canonical logical and harness-invariant digests (ADR-0164, ADR-0165).
+"""Canonical logical and harness-invariant digests (ADR-0162, ADR-0165).
 
 Component logical identity and setup harness invariants are shared by the CLI
 and the platform. Both hash the same declared inputs in dedicated domains so
@@ -14,10 +14,7 @@ from ai_stp_foundation.digests import digest_canonical
 
 COMPONENT_LOGICAL_DOMAIN: Final[str] = "ai-stp:component-logical:v1"
 SETUP_INVARIANT_DOMAIN: Final[str] = "ai-stp:setup-harness-invariant:v1"
-PORTABILITY_CLAIM_DOMAIN: Final[str] = "ai-stp:portability-claim:v1"
 TARGET_ASSESSMENT_KEY_DOMAIN: Final[str] = "ai-stp:target-assessment-key:v1"
-
-CLAIM_ID_PATTERN: Final[str] = r"^claim_[0-9a-f]{64}$"
 
 
 def _mapping(value: object) -> dict[str, JsonValue]:
@@ -112,19 +109,6 @@ def setup_harness_invariant_digest(
     return digest_canonical(
         SETUP_INVARIANT_DOMAIN, setup_invariant_payload(passport, member_logical_digests)
     )
-
-
-def portability_claim_payload(claim: Mapping[str, JsonValue]) -> JsonValue:
-    """Claim bytes hashed for the content-derived claim identifier."""
-    payload = dict(claim)
-    payload.pop("claim_id", None)
-    return payload
-
-
-def portability_claim_id(claim: Mapping[str, JsonValue]) -> str:
-    """Derive one portability-claim identity from its immutable body."""
-    digest = digest_canonical(PORTABILITY_CLAIM_DOMAIN, portability_claim_payload(claim))
-    return f"claim_{digest.removeprefix('sha256:')}"
 
 
 def target_assessment_key_digest(identity: Mapping[str, JsonValue]) -> str:

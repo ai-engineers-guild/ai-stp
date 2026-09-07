@@ -14,12 +14,10 @@ import type { TargetMatrix } from "@/lib/api/generated/types.gen";
 
 const labels = {
   heading: "Harness targets",
-  summary: "Exact projections and author portability claims.",
+  summary: "Exact published projections.",
   score: "Exact targets verified",
   harness: "Harness",
-  availability: "Availability",
   exact: "Exact projection",
-  claimedPortable: "Claimed portable",
   scope: "Scope",
   implementation: "Implementation",
   projectionKind: "Projection",
@@ -41,16 +39,7 @@ const labels = {
   freshness: "Evidence freshness",
   semanticLosses: "Semantic losses",
   permissions: "Permissions",
-  transform: "Transform",
-  limitations: "Claim limitations",
-  validity: "Claim validity",
   noneListed: "None listed",
-  riskInstall: "Local risk install",
-  riskInstallBody: "This command runs only in the CLI.",
-  copyLabel: "Copy",
-  copiedLabel: "Copied",
-  copyError: "Copy failed",
-  docsLabel: "Docs",
 };
 
 const matrix: TargetMatrix = {
@@ -76,43 +65,20 @@ const matrix: TargetMatrix = {
       evidence_refs: [],
     },
   ],
-  claimed_portable: [
-    {
-      schema_version: 1,
-      kind: "claimed_portable",
-      harness_id: "pi",
-      claim_id: `claim_${"b".repeat(64)}`,
-      transform_family: "portable-source",
-      transform_version: "1.0",
-      component_types: ["skill"],
-      scopes: ["global"],
-      limitations: ["lossy"],
-      issued_at: "2026-09-06T00:00:00.000Z",
-      expires_at: null,
-      evidence_refs: [],
-      risk_cli_command:
-        "ai-stp component risk-install --id component_x --version 1.0 --harness pi --claim-id claim_b",
-    },
-  ],
 };
 
 describe("ComponentTargetMatrix", () => {
-  it("labels exact and claimed rows in text and never exposes an install action", () => {
+  it("labels exact rows and never exposes a claim or install action", () => {
     render(<ComponentTargetMatrix matrix={matrix} labels={labels} />);
 
-    expect(
-      screen.getByRole("table", { hidden: true, name: "Harness targets" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Harness targets" })).toBeInTheDocument();
     expect(screen.getByText("Exact targets verified: 1 / 1 (100%)")).toBeInTheDocument();
-    expect(screen.getAllByText("Exact projection").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Claimed portable").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Implementation: native").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Verified").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Supported").length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText("Open projection details: claude-code · native_files").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("Implementation: native").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Safety check").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/risk-install/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/risk-install/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /install/i })).not.toBeInTheDocument();
   });
 });

@@ -71,6 +71,26 @@ python apps/cli/tools/first_party_launch_publication.py status \
 A read-only update of the saved `plan_id` values. If the confirm response is lost, read
 status first instead of creating a new plan.
 
+## Normal-path readback evidence
+
+After apply reaches a terminal `published` state, record a readback for every
+object in the saved snapshot:
+
+1. Read the exact component/setup version from the catalog API.
+2. Compare stable ID, version, passport digest, and every adaptation digest
+   with the reviewed `ai_stp_contracts.first_party` snapshot.
+3. Read the artifact through the catalog artifact endpoint/object-store adapter
+   and compare its bytes and digest, not only the metadata row.
+4. For setups, verify that every pinned component was published first and that
+   `ported_from`/`related_setup_ids` provenance is unchanged.
+5. Save the corpus digest, plan IDs, readback results, database migration head,
+   and object-store endpoint identity as release evidence. Never save tokens or
+   raw private storage keys.
+
+The integration test for this runbook uses PostgreSQL and the standard object
+store adapter. A green fixture-seed test is not a substitute for this
+readback.
+
 ## Rejection
 
 - A different corpus digest, owner, or device — stop.

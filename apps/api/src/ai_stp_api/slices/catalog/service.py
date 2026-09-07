@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Literal, cast
@@ -12,7 +12,6 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_contracts.assurance import CompatibilityFacets
 from ai_stp_contracts.catalog import (
     CatalogPageInfo,
     CatalogReactionList,
@@ -65,7 +64,7 @@ from ai_stp_platform.catalog_projection import (
     setup_summary,
     setup_version_response,
 )
-from ai_stp_platform.catalog_query_language import QuerySyntaxError, named_harness_ids, parse_query
+from ai_stp_platform.catalog_query_language import QuerySyntaxError, parse_query
 from ai_stp_platform.catalog_read import (
     CatalogIntegrityError,
     PublicVersionRow,
@@ -78,7 +77,7 @@ from ai_stp_platform.catalog_search import (
     search_catalog,
     upsert_catalog_search_projection,
 )
-from ai_stp_platform.catalog_targets import claimed_harness_ids, setup_composition
+from ai_stp_platform.catalog_targets import setup_composition
 from ai_stp_platform.catalog_usage import CatalogUsagePolicy, load_usage_metrics
 from ai_stp_platform.external_catalog import COUNTRY_CODES
 from ai_stp_platform.github_metadata import (
@@ -449,7 +448,6 @@ class SearchPage:
     page_number: int | None = None
     total_items: int | None = None
     exact_count: int = 0
-    claimed_portable_count: int = 0
     family_fields: FamilyCardFields = field(
         default_factory=dict[str, tuple[str | None, int | None, str | None]]
     )
@@ -516,27 +514,12 @@ def _copy_with_usage[T](model: T, metrics: dict[str, CatalogUsageMetrics]) -> T:
     return model
 
 
-def _component_match_kind(
-    row: PublicVersionRow, *, compatibility: str | None, harness_ids: Sequence[str]
-) -> str | None:
-    if compatibility != "claimed_portable":
-        return None
-    exact = set(named_harness_ids(row.passport))
-    claimed = set(claimed_harness_ids(row.passport))
-    if harness_ids and any(item in claimed and item not in exact for item in harness_ids):
-        return "claimed_portable"
-    return "exact"
-
-
 async def search_components(
     session: AsyncSession,
     request: ComponentSearchRequest,
     *,
     cursor_secret: str,
 ) -> ComponentListResponse:
-    harness_ids = list(request.harness_ids)
-    if request.harness_id:
-        harness_ids = list(dict.fromkeys([request.harness_id, *harness_ids]))
     page = await _search(
         session,
         object_kind="component",
@@ -564,7 +547,6 @@ async def search_components(
         page_size=request.page_size,
         page_number=request.page,
         cursor_secret=cursor_secret,
-        compatibility=request.compatibility,
     )
 
     listed = (*page.authoritative, *page.experimental)
@@ -585,9 +567,6 @@ async def search_components(
             row,
             now=now,
             assessments=assessments,
-            match_kind=_component_match_kind(
-                row, compatibility=request.compatibility, harness_ids=harness_ids
-            ),
         )
 
     return ComponentListResponse(
@@ -598,9 +577,6 @@ async def search_components(
             page.experimental, project, now=page.now, object_kind="component"
         ),
         page=_page_info(page),
-        compatibility_facets=CompatibilityFacets(
-            exact=page.exact_count, claimed_portable=page.claimed_portable_count
-        ),
     )
 
 
@@ -959,7 +935,6 @@ async def _search(
     cursor_secret: str,
     updated_from: date | None = None,
     updated_to: date | None = None,
-    compatibility: str | None = None,
     family_id: str | None = None,
     family_alignment: str | None = None,
     member_harness_id: str | None = None,
@@ -992,7 +967,6 @@ async def _search(
         include_deprecated=include_deprecated,
         updated_from=updated_from.isoformat() if updated_from is not None else None,
         updated_to=updated_to.isoformat() if updated_to is not None else None,
-        compatibility=compatibility,
         family_id=family_id,
         family_alignment=family_alignment,
         member_harness_id=member_harness_id,
@@ -1038,7 +1012,6 @@ async def _search(
         query_expression=query_expression,
         updated_from=updated_from,
         updated_to=updated_to,
-        compatibility=compatibility,
         family_id=family_id,
         family_alignment=family_alignment,
         member_harness_id=member_harness_id,
@@ -1063,7 +1036,6 @@ async def _search(
         page_number=page_number,
         total_items=hits.total_items,
         exact_count=hits.exact_count,
-        claimed_portable_count=hits.claimed_portable_count,
         family_fields=hits.family_fields,
     )
 

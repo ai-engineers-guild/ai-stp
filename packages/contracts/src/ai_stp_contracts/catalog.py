@@ -42,9 +42,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from ai_stp_contracts.assurance import (
     AssuranceCounts,
-    CompatibilityFacets,
-    CompatibilityMode,
-    MatchKind,
     TargetMatrix,
 )
 from ai_stp_contracts.families import (
@@ -416,7 +413,6 @@ class ComponentSummary(BaseModel):
     #: Present only when every exact adaptation shares one projection kind.
     latest_projection_kind: ProjectionKind | None = None
     latest_assurance: AssuranceCounts = Field(default_factory=AssuranceCounts)
-    match_kind: MatchKind | None = None
     latest_tags: Tags
     latest_lifecycle: PublicLifecycle
     latest_trust: CatalogTrust
@@ -565,8 +561,6 @@ class ComponentSearchRequest(BaseModel):
     #: questions until 2026-08-30, when the catalogue's first page was 19
     #: deprecated setups and one active.
     include_deprecated: bool = False
-    #: Absent means exact availability only. Claim-only targets require this mode.
-    compatibility: CompatibilityMode | None = None
 
     @field_validator("q", mode="before")
     @classmethod
@@ -687,7 +681,6 @@ class ComponentListResponse(BaseModel):
         default_factory=list[ComponentSummary]
     )
     page: PageInfo | CatalogPageInfo
-    compatibility_facets: CompatibilityFacets = Field(default_factory=CompatibilityFacets)
 
     @model_validator(mode="after")
     def _page_is_bounded_across_both_lanes(self) -> "ComponentListResponse":

@@ -13,7 +13,7 @@ from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.provider_surfaces import TargetScope, provider_surface
 from ai_stp_passports.markdown import validate_safe_markdown
-from ai_stp_passports.versions import TAG_PATTERN
+from ai_stp_passports.versions import COMPONENT_TYPES, TAG_PATTERN
 from ai_stp_platform.github_metadata import canonical_github_source
 from ai_stp_platform.models import Account, AuditEvent, OfficialUpstreamSource
 from ai_stp_platform.official_upstream import (
@@ -26,9 +26,6 @@ from ai_stp_platform.official_upstream.errors import INVALID_SOURCE, OfficialUps
 
 _TRAVERSAL = re.compile(r"(^|/)\.\.(/|$)")
 _SOURCE_ID_RE = re.compile(r"^[a-z][a-z0-9-]{0,62}$")
-_COMPONENT_TYPES: frozenset[str] = frozenset(
-    {"instruction", "skill", "mcp", "hook", "command", "agent", "plugin", "setting"}
-)
 _PACKAGE_ECOSYSTEMS: frozenset[str] = frozenset({"npm", "pypi", "crates.io", "go", "pub.dev"})
 _TAG_RE = re.compile(TAG_PATTERN)
 
@@ -73,7 +70,7 @@ def _common_fields(command: SourceUpsert) -> None:
         raise OfficialUpstreamError(INVALID_SOURCE, "source id is invalid")
     if command.kind not in {"git", "package"}:
         raise OfficialUpstreamError(INVALID_SOURCE, "source kind is unknown")
-    if command.component_type not in _COMPONENT_TYPES:
+    if command.component_type not in COMPONENT_TYPES:
         raise OfficialUpstreamError(INVALID_SOURCE, "component type is unknown")
     if command.owner_account_id != OFFICIAL_ACCOUNT_ID:
         raise OfficialUpstreamError(INVALID_SOURCE, "owner must be the AI STP Official account")

@@ -69,7 +69,6 @@ type Labels = {
   likeMenu?: string | undefined;
   unlikeMenu?: string | undefined;
   assuranceCounts?: string | undefined;
-  claimedPortableMatch?: string | undefined;
   familyMemberCount?: string | undefined;
 };
 export type CatalogAuthor = { displayName: string | null; avatarUrl: string | null };
@@ -378,15 +377,6 @@ function isSetupSummary(item: CatalogItem): item is SetupSummary {
   return "family_member_count" in item;
 }
 
-function ClaimedMatch({ item, labels }: { item: CatalogItem; labels: Labels }) {
-  if (!isComponentSummary(item) || item.match_kind !== "claimed_portable") return null;
-  return (
-    <Badge variant="outline" data-ui={UI.catalog.claimedMatch}>
-      {labels.claimedPortableMatch ?? "Author claim"}
-    </Badge>
-  );
-}
-
 export function formatAssuranceCounts(verified: number, assessed: number, label: string): string {
   if (assessed <= 0) {
     return `${label}: 0 / 0`;
@@ -408,7 +398,6 @@ function CardFacts({
     : { verified_targets: 0, assessed_targets: 0 };
   return (
     <div className="text-muted-foreground mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs">
-      {kind === "component" ? <ClaimedMatch item={item} labels={labels} /> : null}
       {kind === "component" && isComponentSummary(item) ? (
         <p data-ui={UI.catalog.assurance}>
           {formatAssuranceCounts(

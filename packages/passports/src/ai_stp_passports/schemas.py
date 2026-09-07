@@ -21,7 +21,6 @@ from ai_stp_passports.facts import Fact
 from ai_stp_passports.versions import (
     ComponentAdaptation,
     ComponentVersionPassport,
-    PortabilityClaim,
     SetupVersionPassport,
 )
 
@@ -30,7 +29,6 @@ PASSPORT_MODELS: Final[dict[str, ExportedSchema]] = {
     "component-version-passport": ComponentVersionPassport,
     "fact": Fact,
     "passport-envelope": PassportEnvelope,
-    "portability-claim": PortabilityClaim,
     "setup-version-passport": SetupVersionPassport,
 }
 

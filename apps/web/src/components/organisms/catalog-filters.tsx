@@ -83,7 +83,6 @@ const FILTER_QUERY_KEYS = new Set([
   "country_codes",
   "updated_from",
   "updated_to",
-  "compatibility",
 ]);
 
 function hrefFor(query: ParsedCatalogQuery, basePath = "/catalog") {
@@ -419,7 +418,6 @@ function RefineSurface({
 function chipLabel(key: string, label: string, labels: CatalogFiltersProps["labels"]): string {
   if (key === "updated_from") return `${labels.updatedFrom ?? "Updated from"}: ${label}`;
   if (key === "updated_to") return `${labels.updatedTo ?? "Updated to"}: ${label}`;
-  if (key === "compatibility") return labels.claimedPortableFilter ?? label;
   return label;
 }
 

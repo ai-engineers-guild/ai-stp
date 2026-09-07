@@ -19,10 +19,6 @@
       "format": "date",
       "type": "string"
     },
-    "CompatibilityMode": {
-      "const": "claimed_portable",
-      "type": "string"
-    },
     "ComponentType": {
       "enum": [
         "instruction",
@@ -106,17 +102,6 @@
       "maxItems": 20,
       "title": "Authors",
       "type": "array"
-    },
-    "compatibility": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/CompatibilityMode"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
     },
     "component_type": {
       "anyOf": [

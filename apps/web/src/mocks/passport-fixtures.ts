@@ -176,7 +176,7 @@ export function componentVersionResponse(stableId: string, version: string) {
     trust: experimentalTrust,
     support: summary.latest_support,
     published_at: summary.latest_published_at,
-    target_matrix: { schema_version: 1 as const, exact: [], claimed_portable: [] },
+    target_matrix: { schema_version: 1 as const, exact: [] },
   };
 }
 

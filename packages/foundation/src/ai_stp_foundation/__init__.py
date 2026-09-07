@@ -50,15 +50,11 @@ from ai_stp_foundation.identity import (
 )
 from ai_stp_foundation.ids import ID_PREFIXES, StableIdError, is_valid_id, new_id, parse_id
 from ai_stp_foundation.invariants import (
-    CLAIM_ID_PATTERN,
     COMPONENT_LOGICAL_DOMAIN,
-    PORTABILITY_CLAIM_DOMAIN,
     SETUP_INVARIANT_DOMAIN,
     TARGET_ASSESSMENT_KEY_DOMAIN,
     component_logical_digest,
     component_logical_payload,
-    portability_claim_id,
-    portability_claim_payload,
     setup_harness_invariant_digest,
     setup_invariant_payload,
     target_assessment_key_digest,
@@ -80,7 +76,6 @@ from ai_stp_foundation.versioning import (
 
 __all__ = [
     "ADAPTATION_ID_PATTERN",
-    "CLAIM_ID_PATTERN",
     "COMPONENT_LOGICAL_DOMAIN",
     "DIGEST_DOMAINS",
     "DISPLAY_NAME_MAX_LENGTH",
@@ -90,7 +85,6 @@ __all__ = [
     "ID_PREFIXES",
     "OFFICIAL_DISPLAY_NAME",
     "OFFICIAL_HANDLE",
-    "PORTABILITY_CLAIM_DOMAIN",
     "SETUP_INVARIANT_DOMAIN",
     "TARGET_ASSESSMENT_KEY_DOMAIN",
     "CanonicalizationError",
@@ -135,8 +129,6 @@ __all__ = [
     "parse_id",
     "parse_timestamp",
     "parse_version",
-    "portability_claim_id",
-    "portability_claim_payload",
     "revision_id",
     "setup_harness_invariant_digest",
     "setup_invariant_payload",

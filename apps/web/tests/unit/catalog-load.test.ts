@@ -31,7 +31,6 @@ const emptyList = {
   schema_version: 1 as const,
   items: [],
   experimental: [],
-  compatibility_facets: { exact: 0, claimed_portable: 0 },
   page: { schema_version: 1 as const, next_cursor: null, page_size: 25 },
 };
 

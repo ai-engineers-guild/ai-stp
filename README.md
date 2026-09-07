@@ -90,7 +90,7 @@ An unknown harness is `undefined`. Automatic install is refused.
 
 ## Current direction: complete the first supported alpha
 
-`0.0.16` is the first supported alpha contract. `0.0.17` continues it as one
+`0.0.16` is the first supported alpha contract. `0.0.18` continues it as one
 public `ai-stp-cli` wheel (`ADR-0146`). The current program finishes verified
 provider delivery — GitHub attested releases by default, PyPI provenance as a
 second path (`ADR-0141`) — the consumer-owned recoverable multi-root install

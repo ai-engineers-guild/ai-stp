@@ -111,6 +111,7 @@ def test_a_migrated_v1_plan_keeps_its_original_digest(registry: sqlite3.Connecti
         setup_stable_id=current.setup_stable_id,
         setup_version=current.setup_version,
         schema_version=1,
+        provider_protocol_version=1,
     )
     registry.execute(
         """

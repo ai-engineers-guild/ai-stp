@@ -59,9 +59,6 @@ export function catalogSearchInput(
   if (query.countryCodes?.length) input.country_codes = query.countryCodes;
   if (query.updatedFrom) input.updated_from = query.updatedFrom;
   if (query.updatedTo) input.updated_to = query.updatedTo;
-  if (resource === "components" && query.compatibility) {
-    input.compatibility = query.compatibility;
-  }
   if (resource === "setups" && query.familyId) input.family_id = query.familyId;
   if (resource === "setups" && query.familyAlignment) {
     input.family_alignment = query.familyAlignment;

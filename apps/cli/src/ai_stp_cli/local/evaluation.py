@@ -9,6 +9,8 @@ from typing import Final, cast
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import component_passports, content, revisions, versions
 from ai_stp_contracts.evaluation import (
+    ComponentEvalPlan,
+    ComponentEvalResult,
     EvalComponentCoordinate,
     EvaluationBudget,
     EvaluationCheck,
@@ -30,6 +32,10 @@ from ai_stp_passports.versions import (
 
 PROFILE_VERSION: Final[str] = "setup-eval/1"
 RUNNER_VERSION: Final[str] = "ai-stp-local-static/1"
+_STATIC_MESSAGE: Final[dict[bool, str]] = {
+    True: "The declared deterministic assertion passed.",
+    False: "At least one component lacks its type-specific declared static surface.",
+}
 _TYPES: Final[tuple[ComponentType, ...]] = COMPONENT_TYPES
 _SURFACES: Final[dict[ComponentType, tuple[str, ...]]] = {
     "instruction": ("managed_paths",),
@@ -174,9 +180,22 @@ def plan(
         )
     selected_refs = [item for item in setup.components if not wanted or item.stable_id in wanted]
     loaded = tuple(
-        _component(connection, item.stable_id, item.version, item.passport_digest)
-        for item in selected_refs
+        item
+        for ref in selected_refs
+        for item in _components(
+            connection,
+            ref.stable_id,
+            ref.version,
+            ref.passport_digest,
+            harness_id=setup.harness_id,
+        )
     )
+    if not loaded:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the setup graph has no adaptation for its own harness",
+            details={"setup_id": setup.stable_id, "harness_id": setup.harness_id},
+        )
     types = cast(
         tuple[ComponentType, ...],
         tuple(dict.fromkeys(item.coordinate.component_type for item in loaded)),
@@ -215,71 +234,198 @@ def plan(
     return result
 
 
+def component_plan(
+    connection: sqlite3.Connection,
+    *,
+    stable_id: str,
+    version: str,
+    harness_version: str,
+    provider_version: str,
+    runner_version: str,
+    at: str,
+) -> ComponentEvalPlan:
+    """Bind the reference profile to every advertised adaptation of one version."""
+    recorded = versions.held(connection, stable_id, version)
+    if recorded is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "the exact component version is not in the local registry",
+            details={"stable_id": stable_id, "version": version},
+        )
+    loaded = _components(connection, stable_id, version, recorded.passport_digest)
+    if not loaded:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "the component version has no adaptations to evaluate",
+            details={"stable_id": stable_id, "version": version},
+        )
+    types = cast(
+        tuple[ComponentType, ...],
+        tuple(dict.fromkeys(item.coordinate.component_type for item in loaded)),
+    )
+    profile = reference_profile(types).model_copy(update={"scope": "component"})
+    body: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "profile": cast(JsonValue, profile.model_dump(mode="json")),
+        "stable_id": stable_id,
+        "version": version,
+        "passport_digest": recorded.passport_digest,
+        "artifact_digest": loaded[0].coordinate.artifact_digest,
+        "harness_version": harness_version,
+        "provider_version": provider_version,
+        "runner_version": runner_version,
+        "components": cast(JsonValue, [item.coordinate.model_dump(mode="json") for item in loaded]),
+        "planned_at": at,
+    }
+    digest = digest_bytes("ai-stp:component-eval-plan:v1", canonize(body))
+    result = ComponentEvalPlan.model_validate(
+        {
+            "plan_id": f"eval_plan_{digest.removeprefix('sha256:')[:24]}",
+            "plan_digest": digest,
+            **body,
+        }
+    )
+    connection.execute(
+        "INSERT INTO eval_plan "
+        "(plan_id, plan_digest, document_json, created_at) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(plan_digest) DO NOTHING",
+        (result.plan_id, result.plan_digest, result.model_dump_json(), at),
+    )
+    return result
+
+
 def run(
     connection: sqlite3.Connection, plan_id: str, expected_digest: str, *, at: str
 ) -> SetupEvalResult:
-    """Run only the local-static subset and persist immutable evidence once."""
-    existing = connection.execute(
-        "SELECT document_json FROM eval_result WHERE plan_id = ?", (plan_id,)
-    ).fetchone()
+    """Run local-static checks for one confirmed setup evaluation plan."""
+    existing = _existing_result(connection, plan_id)
     if existing is not None:
-        result = SetupEvalResult.model_validate_json(str(existing[0]))
-        if result.plan.plan_digest != expected_digest:
+        if not isinstance(existing, SetupEvalResult):
+            raise CliFailure(
+                "AI_STP_CONFLICT", "the stored evaluation run is not a setup evaluation"
+            )
+        if existing.plan.plan_digest != expected_digest:
             raise CliFailure(
                 "AI_STP_CONFLICT", "the eval plan digest differs from the completed run"
             )
-        return result
+        return existing
     selected = show_plan(connection, plan_id)
     if selected.plan_digest != expected_digest:
         raise CliFailure("AI_STP_PRECONDITION_FAILED", "the eval plan digest changed before run")
-    loaded = {
-        item.coordinate.stable_id: item
-        for item in (
-            _component(
-                connection, coordinate.stable_id, coordinate.version, coordinate.passport_digest
+    result = _persist_result(
+        connection,
+        plan_id=plan_id,
+        selected=selected,
+        domain="ai-stp:setup-eval-result:v1",
+        model=SetupEvalResult,
+        at=at,
+    )
+    assert isinstance(result, SetupEvalResult)
+    return result
+
+
+def run_component(
+    connection: sqlite3.Connection, plan_id: str, expected_digest: str, *, at: str
+) -> ComponentEvalResult:
+    """Run local-static checks for every advertised adaptation of one version."""
+    existing = _existing_result(connection, plan_id)
+    if existing is not None:
+        if not isinstance(existing, ComponentEvalResult):
+            raise CliFailure(
+                "AI_STP_CONFLICT", "the stored evaluation run is not a component evaluation"
             )
-            for coordinate in selected.components
-        )
-    }
-    checks: list[EvaluationCheckResult] = []
-    for check in selected.profile.checks:
-        matching = [
-            item
-            for item in loaded.values()
-            if check.component_type in {None, item.coordinate.component_type}
-        ]
-        component_ids = [item.coordinate.stable_id for item in matching]
-        if check.runner != "local_static":
-            checks.append(
-                EvaluationCheckResult(
-                    check_id=check.check_id,
-                    method=check.method,
-                    runner=check.runner,
-                    status="not_run",
-                    message=f"Runner {check.runner!r} is not configured for this local run.",
-                    component_ids=component_ids,
-                )
+        if existing.plan.plan_digest != expected_digest:
+            raise CliFailure(
+                "AI_STP_CONFLICT", "the eval plan digest differs from the completed run"
             )
-            continue
-        passed = (
-            bool(matching)
-            if check.component_type is None
-            else all(_static_contract(item) for item in matching)
+        return existing
+    selected = show_component_plan(connection, plan_id)
+    if selected.plan_digest != expected_digest:
+        raise CliFailure("AI_STP_PRECONDITION_FAILED", "the eval plan digest changed before run")
+    result = _persist_result(
+        connection,
+        plan_id=plan_id,
+        selected=selected,
+        domain="ai-stp:component-eval-result:v1",
+        model=ComponentEvalResult,
+        at=at,
+    )
+    assert isinstance(result, ComponentEvalResult)
+    return result
+
+
+def show_plan(connection: sqlite3.Connection, plan_id: str) -> SetupEvalPlan:
+    document = _plan_document(connection, plan_id)
+    if "setup_id" not in document:
+        raise CliFailure("AI_STP_CONFLICT", "the evaluation plan is not a setup evaluation")
+    return SetupEvalPlan.model_validate_json(document)
+
+
+def show_component_plan(connection: sqlite3.Connection, plan_id: str) -> ComponentEvalPlan:
+    document = _plan_document(connection, plan_id)
+    if "setup_id" in document:
+        raise CliFailure("AI_STP_CONFLICT", "the evaluation plan is not a component evaluation")
+    return ComponentEvalPlan.model_validate_json(document)
+
+
+def show_result(
+    connection: sqlite3.Connection, run_id: str
+) -> SetupEvalResult | ComponentEvalResult:
+    row = connection.execute(
+        "SELECT document_json FROM eval_result WHERE run_id = ?", (run_id,)
+    ).fetchone()
+    if row is None:
+        raise CliFailure("AI_STP_NOT_FOUND", "the evaluation run does not exist")
+    payload = str(row[0])
+    if '"setup_id"' in payload:
+        return SetupEvalResult.model_validate_json(payload)
+    return ComponentEvalResult.model_validate_json(payload)
+
+
+def _plan_document(connection: sqlite3.Connection, plan_id: str) -> str:
+    row = connection.execute(
+        "SELECT document_json FROM eval_plan WHERE plan_id = ?", (plan_id,)
+    ).fetchone()
+    if row is None:
+        raise CliFailure("AI_STP_NOT_FOUND", "the evaluation plan does not exist")
+    return str(row[0])
+
+
+def _existing_result(
+    connection: sqlite3.Connection, plan_id: str
+) -> SetupEvalResult | ComponentEvalResult | None:
+    row = connection.execute(
+        "SELECT document_json FROM eval_result WHERE plan_id = ?", (plan_id,)
+    ).fetchone()
+    if row is None:
+        return None
+    payload = str(row[0])
+    if '"setup_id"' in payload:
+        return SetupEvalResult.model_validate_json(payload)
+    return ComponentEvalResult.model_validate_json(payload)
+
+
+def _persist_result(
+    connection: sqlite3.Connection,
+    *,
+    plan_id: str,
+    selected: SetupEvalPlan | ComponentEvalPlan,
+    domain: str,
+    model: type[SetupEvalResult] | type[ComponentEvalResult],
+    at: str,
+) -> SetupEvalResult | ComponentEvalResult:
+    loaded = tuple(
+        item
+        for coordinate in selected.components
+        for item in _components(
+            connection,
+            coordinate.stable_id,
+            coordinate.version,
+            coordinate.passport_digest,
+            adaptation_id=coordinate.adaptation_id,
         )
-        checks.append(
-            EvaluationCheckResult(
-                check_id=check.check_id,
-                method=check.method,
-                runner=RUNNER_VERSION,
-                status="passed" if passed else "failed",
-                message=(
-                    "The declared deterministic assertion passed."
-                    if passed
-                    else "At least one component lacks its type-specific declared static surface."
-                ),
-                component_ids=component_ids,
-            )
-        )
+    )
+    checks = _execute_checks(selected.profile, loaded)
     aggregate = (
         "failed"
         if any(item.status == "failed" for item in checks)
@@ -296,8 +442,8 @@ def run(
         "immutable_published_bytes_changed": False,
         "provider_permissions_used": False,
     }
-    digest = digest_bytes("ai-stp:setup-eval-result:v1", canonize(body))
-    result = SetupEvalResult.model_validate(
+    digest = digest_bytes(domain, canonize(body))
+    result = model.model_validate(
         {
             "run_id": f"eval_run_{digest.removeprefix('sha256:')[:24]}",
             "result_digest": digest,
@@ -312,27 +458,85 @@ def run(
     return result
 
 
-def show_plan(connection: sqlite3.Connection, plan_id: str) -> SetupEvalPlan:
-    row = connection.execute(
-        "SELECT document_json FROM eval_plan WHERE plan_id = ?", (plan_id,)
-    ).fetchone()
-    if row is None:
-        raise CliFailure("AI_STP_NOT_FOUND", "the evaluation plan does not exist")
-    return SetupEvalPlan.model_validate_json(str(row[0]))
+def _execute_checks(
+    profile: SetupEvalProfile, loaded: tuple[_Loaded, ...]
+) -> list[EvaluationCheckResult]:
+    checks: list[EvaluationCheckResult] = []
+    for check in profile.checks:
+        matching = [
+            item
+            for item in loaded
+            if check.component_type in {None, item.coordinate.component_type}
+        ]
+        if check.runner != "local_static":
+            checks.append(
+                EvaluationCheckResult(
+                    check_id=check.check_id,
+                    method=check.method,
+                    runner=check.runner,
+                    status="not_run",
+                    message=f"Runner {check.runner!r} is not configured for this local run.",
+                    component_ids=[item.coordinate.stable_id for item in matching],
+                    adaptation_ids=[
+                        item.coordinate.adaptation_id
+                        for item in matching
+                        if item.coordinate.adaptation_id
+                    ],
+                )
+            )
+            continue
+        if check.component_type is None:
+            passed = bool(matching)
+            checks.append(
+                EvaluationCheckResult(
+                    check_id=check.check_id,
+                    method=check.method,
+                    runner=RUNNER_VERSION,
+                    status="passed" if passed else "failed",
+                    message=_STATIC_MESSAGE[passed],
+                    component_ids=[item.coordinate.stable_id for item in matching],
+                )
+            )
+            continue
+        if not matching:
+            checks.append(
+                EvaluationCheckResult(
+                    check_id=check.check_id,
+                    method=check.method,
+                    runner=RUNNER_VERSION,
+                    status="failed",
+                    message=_STATIC_MESSAGE[False],
+                    component_ids=[],
+                )
+            )
+            continue
+        for item in matching:
+            passed = _static_contract(item)
+            checks.append(
+                EvaluationCheckResult(
+                    check_id=check.check_id,
+                    method=check.method,
+                    runner=RUNNER_VERSION,
+                    status="passed" if passed else "failed",
+                    message=_STATIC_MESSAGE[passed],
+                    component_ids=[item.coordinate.stable_id],
+                    adaptation_ids=(
+                        [item.coordinate.adaptation_id] if item.coordinate.adaptation_id else []
+                    ),
+                )
+            )
+    return checks
 
 
-def show_result(connection: sqlite3.Connection, run_id: str) -> SetupEvalResult:
-    row = connection.execute(
-        "SELECT document_json FROM eval_result WHERE run_id = ?", (run_id,)
-    ).fetchone()
-    if row is None:
-        raise CliFailure("AI_STP_NOT_FOUND", "the evaluation run does not exist")
-    return SetupEvalResult.model_validate_json(str(row[0]))
-
-
-def _component(
-    connection: sqlite3.Connection, stable_id: str, version: str, expected: str
-) -> _Loaded:
+def _components(
+    connection: sqlite3.Connection,
+    stable_id: str,
+    version: str,
+    expected: str,
+    *,
+    adaptation_id: str | None = None,
+    harness_id: str | None = None,
+) -> tuple[_Loaded, ...]:
     recorded = versions.held(connection, stable_id, version)
     if recorded is None or recorded.passport_digest != expected:
         raise CliFailure(
@@ -363,19 +567,57 @@ def _component(
         kind, digest, surfaces = _draft_surfaces(
             stable_id, version, cast(dict[str, JsonValue], document)
         )
-    else:
-        if not verify_revision_id(passport):
-            raise CliFailure(
-                "AI_STP_CONFLICT", "a component passport no longer matches its exact digest"
-            )
-        kind = passport.component_type
-        digest = passport.artifact.digest
-        members = [
-            member
-            for adaptation in passport.adaptations
-            for scope in adaptation.scope_adaptations
-            for member in scope.members
-        ]
+        artifact = content.get(connection, digest)
+        return (
+            _Loaded(
+                EvalComponentCoordinate(
+                    stable_id=stable_id,
+                    version=version,
+                    passport_digest=expected,
+                    artifact_digest=digest,
+                    component_type=kind,
+                ),
+                surfaces,
+                artifact,
+            ),
+        )
+    if not verify_revision_id(passport):
+        raise CliFailure(
+            "AI_STP_CONFLICT", "a component passport no longer matches its exact digest"
+        )
+    return _adaptations(
+        connection, passport, stable_id, version, expected, adaptation_id, harness_id
+    )
+
+
+def _adaptations(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    stable_id: str,
+    version: str,
+    expected: str,
+    adaptation_id: str | None,
+    harness_id: str | None,
+) -> tuple[_Loaded, ...]:
+    selected = [
+        item
+        for item in passport.adaptations
+        if (adaptation_id is None or item.adaptation_id == adaptation_id)
+        and (harness_id is None or item.harness_id == harness_id)
+    ]
+    if not selected:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "an evaluation coordinate names an adaptation that is not on this version",
+            details={
+                "stable_id": stable_id,
+                "adaptation_id": adaptation_id or "",
+                "harness_id": harness_id or "",
+            },
+        )
+    loaded: list[_Loaded] = []
+    for adaptation in selected:
+        members = [member for scope in adaptation.scope_adaptations for member in scope.members]
         declared = {
             "managed_paths": tuple(member.path for member in members),
             "native_ids": tuple(native_id for member in members for native_id in member.native_ids),
@@ -383,19 +625,26 @@ def _component(
                 str(item) for item in (passport.model_extra or {}).get("entry_points", [])
             ),
         }
-        surfaces = {field: declared[field] for field in _SURFACES[kind]}
-    artifact = content.get(connection, digest)
-    return _Loaded(
-        EvalComponentCoordinate(
-            stable_id=stable_id,
-            version=version,
-            passport_digest=expected,
-            artifact_digest=digest,
-            component_type=kind,
-        ),
-        surfaces,
-        artifact,
-    )
+        surfaces = {field: declared[field] for field in _SURFACES[passport.component_type]}
+        projection = adaptation.scope_adaptations[0].projection_artifact
+        artifact = content.get(connection, projection.digest)
+        loaded.append(
+            _Loaded(
+                EvalComponentCoordinate(
+                    stable_id=stable_id,
+                    version=version,
+                    passport_digest=expected,
+                    artifact_digest=projection.digest,
+                    component_type=passport.component_type,
+                    adaptation_id=adaptation.adaptation_id,
+                    harness_id=adaptation.harness_id,
+                    projection_digest=projection.digest,
+                ),
+                surfaces,
+                artifact,
+            )
+        )
+    return tuple(loaded)
 
 
 def _draft_surfaces(

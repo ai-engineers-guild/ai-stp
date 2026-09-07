@@ -24,7 +24,7 @@ last_verified: "2026-08-03"
 | [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-08-25 |
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
-| [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-05 |
+| [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-06 |
 | [component-presentation.md](component-presentation.md) | Mutable component presentation in the catalog without changing the version passport. | 2026-09-04 |
 | [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-09-05 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
@@ -50,16 +50,16 @@ last_verified: "2026-08-03"
 | [selection-impact.md](selection-impact.md) | Machine contract for the local context budget, capability delta, and blast radius. | 2026-08-15 |
 | [selection-proposal.md](selection-proposal.md) | Ephemeral composition proposal, its confirmation, and atomic persistence of a SetupVersion. | 2026-08-25 |
 | [seo-publication-projection.md](seo-publication-projection.md) | Machine boundary for server-side SEO revisions, discovery documents, and model enrichment. | 2026-08-29 |
-| [setup-evaluation.md](setup-evaluation.md) | Machine contract for the profile, plan, and result of local evaluation of an exact SetupVersion. | 2026-08-13 |
+| [setup-evaluation.md](setup-evaluation.md) | Machine contract for the profile, plan, and result of local evaluation of an exact SetupVersion. | 2026-09-06 |
 | [setup-graph.md](setup-graph.md) | Exact setup dependency closure: node, deterministic order, closed failure list, and resource limits. | 2026-08-08 |
-| [setup-import.md](setup-import.md) | Machine boundary for discovering and registering an existing native setup. | 2026-09-01 |
+| [setup-import.md](setup-import.md) | Machine boundary for discovering and registering an existing native setup. | 2026-09-06 |
 | [setup-store-ports.md](setup-store-ports.md) | Contract for local discovery, preview, and component import from SX and APM. | 2026-08-13 |
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
 | [standard-family.md](standard-family.md) | Coordinated standard-family identity, contract digest, and classification axes. | 2026-09-05 |
 | [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable records by publisher, major line, and authorized task profile. | 2026-09-05 |
-| [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-05 |
+| [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-06 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Cookie categories and the rule for starting optional Web integrations. | 2026-08-22 |
 | [web-machine-projection.md](web-machine-projection.md) | Fields of the web machine document, paired URLs, and leak prevention. | 2026-09-05 |
 

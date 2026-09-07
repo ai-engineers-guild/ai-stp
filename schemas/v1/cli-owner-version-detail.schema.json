@@ -18,10 +18,6 @@
       ],
       "type": "string"
     },
-    "ClaimId": {
-      "pattern": "^claim_[0-9a-f]{64}$",
-      "type": "string"
-    },
     "ContentDigest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
@@ -133,28 +129,6 @@
       "additionalProperties": true,
       "description": "Owner-safe coverage diagnostic. No foreign evidence or storage keys.",
       "properties": {
-        "claim_id": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ClaimId"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "expires_at": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Timestamp"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "harness_id": {
           "$ref": "#/$defs/HarnessId"
         },
@@ -200,8 +174,6 @@
         }
       },
       "required": [
-        "claim_id",
-        "expires_at",
         "harness_id",
         "next_action",
         "reason_code",

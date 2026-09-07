@@ -1,4 +1,4 @@
-# pyright: reportUnknownLambdaType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportPrivateUsage=false, reportArgumentType=false, reportUnknownLambdaType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false, reportUnknownMemberType=false
 """Publication scans write one assessment per exact projection (SPEC-064 REQ-6426)."""
 
 from __future__ import annotations
@@ -12,14 +12,19 @@ import pytest
 from tests.support.component_passports import adaptation_fields
 
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.provider_surfaces import provider_surface
 from ai_stp_passports import seal_adaptation
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
 from ai_stp_platform.catalog_assessments import (
+    AssessmentError,
+    _target_identity,
+    _validate_published_identity,
     record_component_scan_assessments,
     stored_state_from_scan,
 )
-from ai_stp_platform.models import TargetAssessment, TargetAssessmentLatest
+from ai_stp_platform.models import CatalogMetadata, TargetAssessment, TargetAssessmentLatest
+from ai_stp_platform.safety.policy import POLICY_VERSION
 from ai_stp_platform.safety.types import CheckOutcome, SafetyScanResult
 
 pytestmark = pytest.mark.platform
@@ -154,6 +159,7 @@ def _two_adaptation_passport() -> ComponentVersionPassport:
 class _RecordingSession:
     def __init__(self) -> None:
         self.added: list[object] = []
+        self.executed: list[object] = []
 
     def add(self, obj: object) -> None:
         self.added.append(obj)
@@ -161,7 +167,8 @@ class _RecordingSession:
     async def flush(self) -> None:
         return None
 
-    async def execute(self, _stmt: object) -> SimpleNamespace:
+    async def execute(self, stmt: object) -> SimpleNamespace:
+        self.executed.append(stmt)
         return SimpleNamespace(scalar_one_or_none=lambda: None)
 
 
@@ -182,12 +189,11 @@ async def test_record_writes_independent_states_per_projection() -> None:
         expires_at=datetime.now(UTC) + timedelta(days=90),
     )
     assessments = [item for item in session.added if isinstance(item, TargetAssessment)]
-    latest = [item for item in session.added if isinstance(item, TargetAssessmentLatest)]
     assert len(assessments) == 2
-    assert len(latest) == 2
     by_harness = {row.identity["harness_id"]: row.stored_state for row in assessments}
     assert by_harness == {"claude-code": "verified", "pi": "failed"}
-    assert {row.harness_id: row.stored_state for row in latest} == by_harness
+    assert len(session.executed) >= 4
+    assert TargetAssessmentLatest.__tablename__ in str(session.executed[-1])
 
 
 @pytest.mark.asyncio
@@ -210,6 +216,87 @@ async def test_missing_projection_bytes_stay_not_verified() -> None:
     }
     assert by_harness["claude-code"] == ("verified", None)
     assert by_harness["pi"] == ("not_verified", "projection_artifact_unavailable")
+
+
+class _PublishedIdentitySession:
+    def __init__(self, metadata: CatalogMetadata) -> None:
+        self.metadata = metadata
+
+    async def execute(self, _statement: object) -> SimpleNamespace:
+        return SimpleNamespace(scalar_one_or_none=lambda: self.metadata)
+
+
+@pytest.mark.asyncio
+async def test_ingest_identity_rejects_each_canonical_field_without_writes() -> None:
+    from ai_stp_platform.catalog_seed import seed_corpus
+
+    _kind, source, _published, passport_digest = next(
+        item for item in seed_corpus() if item[0] == "component"
+    )
+    document = dict(source)
+    adaptation_document = dict(
+        cast(dict[str, object], cast(list[object], document["adaptations"])[0])
+    )
+    scope_document = dict(
+        cast(dict[str, object], cast(list[object], adaptation_document["scope_adaptations"])[0])
+    )
+    surface = provider_surface("claude-code", "global")
+    scope_document["required_surface"] = surface._asdict()
+    scope_document["supported_os"] = ["linux"]
+    scope_document["supported_arch"] = ["x86_64"]
+    adaptation_document["scope_adaptations"] = [scope_document]
+    document["adaptations"] = [
+        seal_adaptation(cast(dict[str, JsonValue], adaptation_document)).model_dump(mode="json")
+    ]
+    passport = ComponentVersionPassport.model_validate(document)
+    adaptation = passport.adaptations[0]
+    scope = adaptation.scope_adaptations[0]
+    identity = _target_identity(
+        passport,
+        passport_digest=passport_digest,
+        adaptation_id=adaptation.adaptation_id,
+        harness_id=adaptation.harness_id,
+        scope=scope,
+        policy_version=POLICY_VERSION,
+        operating_system="linux",
+        architecture="x86_64",
+    )
+    metadata = CatalogMetadata(
+        id=1,
+        owner_account_id=str(passport.owner_id),
+        object_kind="component",
+        stable_id=str(passport.stable_id),
+        version=str(passport.version),
+        current_revision_id=str(passport.revision_id),
+        visibility="public",
+        lifecycle_state="active",
+        published_at=datetime.now(UTC),
+        passport_digest=passport_digest,
+        passport_document=passport.model_dump(mode="json"),
+    )
+    changes: dict[str, object] = {
+        "component_stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7X",
+        "version": "1.1",
+        "passport_digest": DIGEST_B,
+        "adaptation_id": "adaptation_" + "b" * 64,
+        "harness_id": "pi",
+        "projection_artifact_digest": DIGEST_B,
+        "scope": "project",
+        "target_scope": "project",
+        "provider_id": "other-provider",
+        "provider_version": "2",
+        "surface_profile_id": "other/surface/1",
+        "surface_profile_digest": DIGEST_B,
+        "harness_version": "1.0",
+        "operating_system": "windows",
+        "architecture": "arm64",
+        "policy_version": "safety-old",
+    }
+    for field, value in changes.items():
+        candidate = identity.model_copy(update={field: value})
+        with pytest.raises(AssessmentError) as error:
+            await _validate_published_identity(_PublishedIdentitySession(metadata), candidate)
+        assert error.value.code == "AI_STP_VALIDATION_ERROR", field
 
 
 @pytest.mark.asyncio

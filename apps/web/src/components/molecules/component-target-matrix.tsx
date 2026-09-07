@@ -1,5 +1,3 @@
-import { Badge } from "@/components/atoms/badge";
-import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import type { TargetMatrix } from "@/lib/api/generated/types.gen";
 import { UI } from "@/lib/ui-selectors";
 
@@ -8,9 +6,6 @@ export type TargetMatrixLabels = {
   summary: string;
   score: string;
   harness: string;
-  availability: string;
-  exact: string;
-  claimedPortable: string;
   scope: string;
   implementation: string;
   projectionKind: string;
@@ -32,30 +27,14 @@ export type TargetMatrixLabels = {
   freshness: string;
   semanticLosses: string;
   permissions: string;
-  transform: string;
-  limitations: string;
-  validity: string;
-  noneListed: string;
-  riskInstall: string;
-  riskInstallBody: string;
-  copyLabel: string;
-  copiedLabel: string;
-  copyError: string;
-  docsLabel: string;
 };
 
-export function targetMatrixLabels(
-  t: (key: string) => string,
-  tCli: (key: string) => string,
-): TargetMatrixLabels {
+export function targetMatrixLabels(t: (key: string) => string): TargetMatrixLabels {
   return {
     heading: t("targetMatrix"),
     summary: t("targetMatrixSummary"),
     score: t("targetMatrixScore"),
     harness: t("harness"),
-    availability: t("targetKind"),
-    exact: t("exactAvailability"),
-    claimedPortable: t("claimedPortable"),
     scope: t("targetScope"),
     implementation: t("implementationMode"),
     projectionKind: t("projectionKind"),
@@ -77,16 +56,6 @@ export function targetMatrixLabels(
     freshness: t("freshness"),
     semanticLosses: t("semanticLosses"),
     permissions: t("permissionsSummary"),
-    transform: t("transformFamily"),
-    limitations: t("claimLimitations"),
-    validity: t("claimValidity"),
-    noneListed: t("noneListed"),
-    riskInstall: t("riskInstall"),
-    riskInstallBody: t("riskInstallBody"),
-    copyLabel: tCli("copy"),
-    copiedLabel: tCli("copied"),
-    copyError: tCli("copyError"),
-    docsLabel: tCli("docs"),
   };
 }
 
@@ -98,7 +67,7 @@ export function ComponentTargetMatrix({
   labels: TargetMatrixLabels;
 }) {
   if (!matrix) return null;
-  if (matrix.exact.length === 0 && matrix.claimed_portable.length === 0) return null;
+  if (matrix.exact.length === 0) return null;
 
   return (
     <section
@@ -116,18 +85,6 @@ export function ComponentTargetMatrix({
         </p>
       </div>
       <MatrixCards matrix={matrix} labels={labels} />
-      <RiskCommands matrix={matrix} labels={labels} />
-      <div className="sr-only">
-        <Badge>{labels.exact}</Badge>
-        <Badge>{labels.claimedPortable}</Badge>
-        <Badge>{labels.verified}</Badge>
-        <Badge>{labels.stale}</Badge>
-        <Badge>{labels.failed}</Badge>
-        <Badge>{labels.notVerified}</Badge>
-        <Badge>{labels.supportSupported}</Badge>
-        <Badge>{labels.supportExperimental}</Badge>
-        <Badge>{labels.supportUnsupported}</Badge>
-      </div>
     </section>
   );
 }
@@ -138,38 +95,6 @@ function MatrixCards({ matrix, labels }: { matrix: TargetMatrix; labels: TargetM
       {matrix.exact.map((row) => (
         <li key={`${row.adaptation_id}:${row.scope}`}>
           <ProjectionDetails row={row} labels={labels} />
-        </li>
-      ))}
-      {matrix.claimed_portable.map((row) => (
-        <li key={row.claim_id} className="border-border space-y-2 rounded-md border p-3">
-          <p className="font-medium">{row.harness_id}</p>
-          <p className="text-sm">
-            {labels.availability}: {labels.claimedPortable}
-          </p>
-          <p className="text-sm">
-            {labels.transform}: {row.transform_family} {row.transform_version}
-          </p>
-          {row.limitations.length ? (
-            <p className="text-sm">
-              {labels.limitations}: {row.limitations.join(", ")}
-            </p>
-          ) : null}
-          <p className="text-sm">
-            {labels.validity}: {row.issued_at}
-            {row.expires_at ? ` — ${row.expires_at}` : ""}
-          </p>
-          {row.risk_cli_command ? (
-            <CliCopyBlock
-              command={row.risk_cli_command}
-              title={labels.riskInstall}
-              description={labels.riskInstallBody}
-              copyLabel={labels.copyLabel}
-              copiedLabel={labels.copiedLabel}
-              errorLabel={labels.copyError}
-              docsLabel={labels.docsLabel}
-              variant="plain"
-            />
-          ) : null}
         </li>
       ))}
     </ul>
@@ -250,27 +175,6 @@ function ProjectionDetails({
         ) : null}
       </dl>
     </details>
-  );
-}
-
-function RiskCommands({ matrix, labels }: { matrix: TargetMatrix; labels: TargetMatrixLabels }) {
-  const commands = matrix.claimed_portable.filter((row) => row.risk_cli_command);
-  if (commands.length === 0) return null;
-  return (
-    <div className="hidden space-y-3 md:block">
-      {commands.map((row) => (
-        <CliCopyBlock
-          key={row.claim_id}
-          command={row.risk_cli_command ?? ""}
-          title={`${labels.riskInstall} (${row.harness_id})`}
-          description={labels.riskInstallBody}
-          copyLabel={labels.copyLabel}
-          copiedLabel={labels.copiedLabel}
-          errorLabel={labels.copyError}
-          docsLabel={labels.docsLabel}
-        />
-      ))}
-    </div>
   );
 }
 

@@ -149,7 +149,6 @@ _COMPONENT_SEARCH_KEYS = frozenset(
         "page",
         "include_experimental",
         "include_deprecated",
-        "compatibility",
     }
 )
 _SETUP_SEARCH_KEYS = frozenset(
@@ -298,7 +297,6 @@ def _component_search_request(
     page: Annotated[int | None, Query(ge=1, le=10_000)] = None,
     include_experimental: Annotated[bool, Query()] = False,
     include_deprecated: Annotated[bool, Query()] = False,
-    compatibility: Annotated[str | None, Query()] = None,
 ) -> ComponentSearchRequest:
     _reject_unknown_query(request, _COMPONENT_SEARCH_KEYS)
     try:
@@ -326,7 +324,6 @@ def _component_search_request(
             page=page,
             include_experimental=include_experimental,
             include_deprecated=include_deprecated,
-            compatibility=compatibility,  # type: ignore[arg-type]
         )
     except ValidationError as exc:
         raise ApiError(

@@ -2,7 +2,7 @@
   "$defs": {
     "AssuranceCounts": {
       "additionalProperties": true,
-      "description": "Bounded card summary. Claims never increase the verified numerator.",
+      "description": "Bounded card summary over exact published target rows.",
       "properties": {
         "assessed_targets": {
           "default": 0,
@@ -353,17 +353,6 @@
           "title": "Likes Count",
           "type": "integer"
         },
-        "match_kind": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/MatchKind"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "owner_account_id": {
           "default": "",
           "maxLength": 64,
@@ -428,7 +417,6 @@
         "latest_trust",
         "latest_version",
         "likes_count",
-        "match_kind",
         "owner_account_id",
         "owner_handle",
         "publisher_id",
@@ -523,13 +511,6 @@
       ],
       "title": "LikedCatalogItem",
       "type": "object"
-    },
-    "MatchKind": {
-      "enum": [
-        "exact",
-        "claimed_portable"
-      ],
-      "type": "string"
     },
     "ProjectionKind": {
       "enum": [

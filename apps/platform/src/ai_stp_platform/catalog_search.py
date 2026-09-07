@@ -52,7 +52,6 @@ from ai_stp_platform.catalog_read import (
 from ai_stp_platform.catalog_support import project_support
 from ai_stp_platform.catalog_targets import (
     assurance_counts,
-    claimed_harness_ids,
     project_target_matrix,
 )
 from ai_stp_platform.models import (
@@ -235,9 +234,7 @@ def _projection_row(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchPro
     assessed = 0
     if meta.object_kind == "component":
         try:
-            matrix = project_target_matrix(
-                ComponentVersionPassport.model_validate(passport), include_risk_command=False
-            )
+            matrix = project_target_matrix(ComponentVersionPassport.model_validate(passport))
         except (TypeError, ValueError):
             matrix = None
         if matrix is not None:
@@ -256,7 +253,6 @@ def _projection_row(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchPro
         owner_account_id=meta.owner_account_id,
         component_type=str(component_type) if isinstance(component_type, str) else None,
         harness_ids=named_harness_ids(passport),
-        claimed_harness_ids=claimed_harness_ids(passport),
         tags=tags,
         tag_aliases=aliases,
         trust_lane=str(meta.trust_lane or "experimental"),
@@ -603,7 +599,6 @@ class CatalogSearchHits:
     total_items: int | None
     page_size: int
     exact_count: int = 0
-    claimed_portable_count: int = 0
     family_fields: dict[str, tuple[str | None, int | None, str | None]] = field(
         default_factory=dict[str, tuple[str | None, int | None, str | None]]
     )
@@ -637,7 +632,6 @@ async def search_catalog(
     query_expression: Expression | None,
     updated_from: date | None,
     updated_to: date | None,
-    compatibility: str | None = None,
     family_id: str | None = None,
     family_alignment: str | None = None,
     member_harness_id: str | None = None,
@@ -681,15 +675,7 @@ async def search_catalog(
         stmt = stmt.where(projection.tags.contains(tag_filter))
     facet_base = stmt
     if harness_filter:
-        if compatibility == "claimed_portable":
-            stmt = stmt.where(
-                or_(
-                    projection.harness_ids.overlap(harness_filter),
-                    projection.claimed_harness_ids.overlap(harness_filter),
-                )
-            )
-        else:
-            stmt = stmt.where(projection.harness_ids.overlap(harness_filter))
+        stmt = stmt.where(projection.harness_ids.overlap(harness_filter))
     if family_id is not None:
         stmt = stmt.where(projection.family_id == family_id)
     if family_alignment is not None:
@@ -774,25 +760,12 @@ async def search_catalog(
         page_rows = fetched
 
     exact_count = 0
-    claimed_portable_count = 0
     if object_kind == "component":
         exact_stmt = facet_base
-        claimed_stmt = facet_base
         if harness_filter:
             exact_stmt = facet_base.where(projection.harness_ids.overlap(harness_filter))
-            claimed_stmt = facet_base.where(
-                and_(
-                    projection.claimed_harness_ids.overlap(harness_filter),
-                    ~projection.harness_ids.overlap(harness_filter),
-                )
-            )
-        else:
-            claimed_stmt = facet_base.where(func.cardinality(projection.claimed_harness_ids) > 0)
         exact_count = int(
             await session.scalar(select(func.count()).select_from(exact_stmt.subquery())) or 0
-        )
-        claimed_portable_count = int(
-            await session.scalar(select(func.count()).select_from(claimed_stmt.subquery())) or 0
         )
 
     metas = [cast(CatalogMetadata, row[1]) for row in page_rows]
@@ -829,6 +802,5 @@ async def search_catalog(
         total_items=total_items,
         page_size=page_size,
         exact_count=exact_count,
-        claimed_portable_count=claimed_portable_count,
         family_fields=family_fields,
     )

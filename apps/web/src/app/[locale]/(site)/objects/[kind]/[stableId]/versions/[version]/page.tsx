@@ -140,7 +140,7 @@ function OwnerCoverage({ detail, t }: { detail: OwnerVersionDetail; t: (key: str
           <h2 className="font-semibold">{t("targetGaps")}</h2>
           <ul className="space-y-2">
             {detail.target_gaps.map((gap) => (
-              <li key={`${gap.harness_id}:${gap.scope ?? gap.claim_id ?? gap.state}`}>
+              <li key={`${gap.harness_id}:${gap.scope ?? gap.state}`}>
                 <p className="text-sm">
                   {gap.harness_id}
                   {gap.scope ? ` · ${gap.scope}` : ""} · {gap.state}

@@ -90,7 +90,8 @@ what is lost. Entry state:
 
 `unsupported` is not itself an error: the component may be optional. A required
 component without a surface produces `native_surface_lost` and blocks the package under
-`REQ-608`.
+`REQ-608`. A `cli` component is a shared executable, not a harness namespace, and
+does not produce `native_surface_lost`.
 
 Losses are named individually. A report with a "losses exist" field but no list explains
 nothing, while `REQ-609` specifically requires a loss-aware report.

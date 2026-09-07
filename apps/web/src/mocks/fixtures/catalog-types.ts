@@ -60,7 +60,6 @@ export type ComponentSummaryFixture = {
   latest_requires_credentials: boolean;
   updated_at: string;
   latest_assurance: { verified_targets: number; assessed_targets: number };
-  match_kind: "exact" | "claimed_portable" | null;
 };
 
 export type SetupSummaryFixture = {
@@ -125,7 +124,6 @@ export function makeComponentSummary(
     | "owner_account_id"
     | "owner_handle"
     | "latest_assurance"
-    | "match_kind"
   > & {
     latest_lifecycle?: ComponentSummaryFixture["latest_lifecycle"];
     latest_trust?: typeof experimentalTrust;
@@ -133,7 +131,6 @@ export function makeComponentSummary(
     latest_checks?: SafetyChecksSummary | null;
     latest_harness_ids?: ComponentSummaryFixture["latest_harness_ids"];
     latest_assurance?: ComponentSummaryFixture["latest_assurance"];
-    match_kind?: ComponentSummaryFixture["match_kind"];
   },
 ): ComponentSummaryFixture {
   return {
@@ -156,7 +153,6 @@ export function makeComponentSummary(
     owner_account_id: partial.owner_id,
     owner_handle: partial.owner_id,
     latest_assurance: { verified_targets: 0, assessed_targets: 0 },
-    match_kind: null,
     ...partial,
   };
 }

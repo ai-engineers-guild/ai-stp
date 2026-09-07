@@ -463,6 +463,7 @@ function reportHandlers(
             {
               schema_version: 1,
               case_id: MOCK_CASE_ID,
+              topic: "object_report",
               object_kind: "component",
               stable_id: FIXTURE_COMPONENT_ID,
               version: "1.0",
@@ -554,6 +555,7 @@ function reportHandlers(
           {
             schema_version: 1,
             case_id: MOCK_CASE_ID,
+            topic: "object_report",
             object_kind: "component",
             stable_id: FIXTURE_COMPONENT_ID,
             version: "1.0",

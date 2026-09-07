@@ -14,7 +14,7 @@ from ai_stp_cli.commands import attestations as local_attestations
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import component_passports, content, versions
+from ai_stp_cli.local import component_passports, content, lifecycle, versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_contracts.machine_help import PublicationPlanView
 from ai_stp_contracts.publication import (
@@ -93,7 +93,9 @@ def validated_attestations(
         if not local_attestations.verify(record, signer):
             raise CliFailure("AI_STP_VALIDATION_ERROR", "an attestation signature is invalid")
         seen.add(digest)
-        result.append(AuthorAttestation.model_validate(record.model_dump(mode="json")))
+        result.append(
+            AuthorAttestation.model_validate(record.model_dump(mode="json", exclude_none=True))
+        )
     return result
 
 
@@ -104,8 +106,15 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
     with closing(open_readonly(configured_path())) as connection:
         passport = component_passports.version_passport(connection, stable_id, version)
         recorded = versions.held(connection, stable_id, version)
+        overlay = lifecycle.version_is_overlay(connection, stable_id, version)
     if recorded is None:
         raise CliFailure("AI_STP_NOT_FOUND", "the exact released component version is absent")
+    if overlay:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "a local overlay cannot be published; materialize an owner version",
+            details={"stable_id": stable_id, "version": version},
+        )
     request = PublicationPlanCreateRequest(
         object_kind="component",
         stable_id=stable_id,

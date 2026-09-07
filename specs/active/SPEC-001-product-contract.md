@@ -1,6 +1,6 @@
 ---
 description: "SPEC-001: MVP product contract."
-last_verified: "2026-09-05"
+last_verified: "2026-09-06"
 ---
 
 # SPEC-001: MVP Product Contract
@@ -15,7 +15,7 @@ The MVP includes a local registry, anonymous reads from the public registry, pri
 
 Real payments, the enterprise landscape, a sophisticated web editor, and claims of an object's absolute safety are out of scope.
 
-The first supported alpha line is `0.0.16` under `ADR-0142`. `0.0.17` continues
+The first supported alpha line is `0.0.16` under `ADR-0142`. `0.0.18` continues
 that line as one public Python distribution under `ADR-0146`. Release evidence
 covers Linux, macOS and Windows on `x86_64` and `arm64`; a missing, skipped or
 inconclusive required row does not support a release claim.

@@ -20,6 +20,9 @@ test.describe("login + devices smoke (REQ-2311)", () => {
 
     await page.goto("/en/devices");
     await expect(page.getByRole("heading", { name: "fixture-device" })).toBeVisible();
+    await page
+      .locator('[data-device-id="device_01JQZK7B8N4M6P2R9T5V0X3Y70"] details summary')
+      .click();
     await expect(page.getByText("device_01JQZK7B8N4M6P2R9T5V0X3Y70")).toBeVisible();
     await page.getByLabel("Device code").fill("ABCD-EFGH");
     await page.getByRole("button", { name: "Confirm device" }).click();

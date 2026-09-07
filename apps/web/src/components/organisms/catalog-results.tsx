@@ -74,7 +74,6 @@ type CatalogLabels = {
   likeMenu?: string;
   unlikeMenu?: string;
   assuranceCounts?: string;
-  claimedPortableMatch?: string;
   familyMemberCount?: string;
 };
 
@@ -160,7 +159,6 @@ function objectCardLabels(labels: CatalogLabels): Parameters<typeof ObjectCard>[
     likeMenu: labels.likeMenu,
     unlikeMenu: labels.unlikeMenu,
     assuranceCounts: labels.assuranceCounts,
-    claimedPortableMatch: labels.claimedPortableMatch,
     familyMemberCount: labels.familyMemberCount,
   };
 }

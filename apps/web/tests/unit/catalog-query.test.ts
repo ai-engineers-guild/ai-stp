@@ -517,40 +517,35 @@ describe("parseCatalogSearchParams", () => {
     expect(validateCatalogQuery('"OR"')).toBeNull();
   });
 
-  it("round-trips claimed-portable compatibility and setup family filters", () => {
+  it("round-trips exact harness and setup family filters", () => {
     const parsed = parseCatalogSearchParams({
-      compatibility: "claimed_portable",
+      harness_id: "codex",
       family_id: "family_abc",
       family_alignment: "aligned",
       member_harness_id: "pi",
     });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    expect(parsed.value.compatibility).toBe("claimed_portable");
+    expect(parsed.value.harnessId).toBe("codex");
     expect(parsed.value.familyId).toBe("family_abc");
     expect(parsed.value.familyAlignment).toBe("aligned");
     expect(parsed.value.memberHarnessId).toBe("pi");
     expect(catalogQueryToRecord(parsed.value)).toMatchObject({
-      compatibility: "claimed_portable",
+      harness_id: "codex",
       family_id: "family_abc",
       family_alignment: "aligned",
       member_harness_id: "pi",
     });
     expect(countAppliedFilters(parsed.value)).toBe(4);
     expect(appliedFilterChips(parsed.value).map((chip) => chip.key)).toEqual([
-      "compatibility",
+      "harness_id",
       "family_id",
       "family_alignment",
       "member_harness_id",
     ]);
   });
 
-  it("rejects unknown compatibility and family alignment values", () => {
-    const compatibility = parseCatalogSearchParams({ compatibility: "exact" });
-    expect(compatibility.ok).toBe(false);
-    if (!compatibility.ok) {
-      expect(compatibility.invalidSupport).toContain("compatibility=exact");
-    }
+  it("rejects unknown family alignment values", () => {
     const alignment = parseCatalogSearchParams({ family_alignment: "equivalent" });
     expect(alignment.ok).toBe(false);
     if (!alignment.ok) {

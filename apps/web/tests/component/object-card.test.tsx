@@ -575,7 +575,7 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.queryByLabelText(/Detail views:/)).not.toBeInTheDocument();
   });
 
-  it("shows exact harness badges and assurance without inflating counts from claims", () => {
+  it("shows exact harness badges and bounded assurance counts", () => {
     render(
       <ObjectCard
         kind="component"
@@ -583,13 +583,11 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
           ...componentSummaryFixture,
           latest_harness_ids: ["claude-code"],
           latest_assurance: { verified_targets: 1, assessed_targets: 2 },
-          match_kind: "claimed_portable",
         }}
         href="/catalog/x"
         labels={{
           ...labels,
           assuranceCounts: "Verified targets",
-          claimedPortableMatch: "Author claim",
         }}
         view="list"
       />,
@@ -597,7 +595,6 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.getByText("claude-code")).toBeInTheDocument();
     expect(screen.queryByText("pi")).not.toBeInTheDocument();
     expect(screen.getByText("Verified targets: 1 / 2 (50%)")).toBeInTheDocument();
-    expect(screen.getByText("Author claim")).toBeInTheDocument();
   });
 
   it("shows family member count on a setup card without turning the family into an action", () => {

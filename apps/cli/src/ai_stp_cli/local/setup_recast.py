@@ -7,6 +7,7 @@ import json
 import sqlite3
 import zipfile
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Final, Literal, cast
 
@@ -19,6 +20,7 @@ from ai_stp_cli.local import (
     composition,
     content,
     contribution,
+    native_transform,
     revisions,
     setup_versions,
     versions,
@@ -44,10 +46,21 @@ from ai_stp_passports.versions import ComponentAdaptation, ScopeAdaptation, Targ
 
 PLAN_DOMAIN: Final[str] = "ai-stp:plan:v1"
 TRANSFORM_ID: Final[str] = "harness-native-rewrite"
-TRANSFORM_VERSION: Final[str] = "1.0"
+TRANSFORM_VERSION: Final[str] = "1.3"
 _NON_DERIVABLE: Final[frozenset[str]] = frozenset({"setting", "cli"})
-_MCP_FILE_WRAPPERS: Final[tuple[str, ...]] = ("mcpServers", "mcp_servers", "mcp")
 Disposition = Literal["reuse", "derive", "blocked"]
+
+
+@dataclass(frozen=True)
+class _MappedScope:
+    """One source scope after a read-only projection mapping."""
+
+    source: ScopeAdaptation
+    rule: Rule
+    files: dict[str, bytes]
+    modes: dict[str, int]
+    source_paths: dict[str, str]
+    losses: tuple[str, ...]
 
 
 def plan(
@@ -217,33 +230,42 @@ def _classify(
 ) -> SetupRecastMember:
     passport = _component_passport(connection, member)
     try:
-        adaptation_for(passport, target)
+        existing = adaptation_for(passport, target)
     except ValueError:
-        reason = _blocked_reason(passport, source_harness, target)
-        if reason is None:
-            return SetupRecastMember(
-                stable_id=member[0],
-                source_version=member[1],
-                target_version=versions.next_minor(connection, member[0]),
-                component_type=passport.component_type,
-                disposition="derive",
-                reason="derive a native adaptation for the target harness",
-            )
+        existing = None
+    stale = (
+        existing is not None
+        and existing.implementation_mode == "derived"
+        and (existing.transform is None or existing.transform.version != TRANSFORM_VERSION)
+    )
+    if existing is not None and not stale:
         return SetupRecastMember(
             stable_id=member[0],
             source_version=member[1],
             target_version=member[1],
             component_type=passport.component_type,
-            disposition="blocked",
-            reason=reason,
+            disposition="reuse",
+            reason="the pinned version already has the target adaptation",
+        )
+    reason = _blocked_reason(passport, source_harness, target)
+    if reason is None and _preview_projection(connection, passport, source_harness, target) is None:
+        reason = "the recorded projection cannot be mapped without losing files or modes"
+    if reason is None:
+        return SetupRecastMember(
+            stable_id=member[0],
+            source_version=member[1],
+            target_version=versions.next_minor(connection, member[0]),
+            component_type=passport.component_type,
+            disposition="derive",
+            reason="derive a native adaptation for the target harness",
         )
     return SetupRecastMember(
         stable_id=member[0],
         source_version=member[1],
         target_version=member[1],
         component_type=passport.component_type,
-        disposition="reuse",
-        reason="the pinned version already has the target adaptation",
+        disposition="blocked",
+        reason=reason,
     )
 
 
@@ -256,23 +278,29 @@ def _blocked_reason(
         source_adaptation = adaptation_for(passport, source_harness)
     except ValueError:
         return "the source setup pin has no adaptation for its own harness"
-    source_scope = source_adaptation.scope_adaptations[0].scope
-    source_rule = composition.rule_for(
-        passport.component_type, source_harness, scope=source_scope
-    ) or composition.rule_for(passport.component_type, source_harness)
-    rule = composition.rule_for(
-        passport.component_type, target, scope=source_scope
-    ) or composition.rule_for(passport.component_type, target)
-    if rule is None:
-        return "the target harness has no native surface for this kind"
-    if (source_rule is not None and source_rule.projection_kind == "package") or (
-        rule.projection_kind == "package"
-    ):
-        return "an MCP plugin package cannot be derived automatically"
-    if rule.declared_key and passport.component_type != "mcp":
-        return "a host-file contribution cannot be derived automatically"
-    if source_rule is not None and source_rule.declared_key and passport.component_type != "mcp":
-        return "a host-file contribution cannot be derived automatically"
+    for source_scope in source_adaptation.scope_adaptations:
+        source_rule = composition.rule_for(
+            passport.component_type, source_harness, scope=source_scope.scope
+        ) or composition.rule_for(passport.component_type, source_harness)
+        rule = composition.rule_for(
+            passport.component_type, target, scope=source_scope.scope
+        ) or composition.rule_for(passport.component_type, target)
+        if (source_rule is not None and source_rule.projection_kind == "package") or (
+            rule is not None and rule.projection_kind == "package"
+        ):
+            return "an MCP plugin package cannot be derived automatically"
+        if (
+            rule is not None
+            and rule.declared_key
+            and passport.component_type not in {"mcp", "hook"}
+        ):
+            return "a host-file contribution cannot be derived automatically"
+        if (
+            source_rule is not None
+            and source_rule.declared_key
+            and passport.component_type not in {"mcp", "hook"}
+        ):
+            return "a host-file contribution cannot be derived automatically"
     return None
 
 
@@ -299,8 +327,9 @@ def _materialize_member(
     body = cast(dict[str, JsonValue], passport.model_dump(mode="json", exclude={"revision_id"}))
     body["version"] = classified.target_version
     body["created_at"] = at
+    kept = [item for item in passport.adaptations if item.harness_id != target]
     body["adaptations"] = [
-        *[cast(JsonValue, item.model_dump(mode="json")) for item in passport.adaptations],
+        *[cast(JsonValue, item.model_dump(mode="json")) for item in kept],
         cast(JsonValue, derived.model_dump(mode="json")),
     ]
     sealed = seal_envelope(body)
@@ -321,6 +350,98 @@ def _materialize_member(
     return setup_versions.MemberRef(member[0], classified.target_version, digest)
 
 
+def _preview_projection(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    source_harness: HarnessId,
+    target: HarnessId,
+) -> tuple[_MappedScope, ...] | None:
+    """Read and map every recorded scope without creating registry state."""
+    if _blocked_reason(passport, source_harness, target) is not None:
+        return None
+    mapped: list[_MappedScope] = []
+    for source_scope in adaptation_for(passport, source_harness).scope_adaptations:
+        held = _preview_scope(connection, passport, source_harness, target, source_scope)
+        if held is None:
+            continue
+        mapped.append(held)
+    if not mapped:
+        return None
+    return tuple(mapped)
+
+
+def _preview_scope(
+    connection: sqlite3.Connection,
+    passport: ComponentVersionPassport,
+    source_harness: HarnessId,
+    target: HarnessId,
+    source_scope: ScopeAdaptation,
+) -> _MappedScope | None:
+    rule = composition.rule_for(passport.component_type, target, scope=source_scope.scope)
+    if rule is None or (target, rule.target_scope) not in PROVIDER_SURFACES:
+        return None
+    try:
+        payload = content.get(connection, source_scope.projection_artifact.digest)
+        files = _projection_files(source_scope, payload)
+    except CliFailure as error:
+        if error.code not in {"AI_STP_NOT_FOUND", "AI_STP_CONFLICT"}:
+            raise
+        return None
+    except (KeyError, OSError, zipfile.BadZipFile, zipfile.LargeZipFile):
+        return None
+    source_modes = {
+        member.path: member.mode for member in source_scope.members if member.object_type == "file"
+    }
+    identities = {path: path for path in files}
+    losses: list[str] = []
+    if passport.component_type == "mcp":
+        derived = _derive_mcp_files(files, source_harness, source_scope.scope, rule)
+        if derived is None:
+            return None
+        remapped, mcp_losses = derived
+        losses.extend(mcp_losses)
+        modes = (
+            {rule.relative: next(iter(source_modes.values()))} if len(source_modes) == 1 else None
+        )
+        source_paths = {rule.relative: next(iter(files))} if len(files) == 1 else None
+    else:
+        remapped = _remap_files(
+            files, passport.component_type, source_harness, source_scope.scope, rule
+        )
+        modes = _remap_files(
+            source_modes, passport.component_type, source_harness, source_scope.scope, rule
+        )
+        source_paths = _remap_files(
+            identities, passport.component_type, source_harness, source_scope.scope, rule
+        )
+        if remapped is not None and modes is not None and source_paths is not None:
+            native = native_transform.transform(
+                component_type=passport.component_type,
+                source_harness=source_harness,
+                target=rule,
+                files=remapped,
+                modes=modes,
+                source_paths=source_paths,
+            )
+            if native is None:
+                return None
+            remapped, modes, source_paths = native.files, native.modes, native.source_paths
+            losses.extend(native.losses)
+    if (
+        not remapped
+        or modes is None
+        or source_paths is None
+        or remapped.keys() != modes.keys()
+        or remapped.keys() != source_paths.keys()
+    ):
+        return None
+    if rule.target_scope != source_scope.scope:
+        losses.append(
+            f"source scope {source_scope.scope} lands on target scope {rule.target_scope}"
+        )
+    return _MappedScope(source_scope, rule, remapped, modes, source_paths, tuple(losses))
+
+
 def _derive_adaptation(
     connection: sqlite3.Connection,
     passport: ComponentVersionPassport,
@@ -329,105 +450,124 @@ def _derive_adaptation(
     *,
     at: str,
 ) -> ComponentAdaptation | None:
-    if _blocked_reason(passport, source_harness, target) is not None:
+    preview = _preview_projection(connection, passport, source_harness, target)
+    if preview is None:
         return None
-    source_adaptation = adaptation_for(passport, source_harness)
-    source_scope = source_adaptation.scope_adaptations[0]
-    rule = composition.rule_for(
-        passport.component_type, target, scope=source_scope.scope
-    ) or composition.rule_for(passport.component_type, target)
-    if rule is None:
-        return None
-    payload = content.get(connection, source_scope.projection_artifact.digest)
-    files = _projection_files(source_scope, payload)
-    contributing = bool(rule.declared_key)
-    if passport.component_type == "mcp":
-        remapped = _derive_mcp_files(files, source_harness, source_scope.scope, rule)
-    else:
-        remapped = _remap_files(
-            files, passport.component_type, source_harness, source_scope.scope, rule
-        )
-    if not remapped:
-        return None
-    scope_name = cast(TargetScope, rule.target_scope)
-    if (target, scope_name) not in PROVIDER_SURFACES:
-        return None
-    members: list[JsonValue] = []
-    for path, payload in sorted(remapped.items()):
-        stored = content.put(connection, payload, at=at)
-        members.append(
-            _projection_member(
-                path, stored.digest, stored.byte_length, rule if contributing else None
+    source_scopes = adaptation_for(passport, source_harness).scope_adaptations
+    mapped_scopes = {item.source.scope for item in preview}
+    dropped = [
+        f"source scope {item.scope} has no lossless target mapping"
+        for item in source_scopes
+        if item.scope not in mapped_scopes
+    ]
+    scope_documents: list[dict[str, JsonValue]] = []
+    for item in preview:
+        contributing = bool(item.rule.declared_key)
+        scope_name = cast(TargetScope, item.rule.target_scope)
+        members: list[JsonValue] = []
+        source_members = {
+            member.path: member for member in item.source.members if member.object_type == "file"
+        }
+        for path, payload in sorted(item.files.items()):
+            stored = content.put(connection, payload, at=at)
+            origin = source_members.get(item.source_paths[path])
+            members.append(
+                _projection_member(
+                    path,
+                    stored.digest,
+                    stored.byte_length,
+                    item.rule if contributing else None,
+                    mode=item.modes[path],
+                    native_ids=list(origin.native_ids) if origin is not None else [],
+                    content_format=(
+                        origin.content_format if origin is not None else "application/octet-stream"
+                    ),
+                    parser_id=origin.parser_id if origin is not None else None,
+                )
             )
-        )
-    surface = provider_surface(target, scope_name)
-    provider_kind = rule.provider_kind or passport.component_type
-    scope_document: dict[str, JsonValue] = {
-        "scope": scope_name,
-        "projection_format": "ai-stp-adaptation-projection/1",
-        "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
-        "provider_component_kind": provider_kind,
-        "projection_kind": rule.projection_kind,
-        "required_surface": {
-            "profile_id": surface.profile_id,
-            "profile_digest": surface.profile_digest,
-            "bundle_format": surface.bundle_format,
-        },
-        "permissions": passport.permissions.model_dump(mode="json"),
-        "members": members,
-        "supported_harness_versions": [],
-        "supported_os": [],
-        "supported_arch": [],
-        "technical_support": "experimental",
-        "technical_support_reason": "derived recast adaptation pending assessment",
-        "semantic_losses": [],
-    }
-    provisional = ScopeAdaptation.model_validate(scope_document)
-    projection = build_projection(provisional, remapped)
-    stored_projection = content.put(connection, projection, at=at)
-    scope_document["projection_artifact"] = {
-        "digest": stored_projection.digest,
-        "size_bytes": stored_projection.byte_length,
-    }
+        surface = provider_surface(target, scope_name)
+        provider_kind = item.rule.provider_kind or passport.component_type
+        losses = list(item.losses) + dropped
+        scope_document: dict[str, JsonValue] = {
+            "scope": scope_name,
+            "projection_format": "ai-stp-adaptation-projection/1",
+            "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
+            "provider_component_kind": provider_kind,
+            "projection_kind": item.rule.projection_kind,
+            "required_surface": {
+                "profile_id": surface.profile_id,
+                "profile_digest": surface.profile_digest,
+                "bundle_format": surface.bundle_format,
+            },
+            "permissions": item.source.permissions.model_dump(mode="json"),
+            "members": members,
+            "supported_harness_versions": list(item.source.supported_harness_versions),
+            "supported_os": list(item.source.supported_os),
+            "supported_arch": list(item.source.supported_arch),
+            "technical_support": "experimental",
+            "technical_support_reason": "derived recast adaptation pending assessment",
+            "semantic_losses": list(dict.fromkeys(losses)),
+        }
+        provisional = ScopeAdaptation.model_validate(scope_document)
+        projection = build_projection(provisional, item.files)
+        stored_projection = content.put(connection, projection, at=at)
+        scope_document["projection_artifact"] = {
+            "digest": stored_projection.digest,
+            "size_bytes": stored_projection.byte_length,
+        }
+        scope_documents.append(scope_document)
     transform_body: dict[str, JsonValue] = {
         "transform_id": TRANSFORM_ID,
+        "version": TRANSFORM_VERSION,
         "source_harness": source_harness,
         "target_harness": target,
         "component_type": passport.component_type,
-        "target_path": rule.relative,
+        "target_paths": [item.rule.relative for item in preview],
+        "target_scopes": [item.rule.target_scope for item in preview],
     }
+    source_artifact: dict[str, JsonValue] | None
+    if len(preview) == 1:
+        held = preview[0].source.projection_artifact
+        source_artifact = {"digest": held.digest, "size_bytes": held.size_bytes}
+    else:
+        source_artifact = None
     return seal_adaptation(
         {
             "harness_id": target,
             "implementation_mode": "derived",
-            "source_artifact": {
-                "digest": source_scope.projection_artifact.digest,
-                "size_bytes": source_scope.projection_artifact.size_bytes,
-            },
+            "source_artifact": source_artifact,
             "transform": {
                 "transform_id": TRANSFORM_ID,
                 "version": TRANSFORM_VERSION,
                 "digest": digest_canonical("ai-stp:component-adaptation:v1", transform_body),
             },
             "logical_component_type": passport.component_type,
-            "scope_adaptations": [scope_document],
+            "scope_adaptations": cast(list[JsonValue], scope_documents),
         }
     )
 
 
 def _projection_member(
-    path: str, digest: str, byte_length: int, contributing: Rule | None
+    path: str,
+    digest: str,
+    byte_length: int,
+    contributing: Rule | None,
+    *,
+    mode: int,
+    native_ids: list[str] | None = None,
+    content_format: str = "application/octet-stream",
+    parser_id: str | None = None,
 ) -> dict[str, JsonValue]:
     key = contributing.declared_key if contributing is not None else ""
     suffix = PurePosixPath(path).suffix.casefold()
-    parser = "toml/1" if suffix == ".toml" else "json/1" if key else None
+    parser = "toml/1" if suffix == ".toml" else "json/1" if key else parser_id
     return {
         "path": path,
         "object_type": "file",
-        "mode": 0o600,
+        "mode": mode,
         "content_artifact": {"digest": digest, "size_bytes": byte_length},
-        "native_ids": [],
-        "content_format": "application/octet-stream",
+        "native_ids": list(native_ids or []),
+        "content_format": content_format,
         "parser_id": parser,
         "ownership": "contribution" if key else "whole",
         "ownership_key": key or None,
@@ -441,15 +581,16 @@ def _derive_mcp_files(
     source_harness: HarnessId,
     source_scope: str,
     target: Rule,
-) -> dict[str, bytes] | None:
+) -> tuple[dict[str, bytes], tuple[str, ...]] | None:
     source_rule = composition.rule_for("mcp", source_harness, scope=source_scope) or (
         composition.rule_for("mcp", source_harness)
     )
     servers = _logical_mcp_servers(files, source_rule)
-    encoded = _encode_mcp(servers, target) if servers is not None else None
+    encoded = native_transform.encode_mcp_servers(servers, target) if servers is not None else None
     if encoded is None:
         return None
-    return {target.relative: encoded}
+    payload, losses = encoded
+    return {target.relative: payload}, losses
 
 
 def _logical_mcp_servers(
@@ -460,9 +601,13 @@ def _logical_mcp_servers(
     path, payload = next(iter(files.items()))
     host = source_rule.relative if source_rule is not None else path
     if source_rule is not None and source_rule.declared_key:
-        parsed = contribution.parse_value(host=host, content=payload)
+        try:
+            parsed = contribution.parse_value(host=host, content=payload)
+        except CliFailure:
+            return None
         return parsed if isinstance(parsed, dict) else None
-    return _unwrap_mcp(_parse_mcp_document(host, payload))
+    parsed = _parse_mcp_document(host, payload)
+    return native_transform.logical_mcp_servers(parsed) if parsed is not None else None
 
 
 def _parse_mcp_document(host: str, payload: bytes) -> JsonValue | None:
@@ -479,33 +624,6 @@ def _parse_mcp_document(host: str, payload: bytes) -> JsonValue | None:
         return None
 
 
-def _unwrap_mcp(document: JsonValue | None) -> dict[str, JsonValue] | None:
-    if not isinstance(document, dict):
-        return None
-    for key in _MCP_FILE_WRAPPERS:
-        held = document.get(key)
-        if isinstance(held, dict):
-            return cast("dict[str, JsonValue]", held)
-    if document and all(isinstance(value, dict) for value in document.values()):
-        return cast("dict[str, JsonValue]", document)
-    return None
-
-
-def _encode_mcp(servers: Mapping[str, JsonValue], target: Rule) -> bytes | None:
-    if target.shape != "file":
-        return None
-    body: dict[str, JsonValue] = dict(servers)
-    suffix = PurePosixPath(target.relative).suffix.casefold()
-    if not target.declared_key:
-        wrapper = "mcp_servers" if suffix == ".toml" else "mcpServers"
-        body = {wrapper: body}
-    if suffix == ".toml":
-        return tomlkit.dumps(body).encode("utf-8")
-    if suffix == ".json":
-        return (json.dumps(body, indent=2, sort_keys=True) + "\n").encode("utf-8")
-    return None
-
-
 def _projection_files(scope: ScopeAdaptation, payload: bytes) -> dict[str, bytes]:
     files: dict[str, bytes] = {}
     with zipfile.ZipFile(io.BytesIO(payload), mode="r") as archive:
@@ -516,13 +634,19 @@ def _projection_files(scope: ScopeAdaptation, payload: bytes) -> dict[str, bytes
     return files
 
 
-def _remap_files(
-    files: Mapping[str, bytes],
+def _remap_files[T](
+    files: Mapping[str, T],
     component_type: str,
     source_harness: HarnessId,
     source_scope: str,
     target: Rule,
-) -> dict[str, bytes] | None:
+) -> dict[str, T] | None:
+    """Map a complete declared subtree without flattening or overwriting members.
+
+    The same mapping is used for bytes and modes. A path outside the source
+    surface is not a basename alias: guessing one can silently replace another
+    file or detach a script from its package-relative resources.
+    """
     if target.declared_key or not files:
         return None
     if target.shape == "file":
@@ -532,17 +656,21 @@ def _remap_files(
     if target.shape != "directory":
         return None
     source_rule = composition.rule_for(component_type, source_harness, scope=source_scope)
-    prefix = ""
-    if source_rule is not None and source_rule.shape == "directory":
-        prefix = source_rule.relative.rstrip("/") + "/"
-    remapped: dict[str, bytes] = {}
+    if source_rule is None or source_rule.shape != "directory":
+        return None
+    prefix = source_rule.relative.rstrip("/") + "/"
+    remapped: dict[str, T] = {}
+    seen: set[str] = set()
     root = target.relative.rstrip("/")
     for path, payload in files.items():
-        if prefix and path.startswith(prefix):
-            suffix = path[len(prefix) :]
-        else:
-            suffix = path.rsplit("/", 1)[-1]
-        remapped[f"{root}/{suffix}"] = payload
+        if not path.startswith(prefix) or path == prefix:
+            return None
+        destination = f"{root}/{path[len(prefix) :]}"
+        folded = destination.casefold()
+        if folded in seen:
+            return None
+        seen.add(folded)
+        remapped[destination] = payload
     return remapped
 
 
@@ -612,6 +740,7 @@ def _plan_view(
         "setup_id": setup_id,
         "version": versions.FIRST_VERSION,
         "created_at": created_at,
+        "transform": {"transform_id": TRANSFORM_ID, "version": TRANSFORM_VERSION},
         "members": [cast(JsonValue, item.model_dump(mode="json")) for item in members],
     }
     return SetupRecastPlan(
@@ -626,3 +755,9 @@ def _plan_view(
         plan_digest=digest_bytes(PLAN_DOMAIN, canonize(body)),
         members=list(members),
     )
+
+
+classify_member = _classify
+preview_projection = _preview_projection
+derive_adaptation = _derive_adaptation
+materialize_member = _materialize_member

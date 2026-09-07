@@ -84,7 +84,6 @@ type SearchParams = {
   country_codes?: ReadonlyArray<string>;
   updated_from?: string;
   updated_to?: string;
-  compatibility?: "claimed_portable";
   family_id?: string;
   family_alignment?: "aligned" | "diverged" | "unknown" | "missing";
   member_harness_id?: string;
@@ -152,7 +151,6 @@ export async function searchComponents(params: SearchParams = {}): Promise<Compo
       country_codes: params.country_codes ? [...params.country_codes] : undefined,
       updated_from: params.updated_from,
       updated_to: params.updated_to,
-      compatibility: params.compatibility,
     },
   });
 }

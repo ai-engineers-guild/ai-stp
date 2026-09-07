@@ -871,7 +871,7 @@ def _freeze_one_adaptation(
         "scope": scope_name,
         "projection_format": "ai-stp-adaptation-projection/1",
         "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
-        "provider_component_kind": component_type,
+        "provider_component_kind": _spoken_kind(component_type, harness_id, scope_name),
         "projection_kind": projection_kind,
         "required_surface": {
             "profile_id": surface.profile_id,
@@ -904,6 +904,24 @@ def _freeze_one_adaptation(
             "scope_adaptations": [scope_document],
         }
     )
+
+
+def _spoken_kind(
+    component_type: ComponentType, harness_id: HarnessId, scope_name: TargetScope
+) -> str:
+    """The kind the provider declares, which may differ from the logical type.
+
+    Recast already used `rule.provider_kind`. Adopt-release used the passport
+    type, so a Codex MCP froze as `mcp` and `validate-bundle` answered
+    `adaptation_binding_mismatch` — Codex does not declare `mcp`; servers
+    live in `config.toml` (`ADR-0129`).
+    """
+    from ai_stp_cli.local import composition
+
+    rule = composition.rule_for(component_type, harness_id, scope=scope_name)
+    if rule is not None and rule.provider_kind:
+        return rule.provider_kind
+    return component_type
 
 
 def _component_head(connection: sqlite3.Connection, stable_id: str) -> revisions.StoredRevision:

@@ -53,7 +53,6 @@ def filter_signature(
     country_code: str | None = None,
     updated_from: str | None = None,
     updated_to: str | None = None,
-    compatibility: str | None = None,
     family_id: str | None = None,
     family_alignment: str | None = None,
     member_harness_id: str | None = None,
@@ -84,8 +83,6 @@ def filter_signature(
         payload["updated_from"] = updated_from
     if updated_to:
         payload["updated_to"] = updated_to
-    if compatibility:
-        payload["compatibility"] = compatibility
     if family_id:
         payload["family_id"] = family_id
     if family_alignment:

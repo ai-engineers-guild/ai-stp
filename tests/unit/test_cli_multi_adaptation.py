@@ -58,6 +58,33 @@ def test_add_adaptation_renders_a_second_native_projection(tmp_path: Path) -> No
     assert "codex" in patch["harness_variants"]
 
 
+def test_add_missing_adaptations_covers_every_remaining_harness(tmp_path: Path) -> None:
+    output = tmp_path / "review-kit"
+    plan, files = authoring.scaffold_plan(
+        component_type="skill",
+        name="review-kit",
+        language="none",
+        harness_variant="portable",
+        output=output,
+    )
+    authoring.apply_scaffold(plan, files, expected_digest=plan.plan_digest)
+    written = authoring.add_missing_adaptations(output)
+    assert (output / "projections" / "claude-code" / "SKILL.md").is_file() or any(
+        path.startswith("projections/claude-code/") for path in written
+    )
+    descriptor = json.loads((output / ".ai-stp-template.json").read_text(encoding="utf-8"))
+    assert descriptor["harness_variant"] == "portable"
+    assert set(descriptor["additional_harnesses"]) == {
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity",
+    }
+
+
 def test_add_adaptation_refuses_a_duplicate_or_unsupported_harness(tmp_path: Path) -> None:
     output = tmp_path / "review-kit"
     plan, files = authoring.scaffold_plan(

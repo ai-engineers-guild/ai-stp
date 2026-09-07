@@ -413,7 +413,6 @@ def component_summary(
     *,
     now: datetime | None = None,
     assessments: dict[tuple[str, str, str], EffectiveAssessment] | None = None,
-    match_kind: str | None = None,
 ) -> ComponentSummary:
     """Card projection: latest_* fields from the version passport (REQ-2103)."""
     verify_passport_integrity(row)
@@ -421,8 +420,18 @@ def component_summary(
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
+    trust = project_trust(row)
+    eligible_for_full_auto = (
+        row.lifecycle == "active"
+        and trust.trust_lane == "authoritative"
+        and trust.author_verified
+        and trust.component_verified
+    )
     matrix = project_target_matrix(
-        passport, assessments=assessments, include_risk_command=False, now=now
+        passport,
+        assessments=assessments,
+        now=now,
+        eligible_for_full_auto=eligible_for_full_auto,
     )
     return ComponentSummary(
         stable_id=passport.stable_id,  # type: ignore[arg-type]
@@ -447,10 +456,9 @@ def component_summary(
         latest_component_type=passport.component_type,
         latest_projection_kind=homogeneous_projection_kind(passport),  # type: ignore[arg-type]
         latest_assurance=assurance_counts(matrix),
-        match_kind=match_kind,  # type: ignore[arg-type]
         latest_tags=list(passport.tags),  # type: ignore[arg-type]
         latest_lifecycle=row.lifecycle,  # type: ignore[arg-type]
-        latest_trust=project_trust(row),
+        latest_trust=trust,
         latest_support=support,
         latest_published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
         latest_checks=project_checks_summary(row),
@@ -577,10 +585,22 @@ def component_detail(
         raise CatalogIntegrityError("no public versions")
     latest = max(versions, key=lambda r: _version_key(r.version))
     passport = component_passport(latest.passport)
+    trust = project_trust(latest)
+    eligible_for_full_auto = (
+        latest.lifecycle == "active"
+        and trust.trust_lane == "authoritative"
+        and trust.author_verified
+        and trust.component_verified
+    )
     return ComponentDetail(
         summary=component_summary(latest, now=now, assessments=assessments),
         versions=[version_list_entry(v, now=now) for v in versions],
-        target_matrix=project_target_matrix(passport, assessments=assessments, now=now),
+        target_matrix=project_target_matrix(
+            passport,
+            assessments=assessments,
+            now=now,
+            eligible_for_full_auto=eligible_for_full_auto,
+        ),
     )
 
 
@@ -609,15 +629,27 @@ def component_version_response(
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
+    trust = project_trust(row)
+    eligible_for_full_auto = (
+        row.lifecycle == "active"
+        and trust.trust_lane == "authoritative"
+        and trust.author_verified
+        and trust.component_verified
+    )
     return _WiredComponentVersionResponse(
         passport=passport,
         passport_digest=row.passport_digest,  # type: ignore[arg-type]
         lifecycle=row.lifecycle,  # type: ignore[arg-type]
-        trust=project_trust(row),
+        trust=trust,
         support=support,
         published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
         checks=project_checks_summary(row),
-        target_matrix=project_target_matrix(passport, assessments=assessments, now=now),
+        target_matrix=project_target_matrix(
+            passport,
+            assessments=assessments,
+            now=now,
+            eligible_for_full_auto=eligible_for_full_auto,
+        ),
         published_passport=cast(dict[str, JsonValue], row.passport),
     )
 

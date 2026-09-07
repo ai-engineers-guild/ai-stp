@@ -62,6 +62,8 @@ def test_bootstrap_asks_which_project_directories_to_index() -> None:
     assert "component inventory" in text
     assert "component adopt" in text
     assert "home directory" in text
+    assert "already named" in text
+    assert "Do not ask again" in text
 
 
 def test_the_canonical_skill_starts_from_doctor_and_machine_help() -> None:

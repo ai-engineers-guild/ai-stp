@@ -1,6 +1,6 @@
 ---
 description: "Build, verify, publish, yank, and recover a Python release."
-last_verified: "2026-09-04"
+last_verified: "2026-09-06"
 ---
 
 # Python package release
@@ -121,14 +121,15 @@ No upload token exists here, on the host, or in repository or organization secre
 Trusted Publishing issues an OIDC identity for the run. There is no credential to
 look for.
 
-Live index on 2026-09-04: `ai-stp-cli==0.0.17` from candidate `33850604873`,
-tag `v0.0.17`, commit `9e03ab27`, GitHub Release
-`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.17`. A clean
-`uv tool install --python 3.14 --no-cache ai-stp-cli==0.0.17` installs one
-first-party distribution. `provider fetch --harness pi` bound OpenNetwork
-`0.0.61` at `trust_level=verified_publisher`. Wheel digest
-`sha256:94e6f1a41b2f9b6bb9fba0c16bf6c7c2306bcaf6327b7eae35d7b751ccdbf9fb`
-matches PyPI.
+Live index on 2026-09-06: `ai-stp-cli==0.0.18` from candidate `34060185329`,
+tag `v0.0.18`, commit `4aa64c36`, GitHub Release
+`https://github.com/ai-engineers-guild/ai-stp/releases/tag/v0.0.18`. A clean
+`uv tool install --python 3.14 --no-cache ai-stp-cli==0.0.18` installs one
+first-party distribution. Wheel digest
+`sha256:fc8dbc9e146f52e4ffe97161d58ab27f46d008d9f40b3c7a01812cf7acac0291`
+matches PyPI. This line accepts `reset` as a protocol v3 operation.
+Previous: `0.0.17` from candidate `33850604873`, tag `v0.0.17`, commit
+`9e03ab27`.
 
 **Former internal projects are no longer part of the install.** They remain
 on the index as `0.0.16` artifacts until their PyPI owners delete those

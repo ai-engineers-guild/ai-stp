@@ -40,8 +40,6 @@ export type CatalogFilterPanelLabels = {
   searchOptions: string;
   authorFilter: string;
   verifiedOnly: string;
-  claimedPortableFilter?: string;
-  claimedPortableFilterHelp?: string;
   serviceFilter: string;
   countryFilter: string;
   unspecifiedOption?: string;
@@ -50,7 +48,6 @@ export type CatalogFilterPanelLabels = {
   clearUpdatedRange?: string;
 };
 
-// eslint-disable-next-line max-lines-per-function, complexity
 export function CatalogFilterPanel({
   query,
   labels,
@@ -193,26 +190,6 @@ export function CatalogFilterPanel({
           selected={query.verifiedOnly ? ["1"] : []}
         />
       </Facet>
-      {query.resource !== "setups" ? (
-        <Facet
-          label={labels.claimedPortableFilter ?? "Include claimed-portable targets"}
-          help={labels.claimedPortableFilterHelp ?? labels.filterHelpBody}
-          helpLabel={labels.filterHelpLabel}
-        >
-          <SearchableMultiSelect
-            name="compatibility"
-            label={labels.claimedPortableFilter ?? "Include claimed-portable targets"}
-            searchLabel={labels.searchOptions}
-            options={[
-              {
-                value: "claimed_portable",
-                label: labels.claimedPortableFilter ?? "Include claimed-portable targets",
-              },
-            ]}
-            selected={query.compatibility === "claimed_portable" ? ["claimed_portable"] : []}
-          />
-        </Facet>
-      ) : null}
     </div>
   );
 }

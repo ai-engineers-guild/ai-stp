@@ -304,7 +304,7 @@ export type AssessmentState = (typeof AssessmentState)[keyof typeof AssessmentSt
 /**
  * AssuranceCounts
  *
- * Bounded card summary. Claims never increase the verified numerator.
+ * Bounded card summary over exact published target rows.
  */
 export type AssuranceCounts = {
   /**
@@ -364,6 +364,14 @@ export type AuthorAttestation = {
    * Account Id
    */
   account_id: string;
+  /**
+   * Adaptation Id
+   */
+  adaptation_id?: string | null;
+  /**
+   * Arch
+   */
+  arch?: string | null;
   attested_at: Timestamp;
   /**
    * Check Id
@@ -376,7 +384,13 @@ export type AuthorAttestation = {
    */
   harness_version: string;
   object_digest: ContentDigest;
+  /**
+   * Os
+   */
+  os?: string | null;
   policy_version: PolicyVersion;
+  projection_digest?: ContentDigest | null;
+  provider_profile_digest?: ContentDigest | null;
   /**
    * Provider Version
    */
@@ -389,6 +403,10 @@ export type AuthorAttestation = {
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Scope
+   */
+  scope?: string | null;
   /**
    * Signature
    */
@@ -671,8 +689,6 @@ export const ChecksStatus = {
 
 export type ChecksStatus = (typeof ChecksStatus)[keyof typeof ChecksStatus];
 
-export type ClaimId = string;
-
 export const ClaimState = {
   REQUESTED: "requested",
   APPROVED: "approved",
@@ -680,52 +696,6 @@ export const ClaimState = {
 } as const;
 
 export type ClaimState = (typeof ClaimState)[keyof typeof ClaimState];
-
-/**
- * ClaimTargetRow
- *
- * One claim-only target. Never exact availability or install eligibility.
- */
-export type ClaimTargetRow = {
-  claim_id: ClaimId;
-  /**
-   * Component Types
-   */
-  component_types: Array<string>;
-  /**
-   * Evidence Refs
-   */
-  evidence_refs: Array<PublicEvidenceRef>;
-  expires_at: Timestamp | null;
-  harness_id: HarnessId;
-  issued_at: Timestamp;
-  /**
-   * Kind
-   */
-  kind: "claimed_portable";
-  /**
-   * Limitations
-   */
-  limitations: Array<string>;
-  /**
-   * Risk Cli Command
-   */
-  risk_cli_command: string | null;
-  /**
-   * Schema Version
-   */
-  schema_version: 1;
-  /**
-   * Scopes
-   */
-  scopes: Array<TargetScope>;
-  /**
-   * Transform Family
-   */
-  transform_family: string;
-  transform_version: AiStpContractsAssuranceVersion;
-  [key: string]: unknown;
-};
 
 /**
  * CliError
@@ -753,25 +723,6 @@ export type CliError = {
   retryable: boolean;
   [key: string]: unknown;
 };
-
-/**
- * CompatibilityFacets
- *
- * Separate exact and claimed-portable counts for the current public query.
- */
-export type CompatibilityFacets = {
-  /**
-   * Claimed Portable
-   */
-  claimed_portable: number;
-  /**
-   * Exact
-   */
-  exact: number;
-  [key: string]: unknown;
-};
-
-export type CompatibilityMode = "claimed_portable";
 
 /**
  * ComplaintCreateRequest
@@ -935,7 +886,6 @@ export type ComponentId = string;
  * One page of component search results, partitioned by trust lane.
  */
 export type ComponentListResponse = {
-  compatibility_facets: CompatibilityFacets;
   /**
    * Experimental
    */
@@ -1032,7 +982,6 @@ export type ComponentSearchRequest = {
    * Authors
    */
   authors?: Array<string>;
-  compatibility?: CompatibilityMode | null;
   component_type?: ComponentType | null;
   /**
    * Component Types
@@ -1156,7 +1105,6 @@ export type ComponentSummary = {
    * Likes Count
    */
   likes_count: number;
-  match_kind: MatchKind | null;
   /**
    * Owner Account Id
    */
@@ -1275,10 +1223,6 @@ export type ComponentVersionPassport = {
    */
   parent_revision_ids: Array<RevisionId>;
   permissions: Permissions;
-  /**
-   * Portability Claims
-   */
-  portability_claims?: Array<PortabilityClaim>;
   /**
    * Provides Capabilities
    */
@@ -2649,10 +2593,6 @@ export type LivenessResponse = {
   [key: string]: unknown;
 };
 
-export const MatchKind = { EXACT: "exact", CLAIMED_PORTABLE: "claimed_portable" } as const;
-
-export type MatchKind = (typeof MatchKind)[keyof typeof MatchKind];
-
 /**
  * NonEmptyArtifactRef
  *
@@ -2918,8 +2858,6 @@ export type OwnerStartPublicationRequest = {
  * Owner-safe coverage diagnostic. No foreign evidence or storage keys.
  */
 export type OwnerTargetGap = {
-  claim_id: ClaimId | null;
-  expires_at: Timestamp | null;
   harness_id: HarnessId;
   /**
    * Next Action
@@ -3294,58 +3232,6 @@ export const PlanState = {
 export type PlanState = (typeof PlanState)[keyof typeof PlanState];
 
 export type PolicyVersion = string;
-
-/**
- * PortabilityClaim
- *
- * Immutable author assertion that exact source can be transformed for named harnesses.
- */
-export type PortabilityClaim = {
-  /**
-   * Claim Id
-   */
-  claim_id: string;
-  /**
-   * Component Types
-   */
-  component_types: Array<ComponentType>;
-  /**
-   * Evidence Refs
-   */
-  evidence_refs?: Array<string>;
-  /**
-   * Expires At
-   */
-  expires_at?: string | null;
-  /**
-   * Issued At
-   */
-  issued_at: string;
-  /**
-   * Limitations
-   */
-  limitations?: Array<string>;
-  /**
-   * Scopes
-   */
-  scopes: Array<TargetScope>;
-  /**
-   * Source Artifact Digest
-   */
-  source_artifact_digest: string;
-  /**
-   * Target Harness Ids
-   */
-  target_harness_ids: Array<HarnessId>;
-  /**
-   * Transform Family
-   */
-  transform_family: string;
-  /**
-   * Transform Version
-   */
-  transform_version: string;
-};
 
 /**
  * ProjectedMember
@@ -5792,13 +5678,9 @@ export type TargetAssessmentIngestResponse = {
 /**
  * TargetMatrix
  *
- * Detail/version projection of exact rows and claim-only rows.
+ * Detail/version projection of exact published adaptations.
  */
 export type TargetMatrix = {
-  /**
-   * Claimed Portable
-   */
-  claimed_portable: Array<ClaimTargetRow>;
   /**
    * Exact
    */
@@ -6745,7 +6627,6 @@ export type SearchComponentsData = {
      * Authors
      */
     authors?: Array<string>;
-    compatibility?: CompatibilityMode | null;
     component_type?: ComponentType | null;
     /**
      * Component Types

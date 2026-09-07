@@ -1,4 +1,4 @@
-"""Target-bound assurance and portability projection contracts (SPEC-064)."""
+"""Target-bound assurance and exact projection contracts (SPEC-064)."""
 
 from __future__ import annotations
 
@@ -20,8 +20,6 @@ from ai_stp_passports.versions import (
 
 type AssessmentState = Literal["not_verified", "verified", "failed", "stale"]
 type RecommendationState = Literal["recommended", "not_recommended", "ineffective"]
-type MatchKind = Literal["exact", "claimed_portable"]
-type CompatibilityMode = Literal["claimed_portable"]
 type SupportedOs = Literal["linux", "macos", "windows"]
 type SupportedArch = Literal["x86_64", "arm64"]
 type ArtifactCheckResult = Literal["passed", "failed"]
@@ -29,7 +27,6 @@ type Digest = Annotated[str, Field(pattern=DIGEST_PATTERN)]
 type Version = Annotated[str, Field(pattern=VERSION_PATTERN)]
 type ComponentId = Annotated[str, Field(pattern=stable_id_pattern("component"))]
 type AdaptationId = Annotated[str, Field(pattern=r"^adaptation_[0-9a-f]{64}$")]
-type ClaimId = Annotated[str, Field(pattern=r"^claim_[0-9a-f]{64}$")]
 
 
 class ArtifactObservationIdentity(BaseModel):
@@ -126,7 +123,7 @@ class PublicEvidenceRef(BaseModel):
 
 
 class AssuranceCounts(BaseModel):
-    """Bounded card summary. Claims never increase the verified numerator."""
+    """Bounded card summary over exact published target rows."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -164,43 +161,13 @@ class ExactTargetRow(BaseModel):
     evidence_refs: list[PublicEvidenceRef] = Field(default_factory=list[PublicEvidenceRef])
 
 
-class ClaimTargetRow(BaseModel):
-    """One claim-only target. Never exact availability or install eligibility."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    kind: Literal["claimed_portable"] = "claimed_portable"
-    harness_id: HarnessId
-    claim_id: ClaimId
-    transform_family: Annotated[str, Field(min_length=1, max_length=64)]
-    transform_version: Version
-    component_types: list[str] = Field(default_factory=list)
-    scopes: list[TargetScope] = Field(default_factory=list[TargetScope])
-    limitations: list[str] = Field(default_factory=list)
-    issued_at: Timestamp
-    expires_at: Timestamp | None = None
-    evidence_refs: list[PublicEvidenceRef] = Field(default_factory=list[PublicEvidenceRef])
-    risk_cli_command: Annotated[str, Field(min_length=1, max_length=512)] | None = None
-
-
 class TargetMatrix(BaseModel):
-    """Detail/version projection of exact rows and claim-only rows."""
+    """Detail/version projection of exact published adaptations."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
     exact: list[ExactTargetRow] = Field(default_factory=list[ExactTargetRow])
-    claimed_portable: list[ClaimTargetRow] = Field(default_factory=list[ClaimTargetRow])
-
-
-class CompatibilityFacets(BaseModel):
-    """Separate exact and claimed-portable counts for the current public query."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    exact: Annotated[int, Field(ge=0)] = 0
-    claimed_portable: Annotated[int, Field(ge=0)] = 0
 
 
 class OwnerTargetGap(BaseModel):
@@ -214,18 +181,3 @@ class OwnerTargetGap(BaseModel):
     state: AssessmentState
     reason_code: Annotated[str, Field(min_length=1, max_length=64)] | None = None
     next_action: Annotated[str, Field(min_length=1, max_length=128)]
-    claim_id: ClaimId | None = None
-    expires_at: Timestamp | None = None
-
-
-RISK_INSTALL_TEMPLATE = (
-    "ai-stp component risk-install --id {stable_id} --version {version} "
-    "--harness {harness_id} --claim-id {claim_id}"
-)
-
-
-def risk_install_command(*, stable_id: str, version: str, harness_id: str, claim_id: str) -> str:
-    """Version-scoped local CLI command. Web never executes it."""
-    return RISK_INSTALL_TEMPLATE.format(
-        stable_id=stable_id, version=version, harness_id=harness_id, claim_id=claim_id
-    )

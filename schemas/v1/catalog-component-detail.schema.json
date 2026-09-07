@@ -15,7 +15,7 @@
     },
     "AssuranceCounts": {
       "additionalProperties": true,
-      "description": "Bounded card summary. Claims never increase the verified numerator.",
+      "description": "Bounded card summary over exact published target rows.",
       "properties": {
         "assessed_targets": {
           "default": 0,
@@ -242,116 +242,6 @@
       ],
       "type": "string"
     },
-    "ClaimId": {
-      "pattern": "^claim_[0-9a-f]{64}$",
-      "type": "string"
-    },
-    "ClaimTargetRow": {
-      "additionalProperties": true,
-      "description": "One claim-only target. Never exact availability or install eligibility.",
-      "properties": {
-        "claim_id": {
-          "$ref": "#/$defs/ClaimId"
-        },
-        "component_types": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Component Types",
-          "type": "array"
-        },
-        "evidence_refs": {
-          "items": {
-            "$ref": "#/$defs/PublicEvidenceRef"
-          },
-          "title": "Evidence Refs",
-          "type": "array"
-        },
-        "expires_at": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Timestamp"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "harness_id": {
-          "$ref": "#/$defs/HarnessId"
-        },
-        "issued_at": {
-          "$ref": "#/$defs/Timestamp"
-        },
-        "kind": {
-          "const": "claimed_portable",
-          "default": "claimed_portable",
-          "title": "Kind",
-          "type": "string"
-        },
-        "limitations": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Limitations",
-          "type": "array"
-        },
-        "risk_cli_command": {
-          "anyOf": [
-            {
-              "maxLength": 512,
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Risk Cli Command"
-        },
-        "schema_version": {
-          "const": 1,
-          "default": 1,
-          "title": "Schema Version",
-          "type": "integer"
-        },
-        "scopes": {
-          "items": {
-            "$ref": "#/$defs/TargetScope"
-          },
-          "title": "Scopes",
-          "type": "array"
-        },
-        "transform_family": {
-          "maxLength": 64,
-          "minLength": 1,
-          "title": "Transform Family",
-          "type": "string"
-        },
-        "transform_version": {
-          "$ref": "#/$defs/Version"
-        }
-      },
-      "required": [
-        "claim_id",
-        "component_types",
-        "evidence_refs",
-        "expires_at",
-        "harness_id",
-        "issued_at",
-        "kind",
-        "limitations",
-        "risk_cli_command",
-        "schema_version",
-        "scopes",
-        "transform_family",
-        "transform_version"
-      ],
-      "title": "ClaimTargetRow",
-      "type": "object"
-    },
     "ComponentId": {
       "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
@@ -562,17 +452,6 @@
           "title": "Likes Count",
           "type": "integer"
         },
-        "match_kind": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/MatchKind"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "owner_account_id": {
           "default": "",
           "maxLength": 64,
@@ -637,7 +516,6 @@
         "latest_trust",
         "latest_version",
         "likes_count",
-        "match_kind",
         "owner_account_id",
         "owner_handle",
         "publisher_id",
@@ -900,13 +778,6 @@
       "enum": [
         "derived",
         "native"
-      ],
-      "type": "string"
-    },
-    "MatchKind": {
-      "enum": [
-        "exact",
-        "claimed_portable"
       ],
       "type": "string"
     },
@@ -1284,15 +1155,8 @@
     },
     "TargetMatrix": {
       "additionalProperties": true,
-      "description": "Detail/version projection of exact rows and claim-only rows.",
+      "description": "Detail/version projection of exact published adaptations.",
       "properties": {
-        "claimed_portable": {
-          "items": {
-            "$ref": "#/$defs/ClaimTargetRow"
-          },
-          "title": "Claimed Portable",
-          "type": "array"
-        },
         "exact": {
           "items": {
             "$ref": "#/$defs/ExactTargetRow"
@@ -1308,7 +1172,6 @@
         }
       },
       "required": [
-        "claimed_portable",
         "exact",
         "schema_version"
       ],

@@ -42,7 +42,6 @@ from ai_stp_passports.versions import (
     GitSource,
     LicenseInfo,
     Permissions,
-    PortabilityClaim,
     ProjectedMember,
     ProviderSurfaceRef,
     ScopeAdaptation,
@@ -51,7 +50,6 @@ from ai_stp_passports.versions import (
     adaptation_for,
     scope_for,
     seal_adaptation,
-    seal_portability_claim,
 )
 
 __all__ = [
@@ -75,7 +73,6 @@ __all__ = [
     "MarkdownPolicyError",
     "PassportEnvelope",
     "Permissions",
-    "PortabilityClaim",
     "ProjectedMember",
     "ProjectionArtifactError",
     "ProviderSurfaceRef",
@@ -90,7 +87,6 @@ __all__ = [
     "scope_for",
     "seal_adaptation",
     "seal_envelope",
-    "seal_portability_claim",
     "validate_safe_markdown",
     "verify_projection",
     "verify_revision_id",

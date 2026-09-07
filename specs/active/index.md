@@ -9,17 +9,17 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: MVP product contract. | 2026-09-05 |
+| [SPEC-001-product-contract.md](SPEC-001-product-contract.md) | SPEC-001: MVP product contract. | 2026-09-06 |
 | [SPEC-002-identity-devices-access.md](SPEC-002-identity-devices-access.md) | SPEC-002: Accounts, OAuth, devices, and access. | 2026-08-13 |
 | [SPEC-003-developer-passport.md](SPEC-003-developer-passport.md) | SPEC-003: Developer passport and public projection. | 2026-08-29 |
 | [SPEC-004-project-index-passport.md](SPEC-004-project-index-passport.md) | SPEC-004: Project index and passport. | 2026-08-03 |
 | [SPEC-005-registry-versioning.md](SPEC-005-registry-versioning.md) | SPEC-005: Registry, variants, and object versions. | 2026-09-05 |
 | [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Search, candidate selection, and setup compiler. | 2026-09-05 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Tests, evidence and publication. | 2026-09-05 |
-| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-04 |
+| [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-06 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-08-04 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Server platform and API. | 2026-09-04 |
-| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-09-05 |
+| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-09-06 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Uninstallation, full cleanup, and recovery. | 2026-08-03 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: User data governance. | 2026-09-01 |
 | [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Managed toolchain and bootstrap. | 2026-08-04 |
@@ -48,7 +48,7 @@ last_verified: "2026-08-03"
 | [SPEC-037-catalog-navigation-and-onboarding.md](SPEC-037-catalog-navigation-and-onboarding.md) | SPEC-037: Compact catalog, owner/public navigation, and CLI onboarding. | 2026-08-17 |
 | [SPEC-038-cli-publication-access-reports.md](SPEC-038-cli-publication-access-reports.md) | SPEC-038: CLI client for publication, access rights, and reports. | 2026-08-13 |
 | [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI synchronization of the private registry between devices. | 2026-08-13 |
-| [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-09-05 |
+| [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-09-06 |
 | [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-09-05 |
 | [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-08-13 |
 | [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-08-15 |
@@ -68,10 +68,13 @@ last_verified: "2026-08-03"
 | [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-09-04 |
 | [SPEC-058-multi-root-installation-transactions.md](SPEC-058-multi-root-installation-transactions.md) | SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots. | 2026-09-05 |
 | [SPEC-059-public-identities-and-catalog-lines.md](SPEC-059-public-identities-and-catalog-lines.md) | SPEC-059: Unique account identities, component names, and owner-fenced catalog lines. | 2026-09-04 |
-| [SPEC-060-standard-family-identity.md](SPEC-060-standard-family-identity.md) | SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3. | 2026-09-05 |
+| [SPEC-060-standard-family-identity.md](SPEC-060-standard-family-identity.md) | SPEC-060: Coordinated standard-family identity distinct from envelope v1 and protocol v3. | 2026-09-06 |
 | [SPEC-061-estate-release-qualification.md](SPEC-061-estate-release-qualification.md) | SPEC-061: Estate-release complete requires the seven-harness launch matrix. | 2026-09-05 |
 | [SPEC-062-setup-recast.md](SPEC-062-setup-recast.md) | SPEC-062: Recast a complete setup onto another harness with provenance. | 2026-09-06 |
-| [SPEC-064-component-projections-assurance-and-portability.md](SPEC-064-component-projections-assurance-and-portability.md) | SPEC-064: Complete platform contract for one component with exact harness projections, target-bound assurance, bounded portability claims, search, and web presentation. | 2026-09-06 |
+| [SPEC-063-component-materialize.md](SPEC-063-component-materialize.md) | SPEC-063: Materialize one target-harness adaptation from a pinned component. | 2026-09-06 |
+| [SPEC-064-component-projections-assurance-and-portability.md](SPEC-064-component-projections-assurance-and-portability.md) | SPEC-064: Complete platform contract for one component with exact harness projections, target-bound assurance, search, and web presentation. | 2026-09-06 |
 | [SPEC-065-setup-families-and-harness-invariant-alignment.md](SPEC-065-setup-families-and-harness-invariant-alignment.md) | SPEC-065: Complete platform contract for harness-specific setup families, invariant alignment, provenance, exact component projection display, and canonical OBT support. | 2026-09-06 |
+| [SPEC-066-adaptation-evidence.md](SPEC-066-adaptation-evidence.md) | SPEC-066: Per-adaptation evaluation evidence for a component version. | 2026-09-06 |
+| [SPEC-067-cli-program-lifecycle.md](SPEC-067-cli-program-lifecycle.md) | SPEC-067: Shared executable lifecycle for catalog cli components. | 2026-09-06 |
 
 <!-- END CONTENTS -->

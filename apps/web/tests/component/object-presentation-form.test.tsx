@@ -357,7 +357,9 @@ describe("ObjectPresentationForm media editor", () => {
     expect(screen.getByText("Not ready")).toBeTruthy();
     expect(screen.getByLabelText(/Alternative text/i)).not.toHaveAttribute("aria-required");
     expect(screen.getByRole("group", { name: "Source" })).toBeTruthy();
-    expect(screen.getByText("Optional. Add a description when the image needs context.")).toBeTruthy();
+    expect(
+      screen.getByText("Optional. Add a description when the image needs context."),
+    ).toBeTruthy();
   });
 
   it("keeps URL mode visible and validates the preview before saving", async () => {

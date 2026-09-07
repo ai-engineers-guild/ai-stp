@@ -189,7 +189,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
           <dd>{response.trust.component_verified ? tc("yes") : tc("no")}</dd>
         </div>
       </dl>
-      <ComponentTargetMatrix matrix={response.target_matrix} labels={targetMatrixLabels(t, tCli)} />
+      <ComponentTargetMatrix matrix={response.target_matrix} labels={targetMatrixLabels(t)} />
       <ExactSourceLink source={passport.source} links={sourceLinks} label={t("viewSource")} />
       <CatalogUsageStats
         metrics={response.usage_metrics}

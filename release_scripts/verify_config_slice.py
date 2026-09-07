@@ -8,7 +8,8 @@ machine's own configuration into management and putting it back.
 That arc is the vision's sentence, and until now it was measured by hand on one
 leg:
 
-    seed a native surface  ->  component adopt  ->  component version release
+    seed a native surface  ->  component adopt  ->  component passport update
+    ->  component version release
     ->  select propose     ->  select confirm   ->  install plan
     ->  install approve    ->  install apply    ->  target status/diff/backups
     ->  install plan --action remove -> approve -> apply
@@ -36,7 +37,14 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final
 
-from release_scripts._evidence import EvidenceError, cli, data, error_code
+from release_scripts._evidence import (
+    EvidenceError,
+    cli,
+    data,
+    error_code,
+    release_draft_update_arguments,
+    write_release_draft_patch,
+)
 
 HARNESSES: Final[tuple[str, ...]] = (
     "claude-code",
@@ -232,6 +240,44 @@ def _apply(
     return applied["outcome"] == PASSED
 
 
+def _prepare_release(
+    stages: list[dict[str, Any]],
+    identifier: str,
+    *,
+    home: Path,
+    python: str,
+    name: str,
+) -> bool:
+    """Declare name, description and tags on an adopted draft before release.
+
+    Adoption is observation. Release is a publication-ready snapshot. Jumping
+    from one to the other is how this slice went 7/7 red on 2026-09-06: every
+    harness adopted, then `component version release` refused the missing
+    declared fields (`name`, `description`, `tags`, then `license`). The
+    publication slice already did this step.
+    """
+    shown = _stage(
+        f"passport:show:{identifier[-6:]}",
+        ["component", "passport", "show", "--id", identifier],
+        home=home,
+        python=python,
+    )
+    stages.append(shown)
+    if shown["outcome"] != PASSED:
+        return False
+    patch = write_release_draft_patch(home / f"release-draft-{identifier[-6:]}.json", name=name)
+    updated = _stage(
+        f"passport:update:{identifier[-6:]}",
+        release_draft_update_arguments(
+            identifier, str(shown["data"].get("revision_id", "")), patch
+        ),
+        home=home,
+        python=python,
+    )
+    stages.append(updated)
+    return updated["outcome"] == PASSED
+
+
 def _adopted(
     stages: list[dict[str, Any]],
     harness_id: str,
@@ -383,6 +429,10 @@ def _row(
 
     references: list[str] = []
     for identifier in identifiers:
+        if not _prepare_release(
+            stages, identifier, home=home, python=python, name=f"evidence-{identifier[-6:]}"
+        ):
+            return _settle(harness_id, kind, relative, stages, seeded, target)
         released = _stage(
             f"release:{identifier[-6:]}",
             ["component", "version", "release", "--id", identifier, "--major"],
