@@ -131,19 +131,18 @@ matches PyPI. This line accepts `reset` as a protocol v3 operation.
 Previous: `0.0.17` from candidate `33850604873`, tag `v0.0.17`, commit
 `9e03ab27`.
 
-**Former internal projects are no longer part of the install.** They remain
-on the index as `0.0.16` artifacts until their PyPI owners delete those
-projects in the web UI with password confirmation: `ai-stp-sources` is
-`rldyourmnd`; `ai-stp-foundation`, `ai-stp-passports`, `ai-stp-assurance`,
-and `ai-stp-contracts` are `artemletya`. There is no upload token and no
-deletion API. Do not delete them before `0.0.17` is on the simple index;
-`ai-stp-cli==0.0.16` still requires them. Earlier: `0.0.6` from candidate
-`33020095240`, `0.0.5` from `33008640398`.
+**Former internal projects are no longer part of the install.** Keep internal
+Python namespaces inside the single `ai-stp-cli` wheel. Before retiring an old
+index project, verify a fresh uncached unified install, its `Requires-Dist`, and
+imports of all runtime namespaces. Preserve the old source tag and artifact
+digests. Index deletion retires fresh installation of the superseded split alpha;
+recovery is a new unified CLI patch release. The current owner actions and measured
+index status belong to [the roadmap](../../engineering/implementation-roadmap.md).
 
 Verified **with PyPI**, not from a green run:
 
 - one project, `ai-stp-cli`, with a wheel and sdist; historical `0.0.16`
-  internals remain on the index until their owners delete those projects;
+  index cleanup status is recorded in the roadmap;
 - attestation of the published wheel succeeds and names its source—workflow
   `release-candidate.yml@refs/tags/v0.0.5`, commit `6514a36b…`. The negative
   control (random bytes) returns 404, so the check distinguishes them;
