@@ -335,6 +335,8 @@ async def create_avatar_from_bytes(
             asset_id=asset_id,
             payload=payload,
             content_type=content_type,
+            owner_account_id=account_id,
+            namespace="users/avatars",
         )
     except Exception as exc:
         asset.state = "rejected"
@@ -352,7 +354,6 @@ async def create_avatar_from_bytes(
         "avatar_asset_id": asset_id,
         "state": asset.state,
         "public_url": asset.public_url,
-        "object_key": asset.object_key,
         "content_digest": asset.content_digest,
         "size_bytes": asset.size_bytes,
     }
@@ -464,7 +465,11 @@ async def read_avatar_bytes(
     asset = await db.get(AvatarAsset, asset_id)
     if asset is None or asset.state != "ready" or not asset.object_key:
         return None
-    body = await store.read_bytes(object_key=asset.object_key)
+    body = await store.read_bytes(
+        object_key=asset.object_key,
+        expected_digest=asset.content_digest,
+        expected_size=asset.size_bytes,
+    )
     if body is None:
         return None
     return body, asset.content_type

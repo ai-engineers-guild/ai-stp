@@ -802,6 +802,82 @@
         "status": "estimated",
         "reason": null
       }
+    },
+    {
+      "case_id": "listCatalogAuthors.empty",
+      "operation_id": "listCatalogAuthors",
+      "kind": "positive",
+      "why": "An empty catalog has no author filter options.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": []
+      }
+    },
+    {
+      "case_id": "readPrivateComponentVersion.authorized",
+      "operation_id": "readPrivateComponentVersion",
+      "kind": "positive",
+      "why": "An authenticated owner or exact-major grantee receives the private passport only after authorization.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "visibility": "private"
+        },
+        "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "visibility": "private"
+      }
+    },
+    {
+      "case_id": "readPrivateSetupVersion.authorized",
+      "operation_id": "readPrivateSetupVersion",
+      "kind": "positive",
+      "why": "Private setup metadata follows the same owner or exact-major grant boundary as its artifact.",
+      "request": {
+        "path_params": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "setup",
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "visibility": "private"
+        },
+        "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "visibility": "private"
+      }
     }
   ]
 }

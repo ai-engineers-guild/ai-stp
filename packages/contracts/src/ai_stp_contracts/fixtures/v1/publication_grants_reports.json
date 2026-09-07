@@ -13,6 +13,7 @@
           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "version": "1.0",
           "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "artifact_inventory": ["SKILL.md"],
           "policy_version": "1",
           "passport": {
             "name": "demo",
@@ -48,6 +49,8 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "artifact_inventory": ["SKILL.md"],
+        "visibility": "private",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -80,6 +83,8 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "artifact_inventory": ["SKILL.md"],
+        "visibility": "private",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -112,6 +117,43 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "artifact_inventory": ["SKILL.md"],
+        "visibility": "private",
+        "policy_version": "1",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "component_verified": false,
+        "evidence": [],
+        "effects": [
+          "validate",
+          "publish_catalog_version"
+        ]
+      }
+    },
+    {
+      "case_id": "bindPublicationProjectionArtifact.bound",
+      "operation_id": "bindPublicationProjectionArtifact",
+      "kind": "positive",
+      "why": "An exact projection artifact bind returns the unchanged publication plan.",
+      "request": {
+        "path_params": {
+          "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "projection_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "plan_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "state": "ready",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "artifact_inventory": ["SKILL.md"],
+        "visibility": "private",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -150,6 +192,8 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "artifact_inventory": ["SKILL.md"],
+        "visibility": "private",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -604,6 +648,8 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "artifact_inventory": ["SKILL.md"],
+        "visibility": "private",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",

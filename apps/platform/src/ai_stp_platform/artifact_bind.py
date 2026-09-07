@@ -57,6 +57,7 @@ async def bind_plan_artifact(
     payload: bytes,
     expected_digest: str,
     expected_size: int,
+    owner_account_id: str | None = None,
 ) -> StoredObject:
     """Inspect, verify digest/size and commit immutable bytes."""
     inspect_publication_artifact(payload)
@@ -67,6 +68,7 @@ async def bind_plan_artifact(
         payload,
         expected_digest=expected_digest,
         expected_size=expected_size,
+        owner_account_id=owner_account_id,
     )
 
 
@@ -75,10 +77,15 @@ async def plan_artifact_is_durable(
     store: ImmutableObjectStore,
     content_digest: str,
     expected_size: int | None,
+    owner_account_id: str | None = None,
 ) -> bool:
     """Return whether the plan digest is already present and verified."""
     try:
-        payload = await store.read_by_digest(content_digest, expected_size=expected_size)
+        payload = await store.read_by_digest(
+            content_digest,
+            expected_size=expected_size,
+            owner_account_id=owner_account_id,
+        )
     except ObjectIntegrityError:
         return False
     return payload is not None

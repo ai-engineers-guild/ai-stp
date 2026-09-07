@@ -10,6 +10,7 @@ last_verified: "2026-08-03"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [article-publication-implementation-plan.md](article-publication-implementation-plan.md) | Migration sequence for moving the content hub to unified API serving for repository and staff publications. | 2026-08-29 |
+| [artifact-storage-private-delivery-implementation-plan.md](artifact-storage-private-delivery-implementation-plan.md) | Implementation sequence for owner-scoped artifacts, platform assets, private delivery, and verified backups. | 2026-09-07 |
 | [audit-remediation-status.md](audit-remediation-status.md) | Verifiable disposition of findings from the current CLI, CI, and integration audit. | 2026-09-04 |
 | [catalog-search-benchmark.md](catalog-search-benchmark.md) | How to measure catalog search latency on PostgreSQL 16 without a new harness. | 2026-09-04 |
 | [cli-performance.md](cli-performance.md) | Measured CLI command costs, resolved bottlenecks, and budgets. | 2026-08-29 |

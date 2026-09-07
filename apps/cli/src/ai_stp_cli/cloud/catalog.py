@@ -26,6 +26,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache
 from ai_stp_cli.paths import ensure_directory
 from ai_stp_contracts.catalog import (
+    CatalogTrust,
     ComponentDetail,
     ComponentListResponse,
     ComponentSearchRequest,
@@ -158,7 +159,12 @@ def show(endpoint: Endpoint, kind: CatalogKind, stable_id: str) -> CatalogObject
 
 
 def version(
-    endpoint: Endpoint, kind: CatalogKind, stable_id: str, number: str
+    endpoint: Endpoint,
+    kind: CatalogKind,
+    stable_id: str,
+    number: str,
+    *,
+    access_token: str | None = None,
 ) -> CatalogVersionView:
     """One exact version, with its passport verified against the published digest.
 
@@ -173,7 +179,7 @@ def version(
     )
     key = cache.key_for(f"{kind}-version", f"{stable_id}@{number}")
     try:
-        with client.open_client(endpoint) as http:
+        with client.open_client(endpoint, access_token=access_token) as http:
             document = client.call_document(
                 http,
                 "GET",
@@ -181,9 +187,25 @@ def version(
                 attempts=endpoint.max_attempts,
             )
     except CliFailure as failure:
-        if failure.code not in UNREACHABLE:
+        if failure.code not in UNREACHABLE and not (
+            failure.code == "AI_STP_NOT_FOUND" and access_token is not None
+        ):
             raise
-        return _version_from_cache(kind, key, failure)
+        if failure.code in UNREACHABLE:
+            return _version_from_cache(kind, key, failure)
+        private_path = f"{path}/private"
+        with client.open_client(endpoint, access_token=access_token) as http:
+            document = client.call_document(
+                http,
+                "GET",
+                private_path,
+                attempts=endpoint.max_attempts,
+            )
+        passport, digest = _published_bytes(document)
+        cache.verify(passport, digest)
+        checked_at = _moment()
+        cache.store(key, document, checked_at=checked_at)
+        return _private_version_view(kind, document, checked_at, passport)
 
     passport, digest = _published_bytes(document)
     # Wire object, not a model dump: later default fields are not what the
@@ -212,6 +234,35 @@ def _version_view(
         published_at=answer.published_at,
         passport=passport,
     )
+
+
+def _private_version_view(
+    kind: CatalogKind,
+    document: dict[str, JsonValue],
+    checked_at: str,
+    passport: dict[str, JsonValue],
+) -> CatalogVersionView:
+    trust = document.get("trust")
+    if not isinstance(trust, dict):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR", "the private catalogue answer is missing trust metadata"
+        )
+    try:
+        return CatalogVersionView(
+            kind=kind,
+            source="online",
+            checked_at=checked_at,
+            passport_digest=str(document["passport_digest"]),
+            lifecycle=str(document["lifecycle"]),  # type: ignore[arg-type]
+            trust=CatalogTrust.model_validate(trust),
+            published_at=str(document["published_at"]),
+            passport=passport,
+        )
+    except (KeyError, TypeError, ValidationError) as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the private catalogue answer is missing version metadata",
+        ) from error
 
 
 def _published_bytes(document: dict[str, JsonValue]) -> tuple[dict[str, JsonValue], str]:
@@ -247,6 +298,10 @@ def _version_from_cache(kind: CatalogKind, key: str, failure: CliFailure) -> Cat
     # Verified again on the way out: a cache entry can be edited on disk, and a
     # check performed only on arrival protects only the arrival.
     cache.verify(passport, digest)
+    if entry.document.get("visibility") == "private":
+        return _private_version_view(kind, entry.document, entry.checked_at, passport).model_copy(
+            update={"source": "cache"}
+        )
     answer = _version_model(kind, entry.document)
     return _version_view(kind, answer, "cache", entry.checked_at, passport)
 
@@ -290,6 +345,7 @@ def fetch_artifact(
     expected: ArtifactRef,
     *,
     transport: httpx.BaseTransport | None = None,
+    access_token: str | None = None,
 ) -> Path:
     """Fetch the exact bytes of one version, verified, into the local cache.
 
@@ -329,7 +385,7 @@ def fetch_artifact(
 
     try:
         with (
-            client.open_client(endpoint, transport=transport) as http,
+            client.open_client(endpoint, transport=transport, access_token=access_token) as http,
             os.fdopen(handle, "wb") as sink,
             http.stream("GET", path) as answer,
         ):

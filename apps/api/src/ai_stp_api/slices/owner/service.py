@@ -7,12 +7,14 @@ from datetime import UTC, datetime
 from typing import Any, Final, cast
 from uuid import uuid4
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import String, delete, select, update
+from sqlalchemy import cast as sql_cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
+from ai_stp_api.slices.owner.media_processing import MediaProcessingError, normalize_upload
 from ai_stp_api.slices.publish import service as publish_service
 from ai_stp_contracts.catalog import ExternalProductListResponse, ExternalProductSummary
 from ai_stp_contracts.families import (
@@ -47,6 +49,7 @@ from ai_stp_contracts.publication import (
 from ai_stp_passports.versions import SetupVersionPassport
 from ai_stp_platform.external_catalog import COUNTRY_CODES, canonical_external_url
 from ai_stp_platform.models import (
+    AccessGrant,
     CatalogExternalProduct,
     CatalogMetadata,
     ComponentMedia,
@@ -345,7 +348,19 @@ async def upload_owner_component_media(
     """Store author upload and return a ready public media path for the editor."""
     await _require_owned_component(db, ctx=ctx, stable_id=stable_id)
     try:
-        kind = validate_component_media_upload(content_type=content_type, size_bytes=len(payload))
+        kind = validate_component_media_upload(
+            content_type=content_type,
+            size_bytes=len(payload),
+            payload=payload,
+        )
+        payload = await normalize_upload(payload, content_type)
+        validate_component_media_upload(
+            content_type=content_type,
+            size_bytes=len(payload),
+            payload=payload,
+        )
+    except MediaProcessingError as exc:
+        raise ApiError(ErrorCategory.DEPENDENCY, str(exc)) from exc
     except ValueError as exc:
         raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
     if not payload:
@@ -373,6 +388,8 @@ async def upload_owner_component_media(
             asset_id=media_id,
             payload=payload,
             content_type=content_type,
+            owner_account_id=ctx.account_id,
+            namespace=f"components/{stable_id}/media",
         )
     except Exception as exc:
         raise ApiError(ErrorCategory.DEPENDENCY, "object storage unavailable") from exc
@@ -392,6 +409,7 @@ async def upload_owner_component_media(
             public_url=public_url,
             content_type=content_type,
             size_bytes=stored.size_bytes,
+            content_digest=stored.content_digest,
             alt="Uploaded media",
             caption=None,
         )
@@ -413,15 +431,58 @@ async def read_component_media_bytes(
     store: AvatarObjectStore,
     *,
     media_id: str,
-) -> tuple[bytes, str] | None:
-    """Serve ready component media bytes by public media id."""
+    account_id: str | None,
+) -> tuple[bytes, str, bool] | None:
+    """Serve ready media when a public version, owner, or active grant permits it."""
     row = await db.get(ComponentMedia, media_id)
     if row is None or row.state != "ready" or not row.object_key:
         return None
-    body = await store.read_bytes(object_key=row.object_key)
+    is_public = (
+        await db.scalar(
+            select(CatalogMetadata.id).where(
+                CatalogMetadata.object_kind == "component",
+                CatalogMetadata.stable_id == row.stable_id,
+                CatalogMetadata.owner_account_id == row.owner_account_id,
+                CatalogMetadata.visibility == "public",
+                CatalogMetadata.published_at.is_not(None),
+            )
+        )
+        is not None
+    )
+    authorized = is_public or account_id == row.owner_account_id
+    if not authorized and account_id is not None:
+        authorized = (
+            await db.scalar(
+                select(AccessGrant.id)
+                .join(
+                    CatalogMetadata,
+                    (CatalogMetadata.object_kind == AccessGrant.object_kind)
+                    & (CatalogMetadata.stable_id == AccessGrant.stable_id)
+                    & CatalogMetadata.version.startswith(sql_cast(AccessGrant.major, String) + ".")
+                    & (CatalogMetadata.owner_account_id == AccessGrant.owner_account_id),
+                )
+                .where(
+                    AccessGrant.object_kind == "component",
+                    AccessGrant.stable_id == row.stable_id,
+                    AccessGrant.owner_account_id == row.owner_account_id,
+                    AccessGrant.grantee_account_id == account_id,
+                    AccessGrant.state == "active",
+                    CatalogMetadata.visibility == "private",
+                    CatalogMetadata.published_at.is_not(None),
+                )
+            )
+            is not None
+        )
+    if not authorized:
+        return None
+    body = await store.read_bytes(
+        object_key=row.object_key,
+        expected_digest=row.content_digest,
+        expected_size=row.size_bytes,
+    )
     if body is None:
         return None
-    return body, row.content_type or "application/octet-stream"
+    return body, row.content_type or "application/octet-stream", is_public
 
 
 async def update_owner_presentation(
@@ -499,6 +560,7 @@ async def update_owner_presentation(
                     public_url=previous.public_url or item.url,
                     content_type=previous.content_type,
                     size_bytes=previous.size_bytes,
+                    content_digest=previous.content_digest,
                     alt=item.alt,
                     caption=item.caption or None,
                 )

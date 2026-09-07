@@ -1,6 +1,6 @@
 ---
 description: "SPEC-038: CLI client for publication, access rights, and reports."
-last_verified: "2026-08-13"
+last_verified: "2026-09-07"
 ---
 
 # SPEC-038: CLI Client for Publication, Access Rights, and Reports
@@ -56,6 +56,16 @@ This excludes the server-side state machine, background jobs, PostgreSQL, modera
 - `REQ-3815`: The CLI exposes read-only request status and recovery after an
   indeterminate submit result. It exposes no command that approves ownership
   transfer or grants/revokes `author_verified`.
+- `REQ-3816`: Publication packages the exact selected component root through
+  the canonical component-tree format. It includes tracked files and untracked
+  files not excluded by applicable Git ignore rules, excludes repository
+  metadata and ignored untracked files, shows the bound inventory, and uploads
+  exactly those bytes to the plan before confirmation.
+- `REQ-3817`: A private catalog download and install uses the authenticated
+  server route and accepts only owner or active-grant responses. The CLI does
+  not infer rights locally, does not receive an object key or storage
+  credential, verifies the returned digest and size before caching, and after a
+  lost response safely retries the same read.
 - `REQ-3802`: Creating a plan does not publish the object. The response shows
   the immutable `plan_id`, `plan_hash`, expiration, and effects; confirmation is
   a separate command requiring the exact hash and mandatory `--confirm`.
@@ -132,3 +142,5 @@ a network effect.
 | `REQ-3813` | Registry, process, and contract tests cover every topic, topic-specific rejection, exact preview/confirm, and submission by an unverified account and Official. |
 | `REQ-3814` | RU/EN snapshots differ only in human labels; JSON and digest fixtures remain byte-identical for the same authored request. |
 | `REQ-3815` | A lost-response fixture recovers one case by idempotency key, and registry parity proves no ownership/verification decision command exists. |
+| `REQ-3816` | A Git fixture covers tracked, ignored, untracked, nested-ignore, traversal, link, secret-like, and deterministic-order cases; preview inventory and uploaded archive are byte-for-byte consistent. |
+| `REQ-3817` | CLI transport tests cover owner, active grantee, outsider, revoked grant, new major, corrupted response, and retry without object-key or credential disclosure. |

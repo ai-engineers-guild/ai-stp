@@ -23,6 +23,7 @@ import io
 import os
 import sqlite3
 import stat
+import subprocess
 import zipfile
 from base64 import b64decode
 from binascii import Error as Base64Error
@@ -1957,6 +1958,28 @@ def _tree_artifact(root: Path) -> bytes:
     return encode_tree_artifact(_tree_files(root), root)
 
 
+def package_publication_root(root: Path) -> tuple[bytes, tuple[str, ...]]:
+    """Package one explicit directory with the canonical deterministic tree format."""
+    try:
+        held = root.lstat()
+    except OSError as error:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND", "the selected component root could not be read"
+        ) from error
+    if stat.S_ISLNK(held.st_mode) or not stat.S_ISDIR(held.st_mode):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the selected component root must be a real directory",
+        )
+    files = _tree_files(root)
+    if not files:
+        raise CliFailure("AI_STP_PRECONDITION_FAILED", "the selected component root is empty")
+    return (
+        encode_tree_artifact(files, root, require_manifest=False),
+        tuple(item.path for item in sorted(files, key=lambda item: item.path)),
+    )
+
+
 def _hook_tree_artifact(manifest: Path, siblings: Path, manifest_stat: os.stat_result) -> bytes:
     manifest_mode = 0o755 if stat.S_IMODE(manifest_stat.st_mode) & 0o111 else 0o644
     files = [
@@ -1967,6 +1990,10 @@ def _hook_tree_artifact(manifest: Path, siblings: Path, manifest_stat: os.stat_r
 
 
 def _tree_files(root: Path, *, prefix: str = "") -> list[ComponentFile]:
+    git_members = _git_members(root)
+    if git_members is not None:
+        return _selected_tree_files(root, git_members, prefix=prefix)
+
     files: list[ComponentFile] = []
     stack: list[tuple[Path, str]] = [(root, prefix)]
     total = 0
@@ -2009,7 +2036,120 @@ def _tree_files(root: Path, *, prefix: str = "") -> list[ComponentFile]:
     return files
 
 
-def encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> bytes:
+def _git_members(root: Path) -> tuple[Path, ...] | None:
+    """Tracked and non-ignored untracked files when the component is in Git."""
+    try:
+        discovered = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        if any((parent / ".git").exists() for parent in (root, *root.parents)):
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "Git ignore rules could not be evaluated for the component directory",
+            ) from error
+        return None
+    if discovered.returncode != 0:
+        return None
+    repository = Path(os.fsdecode(discovered.stdout).strip()).resolve()
+    component_root = root.resolve()
+    try:
+        relative_root = component_root.relative_to(repository)
+    except ValueError as error:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the component directory is outside its reported Git repository",
+        ) from error
+    try:
+        selected = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "ls-files",
+                "-z",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "--",
+                relative_root.as_posix() or ".",
+            ],
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "Git ignore rules could not be evaluated for the component directory",
+        ) from error
+    if selected.returncode != 0:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "Git ignore rules could not be evaluated for the component directory",
+        )
+    members: list[Path] = []
+    for raw in selected.stdout.split(b"\0"):
+        if not raw:
+            continue
+        candidate = repository / Path(os.fsdecode(raw))
+        try:
+            members.append(candidate.relative_to(component_root))
+        except ValueError as error:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "Git selected a path outside the component directory",
+            ) from error
+    return tuple(sorted(members, key=lambda item: item.as_posix()))
+
+
+def _selected_tree_files(
+    root: Path, members: tuple[Path, ...], *, prefix: str
+) -> list[ComponentFile]:
+    files: list[ComponentFile] = []
+    total = 0
+    for member in members:
+        place = root / member
+        held = place.lstat()
+        relative = member.as_posix()
+        if stat.S_ISLNK(held.st_mode):
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "a component directory contains a link",
+                details={"source_path": redact_home(place)},
+            )
+        if not stat.S_ISREG(held.st_mode) or held.st_nlink != 1:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "a component directory contains a special or hard-linked file",
+                details={"source_path": redact_home(place)},
+            )
+        if any(project_index.is_secret_name(part) for part in member.parts):
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "a component directory contains a credential-named path",
+                details={"source_path": redact_home(place)},
+            )
+        payload = _read_regular(place, held)
+        total += len(payload)
+        if total > MAX_COMPONENT_TREE_BYTES or len(files) >= MAX_COMPONENT_FILES:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the component directory exceeds its bounded artifact limits",
+                details={"source_path": redact_home(root)},
+            )
+        path = f"{prefix}/{relative}" if prefix else relative
+        mode = 0o755 if stat.S_IMODE(held.st_mode) & 0o111 else 0o644
+        files.append(ComponentFile(path, payload, mode))
+    return files
+
+
+def encode_tree_artifact(
+    files: list[ComponentFile], source_root: Path, *, require_manifest: bool = True
+) -> bytes:
     """Seal member files into the closed tree artifact adoption stores.
 
     Public because the importer packages a captured directory through the
@@ -2027,7 +2167,7 @@ def encode_tree_artifact(files: list[ComponentFile], source_root: Path) -> bytes
         "package.json",
         "pyproject.toml",
     }
-    if not any(item.path in manifest_names for item in files):
+    if require_manifest and not any(item.path in manifest_names for item in files):
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "this directory holds no manifest to adopt",

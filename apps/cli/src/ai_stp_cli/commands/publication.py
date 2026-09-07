@@ -14,14 +14,24 @@ from ai_stp_cli.commands import attestations as local_attestations
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import component_passports, content, lifecycle, versions
-from ai_stp_cli.local.database import configured_path, open_readonly
+from ai_stp_cli.local import (
+    cache,
+    component_passports,
+    components,
+    content,
+    lifecycle,
+    publication_snapshot,
+    versions,
+)
+from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
+from ai_stp_cli.local.passports import moment
 from ai_stp_contracts.machine_help import PublicationPlanView
 from ai_stp_contracts.publication import (
     AuthorAttestation,
     PublicationConfirmRequest,
     PublicationPlanCreateRequest,
 )
+from ai_stp_foundation.canonical import JsonValue
 
 
 def _required(parameters: Mapping[str, object], name: str) -> str:
@@ -102,11 +112,17 @@ def validated_attestations(
 def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
     stable_id = _required(parameters, "id")
     version = _required(parameters, "version")
+    component_root = Path(_required(parameters, "component-root")).expanduser()
+    artifact_bytes, artifact_inventory = components.package_publication_root(component_root)
     held = _session()
-    with closing(open_readonly(configured_path())) as connection:
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
         passport = component_passports.version_passport(connection, stable_id, version)
         recorded = versions.held(connection, stable_id, version)
         overlay = lifecycle.version_is_overlay(connection, stable_id, version)
+        artifact = content.put(connection, artifact_bytes, at=moment())
     if recorded is None:
         raise CliFailure("AI_STP_NOT_FOUND", "the exact released component version is absent")
     if overlay:
@@ -115,22 +131,40 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
             "a local overlay cannot be published; materialize an owner version",
             details={"stable_id": stable_id, "version": version},
         )
+    visibility = str(parameters.get("visibility") or passport.visibility)
+    if visibility not in {"public", "private"}:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "visibility must be public or private",
+            details={"visibility": visibility},
+        )
+    publication_passport = publication_snapshot.bind(
+        passport,
+        visibility=visibility,
+        digest=artifact.digest,
+        size_bytes=artifact.byte_length,
+    )
+    publication_passport_digest = cache.digest_of(
+        cast(JsonValue, publication_passport.model_dump(mode="json"))
+    )
     request = PublicationPlanCreateRequest(
         object_kind="component",
         stable_id=stable_id,
         version=version,
-        content_digest=passport.artifact.digest,
-        passport=cast(dict[str, object], passport.model_dump(mode="json")),
+        content_digest=artifact.digest,
+        artifact_inventory=list(artifact_inventory),
+        passport=cast(dict[str, object], publication_passport.model_dump(mode="json")),
         attestations=validated_attestations(
             parameters,
             stable_id=stable_id,
             version=version,
-            content_digest=passport.artifact.digest,
-            passport_digest=recorded.passport_digest,
+            content_digest=artifact.digest,
+            passport_digest=publication_passport_digest,
             held_session=held,
         ),
         idempotency_key=login.new_idempotency_key(),
         device_id=held.device_id,
+        visibility=visibility,  # type: ignore[arg-type]
     )
     return Answer(
         PublicationPlanView.model_validate(
@@ -167,7 +201,25 @@ def confirm(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
     if current.state in {"ready", "draft"}:
         with closing(open_readonly(configured_path())) as connection:
             artifact = content.get(connection, current.content_digest)
+            projection_payloads: list[tuple[str, bytes]] = []
+            if current.object_kind == "component":
+                passport = component_passports.version_passport(
+                    connection, current.stable_id, current.version
+                )
+                projection_digests = sorted(
+                    {
+                        str(scope.projection_artifact.digest)
+                        for adaptation in passport.adaptations
+                        for scope in adaptation.scope_adaptations
+                        if str(scope.projection_artifact.digest) != current.content_digest
+                    }
+                )
+                projection_payloads = [
+                    (digest, content.get(connection, digest)) for digest in projection_digests
+                ]
         publication.bind(where, held.access_token, plan_id, artifact)
+        for digest, payload in projection_payloads:
+            publication.bind_projection(where, held.access_token, plan_id, digest, payload)
     request = PublicationConfirmRequest(
         plan_hash=plan_hash,
         confirmed=True,

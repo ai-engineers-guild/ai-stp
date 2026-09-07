@@ -69,6 +69,26 @@ def test_the_bytes_are_verified_and_kept_under_their_digest() -> None:
     assert path == cache.version_artifact_path(DIGEST)
 
 
+def test_private_artifact_fetch_uses_the_held_bearer() -> None:
+    seen: list[str | None] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("authorization"))
+        return httpx.Response(200, content=BYTES)
+
+    path = catalog.fetch_artifact(
+        MOCK,
+        "component",
+        OBJECT,
+        "1.0",
+        REF,
+        transport=httpx.MockTransport(answer),
+        access_token="private-session-token",
+    )
+    assert path.read_bytes() == BYTES
+    assert seen == ["Bearer private-session-token"]
+
+
 def test_a_second_fetch_does_not_use_the_network() -> None:
     catalog.fetch_artifact(MOCK, "component", OBJECT, "1.0", REF, transport=_serving(BYTES))
 

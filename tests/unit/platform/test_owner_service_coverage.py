@@ -62,20 +62,38 @@ async def test_read_component_media_bytes_paths() -> None:
     db = AsyncMock()
     store = AsyncMock()
     db.get = AsyncMock(return_value=None)
-    assert await owner_service.read_component_media_bytes(db, store, media_id="m1") is None
+    assert (
+        await owner_service.read_component_media_bytes(db, store, media_id="m1", account_id=None)
+        is None
+    )
 
-    row = SimpleNamespace(state="ready", object_key="k", content_type="image/png")
+    row = SimpleNamespace(
+        state="ready",
+        object_key="k",
+        content_type="image/png",
+        stable_id="component_one",
+        owner_account_id="account_owner",
+        content_digest=None,
+        size_bytes=None,
+    )
     db.get = AsyncMock(return_value=row)
+    db.scalar = AsyncMock(return_value=1)
     store.read_bytes = AsyncMock(return_value=None)
-    assert await owner_service.read_component_media_bytes(db, store, media_id="m1") is None
+    assert (
+        await owner_service.read_component_media_bytes(db, store, media_id="m1", account_id=None)
+        is None
+    )
 
     store.read_bytes = AsyncMock(return_value=b"img")
-    got = await owner_service.read_component_media_bytes(db, store, media_id="m1")
-    assert got == (b"img", "image/png")
+    got = await owner_service.read_component_media_bytes(db, store, media_id="m1", account_id=None)
+    assert got == (b"img", "image/png", True)
 
     row2 = SimpleNamespace(state="pending", object_key="k", content_type=None)
     db.get = AsyncMock(return_value=row2)
-    assert await owner_service.read_component_media_bytes(db, store, media_id="m2") is None
+    assert (
+        await owner_service.read_component_media_bytes(db, store, media_id="m2", account_id=None)
+        is None
+    )
 
 
 def _result_scalars(items: list[object]) -> MagicMock:
@@ -215,7 +233,13 @@ async def test_upload_owner_component_media_validation() -> None:
             payload=b"x" * 10,
         )
 
-    store.put_avatar = AsyncMock(return_value=SimpleNamespace(size_bytes=3, object_key="obj/k"))
+    store.put_avatar = AsyncMock(
+        return_value=SimpleNamespace(
+            size_bytes=3,
+            object_key="obj/k",
+            content_digest="sha256:" + "a" * 64,
+        )
+    )
     db.add = MagicMock()
     db.flush = AsyncMock()
     # Need free position 0
@@ -225,7 +249,7 @@ async def test_upload_owner_component_media_validation() -> None:
         ctx=_ctx(),
         stable_id="component_x",
         content_type="image/png",
-        payload=b"png",
+        payload=b"\x89PNG\r\n\x1a\npng",
     )
     assert out["state"] == "ready"
     assert out["kind"] in {"image", "png", "photo"} or "public_url" in out
@@ -238,7 +262,7 @@ async def test_upload_owner_component_media_validation() -> None:
             ctx=_ctx(),
             stable_id="component_x",
             content_type="image/png",
-            payload=b"png",
+            payload=b"\x89PNG\r\n\x1a\npng",
         )
 
 
@@ -256,6 +280,7 @@ async def test_update_owner_presentation_media_kinds() -> None:
         public_url=f"{COMPONENT_MEDIA_PUBLIC_PREFIX}media_upload1",
         content_type="image/png",
         size_bytes=10,
+        content_digest="sha256:" + "a" * 64,
     )
     db.execute = AsyncMock(
         side_effect=[

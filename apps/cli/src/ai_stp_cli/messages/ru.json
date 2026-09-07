@@ -586,6 +586,8 @@
   "the recorded cli revision is missing": "записанная ревизия cli отсутствует",
   "the recorded component is not an immutable version passport": "записанный компонент не является неизменяемым паспортом версии",
   "the recorded component revision is missing": "записанная ревизия компонента отсутствует",
+  "the private catalogue answer is missing trust metadata": "в ответе приватного каталога отсутствуют сведения о доверии",
+  "the private catalogue answer is missing version metadata": "в ответе приватного каталога отсутствуют сведения о версии",
   "the recorded setup is not an immutable version passport": "записанный сетап не является неизменяемым паспортом версии",
   "the recorded setup passport is invalid": "записанный паспорт сетапа недействителен",
   "the recorded setup revision is missing": "записанная ревизия сетапа отсутствует",
@@ -728,6 +730,7 @@
   "unknown setup-store adapter": "неизвестный адаптер setup-store",
   "unknown sign-in provider": "неизвестный провайдер входа",
   "usage text is not machine readable": "текст справки не машиночитаем",
+  "visibility must be public or private": "visibility должна быть public или private",
   "verified catalogue bytes changed before local materialization": "проверенные байты каталога изменились до локальной материализации",
   "verified catalogue bytes changed before provider planning": "проверенные байты каталога изменились до планирования провайдера",
   "verified provider release evidence is incomplete": "доказательства проверенного выпуска провайдера неполны"

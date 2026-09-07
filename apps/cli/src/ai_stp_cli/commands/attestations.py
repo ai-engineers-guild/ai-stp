@@ -14,11 +14,19 @@ from ai_stp_cli.answer import Answer
 from ai_stp_cli.cloud import session
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import component_passports, versions
+from ai_stp_cli.local import (
+    cache,
+    component_passports,
+    components,
+    content,
+    publication_snapshot,
+    versions,
+)
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home, write_private
 from ai_stp_contracts.machine_help import CliSignedAttestation
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.refs import ComponentRef
 
 MAX_ATTESTATION_BYTES = 256 * 1024
@@ -75,6 +83,8 @@ def _identity() -> tuple[identity.Identity | None, str | None]:
 def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
     stable_id = _required(parameters, "id")
     version = _required(parameters, "version")
+    component_root = Path(_required(parameters, "component-root")).expanduser()
+    artifact_bytes, _inventory = components.package_publication_root(component_root)
     output = Path(_required(parameters, "output")).expanduser()
     if parameters.get("confirm") is not True:
         raise CliFailure(
@@ -107,12 +117,25 @@ def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
         recorded = versions.held(connection, stable_id, version)
     if recorded is None:
         raise CliFailure("AI_STP_NOT_FOUND", "the exact released component version is absent")
+    visibility = str(parameters.get("visibility") or passport.visibility)
+    if visibility not in {"public", "private"}:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "visibility must be public or private")
+    digest = content.address_of(artifact_bytes)
+    publication_passport = publication_snapshot.bind(
+        passport,
+        visibility=visibility,
+        digest=digest,
+        size_bytes=len(artifact_bytes),
+    )
+    publication_passport_digest = cache.digest_of(
+        cast(JsonValue, publication_passport.model_dump(mode="json"))
+    )
     unsigned = AuthorAttestation(
-        object_digest=passport.artifact.digest,
+        object_digest=digest,
         subject=ComponentRef(
             stable_id=stable_id,
             version=version,
-            passport_digest=recorded.passport_digest,
+            passport_digest=publication_passport_digest,
         ),
         check_id=_required(parameters, "check-id"),
         policy_version=_required(parameters, "policy-version"),

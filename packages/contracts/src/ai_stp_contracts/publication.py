@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ai_stp_assurance.attestation import SIGNATURE_PATTERN
 from ai_stp_contracts.auth import AccountId, DeviceId
@@ -27,6 +28,7 @@ from ai_stp_foundation.refs import ComponentRef, SetupRef
 from ai_stp_foundation.versioning import VERSION_PATTERN
 
 type ObjectKind = Literal["component", "setup"]
+type PublicationVisibility = Literal["public", "private"]
 type PlanState = Literal[
     "draft",
     "ready",
@@ -62,6 +64,22 @@ type ContentDigest = Annotated[str, Field(pattern=DIGEST_PATTERN)]
 type Version = Annotated[str, Field(pattern=VERSION_PATTERN)]
 type PlanId = Annotated[str, Field(min_length=8, max_length=64)]
 type PolicyVersion = Annotated[str, Field(min_length=1, max_length=32)]
+
+
+def _artifact_inventory(value: list[str]) -> list[str]:
+    if value != sorted(set(value)):
+        raise ValueError("artifact inventory must be sorted and unique")
+    for path in value:
+        parts = PurePosixPath(path).parts
+        if (
+            not path
+            or len(path) > 512
+            or path.startswith(("/", "~"))
+            or "\\" in path
+            or any(part in {"", ".", "..", ".git"} for part in parts)
+        ):
+            raise ValueError("artifact inventory path is unsafe")
+    return value
 
 
 class AuthorAttestation(BaseModel):
@@ -103,11 +121,15 @@ class PublicationPlanCreateRequest(BaseModel):
     stable_id: Annotated[str, Field(min_length=8, max_length=64)]
     version: Version
     content_digest: ContentDigest
+    artifact_inventory: Annotated[list[str], Field(default_factory=list, max_length=1000)]
+    visibility: PublicationVisibility = "private"
     policy_version: PolicyVersion = "safety-3"
     passport: dict[str, object]
     attestations: Annotated[list[AuthorAttestation], Field(default_factory=list, max_length=32)]
     idempotency_key: IdempotencyKey
     device_id: DeviceId
+
+    _validate_artifact_inventory = field_validator("artifact_inventory")(_artifact_inventory)
 
 
 class EvidenceBindingView(BaseModel):
@@ -149,6 +171,8 @@ class PublicationPlanResponse(BaseModel):
     stable_id: str
     version: Version
     content_digest: ContentDigest
+    artifact_inventory: Annotated[list[str], Field(default_factory=list, max_length=1000)]
+    visibility: PublicationVisibility = "private"
     policy_version: PolicyVersion
     actor_id: AccountId
     device_id: DeviceId
@@ -156,6 +180,8 @@ class PublicationPlanResponse(BaseModel):
     component_verified: bool = False
     evidence: Annotated[list[EvidenceBindingView], Field(default_factory=list)]
     effects: Annotated[list[str], Field(default_factory=list)]
+
+    _validate_artifact_inventory = field_validator("artifact_inventory")(_artifact_inventory)
 
 
 class PublicationConfirmRequest(BaseModel):

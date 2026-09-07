@@ -156,14 +156,33 @@ COMPONENT_MEDIA_PUBLIC_PREFIX: Final = "/v1/media/component/"
 
 
 def validate_component_media_upload(
-    *, content_type: str, size_bytes: int
+    *, content_type: str, size_bytes: int, payload: bytes | None = None
 ) -> Literal["image", "video"]:
     """Accept allowlisted image/video payloads within the 25 MiB bound (REQ-3506)."""
     if content_type not in COMPONENT_MEDIA_ALLOWED_MIME:
         raise ValueError("unsupported component media mime type")
     if size_bytes <= 0 or size_bytes > COMPONENT_MEDIA_MAX_BYTES:
         raise ValueError("component media size out of bounds")
+    if payload is not None and not _component_media_magic_matches(content_type, payload):
+        raise ValueError("component media magic bytes do not match mime type")
     return "image" if content_type.startswith("image/") else "video"
+
+
+def _component_media_magic_matches(content_type: str, payload: bytes) -> bool:
+    """Reject mislabeled uploads before they enter the asset store."""
+    signatures: dict[str, tuple[bytes, ...]] = {
+        "image/jpeg": (b"\xff\xd8\xff",),
+        "image/png": (b"\x89PNG\r\n\x1a\n",),
+        "image/webp": (b"RIFF",),
+        "image/gif": (b"GIF87a", b"GIF89a"),
+        "video/mp4": (),
+        "video/webm": (b"\x1a\x45\xdf\xa3",),
+    }
+    if content_type == "image/webp":
+        return len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WEBP"
+    if content_type == "video/mp4":
+        return len(payload) >= 12 and payload[4:8] == b"ftyp"
+    return payload.startswith(signatures[content_type])
 
 
 def is_component_media_public_url(url: str) -> bool:

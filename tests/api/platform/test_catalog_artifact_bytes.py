@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import pytest_asyncio
@@ -14,13 +14,19 @@ from tests.api.platform.conftest import make_settings
 from tests.support.catalog_seed import (
     FIXTURE_COMPONENT_ID,
     FIXTURE_SETUP_ID,
+    PASSPORT_DIGEST_DOMAIN,
+    SEED_OWNER_ACCOUNT_ID,
     load_fixture_seed,
 )
 
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
-from ai_stp_foundation.digests import digest_bytes
-from ai_stp_platform.models import CatalogMetadata, ObjectLocation
+from ai_stp_api.session import issue_session
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import digest_bytes, digest_canonical
+from ai_stp_foundation.ids import new_id
+from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_platform.models import AccessGrant, Account, CatalogMetadata, ObjectLocation
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
 from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
 
@@ -43,11 +49,6 @@ async def artifact_harness(
             payload = b"verified catalog artifact"
             digest = digest_bytes(ARTIFACT_DIGEST_DOMAIN, payload)
             store = ImmutableObjectStore(settings=settings.storage, client=app.state.object_client)
-            stored = await store.put_immutable(
-                payload,
-                expected_digest=digest,
-                expected_size=len(payload),
-            )
             rows = (
                 (
                     await session.execute(
@@ -69,19 +70,24 @@ async def artifact_harness(
                 passport = dict(row.passport_document or {})
                 passport["artifact"] = {"digest": digest, "size_bytes": len(payload)}
                 row.passport_document = passport
+                stored = await store.put_immutable(
+                    payload,
+                    expected_digest=digest,
+                    expected_size=len(payload),
+                    owner_account_id=row.owner_account_id,
+                )
                 session.add(
                     ObjectLocation(
                         catalog_metadata_id=row.id,
                         purpose="artifact",
-                        object_key=f"{stored.key}-{row.object_kind}",
+                        object_key=stored.key,
                         digest=digest,
                         content_id=stored.content_id,
                         size_bytes=len(payload),
+                        bucket=stored.bucket,
+                        owner_account_id=row.owner_account_id,
                     )
                 )
-                app.state.object_client.objects[
-                    (settings.storage.bucket, f"{stored.key}-{row.object_kind}")
-                ] = dict(app.state.object_client.objects[(settings.storage.bucket, stored.key)])
             await session.commit()
 
         transport = ASGITransport(app=app)
@@ -108,7 +114,7 @@ async def test_corrupted_artifact_is_not_streamed_or_enumerated(
     artifact_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], MemoryObjectClient, str],
 ) -> None:
     client, _sessionmaker, object_client, _payload = artifact_harness
-    component_key = next(key for key in object_client.objects if key[1].endswith("-component"))
+    component_key = next(iter(object_client.objects))
     object_client.objects[component_key]["body"] = b"corrupted"
 
     response = await client.get(
@@ -147,6 +153,98 @@ async def test_private_artifact_has_the_same_not_found_surface(
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == CATEGORY_CODE[ErrorCategory.NOT_FOUND]
+
+
+async def test_private_artifact_owner_grantee_and_revocation_matrix(
+    artifact_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], MemoryObjectClient, str],
+) -> None:
+    client, sessionmaker, _object_client, payload = artifact_harness
+    async with sessionmaker() as session:
+        row = await session.scalar(
+            select(CatalogMetadata).where(
+                CatalogMetadata.stable_id == FIXTURE_COMPONENT_ID,
+                CatalogMetadata.version == "1.2",
+            )
+        )
+        assert row is not None
+        passport = dict(row.passport_document or {})
+        passport["visibility"] = "private"
+        passport["revision_id"] = derive_revision_id(cast(dict[str, JsonValue], passport))
+        row.visibility = "private"
+        row.passport_document = passport
+        row.passport_digest = digest_canonical(
+            PASSPORT_DIGEST_DOMAIN, cast(dict[str, JsonValue], passport)
+        )
+
+        grantee = Account(id=new_id("account"))
+        outsider = Account(id=new_id("account"))
+        foreign_owner = Account(id=new_id("account"))
+        session.add_all([grantee, outsider, foreign_owner])
+        await session.flush()
+        owner_session = await issue_session(
+            session,
+            account_id=SEED_OWNER_ACCOUNT_ID,
+            device_id=None,
+            ttl_seconds=3600,
+        )
+        grantee_session = await issue_session(
+            session, account_id=grantee.id, device_id=None, ttl_seconds=3600
+        )
+        outsider_session = await issue_session(
+            session, account_id=outsider.id, device_id=None, ttl_seconds=3600
+        )
+        grant = AccessGrant(
+            id=new_id("grant"),
+            object_kind="component",
+            stable_id=FIXTURE_COMPONENT_ID,
+            major=1,
+            owner_account_id=SEED_OWNER_ACCOUNT_ID,
+            grantee_account_id=grantee.id,
+            state="active",
+        )
+        session.add(grant)
+        await session.commit()
+
+    artifact_path = f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2/artifact"
+    private_path = f"/v1/catalog/components/{FIXTURE_COMPONENT_ID}/versions/1.2/private"
+    owner_headers = {"Authorization": f"Bearer {owner_session.raw_token}"}
+    grantee_headers = {"Authorization": f"Bearer {grantee_session.raw_token}"}
+    outsider_headers = {"Authorization": f"Bearer {outsider_session.raw_token}"}
+
+    assert (await client.get(artifact_path)).status_code == 404
+    owner_artifact = await client.get(artifact_path, headers=owner_headers)
+    assert owner_artifact.status_code == 200
+    assert owner_artifact.content == payload.encode()
+    grantee_artifact = await client.get(artifact_path, headers=grantee_headers)
+    assert grantee_artifact.status_code == 200
+    assert grantee_artifact.content == payload.encode()
+    assert (await client.get(artifact_path, headers=outsider_headers)).status_code == 404
+    assert (await client.get(private_path, headers=owner_headers)).status_code == 200
+    assert (await client.get(private_path, headers=grantee_headers)).status_code == 200
+
+    async with sessionmaker() as session:
+        persisted = await session.get(AccessGrant, grant.id)
+        assert persisted is not None
+        persisted.state = "revoked"
+        await session.commit()
+    assert (await client.get(artifact_path, headers=grantee_headers)).status_code == 404
+    assert (await client.get(private_path, headers=grantee_headers)).status_code == 404
+
+    async with sessionmaker() as session:
+        persisted = await session.get(AccessGrant, grant.id)
+        assert persisted is not None
+        persisted.state = "active"
+        persisted.major = 2
+        await session.commit()
+    assert (await client.get(artifact_path, headers=grantee_headers)).status_code == 404
+
+    async with sessionmaker() as session:
+        persisted = await session.get(AccessGrant, grant.id)
+        assert persisted is not None
+        persisted.major = 1
+        persisted.owner_account_id = foreign_owner.id
+        await session.commit()
+    assert (await client.get(artifact_path, headers=grantee_headers)).status_code == 404
 
 
 def _unparsable_passport(_passport: dict[str, Any]) -> Any:
@@ -206,7 +304,7 @@ async def test_a_dangling_object_reference_reports_integrity_not_absence(
 ) -> None:
     """Metadata promises bytes the store does not hold — a dangling reference."""
     client, _sessionmaker, object_client, _payload = artifact_harness
-    component_key = next(key for key in object_client.objects if key[1].endswith("-component"))
+    component_key = next(iter(object_client.objects))
     del object_client.objects[component_key]
 
     response = await client.get(

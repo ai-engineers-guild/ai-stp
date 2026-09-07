@@ -131,7 +131,7 @@ async def test_avatar_upload_writes_object_store_and_serves_media(
     data = upload.json()
     assert data["state"] == "ready"
     assert data["public_url"] == f"/v1/media/avatars/{data['avatar_asset_id']}"
-    assert data["object_key"]
+    assert "object_key" not in data
     assert data["content_digest"].startswith("sha256:")
 
     mem: MemoryObjectClient = app_state.object_client
@@ -229,7 +229,7 @@ async def test_avatar_from_identity_fetches_and_stores_bytes(
         await db.commit()
 
     assert result["state"] == "ready"
-    assert result["object_key"]
+    assert "object_key" not in result
     assert result["public_url"].startswith("/v1/media/avatars/")
     mem: MemoryObjectClient = app_state.object_client
     assert mem.put_count >= 1

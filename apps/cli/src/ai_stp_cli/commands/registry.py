@@ -21,6 +21,7 @@ from ai_stp_cli import config, identity
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.cloud import catalog
 from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     acquired_trust,
@@ -155,6 +156,38 @@ def endpoint() -> Endpoint:
     return Endpoint(str(values["catalog.url"]))
 
 
+def _access_token() -> str | None:
+    held = cloud_auth.optional()
+    return None if held is None else held.access_token
+
+
+def _catalog_version(
+    where: Endpoint,
+    kind: CatalogKind,
+    stable_id: str,
+    number: str,
+    access_token: str | None,
+) -> CatalogVersionView:
+    if access_token is None:
+        return catalog.version(where, kind, stable_id, number)
+    return catalog.version(where, kind, stable_id, number, access_token=access_token)
+
+
+def _catalog_artifact(
+    where: Endpoint,
+    kind: CatalogKind,
+    stable_id: str,
+    number: str,
+    expected: ArtifactRef,
+    access_token: str | None,
+) -> Path:
+    if access_token is None:
+        return catalog.fetch_artifact(where, kind, stable_id, number, expected)
+    return catalog.fetch_artifact(
+        where, kind, stable_id, number, expected, access_token=access_token
+    )
+
+
 def _kind(raw: object) -> CatalogKind:
     if raw is None:
         raise CliFailure(
@@ -237,7 +270,13 @@ def version(parameters: Mapping[str, object]) -> Answer[CatalogVersionView]:
             next_actions=["registry show --kind component --id <id> --json"],
         )
     return Answer(
-        catalog.version(endpoint(), _kind(parameters.get("kind")), str(stable_id), str(number))
+        _catalog_version(
+            endpoint(),
+            _kind(parameters.get("kind")),
+            str(stable_id),
+            str(number),
+            _access_token(),
+        )
     )
 
 
@@ -280,10 +319,12 @@ def fetch(parameters: Mapping[str, object]) -> Answer[CatalogArtifactView]:
             next_actions=["registry show --kind component --id <id> --json"],
         )
     kind = _kind(parameters.get("kind"))
-    view = catalog.version(endpoint(), kind, str(stable_id), str(number))
+    access_token = _access_token()
+    where = endpoint()
+    view = _catalog_version(where, kind, str(stable_id), str(number), access_token)
     expected = _artifact_of(view)
     held = cache.stored_version_artifact(expected.digest)
-    path = catalog.fetch_artifact(endpoint(), kind, str(stable_id), str(number), expected)
+    path = _catalog_artifact(where, kind, str(stable_id), str(number), expected, access_token)
     return Answer(
         CatalogArtifactView(
             kind=kind,
@@ -434,10 +475,11 @@ def acquire(parameters: Mapping[str, object]) -> Answer[CatalogSetupAcquisition]
 def acquire_version(
     kind: CatalogKind, stable_id: str, number: str, *, offline: bool
 ) -> AcquiredCatalogVersion:
+    access_token = None if offline else _access_token()
     view = (
         catalog.cached_version(kind, stable_id, number)
         if offline
-        else catalog.version(endpoint(), kind, stable_id, number)
+        else _catalog_version(endpoint(), kind, stable_id, number, access_token)
     )
     model = ComponentVersionPassport if kind == "component" else SetupVersionPassport
     try:
@@ -471,7 +513,7 @@ def acquire_version(
             details={"kind": kind, "stable_id": stable_id, "version": number},
             next_actions=[f"registry acquire --id {stable_id} --version {number} --json"],
         )
-    path = held or catalog.fetch_artifact(endpoint(), kind, stable_id, number, expected)
+    path = held or _catalog_artifact(endpoint(), kind, stable_id, number, expected, access_token)
     artifact = Path(path).read_bytes()
     if (
         len(artifact) != expected.size_bytes

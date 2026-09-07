@@ -41,7 +41,7 @@ from ai_stp_contracts.publication import (
     PublicationPlanResponse,
 )
 from ai_stp_foundation.canonical import JsonValue
-from ai_stp_passports import SetupVersionPassport
+from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
 from ai_stp_passports.envelope import derive_revision_id
 
 #: Terminal, and not published. Confirming further members after one of these
@@ -79,9 +79,16 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
     version = _required(parameters, "version")
     held = _session()
     where = endpoint()
+    visibility = str(parameters.get("visibility") or "private")
+    if visibility not in {"public", "private"}:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "visibility must be public or private",
+            details={"visibility": visibility},
+        )
 
     with closing(open_readonly(configured_path())) as connection:
-        setup = _setup_passport(connection, stable_id, version)
+        setup = _setup_passport(connection, stable_id, version, visibility=visibility)
         pins = _catalog_pins(connection, setup)
         _refuse_overlay_pins(connection, pins)
         artifacts = {
@@ -98,8 +105,9 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
                 object_kind="component",
                 stable_id=pin_id,
                 version=pin_version,
-                passport=_passport_document(pin_id, pin_version),
+                passport=_passport_document(pin_id, pin_version, visibility=visibility),
                 artifact_digest=artifacts[pin_id][0],
+                visibility=visibility,
             )
         )
     members.append(
@@ -112,6 +120,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationSetView]:
             version=version,
             passport=cast(dict[str, object], setup.model_dump(mode="json")),
             artifact_digest=setup.artifact.digest,
+            visibility=visibility,
         )
     )
 
@@ -250,6 +259,7 @@ def _member(
     version: str,
     passport: Mapping[str, object],
     artifact_digest: str,
+    visibility: str,
 ) -> PublicationSetMemberView:
     """One member: already public, or a fresh plan for making it public."""
     if _already_public(where, held, object_kind, stable_id, version):
@@ -273,6 +283,7 @@ def _member(
             attestations=[],
             idempotency_key=login.new_idempotency_key(),
             device_id=held.device_id,
+            visibility=visibility,  # type: ignore[arg-type]
         ),
     )
     return PublicationSetMemberView(
@@ -328,7 +339,7 @@ def _set_state(members: Sequence[PublicationSetMemberView]) -> str:
 
 
 def _setup_passport(
-    connection: sqlite3.Connection, stable_id: str, version: str
+    connection: sqlite3.Connection, stable_id: str, version: str, *, visibility: str = "private"
 ) -> SetupVersionPassport:
     recorded = versions.held(connection, stable_id, version)
     if recorded is None:
@@ -346,14 +357,14 @@ def _setup_passport(
             next_actions=[f"publication plan --id {stable_id} --version {version} --json"],
         )
     passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
-    if passport.visibility == "public":
+    if passport.visibility == visibility:
         return passport
 
     # A recast/locally composed setup is private in SQLite. Publication needs
     # the same immutable snapshot with public visibility, but must not rewrite
     # the local passport while preparing that request (SPEC-038).
     document = cast(dict[str, object], passport.model_dump(mode="json"))
-    document["visibility"] = "public"
+    document["visibility"] = visibility
     document["revision_id"] = derive_revision_id(cast(dict[str, JsonValue], document))
     return SetupVersionPassport.model_validate(document)
 
@@ -399,12 +410,19 @@ def _component_digest(connection: sqlite3.Connection, stable_id: str, version: s
     return component_passports.version_passport(connection, stable_id, version).artifact.digest
 
 
-def _passport_document(stable_id: str, version: str) -> dict[str, object]:
+def _passport_document(stable_id: str, version: str, *, visibility: str) -> dict[str, object]:
     from ai_stp_cli.local import component_passports
 
     with closing(open_readonly(configured_path())) as connection:
         passport = component_passports.version_passport(connection, stable_id, version)
-    return cast(dict[str, object], passport.model_dump(mode="json"))
+    if passport.visibility == visibility:
+        return cast(dict[str, object], passport.model_dump(mode="json"))
+    document = cast(dict[str, JsonValue], passport.model_dump(mode="json"))
+    document["visibility"] = visibility
+    document["revision_id"] = derive_revision_id(document)
+    return cast(
+        dict[str, object], ComponentVersionPassport.model_validate(document).model_dump(mode="json")
+    )
 
 
 def _artifact(connection: sqlite3.Connection, digest: str) -> tuple[str, bytes]:

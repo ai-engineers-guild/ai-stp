@@ -288,7 +288,9 @@ async def _artifact_payload(
         return None
     try:
         return await store.read_by_digest(
-            passport.artifact.digest, expected_size=passport.artifact.size_bytes
+            passport.artifact.digest,
+            expected_size=passport.artifact.size_bytes,
+            owner_account_id=passport.owner_id,
         )
     except Exception:
         return None

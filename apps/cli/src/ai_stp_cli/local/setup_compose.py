@@ -607,7 +607,7 @@ def _setup_passport(
         "stable_id": str(resolved.frozen.document["stable_id"]),
         "owner_id": publisher_id,
         "created_at": at,
-        "visibility": "public",
+        "visibility": "private",
         "parent_revision_ids": [],
         "facts": {
             "harness_id": fact(resolved.manifest.harness_id),

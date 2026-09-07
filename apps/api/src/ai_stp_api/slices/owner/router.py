@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.deps import get_db, require_auth
+from ai_stp_api.deps import get_db, optional_auth, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.owner import service
@@ -143,16 +143,22 @@ async def get_component_media(
     media_id: str,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> Response:
-    """Serve ready component media bytes; never expose object keys."""
-    result = await service.read_component_media_bytes(db, _avatar_store(request), media_id=media_id)
+    """Serve media only when its component is public or visible to the caller."""
+    result = await service.read_component_media_bytes(
+        db,
+        _avatar_store(request),
+        media_id=media_id,
+        account_id=ctx.account_id if ctx is not None else None,
+    )
     if result is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "not found")
-    body, content_type = result
+    body, content_type, is_public = result
     return Response(
         content=body,
         media_type=content_type,
-        headers={"Cache-Control": "public, max-age=300"},
+        headers={"Cache-Control": "public, max-age=300" if is_public else "private, no-store"},
     )
 
 

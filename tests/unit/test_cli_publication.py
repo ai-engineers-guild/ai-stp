@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -59,6 +60,7 @@ def test_plan_status_and_confirm_use_the_authenticated_contract_paths() -> None:
         stable_id=STABLE,
         version="1.0",
         content_digest=DIGEST,
+        artifact_inventory=[],
         passport={"schema_version": 1},
         attestations=[],
         idempotency_key="create-key-012345",
@@ -116,6 +118,42 @@ def test_bind_puts_exact_artifact_bytes_on_the_plan() -> None:
     assert bound.plan_id == PLAN
     assert seen == [
         ("PUT", f"/v1/publications/plans/{PLAN}/artifact", "Bearer secret-token", payload)
+    ]
+
+
+def test_bind_projection_puts_exact_artifact_bytes_on_declared_digest() -> None:
+    seen: list[tuple[str, str, str | None, bytes]] = []
+    payload = b"exact-projection-bytes"
+    projection_digest = "sha256:" + "a" * 64
+
+    def route(request: httpx.Request) -> httpx.Response:
+        seen.append(
+            (
+                request.method,
+                request.url.path,
+                request.headers.get("Authorization"),
+                request.content,
+            )
+        )
+        return httpx.Response(200, json=_response("ready"))
+
+    bound = publication.bind_projection(
+        Endpoint(BASE, transport=httpx.MockTransport(route)),
+        "secret-token",
+        PLAN,
+        projection_digest,
+        payload,
+        pause=lambda _seconds: None,
+    )
+
+    assert bound.plan_id == PLAN
+    assert seen == [
+        (
+            "PUT",
+            f"/v1/publications/plans/{PLAN}/artifacts/{projection_digest}",
+            "Bearer secret-token",
+            payload,
+        )
     ]
 
 
@@ -217,6 +255,7 @@ def test_create_keeps_one_idempotency_key_when_the_first_answer_is_lost() -> Non
         stable_id=STABLE,
         version="1.0",
         content_digest=DIGEST,
+        artifact_inventory=[],
         passport={"schema_version": 1},
         attestations=[],
         idempotency_key="one-intent-012345",
@@ -250,7 +289,7 @@ def test_confirm_requires_the_exact_explicit_decision(monkeypatch: pytest.Monkey
     assert "--confirm" in raised.value.next_actions[0]
 
 
-def test_confirm_binds_the_locally_stored_exact_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_confirm_binds_all_locally_stored_exact_artifacts(monkeypatch: pytest.MonkeyPatch) -> None:
     from ai_stp_cli.commands import publication as command
 
     held = session.Session(
@@ -262,6 +301,8 @@ def test_confirm_binds_the_locally_stored_exact_artifact(monkeypatch: pytest.Mon
     )
     plan = PublicationPlanResponse.model_validate(_response())
     seen: list[bytes] = []
+    projection_digest = "sha256:" + "a" * 64
+    seen_projections: list[tuple[str, bytes]] = []
 
     def _open(_path: object) -> sqlite3.Connection:
         return sqlite3.connect(":memory:")
@@ -270,7 +311,7 @@ def test_confirm_binds_the_locally_stored_exact_artifact(monkeypatch: pytest.Mon
         return plan
 
     def _get(*_args: object) -> bytes:
-        return b"exact-bytes"
+        return b"projection-bytes" if _args[-1] == projection_digest else b"exact-bytes"
 
     def _bind(*args: object, **_kwargs: object) -> PublicationPlanResponse:
         seen.append(args[-1] if isinstance(args[-1], bytes) else b"")
@@ -279,15 +320,39 @@ def test_confirm_binds_the_locally_stored_exact_artifact(monkeypatch: pytest.Mon
     def _confirm(*_args: object, **_kwargs: object) -> PublicationPlanResponse:
         return plan.model_copy(update={"state": "validating"})
 
+    def _bind_projection(*args: object, **_kwargs: object) -> PublicationPlanResponse:
+        payload = args[-1]
+        assert isinstance(payload, bytes)
+        seen_projections.append((str(args[-2]), payload))
+        return plan
+
+    def _passport(*_args: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            adaptations=[
+                SimpleNamespace(
+                    scope_adaptations=[
+                        SimpleNamespace(
+                            projection_artifact=SimpleNamespace(digest=projection_digest)
+                        )
+                    ]
+                )
+            ]
+        )
+
     monkeypatch.setattr(command, "_session", lambda: held)
     monkeypatch.setattr(command, "endpoint", lambda: Endpoint(BASE))
     monkeypatch.setattr(command, "open_readonly", _open)
+    monkeypatch.setattr("ai_stp_cli.local.component_passports.version_passport", _passport)
     monkeypatch.setattr("ai_stp_cli.commands.publication.publication.status", _status)
     monkeypatch.setattr("ai_stp_cli.commands.publication.content.get", _get)
     monkeypatch.setattr("ai_stp_cli.commands.publication.publication.bind", _bind)
+    monkeypatch.setattr(
+        "ai_stp_cli.commands.publication.publication.bind_projection", _bind_projection
+    )
     monkeypatch.setattr("ai_stp_cli.commands.publication.publication.confirm", _confirm)
 
     result = command.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True}).payload
 
     assert result.state == "validating"
     assert seen == [b"exact-bytes"]
+    assert seen_projections == [(projection_digest, b"projection-bytes")]

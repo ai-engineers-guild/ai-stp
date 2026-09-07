@@ -4,6 +4,7 @@ import json
 import time
 from collections.abc import Callable
 from typing import cast
+from urllib.parse import quote
 
 import httpx
 from pydantic import ValidationError
@@ -77,6 +78,43 @@ def bind(
     pause: Callable[[float], None] = time.sleep,
 ) -> PublicationPlanResponse:
     """PUT exact artifact bytes to one plan. Digest and size come from the plan."""
+    return _bind_payload(
+        endpoint,
+        access_token,
+        f"{API_BASE_PATH}/publications/plans/{plan_id}/artifact",
+        payload,
+        pause=pause,
+    )
+
+
+def bind_projection(
+    endpoint: Endpoint,
+    access_token: str,
+    plan_id: str,
+    projection_digest: str,
+    payload: bytes,
+    *,
+    pause: Callable[[float], None] = time.sleep,
+) -> PublicationPlanResponse:
+    """PUT one declared exact projection artifact to a plan."""
+    encoded_digest = quote(projection_digest, safe="")
+    return _bind_payload(
+        endpoint,
+        access_token,
+        f"{API_BASE_PATH}/publications/plans/{plan_id}/artifacts/{encoded_digest}",
+        payload,
+        pause=pause,
+    )
+
+
+def _bind_payload(
+    endpoint: Endpoint,
+    access_token: str,
+    path: str,
+    payload: bytes,
+    *,
+    pause: Callable[[float], None],
+) -> PublicationPlanResponse:
     with open_client(endpoint, access_token=access_token) as client:
         total = max(1, endpoint.max_attempts)
         delay = BACKOFF_SECONDS
@@ -86,7 +124,7 @@ def bind(
             try:
                 response = client.request(
                     "PUT",
-                    f"{API_BASE_PATH}/publications/plans/{plan_id}/artifact",
+                    path,
                     content=payload,
                     headers={"Content-Type": "application/octet-stream"},
                 )

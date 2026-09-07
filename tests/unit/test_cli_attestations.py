@@ -14,7 +14,13 @@ from ai_stp_assurance import AuthorAttestation, attestation_digest
 from ai_stp_cli import identity
 from ai_stp_cli.cloud import session
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import component_passports, versions
+from ai_stp_cli.local import (
+    component_passports,
+    components,
+    content,
+    publication_snapshot,
+    versions,
+)
 from ai_stp_cli.local.cache import digest_of
 from ai_stp_contracts.first_party import versions as first_party_versions
 from ai_stp_foundation.canonical import JsonValue
@@ -88,11 +94,15 @@ def test_sign_writes_one_owner_only_full_record_and_load_verifies(
         held_version,
     )
     output = tmp_path / "evidence" / "attestation.json"
+    component_root = tmp_path / "component"
+    component_root.mkdir()
+    (component_root / "SKILL.md").write_text("# Exact publication\n", encoding="utf-8")
 
     result = attestations.sign(
         {
             "id": passport.stable_id,
             "version": passport.version,
+            "component-root": str(component_root),
             "check-id": "credentials",
             "policy-version": "1",
             "tool-version": ("runner=2.0",),
@@ -107,8 +117,18 @@ def test_sign_writes_one_owner_only_full_record_and_load_verifies(
     ).payload
 
     loaded = attestations.load(output)
-    assert loaded.object_digest == passport.artifact.digest
-    assert loaded.subject.passport_digest == recorded.passport_digest
+    artifact_bytes, _inventory = components.package_publication_root(component_root)
+    artifact_digest = content.address_of(artifact_bytes)
+    publication_passport = publication_snapshot.bind(
+        passport,
+        visibility=passport.visibility,
+        digest=artifact_digest,
+        size_bytes=len(artifact_bytes),
+    )
+    assert loaded.object_digest == artifact_digest
+    assert loaded.subject.passport_digest == digest_of(
+        cast(JsonValue, publication_passport.model_dump(mode="json"))
+    )
     assert result.attestation_digest == attestation_digest(loaded)
     assert attestations.verify(loaded, signer)
     if os.name != "nt":

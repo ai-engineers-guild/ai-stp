@@ -1,0 +1,127 @@
+{
+  "$defs": {
+    "CatalogTrust": {
+      "additionalProperties": true,
+      "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+      "properties": {
+        "author_verified": {
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "component_verified": {
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "trust_lane": {
+          "$ref": "#/$defs/CatalogTrustLane"
+        }
+      },
+      "required": [
+        "author_verified",
+        "component_verified",
+        "trust_lane"
+      ],
+      "title": "CatalogTrust",
+      "type": "object"
+    },
+    "CatalogTrustLane": {
+      "enum": [
+        "authoritative",
+        "experimental"
+      ],
+      "type": "string"
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:catalog-private-version",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Exact private version metadata after owner/grant authorization.",
+  "properties": {
+    "lifecycle": {
+      "enum": [
+        "active",
+        "deprecated"
+      ],
+      "title": "Lifecycle",
+      "type": "string"
+    },
+    "passport": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Passport",
+      "type": "object"
+    },
+    "passport_digest": {
+      "$ref": "#/$defs/PassportDigest"
+    },
+    "published_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "trust": {
+      "$ref": "#/$defs/CatalogTrust"
+    },
+    "visibility": {
+      "const": "private",
+      "default": "private",
+      "title": "Visibility",
+      "type": "string"
+    }
+  },
+  "required": [
+    "lifecycle",
+    "passport",
+    "passport_digest",
+    "published_at",
+    "schema_version",
+    "trust",
+    "visibility"
+  ],
+  "title": "PrivateVersionResponse",
+  "type": "object"
+}

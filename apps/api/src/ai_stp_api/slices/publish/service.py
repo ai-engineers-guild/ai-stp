@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +18,7 @@ from ai_stp_contracts.publication import (
     PublicationPlanResponse,
 )
 from ai_stp_foundation.ids import new_id
+from ai_stp_passports.versions import ComponentVersionPassport
 from ai_stp_platform.artifact_bind import (
     ArtifactBindError,
     bind_plan_artifact,
@@ -72,9 +74,18 @@ async def create_plan(
     body: PublicationPlanCreateRequest,
 ) -> PublicationPlanResponse:
     await _require_active_device(db, ctx=ctx, device_id=body.device_id)
+    if body.object_kind == "setup" and body.artifact_inventory:
+        raise ApiError(ErrorCategory.VALIDATION, "setup artifact inventory must be empty")
+    visibility: str = str(body.visibility)
+    # Keep old clients working when their passport already carries the
+    # visibility and the new request field was not sent.
+    if "visibility" not in body.model_fields_set:
+        passport_visibility = body.passport.get("visibility")
+        if passport_visibility in {"public", "private"}:
+            visibility = str(passport_visibility)
     account = await db.get(Account, ctx.account_id)
     public_profile = await get_public_publisher(db, account_id=ctx.account_id)
-    if (
+    if visibility == "public" and (
         account is None
         or not account.show_profile_publicly
         or not account.allow_publisher_listing
@@ -102,6 +113,7 @@ async def create_plan(
         version=body.version,
         content_digest=body.content_digest,
         owner_account_id=ctx.account_id,
+        expected_visibility=visibility,
     )
     if passport_model is None:
         raise ApiError(
@@ -146,6 +158,8 @@ async def create_plan(
         policy_version=POLICY_VERSION,
         passport=passport,
         attestations=attestations,
+        artifact_inventory=list(body.artifact_inventory),
+        visibility=visibility,
     )
     plan = PublicationPlan(
         id=new_id("plan"),
@@ -155,6 +169,8 @@ async def create_plan(
         stable_id=body.stable_id,
         version=body.version,
         content_digest=body.content_digest,
+        artifact_inventory=list(body.artifact_inventory),
+        visibility=visibility,
         policy_version=POLICY_VERSION,
         plan_hash=plan_hash,
         state="ready",
@@ -224,29 +240,50 @@ async def _evidence_for_plan(db: AsyncSession, *, plan_id: str) -> list[dict[str
     return out
 
 
-async def bind_artifact(
-    db: AsyncSession,
-    *,
-    ctx: AuthContext,
-    plan_id: str,
-    payload: bytes,
-    store: ImmutableObjectStore,
-) -> PublicationPlanResponse:
-    plan = await db.get(PublicationPlan, plan_id)
-    if plan is None or plan.actor_account_id != ctx.account_id:
-        raise ApiError(ErrorCategory.NOT_FOUND, "plan not found")
-    await _require_active_device(db, ctx=ctx, device_id=plan.device_id)
-    if plan.state in {"failed", "cancelled", "stale"}:
-        raise ApiError(ErrorCategory.CONFLICT, f"plan is {plan.state}")
+def _projection_artifact_sizes(plan: PublicationPlan) -> dict[str, int]:
+    if plan.object_kind != "component":
+        return {}
+    try:
+        passport = ComponentVersionPassport.model_validate(plan.passport)
+    except ValidationError as exc:
+        raise ApiError(ErrorCategory.VALIDATION, "component passport is invalid") from exc
+    return {
+        str(scope.projection_artifact.digest): int(scope.projection_artifact.size_bytes)
+        for adaptation in passport.adaptations
+        for scope in adaptation.scope_adaptations
+    }
+
+
+def _required_artifact_sizes(plan: PublicationPlan) -> dict[str, int]:
     expected_size = passport_artifact_size(dict(plan.passport))
     if expected_size is None:
         raise ApiError(ErrorCategory.VALIDATION, "passport does not declare artifact size")
+    required = {plan.content_digest: expected_size}
+    required.update(_projection_artifact_sizes(plan))
+    return required
+
+
+async def _bind_exact_artifact(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    plan: PublicationPlan,
+    payload: bytes,
+    store: ImmutableObjectStore,
+    expected_digest: str,
+    expected_size: int,
+    audit_action: str,
+) -> PublicationPlanResponse:
+    await _require_active_device(db, ctx=ctx, device_id=plan.device_id)
+    if plan.state in {"failed", "cancelled", "stale"}:
+        raise ApiError(ErrorCategory.CONFLICT, f"plan is {plan.state}")
     try:
         await bind_plan_artifact(
             store=store,
             payload=payload,
-            expected_digest=plan.content_digest,
+            expected_digest=expected_digest,
             expected_size=expected_size,
+            owner_account_id=plan.actor_account_id,
         )
     except ArtifactBindError as exc:
         raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
@@ -261,12 +298,69 @@ async def bind_artifact(
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,
-        action="publication.artifact_bound",
+        action=audit_action,
         target_table="publication_plan",
         target_id=plan.id,
-        payload={"digest": plan.content_digest, "size_bytes": expected_size},
+        payload={"digest": expected_digest, "size_bytes": expected_size},
     )
     return _to_response(plan)
+
+
+async def bind_artifact(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    plan_id: str,
+    payload: bytes,
+    store: ImmutableObjectStore,
+) -> PublicationPlanResponse:
+    plan = await db.get(PublicationPlan, plan_id)
+    if plan is None or plan.actor_account_id != ctx.account_id:
+        raise ApiError(ErrorCategory.NOT_FOUND, "plan not found")
+    expected_size = passport_artifact_size(dict(plan.passport))
+    if expected_size is None:
+        raise ApiError(ErrorCategory.VALIDATION, "passport does not declare artifact size")
+    return await _bind_exact_artifact(
+        db,
+        ctx=ctx,
+        plan=plan,
+        payload=payload,
+        store=store,
+        expected_digest=plan.content_digest,
+        expected_size=expected_size,
+        audit_action="publication.artifact_bound",
+    )
+
+
+async def bind_projection_artifact(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    plan_id: str,
+    projection_digest: str,
+    payload: bytes,
+    store: ImmutableObjectStore,
+) -> PublicationPlanResponse:
+    plan = await db.get(PublicationPlan, plan_id)
+    if plan is None or plan.actor_account_id != ctx.account_id:
+        raise ApiError(ErrorCategory.NOT_FOUND, "plan not found")
+    expected_size = _projection_artifact_sizes(plan).get(projection_digest)
+    if expected_size is None:
+        raise ApiError(
+            ErrorCategory.VALIDATION,
+            "projection artifact is not declared by the publication plan",
+            details={"digest": projection_digest},
+        )
+    return await _bind_exact_artifact(
+        db,
+        ctx=ctx,
+        plan=plan,
+        payload=payload,
+        store=store,
+        expected_digest=projection_digest,
+        expected_size=expected_size,
+        audit_action="publication.projection_artifact_bound",
+    )
 
 
 async def confirm_plan(
@@ -307,13 +401,19 @@ async def confirm_plan(
     if body.plan_hash != plan.plan_hash:
         raise ApiError(ErrorCategory.VALIDATION, "plan_hash mismatch")
 
-    expected_size = passport_artifact_size(dict(plan.passport))
-    if not await plan_artifact_is_durable(
-        store=store,
-        content_digest=plan.content_digest,
-        expected_size=expected_size,
-    ):
-        raise ApiError(ErrorCategory.VALIDATION, "publication artifact bytes are not bound")
+    for digest, expected_size in _required_artifact_sizes(plan).items():
+        if not await plan_artifact_is_durable(
+            store=store,
+            content_digest=digest,
+            expected_size=expected_size,
+            owner_account_id=plan.actor_account_id,
+        ):
+            message = (
+                "publication artifact bytes are not bound"
+                if digest == plan.content_digest
+                else "publication projection artifact bytes are not bound"
+            )
+            raise ApiError(ErrorCategory.VALIDATION, message, details={"digest": digest})
 
     plan.state = "validating"
     plan.confirm_idempotency_key = body.idempotency_key

@@ -289,10 +289,22 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable identifier of the released component.", required=True),
             option("version", "string", "Exact local X.Y version to publish.", required=True),
             option(
+                "component-root",
+                "string",
+                "Exact component directory to package with Git ignore rules.",
+                required=True,
+            ),
+            option(
                 "attestation-file",
                 "string",
                 "Full locally signed attestation bound to this exact version.",
                 repeatable=True,
+            ),
+            option(
+                "visibility",
+                "string",
+                "Catalog visibility; private by default, use public explicitly.",
+                choices=("private", "public"),
             ),
         ),
         next_actions=("publication confirm", "publication status"),
@@ -307,6 +319,18 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("id", "string", "Released component stable identifier.", required=True),
             option("version", "string", "Exact released X.Y version.", required=True),
+            option(
+                "component-root",
+                "string",
+                "Exact component directory evaluated and signed with Git ignore rules.",
+                required=True,
+            ),
+            option(
+                "visibility",
+                "string",
+                "Visibility of the publication being signed.",
+                choices=("private", "public"),
+            ),
             option("check-id", "string", "Executed policy check identifier.", required=True),
             option("policy-version", "string", "Exact validation policy version.", required=True),
             option("tool-version", "string", "Executed tool as name=version.", repeatable=True),
@@ -2980,6 +3004,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("id", "string", "Stable identifier of the released setup.", required=True),
             option("version", "string", "Exact local X.Y version to publish.", required=True),
+            option(
+                "visibility",
+                "string",
+                "Catalog visibility; private by default, use public explicitly.",
+                choices=("private", "public"),
+            ),
         ),
         next_actions=("setup publish confirm", "publication status"),
     ),

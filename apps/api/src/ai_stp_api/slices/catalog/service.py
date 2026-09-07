@@ -18,6 +18,7 @@ from ai_stp_contracts.catalog import (
     CatalogPageInfo,
     CatalogReactionList,
     CatalogReactionState,
+    CatalogTrust,
     CatalogUsageMetrics,
     ComponentDetail,
     ComponentListResponse,
@@ -34,6 +35,7 @@ from ai_stp_contracts.catalog import (
     ExternalProductSummary,
     GitHubMetadata,
     LikedCatalogItem,
+    PrivateVersionResponse,
     SetupDetail,
     SetupListResponse,
     SetupSearchRequest,
@@ -43,6 +45,7 @@ from ai_stp_contracts.catalog import (
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.safety_checks import SafetyChecksSummary
 from ai_stp_contracts.tag_vocabulary import TagVocabularyResponse, tag_vocabulary_response
+from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 from ai_stp_platform.catalog_assessments import (
     load_effective_assessments,
@@ -65,6 +68,7 @@ from ai_stp_platform.catalog_projection import (
     setup_detail,
     setup_summary,
     setup_version_response,
+    verify_passport_integrity,
 )
 from ai_stp_platform.catalog_query_language import QuerySyntaxError, parse_query
 from ai_stp_platform.catalog_read import (
@@ -874,6 +878,63 @@ async def read_component_version(
         return component_version_response(row, now=datetime.now(UTC), assessments=assessments)
     except CatalogIntegrityError as exc:
         raise _corrupt(exc, object_kind="component", stable_id=stable_id, version=version) from exc
+
+
+async def read_private_version_document(
+    session: AsyncSession,
+    *,
+    object_kind: ObjectKind,
+    stable_id: str,
+    version: str,
+    account_id: str,
+) -> PrivateVersionResponse:
+    """Return only the exact private passport after platform authorization."""
+    metadata = await get_visible_metadata(
+        session,
+        object_kind=object_kind,
+        stable_id=stable_id,
+        version=version,
+        account_id=account_id,
+    )
+    if (
+        metadata is None
+        or metadata.visibility != "private"
+        or metadata.lifecycle_state not in {"active", "deprecated"}
+        or metadata.published_at is None
+        or not isinstance(metadata.passport_document, dict)
+        or not metadata.passport_digest
+        or not metadata.trust_lane
+    ):
+        raise CatalogNotFound
+    row = PublicVersionRow(
+        metadata=metadata,
+        passport=dict(metadata.passport_document),
+        passport_digest=metadata.passport_digest,
+        published_at=metadata.published_at,
+        trust_lane=metadata.trust_lane,
+        author_verified=bool(metadata.author_verified),
+        component_verified=bool(metadata.component_verified),
+        lifecycle=metadata.lifecycle_state,
+        stable_id=stable_id,
+        version=version,
+        object_kind=object_kind,
+        support_evidence=list(metadata.support_evidence or []),
+    )
+    try:
+        verify_passport_integrity(row, allow_private=True)
+    except CatalogIntegrityError as exc:
+        raise _corrupt(exc, object_kind=object_kind, stable_id=stable_id, version=version) from exc
+    return PrivateVersionResponse(
+        passport=row.passport,
+        passport_digest=row.passport_digest,
+        lifecycle=cast(Literal["active", "deprecated"], row.lifecycle),
+        trust=CatalogTrust(
+            trust_lane=cast(Literal["authoritative", "experimental"], row.trust_lane),
+            author_verified=row.author_verified,
+            component_verified=row.component_verified,
+        ),
+        published_at=format_timestamp(row.published_at),
+    )
 
 
 async def read_setup_version(
