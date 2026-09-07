@@ -58,6 +58,7 @@ const FIELD_CLASS =
 export function ObjectPresentationForm({
   locale,
   stableId,
+  objectKind = "component",
   csrfToken,
   initialBio,
   initialMedia,
@@ -65,6 +66,7 @@ export function ObjectPresentationForm({
 }: {
   locale: string;
   stableId: string;
+  objectKind?: "component" | "setup";
   csrfToken: string;
   initialBio: string;
   initialMedia: OwnerPresentationMedia[];
@@ -73,6 +75,7 @@ export function ObjectPresentationForm({
   const form = useObjectPresentationForm({
     locale,
     stableId,
+    objectKind,
     csrfToken,
     initialBio,
     initialMedia,

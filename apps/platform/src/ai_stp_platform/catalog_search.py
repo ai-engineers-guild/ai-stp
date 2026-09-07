@@ -222,7 +222,11 @@ def _projection_row(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchPro
     component_type = passport.get("component_type")
     tier, state, expires = _support_fields(passport, list(meta.support_evidence or []), now=now)
     aliases = search_terms_for_tags(tags)
-    description = _passport_description(passport)
+    description = (
+        meta.presentation_bio[:_DESCRIPTION_LIMIT]
+        if meta.presentation_bio is not None
+        else _passport_description(passport)
+    )
     name = str(meta.name or passport.get("name") or "")
     return CatalogSearchProjection(
         catalog_metadata_id=meta.id,

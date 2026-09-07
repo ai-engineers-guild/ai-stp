@@ -49,6 +49,10 @@ const presentationByStableId: Map<string, MockPresentation> = (() => {
   return globalStore.__aiStpMockPresentations;
 })();
 
+export function readMockPresentation(stableId: string) {
+  return presentationByStableId.get(stableId);
+}
+
 const externalProductsByObject: Map<string, MockExternalProduct[]> = (() => {
   const globalStore = globalThis as typeof globalThis & {
     __aiStpMockExternalProducts?: Map<string, MockExternalProduct[]>;
@@ -243,7 +247,9 @@ function ownerHandlers(
       headers: { "x-operation-id": MOCK_OP },
     };
   }
-  const presentationMatch = path.match(/^\/v1\/owner\/objects\/component\/([^/]+)\/presentation$/);
+  const presentationMatch = path.match(
+    /^\/v1\/owner\/objects\/(?:component|setup)\/([^/]+)\/presentation$/,
+  );
   if (presentationMatch) {
     const stableId = presentationMatch[1] ?? FIXTURE_COMPONENT_ID;
     if (method === "GET") {
@@ -284,7 +290,7 @@ function ownerHandlers(
     }
   }
   const mediaUploadMatch = path.match(
-    /^\/v1\/owner\/objects\/component\/([^/]+)\/presentation\/media$/,
+    /^\/v1\/owner\/objects\/(?:component|setup)\/([^/]+)\/presentation\/media$/,
   );
   if (method === "POST" && mediaUploadMatch) {
     const mediaId = `media_mock_${Date.now().toString(36)}`;

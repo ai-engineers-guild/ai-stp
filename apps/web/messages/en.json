@@ -413,7 +413,10 @@
         "name": "pip-audit",
         "description": "Audits pinned Python requirements offline when a lock file exists."
       },
-      "sast_gosec": { "name": "gosec", "description": "Runs gosec on Go sources." },
+      "sast_gosec": {
+        "name": "gosec",
+        "description": "Runs gosec on Go sources."
+      },
       "sca_govulncheck": {
         "name": "govulncheck",
         "description": "Checks Go modules for known vulnerabilities."
@@ -496,7 +499,10 @@
     "technicalDetails": "Technical details",
     "versionHistory": "Version history",
     "currentVersion": "Current",
-    "seoDescription": "Catalog of AI setups and components: skills, MCP servers, hooks, subagents. Checks, agent install, and maintenance across an organization."
+    "seoDescription": "Catalog of AI setups and components: skills, MCP servers, hooks, subagents. Checks, agent install, and maintenance across an organization.",
+    "setupLineage": "Setup origin and relations",
+    "portedFrom": "Ported from",
+    "relatedSetups": "Related setups"
   },
   "publisher": {
     "title": "Publisher",
@@ -889,7 +895,10 @@
     "countryNameRu": "Russian country name",
     "countryNameEn": "English country name",
     "countryRequest": "Request country",
-    "countryRequested": "Country request submitted:"
+    "countryRequested": "Country request submitted:",
+    "externalLinkedHeading": "Linked services",
+    "externalRequestHeading": "Request a service",
+    "countryRequestHeading": "Request a country"
   },
   "publications": {
     "title": "Publication plan",

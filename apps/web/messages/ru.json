@@ -413,7 +413,10 @@
         "name": "pip-audit",
         "description": "Офлайн-аудит закреплённых Python-зависимостей, если есть lock-файл."
       },
-      "sast_gosec": { "name": "gosec", "description": "Запускает gosec на исходниках Go." },
+      "sast_gosec": {
+        "name": "gosec",
+        "description": "Запускает gosec на исходниках Go."
+      },
       "sca_govulncheck": {
         "name": "govulncheck",
         "description": "Проверяет модули Go на известные уязвимости."
@@ -496,7 +499,10 @@
     "technicalDetails": "Технические детали",
     "versionHistory": "История версий",
     "currentVersion": "Текущая",
-    "seoDescription": "Каталог ИИ-сетапов и компонентов: скиллы, MCP-серверы, хуки, субагенты. Проверки, установка через агента, сопровождение в организации."
+    "seoDescription": "Каталог ИИ-сетапов и компонентов: скиллы, MCP-серверы, хуки, субагенты. Проверки, установка через агента, сопровождение в организации.",
+    "setupLineage": "Происхождение и связи сетапа",
+    "portedFrom": "Портирован из",
+    "relatedSetups": "Связанные сетапы"
   },
   "publisher": {
     "title": "Издатель",
@@ -889,7 +895,10 @@
     "countryNameRu": "Название страны на русском",
     "countryNameEn": "Название страны на английском",
     "countryRequest": "Запросить страну",
-    "countryRequested": "Заявка на страну отправлена:"
+    "countryRequested": "Заявка на страну отправлена:",
+    "externalLinkedHeading": "Связанные сервисы",
+    "externalRequestHeading": "Запросить сервис",
+    "countryRequestHeading": "Запросить страну"
   },
   "publications": {
     "title": "План публикации",

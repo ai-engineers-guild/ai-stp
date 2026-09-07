@@ -66,16 +66,19 @@ export const WORKSPACE_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "objects/component/:stableId/edit",
+    pattern: "objects/:kind/:stableId/edit",
     resolve: async ({ segments }) => {
+      const kind = segments[1];
+      if (kind !== "component" && kind !== "setup") return null;
       const stableId = segments[2] ?? "";
       const t = await getTranslations("objects");
       const tm = await getTranslations("machineDoc");
       const presentation = await orNotFound(
-        readOwnerPresentation((await sessionCookieValue()) ?? "", stableId),
+        readOwnerPresentation((await sessionCookieValue()) ?? "", stableId, kind),
       );
       if (!presentation) return null;
       return presentPresentationEdit({
+        kind,
         title: t("editPresentation"),
         note: t("editPresentationNote"),
         stableId,

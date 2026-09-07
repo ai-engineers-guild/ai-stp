@@ -39,6 +39,7 @@ const mediaSchema = z
 const inputSchema = z.object({
   csrfToken: z.string().min(1),
   stableId: z.string().min(8).max(64),
+  objectKind: z.enum(["component", "setup"]).default("component"),
   locale: z.string().min(2).max(5),
   bio: z.string().max(2000),
   media: z.array(mediaSchema).max(5),
@@ -55,19 +56,30 @@ export async function updateObjectPresentationAction(input: unknown) {
   const token = await sessionCookieValue();
   if (!token) return { ok: false as const, message: "Not signed in." };
   try {
-    await updateOwnerPresentation(token, parsed.data.stableId, {
-      bio: parsed.data.bio,
-      media: parsed.data.media,
-    });
+    await updateOwnerPresentation(
+      token,
+      parsed.data.stableId,
+      {
+        bio: parsed.data.bio,
+        media: parsed.data.media,
+      },
+      parsed.data.objectKind,
+    );
   } catch (error) {
     return {
       ok: false as const,
       message: error instanceof ApiError ? error.message : "Could not save presentation.",
     };
   }
-  revalidatePath(`/${parsed.data.locale}/objects/component/${parsed.data.stableId}`);
-  revalidatePath(`/${parsed.data.locale}/objects/component/${parsed.data.stableId}/edit`);
-  revalidatePath(`/${parsed.data.locale}/catalog/components/${parsed.data.stableId}`);
+  revalidatePath(
+    `/${parsed.data.locale}/objects/${parsed.data.objectKind}/${parsed.data.stableId}`,
+  );
+  revalidatePath(
+    `/${parsed.data.locale}/objects/${parsed.data.objectKind}/${parsed.data.stableId}/edit`,
+  );
+  revalidatePath(
+    `/${parsed.data.locale}/catalog/${parsed.data.objectKind === "component" ? "components" : "setups"}/${parsed.data.stableId}`,
+  );
   revalidatePath(`/${parsed.data.locale}/catalog`);
   return { ok: true as const };
 }

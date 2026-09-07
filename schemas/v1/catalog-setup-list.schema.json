@@ -281,7 +281,6 @@
     },
     "DescriptionExcerpt": {
       "maxLength": 240,
-      "minLength": 1,
       "type": "string"
     },
     "FindingSeverity": {

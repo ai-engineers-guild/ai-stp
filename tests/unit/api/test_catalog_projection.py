@@ -9,9 +9,10 @@ import pytest
 from pydantic import ValidationError
 from tests.support.catalog_seed import seed_corpus
 
-from ai_stp_contracts.catalog import CatalogTrust
+from ai_stp_contracts.catalog import CatalogTrust, ComponentSummary
 from ai_stp_foundation.canonical import canonize
 from ai_stp_foundation.digests import digest_bytes
+from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
 from ai_stp_platform.catalog_projection import (
@@ -549,3 +550,10 @@ def test_a_card_does_not_carry_the_per_member_checks_only_a_detail_reads() -> No
     assert [item.stable_id for item in project_component_checks(row)] == [
         "component_01J0000000000000000000000A"
     ]
+
+
+def test_component_summary_accepts_every_registered_harness() -> None:
+    summary = component_summary(_row_from_seed())
+    wire = summary.model_dump(mode="json")
+    wire["latest_harness_ids"] = list(HARNESS_IDS)
+    assert ComponentSummary.model_validate(wire).latest_harness_ids == list(HARNESS_IDS)

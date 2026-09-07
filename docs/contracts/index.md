@@ -25,7 +25,7 @@ last_verified: "2026-08-03"
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
 | [component-authoring-templates.md](component-authoring-templates.md) | Versioned scaffold plans and safe projection of component authoring templates. | 2026-09-06 |
-| [component-presentation.md](component-presentation.md) | Mutable component presentation in the catalog without changing the version passport. | 2026-09-04 |
+| [component-presentation.md](component-presentation.md) | Mutable component and setup presentation in the catalog without changing the version passport. | 2026-09-04 |
 | [component-setup-passports.md](component-setup-passports.md) | Component and setup version passports, component types, and dependencies. | 2026-09-05 |
 | [composition-reports.md](composition-reports.md) | Composition and conversion reports: closed conflict classes, permitted compiler operations, and loss states. | 2026-08-28 |
 | [deep-links.md](deep-links.md) | Grammar of canonical URLs and CLI references for component, setup, publisher, and report intent. | 2026-08-15 |

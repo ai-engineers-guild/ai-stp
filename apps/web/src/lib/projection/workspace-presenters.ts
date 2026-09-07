@@ -39,9 +39,7 @@ export function presentOwnerObjectDetail(input: {
     link("Objects", "/objects"),
     link(input.labels.viewPublic, catalogHref),
   ];
-  if (input.kind === "component") {
-    doc.push(link(input.labels.editPresentation, `/objects/component/${input.stableId}/edit`));
-  }
+  doc.push(link(input.labels.editPresentation, `/objects/${input.kind}/${input.stableId}/edit`));
   doc.push(heading(2, input.labels.versions));
   if (input.versions.length === 0) {
     doc.push(paragraph(input.labels.emptyVersions));
@@ -270,6 +268,7 @@ export function presentAccountPreview(input: {
 }
 
 export function presentPresentationEdit(input: {
+  kind: "component" | "setup";
   title: string;
   note: string;
   stableId: string;
@@ -280,7 +279,7 @@ export function presentPresentationEdit(input: {
     heading(1, input.title),
     paragraph(input.note),
     field(input.labels.stableId, input.stableId),
-    link("Object", `/objects/component/${input.stableId}`),
+    link("Object", `/objects/${input.kind}/${input.stableId}`),
     link("Objects", "/objects"),
   ];
   if (input.bio) {

@@ -335,15 +335,17 @@ describe("private machine documents (REQ-3611, REQ-3612)", () => {
   it("omits media from presentation edit and lists privacy flags", () => {
     const edit = machineDocumentToText(
       presentPresentationEdit({
+        kind: "setup",
         title: "Edit",
         note: "Presentation only",
-        stableId: "component_01H",
+        stableId: "setup_01H",
         bio: "Public bio",
         labels: { stableId: "stable_id", bio: "bio" },
       }),
       "en",
     );
     expect(edit).toContain("bio: Public bio");
+    expect(edit).toContain("objects/setup/setup_01H");
     expect(edit).not.toMatch(/media|youtube|avatar/i);
 
     const privacy = machineDocumentToText(

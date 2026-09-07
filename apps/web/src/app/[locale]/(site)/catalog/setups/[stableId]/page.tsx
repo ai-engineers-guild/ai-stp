@@ -1,4 +1,6 @@
+import { SetupLineage } from "@/components/molecules/setup-lineage";
 import type { Metadata } from "next";
+import { catalogReturnHref } from "@/lib/catalog-return";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -23,6 +25,7 @@ import { contextBudgetLabels } from "@/components/organisms/context-budget-label
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
+import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import {
   catalogRelations,
@@ -49,7 +52,10 @@ import { UI } from "@/lib/ui-selectors";
 import { sourceLinksFor } from "@/lib/source-url";
 import { Icon } from "@/theme/icons";
 
-type PageProps = { params: Promise<{ locale: string; stableId: string }> };
+type PageProps = {
+  params: Promise<{ locale: string; stableId: string }>;
+  searchParams?: Promise<{ return_to?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, stableId } = await params;
@@ -61,8 +67,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 // The server page intentionally keeps its reads and matching render states together.
 // eslint-disable-next-line complexity, max-lines-per-function
-export default async function SetupDetailPage({ params }: PageProps) {
+export default async function SetupDetailPage({ params, searchParams }: PageProps) {
   const { locale, stableId } = await params;
+  const backHref = catalogReturnHref(
+    (await searchParams)?.return_to,
+    locale,
+    "/catalog?include_experimental=1&resource=setups",
+  );
   setRequestLocale(locale);
   const setupId = tryAsSetupId(stableId);
   if (!setupId) notFound();
@@ -86,6 +97,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
 
   const seo = await readSeoProfile("setup", stableId, locale);
   const summary = detail.summary;
+  const media = detail.media;
   const token = await sessionCookieValue();
   const initiallyLiked = token ? await isLiked(token, stableId) : false;
   let latest: Awaited<ReturnType<typeof readSetupVersion>> | null = null;
@@ -150,7 +162,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
     <article className="mx-auto max-w-6xl min-w-0 space-y-8 overflow-x-clip">
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <Button asChild variant="ghost" size="sm">
-        <Link href="/catalog?include_experimental=1&resource=setups">
+        <Link href={backHref}>
           <Icon name="arrowLeft" size="sm" /> {t("backToCatalog")}
         </Link>
       </Button>
@@ -220,9 +232,26 @@ export default async function SetupDetailPage({ params }: PageProps) {
       <ObjectDetailFrame
         description={
           <MarkdownDescription
-            source={passport?.description ?? summary.latest_description}
+            source={detail.presentation_bio ?? passport?.description ?? summary.latest_description}
             heading={t("description")}
           />
+        }
+        media={
+          media.length > 0 ? (
+            <ComponentMediaGallery
+              items={media}
+              locale={locale}
+              fallbackAlt={`${summary.latest_name} — ${t("gallery")}`}
+              labels={{
+                gallery: t("gallery"),
+                open: t("openMedia"),
+                source: t("mediaSource"),
+                close: t("closeMedia"),
+                previous: t("previousMedia"),
+                next: t("nextMedia"),
+              }}
+            />
+          ) : undefined
         }
         main={
           <>
@@ -275,6 +304,16 @@ export default async function SetupDetailPage({ params }: PageProps) {
                 downloadsLabel={t("artifactDownloads")}
               />
             </div>
+            {passport ? (
+              <SetupLineage
+                passport={passport}
+                labels={{
+                  title: t("setupLineage"),
+                  portedFrom: t("portedFrom"),
+                  related: t("relatedSetups"),
+                }}
+              />
+            ) : null}
             <ContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
             <CliCopyBlock
               command={cliCommand}

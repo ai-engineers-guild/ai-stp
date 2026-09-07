@@ -74,13 +74,11 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
               <Icon name="eye" size="sm" /> {t("viewPublic")}
             </Link>
           </Button>
-          {kind === "component" ? (
-            <Button asChild>
-              <Link href={`/objects/component/${stableId}/edit`} prefetch={false}>
-                <Icon name="edit" size="sm" /> {t("editPresentation")}
-              </Link>
-            </Button>
-          ) : null}
+          <Button asChild>
+            <Link href={`/objects/${kind}/${stableId}/edit`} prefetch={false}>
+              <Icon name="edit" size="sm" /> {t("editPresentation")}
+            </Link>
+          </Button>
         </div>
       </div>
 

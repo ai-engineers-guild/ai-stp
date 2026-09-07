@@ -57,7 +57,7 @@ from ai_stp_contracts.impact import (
 )
 from ai_stp_contracts.safety_checks import SafetyChecksSummary, SetupComponentChecks
 from ai_stp_foundation.digests import DIGEST_PATTERN
-from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.harnesses import HARNESS_IDS, HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.versioning import VERSION_PATTERN
 from ai_stp_passports.versions import (
@@ -74,7 +74,7 @@ type SetupId = Annotated[str, Field(pattern=stable_id_pattern("setup"))]
 type Version = Annotated[str, Field(pattern=VERSION_PATTERN)]
 type PassportDigest = Annotated[str, Field(pattern=DIGEST_PATTERN)]
 type Tags = Annotated[list[TagId], Field(min_length=1, max_length=MAX_TAGS)]
-type DescriptionExcerpt = Annotated[str, Field(min_length=1, max_length=240)]
+type DescriptionExcerpt = Annotated[str, Field(max_length=240)]
 
 #: Published lifecycle states (SPEC-005). `hidden` exists in the model but is
 #: **absent here on purpose**: a hidden object is not disclosed at all, so the
@@ -394,7 +394,7 @@ class ComponentSummary(BaseModel):
     latest_description: DescriptionExcerpt
     latest_harness_id: HarnessId
     #: Every harness the latest version names; includes `latest_harness_id`.
-    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+    latest_harness_ids: Annotated[list[HarnessId], Field(max_length=len(HARNESS_IDS))] = Field(
         default_factory=list[HarnessId]
     )
     latest_component_type: ComponentType
@@ -497,7 +497,7 @@ class ComponentSearchRequest(BaseModel):
     tags: Annotated[list[TagId], Field(max_length=MAX_TAGS)] = Field(default_factory=list[TagId])
     harness_id: HarnessId | None = None
     component_type: ComponentType | None = None
-    harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+    harness_ids: Annotated[list[HarnessId], Field(max_length=len(HARNESS_IDS))] = Field(
         default_factory=list[HarnessId]
     )
     component_types: Annotated[list[ComponentType], Field(max_length=9)] = Field(
@@ -578,7 +578,7 @@ class SetupSearchRequest(BaseModel):
     q: Annotated[str, Field(min_length=1, max_length=200)] | None = None
     tags: Annotated[list[TagId], Field(max_length=MAX_TAGS)] = Field(default_factory=list[TagId])
     harness_id: HarnessId | None = None
-    harness_ids: Annotated[list[HarnessId], Field(max_length=6)] = Field(
+    harness_ids: Annotated[list[HarnessId], Field(max_length=len(HARNESS_IDS))] = Field(
         default_factory=list[HarnessId]
     )
     authors: Annotated[list[str], Field(max_length=20)] = Field(default_factory=list[str])
@@ -703,6 +703,7 @@ class ComponentDetail(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    presentation_bio: Annotated[str, Field(max_length=2000)] | None = None
     summary: ComponentSummary
     versions: Annotated[list[VersionListEntry], Field(min_length=1)]
     media: Annotated[list[ComponentMediaItem], Field(max_length=5)] = Field(
@@ -723,8 +724,12 @@ class SetupDetail(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    presentation_bio: Annotated[str, Field(max_length=2000)] | None = None
     summary: SetupSummary
     versions: Annotated[list[VersionListEntry], Field(min_length=1)]
+    media: Annotated[list[ComponentMediaItem], Field(max_length=5)] = Field(
+        default_factory=list[ComponentMediaItem]
+    )
     #: ISO country codes implied by linked services; never an exclusivity claim.
     country_codes: Annotated[list[CountryCode], Field(max_length=249)] = Field(
         default_factory=list[CountryCode]

@@ -70,7 +70,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "devices", access: "session", presenter: "domain" },
   { pattern: "objects", access: "session", presenter: "domain" },
   { pattern: "likes", access: "session", presenter: "domain" },
-  { pattern: "objects/component/:stableId/edit", access: "session", presenter: "domain" },
+  { pattern: "objects/:kind/:stableId/edit", access: "session", presenter: "domain" },
   {
     pattern: "objects/:kind/:stableId/versions/:version",
     access: "session",

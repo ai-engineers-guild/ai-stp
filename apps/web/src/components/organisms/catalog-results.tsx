@@ -99,8 +99,8 @@ type CatalogResultsProps = {
   likedIds?: ReadonlyArray<string>;
 };
 
-function hrefFor(kind: "components" | "setups", stableId: string): string {
-  return kind === "components" ? `/catalog/components/${stableId}` : `/catalog/setups/${stableId}`;
+function hrefFor(kind: "components" | "setups", stableId: string, returnTo: string): string {
+  return `/catalog/${kind}/${stableId}?${new URLSearchParams({ return_to: returnTo })}`;
 }
 
 function objectCardLabels(labels: CatalogLabels): Parameters<typeof ObjectCard>[0]["labels"] {
@@ -222,7 +222,7 @@ export function CatalogResults({
               <ObjectCard
                 kind={resource === "components" ? "component" : "setup"}
                 item={item}
-                href={hrefFor(resource, item.stable_id)}
+                href={hrefFor(resource, item.stable_id, catalogHref(basePath, query))}
                 labels={cardLabels}
                 view={view}
                 initiallyLiked={likedIds.includes(item.stable_id)}

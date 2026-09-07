@@ -286,7 +286,7 @@
           "items": {
             "$ref": "#/$defs/HarnessId"
           },
-          "maxItems": 6,
+          "maxItems": 7,
           "title": "Latest Harness Ids",
           "type": "array"
         },
@@ -422,7 +422,6 @@
     },
     "DescriptionExcerpt": {
       "maxLength": 240,
-      "minLength": 1,
       "type": "string"
     },
     "FindingSeverity": {

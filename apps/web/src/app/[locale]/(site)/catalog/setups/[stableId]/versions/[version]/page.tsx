@@ -1,3 +1,4 @@
+import { SetupLineage } from "@/components/molecules/setup-lineage";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -146,6 +147,14 @@ export default async function SetupVersionPage({ params }: PageProps) {
       {metadata.archived === true ? (
         <p className="text-sm font-medium">{t("githubArchived")}</p>
       ) : null}
+      <SetupLineage
+        passport={passport}
+        labels={{
+          title: t("setupLineage"),
+          portedFrom: t("portedFrom"),
+          related: t("relatedSetups"),
+        }}
+      />
       <ContextBudgetPanel budget={budget} labels={contextBudgetLabels(t, tCli)} />
       <SetupComposition
         passport={passport}

@@ -1,0 +1,62 @@
+{
+  "$id": "urn:ai-stp:schema:v1:owner-media-upload-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Ready upload reference; the owning object's access policy still applies.",
+  "properties": {
+    "content_type": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Content Type",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "image",
+        "video"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "media_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Media Id",
+      "type": "string"
+    },
+    "public_url": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Public Url",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "size_bytes": {
+      "exclusiveMinimum": 0,
+      "maximum": 26214400,
+      "title": "Size Bytes",
+      "type": "integer"
+    },
+    "state": {
+      "const": "ready",
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "content_type",
+    "kind",
+    "media_id",
+    "public_url",
+    "schema_version",
+    "size_bytes",
+    "state"
+  ],
+  "title": "OwnerMediaUploadResponse",
+  "type": "object"
+}

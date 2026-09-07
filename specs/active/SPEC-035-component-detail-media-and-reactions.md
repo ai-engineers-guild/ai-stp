@@ -56,8 +56,11 @@ arbitrary embeds, and disclosure of the list of reacting accounts are excluded.
   flow and does not create a public GitHub issue.
 - `REQ-3512`: RU/EN, keyboard navigation, reduced motion, mobile layout, and
   labels for external/storage links are covered by web tests.
-- `REQ-3513`: The authenticated component owner may change only the catalog bio
-  and media from the owner workspace and public detail page. This operation does
+- `REQ-3513`: The authenticated component or setup owner may change only the catalog bio
+  and media from the owner workspace and public detail page. Both kinds expose
+  the same owner operations and public presentation fields. Private-object
+  uploads are readable only by their owner; opaque media IDs do not grant access.
+  A saved empty bio remains empty. This operation does
   not change the passport, digest, name, type, tags, source, or versions; another owner's
   `stable_id` returns an indistinguishable `AI_STP_NOT_FOUND`.
 - `REQ-3514`: An authenticated user sees their own reactions on a separate page,

@@ -34,7 +34,9 @@ export type PresentationFormLabels = {
 };
 
 type UploadCtx = {
+  csrfToken: string;
   stableId: string;
+  objectKind?: "component" | "setup";
   labels: PresentationFormLabels;
   mediaRef: { current: PresentationMediaDraft[] };
   uploadGeneration: { current: Map<string, number> };
@@ -201,10 +203,13 @@ async function runUpload(
 
   try {
     const response = await fetch(
-      `/api/objects/component/${encodeURIComponent(ctx.stableId)}/media`,
+      `/api/objects/${ctx.objectKind ?? "component"}/${encodeURIComponent(ctx.stableId)}/media`,
       {
         method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+          "X-CSRF-Token": ctx.csrfToken,
+        },
         body: file,
       },
     );
@@ -236,12 +241,14 @@ async function runUpload(
 export function useObjectPresentationForm(input: {
   locale: string;
   stableId: string;
+  objectKind?: "component" | "setup";
   csrfToken: string;
   initialBio: string;
   initialMedia: OwnerPresentationMedia[];
   labels: PresentationFormLabels;
 }) {
   const { locale, stableId, csrfToken, initialBio, initialMedia, labels } = input;
+  const objectKind = input.objectKind ?? "component";
   const [bio, setBio] = useState(initialBio);
   const [media, setMedia] = useState<PresentationMediaDraft[]>(() =>
     initialMedia.length > 0 ? initialMedia.map(fromInitial) : [emptyItem()],
@@ -249,9 +256,7 @@ export function useObjectPresentationForm(input: {
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, startSaveTransition] = useTransition();
-  // Assigned after commit, not during render: the unmount cleanup below reads
-  // it to revoke object URLs, and a discarded render must not decide which
-  // ones those are.
+  // Only committed state owns the preview URLs released by unmount cleanup.
   const mediaRef = useRef(media);
   useEffect(() => {
     mediaRef.current = media;
@@ -277,7 +282,9 @@ export function useObjectPresentationForm(input: {
   }
 
   const uploadCtx: UploadCtx = {
+    csrfToken,
     stableId,
+    objectKind,
     labels,
     mediaRef,
     uploadGeneration,
@@ -343,6 +350,7 @@ export function useObjectPresentationForm(input: {
       const result = await updateObjectPresentationAction({
         csrfToken,
         stableId,
+        objectKind,
         locale,
         bio,
         media: payload,

@@ -224,7 +224,10 @@ export async function readComponent(stableId: ComponentId): Promise<ComponentDet
 }
 
 export async function readSetup(stableId: SetupId): Promise<SetupDetail> {
-  return publicApiGet<SetupDetail>(`/v1/catalog/setups/${stableId}`);
+  // An older server may omit the additive gallery field during a rolling upgrade.
+  const detail = await publicApiGet<SetupDetail>(`/v1/catalog/setups/${stableId}`);
+  const media = (detail as { media?: SetupDetail["media"] }).media;
+  return { ...detail, media: media ?? [] };
 }
 
 export async function readComponentVersion(

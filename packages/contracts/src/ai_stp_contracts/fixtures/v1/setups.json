@@ -74,7 +74,9 @@
         ],
         "country_codes": [],
         "services": [],
-        "component_checks": []
+        "component_checks": [],
+        "presentation_bio": null,
+        "media": []
       }
     },
     {

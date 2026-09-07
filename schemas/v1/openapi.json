@@ -1516,6 +1516,19 @@
             "title": "Media",
             "type": "array"
           },
+          "presentation_bio": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Presentation Bio"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -1545,6 +1558,7 @@
         "required": [
           "country_codes",
           "media",
+          "presentation_bio",
           "schema_version",
           "services",
           "summary",
@@ -1804,7 +1818,7 @@
             "items": {
               "$ref": "#/components/schemas/HarnessId"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "title": "Harness Ids",
             "type": "array"
           },
@@ -2008,7 +2022,7 @@
             "items": {
               "$ref": "#/components/schemas/HarnessId"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "title": "Latest Harness Ids",
             "type": "array"
           },
@@ -3188,7 +3202,6 @@
       },
       "DescriptionExcerpt": {
         "maxLength": 240,
-        "minLength": 1,
         "type": "string"
       },
       "DetectedHarness": {
@@ -4874,6 +4887,66 @@
         "title": "OwnerLifecycleResponse",
         "type": "object"
       },
+      "OwnerMediaUploadResponse": {
+        "additionalProperties": true,
+        "description": "Ready upload reference; the owning object's access policy still applies.",
+        "properties": {
+          "content_type": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Content Type",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "video"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Media Id",
+            "type": "string"
+          },
+          "public_url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Public Url",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "exclusiveMinimum": 0,
+            "maximum": 26214400,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "state": {
+            "const": "ready",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content_type",
+          "kind",
+          "media_id",
+          "public_url",
+          "schema_version",
+          "size_bytes",
+          "state"
+        ],
+        "title": "OwnerMediaUploadResponse",
+        "type": "object"
+      },
       "OwnerObjectDetail": {
         "additionalProperties": true,
         "description": "Owner object detail with versions.",
@@ -5072,6 +5145,114 @@
           "visibility"
         ],
         "title": "OwnerObjectSummary",
+        "type": "object"
+      },
+      "OwnerPresentationMedia": {
+        "additionalProperties": false,
+        "description": "One safe mutable media item shown on a component catalog page.",
+        "properties": {
+          "alt": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Alt",
+            "type": "string"
+          },
+          "caption": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Caption",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "video",
+              "youtube"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url",
+          "alt"
+        ],
+        "title": "OwnerPresentationMedia",
+        "type": "object"
+      },
+      "OwnerPresentationResponse": {
+        "additionalProperties": true,
+        "description": "Current mutable object presentation for its owner.",
+        "properties": {
+          "bio": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Bio",
+            "type": "string"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerPresentationMedia"
+            },
+            "maxItems": 5,
+            "title": "Media",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "Stable Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bio",
+          "media",
+          "schema_version",
+          "stable_id"
+        ],
+        "title": "OwnerPresentationResponse",
+        "type": "object"
+      },
+      "OwnerPresentationUpdateRequest": {
+        "additionalProperties": false,
+        "description": "Mutable component/setup presentation; never changes passport identity.",
+        "properties": {
+          "bio": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Bio",
+            "type": "string"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerPresentationMedia"
+            },
+            "maxItems": 5,
+            "title": "Media",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "title": "OwnerPresentationUpdateRequest",
         "type": "object"
       },
       "OwnerStartPublicationRequest": {
@@ -7894,6 +8075,27 @@
             "title": "Country Codes",
             "type": "array"
           },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentMediaItem"
+            },
+            "maxItems": 5,
+            "title": "Media",
+            "type": "array"
+          },
+          "presentation_bio": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Presentation Bio"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
@@ -7923,6 +8125,8 @@
         "required": [
           "component_checks",
           "country_codes",
+          "media",
+          "presentation_bio",
           "schema_version",
           "services",
           "summary",
@@ -8064,7 +8268,7 @@
             "items": {
               "$ref": "#/components/schemas/HarnessId"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "title": "Harness Ids",
             "type": "array"
           },
@@ -13032,7 +13236,7 @@
               "items": {
                 "$ref": "#/components/schemas/HarnessId"
               },
-              "maxItems": 6,
+              "maxItems": 7,
               "title": "Harness Ids",
               "type": "array"
             }
@@ -13414,6 +13618,7 @@
                     "value": {
                       "country_codes": [],
                       "media": [],
+                      "presentation_bio": null,
                       "schema_version": 1,
                       "services": [],
                       "summary": {
@@ -14507,7 +14712,7 @@
               "items": {
                 "$ref": "#/components/schemas/HarnessId"
               },
-              "maxItems": 6,
+              "maxItems": 7,
               "title": "Harness Ids",
               "type": "array"
             }
@@ -14876,6 +15081,8 @@
                     "value": {
                       "component_checks": [],
                       "country_codes": [],
+                      "media": [],
+                      "presentation_bio": null,
                       "schema_version": 1,
                       "services": [],
                       "summary": {
@@ -19855,6 +20062,662 @@
           }
         ],
         "summary": "Read one owned object and its versions."
+      }
+    },
+    "/v1/owner/objects/{object_kind}/{stable_id}/presentation": {
+      "get": {
+        "operationId": "readOwnerPresentation",
+        "parameters": [
+          {
+            "description": "Catalog object kind.",
+            "in": "path",
+            "name": "object_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed stable identifier of the catalog object.",
+            "in": "path",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readOwnerPresentation.ownedComponent": {
+                    "summary": "An owner edits mutable presentation independently of the immutable component passport.",
+                    "value": {
+                      "bio": "Owner catalog biography",
+                      "media": [],
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerPresentationResponse"
+                }
+              }
+            },
+            "description": "Read the current owner's mutable component or setup presentation.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the current owner's mutable component or setup presentation."
+      },
+      "put": {
+        "operationId": "updateOwnerPresentation",
+        "parameters": [
+          {
+            "description": "Catalog object kind.",
+            "in": "path",
+            "name": "object_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed stable identifier of the catalog object.",
+            "in": "path",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "updateOwnerPresentation.ownedComponent": {
+                  "summary": "An owner edits mutable presentation independently of the immutable component passport.",
+                  "value": {
+                    "bio": "Owner catalog biography",
+                    "media": [],
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/OwnerPresentationUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "updateOwnerPresentation.ownedComponent": {
+                    "summary": "An owner edits mutable presentation independently of the immutable component passport.",
+                    "value": {
+                      "bio": "Owner catalog biography",
+                      "media": [],
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerPresentationResponse"
+                }
+              }
+            },
+            "description": "Replace an owned object's presentation without changing its passport.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Replace an owned object's presentation without changing its passport."
+      }
+    },
+    "/v1/owner/objects/{object_kind}/{stable_id}/presentation/media": {
+      "post": {
+        "operationId": "uploadOwnerPresentationMedia",
+        "parameters": [
+          {
+            "description": "Catalog object kind.",
+            "in": "path",
+            "name": "object_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed stable identifier of the catalog object.",
+            "in": "path",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "uploadOwnerPresentationMedia.ownedComponent": {
+                    "summary": "An owner edits mutable presentation independently of the immutable component passport.",
+                    "value": {
+                      "content_type": "image/png",
+                      "kind": "image",
+                      "media_id": "media_fixture_upload",
+                      "public_url": "/v1/media/component/media_fixture_upload",
+                      "schema_version": 1,
+                      "size_bytes": 128,
+                      "state": "ready"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerMediaUploadResponse"
+                }
+              }
+            },
+            "description": "Upload image or video bytes for an owned object's presentation.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Upload image or video bytes for an owned object's presentation."
       }
     },
     "/v1/owner/objects/{object_kind}/{stable_id}/versions/{version}": {
