@@ -1,101 +1,94 @@
 ---
-description: "Verifiable inventory of the actual bytes and passports in the first-party launch corpus."
-last_verified: "2026-09-05"
+description: "Rebuilding and publishing the first-party corpus from exact attested setup-system releases."
+last_verified: "2026-09-07"
 ---
 
 # First-party launch corpus
 
-The normative composition of the catalog belongs to
-[ADR-0034](../adr/ADR-0034-first-party-launch-corpus.md), and the release threshold —
-[release-evidence.md](release-evidence.md). Here is stored a verifiable
-inventory of already prepared items, without changing the required composition.
+`ai_stp_contracts.first_party.versions()` owns the current inventory: complete
+sealed passports, exact artifacts, stable identities, and version pins. The
+catalog composition belongs to [ADR-0034](../adr/ADR-0034-first-party-launch-corpus.md)
+and publication acceptance to [SPEC-021](../../specs/active/SPEC-021-anonymous-catalog-read-and-seed.md).
 
-## How the corpus is built
+## Rebuild from an exact provider release
 
-`release_scripts/build_first_party_corpus.py`. Until 2026-08-29 the builder **did not exist**: manifests and built-in artifacts were assembled outside of this repository. That is why the corpus continued to reference the estate, transferred to a personal account and archived on 2026-08-25 — there was nothing to rebuild it from here, so no one noticed.
+`release_scripts/build_first_party_corpus.py` reads every posture in `POSTURES`
+for every requested harness in `REPOSITORIES`. `--release` is required for a
+build. The existing attested provider acquisition verifies the release artifact,
+source commit, and signer before running `provider-info`. The builder reads that
+same source commit for the Git tree and limits each posture's path history to
+that commit. A later update to `main` cannot change captured provenance.
 
-The collector reads the `setups/nddev-builder/` tree of each setup system on its current `main`, lays out each path according to **the same projection table used by the compiler** (`composition.rule_for`), packs the result, and records its own tree and blob SHA of git as provenance.
-
-There are two things he deliberately does not do. He does not invent a component for a path that is not routed by any rule: the only such path is codex `agents/nddev-builder.toml`, and this is a model confirmation, not an omission (the role of codex is a table `agents.<name>` in the configuration file plus the layer it points to, meaning the configuration satellite, not a component of any kind). And he does not reuse stable identifiers: these are objects from another repository, and the old IDs would imply that the published version came from a source from which it did not come.
-
-## What has been replaced and at what cost
-
-The previous corpus contained 126 objects, of which **120 were called archival repositories** under a personal account. It could not be corrected by editing: `source` and commit are part of the content-addressable passport, and the published `X.Y` is immutable (`REQ-2606`). The only honest correction is other objects with new identifiers.
-
-The price is given as a number, not a paragraph: **126 items with provenance in the archive become 40 with a live source.** 60 role components came from `rldyour-claudecode` and `rldyour-codex` — both archived under the same personal account — and there is no live repository from which they can be reconstructed. This, and not a model decision, is the reason why the role corpus was removed.
-
-Old objects remain published and immutable. Withdrawal is a decision not to sow new ones, not the removal of those already released.
-
-## Composition, measured by assembly
-
-Seven harnesses, 40 objects: 33 components and 7 setups, all versions `1.0`.
-
-| Harness | Components | Types |
-|---|---:|---|
-| claude-code | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
-| opencode | 7 | agent 1, command 3, instruction 1, setting 1, skill 1 |
-| pi | 6 | command 3, instruction 1, setting 1, skill 1 |
-| codex | 5 | command 3, instruction 1, setting 1 |
-| grok-build | 4 | agent 1, instruction 1, setting 1, skill 1 |
-| antigravity | 2 | plugin 1, setting 1 |
-| cursor | 2 | plugin 1, setting 1 |
-
-There are **intentionally no** commits, blob-SHA, or passport digest here. Their live owner is — `ai_stp_contracts.first_party.versions()` and `corpus-sources.json` next to the artifacts; the table in the document was their copy and during one session on 2026-08-29 it became outdated twice. The current values are printed by:
+Build into a copy of the previous corpus so identifiers and version history are
+available and an interrupted capture cannot damage the working corpus:
 
 ```bash
-uv run python -c "from ai_stp_contracts.first_party import versions
-for v in versions(): print(v.kind, v.passport.stable_id, v.passport_digest)"
+cp -a packages/contracts/src/ai_stp_contracts/first_party/v1 /tmp/corpus-next
+uv run --locked python release_scripts/build_first_party_corpus.py \
+  --out /tmp/corpus-next --release <exact-provider-tag>
 ```
 
-Check whether the body has diverged from the providers — by content, not by HEAD:
+The report and `corpus-release-pins.json` record the release tag, resolved commit,
+artifact digest, and attestation trust level per harness. `corpus-sources.json`
+retains source paths, Git object hashes, stable identities, exact versions, and
+compiler projection paths. The pin receipt is build evidence outside immutable
+passports. Platform support comes from the verified provider capability declaration.
+
+The builder uses `composition.rule_for`; an unrouted path is reported instead of
+being silently relabeled. Native Codex agent roles are supported by the current
+projection registry. The full report must be reviewed before importing a capture.
+
+## Identity, versions, and provenance
+
+A component's held identity is `(harness, kind, slug, posture)`. A setup's held
+identity is `(harness, posture)`. Rebuilding preserves those identities and reports
+new ones. Objects from the displaced archived estate retain their historical
+identities and public versions; rebuilding does not remove or rewrite them.
+
+`source.commit` names the last commit touching the captured posture at the pinned
+release. Component `source_tree` values are Git blob/tree hashes derived from the
+actual captured bytes and modes. A provider release that does not change the
+payload does not by itself require a new component identity.
+
+Published `X.Y` versions are immutable. `--bump-all` advances all held objects when
+a coordinated release changes their passport representation or setup pins;
+`--bump-id` advances an explicitly named object. Before publication, compare the
+candidate passports with the public exact versions and refuse any same-version
+change. A rebuild is not permission to overwrite an existing publication.
+
+## Inspect the current corpus
+
+Read the packaged inventory rather than retaining a hand-copied count:
 
 ```bash
-just corpus-drift
+uv run --locked python -c "from collections import Counter
+from ai_stp_contracts.first_party import versions
+items = versions()
+print(dict(Counter(v.kind for v in items)))
+for v in items: print(v.kind, v.passport.stable_id, v.passport.version, v.passport_digest)"
 ```
 
-`--drift` indicates how many components and setups have actually shifted, and does not collect anything. The lag on the component is a published state, not a failure: it will be carried by the next version.
+`just corpus-drift` compares captured content with current provider `main` and
+reports the exact heads it read. It does not rebuild or refuse ordinary content
+lag. Release reproduction uses the explicit tag above; a drift check against a
+later `main` answers a different question.
 
-The recipe was created on 2026-08-29, and before it, there was a full script call with `--out`. The difference is not cosmetic: the command that needs to be executed manually runs only when it is remembered — and this module is tied to the digest and is not displayed locally, so aside from this command, there is nothing to report as 'content is lagging.' The very first run after the recipe was created showed that it was lagging: ten component files across all seven harnesses and two setups, `codex` and `cursor`; twenty-three objects had not changed (`#461`).
+Contract tests reconstruct source Git hashes from packaged bytes, check compiler
+placements, validate each closed native projection, and verify exact setup pins.
+An unchanged passport digest proves immutability; source comparison proves
+whether the corpus still represents the desired provider release.
 
-Forty objects of the corpus are the class that is protected from modification and immune to any discrepancy: `passport_digest` refuses silent edits and says nothing about whether the content matches the source.
+## Publication
 
-## Provenance names the commit that produced the bytes
+`load_first_party_seed()` is gated dev/test bootstrap. It validates the canonical
+corpus and is never the production publication path.
+`apps/cli/tools/first_party_launch_publication.py` uses normal authenticated plans,
+artifact binding, confirmation, and publication. It resumes by corpus digest and
+idempotency keys. Components precede setups; every setup's exact component pins
+must exist before confirmation.
 
-`source.commit` — the last commit that touched `setups/nddev-builder`, not the repository HEAD. Until 2026-08-29, this was the HEAD, and since `source` is included in the content-addressable passport, **all seven setups changed the digest with any release of any provider** — including five whose payload did not move. Measured that day: three provider releases shifted two components out of thirty-three and no setups, while all seven passports differed.
-
-The published `X.Y` is immutable, which is why this made the planted corpus 'obsolete' minutes after planting—forever. This appearance, not the content, twice postponed the reseeding of the catalog.
-
-## Identity Undergoes Reassembly
-
-`new_id` generates a new ULID with each call, so until 2026-08-29 every rebuild replaced all forty identities. With the immutable `X.Y` this meant that the seeded corpus had no path from `1.0` to `1.1`: the next provider change could only be published as forty **new** objects, orphaning the seeded set.
-
-Logical identity of a component is `(harness, kind, slug)`; the logical identity of a setup is its harness.
-The rebuild reuses the identifier that the previous build already issued to this object, and prints `new_identities` for paths that were not there before.
-Identifiers of the removed estate are still not reused: those objects came from another repository.
-
-The platform set of each setup — three OSes and two architectures — is **queried from the released provider binary** during the build, rather than recorded as a literal. Until 2026-08-29, `["linux"]` and `["x86_64"]` were placed here, and each published setup underestimated its own support for all seven at once. There is intentionally no spare value in the builder: the literal substituted when the query could not be made is what is returned as a copy.
-
-Exact subpaths, Git object SHA, stable IDs, and the **projection path** of each component belong to `first_party/v1/corpus-sources.json`. The contract test restores each Git blob or tree SHA directly from the embedded bytes and file modes, and separately checks that the declared `managed_path` is exactly what the compiler rule will produce.
-
-The third copy of the projection table no longer exists. It was located in `ai_stp_contracts.first_party` until 2026-08-29 and by that time it was already diverging from `PROVIDER_RULES`: the cursor plugin was `plugins/local` in one and `plugins` in the other. A body whose managed path does not match what the compiler will write is set as "verified" and invisible — exactly what happened with 61 codex skills.
-
-`safe` and `full-auto` remain execution profiles of one setup graph, not two content setups. Switching the profile does not change the component, setup artifact, or graph according to `SPEC-008` `REQ-835`; both profiles are checked by the provider lifecycle separately from the content body.
-
-The imported data owner is `ai_stp_contracts.first_party`. It supplies exact bytes of artifacts, full sealed passports, and their hashes in a single set and is used by both parties instead of independent copies. `catalog_identity(harness, posture)` is the compact catalog projection of those identities (`ADR-0156`): setup id, version, passport digest, and per-component stable id, version, passport digest, and adaptation id. It does not mint identifiers.
-
-## Publication integration
-
-`load_first_party_seed()` remains dev/test fixture scaffolding and is gated by
-the fixture seed environment. It is not the production publication path.
-`apps/cli/tools/first_party_launch_publication.py` is the canonical operator
-workflow: it creates an authenticated plan from the exact corpus bytes, binds
-the exact artifact, confirms the plan, waits for publication, and resumes by
-the saved corpus digest and idempotency keys. Components are always processed
-before setups, and a setup is confirmed only after its exact component pins are
-published.
-
-The closeout oracle must read the published component and setup back through the
-catalog service, read their artifact bytes through the normal object-store path,
-and compare stable IDs, versions, passport/adaptation digests, artifact bytes,
-and setup provenance with `ai_stp_contracts.first_party`. A fixture seed is not
-evidence for that oracle and must never run in production or staging.
+Closeout reads the public components and setups through the catalog and their
+artifacts through normal storage. Compare stable IDs, versions, passport and
+adaptation digests, artifact bytes, and setup provenance with the packaged corpus.
+Author verification, target assessment, and technical support remain independent;
+a release receipt is not a target assessment or a substitute for account login.

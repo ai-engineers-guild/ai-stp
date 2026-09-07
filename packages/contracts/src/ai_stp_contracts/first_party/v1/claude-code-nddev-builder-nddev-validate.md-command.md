@@ -1,7 +1,10 @@
 # Validate
 
-Run everything that must pass before handing off, in order, and report what each
-one said rather than that it passed.
+For a setup, follow the builder's ai-stp lifecycle validation: native component
+checks, exact composition, evaluation, disposable install/readback/restore and
+the intended product tasks. Document capabilities and evidence gaps.
+
+For provider implementation changes, also run this checkout's checks:
 
 ```bash
 cargo fmt --all --check

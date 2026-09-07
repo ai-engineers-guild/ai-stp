@@ -13,6 +13,8 @@ the payload reports no drift, and the one component that did move is named.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -185,10 +187,12 @@ def test_provenance_asks_for_the_path_history_not_the_repository_head(
         asked.append(path)
         return "abc"
 
+    monkeypatch.setattr(builder, "READ_HEADS", {"cursor-setup-system": "c" * 40})
     monkeypatch.setattr(builder, "_gh", _gh)
     assert builder.source_commit("cursor-setup-system", POSTURE) == "abc"
     assert f"path={builder.source_path(POSTURE)}" in asked[0]
     assert "commits/main" not in asked[0]
+    assert "sha=" + "c" * 40 in asked[0]
 
     # Per posture, not per repository. The four move independently, so one
     # answer shared between them would restore the staleness this test exists
@@ -206,6 +210,7 @@ def test_a_path_no_commit_ever_touched_is_refused_rather_than_guessed(
     def _empty(_path: str, _jq: str) -> str:
         return ""
 
+    monkeypatch.setattr(builder, "READ_HEADS", {"cursor-setup-system": "c" * 40})
     monkeypatch.setattr(builder, "_gh", _empty)
     with pytest.raises(RuntimeError, match="no commit has touched"):
         builder.source_commit("cursor-setup-system", POSTURE)
@@ -245,3 +250,27 @@ def test_one_slug_in_two_postures_holds_two_identities(tmp_path: Any) -> None:
     assert components[("cursor", "instruction", "rules/x.mdc", "minimal")] == "component_MIN"
     assert components[("cursor", "instruction", "rules/x.mdc", "baseline")] == "component_BASE"
     assert setups[("cursor", "minimal")] != setups[("cursor", "baseline")]
+
+
+def test_build_requires_an_exact_release_before_creating_output(tmp_path: Any) -> None:
+    output = tmp_path / "corpus"
+    with pytest.raises(SystemExit) as error:
+        builder.main(["--out", str(output)])
+    assert error.value.code == 2
+    assert not output.exists()
+
+
+def test_rebuild_advances_independent_version_lines_and_repeat_keeps_them(tmp_path: Path) -> None:
+    manifest = _manifest()
+    entry = manifest["harnesses"][0]
+    entry.update(setup_id="setup_HELD", setup_version="3.8")
+    for component, version in zip(entry["components"], ("1.0", "2.17"), strict=True):
+        component.update(stable_id=component["slug"], version=version)
+    (tmp_path / "corpus-sources.json").write_text(json.dumps(manifest), encoding="utf-8")
+    held = builder.held_versions(tmp_path)
+    advanced = {key: builder.next_version(version, moved=True) for key, version in held.items()}
+    assert advanced == {"setup_HELD": "3.9", "cli-config.json": "1.1", "nddev-builder": "2.18"}
+    assert {
+        key: builder.next_version(version, moved=False) for key, version in advanced.items()
+    } == advanced
+    assert builder.next_version(None, moved=True) == "1.0"

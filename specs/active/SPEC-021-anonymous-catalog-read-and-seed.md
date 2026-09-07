@@ -157,6 +157,11 @@ storage and migrations as such (`SPEC-020`); REST ready surface
   `version`, `passport_digest`, and `adaptation_id`. The projection does not
   mint identifiers. Compiling that setup through the CLI bundle path yields
   the same setup identity and the same component stable_ids.
+  Rebuilding requires an exact provider release tag. Provider capabilities are
+  read only after artifact and source attestation verification; the captured Git
+  tree and posture path history are bounded by that same verified source commit.
+  The build receipt records the release coordinates and artifact digest outside
+  immutable passports. Repeating a capture preserves held identities and versions.
 
 ## States and errors
 
@@ -214,4 +219,4 @@ canonicalization requires a new version under `SPEC-015`.
 | `REQ-2111` | The test confirms that the API does not mark the version verified beyond the stored evidence state. |
 | `REQ-2112` | The `run_conformance` run over the common fixture body completes with no findings for the API implementation. |
 | `REQ-2113` | Client tests receive the exact setup graph, collect it from the local registry, repeat the acquisition without a network and confirm idempotency; a corrupted cache is rejected, and a failure within a transaction leaves no partial graph. A separate test confirms that a passport without later added fields with default values ​​passes acquire if the revision seal matches the published document. |
-| `REQ-2115` | A table-driven test derives one catalog identity per first-party `(harness, posture)` from corpus passports, agrees with `compile_setup_version_bundle` on setup id/version and component stable_ids, is deterministic, and contains no private authoring coordinates. |
+| `REQ-2115` | A table-driven test derives one catalog identity per first-party `(harness, posture)` from corpus passports, agrees with `compile_setup_version_bundle` on setup id/version and component stable_ids, is deterministic, and contains no private authoring coordinates. Builder tests refuse a missing release before output creation and bound path history to the captured commit; release evidence compares repeat captures and verifies provider attestations. |

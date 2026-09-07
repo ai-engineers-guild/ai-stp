@@ -53,9 +53,8 @@ def _git_tree(entries: dict[str, tuple[int, bytes]]) -> str:
     return digest(root).hex()
 
 
-#: One live repository per harness. The commit is deliberately not pinned: the
-#: corpus is rebuilt from each setup-system's `main`, so a pinned commit would
-#: make this fail on somebody else's push rather than on a defect of ours.
+#: One public repository per harness. Release coordinates belong to the build
+#: receipt, so the contract does not duplicate a particular captured release.
 REPOSITORIES = {
     "antigravity": "https://github.com/NDDev-OpenNetwork/antigravity-setup-system",
     "claude-code": "https://github.com/NDDev-OpenNetwork/claude-setup-system",
@@ -212,16 +211,6 @@ def test_a_setup_publishes_the_platform_set_its_provider_declared() -> None:
         assert tuple(passport.supported_os) == systems, passport.harness_id
         assert tuple(passport.supported_arch) == machines, passport.harness_id
         assert systems and machines
-
-
-def test_republished_objects_advance_without_flattening_version_lines() -> None:
-    """A corpus-wide profile cutover advances every independently evolving line."""
-    seen = {item.passport.version for item in versions()}
-    # New objects start at 1.0. Held lines must keep their own minor, or a
-    # rebuild that reminted everyone as 1.0 would look like one cutover.
-    assert "1.0" in seen, seen
-    assert any(int(version.split(".", 1)[1]) >= 1 for version in seen), seen
-    assert len(seen) > 1, seen
 
 
 def test_first_party_source_manifest_is_canonical_closed_and_unique() -> None:
