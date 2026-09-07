@@ -307,6 +307,7 @@ async def test_saved_presentation_reaches_public_detail_and_search_without_passp
         detail = await client.get(f"/v1/catalog/{object_kind}s/{stable_id}")
         assert detail.status_code == 200, detail.text
         assert detail.json()["presentation_bio"] == bio.strip()
+        assert detail.json()["summary"]["latest_description"]
         assert detail.json()["media"][0]["url"] == media[0]["url"]
         async with sessionmaker() as db:
             metadata = await db.scalar(

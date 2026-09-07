@@ -424,11 +424,7 @@ def component_summary(row: PublicVersionRow, *, now: datetime | None = None) -> 
         updated_at=format_timestamp(row.metadata.updated_at or row.published_at),  # type: ignore[arg-type]
         latest_version=passport.version,  # type: ignore[arg-type]
         latest_name=passport.name,
-        latest_description=_card_excerpt(
-            row.metadata.presentation_bio
-            if row.metadata.presentation_bio is not None
-            else passport.description
-        ),
+        latest_description=_card_excerpt(row.metadata.presentation_bio or passport.description),
         latest_harness_id=cast(
             HarnessId, sorted(item.harness_id for item in passport.adaptations)[0]
         ),
@@ -463,7 +459,7 @@ def _card_excerpt(source: str) -> str:
     already computes it — `project_safe_markdown(...).excerpt`, bounded to 240
     with a trailing ellipsis on a word boundary.
     """
-    return project_safe_markdown(source).excerpt if source else ""
+    return project_safe_markdown(source).excerpt
 
 
 def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> SetupSummary:
@@ -483,11 +479,7 @@ def setup_summary(row: PublicVersionRow, *, now: datetime | None = None) -> Setu
         updated_at=format_timestamp(row.metadata.updated_at or row.published_at),  # type: ignore[arg-type]
         latest_version=passport.version,  # type: ignore[arg-type]
         latest_name=passport.name,
-        latest_description=_card_excerpt(
-            row.metadata.presentation_bio
-            if row.metadata.presentation_bio is not None
-            else passport.description
-        ),
+        latest_description=_card_excerpt(row.metadata.presentation_bio or passport.description),
         latest_harness_id=passport.harness_id,
         latest_harness_ids=named_harness_ids(passport.model_dump(mode="json")),  # type: ignore[arg-type]
         latest_purpose=passport.purpose,

@@ -74,7 +74,7 @@ type SetupId = Annotated[str, Field(pattern=stable_id_pattern("setup"))]
 type Version = Annotated[str, Field(pattern=VERSION_PATTERN)]
 type PassportDigest = Annotated[str, Field(pattern=DIGEST_PATTERN)]
 type Tags = Annotated[list[TagId], Field(min_length=1, max_length=MAX_TAGS)]
-type DescriptionExcerpt = Annotated[str, Field(max_length=240)]
+type DescriptionExcerpt = Annotated[str, Field(min_length=1, max_length=240)]
 
 #: Published lifecycle states (SPEC-005). `hidden` exists in the model but is
 #: **absent here on purpose**: a hidden object is not disclosed at all, so the

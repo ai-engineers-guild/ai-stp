@@ -46,6 +46,9 @@ Arbitrary embeds, HTML, and external hosts are prohibited.
 
 Both detail responses expose `presentation_bio` and ready `media`.
 The public catalog projection uses `bio` if the owner saved it, and otherwise
-returns the current passport's `description`. An explicitly empty bio remains empty.
+returns the current passport's `description`. The full `presentation_bio` preserves
+an explicitly empty bio. The legacy `latest_description` summary remains a
+non-empty excerpt for released consumers and uses the passport description when
+the bio is empty; human and machine detail pages use the full field.
 The search projection is refreshed atomically when presentation changes. The public media projection still
 contains only items in the `ready` state.
