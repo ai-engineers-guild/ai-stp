@@ -75,7 +75,10 @@ def handle_from_account_id(account_id: str) -> str:
     """Deterministic unique handle used only for backfill of unnamed accounts."""
     _prefix, _sep, suffix = account_id.partition("_")
     compact = re.sub(r"[^a-z0-9]", "", suffix.casefold()) or "account"
-    return normalize_handle(f"user-{compact[:24]}")
+    prefix = "user-"
+    # A canonical account ULID fits in full. Truncating it to 24 characters
+    # removed the final ten bits and collided for otherwise distinct accounts.
+    return normalize_handle(f"{prefix}{compact[: HANDLE_MAX_LENGTH - len(prefix)]}")
 
 
 def is_protected_official_handle(handle: str) -> bool:

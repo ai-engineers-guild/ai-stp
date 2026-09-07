@@ -56,6 +56,13 @@ and upstream synchronization, which belong to their existing specifications.
 - `REQ-5908`: Migration inventories normalized conflicts before enabling unique
   constraints. A conflict blocks constraint activation and is reported with
   opaque IDs; migration never silently renames, merges, or selects an owner.
+  Default names for previously unnamed accounts retain the full canonical
+  account ULID, including its final characters. Generating defaults must not
+  introduce a collision by truncating distinct account IDs. Existing assigned
+  handles and display names remain unchanged.
+  A targeted legacy locale repair selects only the conflicting normalized
+  name in that locale; an Official source's existence does not authorize
+  rewriting unrelated lines or their other localized names.
 
 ## States and errors
 
@@ -89,7 +96,7 @@ reading version-level ownership as current ownership.
 | `REQ-5905` | Contract and PostgreSQL tests reject duplicate RU/EN names in the same locale and expose exact localized identity fields. |
 | `REQ-5906` | A foreign account and a pre-transfer stale plan both fail to publish a new version without side effects. |
 | `REQ-5907` | A transfer changes current owner once while exact historical version reads retain original provenance. |
-| `REQ-5908` | A collision fixture blocks constraint activation and emits a deterministic conflict report without rewriting names. |
+| `REQ-5908` | A collision fixture blocks constraint activation and emits a deterministic conflict report without rewriting names. A populated pre-identity database with account IDs differing only at the end upgrades and repeats without generated-name collisions. |
 
 ## Required checks
 

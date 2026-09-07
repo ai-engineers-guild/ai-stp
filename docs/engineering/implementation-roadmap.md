@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-06"
+last_verified: "2026-09-07"
 ---
 
 # Current status and plan
@@ -13,6 +13,54 @@ The remaining-work owner tracks current `main`. Recast file identity, modes,
 scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 `#151` (transform `1.3`). Shared `cli` prefix containment landed in `#152`.
 `#146` tracks platform closure mismatches. Merged PRs are not the OBT release.
+
+## September 7 audit and execution order
+
+This measurement starts at `44116426`, after reviewing September 4–7 GitHub
+history and the available Claude, Codex and Grok session handoffs. Session
+closure and a green source check do not establish a healthy deployed product.
+
+| Recent work | Current evidence and limitation |
+|---|---|
+| Discovery, adoption and exact identity | `#119`, `#120`, `#129`, `#130`, `#135`, `#159`, `#170`: bounded discovery, root overlap refusal, moved-source identity, program/materialization identity, and MCP host-key freezing. Preserve their regressions. |
+| Authoring and composition | `#113`, `#123`, `#124`, `#142`, `#144`, `#145`, `#147`, `#151`, `#156`: coordinated standard family, native adaptations, recast, scoped conversion and separate component evaluation. These are source implementations, not a new release qualification. |
+| Authority and harness coverage | `#131`–`#138`, `#141`, `#153`: task authority, uniform preset autonomy, seven beta harnesses, and explicit bootstrap roots. |
+| Distribution | `#160` / `#161`: published CLI `0.0.18`; seven provider releases `0.0.66` are recorded by their public repositories. The MCP fix in `#170` postdates the CLI artifact. |
+| Platform and web | The current open issues `#139`, `#140`, `#146`, `#155`, `#162`–`#169` retain specific consumer and user-flow gaps. The unmerged colleague branch must be compared before duplicating its implementation. |
+| Production | `/v1/system/version` returned `0.0.16`, commit `aa9314ff`, schema `0036_official_projection`. The latest deploy run `34068205176` failed while expecting schema `0047_repair_official_locale_collisions`. Host logs reproduce an account identity collision in migration `0040`. |
+
+Execute in this order, updating each result from the actual commands:
+
+1. **Restore deployment progression.** Reproduce the unnamed-account collision
+   against an isolated database upgraded from the deployed schema. Preserve
+   the complete account identifier when deriving its default handle, keep
+   existing names and ownership intact, and prove repeat upgrade and rollback.
+   Deploy through the normal promoted ref and verify the served commit/schema.
+2. **Complete native setup authoring.** The provider builders must create a
+   complete tool collection for user tasks, document supplied capabilities,
+   resolve exact components and native scopes, and demonstrate installation,
+   invocation and recovery. Refresh vendor artifacts, native-format evidence,
+   generated payloads and their digests in the provider sources. Verify all
+   seven rendered trees and the released consumer boundary.
+3. **Reconcile platform consumers.** Compare the existing colleague branch and
+   current implementations against `#146`, `#155`, `#139` and `#140`. Complete
+   canonical corpus/artifact ingestion, the `cli` kind in storage, assessments
+   per adaptation, setup provenance and derived beta support tiers. Preserve
+   ownership isolation and immutable public versions.
+4. **Close concrete account/catalog flows.** Verify private owner/grantee
+   artifact access (`#162`–`#164`), setup presentation and service editing
+   (`#165`–`#166`), catalog navigation state (`#167`), identity-avatar import
+   (`#168`) and exact-artifact context estimates (`#169`). Use real storage
+   integration and user-visible tests; unavailable bytes stay unavailable.
+5. **Qualify and release the resulting artifacts.** Run the full local gate,
+   native six-leg configuration/program/scope/contribution/launch evidence,
+   and the live/account-bound slices at their exact identities. Refresh the
+   corpus from immutable provider tags. Only then make the coordinated next
+   cut and verify indexes, releases, public deployment and clean Git state.
+
+The architecture/product proposals listed below remain distinct from repairing
+the current product. A Rust rewrite or a new component taxonomy does not
+follow from finding an incomplete deployed user flow.
 
 ## Decision-making vision
 
