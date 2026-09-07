@@ -64,6 +64,7 @@ def set_digest(members: Sequence[PublicationSetMemberView]) -> str:
             "version": member.version,
             "plan_hash": member.plan_hash,
             "already_published": member.already_published,
+            **({"visibility": member.visibility} if member.visibility != "public" else {}),
         }
         for member in members
     ]

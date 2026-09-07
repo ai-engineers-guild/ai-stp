@@ -57,7 +57,8 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ]
+        ],
+        "visibility": "public"
       }
     },
     {
@@ -89,7 +90,8 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ]
+        ],
+        "visibility": "public"
       }
     },
     {
@@ -121,7 +123,8 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ]
+        ],
+        "visibility": "public"
       }
     },
     {
@@ -159,7 +162,8 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ]
+        ],
+        "visibility": "public"
       }
     },
     {
@@ -613,7 +617,8 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ]
+        ],
+        "visibility": "public"
       }
     },
     {

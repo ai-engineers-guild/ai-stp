@@ -78,6 +78,13 @@ OS/architecture legs. Missing launch evidence remains `not_verified`.
 
 ## Cross-repository order
 
+An extension of a strict reader's accepted schema ships the compatible consumer
+reader first, as a released artifact. The provider writer is tagged only after
+its emitted declaration passes against that installed reader. SPEC-068 follows
+this order for complete native preservation. The acquisition and corpus cycle
+below starts after that reader prerequisite; an older closed reader cannot gain
+tolerance from a later writer release.
+
 1. Implement and validate a provider contract change in its source estate.
 2. Render and validate the affected public setup-system trees.
 3. Publish immutable provider artifacts with their provenance.

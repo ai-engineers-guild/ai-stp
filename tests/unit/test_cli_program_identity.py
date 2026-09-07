@@ -57,6 +57,20 @@ def _next_version(connection: sqlite3.Connection, stable_id: str) -> None:
     )
 
 
+def test_explicit_version_status_does_not_follow_or_change_current() -> None:
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        stable_id = _component(connection)
+        cli_program.install(connection, stable_id=stable_id, version="1.0")
+        _next_version(connection, stable_id)
+        assert (
+            cli_program.status(connection, stable_id=stable_id, version="1.1").state
+            == "never_installed"
+        )
+        cli_program.install(connection, stable_id=stable_id, version="1.1")
+        assert cli_program.status(connection, stable_id=stable_id, version="1.0").version == "1.0"
+        assert cli_program.status(connection, stable_id=stable_id).version == "1.1"
+
+
 def test_status_reports_the_installed_version_not_the_newest_registry_version() -> None:
     with closing(open_registry(configured_path(), create=True)) as connection:
         stable_id = _component(connection)

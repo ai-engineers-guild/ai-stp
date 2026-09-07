@@ -45,6 +45,7 @@ from ai_stp_cli.local import (
     journal,
     managed_diff,
     multi_root,
+    preserved_setups,
     project_passport,
     provider_releases,
     revisions,
@@ -328,6 +329,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             provider_target,
             protocol_version,
+            **_native_companion_access(pair.harness_id, provider_target),
             unisolated_reason=trust.unisolated_reason(trusted_release, effective_parameters),
         )
         info = _object(invoke("provider-info", ()))
@@ -473,6 +475,17 @@ def _plan_v3(
     """Plan the existing installation state machine through protocol v3."""
     capabilities = _v3_capabilities(info, pair.harness_id, "")
     operation = _v3_operation(action)
+    capture_mode = (
+        "complete_native"
+        if operation
+        in {
+            protocol_v3.Operation.INSTALL,
+            protocol_v3.Operation.REPLACE,
+            protocol_v3.Operation.BACKUP,
+            protocol_v3.Operation.REMOVE,
+        }
+        else None
+    )
     try:
         capabilities.require(operation)
     except protocol_v3.UnsupportedOperation as error:
@@ -625,6 +638,7 @@ def _plan_v3(
             "" if bound_bundle is None else bound_bundle.artifact_digest,
             backup_ref or "",
             permission_profile or "",
+            capture_mode or "",
         )
     )
     existing = installation.active_for_idempotency(connection, idempotency_key)
@@ -672,6 +686,7 @@ def _plan_v3(
         bundle=bound_bundle,
         target_scope=planned_scope,
         accepted_request_fields=capabilities.plan_request_fields,
+        capture_mode=capture_mode,
     )
     provider_plan = operation_v3.require_plan(
         _object(invoke("plan-operation", arguments)),
@@ -687,7 +702,24 @@ def _plan_v3(
         expires_at=expires_at,
         target_scope=planned_scope,
         surviving=_surviving(compiled) if operation is protocol_v3.Operation.REMOVE else None,
+        capture_mode=capture_mode,
     )
+    preserved_id = str(parameters.get("preserved-setup") or "")
+    if preserved_id:
+        saved = preserved_setups.held(connection, preserved_id)
+        native = provider_plan.artifact.get("native_capture")
+        if (
+            saved is None
+            or not isinstance(native, dict)
+            or saved.provider_id != capabilities.provider_id
+            or saved.snapshot_digest != native.get("restore_digest")
+            or saved.backup_ref != backup_ref
+            or saved.provider_target != provider_target
+        ):
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the provider plan does not restore the selected preserved setup",
+            )
     cache.store_provider_plan(provider_plan.artifact, provider_plan.digest)
     recorded = installation.propose(
         connection,
@@ -765,6 +797,9 @@ def apply(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
+            **_native_companion_access(
+                installation.target_pair(held.target_id)[1], held.provider_target
+            ),
             unisolated_reason=trust.unisolated_reason(
                 trusted_release,
                 parameters,
@@ -925,7 +960,7 @@ def _apply_v3(
     installation.begin(
         connection,
         held.operation_id,
-        observed_target_digest=_target_digest(invoke),
+        observed_target_digest=_target_digest(invoke, _status_tail(capabilities, held)),
         at=moment(),
     )
     arguments: tuple[str, ...] = (
@@ -999,6 +1034,14 @@ def _apply_v3(
         backup_ref=str(answer.get("backup_ref", "")) or None,
     )
     status_answer = _object(invoke("status", _status_tail(capabilities, held)))
+    _register_preserved_snapshot(
+        connection,
+        held,
+        provider_plan,
+        capabilities,
+        status_answer,
+        str(answer.get("backup_ref") or ""),
+    )
     observed = operation_v3.require_verified_status(
         status_answer,
         capabilities=capabilities,
@@ -1107,6 +1150,9 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             executable,
             held.provider_target or held.target_id,
             held.provider_protocol_version,
+            **_native_companion_access(
+                installation.target_pair(held.target_id)[1], held.provider_target
+            ),
             unisolated_reason=trust.unisolated_reason(
                 trusted_release,
                 parameters,
@@ -1145,6 +1191,9 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 recovery_state == "recovery_required"
                 or cleanup_state in protocol_v3.CLEANUP_NEEDS_RECOVERY
             ):
+                _register_preserved_snapshot(
+                    connection, held, provider_plan, capabilities, status_answer, required=False
+                )
                 recovered = _object(invoke("recover-operation", ()))
                 recovered_digest = str(recovered.get("target_digest", ""))
                 if recovered_digest == str(provider_plan.artifact["expected_target_digest"]):
@@ -1158,6 +1207,9 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 status_answer = _object(invoke("status", _status_tail(capabilities, held)))
             if state == installation.STATE_APPLYING:
                 installation.applied(connection, operation_id, at=moment())
+            _register_preserved_snapshot(
+                connection, held, provider_plan, capabilities, status_answer
+            )
             try:
                 observed = operation_v3.require_verified_status(
                     status_answer,
@@ -1218,6 +1270,106 @@ def resume(parameters: Mapping[str, object]) -> Answer[InstallationView]:
 
     with closing(open_registry(configured_path(), create=True)) as connection:
         return Answer(work(connection))
+
+
+def recover_preserved(
+    parameters: Mapping[str, object],
+    *,
+    settle_provider: bool = False,
+) -> Answer[InstallationView]:
+    """Recover a capture identity from fresh evidence without replaying target effects."""
+    operation_id = _operation(parameters)
+    with closing(open_registry(configured_path())) as connection:
+        held = installation._require(connection, operation_id)  # pyright: ignore[reportPrivateUsage]
+        if held.provider_protocol_version != protocol_v3.VERSION:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED", "the operation has no native capture binding"
+            )
+        _, harness_id = installation.target_pair(held.target_id)
+        executable = _executable(parameters, connection=connection, harness_id=harness_id)
+        trusted_release = _verify_bound_release(connection, held, executable)
+        plan_path = cache.stored_provider_plan(held.provider_plan_digest)
+        if plan_path is None:
+            raise CliFailure("AI_STP_PRECONDITION_FAILED", "the exact provider plan is unavailable")
+        provider_plan = operation_v3.load_plan(plan_path, held.provider_plan_digest)
+        if provider_plan.artifact.get("native_capture") is None:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED", "the operation has no native capture binding"
+            )
+        invoke = invocation.provider_invoker(
+            executable,
+            held.provider_target,
+            held.provider_protocol_version,
+            **_native_companion_access(
+                installation.target_pair(held.target_id)[1], held.provider_target
+            ),
+            unisolated_reason=trust.unisolated_reason(
+                trusted_release,
+                parameters,
+                recorded_trust=held.provider_release_trust,
+            ),
+        )
+        info = _object(invoke("provider-info", ()))
+        _speaks(info, held.provider_protocol_version)
+        capabilities = _v3_capabilities(info, harness_id, held.bundle_format)
+        answer = _object(invoke("status", _status_tail(capabilities, held)))
+        _register_preserved_snapshot(connection, held, provider_plan, capabilities, answer)
+        if settle_provider and (
+            answer.get("state") == "recovery_required"
+            or answer.get("cleanup_state") in protocol_v3.CLEANUP_NEEDS_RECOVERY
+        ):
+            _require_independent_operation(connection, operation_id)
+            pending = answer.get("journal")
+            if pending is not None and (
+                not isinstance(pending, dict) or pending.get("operation_id") != operation_id
+            ):
+                raise CliFailure(
+                    "AI_STP_PRECONDITION_FAILED",
+                    "the provider journal belongs to another operation",
+                )
+            _object(invoke("recover-operation", ()))
+            answer = _object(invoke("status", _status_tail(capabilities, held)))
+            _register_preserved_snapshot(connection, held, provider_plan, capabilities, answer)
+        return Answer(_view(connection, held))
+
+
+def _register_preserved_snapshot(
+    connection: sqlite3.Connection,
+    held: installation.Plan,
+    provider_plan: operation_v3.ProviderPlan,
+    capabilities: protocol_v3.ProviderCapabilities,
+    status_answer: dict[str, JsonValue],
+    backup_ref: str = "",
+    *,
+    required: bool = True,
+) -> None:
+    """Recover capture identity from status even when the apply response was lost."""
+    if provider_plan.artifact.get("native_capture") is None:
+        return
+    copies = provider_status.backups(status_answer) or ()
+    matching = [
+        item
+        for item in copies
+        if item.native_snapshot is not None
+        and item.native_snapshot.operation_id == held.operation_id
+        and (not backup_ref or item.backup_ref == backup_ref)
+    ]
+    if not matching and not required:
+        return
+    if len(matching) != 1:
+        raise CliFailure(
+            "AI_STP_PARTIAL_OPERATION",
+            "the provider did not identify one preserved native setup",
+            details={"operation_id": held.operation_id},
+        )
+    preserved_setups.register(
+        connection,
+        plan=held,
+        provider_id=capabilities.provider_id,
+        artifact=provider_plan.artifact,
+        observed=matching[0],
+        at=moment(),
+    )
 
 
 def _mapped(connection: sqlite3.Connection, operation_id: str, reported: str) -> str:
@@ -2082,6 +2234,11 @@ def _view(connection: sqlite3.Connection, held: installation.Plan) -> Installati
         bundle_size=held.bundle_size,
         provider_plan_digest=held.provider_plan_digest,
         backup_ref=installation.backup_reference(connection, held.operation_id),
+        preserved_setup_id=(
+            saved.stable_id
+            if (saved := preserved_setups.for_operation(connection, held.operation_id))
+            else None
+        ),
         required_authorization=requirements.requires_authorization,
         effects=list(held.effects),
         setup_name=requirements.name,
@@ -2305,6 +2462,19 @@ def _observation_warnings(parameters: Mapping[str, object], observed: str) -> tu
     return ()
 
 
+def _native_companion_access(harness: str, target: str) -> dict[str, tuple[Path, ...]]:
+    """Expose Claude's declared companion through an otherwise read-only sandbox.
+
+    Creation or deletion of the companion needs its directory writable. The
+    provider's digest-bound closed cover limits the effect to .claude.json and
+    the named target; no other harness or ancestor receives this mount.
+    """
+    path = Path(target)
+    if harness == "claude-code" and path.name == ".claude" and path.is_absolute():
+        return {"writable": (path.parent,)}
+    return {}
+
+
 def _optional_invoker(
     connection: sqlite3.Connection,
     parameters: Mapping[str, object],
@@ -2332,6 +2502,7 @@ def _optional_invoker(
         executable,
         target,
         version,
+        **_native_companion_access(harness, target),
         unisolated_reason=trust.unisolated_reason(trusted_release, parameters),
     )
 
@@ -2512,7 +2683,7 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
         )
     with closing(open_readonly(registry)) as connection:
         resolved = _project_id(connection, project_id)
-        observed = _observe_backups(connection, parameters, resolved, harness)
+        observed = observe_backups(connection, parameters, resolved, harness)
         found = targets.backups(connection, project_id=resolved, harness_id=harness)
         journalled = {item.backup_ref for item in found}
         return Answer(
@@ -2541,11 +2712,13 @@ def target_backups(parameters: Mapping[str, object]) -> Answer[TargetBackups]:
         )
 
 
-def _observe_backups(
+def observe_backups(
     connection: sqlite3.Connection,
     parameters: Mapping[str, object],
     project_id: str,
     harness: str,
+    *,
+    expected_provider_id: str = "",
 ) -> dict[str, provider_status.BackupObservation] | None:
     """What the provider says it owns right now, or `None` if none was named.
 
@@ -2562,7 +2735,17 @@ def _observe_backups(
     invoke = _optional_invoker(connection, parameters, project_id, harness)
     if invoke is None:
         return None
-    tail = _pair_status_tail(connection, invoke, project_id, harness)
+    if expected_provider_id:
+        capabilities = _v3_capabilities(_object(invoke("provider-info", ())), harness, "")
+        if capabilities.provider_id != expected_provider_id:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED", "the preserved setup belongs to another provider"
+            )
+    if parameters.get("scope"):
+        capabilities = _v3_capabilities(_object(invoke("provider-info", ())), harness, "")
+        tail = operation_v3.status_arguments(capabilities, str(parameters["scope"]))
+    else:
+        tail = _pair_status_tail(connection, invoke, project_id, harness)
     reported = provider_status.backups(_object(invoke("status", tail)))
     if reported is None:
         return None

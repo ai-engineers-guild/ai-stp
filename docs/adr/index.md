@@ -163,6 +163,9 @@ last_verified: "2026-08-03"
 | [ADR-0162-component-identity-owns-an-immutable-projection-set.md](ADR-0162-component-identity-owns-an-immutable-projection-set.md) | Decision that one catalog component owns one immutable versioned set of exact harness projections and remains the sole social and usage subject. | 2026-09-06 |
 | [ADR-0163-assurance-is-bound-to-an-exact-adaptation-target.md](ADR-0163-assurance-is-bound-to-an-exact-adaptation-target.md) | Decision to separate reusable artifact safety evidence from target-bound adaptation assessment and derive component verification conservatively. | 2026-09-06 |
 | [ADR-0165-related-single-harness-setups-form-an-explicit-family.md](ADR-0165-related-single-harness-setups-form-an-explicit-family.md) | Decision to group related single-harness setups through an explicit catalog family and compare exact versions using a harness-independent invariant digest. | 2026-09-06 |
+| [ADR-0167-preserved-setups-bind-complete-native-snapshots.md](ADR-0167-preserved-setups-bind-complete-native-snapshots.md) | ADR-0167: A preserved setup binds a complete provider-owned native snapshot. | 2026-09-07 |
+| [ADR-0168-environments-coordinate-separate-harness-setups.md](ADR-0168-environments-coordinate-separate-harness-setups.md) | ADR-0168: Project environments coordinate separate harness setup operations. | 2026-09-07 |
+| [ADR-0169-distribution-visibility-does-not-rewrite-versions.md](ADR-0169-distribution-visibility-does-not-rewrite-versions.md) | ADR-0169: Distribution visibility changes independently of immutable version passports. | 2026-09-07 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

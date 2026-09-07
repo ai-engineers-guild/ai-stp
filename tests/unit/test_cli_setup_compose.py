@@ -122,7 +122,7 @@ def test_path_component_composes_and_records_a_publishable_setup() -> None:
         stored = revisions.get(connection, recorded.revision_id)
         assert stored is not None
         passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
-        assert passport.visibility == "public"
+        assert passport.visibility == "private"
         assert verify_revision_id(passport)
         assert passport.model_extra is not None
         assert passport.model_extra["harness_ids"] == [

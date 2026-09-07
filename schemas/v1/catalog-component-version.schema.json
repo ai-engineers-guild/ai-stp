@@ -1797,6 +1797,19 @@
       ],
       "default": null
     },
+    "distribution_visibility": {
+      "anyOf": [
+        {
+          "const": "public",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Distribution Visibility"
+    },
     "lifecycle": {
       "$ref": "#/$defs/PublicLifecycle"
     },
@@ -1838,6 +1851,7 @@
   },
   "required": [
     "checks",
+    "distribution_visibility",
     "lifecycle",
     "passport",
     "passport_digest",

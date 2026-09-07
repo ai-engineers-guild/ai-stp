@@ -100,6 +100,7 @@ class PublicationPlanCreateRequest(BaseModel):
 
     schema_version: Literal[1] = 1
     object_kind: ObjectKind
+    visibility: Literal["public", "private"] = "public"
     stable_id: Annotated[str, Field(min_length=8, max_length=64)]
     version: Version
     content_digest: ContentDigest
@@ -146,6 +147,7 @@ class PublicationPlanResponse(BaseModel):
     plan_hash: Annotated[str, Field(min_length=16, max_length=128)]
     state: PlanState
     object_kind: ObjectKind
+    visibility: Literal["public", "private"] = "public"
     stable_id: str
     version: Version
     content_digest: ContentDigest

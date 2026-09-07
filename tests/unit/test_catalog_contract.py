@@ -423,6 +423,14 @@ def test_the_public_catalog_refuses_a_private_passport() -> None:
         version_response(passport=private)
 
 
+def test_public_opening_preserves_the_original_private_passport() -> None:
+    private = published_passport("component-version.json", visibility="private")
+    opened = version_response(passport=private, distribution_visibility="public")
+    assert opened.passport.visibility == "private"
+    assert opened.passport.stable_id == private["stable_id"]
+    assert opened.passport.version == private["version"]
+
+
 def test_an_omitted_visibility_is_not_silently_published() -> None:
     # PassportEnvelope defaults visibility to private, so a response that simply
     # omits the field must not slip through as public.

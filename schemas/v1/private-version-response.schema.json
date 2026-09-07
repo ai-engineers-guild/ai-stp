@@ -1,0 +1,155 @@
+{
+  "$defs": {
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ObjectKind": {
+      "enum": [
+        "component",
+        "setup"
+      ],
+      "type": "string"
+    },
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "PrivateVersionTrust": {
+      "additionalProperties": true,
+      "description": "Exact local acquisition authority does not assert public verification.",
+      "properties": {
+        "author_verified": {
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "component_verified": {
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "trust_lane": {
+          "const": "local_owner_or_pinned",
+          "default": "local_owner_or_pinned",
+          "title": "Trust Lane",
+          "type": "string"
+        }
+      },
+      "required": [
+        "author_verified",
+        "component_verified",
+        "trust_lane"
+      ],
+      "title": "PrivateVersionTrust",
+      "type": "object"
+    },
+    "PublicLifecycle": {
+      "enum": [
+        "active",
+        "deprecated",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:private-version-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Metadata delivered only after exact owner or major-line grant authorization.",
+  "properties": {
+    "access_basis": {
+      "enum": [
+        "owner",
+        "grant",
+        "admin"
+      ],
+      "title": "Access Basis",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/ObjectKind"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/PublicLifecycle"
+    },
+    "passport": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Passport",
+      "type": "object"
+    },
+    "passport_digest": {
+      "$ref": "#/$defs/PassportDigest"
+    },
+    "published_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "trust": {
+      "$ref": "#/$defs/PrivateVersionTrust"
+    },
+    "version": {
+      "$ref": "#/$defs/Version"
+    }
+  },
+  "required": [
+    "access_basis",
+    "kind",
+    "lifecycle",
+    "passport",
+    "passport_digest",
+    "published_at",
+    "schema_version",
+    "stable_id",
+    "trust",
+    "version"
+  ],
+  "title": "PrivateVersionResponse",
+  "type": "object"
+}

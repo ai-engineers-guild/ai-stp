@@ -44,7 +44,8 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: refusing its whole `provider-info`.
 #: 0.2.10 names optional `reset`: empty declared native namespaces as a
 #: separately chosen effect, not the default of install/replace/remove.
-KIT_VERSION: Final[str] = "0.2.10"
+#: 0.2.11 declares complete native preservation and verified snapshot status.
+KIT_VERSION: Final[str] = "0.2.11"
 
 #: The kit's only artifact with no source to re-derive it from, and therefore
 #: the exact limit of what `--check` can see. Everything else here is rendered

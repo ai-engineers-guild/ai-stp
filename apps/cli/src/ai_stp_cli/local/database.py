@@ -1136,6 +1136,65 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         ),
         down=("DROP TABLE installation_transaction_resource",),
     ),
+    Migration(
+        version=32,
+        summary="bind preserved setup identities to complete retained provider snapshots",
+        up=(
+            """
+            CREATE TABLE preserved_setup (
+                stable_id TEXT PRIMARY KEY,
+                operation_id TEXT NOT NULL UNIQUE REFERENCES operation_plan(operation_id),
+                target_id TEXT NOT NULL,
+                provider_target TEXT NOT NULL,
+                target_scope TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                backup_ref TEXT NOT NULL,
+                snapshot_digest TEXT NOT NULL,
+                roots TEXT NOT NULL,
+                excluded TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            ) STRICT
+            """,
+            "CREATE INDEX preserved_setup_by_target ON preserved_setup(target_id, created_at)",
+        ),
+        down=("DROP TABLE preserved_setup",),
+    ),
+    Migration(
+        version=33,
+        summary="coordinate separate harness plans with native footprint reservations",
+        up=(
+            "ALTER TABLE installation_transaction ADD COLUMN transaction_kind TEXT NOT NULL "
+            "DEFAULT 'single_setup' CHECK (transaction_kind IN ('single_setup', 'environment'))",
+            """
+            CREATE TABLE installation_transaction_child_v33 (
+                transaction_id TEXT NOT NULL REFERENCES installation_transaction(transaction_id),
+                position INTEGER NOT NULL,
+                scope TEXT NOT NULL CHECK (scope IN ('global', 'user_root', 'project')),
+                operation_id TEXT NOT NULL UNIQUE REFERENCES operation_plan(operation_id),
+                target_id TEXT NOT NULL,
+                plan_digest TEXT NOT NULL,
+                state TEXT NOT NULL,
+                backup_ref TEXT,
+                undo_operation_id TEXT,
+                PRIMARY KEY (transaction_id, position),
+                UNIQUE (transaction_id, target_id)
+            ) STRICT
+            """,
+            "INSERT INTO installation_transaction_child_v33 "
+            "SELECT * FROM installation_transaction_child",
+            "DROP TABLE installation_transaction_child",
+            "ALTER TABLE installation_transaction_child_v33 "
+            "RENAME TO installation_transaction_child",
+        ),
+    ),
+    Migration(
+        version=34,
+        summary="bind preserved coverage to a target or declared companion base",
+        up=(
+            "ALTER TABLE preserved_setup ADD COLUMN base_root TEXT NOT NULL "
+            "DEFAULT 'target' CHECK (base_root IN ('target', 'parent'))",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

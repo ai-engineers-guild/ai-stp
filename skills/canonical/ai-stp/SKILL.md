@@ -1,7 +1,8 @@
 ---
 name: ai-stp
 description: >
-  Operate the ai-stp CLI to inspect, select, compose, install, update, recover,
+  Operate the ai-stp CLI to prepare project environments across harnesses,
+  preserve and restore existing setups, inspect, select, compose, install, recover,
   author, and publish AI harness setups and components. Use when the user asks
   to prepare a harness, install or repair a setup, manage passports, search the
   catalog, sign in to ai-stp, publish a component, or drive any `ai-stp`
@@ -53,6 +54,8 @@ stops in `references/decisions.md`. Uncertainty is research, not a pause.
 | what harnesses, projects, components, targets exist | inspect |
 | find or show a catalog object | catalog |
 | select, eligibility, compose a setup | compose |
+| prepare a project environment or several harnesses | environment |
+| save the current setup or return to its original state | install |
 | install, update, roll back a setup | install |
 | drift, selected vs installed | daily |
 | timeout, partial install, stuck operation | recover |

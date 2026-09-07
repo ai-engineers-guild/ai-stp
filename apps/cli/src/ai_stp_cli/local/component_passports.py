@@ -16,7 +16,7 @@ import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, cast
+from typing import Final, Literal, cast
 
 from pydantic import ValidationError
 
@@ -681,6 +681,7 @@ def materialize_version_passport(
     *,
     device_id: str,
     at: str,
+    visibility: Literal["public", "private"] = "public",
 ) -> tuple[ComponentVersionPassport, str]:
     """Freeze a draft into one immutable adaptation snapshot and native CAS artifact."""
     current = _component_head(connection, stable_id)
@@ -716,7 +717,7 @@ def materialize_version_passport(
         "stable_id": stable_id,
         "owner_id": document["owner_id"],
         "created_at": document["created_at"],
-        "visibility": "public",
+        "visibility": visibility,
         "parent_revision_ids": [],
         "facts": document.get("facts") or {},
         "name": values["name"],

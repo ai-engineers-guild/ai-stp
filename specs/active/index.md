@@ -76,5 +76,9 @@ last_verified: "2026-08-03"
 | [SPEC-065-setup-families-and-harness-invariant-alignment.md](SPEC-065-setup-families-and-harness-invariant-alignment.md) | SPEC-065: Complete platform contract for harness-specific setup families, invariant alignment, provenance, exact component projection display, and canonical OBT support. | 2026-09-06 |
 | [SPEC-066-adaptation-evidence.md](SPEC-066-adaptation-evidence.md) | SPEC-066: Per-adaptation evaluation evidence for a component version. | 2026-09-06 |
 | [SPEC-067-cli-program-lifecycle.md](SPEC-067-cli-program-lifecycle.md) | SPEC-067: Shared executable lifecycle for catalog cli components. | 2026-09-06 |
+| [SPEC-068-preserved-native-setups.md](SPEC-068-preserved-native-setups.md) | SPEC-068: Preserve an existing harness setup and restore its complete native state. | 2026-09-07 |
+| [SPEC-069-multi-harness-environments.md](SPEC-069-multi-harness-environments.md) | SPEC-069: Coordinate separate harness setups within one project environment. | 2026-09-07 |
+| [SPEC-070-environment-prerequisite-inspection.md](SPEC-070-environment-prerequisite-inspection.md) | SPEC-070: Inspect exact setup prerequisites and expose executable preparation steps. | 2026-09-07 |
+| [SPEC-071-private-first-agent-distribution.md](SPEC-071-private-first-agent-distribution.md) | SPEC-071: Private-first CLI distribution with explicit owner-controlled public exposure. | 2026-09-07 |
 
 <!-- END CONTENTS -->

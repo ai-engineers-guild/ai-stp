@@ -605,7 +605,8 @@
               "safety_checks": []
             }
           ]
-        }
+        },
+        "distribution_visibility": null
       }
     },
     {

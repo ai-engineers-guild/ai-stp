@@ -136,6 +136,60 @@
               }
             ]
           },
+          "native_snapshot": {
+            "additionalProperties": false,
+            "properties": {
+              "base_root": {
+                "enum": [
+                  "target",
+                  "parent"
+                ]
+              },
+              "digest": {
+                "$ref": "#/$defs/digest"
+              },
+              "excluded": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "operation_id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "roots": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "target_state": {
+                "enum": [
+                  "matches",
+                  "differs",
+                  "unavailable"
+                ]
+              },
+              "verification": {
+                "enum": [
+                  "verified",
+                  "unavailable"
+                ]
+              }
+            },
+            "required": [
+              "digest",
+              "operation_id",
+              "roots",
+              "excluded",
+              "verification",
+              "target_state"
+            ],
+            "type": "object"
+          },
           "operation": {
             "minLength": 1,
             "type": "string"

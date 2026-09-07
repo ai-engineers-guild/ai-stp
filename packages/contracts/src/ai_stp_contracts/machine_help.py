@@ -34,6 +34,7 @@ from ai_stp_contracts.catalog import (
     VersionListEntry,
 )
 from ai_stp_contracts.http import Timestamp, open_wire_object
+from ai_stp_contracts.private_access import PrivateVersionTrust
 from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
 from ai_stp_contracts.publication import PublicationPlanResponse
 from ai_stp_contracts.standard import STANDARD_FAMILY
@@ -411,6 +412,7 @@ class PublicationSetMemberView(BaseModel):
 
     role: Literal["setup", "pinned_component"]
     object_kind: PublicationObjectKind
+    visibility: Literal["public", "private"] = "public"
     stable_id: str
     version: Annotated[str, Field(min_length=3, max_length=32)]
 
@@ -733,12 +735,13 @@ class CatalogVersionView(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    distribution_visibility: Literal["public", "private"] = "public"
     kind: CatalogKind
     source: AnswerSource
     checked_at: Timestamp
     passport_digest: Annotated[str, Field(min_length=1)]
     lifecycle: PublicLifecycle
-    trust: CatalogTrust
+    trust: CatalogTrust | PrivateVersionTrust
     published_at: Timestamp
 
     #: The passport itself, exactly as the catalogue published it. Kept as the
@@ -2561,6 +2564,7 @@ class InstallationView(BaseModel):
     bundle_size: Annotated[int, Field(ge=0)] = 0
     provider_plan_digest: str = ""
     backup_ref: str | None = None
+    preserved_setup_id: str | None = None
 
     #: Declared by the exact SetupVersion before apply. It is a requirement,
     #: never proof that the provider target has completed it (`ADR-0052`).
@@ -2636,6 +2640,9 @@ class MultiRootChildView(BaseModel):
     plan_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
     state: Annotated[str, Field(min_length=1)]
     backup_ref: str | None = None
+    harness_id: HarnessId | None = None
+    setup_stable_id: str | None = None
+    setup_version: str | None = None
 
 
 class MultiRootTransactionView(BaseModel):
@@ -2646,9 +2653,10 @@ class MultiRootTransactionView(BaseModel):
     schema_version: Literal[1] = 1
     transaction_id: Annotated[str, Field(min_length=1)]
     transaction_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
-    setup_stable_id: Annotated[str, Field(min_length=1)]
-    setup_version: Annotated[str, Field(min_length=1)]
-    harness_id: HarnessId
+    transaction_kind: Literal["single_setup", "environment"] = "single_setup"
+    setup_stable_id: Annotated[str, Field(min_length=1)] | None
+    setup_version: Annotated[str, Field(min_length=1)] | None
+    harness_id: HarnessId | None
     state: Literal[
         "planned",
         "applying",
@@ -2659,7 +2667,7 @@ class MultiRootTransactionView(BaseModel):
         "cancelled",
     ]
     approved: bool
-    children: Annotated[list[MultiRootChildView], Field(min_length=2, max_length=3)]
+    children: Annotated[list[MultiRootChildView], Field(min_length=2, max_length=21)]
     next_actions: list[str] = []
 
 
@@ -2978,6 +2986,72 @@ class TargetBackup(BaseModel):
     #: provider was consulted. `False` is the answer worth having: this pair's
     #: journal offers a restore source the provider no longer has.
     present: bool | None = None
+
+
+class PreservedSetupView(BaseModel):
+    """A complete local setup and the provider snapshot retaining its native state."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    stable_id: str
+    operation_id: str
+    project_id: str
+    harness_id: str
+    target_scope: str
+    provider_target: str
+    provider_id: str
+    backup_ref: str
+    snapshot_digest: str
+    roots: list[str]
+    base_root: Literal["target", "parent"] = "target"
+    created_at: str
+    verification: Literal["recorded_verified", "verified", "unavailable"] = "recorded_verified"
+    target_state: Literal["not_observed", "matches", "differs", "unavailable"] = "not_observed"
+    held: bool | None = None
+
+
+class EnvironmentRequirement(BaseModel):
+    """One exact prerequisite, measured without executing its preparation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal[
+        "harness_program",
+        "shared_program",
+        "environment_variable",
+        "authorization",
+        "toolchain_tool",
+    ]
+    identity: str
+    version: str = ""
+    digest: str = ""
+    sources: list[str] = Field(default_factory=list)
+    state: Literal["satisfied", "action_required", "not_observed", "blocked"]
+    reason: str
+    actions: list[list[str]] = Field(default_factory=list[list[str]])
+
+
+class EnvironmentInspection(BaseModel):
+    """Preparation evidence stays distinct from verified native configuration."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    project_id: str
+    setups: list[str]
+    prerequisites_satisfied: bool
+    configuration_state: Literal["not_observed"] = "not_observed"
+    requirements: list[EnvironmentRequirement]
+    detected_harnesses: "HarnessSurvey"
+
+
+class PreservedSetupsView(BaseModel):
+    """Saved local setups remain addressable after restarting the CLI."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    setups: list[PreservedSetupView] = []
 
 
 class TargetBackups(BaseModel):

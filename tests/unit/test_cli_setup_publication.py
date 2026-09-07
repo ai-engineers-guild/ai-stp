@@ -58,40 +58,60 @@ class _Platform:
         self.created: list[tuple[str, str, str]] = []
         self.confirmed: list[str] = []
         self.bound: list[str] = []
+        self.requests: dict[str, Any] = {}
 
     def version_detail(self, _where: object, _kind: str, stable_id: str, version: str) -> Any:
-        del version
         if stable_id not in self.public:
             raise CliFailure("AI_STP_NOT_FOUND", "version not found")
-        return _Detail("public")
+        return _Detail(stable_id, version)
 
     def status(self, _where: object, _token: str, plan_id: str) -> Any:
-        return _Plan(plan_id, "published" if plan_id in self.confirmed else "ready")
+        return _Plan(
+            plan_id, "published" if plan_id in self.confirmed else "ready", self.requests[plan_id]
+        )
 
     def create(self, _where: object, _token: str, request: Any) -> Any:
         self.created.append((request.object_kind, request.stable_id, request.version))
-        return _Plan(f"plan_{request.stable_id}", "draft")
+        plan_id = f"plan_{request.stable_id}"
+        self.requests[plan_id] = request
+        return _Plan(plan_id, "draft", request)
 
     def bind(self, _where: object, _token: str, plan_id: str, _payload: bytes, **_k: object) -> Any:
         self.bound.append(plan_id)
-        return _Plan(plan_id, "ready")
+        return _Plan(plan_id, "ready", self.requests[plan_id])
 
     def confirm(self, _where: object, _token: str, plan_id: str, _request: Any) -> Any:
         if self.refuse and plan_id == f"plan_{self.refuse}":
-            return _Plan(plan_id, "failed")
+            return _Plan(plan_id, "failed", self.requests[plan_id])
         self.confirmed.append(plan_id)
-        return _Plan(plan_id, "published")
+        return _Plan(plan_id, "published", self.requests[plan_id])
 
 
 class _Detail:
-    def __init__(self, visibility: str) -> None:
-        self.visibility = visibility
+    def __init__(self, stable_id: str, version: str) -> None:
+        with closing(open_registry(configured_path())) as connection:
+            passport = (
+                setup_publication._setup_passport(connection, stable_id, version)
+                if stable_id.startswith("setup_")
+                else component_passports.version_passport(connection, stable_id, version)
+            )
+        self.passport = passport.model_dump(mode="json")
+        self.passport_digest = digest_canonical("ai-stp:passport:v1", self.passport)
+        self.source = "online"
+        self.distribution_visibility = "public"
 
 
 class _Plan:
-    def __init__(self, plan_id: str, state: str) -> None:
+    def __init__(self, plan_id: str, state: str, request: Any) -> None:
         self.plan_id = plan_id
         self.plan_hash = f"hash_{plan_id}"
+        self.visibility = request.visibility
+        self.object_kind = request.object_kind
+        self.stable_id = request.stable_id
+        self.version = request.version
+        self.content_digest = request.content_digest
+        self.actor_id = _Session.account_id
+        self.device_id = request.device_id
         self.state = state
 
 
@@ -216,7 +236,9 @@ def _materialize() -> tuple[str, ...]:
             connection,
             stable_id=SETUP,
             version=SETUP_VERSION,
-            passport_digest=digest_canonical("ai-stp:passport:v1", {"id": SETUP}),
+            passport_digest=digest_canonical(
+                "ai-stp:passport:v1", stored.envelope.model_dump(mode="json")
+            ),
             revision_id=stored.revision_id,
             at=AT,
         )
@@ -228,10 +250,12 @@ def _materialize() -> tuple[str, ...]:
 
 
 def _plan() -> Any:
-    return setup_publication.plan({"id": SETUP, "version": SETUP_VERSION}).payload
+    return setup_publication.plan(
+        {"id": SETUP, "version": SETUP_VERSION, "visibility": "public"}
+    ).payload
 
 
-def test_private_setup_is_publicized_only_in_the_publication_request() -> None:
+def test_distribution_planning_preserves_the_exact_immutable_setup_passport() -> None:
     _materialize()
 
     with closing(open_registry(configured_path(), create=False)) as connection:
@@ -240,7 +264,7 @@ def test_private_setup_is_publicized_only_in_the_publication_request() -> None:
         assert recorded is not None
         stored = revisions.get(connection, recorded.revision_id)
 
-    assert public.visibility == "public"
+    assert public.visibility == "private"
     assert stored is not None
     assert stored.envelope.visibility == "private"
 

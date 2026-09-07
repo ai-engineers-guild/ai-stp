@@ -30,7 +30,7 @@ def create(
     endpoint: Endpoint, access_token: str, request: PublicationPlanCreateRequest
 ) -> PublicationPlanResponse:
     with open_client(endpoint, access_token=access_token) as client:
-        return call(
+        response = call(
             client,
             "POST",
             "/publications/plans",
@@ -38,6 +38,36 @@ def create(
             body=request,
             attempts=endpoint.max_attempts,
         )
+    if (
+        response.visibility != request.visibility
+        or response.object_kind != request.object_kind
+        or response.stable_id != request.stable_id
+        or response.version != request.version
+        or response.content_digest != request.content_digest
+        or response.device_id != request.device_id
+    ):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the platform did not bind the requested distribution identity and visibility",
+        )
+    return response
+
+
+def require_same_plan(expected: PublicationPlanResponse, observed: PublicationPlanResponse) -> None:
+    """State may progress, but approval coordinates and exposure cannot change."""
+    fields = (
+        "plan_id",
+        "plan_hash",
+        "visibility",
+        "object_kind",
+        "stable_id",
+        "version",
+        "content_digest",
+        "actor_id",
+        "device_id",
+    )
+    if any(getattr(expected, name) != getattr(observed, name) for name in fields):
+        raise CliFailure("AI_STP_PRECONDITION_FAILED", "the distribution plan changed after review")
 
 
 def status(endpoint: Endpoint, access_token: str, plan_id: str) -> PublicationPlanResponse:

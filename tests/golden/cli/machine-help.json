@@ -1262,6 +1262,15 @@
           "repeatable": false,
           "summary": "Stable identifier of the cli component.",
           "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Inspect this exact installed version instead of current.",
+          "choices": []
         }
       ],
       "parameter_rules": [],
@@ -1890,6 +1899,18 @@
           "repeatable": false,
           "summary": "Open the next major line instead of the next minor.",
           "choices": []
+        },
+        {
+          "name": "visibility",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Visibility of the new immutable snapshot.",
+          "choices": [
+            "public",
+            "private"
+          ]
         }
       ],
       "parameter_rules": [],
@@ -2168,6 +2189,105 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-doctor-report",
       "next_actions": [
         "config show"
+      ]
+    },
+    {
+      "path": [
+        "environment",
+        "inspect"
+      ],
+      "summary": "Inspect exact setup prerequisites and preparation steps without effects.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Project passport stable id.",
+          "choices": []
+        },
+        {
+          "name": "setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": true,
+          "summary": "Repeated exact setup id@X.Y.",
+          "choices": []
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Existing absolute project target directory.",
+          "choices": []
+        },
+        {
+          "name": "harness-prefix",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Repeated harness=absolute program prefix.",
+          "choices": []
+        },
+        {
+          "name": "tool",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Repeated tool id from the managed toolchain profile.",
+          "choices": []
+        },
+        {
+          "name": "offline",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Report preparation using only cached artifacts.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-environment-inspection",
+      "next_actions": [
+        "harness install",
+        "toolchain install",
+        "component program install",
+        "install plan"
+      ]
+    },
+    {
+      "path": [
+        "environment",
+        "plan"
+      ],
+      "summary": "Compose exact plans for separate harnesses of one project before effects.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "operation",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": true,
+          "summary": "Repeated unapproved native operation id.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
+      "next_actions": [
+        "install transaction approve",
+        "install transaction cancel"
       ]
     },
     {
@@ -3683,6 +3803,15 @@
           "choices": []
         },
         {
+          "name": "provider-for",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Repeated harness=executable override for an environment.",
+          "choices": []
+        },
+        {
           "name": "provider",
           "kind": "option",
           "value_type": "string",
@@ -3929,6 +4058,15 @@
           "required": true,
           "repeatable": false,
           "summary": "Transaction requiring recovery.",
+          "choices": []
+        },
+        {
+          "name": "provider-for",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Repeated harness=executable override for an environment.",
           "choices": []
         },
         {
@@ -4958,6 +5096,18 @@
       "confirmation": "none",
       "parameters": [
         {
+          "name": "visibility",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Plan private (default) or explicitly public distribution.",
+          "choices": [
+            "public",
+            "private"
+          ]
+        },
+        {
           "name": "id",
           "kind": "option",
           "value_type": "string",
@@ -5019,6 +5169,135 @@
     },
     {
       "path": [
+        "publication",
+        "visibility",
+        "confirm"
+      ],
+      "summary": "Confirm the exact owner visibility plan hash and its listed effects.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Visibility plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "plan-hash",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact visibility plan hash.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly approve these access changes.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:visibility-plan-response",
+      "next_actions": [
+        "publication visibility status"
+      ]
+    },
+    {
+      "path": [
+        "publication",
+        "visibility",
+        "plan"
+      ],
+      "summary": "Plan an explicit owner visibility change without rewriting the exact version.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact stored object identifier.",
+          "choices": []
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact stored X.Y version.",
+          "choices": []
+        },
+        {
+          "name": "visibility",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Requested distribution visibility.",
+          "choices": [
+            "public",
+            "private"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:visibility-plan-response",
+      "next_actions": [
+        "publication visibility confirm"
+      ]
+    },
+    {
+      "path": [
+        "publication",
+        "visibility",
+        "status"
+      ],
+      "summary": "Read an owner visibility plan and its exact access effects.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Visibility plan identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:visibility-plan-response",
+      "next_actions": [
+        "publication visibility confirm"
+      ]
+    },
+    {
+      "path": [
         "registry",
         "acquire"
       ],
@@ -5026,6 +5305,15 @@
       "mutability": "apply",
       "confirmation": "none",
       "parameters": [
+        {
+          "name": "private",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Allow authenticated owner/grant reads after an anonymous miss.",
+          "choices": []
+        },
         {
           "name": "id",
           "kind": "option",
@@ -5069,6 +5357,15 @@
       "mutability": "apply",
       "confirmation": "none",
       "parameters": [
+        {
+          "name": "private",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Allow authenticated owner/grant reads after an anonymous miss.",
+          "choices": []
+        },
         {
           "name": "kind",
           "kind": "option",
@@ -5365,6 +5662,15 @@
       "mutability": "read",
       "confirmation": "none",
       "parameters": [
+        {
+          "name": "private",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Allow authenticated owner/grant reads after an anonymous miss.",
+          "choices": []
+        },
         {
           "name": "kind",
           "kind": "option",
@@ -6577,6 +6883,323 @@
     {
       "path": [
         "setup",
+        "preserve",
+        "plan"
+      ],
+      "summary": "Plan a complete retained snapshot of the user's existing native setup.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Project passport stable id.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Harness whose native setup is preserved.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "target",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Existing native target directory.",
+          "choices": []
+        },
+        {
+          "name": "scope",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Native target scope; defaults to global.",
+          "choices": [
+            "global",
+            "project",
+            "user_root"
+          ]
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact provider executable; planning can resolve it automatically.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Trusted manifest for the provider's exact bytes.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Verify the pinned provider build attestation.",
+          "choices": []
+        },
+        {
+          "name": "provider-attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Offline provider attestation bundle.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly use an unverified local provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-recovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use an exact previously verified provider release.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+      "next_actions": [
+        "install approve",
+        "install apply",
+        "setup preserved list"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "preserve",
+        "recover"
+      ],
+      "summary": "Recover the saved setup identity after a lost response without repeating effects.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "operation",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Original capture operation id.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact provider executable; planning can resolve it automatically.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Trusted manifest for the provider's exact bytes.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Verify the pinned provider build attestation.",
+          "choices": []
+        },
+        {
+          "name": "provider-attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Offline provider attestation bundle.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly use an unverified local provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-recovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use an exact previously verified provider release.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+      "next_actions": [
+        "setup preserved list",
+        "setup restore plan"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "preserved",
+        "list"
+      ],
+      "summary": "List saved native setups by stable local identity after restarting the CLI.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Limit saved setups to one harness.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-preserved-setups",
+      "next_actions": [
+        "setup preserved show",
+        "setup restore plan"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "preserved",
+        "show"
+      ],
+      "summary": "Inspect a saved setup; a named provider verifies its bytes and current target.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Preserved setup stable id.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact provider executable; planning can resolve it automatically.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Trusted manifest for the provider's exact bytes.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Verify the pinned provider build attestation.",
+          "choices": []
+        },
+        {
+          "name": "provider-attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Offline provider attestation bundle.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly use an unverified local provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-recovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use an exact previously verified provider release.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-preserved-setup",
+      "next_actions": [
+        "setup restore plan"
+      ]
+    },
+    {
+      "path": [
+        "setup",
         "publish",
         "confirm"
       ],
@@ -6620,6 +7243,18 @@
       "mutability": "plan",
       "confirmation": "none",
       "parameters": [
+        {
+          "name": "visibility",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Plan private (default) or explicitly public distribution.",
+          "choices": [
+            "public",
+            "private"
+          ]
+        },
         {
           "name": "id",
           "kind": "option",
@@ -6786,6 +7421,88 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-recast-plan",
       "next_actions": [
         "setup recast apply"
+      ]
+    },
+    {
+      "path": [
+        "setup",
+        "restore",
+        "plan"
+      ],
+      "summary": "Plan an exact return to a saved setup after preserving the current configuration.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "preserved-setup",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact saved setup stable id.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact provider executable; planning can resolve it automatically.",
+          "choices": []
+        },
+        {
+          "name": "provider-manifest",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Trusted manifest for the provider's exact bytes.",
+          "choices": []
+        },
+        {
+          "name": "provider-build-attestation",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Verify the pinned provider build attestation.",
+          "choices": []
+        },
+        {
+          "name": "provider-attestation-bundle",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Offline provider attestation bundle.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Explicitly use an unverified local provider.",
+          "choices": []
+        },
+        {
+          "name": "provider-release-recovery",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use an exact previously verified provider release.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-installation",
+      "next_actions": [
+        "install approve",
+        "install apply",
+        "setup preserved show"
       ]
     },
     {
