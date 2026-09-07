@@ -1,3 +1,4 @@
+import { SESSION_COOKIE } from "../../src/lib/auth/cookies";
 import { expect, test } from "@playwright/test";
 
 /**
@@ -144,7 +145,7 @@ test.describe("account profile (SPEC-028)", () => {
     await expect(
       page.getByText(/Avatar ready|Avatar \u0433\u043e\u0442\u043e\u0432/i),
     ).toBeVisible();
-    await expect(page.locator("section img").first()).toHaveAttribute("src", /^data:image\/png/);
+    await expect(page.locator("section img").first()).toHaveAttribute("src", "/brand/icon-32.png");
     await page
       .getByRole("button", {
         name: /^Save$|^\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c$/i,
@@ -156,6 +157,31 @@ test.describe("account profile (SPEC-028)", () => {
       ),
     ).toBeVisible();
   });
+
+  for (const provider of ["GitHub", "Google"]) {
+    test(`imports ${provider} avatar and keeps a readable processed image after publication`, async ({
+      page,
+      context,
+    }) => {
+      await page.goto("/en/account/profile");
+      await page.getByRole("button", { name: `Use from ${provider}`, exact: true }).click();
+      await expect(page.getByText("Avatar ready", { exact: true })).toBeVisible();
+      const image = page.getByRole("button", { name: "Upload photo", exact: true }).locator("img");
+      await expect
+        .poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth))
+        .toBeGreaterThan(0);
+      await expect(image).toHaveAttribute("src", /^\//);
+      const session = (await context.cookies()).find((cookie) => cookie.name === SESSION_COOKIE);
+      expect(session).toBeDefined();
+      expect(await page.content()).not.toContain(session?.value);
+      await page.getByRole("button", { name: "Publish", exact: true }).click();
+      await expect(page.getByRole("status")).toHaveText(/Published/i);
+      await page.reload();
+      await expect
+        .poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth))
+        .toBeGreaterThan(0);
+    });
+  }
 
   test("previews unsaved form changes and offers account-id copy without exposing the id", async ({
     page,

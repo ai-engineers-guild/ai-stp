@@ -1,5 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { readCsrfToken } from "@/lib/auth/session";
+
 import { ProfileForm } from "@/components/organisms/profile-form";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { ApiError } from "@/lib/api/errors";
@@ -43,7 +45,7 @@ export default async function AccountProfilePage({ params }: PageProps) {
         <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">{t("profile")}</h1>
         <p className="text-muted-foreground max-w-[70ch] text-sm">{t("profileSubtitle")}</p>
       </header>
-      <ProfileForm initial={initial} sessionToken={token} />
+      <ProfileForm initial={initial} csrfToken={(await readCsrfToken()) ?? ""} />
     </article>
   );
 }

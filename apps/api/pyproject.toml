@@ -19,6 +19,7 @@ dependencies = [
     "cryptography>=44.0.0",
     "itsdangerous>=2.2.0",
     "maxminddb>=2.8",
+    "pillow>=12.3",
 ]
 
 [project.scripts]

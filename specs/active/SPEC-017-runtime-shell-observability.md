@@ -32,7 +32,7 @@ Includes the app factory, `lifespan`, typed settings, binding responses to the `
 - `REQ-1708`: `readiness` is false while migrations are not applied and required `PostgreSQL` and `RustFS` dependencies are unavailable; the response lists unready dependencies from a closed set.
 - `REQ-1709`: OpenAPI is generated from code, and an equivalence check proves semantic equivalence with the `#71` fixtures; drift fails the check.
 - `REQ-1710`: The observability provider is initialized as a cross-cutting layer, the exporter is configured, and an unavailable backend does not crash the application.
-- `REQ-1711`: The structured log is written to a daily file rotated at midnight and to stdout; fields are restricted to a closed set; tokens and personal data are not logged, and `SPEC-013` remains the rule owner.
+- `REQ-1711`: The structured log is written to a daily file rotated at midnight and to stdout; fields are restricted to a closed set; tokens and personal data are not logged, and `SPEC-013` remains the rule owner. Both sinks apply the same filtering. Reconfiguration closes replaced handlers. Third-party records and exception traces do not bypass the closed payload boundary in `docs/contracts/structured-logging.md`.
 
 ## States and errors
 

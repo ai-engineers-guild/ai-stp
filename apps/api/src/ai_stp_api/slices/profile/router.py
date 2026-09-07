@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.deps import get_db, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
+from ai_stp_api.media_upload import read_media_upload
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.profile import service as profile_service
+from ai_stp_contracts.public_profile import AVATAR_MAX_BYTES
 from ai_stp_platform.storage.avatar_store import AvatarObjectStore
 
 router = APIRouter(tags=["profile"])
@@ -97,23 +99,7 @@ async def upload_avatar(
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> JSONResponse:
     """Upload avatar image bytes; writes processed object to S3/RustFS."""
-    content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
-    payload: bytes
-    if content_type.startswith("multipart/"):
-        form = await request.form()
-        upload = form.get("file")
-        if upload is None or not hasattr(upload, "read"):
-            raise ApiError(ErrorCategory.VALIDATION, "file required")
-        raw = await upload.read()  # type: ignore[misc]
-        if not isinstance(raw, (bytes, bytearray)):
-            raise ApiError(ErrorCategory.VALIDATION, "file required")
-        payload = bytes(raw)
-        content_type = str(getattr(upload, "content_type", None) or "application/octet-stream")
-        content_type = content_type.split(";")[0].strip().lower()
-    else:
-        payload = await request.body()
-    if not content_type:
-        raise ApiError(ErrorCategory.VALIDATION, "content-type required")
+    payload, content_type = await read_media_upload(request, max_bytes=AVATAR_MAX_BYTES)
     store = _avatar_store(request)
     body = await profile_service.create_avatar_from_bytes(
         db,

@@ -135,7 +135,6 @@ function avatarReady(): MockResult {
       avatar_asset_id: "avatar_mock",
       state: "ready",
       public_url: "/brand/icon-32.png",
-      object_key: "objects/sha256/mock",
       content_digest: "sha256:mock",
     },
   };
