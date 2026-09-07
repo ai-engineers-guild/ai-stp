@@ -108,7 +108,7 @@ The version of the contract is agreed upon before the operation. The old provide
 | `REQ-803` | A negative check proves that there is no direct target entry from `ai_stp`. |
 | `REQ-804` | The set of malicious packages covers all classes of paths, links, devices and limits. |
 | `REQ-805` | Checking the snapshot confirms that there have been no changes since the plan was built. |
-| `REQ-806` | A changed target and a changed plan hash will block application. |
+| `REQ-806` | A changed target and a changed plan hash will block application. Program commands use the same resolved prefix for plan, apply, and journal even when the caller supplies an alias. A provider's typed no-effect stale refusal settles as stale; an invalid or lost apply response remains recoverable as partial. |
 | `REQ-807` | Failure checks confirm pre-write backup and retention of unmanaged data. |
 | `REQ-808` | A status or ready to run error does not toggle the active pointer. |
 | `REQ-809` | The failure matrix checks all long-lived states of the result. |

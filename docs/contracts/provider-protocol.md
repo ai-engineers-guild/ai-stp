@@ -297,6 +297,9 @@ extracts offline. A provider that did not declare these operations does not plan
 
 `--target` is the configuration directory. `--prefix` is the program directory.
 They are different absolute paths with different lifetimes. If
+the supplied prefix uses a filesystem alias, the consumer resolves it once and
+uses the same canonical spelling for planning, applying, and the journal.
+If
 `--software-version` is omitted, the pinned version is used; if passed, exactly
 that version is required or the operation is refused. An unpinned platform
 refuses with `unsupported_platform`.

@@ -38,6 +38,10 @@ provenance. Secret-bearing keys, null, unknown fields, unsafe public description
 root-escaping managed paths, and an inexact public source are rejected before writing.
 The public source repository may be any credential-free HTTPS repository; GitHub is
 not a required host.
+For a portable draft, `harness_id`, `scope` (the existing target-scope enum), and
+`managed_paths` explicitly declare the intended route. Managed paths are relative
+to that scope's target root. Release still checks the provider surface; declaring a
+route does not grant a harness ownership over shared discovery paths.
 The patch file has a size limit and is read without following a symbolic link.
 
 Before patching, `component passport suggest` may read only the component's already

@@ -267,6 +267,45 @@ def _complete_patch() -> ComponentPassportPatch:
     )
 
 
+def test_a_portable_skill_can_declare_a_user_root_route_before_release(
+    registry: sqlite3.Connection, tmp_path: Path
+) -> None:
+    home = Path.home()
+    skill = home / ".agents" / "skills" / "component"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("# Portable component\n", encoding="utf-8")
+    found = next(
+        item
+        for item in components.discover(project=tmp_path, include_global=True)
+        if item.absolute == skill and not item.harness_id
+    )
+    original = components.adopt(registry, found, device_id="device_test")
+    declared = _complete_patch().model_dump(mode="json", exclude_unset=True)
+    declared.update(scope="user_root", managed_paths=["skills/component"])
+    changed = component_passports.update(
+        registry,
+        original.stable_id,
+        original.revision_id,
+        ComponentPassportPatch.model_validate(declared),
+        device_id="device_test",
+    )
+    facts = changed.envelope.model_dump(mode="json")["facts"]
+    assert facts["scope"]["value"] == "user_root"
+    assert facts["scope"]["origin"] == "declared"
+    passport, _ = component_passports.materialize_version_passport(
+        registry, original.stable_id, "1.0", device_id="device_test", at=CREATED
+    )
+    adaptation = passport.adaptations[0]
+    assert adaptation.harness_id == "codex"
+    scope = adaptation.scope_adaptations[0]
+    assert scope.scope == "user_root"
+    assert [member.path for member in scope.members] == ["skills/component/SKILL.md"]
+    assert revisions.get(registry, original.revision_id) == original
+
+    with pytest.raises(ValidationError):
+        ComponentPassportPatch.model_validate({"scope": "machine"})
+
+
 def test_component_patch_accepts_a_non_github_https_source() -> None:
     patch = ComponentPassportPatch.model_validate(
         {

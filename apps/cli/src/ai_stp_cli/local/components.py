@@ -1657,19 +1657,27 @@ def _cursor_project_plugins(
 ) -> tuple[list[Found], list[component_sources.Diagnostic], int]:
     """Find a Cursor plugin pack by its exact manifest, the way a setup ships it.
 
-    Cursor does not scatter skills next to `.cursor/`. The unit is
-    `plugins/<name>/.cursor-plugin/plugin.json`, with rules, skills, agents
-    and commands inside that plugin. The JSON is proof the directory is a
-    plugin; its values are not read.
+    Source packs use `plugins/<name>`; native local collections use
+    `plugins/local/<name>`. Both require `.cursor-plugin/plugin.json` before
+    reading the names of their component subtrees. Manifest values are not read.
     """
-    return _manifest_backed_plugins(
-        project,
-        harness_id="cursor",
-        manifest=(".cursor-plugin", "plugin.json"),
-        source=CURSOR_PLUGIN_SOURCE,
-        subtrees=_CURSOR_PLUGIN_SUBTREES,
-        collection="cursor-plugins",
-    )
+    found: list[Found] = []
+    diagnostics: list[component_sources.Diagnostic] = []
+    directories = 0
+    for relative in ("plugins", "plugins/local"):
+        plugins, messages, seen = _manifest_backed_plugins(
+            project,
+            harness_id="cursor",
+            manifest=(".cursor-plugin", "plugin.json"),
+            source=CURSOR_PLUGIN_SOURCE,
+            subtrees=_CURSOR_PLUGIN_SUBTREES,
+            collection="cursor-plugins",
+            relative=relative,
+        )
+        found.extend(plugins)
+        diagnostics.extend(messages)
+        directories += seen
+    return found, diagnostics, directories
 
 
 def _manifest_backed_plugins(
@@ -1680,17 +1688,20 @@ def _manifest_backed_plugins(
     source: str,
     subtrees: tuple[_PluginSubtree, ...],
     collection: str,
+    relative: str = "plugins",
 ) -> tuple[list[Found], list[component_sources.Diagnostic], int]:
     """Every manifest-backed plugin in one collection, and how many it looked at."""
     found: list[Found] = []
     diagnostics: list[component_sources.Diagnostic] = []
-    root = project / "plugins"
-    try:
-        root_mode = root.lstat().st_mode
-    except OSError:
-        return found, diagnostics, 0
-    if stat.S_ISLNK(root_mode) or not stat.S_ISDIR(root_mode):
-        return found, diagnostics, 0
+    root = project
+    for part in Path(relative).parts:
+        root = root / part
+        try:
+            root_mode = root.lstat().st_mode
+        except OSError:
+            return found, diagnostics, 0
+        if stat.S_ISLNK(root_mode) or not stat.S_ISDIR(root_mode):
+            return found, diagnostics, 0
     try:
         entries = list(islice(root.iterdir(), MAX_CODEX_PLUGIN_ENTRIES + 1))
     except OSError:
@@ -1705,7 +1716,7 @@ def _manifest_backed_plugins(
         )
         return found, diagnostics, 0
 
-    plugin_rule = Rule("plugin", "plugins", "directory", harness_id, source)
+    plugin_rule = Rule("plugin", relative, "directory", harness_id, source)
     directories = 0
     for plugin in sorted(entries, key=lambda item: item.name):
         try:

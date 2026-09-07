@@ -12,6 +12,10 @@ from pathlib import Path
 
 import pytest
 from release_scripts import _evidence
+from release_scripts.verify_config_slice import (
+    _scoped_harnesses,  # pyright: ignore[reportPrivateUsage]
+    _surface,  # pyright: ignore[reportPrivateUsage]
+)
 
 
 @pytest.mark.parametrize(
@@ -103,3 +107,27 @@ def test_a_host_file_holds_the_key_by_its_bytes(tmp_path: Path) -> None:
     assert not _evidence.contribution_probe_present(tmp_path, "config.toml")
     host.write_text('[mcp_servers.mcp01]\ncommand = "mcp01-server"\n', encoding="utf-8")
     assert _evidence.contribution_probe_present(tmp_path, "config.toml")
+
+
+@pytest.mark.parametrize("harness_id", _scoped_harnesses("project"))
+def test_every_project_profile_has_a_discoverable_evidence_seed(
+    tmp_path: Path, harness_id: str
+) -> None:
+    """Shared AGENTS.md is a Codex project route without being Codex-owned."""
+    from ai_stp_cli.local import components, composition
+
+    seeded, kind, relative, portable = _surface(harness_id, tmp_path, scope="project")
+    discovered = components.discover(project=tmp_path / "seed", include_global=False)
+
+    assert any(item.absolute == seeded and item.component_type == kind for item in discovered), (
+        harness_id,
+        seeded,
+    )
+    assert any(
+        item.absolute == seeded
+        and item.component_type == kind
+        and item.harness_id == ("" if portable else harness_id)
+        for item in discovered
+    )
+    route = composition.rule_for(kind, harness_id, scope="project")
+    assert route is not None and route.relative == relative

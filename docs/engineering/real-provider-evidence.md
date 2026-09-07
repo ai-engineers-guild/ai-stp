@@ -74,6 +74,14 @@ There is no longer a role-based E2E. It asked for six roles that no one planned,
 
 ## Adjacent slices that also need to be known by name
 
+For local cross-repository checks, `AI_STP_PROVIDER_V3_DIR` points at the
+directory of built provider executables and enables projection-rule parity
+tests. `AI_STP_PROVIDER_V3_READONLY` enables the real provider backup reader.
+`AI_STP_CURSOR_SETUP_HOME` points at the real Cursor `nddev-builder/home` tree
+and enables process-level discovery of its plugin contents. An explicitly
+configured missing tree fails; an unset variable is reported as skipped.
+These source-tree checks do not replace signed release lifecycle evidence.
+
 `just evidence-citations` fetches every link that has the harness directory string on it and labels them as dead. Nothing in the repository opens the link, so the stale one is found by a person and no one else; on 2026-08-28, there were four of them.
 403, 405, and 429 are considered unproven, not dead — some hosts refuse the script on HEAD.
 

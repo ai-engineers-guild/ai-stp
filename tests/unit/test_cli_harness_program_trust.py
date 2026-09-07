@@ -42,6 +42,8 @@ class _Recorder:
 
     def invoker(self, *_args: object, **kwargs: object) -> Any:
         self.reason = kwargs.get("unisolated_reason")
+        self.target = _args[1]
+        self.writable = kwargs.get("writable")
 
         def invoke(command: str, _arguments: Sequence[str]) -> Any:
             self.spawned.append(command)
@@ -117,6 +119,25 @@ def test_explicit_consent_reaches_the_provider_and_names_why(
 
     assert recorder.spawned[:1] == ["provider-info"]
     assert recorder.reason == network_launcher.EXPLICIT_UNVERIFIED_PROVIDER
+
+
+@pytest.mark.parametrize("action", ["install", "update", "remove"])
+def test_program_commands_resolve_directory_aliases_before_invoking_the_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, action: str
+) -> None:
+    recorder = _Recorder()
+    monkeypatch.setattr(invocation, "provider_invoker", recorder.invoker)
+    parameters = {**_parameters(tmp_path), "unverified-provider": True, "confirm": True}
+    prefix = Path(str(parameters["prefix"]))
+    target = Path(str(parameters["target"]))
+    parameters["prefix"] = str(prefix / ".." / prefix.name)
+    parameters["target"] = str(target / ".." / target.name)
+
+    with pytest.raises(CliFailure, match="the recorder answers nothing"):
+        getattr(harness_commands, action)(parameters)
+
+    assert recorder.target == str(target.resolve())
+    assert recorder.writable == (prefix.resolve(),)
 
 
 @pytest.mark.parametrize("action", ["install", "update", "remove"])
