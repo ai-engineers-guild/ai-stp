@@ -48,8 +48,9 @@ export async function readOwnerObject(
 export async function readOwnerPresentation(
   sessionToken: string,
   stableId: string,
+  objectKind: "component" | "setup" = "component",
 ): Promise<OwnerPresentation> {
-  return apiRequest<OwnerPresentation>(`/v1/owner/objects/component/${stableId}/presentation`, {
+  return apiRequest<OwnerPresentation>(`/v1/owner/objects/${objectKind}/${stableId}/presentation`, {
     sessionToken,
   });
 }
@@ -58,8 +59,9 @@ export async function updateOwnerPresentation(
   sessionToken: string,
   stableId: string,
   body: Pick<OwnerPresentation, "bio" | "media">,
+  objectKind: "component" | "setup" = "component",
 ): Promise<OwnerPresentation> {
-  return apiRequest<OwnerPresentation>(`/v1/owner/objects/component/${stableId}/presentation`, {
+  return apiRequest<OwnerPresentation>(`/v1/owner/objects/${objectKind}/${stableId}/presentation`, {
     method: "PUT",
     sessionToken,
     body: { schema_version: 1, ...body },

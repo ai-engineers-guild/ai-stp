@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "AlignmentState": {
+      "enum": [
+        "aligned",
+        "diverged",
+        "unknown",
+        "missing"
+      ],
+      "type": "string"
+    },
+    "Digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "FamilyCreatedFrom": {
+      "enum": [
+        "recast",
+        "owner",
+        "staff_migration",
+        "migration"
+      ],
+      "type": "string"
+    },
+    "FamilyId": {
+      "pattern": "^family_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SetupFamilyMember": {
+      "additionalProperties": true,
+      "description": "One accessible family member. Public reads omit inaccessible identity.",
+      "properties": {
+        "alignment": {
+          "$ref": "#/$defs/AlignmentState"
+        },
+        "exact_version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Version"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "latest_version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Version"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "passport_digest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Digest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ported_from": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SetupRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "$ref": "#/$defs/SetupId"
+        }
+      },
+      "required": [
+        "alignment",
+        "exact_version",
+        "harness_id",
+        "latest_version",
+        "passport_digest",
+        "ported_from",
+        "schema_version",
+        "stable_id"
+      ],
+      "title": "SetupFamilyMember",
+      "type": "object"
+    },
+    "SetupId": {
+      "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "SetupRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a setup version; a setup has no variant axis.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "SetupRef",
+      "type": "object"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:owner-setup-family",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Owner family projection with revision and safe diagnostics.",
+  "properties": {
+    "allowed_actions": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Allowed Actions",
+      "type": "array"
+    },
+    "baseline": {
+      "$ref": "#/$defs/SetupRef"
+    },
+    "created_from": {
+      "$ref": "#/$defs/FamilyCreatedFrom"
+    },
+    "current_member": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SetupFamilyMember"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "diagnostics": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 32,
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "family_id": {
+      "$ref": "#/$defs/FamilyId"
+    },
+    "members": {
+      "items": {
+        "$ref": "#/$defs/SetupFamilyMember"
+      },
+      "maxItems": 7,
+      "title": "Members",
+      "type": "array"
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "allowed_actions",
+    "baseline",
+    "created_from",
+    "current_member",
+    "diagnostics",
+    "family_id",
+    "members",
+    "name",
+    "revision",
+    "schema_version"
+  ],
+  "title": "SetupFamilyOwner",
+  "type": "object"
+}

@@ -38,6 +38,7 @@ import {
   Sparkles,
   Star,
   Pencil,
+  Play,
   type LucideIcon,
   type LucideProps,
   Moon,
@@ -88,6 +89,7 @@ export type IconName =
   | "eye"
   | "download"
   | "edit"
+  | "play"
   | "logout"
   | "objects"
   | "devices"
@@ -140,6 +142,7 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   eye: Eye,
   download: Download,
   edit: Pencil,
+  play: Play,
   logout: LogOut,
   objects: Boxes,
   devices: Monitor,

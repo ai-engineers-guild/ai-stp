@@ -41,6 +41,9 @@ const labels = {
   retryUpload: "Retry upload",
   replaceUpload: "Replace file",
   sourceUpload: "Upload file",
+  sourceUrl: "Media URL",
+  urlHint: "Paste an HTTPS media URL.",
+  urlPlaceholder: "https://example.com/media.mp4",
   sourceGithub: "Pinned GitHub raw URL",
   sourceYoutube: "YouTube video ID",
   sourceChoice: "Source",
@@ -50,7 +53,7 @@ const labels = {
   itemStatusUploading: "Uploading",
   itemStatusReady: "Ready",
   itemStatusError: "Upload failed",
-  altRequired: "Required for accessibility.",
+  altRequired: "Optional. Add a description when the image needs context.",
   mediaCount: "{count} of {max} items",
   kindImage: "Image",
   kindVideo: "Video",
@@ -349,12 +352,38 @@ describe("ObjectPresentationForm media editor", () => {
     });
   });
 
-  it("exposes accessible per-item status and required labels", () => {
+  it("exposes accessible per-item status and optional alternative text", () => {
     renderForm();
     expect(screen.getByText("Not ready")).toBeTruthy();
-    expect(screen.getByLabelText(/Alternative text/i)).toHaveAttribute("aria-required", "true");
-    expect(screen.getByLabelText("Source")).toBeTruthy();
-    expect(screen.getByText("Required for accessibility.")).toBeTruthy();
+    expect(screen.getByLabelText(/Alternative text/i)).not.toHaveAttribute("aria-required");
+    expect(screen.getByRole("group", { name: "Source" })).toBeTruthy();
+    expect(
+      screen.getByText("Optional. Add a description when the image needs context."),
+    ).toBeTruthy();
+  });
+
+  it("keeps URL mode visible and validates the preview before saving", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("button", { name: "Media URL" }));
+    const url = screen.getByLabelText(/Media URL/i);
+    await user.type(url, "https://cdn.example.com/demo.mp4");
+
+    expect(url).toHaveValue("https://cdn.example.com/demo.mp4");
+    expect(screen.queryByRole("button", { name: "Upload photo or video" })).toBeNull();
+    fireEvent.loadedMetadata(document.querySelector("video") as HTMLVideoElement);
+    await user.click(screen.getByRole("button", { name: "Save presentation" }));
+
+    await waitFor(() => {
+      expect(updateAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          media: [
+            expect.objectContaining({ kind: "video", url: "https://cdn.example.com/demo.mp4" }),
+          ],
+        }),
+      );
+    });
   });
 
   it("handles non-JSON upload failure without crashing", async () => {

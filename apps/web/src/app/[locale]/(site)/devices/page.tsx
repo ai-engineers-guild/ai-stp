@@ -56,7 +56,12 @@ export default async function DevicesPage({ params, searchParams }: PageProps) {
         <p className="text-muted-foreground max-w-2xl">{t("subtitle")}</p>
       </header>
 
-      <DeviceList devices={devices.items} currentDeviceId={session.deviceId} csrfToken={csrf} />
+      <DeviceList
+        devices={devices.items}
+        currentDeviceId={session.deviceId}
+        csrfToken={csrf}
+        locale={locale}
+      />
 
       <section
         aria-labelledby="authorize-device-heading"

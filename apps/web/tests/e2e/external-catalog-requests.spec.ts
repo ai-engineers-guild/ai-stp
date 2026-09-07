@@ -11,6 +11,7 @@ test.describe("external catalog requests", () => {
     await expect(page).toHaveURL(/\/en\/account/, { timeout: 30_000 });
 
     await page.goto(`/en/objects/component/${stableId}`);
+    await page.getByText("Integrations", { exact: true }).click();
     await expect(page.getByRole("heading", { name: "External services" })).toBeVisible();
 
     await page.getByRole("textbox", { name: "Service name" }).fill("Example Service");

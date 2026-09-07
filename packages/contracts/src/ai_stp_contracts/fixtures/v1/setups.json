@@ -50,7 +50,10 @@
             "evidence": []
           },
           "latest_checks": null,
-          "usage_metrics": null
+          "usage_metrics": null,
+          "family_id": null,
+          "family_member_count": null,
+          "family_match_kind": null
         },
         "versions": [
           {
@@ -74,7 +77,32 @@
         ],
         "country_codes": [],
         "services": [],
-        "component_checks": []
+        "ported_from": null,
+        "related_setup_ids": [],
+        "component_checks": [],
+        "family": null,
+        "composition": [
+          {
+            "schema_version": 1,
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "1.2",
+            "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "selected_adaptation": {
+              "schema_version": 1,
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "harness_id": "claude-code",
+              "implementation_mode": "native",
+              "projection_kind": "native_files",
+              "technical_support": "experimental",
+              "scopes": [
+                "global"
+              ],
+              "assessment_state": "not_verified",
+              "recommendation": "ineffective",
+              "limitations": []
+            }
+          }
+        ]
       }
     },
     {
@@ -174,7 +202,30 @@
         },
         "checks": null,
         "usage_metrics": null,
-        "component_checks": []
+        "component_checks": [],
+        "family": null,
+        "composition": [
+          {
+            "schema_version": 1,
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "1.2",
+            "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "selected_adaptation": {
+              "schema_version": 1,
+              "adaptation_id": "adaptation_41f731619dda6537c8880281c319f8a5132f06117e364651cb482473779cb46e",
+              "harness_id": "claude-code",
+              "implementation_mode": "native",
+              "projection_kind": "native_files",
+              "technical_support": "experimental",
+              "scopes": [
+                "global"
+              ],
+              "assessment_state": "not_verified",
+              "recommendation": "ineffective",
+              "limitations": []
+            }
+          }
+        ]
       }
     },
     {

@@ -272,6 +272,7 @@ export function presentAccountPreview(input: {
 export function presentPresentationEdit(input: {
   title: string;
   note: string;
+  objectKind: "component" | "setup";
   stableId: string;
   bio: string;
   labels: { stableId: string; bio: string };
@@ -280,7 +281,7 @@ export function presentPresentationEdit(input: {
     heading(1, input.title),
     paragraph(input.note),
     field(input.labels.stableId, input.stableId),
-    link("Object", `/objects/component/${input.stableId}`),
+    link("Object", `/objects/${input.objectKind}/${input.stableId}`),
     link("Objects", "/objects"),
   ];
   if (input.bio) {

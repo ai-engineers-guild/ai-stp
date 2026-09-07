@@ -15,6 +15,11 @@ from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.publish import service as publish_service
 from ai_stp_contracts.catalog import ExternalProductListResponse, ExternalProductSummary
+from ai_stp_contracts.families import (
+    SetupFamilyCreateRequest,
+    SetupFamilyOwner,
+    SetupFamilyPatchRequest,
+)
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.owner import (
     COMPONENT_MEDIA_PUBLIC_PREFIX,
@@ -39,6 +44,7 @@ from ai_stp_contracts.publication import (
     PublicationPlanCreateRequest,
     PublicationPlanResponse,
 )
+from ai_stp_passports.versions import SetupVersionPassport
 from ai_stp_platform.external_catalog import COUNTRY_CODES, canonical_external_url
 from ai_stp_platform.models import (
     CatalogExternalProduct,
@@ -729,10 +735,50 @@ async def read_owner_version(
                 )
 
     description = ""
+    ported_from = None
+    related_setup_ids: list[str] = []
+    target_gaps = []
+    family_view: SetupFamilyOwner | None = None
     if isinstance(row.passport_document, dict):
         raw = row.passport_document.get("description")
         if isinstance(raw, str):
             description = raw[:2000]
+        if object_kind == "setup":
+            try:
+                passport = SetupVersionPassport.model_validate(row.passport_document)
+            except (TypeError, ValueError):
+                pass
+            else:
+                ported_from = passport.ported_from
+                related_setup_ids = passport.related_setup_ids
+            from ai_stp_platform.catalog_families import family_for_setup, project_family
+
+            family = await family_for_setup(db, stable_id)
+            if family is not None:
+                projected = await project_family(
+                    db,
+                    family,
+                    current_stable_id=stable_id,
+                    exact_version=version,
+                    authorized_owner_id=ctx.account_id,
+                )
+                if isinstance(projected, SetupFamilyOwner):
+                    family_view = projected
+        if object_kind == "component":
+            try:
+                from ai_stp_passports.versions import ComponentVersionPassport
+                from ai_stp_platform.catalog_assessments import load_effective_assessments
+                from ai_stp_platform.catalog_targets import owner_target_gaps, project_target_matrix
+
+                component = ComponentVersionPassport.model_validate(row.passport_document)
+                assessments = await load_effective_assessments(
+                    db, component_stable_id=stable_id, version=version
+                )
+                target_gaps = owner_target_gaps(
+                    project_target_matrix(component, assessments=assessments)
+                )
+            except (TypeError, ValueError):
+                target_gaps = []
 
     return OwnerVersionDetail(
         schema_version=1,
@@ -758,6 +804,10 @@ async def read_owner_version(
         open_publication_plan_id=open_plan_id,
         evidence=evidence,
         description=description,
+        ported_from=ported_from,
+        related_setup_ids=related_setup_ids,
+        target_gaps=target_gaps,
+        family=family_view,
     )
 
 
@@ -890,4 +940,123 @@ async def set_owner_lifecycle(
         version=version,
         lifecycle=resulting,  # pyright: ignore[reportArgumentType]
         applied=True,
+    )
+
+
+async def read_owner_family(db: AsyncSession, *, ctx: AuthContext, family_id: str):
+    from ai_stp_platform.catalog_families import FamilyError, project_family
+    from ai_stp_platform.models import SetupFamily
+
+    family = await db.get(SetupFamily, family_id)
+    if family is None or family.owner_account_id != ctx.account_id:
+        raise ApiError(ErrorCategory.NOT_FOUND, "family not found")
+    try:
+        return await project_family(
+            db,
+            family,
+            current_stable_id=None,
+            exact_version=None,
+            authorized_owner_id=ctx.account_id,
+        )
+    except FamilyError as exc:
+        raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
+
+
+async def create_owner_family(
+    db: AsyncSession, *, ctx: AuthContext, body: SetupFamilyCreateRequest
+):
+    from ai_stp_platform.catalog_families import FamilyError, create_family, project_family
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+    try:
+        family = await create_family(db, owner_id=ctx.account_id, body=body)
+    except FamilyError as exc:
+        category = {
+            "AI_STP_NOT_FOUND": ErrorCategory.NOT_FOUND,
+            "AI_STP_CONFLICT": ErrorCategory.CONFLICT,
+            "AI_STP_CATALOG_INTEGRITY": ErrorCategory.CATALOG_INTEGRITY,
+        }.get(exc.code, ErrorCategory.VALIDATION)
+        raise ApiError(category, str(exc)) from exc
+    from sqlalchemy import select
+
+    from ai_stp_platform.models import SetupFamilyMember as FamilyMemberRow
+
+    members = list(
+        (
+            await db.execute(
+                select(FamilyMemberRow).where(FamilyMemberRow.family_id == family.family_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for member in members:
+        await upsert_catalog_search_projection(db, object_kind="setup", stable_id=member.stable_id)
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        action="owner.family_created",
+        target_table="setup_family",
+        target_id=family.family_id,
+        reason=body.reason,
+        payload={"members": list(body.members)},
+    )
+    await db.commit()
+    return await project_family(
+        db,
+        family,
+        current_stable_id=None,
+        exact_version=None,
+        authorized_owner_id=ctx.account_id,
+    )
+
+
+async def patch_owner_family(
+    db: AsyncSession, *, ctx: AuthContext, family_id: str, body: SetupFamilyPatchRequest
+):
+    from sqlalchemy import select
+
+    from ai_stp_platform.catalog_families import FamilyError, patch_family, project_family
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+    from ai_stp_platform.models import SetupFamilyMember as FamilyMemberRow
+
+    try:
+        family = await patch_family(db, owner_id=ctx.account_id, family_id=family_id, body=body)
+    except FamilyError as exc:
+        category = {
+            "AI_STP_NOT_FOUND": ErrorCategory.NOT_FOUND,
+            "AI_STP_CONFLICT": ErrorCategory.CONFLICT,
+            "AI_STP_CATALOG_INTEGRITY": ErrorCategory.CATALOG_INTEGRITY,
+        }.get(exc.code, ErrorCategory.VALIDATION)
+        raise ApiError(category, str(exc)) from exc
+    members = list(
+        (
+            await db.execute(
+                select(FamilyMemberRow).where(FamilyMemberRow.family_id == family.family_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for member in members:
+        await upsert_catalog_search_projection(db, object_kind="setup", stable_id=member.stable_id)
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        action="owner.family_updated",
+        target_table="setup_family",
+        target_id=family.family_id,
+        reason=body.reason,
+        payload={
+            "add_members": list(body.add_members),
+            "remove_members": list(body.remove_members),
+        },
+    )
+    await db.commit()
+    return await project_family(
+        db,
+        family,
+        current_stable_id=None,
+        exact_version=None,
+        authorized_owner_id=ctx.account_id,
     )

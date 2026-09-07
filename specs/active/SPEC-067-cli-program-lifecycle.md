@@ -1,9 +1,9 @@
 ---
-description: "SPEC-065: Shared executable lifecycle for catalog cli components."
+description: "SPEC-067: Shared executable lifecycle for catalog cli components."
 last_verified: "2026-09-06"
 ---
 
-# SPEC-065: Shared cli executable lifecycle
+# SPEC-067: Shared cli executable lifecycle
 
 ## Purpose
 
@@ -26,27 +26,27 @@ Included: composition conversion of `cli`, and `component program install`,
 
 ## Requirements
 
-- `REQ-6501`: A required `cli` member does not produce `native_surface_lost`.
-- `REQ-6502`: Conversion reports `cli` as complete on the shared `bin` surface.
-- `REQ-6503`: `component program install`, `invoke`, `status`, and `remove`
+- `REQ-6701`: A required `cli` member does not produce `native_surface_lost`.
+- `REQ-6702`: Conversion reports `cli` as complete on the shared `bin` surface.
+- `REQ-6703`: `component program install`, `invoke`, `status`, and `remove`
   operate on one prefix under the CLI data directory.
-- `REQ-6504`: `remove` accepts only a typed component identifier and deletes
+- `REQ-6704`: `remove` accepts only a typed component identifier and deletes
   only names under the shared prefix. A path, `..` segment, or linked prefix is
   refused. A component-root symlink is unlinked without deleting its outside
   target.
-- `REQ-6505`: Invoke with an explicit version uses that installed version, not
+- `REQ-6705`: Invoke with an explicit version uses that installed version, not
   `current`. Without a version, invoke and status use the version selected by
   the validated `current` pointer. A newer uninstalled registry version must
   not change the reported installed identity. An uninstalled requested version
   is refused without invoking another version.
-- `REQ-6506`: Status and invoke compare installed program bytes with the
+- `REQ-6706`: Status and invoke compare installed program bytes with the
   recorded artifact and require an executable regular file. A pointer cannot
   escape its component's `X.Y/program` coordinate or select another
   component's program.
-- `REQ-6507`: Install refuses pre-existing linked component, version and
+- `REQ-6707`: Install refuses pre-existing linked component, version and
   program paths. It replaces program bytes atomically rather than truncating an
   inode that may have another hardlink.
-- `REQ-6508`: A ZIP CLI artifact contains exactly one regular program. Empty,
+- `REQ-6708`: A ZIP CLI artifact contains exactly one regular program. Empty,
   ambiguous, linked, unreadable or oversized archives are refused, not executed
   as raw ZIP bytes or selected by first-member order. Raw single executables
   remain valid.
@@ -76,11 +76,11 @@ are corrected; that is not a new component kind.
 
 | Requirement | Executable verification method |
 |---|---|
-| `REQ-6501` | Composition of a required cli member has no `native_surface_lost`. |
-| `REQ-6502` | Convert of a cli member is `complete` with `native_surface=bin`. |
-| `REQ-6503` | Install, status, invoke, and remove of one recorded cli artifact. |
-| `REQ-6504` | `component program remove --id ../outside --confirm` raises and leaves the outside directory. A symlink under the prefix to that directory is unlinked; the target remains. |
-| `REQ-6505` | Installed `1.0` plus recorded `1.1` still reports `1.0`; explicit uninstalled `1.1` is refused; explicit installed `1.0` does not run current `1.1`. |
-| `REQ-6506` | Tampered program bytes and a pointer to another component are rejected by both status and invoke. |
-| `REQ-6507` | Component/version/program symlink destinations are refused; replacing a hardlinked program leaves its outside name unchanged. |
-| `REQ-6508` | Single-file archive positive control; empty, multi-file, linked and corrupt ZIP negative controls. |
+| `REQ-6701` | Composition of a required cli member has no `native_surface_lost`. |
+| `REQ-6702` | Convert of a cli member is `complete` with `native_surface=bin`. |
+| `REQ-6703` | Install, status, invoke, and remove of one recorded cli artifact. |
+| `REQ-6704` | `component program remove --id ../outside --confirm` raises and leaves the outside directory. A symlink under the prefix to that directory is unlinked; the target remains. |
+| `REQ-6705` | Installed `1.0` plus recorded `1.1` still reports `1.0`; explicit uninstalled `1.1` is refused; explicit installed `1.0` does not run current `1.1`. |
+| `REQ-6706` | Tampered program bytes and a pointer to another component are rejected by both status and invoke. |
+| `REQ-6707` | Component/version/program symlink destinations are refused; replacing a hardlinked program leaves its outside name unchanged. |
+| `REQ-6708` | Single-file archive positive control; empty, multi-file, linked and corrupt ZIP negative controls. |

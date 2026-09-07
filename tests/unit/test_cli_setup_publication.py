@@ -231,6 +231,20 @@ def _plan() -> Any:
     return setup_publication.plan({"id": SETUP, "version": SETUP_VERSION}).payload
 
 
+def test_private_setup_is_publicized_only_in_the_publication_request() -> None:
+    _materialize()
+
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        public = setup_publication._setup_passport(connection, SETUP, SETUP_VERSION)
+        recorded = versions.held(connection, SETUP, SETUP_VERSION)
+        assert recorded is not None
+        stored = revisions.get(connection, recorded.revision_id)
+
+    assert public.visibility == "public"
+    assert stored is not None
+    assert stored.envelope.visibility == "private"
+
+
 def _member(role: str, stable_id: str, plan_hash: str = "h") -> PublicationSetMemberView:
     return PublicationSetMemberView(
         role=role,  # pyright: ignore[reportArgumentType]

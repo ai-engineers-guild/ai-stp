@@ -74,6 +74,8 @@ describe("object detail header and frame", () => {
     );
     expect(screen.getByText("Archived")).toBeVisible();
     const actions = container.querySelector('[data-ui="component-actions"]');
+    expect(actions?.className).toContain("lg:absolute");
+    expect(actions?.className).toContain("lg:right-12");
     expect(actions?.contains(screen.getByLabelText("GitHub stars: 2"))).toBe(true);
     expect(actions?.contains(screen.getByRole("link", { name: "View source on GitHub" }))).toBe(
       true,

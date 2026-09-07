@@ -1,5 +1,14 @@
 {
   "$defs": {
+    "AlignmentState": {
+      "enum": [
+        "aligned",
+        "diverged",
+        "unknown",
+        "missing"
+      ],
+      "type": "string"
+    },
     "CatalogSort": {
       "enum": [
         "relevance",
@@ -29,6 +38,10 @@
     },
     "Cursor": {
       "pattern": "^[A-Za-z0-9_-]{1,512}$",
+      "type": "string"
+    },
+    "FamilyId": {
+      "pattern": "^family_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
     },
     "HarnessId": {
@@ -120,6 +133,28 @@
       ],
       "default": null
     },
+    "family_alignment": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AlignmentState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "family_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FamilyId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "harness_id": {
       "anyOf": [
         {
@@ -135,7 +170,7 @@
       "items": {
         "$ref": "#/$defs/HarnessId"
       },
-      "maxItems": 6,
+      "maxItems": 7,
       "title": "Harness Ids",
       "type": "array"
     },
@@ -148,6 +183,17 @@
       "default": false,
       "title": "Include Experimental",
       "type": "boolean"
+    },
+    "member_harness_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HarnessId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "page": {
       "anyOf": [

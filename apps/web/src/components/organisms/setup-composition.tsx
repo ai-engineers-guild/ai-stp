@@ -1,9 +1,11 @@
 import { Badge } from "@/components/atoms/badge";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
 import type {
   ComponentType,
   SetupComponentChecks,
+  SetupCompositionMember,
   SetupVersionPassport,
 } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
@@ -24,12 +26,14 @@ export function SetupComposition({
   passport,
   components,
   catalogComponents,
+  composition = [],
   setupAuthor,
   t,
 }: {
   passport: SetupVersionPassport;
   components: SetupComponentChecks[];
   catalogComponents: CatalogComponentPresentation[];
+  composition?: SetupCompositionMember[];
   setupAuthor: { accountId: string; displayName?: string | null | undefined };
   t: (key: string) => string;
 }) {
@@ -38,6 +42,9 @@ export function SetupComposition({
   );
   const catalogByRef = new Map(
     catalogComponents.map((item) => [`${item.stableId}@${item.version}`, item]),
+  );
+  const compositionByRef = new Map(
+    composition.map((item) => [`${item.stable_id}@${item.version}`, item]),
   );
   const presentations = componentPresentations(passport);
 
@@ -52,6 +59,7 @@ export function SetupComposition({
               const key = `${ref.stable_id}@${ref.version}`;
               const component = checksByRef.get(key);
               const catalog = catalogByRef.get(key);
+              const selected = compositionByRef.get(key)?.selected_adaptation;
               const presentation = presentations.get(key);
               const embedded = component?.embedded ?? presentation?.embedded ?? false;
               const componentType =
@@ -68,22 +76,33 @@ export function SetupComposition({
                   };
 
               return (
-                <li key={key} className={embedded ? "bg-muted/20 p-4 sm:p-5" : "p-4 sm:p-5"}>
+                <li key={key} className={`relative ${embedded ? "bg-muted/20" : ""} p-4 sm:p-5`}>
+                  {!embedded ? (
+                    <Link
+                      href={`/catalog/components/${ref.stable_id}`}
+                      prefetch={false}
+                      aria-label={name}
+                      className="focus-visible:ring-ring absolute inset-0 z-10 rounded-lg focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                      <span className="sr-only">{name}</span>
+                    </Link>
+                  ) : null}
                   <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                     <ComponentTypeIcon type={componentType} compact />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div
+                      className={`min-w-0 flex-1 ${
+                        !embedded ? "pointer-events-none relative z-20" : ""
+                      }`}
+                    >
+                      <div className="flex min-w-0 flex-wrap items-start gap-2">
                         {embedded ? (
                           <span className="font-medium [overflow-wrap:anywhere] break-words">
                             {name}
                           </span>
                         ) : (
-                          <Link
-                            href={`/catalog/components/${ref.stable_id}`}
-                            className="font-medium [overflow-wrap:anywhere] break-words underline underline-offset-4"
-                          >
+                          <span className="font-medium [overflow-wrap:anywhere] break-words underline underline-offset-4">
                             {name}
-                          </Link>
+                          </span>
                         )}
                         <Badge variant="outline">{componentType}</Badge>
                         <Badge variant="outline">
@@ -92,6 +111,29 @@ export function SetupComposition({
                         {embedded ? (
                           <Badge variant="secondary">{t("externalComponent")}</Badge>
                         ) : null}
+                        {selected ? (
+                          <Badge variant="outline">
+                            {selected.harness_id} {t("harnessProjection")}
+                          </Badge>
+                        ) : null}
+                        <div className="pointer-events-auto relative z-30 ml-auto shrink-0">
+                          <CatalogItemMenu
+                            kind="component"
+                            stableId={ref.stable_id}
+                            version={ref.version}
+                            href={`/catalog/components/${ref.stable_id}/versions/${ref.version}`}
+                            labels={{
+                              more: t("moreActions"),
+                              copyUrl: t("copyUrl"),
+                              copyCli: t("copyCli"),
+                              copyId: t("copyId"),
+                              copied: t("copied"),
+                              report: t("report"),
+                              like: t("like"),
+                              unlike: t("unlike"),
+                            }}
+                          />
+                        </div>
                       </div>
 
                       <div className="text-muted-foreground mt-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
@@ -100,7 +142,7 @@ export function SetupComposition({
                           {identity.accountId ? (
                             <Link
                               href={`/publishers/${identity.accountId}`}
-                              className="text-foreground underline underline-offset-4"
+                              className="text-foreground pointer-events-auto relative z-20 underline underline-offset-4"
                             >
                               {identity.displayName || identity.accountId}
                             </Link>
@@ -113,7 +155,7 @@ export function SetupComposition({
                             href={sourceUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-foreground inline-flex min-w-0 items-center gap-1.5 underline underline-offset-4"
+                            className="text-foreground pointer-events-auto relative z-20 inline-flex min-w-0 items-center gap-1.5 underline underline-offset-4"
                           >
                             <Icon name={sourceIcon(sourceUrl)} size="sm" />
                             <span className="truncate">{sourceLabel(sourceUrl)}</span>

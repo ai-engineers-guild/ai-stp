@@ -24,6 +24,8 @@ import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel"
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
 import { SetupComposition } from "@/components/organisms/setup-composition";
+import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
+import { SetupProvenance } from "@/components/molecules/setup-provenance";
 import {
   catalogRelations,
   readComponentVersion,
@@ -37,7 +39,6 @@ import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
-import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -95,6 +96,12 @@ export default async function SetupDetailPage({ params }: PageProps) {
     latest = null;
   }
   const passport = latest?.passport;
+  const detailData = detail as unknown as {
+    ported_from?: NonNullable<typeof passport>["ported_from"];
+    related_setup_ids?: string[];
+  };
+  const portedFrom = detailData.ported_from ?? passport?.ported_from ?? null;
+  const relatedSetupIds = detailData.related_setup_ids ?? passport?.related_setup_ids ?? [];
   const catalogComponents = passport
     ? await Promise.all(
         passport.components.map(async (ref) => {
@@ -103,12 +110,13 @@ export default async function SetupDetailPage({ params }: PageProps) {
               asComponentId(ref.stable_id),
               asVersionId(ref.version),
             );
-            const componentAuthor = await readAuthor(component.passport.owner_id);
+            const componentOwnerId = summary.publisher_id || component.passport.owner_id || "";
+            const componentAuthor = await readAuthor(componentOwnerId);
             return {
               stableId: ref.stable_id,
               version: ref.version,
               componentType: component.passport.component_type,
-              ownerId: component.passport.owner_id,
+              ownerId: componentOwnerId,
               authorName: componentAuthor?.display_name,
               sourceUrl: sourceLinksFor(component.passport.source, component.passport.facts)[0]
                 ?.href,
@@ -123,7 +131,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
   const aggregatedRequirements = passport
     ? mergeRequirements([passport, ...catalogComponents.map((item) => item.passport)])
     : null;
-  const ownerId = passport?.owner_id || summary.publisher_id;
+  const ownerId = summary.publisher_id || passport?.owner_id || "";
   const author = await readAuthor(ownerId);
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=setup&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
@@ -165,14 +173,12 @@ export default async function SetupDetailPage({ params }: PageProps) {
         }
         title={summary.latest_name}
         badges={
-          <>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge variant="secondary">{t("setupKind")}</Badge>
-            {namedHarnesses(summary).map((harness) => (
-              <Badge key={harness} variant="outline">
-                {harness}
-              </Badge>
-            ))}
-          </>
+            <Badge variant="outline">
+              {t("harness")}: {summary.latest_harness_id}
+            </Badge>
+          </div>
         }
         versionLabel={`v${summary.latest_version}`}
         githubStars={metadata.stars}
@@ -217,6 +223,21 @@ export default async function SetupDetailPage({ params }: PageProps) {
         }}
       />
 
+      <SetupProvenance
+        portedFrom={portedFrom}
+        relatedSetupIds={relatedSetupIds}
+        labels={{
+          heading: t("setupProvenance"),
+          portedFrom: t("portedFrom"),
+          relatedSetups: t("relatedSetups"),
+        }}
+      />
+      <SetupFamilyBlock
+        family={detail.family}
+        currentStableId={stableId}
+        labels={setupFamilyLabels(t)}
+      />
+
       <ObjectDetailFrame
         description={
           <MarkdownDescription
@@ -244,6 +265,7 @@ export default async function SetupDetailPage({ params }: PageProps) {
                 passport={passport}
                 components={detail.component_checks}
                 catalogComponents={catalogComponents}
+                composition={detail.composition}
                 setupAuthor={{ accountId: ownerId, displayName: author?.display_name }}
                 t={t}
               />

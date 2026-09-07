@@ -78,6 +78,27 @@ export const WORKSPACE_ROUTES: MachineRoute[] = [
       return presentPresentationEdit({
         title: t("editPresentation"),
         note: t("editPresentationNote"),
+        objectKind: "component",
+        stableId,
+        bio: presentation.bio,
+        labels: { stableId: tm("stableId"), bio: tm("bio") },
+      });
+    },
+  },
+  {
+    pattern: "objects/setup/:stableId/edit",
+    resolve: async ({ segments }) => {
+      const stableId = segments[2] ?? "";
+      const t = await getTranslations("objects");
+      const tm = await getTranslations("machineDoc");
+      const presentation = await orNotFound(
+        readOwnerPresentation((await sessionCookieValue()) ?? "", stableId, "setup"),
+      );
+      if (!presentation) return null;
+      return presentPresentationEdit({
+        title: t("editPresentation"),
+        note: t("editPresentationNote"),
+        objectKind: "setup",
         stableId,
         bio: presentation.bio,
         labels: { stableId: tm("stableId"), bio: tm("bio") },

@@ -39,6 +39,9 @@ describe("public catalog cache policy", () => {
     ).toBe(true);
     expect(isPublicCatalogGetPath("/v1/catalog/setups")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/publishers/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/publishers/account_01JQZK7B8N4M6P2R9T5V0X3Y7Z/stats")).toBe(
+      true,
+    );
     expect(
       isPublicCatalogGetPath("/v1/seo/subjects/component/component_01JQZK7B8N4M6P2R9T5V0X3Y70"),
     ).toBe(true);

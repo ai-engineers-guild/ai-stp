@@ -371,11 +371,16 @@ class CatalogSearchProjection(Base):
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     likes_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    support_tier: Mapped[str] = mapped_column(String(32))
+    support_tier: Mapped[str] = mapped_column(String(32), default="beta")
     support_state: Mapped[str] = mapped_column(String(32), default="missing")
     support_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    family_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    family_member_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    family_alignment: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    verified_targets: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    assessed_targets: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     search_text: Mapped[str] = mapped_column(Text)
     search_vector: Mapped[Any] = mapped_column(
         TSVECTOR, Computed(CATALOG_SEARCH_VECTOR_SQL, persisted=True)
@@ -1470,4 +1475,148 @@ class OwnershipRevision(Base):
     reason: Mapped[str] = mapped_column(Text)
     evidence: Mapped[str] = mapped_column(Text)
     staff_account_id: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ArtifactObservation(Base):
+    """Reusable byte-oriented safety observation (SPEC-064)."""
+
+    __tablename__ = "artifact_observation"
+    __table_args__ = (
+        UniqueConstraint(
+            "identity_digest",
+            name="uq_artifact_observation_identity",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    identity_digest: Mapped[str] = mapped_column(String(71))
+    artifact_digest: Mapped[str] = mapped_column(String(71), index=True)
+    check_id: Mapped[str] = mapped_column(String(64))
+    scanner_id: Mapped[str] = mapped_column(String(64))
+    scanner_version: Mapped[str] = mapped_column(String(64))
+    policy_version: Mapped[str] = mapped_column(String(64))
+    operating_system: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    architecture: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    result: Mapped[str] = mapped_column(String(16))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TargetAssessment(Base):
+    """Append-only target-bound assessment history (SPEC-064)."""
+
+    __tablename__ = "target_assessment"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_target_assessment_idempotency"),
+        Index("ix_target_assessment_target_key", "target_key_digest", "observed_at"),
+        CheckConstraint(
+            "stored_state in ('not_verified', 'verified', 'failed', 'stale')",
+            name="ck_target_assessment_stored_state",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    target_key_digest: Mapped[str] = mapped_column(String(71), index=True)
+    identity: Mapped[dict[str, object]] = mapped_column(JSON)
+    stored_state: Mapped[str] = mapped_column(String(32))
+    compatibility_result: Mapped[str] = mapped_column(String(16), default="not_run")
+    reason_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    checks_summary: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    evidence_refs: Mapped[list[str]] = mapped_column(JSON, default=list)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    payload_digest: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TargetAssessmentLatest(Base):
+    """Latest-effective pointer for one complete target key."""
+
+    __tablename__ = "target_assessment_latest"
+    __table_args__ = (
+        UniqueConstraint("target_key_digest", name="uq_target_assessment_latest_key"),
+    )
+
+    target_key_digest: Mapped[str] = mapped_column(String(71), primary_key=True)
+    assessment_id: Mapped[int] = mapped_column(
+        ForeignKey("target_assessment.id", ondelete="RESTRICT")
+    )
+    component_stable_id: Mapped[str] = mapped_column(String(64), index=True)
+    version: Mapped[str] = mapped_column(String(32))
+    adaptation_id: Mapped[str] = mapped_column(String(76))
+    harness_id: Mapped[str] = mapped_column(String(32), index=True)
+    scope: Mapped[str] = mapped_column(String(32))
+    stored_state: Mapped[str] = mapped_column(String(32))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SetupFamily(Base):
+    """Mutable navigational grouping of single-harness setups (SPEC-065)."""
+
+    __tablename__ = "setup_family"
+    __table_args__ = (
+        CheckConstraint("revision >= 1", name="ck_setup_family_revision"),
+        CheckConstraint(
+            "created_from in ('recast', 'owner', 'staff_migration', 'migration')",
+            name="ck_setup_family_created_from",
+        ),
+    )
+
+    family_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    baseline_stable_id: Mapped[str] = mapped_column(String(64))
+    baseline_version: Mapped[str] = mapped_column(String(32))
+    baseline_passport_digest: Mapped[str] = mapped_column(String(71))
+    created_from: Mapped[str] = mapped_column(String(32))
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    create_idempotency_key: Mapped[str] = mapped_column(String(128), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SetupFamilyMember(Base):
+    """One active family membership. A setup belongs to at most one family."""
+
+    __tablename__ = "setup_family_member"
+    __table_args__ = (
+        UniqueConstraint("family_id", "stable_id", name="uq_setup_family_member_setup"),
+        UniqueConstraint("family_id", "harness_id", name="uq_setup_family_member_harness"),
+        UniqueConstraint("stable_id", name="uq_setup_family_member_one_family"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    family_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("setup_family.family_id", ondelete="CASCADE"), index=True
+    )
+    stable_id: Mapped[str] = mapped_column(String(64))
+    harness_id: Mapped[str] = mapped_column(String(32))
+
+
+class SetupFamilyRevision(Base):
+    """Append-only family membership audit."""
+
+    __tablename__ = "setup_family_revision"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_setup_family_revision_idempotency"),
+        Index("ix_setup_family_revision_family", "family_id", "revision"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    family_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("setup_family.family_id", ondelete="CASCADE"), index=True
+    )
+    revision: Mapped[int] = mapped_column(Integer)
+    actor_account_id: Mapped[str] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(String(200))
+    previous_baseline: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    new_baseline: Mapped[dict[str, object]] = mapped_column(JSON)
+    added_members: Mapped[list[str]] = mapped_column(JSON, default=list)
+    removed_members: Mapped[list[str]] = mapped_column(JSON, default=list)
+    idempotency_key: Mapped[str] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

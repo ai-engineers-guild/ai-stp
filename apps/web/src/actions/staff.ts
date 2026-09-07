@@ -26,6 +26,7 @@ export async function staffTriageAction(input: {
   caseId: string;
   state: "triaged" | "awaiting_author" | "security_escalated" | "resolved" | "dismissed";
   reason: string;
+  publicResponse?: string;
 }): Promise<{ operationId: string | null }> {
   assertCsrf(input.csrfToken, await readCsrfToken());
   if (!input.reason.trim()) {
@@ -42,6 +43,7 @@ export async function staffTriageAction(input: {
     input.state,
     input.reason.trim(),
     randomBytes(16).toString("hex"),
+    input.publicResponse?.trim() ?? "",
   );
   revalidatePath("/[locale]/staff/reports", "layout");
   return { operationId: result.operationId };

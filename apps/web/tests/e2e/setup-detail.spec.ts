@@ -92,7 +92,10 @@ test.describe("setup detail composition", () => {
     await expect(page.locator('a[href^="/en/catalog/components/"]')).toHaveCount(4);
 
     await expect(page.locator('[data-ui="component-overflow"]')).toHaveClass(/right-0/);
-    await page.getByRole("button", { name: "More actions" }).click();
+    await page
+      .locator('[data-ui="component-detail-header"]')
+      .getByRole("button", { name: "More actions" })
+      .click();
     await page.getByRole("menuitem", { name: "Copy ID" }).click();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(stableId);
     await page.getByRole("button", { name: /Like ·/ }).click();
@@ -100,7 +103,10 @@ test.describe("setup detail composition", () => {
       "aria-pressed",
       "true",
     );
-    await page.getByRole("button", { name: "More actions" }).click();
+    await page
+      .locator('[data-ui="component-detail-header"]')
+      .getByRole("button", { name: "More actions" })
+      .click();
     await page.getByRole("menuitem", { name: "Report setup" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(page.locator('input[name="subject"]')).toHaveValue(new RegExp(stableId));

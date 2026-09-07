@@ -524,4 +524,45 @@ describe("parseCatalogSearchParams", () => {
     expect(validateCatalogQuery('"UNKNOWN:value" AND NAME:tool')).toBeNull();
     expect(validateCatalogQuery('"OR"')).toBeNull();
   });
+
+  it("round-trips exact harness and setup family filters", () => {
+    const parsed = parseCatalogSearchParams({
+      harness_id: "codex",
+      family_id: "family_abc",
+      family_alignment: "aligned",
+      member_harness_id: "pi",
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.harnessId).toBe("codex");
+    expect(parsed.value.familyId).toBe("family_abc");
+    expect(parsed.value.familyAlignment).toBe("aligned");
+    expect(parsed.value.memberHarnessId).toBe("pi");
+    expect(catalogQueryToRecord(parsed.value)).toMatchObject({
+      harness_id: "codex",
+      family_id: "family_abc",
+      family_alignment: "aligned",
+      member_harness_id: "pi",
+    });
+    expect(countAppliedFilters(parsed.value)).toBe(4);
+    expect(appliedFilterChips(parsed.value).map((chip) => chip.key)).toEqual([
+      "harness_id",
+      "family_id",
+      "family_alignment",
+      "member_harness_id",
+    ]);
+  });
+
+  it("rejects unknown family alignment values", () => {
+    const alignment = parseCatalogSearchParams({ family_alignment: "equivalent" });
+    expect(alignment.ok).toBe(false);
+    if (!alignment.ok) {
+      expect(alignment.invalidSupport).toContain("family_alignment=equivalent");
+    }
+    const harness = parseCatalogSearchParams({ member_harness_id: "not-a-harness" });
+    expect(harness.ok).toBe(false);
+    if (!harness.ok) {
+      expect(harness.invalidSupport).toContain("member_harness_id=not-a-harness");
+    }
+  });
 });

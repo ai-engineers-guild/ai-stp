@@ -100,6 +100,12 @@ type SetupPassportInput = {
   publishedAt?: string;
   supportedTasks?: string[];
   ownerId?: string;
+  portedFrom?: {
+    stable_id: string;
+    version: string;
+    passport_digest: string;
+  } | null;
+  relatedSetupIds?: string[];
 };
 
 export function buildSetupPassport(input: SetupPassportInput) {
@@ -132,8 +138,8 @@ export function buildSetupPassport(input: SetupPassportInput) {
     posture: "baseline" as string | null,
     supported_tasks: input.supportedTasks ?? ["development"],
     components: input.components,
-    ported_from: null,
-    related_setup_ids: [] as string[],
+    ported_from: input.portedFrom ?? null,
+    related_setup_ids: input.relatedSetupIds ?? [],
     execution_profile: "full-auto" as const,
     supported_harness_versions: ["2.1.0"],
     supported_os: ["linux"] as Array<"linux" | "macos" | "windows">,
@@ -170,6 +176,7 @@ export function componentVersionResponse(stableId: string, version: string) {
     trust: experimentalTrust,
     support: summary.latest_support,
     published_at: summary.latest_published_at,
+    target_matrix: { schema_version: 1 as const, exact: [] },
   };
 }
 
@@ -193,6 +200,8 @@ export function setupVersionResponse(stableId: string, version: string) {
       components: summary.composition.map((item) => ({ ...item })),
       publishedAt: summary.latest_published_at,
       ownerId: getOwnerIdForSetup(stableId) ?? FIXTURE_ACCOUNT_ID,
+      portedFrom: detail.ported_from,
+      relatedSetupIds: detail.related_setup_ids,
     }),
     passport_digest: ZERO_DIGEST,
     lifecycle: "active" as const,

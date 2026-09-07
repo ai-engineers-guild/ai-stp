@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "PassportDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "SetupId": {
+      "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "SetupRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a setup version; a setup has no variant axis.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "SetupRef",
+      "type": "object"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:owner-setup-family-patch",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Expected-revision mutation of name, baseline, or membership.",
+  "properties": {
+    "add_members": {
+      "items": {
+        "$ref": "#/$defs/SetupId"
+      },
+      "maxItems": 7,
+      "title": "Add Members",
+      "type": "array"
+    },
+    "baseline": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SetupRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "expected_revision": {
+      "minimum": 1,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "reason": {
+      "default": "owner_update",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "remove_members": {
+      "items": {
+        "$ref": "#/$defs/SetupId"
+      },
+      "maxItems": 7,
+      "title": "Remove Members",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "expected_revision",
+    "idempotency_key"
+  ],
+  "title": "SetupFamilyPatchRequest",
+  "type": "object"
+}

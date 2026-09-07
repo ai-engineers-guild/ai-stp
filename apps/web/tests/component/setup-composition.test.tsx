@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { SetupComposition } from "@/components/organisms/setup-composition";
-import type { SetupComponentChecks, SetupVersionPassport } from "@/lib/api/generated/types.gen";
+import type {
+  SetupComponentChecks,
+  SetupCompositionMember,
+  SetupVersionPassport,
+} from "@/lib/api/generated/types.gen";
 
 vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
@@ -13,6 +17,10 @@ vi.mock("@/lib/i18n/navigation", () => ({
   ),
 }));
 
+vi.mock("@/components/organisms/contact-report-dialog", () => ({
+  ContactReportDialog: () => null,
+}));
+
 const labels: Record<string, string> = {
   composition: "Components",
   compositionDescription: "Exact components included in this setup.",
@@ -20,6 +28,12 @@ const labels: Record<string, string> = {
   componentPublisher: "Published by",
   externalComponent: "Third-party source",
   noneListed: "None listed",
+  harnessProjection: "harness projection",
+  selectedAdaptation: "Selected harness projection",
+  safetyCheck: "Safety check",
+  technicalSupport: "Technical support",
+  implementationMode: "Implementation",
+  recommendation: "Recommendation",
 };
 
 const passport = {
@@ -53,6 +67,27 @@ const components = [
   },
 ] satisfies SetupComponentChecks[];
 
+const composition = [
+  {
+    schema_version: 1,
+    stable_id: "component_skill",
+    version: "1.0",
+    passport_digest: "sha256:aa",
+    selected_adaptation: {
+      schema_version: 1,
+      adaptation_id: "adaptation_claude",
+      harness_id: "claude-code",
+      implementation_mode: "native",
+      projection_kind: "native_files",
+      technical_support: "experimental",
+      scopes: ["global"],
+      assessment_state: "not_verified",
+      recommendation: "ineffective",
+      limitations: [],
+    },
+  },
+] satisfies SetupCompositionMember[];
+
 describe("SetupComposition", () => {
   it("presents an external component like a catalog row without safety or token noise", async () => {
     const user = userEvent.setup();
@@ -79,5 +114,23 @@ describe("SetupComposition", () => {
     );
     expect(screen.queryByText(/checks passed/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/tokens/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the selected harness projection as a compact card badge", async () => {
+    const user = userEvent.setup();
+    render(
+      <SetupComposition
+        passport={passport}
+        components={components}
+        catalogComponents={[]}
+        composition={composition}
+        setupAuthor={{ accountId: "account_author", displayName: "Artem" }}
+        t={(key) => labels[key] ?? key}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Components/ }));
+    expect(screen.getByText("claude-code harness projection")).toBeVisible();
+    expect(screen.queryByText(/Selected harness projection/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "moreActions" })).toBeVisible();
   });
 });

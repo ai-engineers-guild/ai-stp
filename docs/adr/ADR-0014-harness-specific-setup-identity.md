@@ -1,11 +1,14 @@
 ---
 description: "Decision to bind a setup to one harness and remove the setup variant from its identity."
-last_verified: "2026-08-04"
+last_verified: "2026-09-06"
 ---
 
 # ADR-0014: A setup belongs to one harness
 
-Status: accepted.
+Status: accepted. Supplemented by
+`ADR-0165-related-single-harness-setups-form-an-explicit-family.md`, which keeps
+each setup harness-specific and adds a separate navigational family and
+version-level invariant alignment.
 
 ## Context
 

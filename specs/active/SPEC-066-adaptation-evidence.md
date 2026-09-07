@@ -1,9 +1,9 @@
 ---
-description: "SPEC-064: Per-adaptation evaluation evidence for a component version."
+description: "SPEC-066: Per-adaptation evaluation evidence for a component version."
 last_verified: "2026-09-06"
 ---
 
-# SPEC-064: Per-adaptation evaluation evidence
+# SPEC-066: Per-adaptation evaluation evidence
 
 ## Purpose
 
@@ -22,15 +22,15 @@ Excluded: platform persistence and web rendering of assessments (`#146`).
 
 ## Requirements
 
-- `REQ-6401`: `eval component` enumerates every adaptation of the pinned
+- `REQ-6601`: `eval component` enumerates every adaptation of the pinned
   version. A setup evaluation enumerates only the adaptation for that setup's
   harness.
-- `REQ-6402`: Each adaptation is scanned at its projection digest. Mixed
+- `REQ-6602`: Each adaptation is scanned at its projection digest. Mixed
   pass/fail is visible per adaptation without collapsing into one surface set.
-- `REQ-6403`: Author attestation may bind adaptation id, projection digest,
+- `REQ-6603`: Author attestation may bind adaptation id, projection digest,
   scope, provider profile, OS, and architecture. Unset optional fields keep
   historical signed payloads unchanged.
-- `REQ-6404`: Changing evidence does not mint a component version.
+- `REQ-6604`: Changing evidence does not mint a component version.
 
 ## States and errors
 
@@ -54,7 +54,7 @@ fields default to absent. Changing evidence never rewrites a component version.
 
 | Requirement | Executable verification method |
 |---|---|
-| `REQ-6401` | A Claude setup with a Codex sibling lists only Claude. `eval component` lists both. |
-| `REQ-6402` | Static-contract results include mixed `passed`/`failed` with adaptation ids. |
-| `REQ-6403` | Attestation digest changes when `adaptation_id` changes; omitted fields are absent from the signed payload. |
-| `REQ-6404` | Eval result states `immutable_published_bytes_changed` is false. |
+| `REQ-6601` | A Claude setup with a Codex sibling lists only Claude. `eval component` lists both. |
+| `REQ-6602` | Static-contract results include mixed `passed`/`failed` with adaptation ids. |
+| `REQ-6603` | Attestation digest changes when `adaptation_id` changes; omitted fields are absent from the signed payload. |
+| `REQ-6604` | Eval result states `immutable_published_bytes_changed` is false. |

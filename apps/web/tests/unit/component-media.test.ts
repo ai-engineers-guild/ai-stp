@@ -6,6 +6,7 @@ import {
   isUploadedMediaUrl,
   isYoutubeVideoId,
   kindFromMime,
+  kindFromMediaUrl,
   validateComponentMediaFile,
 } from "@/lib/component-media";
 
@@ -32,5 +33,16 @@ describe("component media client bounds", () => {
     expect(isGithubRawUrl("https://raw.githubusercontent.com/org/repo/abc/file.png")).toBe(true);
     expect(isYoutubeVideoId("dQw4w9WgXcQ")).toBe(true);
     expect(isYoutubeVideoId("short")).toBe(false);
+  });
+
+  it("infers URL media types for immediate previews", () => {
+    expect(kindFromMediaUrl("https://cdn.example.test/cover.png")).toBe("image");
+    expect(kindFromMediaUrl("https://cdn.example.test/demo.mp4?autoplay=0")).toBe("video");
+    expect(kindFromMediaUrl("https://youtu.be/dQw4w9WgXcQ")).toBe("youtube");
+    expect(
+      kindFromMediaUrl(
+        "https://github.com/org/repo/blob/0123456789abcdef0123456789abcdef01234567/demo.webm",
+      ),
+    ).toBe("video");
   });
 });

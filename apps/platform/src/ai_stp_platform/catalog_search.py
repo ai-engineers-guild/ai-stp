@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal, cast
 
@@ -22,6 +22,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql import ColumnElement
 
 from ai_stp_contracts.catalog import (
@@ -31,6 +32,7 @@ from ai_stp_contracts.catalog import (
     unique_sorted,
 )
 from ai_stp_contracts.tag_vocabulary import search_terms_for_tags
+from ai_stp_passports.versions import ComponentVersionPassport
 from ai_stp_platform.catalog_cursor import CursorKey
 from ai_stp_platform.catalog_query_language import (
     Binary,
@@ -49,7 +51,10 @@ from ai_stp_platform.catalog_read import (
     public_version_row,
 )
 from ai_stp_platform.catalog_support import project_support
-from ai_stp_platform.logging import get_logger
+from ai_stp_platform.catalog_targets import (
+    assurance_counts,
+    project_target_matrix,
+)
 from ai_stp_platform.models import (
     AccountAuthorVerification,
     CatalogExternalProduct,
@@ -61,7 +66,6 @@ from ai_stp_platform.models import (
 
 ObjectKind = Literal["component", "setup"]
 _DESCRIPTION_LIMIT = 8000
-_log = get_logger("catalog")
 
 
 def inclusive_updated_bounds(
@@ -199,7 +203,10 @@ def _passport_description(passport: dict[str, Any]) -> str:
 def _support_fields(
     passport: dict[str, Any], evidence: list[dict[str, Any]] | None, *, now: datetime
 ) -> tuple[str, str, datetime | None]:
-    support = project_support(passport, evidence, now=now)
+    try:
+        support = project_support(passport, evidence, now=now)
+    except CatalogIntegrityError:
+        return "beta", "not_verified", None
     expires: datetime | None = None
     if support.state == "verified":
         moments: list[datetime] = []
@@ -224,6 +231,17 @@ def _projection_row(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchPro
     aliases = search_terms_for_tags(tags)
     description = _passport_description(passport)
     name = str(meta.name or passport.get("name") or "")
+    verified = 0
+    assessed = 0
+    if meta.object_kind == "component":
+        try:
+            matrix = project_target_matrix(ComponentVersionPassport.model_validate(passport))
+        except (TypeError, ValueError):
+            matrix = None
+        if matrix is not None:
+            counts = assurance_counts(matrix)
+            verified = counts.verified_targets
+            assessed = counts.assessed_targets
     return CatalogSearchProjection(
         catalog_metadata_id=meta.id,
         object_kind=meta.object_kind,
@@ -247,6 +265,8 @@ def _projection_row(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchPro
         support_tier=tier,
         support_state=state,
         support_expires_at=expires,
+        verified_targets=verified,
+        assessed_targets=assessed,
         search_text=" ".join(
             [name, description, meta.stable_id, meta.owner_account_id, *tags, *aliases]
         ).casefold(),
@@ -288,21 +308,6 @@ async def _latest_public_metadata(
     return latest
 
 
-def _add_projection(session: AsyncSession, meta: CatalogMetadata, *, now: datetime) -> bool:
-    try:
-        projection = _projection_row(meta, now=now)
-    except CatalogIntegrityError as exc:
-        _log.warning(
-            "catalog_search_projection_unreadable",
-            object_kind=meta.object_kind,
-            stable_id=meta.stable_id,
-            reason=str(exc),
-        )
-        return False
-    session.add(projection)
-    return True
-
-
 async def lock_catalog_search_projection(session: AsyncSession) -> None:
     """Serialize a rebuild with SQL writers without blocking ordinary SELECTs."""
     await session.execute(text("LOCK TABLE catalog_search_projection IN SHARE ROW EXCLUSIVE MODE"))
@@ -336,7 +341,16 @@ async def upsert_catalog_search_projection(
     latest = await _latest_public_metadata(session, object_kind=object_kind, stable_id=stable_id)
     if latest is None:
         return
-    _add_projection(session, latest, now=datetime.now(UTC))
+    row = _projection_row(latest, now=datetime.now(UTC))
+    if object_kind == "component":
+        from ai_stp_platform.catalog_assessments import refresh_component_assurance
+
+        await refresh_component_assurance(session, latest, row)
+    if object_kind == "setup":
+        from ai_stp_platform.catalog_families import fill_search_projection_family_fields
+
+        await fill_search_projection_family_fields(session, [row])
+    session.add(row)
     await session.flush()
 
 
@@ -372,9 +386,21 @@ async def rebuild_catalog_search_projection(session: AsyncSession) -> int:
         ):
             latest_by_id[key] = row
     now = datetime.now(UTC)
-    indexed = sum(_add_projection(session, meta, now=now) for meta in latest_by_id.values())
+    projections: list[CatalogSearchProjection] = []
+    from ai_stp_platform.catalog_assessments import refresh_component_assurance
+
+    for meta in latest_by_id.values():
+        row = _projection_row(meta, now=now)
+        if meta.object_kind == "component":
+            await refresh_component_assurance(session, meta, row)
+        projections.append(row)
+    from ai_stp_platform.catalog_families import fill_search_projection_family_fields
+
+    await fill_search_projection_family_fields(session, projections)
+    for row in projections:
+        session.add(row)
     await session.flush()
-    return indexed
+    return len(latest_by_id)
 
 
 def compile_expression(
@@ -579,6 +605,10 @@ class CatalogSearchHits:
     page_number: int | None
     total_items: int | None
     page_size: int
+    exact_count: int = 0
+    family_fields: dict[str, tuple[str | None, int | None, str | None]] = field(
+        default_factory=dict[str, tuple[str | None, int | None, str | None]]
+    )
 
 
 async def search_catalog(
@@ -609,6 +639,9 @@ async def search_catalog(
     query_expression: Expression | None,
     updated_from: date | None,
     updated_to: date | None,
+    family_id: str | None = None,
+    family_alignment: str | None = None,
+    member_harness_id: str | None = None,
 ) -> CatalogSearchHits:
     """Execute listing, ranking, totals, and keyset pagination in SQL."""
     q = normalize_search_text(q)
@@ -647,8 +680,27 @@ async def search_catalog(
         stmt = stmt.where(author_verified.is_(True), projection.component_verified.is_(True))
     if tag_filter:
         stmt = stmt.where(projection.tags.contains(tag_filter))
+    facet_base = stmt
     if harness_filter:
         stmt = stmt.where(projection.harness_ids.overlap(harness_filter))
+    if family_id is not None:
+        stmt = stmt.where(projection.family_id == family_id)
+    if family_alignment is not None:
+        stmt = stmt.where(projection.family_alignment == family_alignment)
+    if member_harness_id is not None:
+        from ai_stp_platform.models import SetupFamilyMember as FamilyMemberRow
+
+        current_member = aliased(FamilyMemberRow)
+        sibling_member = aliased(FamilyMemberRow)
+        stmt = stmt.where(
+            exists(
+                select(1).where(
+                    current_member.stable_id == projection.stable_id,
+                    sibling_member.family_id == current_member.family_id,
+                    sibling_member.harness_id == member_harness_id,
+                )
+            )
+        )
     if type_filter:
         stmt = stmt.where(projection.component_type.in_(type_filter))
     if author_filter:
@@ -714,11 +766,29 @@ async def search_catalog(
     if page_number is not None:
         page_rows = fetched
 
+    exact_count = 0
+    if object_kind == "component":
+        exact_stmt = facet_base
+        if harness_filter:
+            exact_stmt = facet_base.where(projection.harness_ids.overlap(harness_filter))
+        exact_count = int(
+            await session.scalar(select(func.count()).select_from(exact_stmt.subquery())) or 0
+        )
+
     metas = [cast(CatalogMetadata, row[1]) for row in page_rows]
     ranks = [int(row[2] or 0) for row in page_rows]
     public_rows = await current_author_verification(
         session, [public_version_row(meta) for meta in metas]
     )
+    family_fields: dict[str, tuple[str | None, int | None, str | None]] = {}
+    for page_row in page_rows:
+        proj = cast(CatalogSearchProjection, page_row[0])
+        if proj.family_id:
+            family_fields[proj.stable_id] = (
+                proj.family_id,
+                proj.family_member_count,
+                proj.family_alignment,
+            )
     next_key: CursorKey | None = None
     if extra and public_rows:
         last_meta = metas[-1]
@@ -738,4 +808,6 @@ async def search_catalog(
         page_number=page_number,
         total_items=total_items,
         page_size=page_size,
+        exact_count=exact_count,
+        family_fields=family_fields,
     )

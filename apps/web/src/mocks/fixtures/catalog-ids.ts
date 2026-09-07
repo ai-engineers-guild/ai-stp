@@ -1,5 +1,6 @@
 export const FIXTURE_COMPONENT_ID = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
 export const FIXTURE_SETUP_ID = "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+export const SEED_MULTI_HARNESS_COMPONENT_ID = "component_01M0QZ1H6KVCCCTXNSTAP3KVBD";
 
 // Author 1 — First Party / claude-code
 export const SEED_A1_SKILL_CORE_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YB0";
@@ -26,6 +27,11 @@ export const SEED_A3_MCP_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBC";
 export const SEED_A3_HOOK_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBD";
 export const SEED_A3_AGENT_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBE";
 export const SEED_A3_SETUP_ID = "setup_01JQZK7B8N4M6P2R9T5V0X3YC2";
+
+// Coverage fixtures for every supported OBT harness.
+export const SEED_COMPONENT_GROK_BUILD_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBG";
+export const SEED_COMPONENT_CURSOR_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBH";
+export const SEED_COMPONENT_ANTIGRAVITY_ID = "component_01JQZK7B8N4M6P2R9T5V0X3YBJ";
 
 // Backward-compatible aliases used by older tests.
 export const SEED_COMPONENT_CODEX_ID = SEED_A2_SKILL_CORE_ID;

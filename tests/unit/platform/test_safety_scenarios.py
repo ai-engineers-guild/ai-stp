@@ -171,7 +171,8 @@ def _session_for_plan(plan: SimpleNamespace, *, catalog_scalar: Any = None) -> A
         return_value=SimpleNamespace(
             scalars=lambda: SimpleNamespace(
                 all=lambda: [o for o in added if isinstance(o, EvidenceBinding)]
-            )
+            ),
+            scalar_one_or_none=lambda: None,
         )
     )
     return session

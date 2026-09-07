@@ -1,6 +1,8 @@
+/* eslint-disable max-lines -- Card, list, and compact metric variants share one fixture. */
 import { Badge } from "@/components/atoms/badge";
 import { CatalogEngagement } from "@/components/molecules/catalog-engagement";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
+import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { VerifiedAvatar } from "@/components/molecules/verified-avatar";
 import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
@@ -66,6 +68,8 @@ type Labels = {
   unlike?: string | undefined;
   likeMenu?: string | undefined;
   unlikeMenu?: string | undefined;
+  assuranceCounts?: string | undefined;
+  familyMemberCount?: string | undefined;
 };
 export type CatalogAuthor = { displayName: string | null; avatarUrl: string | null };
 const AUTHOR_VERIFIED_FALLBACK = "Author verified";
@@ -152,14 +156,24 @@ function Author({
     </Link>
   );
 }
-function Harnesses({ values, label }: { values: string[]; label: string }) {
+function MetadataRows({
+  type,
+  harnesses,
+  tags,
+  labels,
+}: {
+  type: string;
+  harnesses: readonly string[];
+  tags: readonly string[];
+  labels: Labels;
+}) {
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1" aria-label={label}>
-      {values.map((value) => (
-        <Badge key={value} variant="secondary">
-          {value}
-        </Badge>
-      ))}
+    <div className="mt-2 min-w-0 space-y-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
+        <Badge variant="secondary">{type}</Badge>
+        <CompactChipList values={harnesses} label={labels.harness} />
+      </div>
+      <CompactChipList values={tags} label={labels.tags} />
     </div>
   );
 }
@@ -267,17 +281,13 @@ export function ObjectCard({
                 {reason}
               </p>
             ) : null}
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <Badge variant="outline">{type}</Badge>
-              <Harnesses values={harnesses} label={labels.harness} />
-              <div className="flex min-w-0 flex-wrap gap-1">
-                {item.latest_tags.slice(0, 2).map((tag) => (
-                  <Badge key={tag} variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+            <MetadataRows
+              type={type}
+              harnesses={harnesses}
+              tags={item.latest_tags}
+              labels={labels}
+            />
+            <CardFacts item={item} kind={kind} labels={labels} />
           </div>
           <div className="relative z-20 col-start-3 row-start-1 md:col-start-6">
             <CatalogItemMenu
@@ -335,10 +345,8 @@ export function ObjectCard({
               />
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1">
-            <Badge variant="secondary">{type}</Badge>
-            <Harnesses values={harnesses} label={labels.harness} />
-          </div>
+          <MetadataRows type={type} harnesses={harnesses} tags={item.latest_tags} labels={labels} />
+          <CardFacts item={item} kind={kind} labels={labels} />
           {reason ? (
             <p className="text-muted-foreground mt-1 line-clamp-1 text-xs" data-why-open="">
               {reason}
@@ -353,18 +361,58 @@ export function ObjectCard({
         {metrics}
         {kind === "component" ? <SafetyScore item={item} labels={labels} /> : null}
       </div>
-      <div className="flex flex-wrap gap-1">
-        {item.latest_tags.map((tag) => (
-          <Badge key={tag} variant="outline">
-            {tag}
-          </Badge>
-        ))}
-      </div>
       <div className="border-border relative z-20 mt-auto flex items-end justify-between gap-3 border-t pt-3">
         <RequirementCount item={item} labels={labels} />
         {authorBlock}
       </div>
     </article>
+  );
+}
+
+function isComponentSummary(item: CatalogItem): item is ComponentSummary {
+  return "latest_component_type" in item;
+}
+
+function isSetupSummary(item: CatalogItem): item is SetupSummary {
+  return "family_member_count" in item;
+}
+
+export function formatAssuranceCounts(verified: number, assessed: number, label: string): string {
+  if (assessed <= 0) {
+    return `${label}: 0 / 0`;
+  }
+  return `${label}: ${verified} / ${assessed} (${Math.round((verified / assessed) * 100)}%)`;
+}
+
+function CardFacts({
+  item,
+  kind,
+  labels,
+}: {
+  item: CatalogItem;
+  kind: "component" | "setup";
+  labels: Labels;
+}) {
+  const assurance = isComponentSummary(item)
+    ? item.latest_assurance
+    : { verified_targets: 0, assessed_targets: 0 };
+  return (
+    <div className="text-muted-foreground mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs">
+      {kind === "component" && isComponentSummary(item) ? (
+        <p data-ui={UI.catalog.assurance}>
+          {formatAssuranceCounts(
+            assurance.verified_targets,
+            assurance.assessed_targets,
+            labels.assuranceCounts ?? "Verified targets",
+          )}
+        </p>
+      ) : null}
+      {kind === "setup" && isSetupSummary(item) && item.family_member_count ? (
+        <p>
+          {labels.familyMemberCount ?? "Family members"}: {item.family_member_count}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -406,7 +454,7 @@ function SafetyScore({
   const summary = item.latest_checks;
   const explanation =
     labels.safetyCheckExplanation ??
-    "Safety check: a set of automated checks that this component does not threaten the user's agent or device.";
+    "Publication checks: automated checks required before this component version can be published.";
   const computed = summary && summary.status !== "empty" ? publicationScore(summary) : null;
   if (computed === null || !summary) {
     return (

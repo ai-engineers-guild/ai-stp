@@ -1,0 +1,352 @@
+{
+  "$defs": {
+    "AdaptationId": {
+      "pattern": "^adaptation_[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "ArtifactCheckResult": {
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "ArtifactObservation": {
+      "additionalProperties": false,
+      "description": "Reusable exact-byte observation. Compatibility results stay independent.",
+      "properties": {
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "identity": {
+          "$ref": "#/$defs/ArtifactObservationIdentity"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "result": {
+          "$ref": "#/$defs/ArtifactCheckResult"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "identity",
+        "result",
+        "observed_at"
+      ],
+      "title": "ArtifactObservation",
+      "type": "object"
+    },
+    "ArtifactObservationIdentity": {
+      "additionalProperties": false,
+      "description": "Complete reuse key for one byte-oriented safety observation.",
+      "properties": {
+        "architecture": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SupportedArch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "artifact_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "check_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "operating_system": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SupportedOs"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "policy_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "scanner_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Scanner Id",
+          "type": "string"
+        },
+        "scanner_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Scanner Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_digest",
+        "check_id",
+        "scanner_id",
+        "scanner_version",
+        "policy_version"
+      ],
+      "title": "ArtifactObservationIdentity",
+      "type": "object"
+    },
+    "ComponentId": {
+      "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "Digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "SupportedArch": {
+      "enum": [
+        "x86_64",
+        "arm64"
+      ],
+      "type": "string"
+    },
+    "SupportedOs": {
+      "enum": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "type": "string"
+    },
+    "TargetAssessmentIdentity": {
+      "additionalProperties": false,
+      "description": "Full target key. Any field mismatch is a different assessment.",
+      "properties": {
+        "adaptation_id": {
+          "$ref": "#/$defs/AdaptationId"
+        },
+        "architecture": {
+          "$ref": "#/$defs/SupportedArch"
+        },
+        "component_stable_id": {
+          "$ref": "#/$defs/ComponentId"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "harness_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Harness Version",
+          "type": "string"
+        },
+        "operating_system": {
+          "$ref": "#/$defs/SupportedOs"
+        },
+        "passport_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "policy_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "projection_artifact_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "provider_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Provider Version",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/TargetScope"
+        },
+        "surface_profile_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "surface_profile_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Surface Profile Id",
+          "type": "string"
+        },
+        "target_scope": {
+          "$ref": "#/$defs/TargetScope"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "component_stable_id",
+        "version",
+        "passport_digest",
+        "adaptation_id",
+        "harness_id",
+        "scope",
+        "projection_artifact_digest",
+        "provider_id",
+        "provider_version",
+        "surface_profile_id",
+        "surface_profile_digest",
+        "target_scope",
+        "harness_version",
+        "operating_system",
+        "architecture",
+        "policy_version"
+      ],
+      "title": "TargetAssessmentIdentity",
+      "type": "object"
+    },
+    "TargetScope": {
+      "enum": [
+        "global",
+        "user_root",
+        "project"
+      ],
+      "type": "string"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "Version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:staff-target-assessment-ingest-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Authenticated platform evidence writer payload. Authors cannot issue verification.",
+  "properties": {
+    "compatibility_result": {
+      "default": "not_run",
+      "enum": [
+        "passed",
+        "failed",
+        "not_run"
+      ],
+      "title": "Compatibility Result",
+      "type": "string"
+    },
+    "evidence_refs": {
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Evidence Refs",
+      "type": "array"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "idempotency_key": {
+      "maxLength": 128,
+      "minLength": 16,
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "identity": {
+      "$ref": "#/$defs/TargetAssessmentIdentity"
+    },
+    "observations": {
+      "items": {
+        "$ref": "#/$defs/ArtifactObservation"
+      },
+      "maxItems": 32,
+      "title": "Observations",
+      "type": "array"
+    },
+    "observed_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "reason_code": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason Code"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stored_state": {
+      "enum": [
+        "not_verified",
+        "verified",
+        "failed"
+      ],
+      "title": "Stored State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "identity",
+    "stored_state",
+    "observed_at",
+    "idempotency_key"
+  ],
+  "title": "TargetAssessmentIngestRequest",
+  "type": "object"
+}

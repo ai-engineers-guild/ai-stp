@@ -25,6 +25,17 @@ export type PublicProfileProjection = {
   empty?: boolean;
 };
 
+export type PublisherStats = {
+  schema_version: 1;
+  account_id: string;
+  components_count: number;
+  setups_count: number;
+  total_objects: number;
+  likes_count: number;
+  detail_views_count: number;
+  artifact_downloads_count: number;
+};
+
 export type OwnerPublicProfile = {
   schema_version: number;
   account_id: string;
@@ -134,4 +145,8 @@ export async function importAvatarFromIdentity(
 
 export async function readPublisherProfile(accountId: AccountId): Promise<PublicProfileProjection> {
   return publicApiGet<PublicProfileProjection>(`/v1/publishers/${accountId}`);
+}
+
+export async function readPublisherStats(accountId: AccountId): Promise<PublisherStats> {
+  return publicApiGet<PublisherStats>(`/v1/publishers/${accountId}/stats`);
 }

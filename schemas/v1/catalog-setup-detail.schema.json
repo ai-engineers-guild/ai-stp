@@ -1,5 +1,23 @@
 {
   "$defs": {
+    "AlignmentState": {
+      "enum": [
+        "aligned",
+        "diverged",
+        "unknown",
+        "missing"
+      ],
+      "type": "string"
+    },
+    "AssessmentState": {
+      "enum": [
+        "not_verified",
+        "verified",
+        "failed",
+        "stale"
+      ],
+      "type": "string"
+    },
     "CatalogSupport": {
       "additionalProperties": true,
       "description": "Provider support status, separate from object trust and verification.",
@@ -205,6 +223,10 @@
       ],
       "type": "string"
     },
+    "ComponentId": {
+      "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
     "CountryCode": {
       "pattern": "^[A-Z]{2}$",
       "type": "string"
@@ -212,6 +234,10 @@
     "DescriptionExcerpt": {
       "maxLength": 240,
       "minLength": 1,
+      "type": "string"
+    },
+    "Digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
     },
     "ExternalProductSummary": {
@@ -291,6 +317,27 @@
       "title": "ExternalProductSummary",
       "type": "object"
     },
+    "FamilyCreatedFrom": {
+      "enum": [
+        "recast",
+        "owner",
+        "staff_migration",
+        "migration"
+      ],
+      "type": "string"
+    },
+    "FamilyId": {
+      "pattern": "^family_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "FamilyMatchKind": {
+      "enum": [
+        "family",
+        "member_harness",
+        "alignment"
+      ],
+      "type": "string"
+    },
     "FindingSeverity": {
       "enum": [
         "info",
@@ -313,8 +360,24 @@
       ],
       "type": "string"
     },
+    "ImplementationMode": {
+      "enum": [
+        "derived",
+        "native"
+      ],
+      "type": "string"
+    },
     "PassportDigest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "ProjectionKind": {
+      "enum": [
+        "marketplace",
+        "plugin",
+        "native_files",
+        "package"
+      ],
       "type": "string"
     },
     "PublicLifecycle": {
@@ -322,6 +385,14 @@
         "active",
         "deprecated",
         "blocked"
+      ],
+      "type": "string"
+    },
+    "RecommendationState": {
+      "enum": [
+        "recommended",
+        "not_recommended",
+        "ineffective"
       ],
       "type": "string"
     },
@@ -541,6 +612,71 @@
       "title": "SafetyFindingSummary",
       "type": "object"
     },
+    "SelectedAdaptation": {
+      "additionalProperties": true,
+      "description": "The one adaptation selected for the viewed setup harness.",
+      "properties": {
+        "adaptation_id": {
+          "pattern": "^adaptation_[0-9a-f]{64}$",
+          "title": "Adaptation Id",
+          "type": "string"
+        },
+        "assessment_state": {
+          "$ref": "#/$defs/AssessmentState",
+          "default": "not_verified"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "implementation_mode": {
+          "$ref": "#/$defs/ImplementationMode"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "projection_kind": {
+          "$ref": "#/$defs/ProjectionKind"
+        },
+        "recommendation": {
+          "$ref": "#/$defs/RecommendationState",
+          "default": "ineffective"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scopes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Scopes",
+          "type": "array"
+        },
+        "technical_support": {
+          "$ref": "#/$defs/TechnicalSupport"
+        }
+      },
+      "required": [
+        "adaptation_id",
+        "assessment_state",
+        "harness_id",
+        "implementation_mode",
+        "limitations",
+        "projection_kind",
+        "recommendation",
+        "schema_version",
+        "scopes",
+        "technical_support"
+      ],
+      "title": "SelectedAdaptation",
+      "type": "object"
+    },
     "SetupComponentChecks": {
       "additionalProperties": true,
       "description": "Checks for one exact component snapshot inside a setup.",
@@ -610,14 +746,240 @@
       "title": "SetupComponentChecks",
       "type": "object"
     },
+    "SetupCompositionMember": {
+      "additionalProperties": true,
+      "description": "Exact component pin plus the selected adaptation for this setup harness.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "selected_adaptation": {
+          "$ref": "#/$defs/SelectedAdaptation"
+        },
+        "stable_id": {
+          "$ref": "#/$defs/ComponentId"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "passport_digest",
+        "schema_version",
+        "selected_adaptation",
+        "stable_id",
+        "version"
+      ],
+      "title": "SetupCompositionMember",
+      "type": "object"
+    },
+    "SetupFamilyMember": {
+      "additionalProperties": true,
+      "description": "One accessible family member. Public reads omit inaccessible identity.",
+      "properties": {
+        "alignment": {
+          "$ref": "#/$defs/AlignmentState"
+        },
+        "exact_version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Version"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "latest_version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Version"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "passport_digest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Digest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ported_from": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SetupRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "$ref": "#/$defs/SetupId"
+        }
+      },
+      "required": [
+        "alignment",
+        "exact_version",
+        "harness_id",
+        "latest_version",
+        "passport_digest",
+        "ported_from",
+        "schema_version",
+        "stable_id"
+      ],
+      "title": "SetupFamilyMember",
+      "type": "object"
+    },
+    "SetupFamilyPublic": {
+      "additionalProperties": true,
+      "description": "Public navigational family projection. Never installable content.",
+      "properties": {
+        "baseline": {
+          "$ref": "#/$defs/SetupRef"
+        },
+        "created_from": {
+          "$ref": "#/$defs/FamilyCreatedFrom"
+        },
+        "current_member": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SetupFamilyMember"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "family_id": {
+          "$ref": "#/$defs/FamilyId"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/SetupFamilyMember"
+          },
+          "maxItems": 7,
+          "title": "Members",
+          "type": "array"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "baseline",
+        "created_from",
+        "current_member",
+        "family_id",
+        "members",
+        "name",
+        "schema_version"
+      ],
+      "title": "SetupFamilyPublic",
+      "type": "object"
+    },
     "SetupId": {
       "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
+    },
+    "SetupRef": {
+      "additionalProperties": false,
+      "description": "Exact reference to a setup version; a setup has no variant axis.",
+      "properties": {
+        "passport_digest": {
+          "$ref": "#/$defs/PassportDigest"
+        },
+        "stable_id": {
+          "pattern": "^setup_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest"
+      ],
+      "title": "SetupRef",
+      "type": "object"
     },
     "SetupSummary": {
       "additionalProperties": true,
       "description": "Search-result card for a setup. A setup has no variant axis (ADR-0014).\n\n`latest_harness_id` keeps the prefix even though a setup belongs to one\nharness from creation: the value is still read out of the version passport,\nand one rule with no exceptions is cheaper to verify than a rule with one.",
       "properties": {
+        "family_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FamilyId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "family_match_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FamilyMatchKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "family_member_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Family Member Count"
+        },
         "github_stars": {
           "anyOf": [
             {
@@ -754,6 +1116,9 @@
         }
       },
       "required": [
+        "family_id",
+        "family_match_kind",
+        "family_member_count",
         "github_stars",
         "latest_checks",
         "latest_description",
@@ -841,6 +1206,14 @@
       "minItems": 1,
       "type": "array"
     },
+    "TechnicalSupport": {
+      "enum": [
+        "unsupported",
+        "experimental",
+        "supported"
+      ],
+      "type": "string"
+    },
     "Timestamp": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
       "type": "string"
@@ -909,12 +1282,50 @@
       "title": "Component Checks",
       "type": "array"
     },
+    "composition": {
+      "items": {
+        "$ref": "#/$defs/SetupCompositionMember"
+      },
+      "maxItems": 500,
+      "title": "Composition",
+      "type": "array"
+    },
     "country_codes": {
       "items": {
         "$ref": "#/$defs/CountryCode"
       },
       "maxItems": 249,
       "title": "Country Codes",
+      "type": "array"
+    },
+    "family": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SetupFamilyPublic"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "ported_from": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SetupRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "related_setup_ids": {
+      "items": {
+        "$ref": "#/$defs/SetupId"
+      },
+      "maxItems": 100,
+      "title": "Related Setup Ids",
       "type": "array"
     },
     "schema_version": {
@@ -945,7 +1356,11 @@
   },
   "required": [
     "component_checks",
+    "composition",
     "country_codes",
+    "family",
+    "ported_from",
+    "related_setup_ids",
     "schema_version",
     "services",
     "summary",

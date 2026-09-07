@@ -20,29 +20,72 @@ import { revokeDeviceAction } from "@/actions/devices";
 import type { DeviceRecord } from "@/lib/api/generated/types.gen";
 import { DEVICE_SUMMARY_FIELDS } from "@/lib/api/device-summary-fields";
 import { ApiError } from "@/lib/api/errors";
+import { browserDeviceLabel } from "@/lib/device-label";
 import { Icon } from "@/theme";
 
 type DeviceListProps = {
   devices: DeviceRecord[];
   currentDeviceId: string | null;
   csrfToken: string;
+  locale: string;
 };
 
 type DeviceCardProps = {
   device: DeviceRecord;
+  duplicateCount: number;
   isCurrent: boolean;
   open: boolean;
   pending: boolean;
   onOpenChange: (open: boolean) => void;
   onRevoke: (device: DeviceRecord) => void;
+  locale: string;
 };
 
-function DeviceCard({ device, isCurrent, open, pending, onOpenChange, onRevoke }: DeviceCardProps) {
+function deviceGroupKey(device: DeviceRecord): string {
+  if (device.device_type === "web") {
+    return `web:${browserDeviceLabel(device.user_agent) ?? "browser"}:${device.state}`;
+  }
+  const summary = device.summary;
+  return `cli:${summary?.display_name ?? "cli"}:${summary?.operating_system ?? "unknown"}:${device.state}`;
+}
+
+export function groupDevices(devices: DeviceRecord[], currentDeviceId: string | null) {
+  const groups = new Map<string, DeviceRecord[]>();
+  for (const device of devices) {
+    const key = deviceGroupKey(device);
+    groups.set(key, [...(groups.get(key) ?? []), device]);
+  }
+  return [...groups.values()].flatMap((items) => {
+    const device =
+      items.find((item) => item.device_id === currentDeviceId) ??
+      [...items].sort((a, b) => b.last_active_at.localeCompare(a.last_active_at))[0];
+    return device ? [{ devices: items, device }] : [];
+  });
+}
+
+function DeviceCard({
+  device,
+  duplicateCount,
+  isCurrent,
+  open,
+  pending,
+  onOpenChange,
+  onRevoke,
+  locale,
+}: DeviceCardProps) {
   const t = useTranslations("devices");
   const tc = useTranslations("common");
   const summary = device.summary;
   const deviceType = device.device_type === "web" ? "web" : "cli";
+  const readableName =
+    summary?.display_name ??
+    (deviceType === "web" ? browserDeviceLabel(device.user_agent) : null) ??
+    t(deviceType === "web" ? "webBrowser" : "cliDevice");
   const location = device.approximate_location ?? null;
+  const lastConnected = new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(device.last_active_at));
 
   return (
     <li
@@ -51,9 +94,7 @@ function DeviceCard({ device, isCurrent, open, pending, onOpenChange, onRevoke }
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-lg font-medium tracking-tight">
-            {summary?.display_name ?? t(deviceType === "web" ? "webBrowser" : "cliDevice")}
-          </h3>
+          <h3 className="text-lg font-medium tracking-tight">{readableName}</h3>
           <Badge variant="secondary">{device.state}</Badge>
           {isCurrent ? <Badge variant="success">{t("current")}</Badge> : null}
         </div>
@@ -92,36 +133,18 @@ function DeviceCard({ device, isCurrent, open, pending, onOpenChange, onRevoke }
           </Dialog>
         ) : null}
       </div>
-      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 text-sm">
-        <code className="max-w-full truncate" title={device.device_id}>
-          {device.device_id}
-        </code>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={t("copyDeviceId")}
-          onClick={() =>
-            void navigator.clipboard
-              .writeText(device.device_id)
-              .then(() => toast.success(tc("copied")))
-          }
-        >
-          <Icon name="copy" size="sm" />
-        </Button>
-      </div>
       <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
         <div>
-          <dt className="text-muted-foreground text-xs">{t("deviceType")}</dt>
+          <dt className="text-muted-foreground text-xs">{t("connection")}</dt>
           <dd>{t(deviceType === "web" ? "webBrowser" : "cliDevice")}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-xs">{t("lastConnected")}</dt>
-          <dd className="font-mono text-xs">{device.last_active_at}</dd>
+          <dd suppressHydrationWarning>{lastConnected}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground text-xs">{t("approximateLocation")}</dt>
-          <dd>{location ?? t("locationUnknown")}</dd>
+          <dd>{location ?? t("locationUnavailable")}</dd>
         </div>
       </dl>
       {summary ? (
@@ -135,7 +158,7 @@ function DeviceCard({ device, isCurrent, open, pending, onOpenChange, onRevoke }
           </div>
           <div>
             <dt className="text-muted-foreground text-xs">{t("os")}</dt>
-            <dd className="font-medium">{summary.operating_system}</dd>
+            <dd className="font-medium capitalize">{summary.operating_system}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground text-xs">{t("architecture")}</dt>
@@ -162,14 +185,43 @@ function DeviceCard({ device, isCurrent, open, pending, onOpenChange, onRevoke }
             <dd className="font-mono text-sm">{summary.summary_updated_at}</dd>
           </div>
         </dl>
-      ) : (
-        <p className="text-muted-foreground mt-2 text-sm">{t("noSummary")}</p>
-      )}
+      ) : null}
+      <details className="mt-4 border-t pt-3">
+        <summary className="text-muted-foreground cursor-pointer text-xs font-medium">
+          {t("technicalDetails")}
+        </summary>
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 text-sm">
+          {duplicateCount > 1 ? (
+            <p className="text-muted-foreground w-full text-xs">
+              {t("matchingSessions", { count: duplicateCount })}
+            </p>
+          ) : null}
+          <code className="max-w-full truncate" title={device.device_id}>
+            {device.device_id}
+          </code>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={t("copyDeviceId")}
+            onClick={() =>
+              void navigator.clipboard
+                .writeText(device.device_id)
+                .then(() => toast.success(tc("copied")))
+            }
+          >
+            <Icon name="copy" size="sm" />
+          </Button>
+          {device.user_agent ? (
+            <p className="text-muted-foreground w-full text-xs break-all">{device.user_agent}</p>
+          ) : null}
+        </div>
+      </details>
     </li>
   );
 }
 
-export function DeviceList({ devices, currentDeviceId, csrfToken }: DeviceListProps) {
+export function DeviceList({ devices, currentDeviceId, csrfToken, locale }: DeviceListProps) {
   const t = useTranslations("devices");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -221,12 +273,14 @@ export function DeviceList({ devices, currentDeviceId, csrfToken }: DeviceListPr
     return <p className="text-muted-foreground text-sm">{t("empty")}</p>;
   }
 
+  const groups = groupDevices(devices, currentDeviceId);
   return (
     <ul className="flex flex-col gap-4">
-      {devices.map((device) => (
+      {groups.map(({ device, devices: matchingDevices }) => (
         <DeviceCard
           key={device.device_id}
           device={device}
+          duplicateCount={matchingDevices.length}
           isCurrent={currentDeviceId === device.device_id}
           open={openId === device.device_id}
           pending={pending}
@@ -234,6 +288,7 @@ export function DeviceList({ devices, currentDeviceId, csrfToken }: DeviceListPr
             setOpenId(open ? device.device_id : null);
           }}
           onRevoke={onRevoke}
+          locale={locale}
         />
       ))}
     </ul>
