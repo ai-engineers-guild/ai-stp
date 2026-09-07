@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import cast
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import and_, case, func, or_, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,19 +17,20 @@ from ai_stp_contracts.assurance import (
     ArtifactObservation,
     ArtifactObservationIdentity,
     AssessmentState,
-    PublicEvidenceRef,
     SupportedArch,
     SupportedOs,
     TargetAssessmentIdentity,
     TargetAssessmentIngestRequest,
     TargetAssessmentIngestResponse,
 )
-from ai_stp_contracts.safety_checks import SafetyCheckEntry
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.invariants import target_assessment_key_digest
 from ai_stp_foundation.provider_surfaces import provider_surface
 from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_passports.projections import ProjectionArtifactError, verify_projection
 from ai_stp_passports.versions import ComponentVersionPassport, ScopeAdaptation, adaptation_for
+from ai_stp_platform.assessment_projection import ASSESSMENT_STATE_PRIORITY
 from ai_stp_platform.catalog_targets import (
     EffectiveAssessment,
     assurance_counts,
@@ -43,8 +44,11 @@ from ai_stp_platform.models import (
 from ai_stp_platform.models import (
     CatalogMetadata,
     CatalogSearchProjection,
+    EvidenceBinding,
+    PublicationPlan,
     TargetAssessment,
     TargetAssessmentLatest,
+    ValidationSnapshot,
 )
 from ai_stp_platform.safety.percent import build_checks_summary
 from ai_stp_platform.safety.policy import POLICY_VERSION
@@ -174,7 +178,18 @@ async def _upsert_latest(
                 "expires_at": expires_at,
                 "updated_at": updated_at,
             },
-            where=TargetAssessmentLatest.updated_at <= updated_at,
+            where=or_(
+                TargetAssessmentLatest.updated_at < updated_at,
+                and_(
+                    TargetAssessmentLatest.updated_at == updated_at,
+                    case(
+                        ASSESSMENT_STATE_PRIORITY,
+                        value=TargetAssessmentLatest.stored_state,
+                        else_=2,
+                    )
+                    < ASSESSMENT_STATE_PRIORITY.get(stored_state, 2),
+                ),
+            ),
         )
     )
     await session.execute(statement)
@@ -225,31 +240,6 @@ def stored_state_from_scan(scan: SafetyScanResult | None) -> tuple[str, str | No
 def _publication_idempotency_key(plan_id: str, target_key: str) -> str:
     digest = hashlib.sha256(f"{plan_id}:{target_key}".encode()).hexdigest()
     return f"va.{digest[:40]}"
-
-
-def _public_safety_checks(value: object) -> tuple[SafetyCheckEntry, ...]:
-    """Read bounded worker check rows without exposing scanner payloads."""
-    if not isinstance(value, dict):
-        return ()
-    mapping = cast(dict[str, object], value)
-    raw_value = mapping.get("checks")
-    if not isinstance(raw_value, list):
-        return ()
-    raw = cast(list[object], raw_value)
-    checks: list[SafetyCheckEntry] = []
-    for item in raw:
-        if not isinstance(item, dict):
-            continue
-        try:
-            checks.append(SafetyCheckEntry.model_validate(item))
-        except ValueError:
-            continue
-    return tuple(checks)
-
-
-def _harness_version(scope: ScopeAdaptation) -> str:
-    versions = [item for item in scope.supported_harness_versions if item]
-    return versions[0] if versions else "unspecified"
 
 
 def _observations_from_scan(
@@ -312,7 +302,7 @@ def _target_identity(
         surface_profile_id=surface.profile_id,
         surface_profile_digest=surface.profile_digest,  # type: ignore[arg-type]
         target_scope=scope.scope,
-        harness_version=_harness_version(scope),
+        harness_version="unspecified",
         operating_system=operating_system,
         architecture=architecture,
         policy_version=policy_version,
@@ -334,6 +324,11 @@ async def _existing_observation(session: AsyncSession, digest: str) -> Observati
 
 async def _store_observation(session: AsyncSession, observation: ArtifactObservation) -> None:
     digest = _observation_digest(observation.identity)
+    await session.execute(
+        select(
+            func.pg_advisory_xact_lock(func.hashtextextended("artifact-observation:" + digest, 0))
+        )
+    )
     existing = await _existing_observation(session, digest)
     if existing is not None:
         if existing.result != observation.result:
@@ -362,11 +357,57 @@ async def _store_observation(session: AsyncSession, observation: ArtifactObserva
     )
 
 
+def _validate_ingest_evidence(body: TargetAssessmentIngestRequest, *, now: datetime) -> None:
+    observed_at = datetime.fromisoformat(body.observed_at.replace("Z", "+00:00"))
+    if observed_at > now:
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "assessment observation is in the future")
+    if (
+        body.expires_at is not None
+        and datetime.fromisoformat(body.expires_at.replace("Z", "+00:00")) <= observed_at
+    ):
+        raise AssessmentError(
+            "AI_STP_VALIDATION_ERROR", "assessment expiry precedes its observation"
+        )
+    if body.stored_state == "verified" and body.compatibility_result == "failed":
+        raise AssessmentError(
+            "AI_STP_VALIDATION_ERROR", "failed compatibility cannot verify a target"
+        )
+    for observation in body.observations:
+        identity = observation.identity
+        moment = datetime.fromisoformat(observation.observed_at.replace("Z", "+00:00"))
+        expiry = (
+            datetime.fromisoformat(observation.expires_at.replace("Z", "+00:00"))
+            if observation.expires_at
+            else None
+        )
+        if (
+            identity.artifact_digest != body.identity.projection_artifact_digest
+            or identity.policy_version != body.identity.policy_version
+            or identity.operating_system not in {None, body.identity.operating_system}
+            or identity.architecture not in {None, body.identity.architecture}
+            or moment > observed_at
+            or (expiry is not None and expiry <= moment)
+            or (body.stored_state == "verified" and observation.result == "failed")
+        ):
+            raise AssessmentError(
+                "AI_STP_VALIDATION_ERROR",
+                "artifact observation does not match its target assessment",
+            )
+
+
 async def ingest_assessment(
     session: AsyncSession, body: TargetAssessmentIngestRequest
 ) -> TargetAssessmentIngestResponse:
     """Append evidence and atomically advance the latest-effective projection."""
+    await session.execute(
+        select(
+            func.pg_advisory_xact_lock(
+                func.hashtextextended("target-assessment-ingest:" + body.idempotency_key, 0)
+            )
+        )
+    )
     await _validate_published_identity(session, body.identity)
+    _validate_ingest_evidence(body, now=datetime.now(UTC))
     key = _identity_digest(body.identity)
     payload = cast(dict[str, JsonValue], body.model_dump(mode="json"))
     payload_digest = target_assessment_key_digest({"payload": payload})
@@ -378,9 +419,9 @@ async def ingest_assessment(
     if replay is not None:
         if replay.target_key_digest != key or replay.payload_digest != payload_digest:
             raise AssessmentError("AI_STP_CONFLICT", "idempotency key payload does not match")
-        latest = await session.get(TargetAssessmentLatest, key)
+        latest = await session.get(TargetAssessmentLatest, key, populate_existing=True)
         state: AssessmentState = (
-            stale_if_expired(replay.stored_state, replay.expires_at, now=datetime.now(UTC))
+            stale_if_expired(latest.stored_state, latest.expires_at, now=datetime.now(UTC))
             if latest is not None
             else "not_verified"
         )
@@ -390,7 +431,9 @@ async def ingest_assessment(
             effective_state=state,
             created=False,
         )
-    for observation in body.observations:
+    for observation in sorted(
+        body.observations, key=lambda item: _observation_digest(item.identity)
+    ):
         await _store_observation(session, observation)
     observed_at = datetime.fromisoformat(body.observed_at.replace("Z", "+00:00"))
     expires_at = (
@@ -425,10 +468,15 @@ async def ingest_assessment(
         component_stable_id=body.identity.component_stable_id,
         version=body.identity.version,
     )
+    latest = await session.get(TargetAssessmentLatest, key, populate_existing=True)
     return TargetAssessmentIngestResponse(
         target_key_digest=key,  # type: ignore[arg-type]
         stored_state=body.stored_state,
-        effective_state=stale_if_expired(body.stored_state, expires_at, now=datetime.now(UTC)),
+        effective_state=stale_if_expired(
+            latest.stored_state, latest.expires_at, now=datetime.now(UTC)
+        )
+        if latest is not None
+        else "not_verified",
         created=True,
     )
 
@@ -439,61 +487,44 @@ async def load_effective_assessments_for_versions(
     """Latest-effective rows keyed by stable_id, version, adaptation, harness, scope."""
     if not versions:
         return {}
+    from ai_stp_platform.assessment_projection import project_scope_assessments
+
     now = datetime.now(UTC)
-    rows = list(
-        (
-            await session.execute(
-                select(TargetAssessmentLatest).where(
-                    tuple_(
-                        TargetAssessmentLatest.component_stable_id,
-                        TargetAssessmentLatest.version,
-                    ).in_(list(versions))
-                )
+    rows = (
+        await session.execute(
+            select(TargetAssessmentLatest, TargetAssessment, CatalogMetadata)
+            .join(TargetAssessment, TargetAssessment.id == TargetAssessmentLatest.assessment_id)
+            .join(
+                CatalogMetadata,
+                (CatalogMetadata.stable_id == TargetAssessmentLatest.component_stable_id)
+                & (CatalogMetadata.version == TargetAssessmentLatest.version)
+                & (CatalogMetadata.object_kind == "component"),
+            )
+            .where(
+                tuple_(
+                    TargetAssessmentLatest.component_stable_id, TargetAssessmentLatest.version
+                ).in_(list(versions)),
+                CatalogMetadata.visibility == "public",
+                CatalogMetadata.lifecycle_state.in_(("active", "deprecated")),
+                CatalogMetadata.published_at.is_not(None),
             )
         )
-        .scalars()
-        .all()
-    )
-    history_ids = [row.assessment_id for row in rows]
-    histories: dict[int, TargetAssessment] = {}
-    if history_ids:
-        history_rows = list(
-            (
-                await session.execute(
-                    select(TargetAssessment).where(TargetAssessment.id.in_(history_ids))
-                )
-            )
-            .scalars()
-            .all()
-        )
-        histories = {row.id: row for row in history_rows}
+    ).all()
+    grouped: dict[
+        int, tuple[CatalogMetadata, list[tuple[TargetAssessmentLatest, TargetAssessment]]]
+    ] = {}
+    for latest, history, metadata in rows:
+        if metadata.id not in grouped:
+            grouped[metadata.id] = (metadata, [])
+        grouped[metadata.id][1].append((latest, history))
     result: dict[tuple[str, str, str, str, str], EffectiveAssessment] = {}
-    for row in rows:
-        history = histories.get(row.assessment_id)
-        refs = (
-            [PublicEvidenceRef(kind="digest", value=item) for item in history.evidence_refs]
-            if history is not None
-            else []
-        )
-        result[
-            (
-                row.component_stable_id,
-                row.version,
-                row.adaptation_id,
-                row.harness_id,
-                row.scope,
-            )
-        ] = EffectiveAssessment(
-            adaptation_id=row.adaptation_id,
-            harness_id=row.harness_id,
-            scope=row.scope,
-            state=stale_if_expired(row.stored_state, row.expires_at, now=now),
-            freshness=history.observed_at.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-            if history is not None
-            else None,
-            evidence_refs=tuple(refs),
-            safety_checks=_public_safety_checks(history.checks_summary if history else None),
-        )
+    for metadata, records in grouped.values():
+        for (adaptation_id, harness_id, scope), assessment in project_scope_assessments(
+            metadata, records, now=now
+        ).items():
+            result[
+                (metadata.stable_id, str(metadata.version), adaptation_id, harness_id, scope)
+            ] = assessment
     return result
 
 
@@ -510,47 +541,146 @@ async def load_effective_assessments(
     }
 
 
-async def apply_component_verified(session: AsyncSession, meta: CatalogMetadata) -> bool:
-    """Recompute conservative component_verified for one catalog version row."""
-    document = meta.passport_document
-    version = meta.version
-    if meta.object_kind != "component" or not isinstance(document, dict) or not version:
-        return bool(meta.component_verified)
-    try:
-        passport = ComponentVersionPassport.model_validate(document)
-    except (TypeError, ValueError):
-        return False
-    assessments = await load_effective_assessments(
-        session, component_stable_id=meta.stable_id, version=version
+async def assess_passport(
+    session: AsyncSession,
+    passport: ComponentVersionPassport,
+    passport_digest: str,
+) -> dict[tuple[str, str, str], EffectiveAssessment]:
+    """Read exact target records without requiring an already published metadata row."""
+    from ai_stp_platform.assessment_projection import project_passport_assessments
+
+    records = (
+        (
+            await session.execute(
+                select(TargetAssessmentLatest, TargetAssessment)
+                .join(TargetAssessment, TargetAssessment.id == TargetAssessmentLatest.assessment_id)
+                .where(
+                    TargetAssessmentLatest.component_stable_id == passport.stable_id,
+                    TargetAssessmentLatest.version == passport.version,
+                )
+            )
+        )
+        .tuples()
+        .all()
     )
-    matrix = project_target_matrix(passport, assessments=assessments)
-    verified = conservative_component_verified(checks_summary=meta.checks_summary, matrix=matrix)
-    meta.component_verified = verified
-    return verified
+    return project_passport_assessments(passport, passport_digest, records, now=datetime.now(UTC))
+
+
+async def common_publication_evidence(
+    session: AsyncSession, metadata: Sequence[CatalogMetadata], *, now: datetime
+) -> dict[int, tuple[bool, datetime | None]]:
+    """Current mandatory evidence from the latest published exact-passport snapshot."""
+    if not metadata:
+        return {}
+    coordinates = [(meta.stable_id, meta.version) for meta in metadata]
+    records = (
+        await session.execute(
+            select(PublicationPlan, ValidationSnapshot, EvidenceBinding)
+            .join(ValidationSnapshot, ValidationSnapshot.plan_id == PublicationPlan.id)
+            .join(EvidenceBinding, EvidenceBinding.snapshot_id == ValidationSnapshot.id)
+            .where(
+                PublicationPlan.object_kind == "component",
+                PublicationPlan.state == "published",
+                tuple_(PublicationPlan.stable_id, PublicationPlan.version).in_(coordinates),
+                EvidenceBinding.mandatory.is_(True),
+            )
+            .order_by(ValidationSnapshot.created_at.desc(), ValidationSnapshot.id)
+        )
+    ).all()
+    by_passport: dict[tuple[str, str, str], tuple[str, list[EvidenceBinding]]] = {}
+    for plan, snapshot, binding in records:
+        try:
+            passport = ComponentVersionPassport.model_validate(plan.passport)
+        except ValueError:
+            continue
+        digest = digest_canonical(
+            "ai-stp:passport:v1", cast(dict[str, JsonValue], passport.model_dump(mode="json"))
+        )
+        if snapshot.content_digest != passport.artifact.digest:
+            continue
+        key = (plan.stable_id, plan.version, digest)
+        if key not in by_passport:
+            by_passport[key] = (snapshot.id, [])
+        if by_passport[key][0] == snapshot.id:
+            by_passport[key][1].append(binding)
+    result: dict[int, tuple[bool, datetime | None]] = {}
+    for meta in metadata:
+        _snapshot_id, bindings = by_passport.get(
+            (meta.stable_id, str(meta.version), str(meta.passport_digest)), ("", [])
+        )
+        expiry = min((item.expires_at for item in bindings if item.expires_at), default=None)
+        result[meta.id] = (
+            bool(bindings)
+            and all(item.result == "passed" for item in bindings)
+            and (expiry is None or expiry > now),
+            expiry,
+        )
+    return result
+
+
+async def current_component_verification(
+    session: AsyncSession, metadata: Sequence[CatalogMetadata]
+) -> dict[int, tuple[bool, datetime | None]]:
+    """Batch-read current assurance without mutating published metadata."""
+    from ai_stp_platform.assessment_projection import assessment_passport
+
+    components = [meta for meta in metadata if meta.object_kind == "component"]
+    assessments = await load_effective_assessments_for_versions(
+        session, [(meta.stable_id, str(meta.version)) for meta in components]
+    )
+    common = await common_publication_evidence(session, components, now=datetime.now(UTC))
+    result: dict[int, tuple[bool, datetime | None]] = {}
+    for meta in components:
+        passport = assessment_passport(meta)
+        targets = {
+            (adaptation, harness, scope): item
+            for (stable_id, version, adaptation, harness, scope), item in assessments.items()
+            if stable_id == meta.stable_id and version == meta.version
+        }
+        passed, common_expiry = common.get(meta.id, (False, None))
+        verified = bool(
+            passport is not None
+            and passed
+            and conservative_component_verified(
+                checks_summary=meta.checks_summary,
+                matrix=project_target_matrix(passport, assessments=targets),
+            )
+        )
+        expiries = [item.expires_at for item in targets.values() if item.expires_at]
+        if common_expiry:
+            expiries.append(common_expiry)
+        result[meta.id] = (verified, min(expiries, default=None))
+    return result
+
+
+async def apply_component_verified(session: AsyncSession, meta: CatalogMetadata) -> bool:
+    """Persist the same current badge returned by public reads."""
+    verified = await current_component_verification(session, [meta])
+    if meta.id in verified:
+        meta.component_verified = verified[meta.id][0]
+    return bool(meta.component_verified)
 
 
 async def refresh_component_assurance(
     session: AsyncSession, meta: CatalogMetadata, row: CatalogSearchProjection
 ) -> None:
     """Fill search-projection assurance fields from latest-effective assessments."""
-    document = meta.passport_document
-    version = meta.version
-    if meta.object_kind != "component" or not isinstance(document, dict) or not version:
+    from ai_stp_platform.assessment_projection import assessment_passport
+
+    if meta.object_kind != "component":
         return
-    try:
-        passport = ComponentVersionPassport.model_validate(document)
-    except (TypeError, ValueError):
-        return
+    passport = assessment_passport(meta)
     assessments = await load_effective_assessments(
-        session, component_stable_id=meta.stable_id, version=version
+        session, component_stable_id=meta.stable_id, version=str(meta.version)
     )
-    matrix = project_target_matrix(passport, assessments=assessments)
-    counts = assurance_counts(matrix)
-    verified = conservative_component_verified(checks_summary=meta.checks_summary, matrix=matrix)
+    if passport is not None:
+        counts = assurance_counts(project_target_matrix(passport, assessments=assessments))
+        row.verified_targets = counts.verified_targets
+        row.assessed_targets = counts.assessed_targets
+    verified, expiry = (await current_component_verification(session, [meta]))[meta.id]
     meta.component_verified = verified
-    row.verified_targets = counts.verified_targets
-    row.assessed_targets = counts.assessed_targets
     row.component_verified = verified
+    row.component_verified_expires_at = expiry
 
 
 async def _refresh_ingested_version(
@@ -582,6 +712,7 @@ async def record_component_scan_assessments(
     passport_digest: str,
     policy_version: str,
     scans_by_digest: Mapping[str, SafetyScanResult],
+    payloads_by_digest: Mapping[str, bytes],
     expires_at: datetime,
 ) -> None:
     """Write one target assessment per exact adaptation/scope from worker scans.
@@ -597,12 +728,42 @@ async def record_component_scan_assessments(
     observed_at = datetime.now(UTC)
     observed_wire = format_timestamp(observed_at)
     expires_wire = format_timestamp(expires_at)
-    seen_observations: set[str] = set()
+    observations_by_identity: dict[str, ArtifactObservation] = {}
+    for adaptation in passport.adaptations:
+        for scope in adaptation.scope_adaptations:
+            digest = scope.projection_artifact.digest
+            scan = scans_by_digest.get(digest)
+            if scan is None:
+                continue
+            if scan.content_digest != digest or scan.policy_version != policy_version:
+                raise AssessmentError("AI_STP_VALIDATION_ERROR", "projection scan identity differs")
+            for observation in _observations_from_scan(
+                scan,
+                operating_system=operating_system,
+                architecture=architecture,
+                observed_at=observed_wire,
+                expires_at=expires_wire,
+            ):
+                observations_by_identity[_observation_digest(observation.identity)] = observation
+    for key in sorted(observations_by_identity):
+        await _store_observation(session, observations_by_identity[key])
     for adaptation in passport.adaptations:
         for scope in adaptation.scope_adaptations:
             digest = scope.projection_artifact.digest
             scan = scans_by_digest.get(digest)
             stored_state, reason_code = stored_state_from_scan(scan)
+            payload = payloads_by_digest.get(digest)
+            projection_invalid = False
+            if payload is None:
+                stored_state, reason_code = "not_verified", "projection_bytes_unavailable"
+            else:
+                try:
+                    verify_projection(scope, payload)
+                except ProjectionArtifactError:
+                    stored_state, reason_code = "failed", "projection_integrity_mismatch"
+                    projection_invalid = True
+            if stored_state == "verified" and scope.supported_harness_versions:
+                stored_state, reason_code = "not_verified", "harness_execution_not_observed"
             identity = _target_identity(
                 passport,
                 passport_digest=passport_digest,
@@ -614,29 +775,23 @@ async def record_component_scan_assessments(
                 architecture=architecture,
             )
             key = _identity_digest(identity)
-            observations: list[ArtifactObservation] = []
-            if scan is not None:
-                observations = _observations_from_scan(
-                    scan,
-                    operating_system=operating_system,
-                    architecture=architecture,
-                    observed_at=observed_wire,
-                    expires_at=expires_wire,
-                )
-            for observation in observations:
-                digest_key = _observation_digest(observation.identity)
-                if digest_key in seen_observations:
-                    continue
-                seen_observations.add(digest_key)
-                await _store_observation(session, observation)
             evidence_refs = [digest, policy_version]
+            scan_bindings = scan.bindings() if scan is not None else []
+            if projection_invalid:
+                scan_bindings = [
+                    {**check, "result": "failed", "reason": "projection_integrity_mismatch"}
+                    if check.get("check_id") == "artifact_unpack"
+                    else check
+                    for check in scan_bindings
+                ]
+            checks_summary = build_checks_summary(scan_bindings) if scan_bindings else None
             row = TargetAssessment(
                 target_key_digest=key,
                 identity=identity.model_dump(mode="json"),
                 stored_state=stored_state,
                 compatibility_result="not_run",
                 reason_code=reason_code,
-                checks_summary=build_checks_summary(scan.bindings()) if scan is not None else None,
+                checks_summary=checks_summary,
                 evidence_refs=evidence_refs,
                 observed_at=observed_at,
                 expires_at=expires_at,

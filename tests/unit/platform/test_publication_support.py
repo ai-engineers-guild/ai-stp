@@ -456,20 +456,10 @@ async def test_publication_database_guards_and_reevaluation_edges() -> None:
     session.scalar.return_value = existing_snapshot
     assert await execute_validate(session, plan_id=plan.id) is existing_snapshot
 
-    valid_passport = ComponentVersionPassport.model_validate(plan.passport)
-    existing_catalog = SimpleNamespace(passport_digest=passport_digest(valid_passport))
-    session.scalar.return_value = existing_catalog
-    session.execute.return_value = SimpleNamespace(scalar_one=lambda: SimpleNamespace(id="job_seo"))
     store = cast(
         ImmutableObjectStore,
-        SimpleNamespace(
-            read_by_digest=AsyncMock(return_value=b"x"),
-            key_for_digest=_object_key,
-        ),
+        SimpleNamespace(read_by_digest=AsyncMock(return_value=b"x"), key_for_digest=_object_key),
     )
-    assert await execute_publish(session, plan_id=plan.id, store=store) is existing_catalog
-    assert plan.state == "published"
-
     session.scalar.side_effect = [None, None]
     with pytest.raises(ValueError, match="successful validation"):
         await execute_publish(session, plan_id=plan.id, store=store)

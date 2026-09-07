@@ -458,6 +458,17 @@ def compile_expression(
     return _compile_predicate(expression, projection=projection, author_verified=author_verified)
 
 
+def _current_component_verified(projection: type[CatalogSearchProjection]) -> ColumnElement[bool]:
+    """Expire the indexed badge in SQL before filtering, counting, and pagination."""
+    return and_(
+        projection.component_verified.is_(True),
+        or_(
+            projection.component_verified_expires_at.is_(None),
+            projection.component_verified_expires_at > func.now(),
+        ),
+    )
+
+
 def _compile_predicate(
     predicate: Predicate,
     *,
@@ -476,7 +487,7 @@ def _compile_predicate(
     elif predicate.field == "AUTHOR":
         present = func.lower(projection.owner_account_id).in_(wanted)
     else:
-        flag = and_(author_verified.is_(True), projection.component_verified.is_(True))
+        flag = and_(author_verified.is_(True), _current_component_verified(projection))
         present = or_(*[flag.is_(True) if value == "true" else flag.is_(False) for value in wanted])
     if predicate.operator == "NOT IN":
         return ~present
@@ -692,13 +703,13 @@ async def search_catalog(
 
     is_authoritative = and_(
         author_verified.is_(True),
-        projection.component_verified.is_(True),
+        _current_component_verified(projection),
         projection.trust_lane == "authoritative",
     )
     if not include_experimental:
         stmt = stmt.where(is_authoritative)
     if verified_only:
-        stmt = stmt.where(author_verified.is_(True), projection.component_verified.is_(True))
+        stmt = stmt.where(author_verified.is_(True), _current_component_verified(projection))
     if tag_filter:
         stmt = stmt.where(projection.tags.contains(tag_filter))
     facet_base = stmt
