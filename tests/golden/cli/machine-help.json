@@ -41,6 +41,27 @@
           "choices": []
         },
         {
+          "name": "component-root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact component directory evaluated and signed with Git ignore rules.",
+          "choices": []
+        },
+        {
+          "name": "visibility",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Visibility of the publication being signed.",
+          "choices": [
+            "private",
+            "public"
+          ]
+        },
+        {
           "name": "check-id",
           "kind": "option",
           "value_type": "string",
@@ -5096,18 +5117,6 @@
       "confirmation": "none",
       "parameters": [
         {
-          "name": "visibility",
-          "kind": "option",
-          "value_type": "string",
-          "required": false,
-          "repeatable": false,
-          "summary": "Plan private (default) or explicitly public distribution.",
-          "choices": [
-            "public",
-            "private"
-          ]
-        },
-        {
           "name": "id",
           "kind": "option",
           "value_type": "string",
@@ -5123,6 +5132,15 @@
           "required": true,
           "repeatable": false,
           "summary": "Exact local X.Y version to publish.",
+          "choices": []
+        },
+        {
+          "name": "component-root",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact component directory to package with Git ignore rules.",
           "choices": []
         },
         {
@@ -7255,18 +7273,6 @@
       "mutability": "plan",
       "confirmation": "none",
       "parameters": [
-        {
-          "name": "visibility",
-          "kind": "option",
-          "value_type": "string",
-          "required": false,
-          "repeatable": false,
-          "summary": "Plan private (default) or explicitly public distribution.",
-          "choices": [
-            "public",
-            "private"
-          ]
-        },
         {
           "name": "id",
           "kind": "option",

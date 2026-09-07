@@ -681,7 +681,7 @@ def materialize_version_passport(
     *,
     device_id: str,
     at: str,
-    visibility: Literal["public", "private"] = "public",
+    visibility: Literal["public", "private"] = "private",
 ) -> tuple[ComponentVersionPassport, str]:
     """Freeze a draft into one immutable adaptation snapshot and native CAS artifact."""
     current = _component_head(connection, stable_id)

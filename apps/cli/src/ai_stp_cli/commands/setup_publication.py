@@ -394,7 +394,10 @@ def _setup_passport(
             "AI_STP_VALIDATION_ERROR",
             "the released revision at that version is not a setup",
             details={"id": stable_id, "version": version},
-            next_actions=[f"publication plan --id {stable_id} --version {version} --json"],
+            next_actions=[
+                f"publication plan --id {stable_id} --version {version} "
+                "--component-root <path> --json"
+            ],
         )
     passport = SetupVersionPassport.model_validate(stored.envelope.model_dump(mode="json"))
     if (

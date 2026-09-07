@@ -70,11 +70,16 @@ def test_component_upload_defaults_private_and_refuses_a_legacy_public_plan(
 
     where = Endpoint("https://private.example.test", transport=httpx.MockTransport(serve))
     monkeypatch.setattr(publication, "endpoint", lambda: where)
+    parameters = {
+        "id": component_id,
+        "version": "1.0",
+        "component-root": str(tmp_path),
+    }
     if legacy_response:
-        with pytest.raises(CliFailure, match="visibility"):
-            publication.plan({"id": component_id, "version": "1.0"})
+        with pytest.raises(CliFailure, match="published contract"):
+            publication.plan(parameters)
     else:
-        result = publication.plan({"id": component_id, "version": "1.0"}).payload
+        result = publication.plan(parameters).payload
         assert result.visibility == "private"
     assert len(requests) == 1
     assert requests[0].headers["Authorization"] == f"Bearer {held.access_token}"

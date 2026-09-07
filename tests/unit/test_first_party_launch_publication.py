@@ -555,6 +555,7 @@ def _plan_response(evidence: list[dict[str, Any]], state: str = "failed") -> Any
         version="1.0",
         content_digest="sha256:" + "0" * 64,
         artifact_inventory=[],
+        visibility="public",
         policy_version="2026-01-01",
         actor_id=OWNER_ID,
         device_id=DEVICE,

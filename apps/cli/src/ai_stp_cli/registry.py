@@ -419,12 +419,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="publication:plan",
         mutability="plan",
         parameters=(
-            option(
-                "visibility",
-                "string",
-                "Plan private (default) or explicitly public distribution.",
-                choices=("public", "private"),
-            ),
             option("id", "string", "Stable identifier of the released component.", required=True),
             option("version", "string", "Exact local X.Y version to publish.", required=True),
             option(
@@ -3226,12 +3220,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # nothing: the whole point of the set is that one confirmation follows.
         mutability="plan",
         parameters=(
-            option(
-                "visibility",
-                "string",
-                "Plan private (default) or explicitly public distribution.",
-                choices=("public", "private"),
-            ),
             option("id", "string", "Stable identifier of the released setup.", required=True),
             option("version", "string", "Exact local X.Y version to publish.", required=True),
             option(

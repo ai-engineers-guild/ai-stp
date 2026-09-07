@@ -172,7 +172,7 @@ class PublicationPlanResponse(BaseModel):
     version: Version
     content_digest: ContentDigest
     artifact_inventory: Annotated[list[str], Field(default_factory=list, max_length=1000)]
-    visibility: PublicationVisibility = "private"
+    visibility: PublicationVisibility
     policy_version: PolicyVersion
     actor_id: AccountId
     device_id: DeviceId

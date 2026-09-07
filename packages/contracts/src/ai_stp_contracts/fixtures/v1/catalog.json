@@ -836,9 +836,10 @@
           "kind": "component",
           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "version": "1.2",
-          "visibility": "private"
+          "visibility": "private",
+          "revision_id": "revision_73513aa9c3b143b808cf6b5ee921a3d83ed32d942ca4b12471f618dcdf1e428f"
         },
-        "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
+        "passport_digest": "sha256:9e70631a56fb56d2afea8d84b5ade17cbc44655bcd0bec386d53c1ad1bb27b18",
         "lifecycle": "active",
         "trust": {
           "trust_lane": "experimental",
@@ -868,9 +869,10 @@
           "kind": "setup",
           "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "version": "1.2",
-          "visibility": "private"
+          "visibility": "private",
+          "revision_id": "revision_96d95c341c106f702f57d6d3f7cef9ca3680da5286c3f5b5d971e52927bafaf4"
         },
-        "passport_digest": "sha256:670e7e16c2e594559d84428ea72057f9da6c0bbe888b3a82fe45f7f47a3f8284",
+        "passport_digest": "sha256:3c81d91ab53f6739f77a641bd70a599e17e8c5bfb505a99d9761ba0ae54b462c",
         "lifecycle": "active",
         "trust": {
           "trust_lane": "experimental",

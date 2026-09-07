@@ -302,8 +302,7 @@
       "$ref": "#/$defs/Version"
     },
     "visibility": {
-      "$ref": "#/$defs/PublicationVisibility",
-      "default": "private"
+      "$ref": "#/$defs/PublicationVisibility"
     }
   },
   "required": [

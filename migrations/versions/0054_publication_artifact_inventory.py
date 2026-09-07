@@ -1,7 +1,7 @@
 """Bind the exact component path inventory to publication plans.
 
 Revision ID: 0054_publication_artifact_inventory
-Revises: 0053_catalog_safety_percent
+Revises: 0053_catalog_safety_percent, 0053_component_assurance_expiry
 """
 
 from __future__ import annotations
@@ -12,7 +12,10 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0054_publication_artifact_inventory"
-down_revision: str | None = "0053_catalog_safety_percent"
+down_revision: str | tuple[str, ...] | None = (
+    "0053_catalog_safety_percent",
+    "0053_component_assurance_expiry",
+)
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

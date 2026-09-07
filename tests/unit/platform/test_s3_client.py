@@ -27,6 +27,7 @@ class _Client:
         self.get_error: ClientError | None = None
         self.bucket_error: ClientError | None = None
         self.created_bucket: str | None = None
+        self.public_access_blocked: str | None = None
 
     async def head_bucket(self, **kwargs: object) -> None:
         del kwargs
@@ -35,6 +36,9 @@ class _Client:
 
     async def create_bucket(self, **kwargs: object) -> None:
         self.created_bucket = str(kwargs["Bucket"])
+
+    async def put_public_access_block(self, **kwargs: object) -> None:
+        self.public_access_blocked = str(kwargs["Bucket"])
 
     async def head_object(self, **kwargs: object) -> dict[str, object]:
         del kwargs
@@ -165,6 +169,7 @@ async def test_s3_client_ensures_bucket_and_preserves_access_errors(
     async with s3.S3ObjectClient(settings) as client:
         await client.ensure_bucket()
         assert remote.created_bucket is None
+        assert remote.public_access_blocked == "bucket"
 
         remote.bucket_error = _error("NoSuchBucket")
         await client.ensure_bucket()

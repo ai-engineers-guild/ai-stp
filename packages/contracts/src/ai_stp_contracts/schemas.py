@@ -252,6 +252,7 @@ from ai_stp_contracts.ownership import (
     OwnershipRevisionView,
 )
 from ai_stp_contracts.private_access import (
+    CliPrivateVersionResponse,
     VisibilityPlanCreateRequest,
     VisibilityPlanResponse,
 )
@@ -435,7 +436,7 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
 #: document, so the two surfaces cannot be confused for one.
 CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     # Client contracts; the server routes are an explicit SPEC-071 dependency.
-    "private-version-response": PrivateVersionResponse,
+    "private-version-response": CliPrivateVersionResponse,
     "visibility-plan-create-request": VisibilityPlanCreateRequest,
     "visibility-plan-response": VisibilityPlanResponse,
     "cli-signed-attestation": CliSignedAttestation,
