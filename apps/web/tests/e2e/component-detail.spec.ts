@@ -98,7 +98,8 @@ test.describe("exact harness projection presentation", () => {
   }, testInfo) => {
     await page.goto(`/en/catalog/components/${multiHarnessStableId}`);
     await expect(page.getByRole("heading", { level: 1, name: "workflow-herdr" })).toBeVisible();
-    await expect(page.getByText("Harness projections verified: 7 / 7 (100%)")).toBeVisible();
+    await expect(page.getByText("14 / 14 checks passed").first()).toBeVisible();
+    await expect(page.getByText("7 harness projections")).toBeVisible();
 
     const header = page.locator('[data-ui="component-detail-header"]');
     const actions = page.locator('[data-ui="component-actions"]');
@@ -118,11 +119,9 @@ test.describe("exact harness projection presentation", () => {
       await expect(overflow).toBeVisible();
     }
 
-    const projection = page
-      .locator('[data-ui="catalog-target-matrix"]')
-      .locator("details")
-      .filter({ hasText: "antigravity" })
-      .first();
+    const matrix = page.locator('[data-ui="catalog-target-matrix"]');
+    await matrix.locator(":scope > details > summary").click();
+    const projection = matrix.locator("li details").filter({ hasText: "antigravity" }).first();
     await projection.locator("summary").click();
     await expect(projection).toHaveAttribute("open", "");
     await expect(projection).toContainText("Safety check");

@@ -9,6 +9,9 @@ vi.mock("@/lib/i18n/navigation", () => ({
     <a href={href}>{children}</a>
   ),
 }));
+vi.mock("@/components/organisms/contact-report-dialog", () => ({
+  ContactReportDialog: () => null,
+}));
 
 import { SetupFamilyBlock } from "@/components/molecules/setup-family";
 import type { SetupFamilyPublic } from "@/lib/api/generated/types.gen";
@@ -32,6 +35,17 @@ const labels = {
   harness: "Harness",
   portedFrom: "Ported from",
   browseFamily: "Browse family in catalog",
+  setup: "Setup",
+  parent: "Parent setup",
+  recast: "Recast setup",
+  moreActions: "More actions",
+  copyUrl: "Copy URL",
+  copyCli: "Copy CLI command",
+  copyId: "Copy ID",
+  copied: "Copied",
+  like: "Like",
+  unlike: "Unlike",
+  report: "Report setup",
 };
 
 const family: SetupFamilyPublic = {
@@ -48,6 +62,7 @@ const family: SetupFamilyPublic = {
   members: [
     {
       schema_version: 1,
+      name: "Current setup",
       stable_id: "setup_current",
       harness_id: "claude-code",
       latest_version: "1.0",
@@ -58,6 +73,7 @@ const family: SetupFamilyPublic = {
     },
     {
       schema_version: 1,
+      name: "Pi setup",
       stable_id: "setup_pi",
       harness_id: "pi",
       latest_version: "1.1",
@@ -77,20 +93,37 @@ describe("SetupFamilyBlock", () => {
   it("renders navigational members without write or install controls", () => {
     render(<SetupFamilyBlock family={family} currentStableId="setup_current" labels={labels} />);
 
+    expect(screen.getByText("Parent setup · Family members: 2")).toBeInTheDocument();
+    screen.getByRole("heading", { name: "Related harness setups" }).closest("summary")?.click();
     expect(screen.getByText("This setup")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "setup_pi" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Pi setup" })).toHaveAttribute(
       "href",
       "/catalog/setups/setup_pi/versions/1.1",
     );
-    expect(screen.getByRole("link", { name: "Browse family in catalog" })).toHaveAttribute(
-      "href",
-      "/catalog?resource=setups&family_id=family_demo",
-    );
-    expect(screen.getByText(/Alignment: Aligned/)).toBeInTheDocument();
-    expect(screen.getByText(/Alignment: Diverged/)).toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "More actions" })).toHaveLength(2);
     expect(screen.queryByText(/sync/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/merge/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/install/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the port source on the family card and exposes working row actions", () => {
+    render(
+      <SetupFamilyBlock
+        family={family}
+        currentStableId="setup_pi"
+        portedFrom={family.members[1]?.ported_from ?? null}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByText("Recast setup · Family members: 2")).toBeInTheDocument();
+    screen.getByRole("heading", { name: "Related harness setups" }).closest("summary")?.click();
+    expect(screen.getByText(/Ported from/)).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole("link", { name: "Current setup" })
+        .some((link) => link.getAttribute("href") === "/catalog/setups/setup_current/versions/1.0"),
+    ).toBe(true);
+    expect(screen.getAllByRole("button", { name: "More actions" })).toHaveLength(2);
   });
 });

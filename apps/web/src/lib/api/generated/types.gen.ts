@@ -4474,6 +4474,10 @@ export type SetupFamilyMember = {
   exact_version: AiStpContractsFamiliesVersion | null;
   harness_id: HarnessId;
   latest_version: AiStpContractsFamiliesVersion | null;
+  /**
+   * Name
+   */
+  name: string;
   passport_digest: Digest | null;
   ported_from: SetupRef | null;
   /**

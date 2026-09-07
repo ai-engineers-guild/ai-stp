@@ -20,7 +20,8 @@ describe("CompactChipList", () => {
     const more = screen.getByText("+1");
     expect(more).toHaveTextContent("+1");
     await user.click(more);
-    expect(more.closest("details")).toHaveAttribute("open");
+    expect(more.closest("details")).toBeNull();
+    expect(screen.getByRole("menu")).toHaveAttribute("data-side", "top");
     expect(screen.getAllByText("cursor").length).toBeGreaterThan(0);
   });
 });

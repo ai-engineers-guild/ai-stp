@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { ObjectAuthorRail } from "@/components/molecules/catalog-author-link";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
@@ -138,15 +137,27 @@ export default async function ComponentDetailPage({ params }: PageProps) {
         icon={<ComponentTypeIcon type={summary.latest_component_type} />}
         title={summary.latest_name}
         badges={
-          <div className="min-w-0 space-y-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-1">
-              <Badge variant="secondary">{summary.latest_component_type}</Badge>
-              <CompactChipList values={namedHarnesses(summary)} label={t("harness")} />
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-primary text-sm font-semibold">
+                {summary.latest_component_type}
+              </span>
+              <span className="text-muted-foreground text-sm">
+                {t("version")} {summary.latest_version}
+              </span>
+              <CompactChipList
+                values={namedHarnesses(summary)}
+                label={t("harness")}
+                variant="secondary"
+              />
             </div>
-            <CompactChipList values={summary.latest_tags} label={t("tags")} />
+            <CompactChipList
+              values={summary.latest_tags}
+              label={t("tags")}
+              className="mt-2 max-w-xl gap-x-1 gap-y-0.5 text-[10px]"
+            />
           </div>
         }
-        versionLabel={`v${summary.latest_version}`}
         githubStars={metadata.stars}
         githubStarsLabel={t("githubStars")}
         archived={metadata.archived}

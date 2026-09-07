@@ -7,7 +7,6 @@ import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { ExactSourceLink } from "@/components/molecules/exact-source-link";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
-import { SetupProvenance } from "@/components/molecules/setup-provenance";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { SetupComposition } from "@/components/organisms/setup-composition";
@@ -138,18 +137,10 @@ export default async function SetupVersionPage({ params }: PageProps) {
           <dd className="font-mono text-xs break-all">{response.passport_digest}</dd>
         </div>
       </dl>
-      <SetupProvenance
-        portedFrom={passport.ported_from ?? null}
-        relatedSetupIds={passport.related_setup_ids}
-        labels={{
-          heading: t("setupProvenance"),
-          portedFrom: t("portedFrom"),
-          relatedSetups: t("relatedSetups"),
-        }}
-      />
       <SetupFamilyBlock
         family={response.family}
         currentStableId={stableId}
+        portedFrom={passport.ported_from}
         labels={setupFamilyLabels(t)}
       />
       <ExactSourceLink source={passport.source} label={t("viewSource")} />

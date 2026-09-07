@@ -49,6 +49,8 @@ const labels = {
   checkFailed: "Failed",
   checkNotRun: "Not run",
   checkIncomplete: "Incomplete",
+  checksComplete: "checks passed",
+  projections: "harness projections",
   noneListed: "None listed",
 };
 
@@ -83,11 +85,14 @@ describe("ComponentTargetMatrix", () => {
     render(<ComponentTargetMatrix matrix={matrix} labels={labels} />);
 
     expect(screen.getByRole("region", { name: "Harness targets" })).toBeInTheDocument();
-    expect(screen.getByText("Exact targets verified: 1 / 1 (100%)")).toBeInTheDocument();
-    expect(screen.getAllByText("Implementation: native").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("0 / 0 checks passed")).toHaveLength(2);
+    expect(screen.getByText("1 harness projections")).toBeInTheDocument();
+    screen.getByRole("heading", { name: "Harness targets" }).closest("summary")?.click();
+    screen.getByText("claude-code").closest("summary")?.click();
+    expect(screen.getByText("Implementation")).toBeVisible();
+    expect(screen.getAllByText("native").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Verified").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Supported").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Implementation: native").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Safety check").length).toBeGreaterThan(0);
     expect(screen.queryByText(/risk-install/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /install/i })).not.toBeInTheDocument();
@@ -134,6 +139,7 @@ describe("ComponentTargetMatrix", () => {
     };
     render(<ComponentTargetMatrix matrix={detailed} labels={labels} />);
 
+    screen.getByRole("heading", { name: "Harness targets" }).closest("summary")?.click();
     const summary = screen.getByText("claude-code");
     summary.closest("summary")?.click();
 
@@ -154,6 +160,7 @@ describe("ComponentTargetMatrix", () => {
     delete (legacy.exact[0] as unknown as { safety_checks?: unknown }).safety_checks;
 
     render(<ComponentTargetMatrix matrix={legacy} labels={labels} />);
+    screen.getByRole("heading", { name: "Harness targets" }).closest("summary")?.click();
     screen.getByText("claude-code").closest("summary")?.click();
 
     expect(screen.getByText("Per-target check details are not recorded.")).toBeVisible();

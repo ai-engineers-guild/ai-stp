@@ -7,6 +7,7 @@ import { Button } from "@/components/atoms/button";
 import { ObjectAuthorRail } from "@/components/molecules/catalog-author-link";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
+import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
 import { ObjectRelationships } from "@/components/molecules/object-relationships";
@@ -25,7 +26,6 @@ import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
-import { SetupProvenance } from "@/components/molecules/setup-provenance";
 import {
   catalogRelations,
   readComponentVersion,
@@ -96,12 +96,6 @@ export default async function SetupDetailPage({ params }: PageProps) {
     latest = null;
   }
   const passport = latest?.passport;
-  const detailData = detail as unknown as {
-    ported_from?: NonNullable<typeof passport>["ported_from"];
-    related_setup_ids?: string[];
-  };
-  const portedFrom = detailData.ported_from ?? passport?.ported_from ?? null;
-  const relatedSetupIds = detailData.related_setup_ids ?? passport?.related_setup_ids ?? [];
   const catalogComponents = passport
     ? await Promise.all(
         passport.components.map(async (ref) => {
@@ -173,14 +167,21 @@ export default async function SetupDetailPage({ params }: PageProps) {
         }
         title={summary.latest_name}
         badges={
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge variant="secondary">{t("setupKind")}</Badge>
-            <Badge variant="outline">
-              {t("harness")}: {summary.latest_harness_id}
-            </Badge>
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-primary text-sm font-semibold">{t("setupKind")}</span>
+              <span className="text-muted-foreground text-sm">
+                {t("version")} {summary.latest_version}
+              </span>
+              <Badge variant="secondary">{summary.latest_harness_id}</Badge>
+            </div>
+            <CompactChipList
+              values={summary.latest_tags}
+              label={t("tags")}
+              className="mt-2 max-w-xl gap-x-1 gap-y-0.5 text-[10px]"
+            />
           </div>
         }
-        versionLabel={`v${summary.latest_version}`}
         githubStars={metadata.stars}
         githubStarsLabel={t("githubStars")}
         archived={metadata.archived}
@@ -223,21 +224,6 @@ export default async function SetupDetailPage({ params }: PageProps) {
         }}
       />
 
-      <SetupProvenance
-        portedFrom={portedFrom}
-        relatedSetupIds={relatedSetupIds}
-        labels={{
-          heading: t("setupProvenance"),
-          portedFrom: t("portedFrom"),
-          relatedSetups: t("relatedSetups"),
-        }}
-      />
-      <SetupFamilyBlock
-        family={detail.family}
-        currentStableId={stableId}
-        labels={setupFamilyLabels(t)}
-      />
-
       <ObjectDetailFrame
         description={
           <MarkdownDescription
@@ -247,6 +233,12 @@ export default async function SetupDetailPage({ params }: PageProps) {
         }
         main={
           <>
+            <SetupFamilyBlock
+              family={detail.family}
+              currentStableId={stableId}
+              portedFrom={detail.ported_from ?? passport?.ported_from ?? null}
+              labels={setupFamilyLabels(t)}
+            />
             {passport ? (
               <ObjectTechnicalDetails
                 title={t("technicalDetails")}

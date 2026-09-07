@@ -1,3 +1,7 @@
+"use client";
+
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+
 import { Badge, badgeVariants } from "@/components/atoms/badge";
 import { cn } from "@/lib/cn";
 
@@ -28,27 +32,40 @@ export function CompactChipList({
         </Badge>
       ))}
       {hidden.length ? (
-        <details className="relative z-30 shrink-0">
-          <summary
-            className={cn(
-              badgeVariants({ variant }),
-              "focus-visible:ring-ring cursor-pointer list-none focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden",
-            )}
-            aria-label={`${label}: ${unique.join(", ")}`}
-          >
-            +{hidden.length}
-          </summary>
-          <div className="border-border bg-popover text-popover-foreground absolute top-full left-0 mt-2 w-max max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border p-2 shadow-md">
-            <p className="text-muted-foreground mb-1 text-xs font-medium">{label}</p>
-            <div className="flex flex-wrap gap-1">
-              {unique.map((value) => (
-                <Badge key={value} variant={variant}>
-                  {value}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </details>
+        <span className="relative z-30 shrink-0">
+          <DropdownMenu.Root modal={false}>
+            <DropdownMenu.Trigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  badgeVariants({ variant }),
+                  "focus-visible:ring-ring relative cursor-pointer focus-visible:ring-2 focus-visible:outline-none",
+                )}
+                aria-label={`${label}: ${unique.join(", ")}`}
+              >
+                +{hidden.length}
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                side="top"
+                align="start"
+                sideOffset={8}
+                collisionPadding={12}
+                className="border-border bg-popover text-popover-foreground z-[80] w-max max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border p-2 shadow-md"
+              >
+                <p className="text-muted-foreground mb-1 text-xs font-medium">{label}</p>
+                <div className="flex flex-wrap gap-1">
+                  {unique.map((value) => (
+                    <Badge key={value} variant={variant}>
+                      {value}
+                    </Badge>
+                  ))}
+                </div>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </span>
       ) : null}
     </div>
   );

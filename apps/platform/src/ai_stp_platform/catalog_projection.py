@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from pydantic import Field, SerializerFunctionWrapHandler, ValidationError, model_serializer
 
+from ai_stp_contracts.assurance import TargetMatrix
 from ai_stp_contracts.catalog import (
     CatalogTrust,
     ComponentDetail,
@@ -421,6 +422,8 @@ def component_summary(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
     trust = project_trust(row)
+    checks_summary = project_checks_summary(row)
+    fallback_safety_checks = checks_summary.checks if checks_summary is not None else ()
     eligible_for_full_auto = (
         row.lifecycle == "active"
         and trust.trust_lane == "authoritative"
@@ -430,9 +433,11 @@ def component_summary(
     matrix = project_target_matrix(
         passport,
         assessments=assessments,
+        fallback_safety_checks=fallback_safety_checks,
         now=now,
         eligible_for_full_auto=eligible_for_full_auto,
     )
+    component_checks = _component_checks_with_projection_mean(checks_summary, matrix)
     return ComponentSummary(
         stable_id=passport.stable_id,  # type: ignore[arg-type]
         publisher_id=row.metadata.owner_account_id,
@@ -461,8 +466,25 @@ def component_summary(
         latest_trust=trust,
         latest_support=support,
         latest_published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
-        latest_checks=project_checks_summary(row),
+        latest_checks=component_checks,
     )
+
+
+def _component_checks_with_projection_mean(
+    summary: SafetyChecksSummary | None, matrix: TargetMatrix
+) -> SafetyChecksSummary | None:
+    """Use the unweighted mean of exact projection scores for component cards."""
+    if summary is None or not matrix.exact:
+        return summary
+    scores = [_projection_score(row.safety_checks) for row in matrix.exact]
+    return summary.model_copy(update={"checks_passed_percent": round(sum(scores) / len(scores))})
+
+
+def _projection_score(checks: list[SafetyCheckEntry]) -> int:
+    passed = sum(1 for check in checks if check.result == "passed")
+    failed = sum(1 for check in checks if check.result == "failed")
+    warning = sum(1 for check in checks if check.result == "warning")
+    return verdict_percent(passed, failed, warning) or 0
 
 
 def _card_excerpt(source: str) -> str:
@@ -585,6 +607,8 @@ def component_detail(
         raise CatalogIntegrityError("no public versions")
     latest = max(versions, key=lambda r: _version_key(r.version))
     passport = component_passport(latest.passport)
+    checks_summary = project_checks_summary(latest)
+    fallback_safety_checks = checks_summary.checks if checks_summary is not None else ()
     trust = project_trust(latest)
     eligible_for_full_auto = (
         latest.lifecycle == "active"
@@ -598,6 +622,7 @@ def component_detail(
         target_matrix=project_target_matrix(
             passport,
             assessments=assessments,
+            fallback_safety_checks=fallback_safety_checks,
             now=now,
             eligible_for_full_auto=eligible_for_full_auto,
         ),
@@ -630,11 +655,20 @@ def component_version_response(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
     trust = project_trust(row)
+    checks_summary = project_checks_summary(row)
+    fallback_safety_checks = checks_summary.checks if checks_summary is not None else ()
     eligible_for_full_auto = (
         row.lifecycle == "active"
         and trust.trust_lane == "authoritative"
         and trust.author_verified
         and trust.component_verified
+    )
+    matrix = project_target_matrix(
+        passport,
+        assessments=assessments,
+        fallback_safety_checks=fallback_safety_checks,
+        now=now,
+        eligible_for_full_auto=eligible_for_full_auto,
     )
     return _WiredComponentVersionResponse(
         passport=passport,
@@ -643,13 +677,8 @@ def component_version_response(
         trust=trust,
         support=support,
         published_at=format_timestamp(row.published_at),  # type: ignore[arg-type]
-        checks=project_checks_summary(row),
-        target_matrix=project_target_matrix(
-            passport,
-            assessments=assessments,
-            now=now,
-            eligible_for_full_auto=eligible_for_full_auto,
-        ),
+        checks=_component_checks_with_projection_mean(checks_summary, matrix),
+        target_matrix=matrix,
         published_passport=cast(dict[str, JsonValue], row.passport),
     )
 

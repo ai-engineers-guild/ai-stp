@@ -35,6 +35,7 @@ class SetupFamilyMember(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    name: Annotated[str, Field(min_length=1, max_length=200)]
     stable_id: SetupId
     harness_id: HarnessId
     latest_version: Version | None = None

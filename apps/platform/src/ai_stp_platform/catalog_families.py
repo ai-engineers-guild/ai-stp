@@ -161,6 +161,7 @@ async def project_family(
         passport = SetupVersionPassport.model_validate(version_row.passport_document)
         members.append(
             SetupFamilyMember(
+                name=str(version_row.name or passport.name),
                 stable_id=row.stable_id,  # type: ignore[arg-type]
                 harness_id=row.harness_id,  # type: ignore[arg-type]
                 latest_version=str(latest.version) if latest.version else None,  # type: ignore[arg-type]
