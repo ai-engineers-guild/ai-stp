@@ -92,7 +92,7 @@ export function ComponentContextBudgetPanel({
             <div>
               <dt className="text-muted-foreground">{labels.conditional}</dt>
               <dd className="mt-1 text-xl font-medium tabular-nums">
-                {(budget?.loading === "conditional" ? tokens : 0).toLocaleString()}
+                {(budget.loading === "conditional" ? tokens : 0).toLocaleString()}
               </dd>
             </div>
           </dl>
