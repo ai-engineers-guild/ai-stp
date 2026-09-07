@@ -45,6 +45,7 @@ from ai_stp_contracts.auth import (
     SystemVersionResponse,
 )
 from ai_stp_contracts.catalog import (
+    CatalogAuthorListResponse,
     CatalogReactionList,
     CatalogReactionState,
     CatalogUsageMetrics,
@@ -343,6 +344,13 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         summary="Search public components. Anonymous.",
         response=ComponentListResponse,
         query=ComponentSearchRequest,
+    ),
+    Operation(
+        method="get",
+        path="/catalog/authors",
+        operation_id="listCatalogAuthors",
+        summary="List authors with public catalog objects. Anonymous.",
+        response=CatalogAuthorListResponse,
     ),
     Operation(
         method="get",

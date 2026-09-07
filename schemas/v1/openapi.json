@@ -986,6 +986,63 @@
         "title": "CapabilitySnapshot",
         "type": "object"
       },
+      "CatalogAuthorListResponse": {
+        "additionalProperties": true,
+        "description": "All authors with at least one active public catalog object.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogAuthorOption"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "schema_version"
+        ],
+        "title": "CatalogAuthorListResponse",
+        "type": "object"
+      },
+      "CatalogAuthorOption": {
+        "additionalProperties": true,
+        "description": "One public author available in the catalog filter.",
+        "properties": {
+          "account_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Account Id",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Display Name"
+          }
+        },
+        "required": [
+          "account_id",
+          "display_name"
+        ],
+        "title": "CatalogAuthorOption",
+        "type": "object"
+      },
       "CatalogPageInfo": {
         "additionalProperties": true,
         "description": "Exact public web page metadata; never used for private enumeration.",
@@ -1978,6 +2035,17 @@
             "title": "Include Experimental",
             "type": "boolean"
           },
+          "min_safety_percent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SafetyPercent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "page": {
             "anyOf": [
               {
@@ -2095,6 +2163,14 @@
               }
             ],
             "default": null
+          },
+          "verification": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationFilter"
+            },
+            "maxItems": 2,
+            "title": "Verification",
+            "type": "array"
           },
           "verified_only": {
             "default": false,
@@ -7243,6 +7319,15 @@
         "title": "SafetyFindingSummary",
         "type": "object"
       },
+      "SafetyPercent": {
+        "enum": [
+          75,
+          85,
+          90,
+          99
+        ],
+        "type": "integer"
+      },
       "ScopeAdaptation": {
         "additionalProperties": false,
         "allOf": [
@@ -9096,6 +9181,17 @@
             ],
             "default": null
           },
+          "min_safety_percent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SafetyPercent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "page": {
             "anyOf": [
               {
@@ -9213,6 +9309,14 @@
               }
             ],
             "default": null
+          },
+          "verification": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationFilter"
+            },
+            "maxItems": 2,
+            "title": "Verification",
+            "type": "array"
           },
           "verified_only": {
             "default": false,
@@ -11531,6 +11635,13 @@
       },
       "UserCode": {
         "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$",
+        "type": "string"
+      },
+      "VerificationFilter": {
+        "enum": [
+          "verified",
+          "not_verified"
+        ],
         "type": "string"
       },
       "VersionListEntry": {
@@ -14266,6 +14377,131 @@
         "summary": "Read the outcome of the browser half of a sign-in."
       }
     },
+    "/v1/catalog/authors": {
+      "get": {
+        "operationId": "listCatalogAuthors",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "listCatalogAuthors.empty": {
+                    "summary": "An empty catalog has no author filter options.",
+                    "value": {
+                      "items": [],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogAuthorListResponse"
+                }
+              }
+            },
+            "description": "List authors with public catalog objects. Anonymous.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "List authors with public catalog objects. Anonymous."
+      }
+    },
     "/v1/catalog/components": {
       "get": {
         "operationId": "searchComponents",
@@ -14405,6 +14641,22 @@
               "default": false,
               "title": "Include Experimental",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_safety_percent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SafetyPercent"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
             }
           },
           {
@@ -14577,6 +14829,19 @@
                 }
               ],
               "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "verification",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VerificationFilter"
+              },
+              "maxItems": 2,
+              "title": "Verification",
+              "type": "array"
             }
           },
           {
@@ -16160,6 +16425,22 @@
           },
           {
             "in": "query",
+            "name": "min_safety_percent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SafetyPercent"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
             "name": "page",
             "required": false,
             "schema": {
@@ -16328,6 +16609,19 @@
                 }
               ],
               "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "verification",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VerificationFilter"
+              },
+              "maxItems": 2,
+              "title": "Verification",
+              "type": "array"
             }
           },
           {

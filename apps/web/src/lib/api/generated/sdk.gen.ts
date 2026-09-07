@@ -63,6 +63,9 @@ import type {
   LikeCatalogObjectData,
   LikeCatalogObjectErrors,
   LikeCatalogObjectResponses,
+  ListCatalogAuthorsData,
+  ListCatalogAuthorsErrors,
+  ListCatalogAuthorsResponses,
   ListCatalogReactionsData,
   ListCatalogReactionsErrors,
   ListCatalogReactionsResponses,
@@ -492,6 +495,18 @@ export const readOAuthCallbackResult = <ThrowOnError extends boolean = false>(
     ReadOAuthCallbackResultErrors,
     ThrowOnError
   >({ url: "/v1/auth/{provider}/callback", ...options });
+
+/**
+ * List authors with public catalog objects. Anonymous.
+ */
+export const listCatalogAuthors = <ThrowOnError extends boolean = false>(
+  options?: Options<ListCatalogAuthorsData, ThrowOnError>,
+): RequestResult<ListCatalogAuthorsResponses, ListCatalogAuthorsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListCatalogAuthorsResponses,
+    ListCatalogAuthorsErrors,
+    ThrowOnError
+  >({ url: "/v1/catalog/authors", ...options });
 
 /**
  * Search public components. Anonymous.

@@ -100,6 +100,8 @@ type PublicLifecycle = Literal["active", "deprecated", "blocked"]
 type CatalogTrustLane = Literal["authoritative", "experimental"]
 type SupportTier = Literal["primary", "beta"]
 type SupportState = Literal["verified", "stale", "missing", "not_verified"]
+type VerificationFilter = Literal["verified", "not_verified"]
+type SafetyPercent = Literal[75, 85, 90, 99]
 type SupportEvidenceResult = Literal[
     "passed", "warning", "failed", "degraded", "not_run", "expired"
 ]
@@ -188,6 +190,24 @@ class ExternalProductListResponse(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: list[ExternalProductSummary] = Field(default_factory=list[ExternalProductSummary])
+
+
+class CatalogAuthorOption(BaseModel):
+    """One public author available in the catalog filter."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    account_id: Annotated[str, Field(min_length=1, max_length=64)]
+    display_name: Annotated[str, Field(min_length=1, max_length=80)] | None = None
+
+
+class CatalogAuthorListResponse(BaseModel):
+    """All authors with at least one active public catalog object."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    items: list[CatalogAuthorOption] = Field(default_factory=list[CatalogAuthorOption])
 
 
 class CountrySummary(BaseModel):
@@ -521,7 +541,11 @@ class ComponentSearchRequest(BaseModel):
         default_factory=list[ComponentType]
     )
     authors: Annotated[list[str], Field(max_length=20)] = Field(default_factory=list[str])
+    verification: Annotated[list[VerificationFilter], Field(max_length=2)] = Field(
+        default_factory=list[VerificationFilter]
+    )
     verified_only: bool = False
+    min_safety_percent: SafetyPercent | None = None
     sort: CatalogSort = "relevance"
     sort_direction: CatalogSortDirection = "desc"
     support_tier: SupportTier | None = None
@@ -572,6 +596,7 @@ class ComponentSearchRequest(BaseModel):
         "harness_ids",
         "component_types",
         "authors",
+        "verification",
         "service_domains",
         "country_codes",
         mode="after",
@@ -599,7 +624,11 @@ class SetupSearchRequest(BaseModel):
         default_factory=list[HarnessId]
     )
     authors: Annotated[list[str], Field(max_length=20)] = Field(default_factory=list[str])
+    verification: Annotated[list[VerificationFilter], Field(max_length=2)] = Field(
+        default_factory=list[VerificationFilter]
+    )
     verified_only: bool = False
+    min_safety_percent: SafetyPercent | None = None
     sort: CatalogSort = "relevance"
     sort_direction: CatalogSortDirection = "desc"
     support_tier: SupportTier | None = None
@@ -647,6 +676,7 @@ class SetupSearchRequest(BaseModel):
         "tags",
         "harness_ids",
         "authors",
+        "verification",
         "service_domains",
         "country_codes",
         mode="after",

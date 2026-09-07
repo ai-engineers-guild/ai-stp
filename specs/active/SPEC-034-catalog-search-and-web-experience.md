@@ -1,6 +1,6 @@
 ---
 description: "SPEC-034: Powerful catalog search, compact web UX and media profile."
-last_verified: "2026-09-04"
+last_verified: "2026-09-07"
 ---
 
 # SPEC-034: Catalog search and web experience
@@ -27,8 +27,11 @@ Browser editor setups and arbitrary HTML are not included.
 - `Refinement surface` - responsive shell for search, filters, sorting and
   selecting a view; the specification defines behavior and accessibility, not a
   specific widget.
-- `Verified only` - both `author_verified=true` and
-  `component_verified=true`; one axis does not replace the other.
+- `Verification` - a multiselect over `Verified` and `Not verified`.
+  `Verified` means both `author_verified=true` and `component_verified=true`;
+  one axis does not replace the other.
+- `Safety threshold` - the minimum percentage of passed public safety checks;
+  allowed values are 75, 85, 90 and 99.
 
 ## Requirements
 
@@ -41,10 +44,13 @@ Browser editor setups and arbitrary HTML are not included.
   overlaps the contents of a long page.
 - `REQ-3404`: Search toolbar is minimized to one button by default; condition
   expands without losing the query URL and does not occupy a permanent large area.
-- `REQ-3405`: Resource, tags, harnesses, component types and authors are
-  searchable multiselect filters. `Verified only` and the last one
-  `Include experimental` are checkboxes. Each filter has a separate
-  accessible help.
+- `REQ-3405`: Resource, component types, tags, harnesses, authors,
+  `Verification` and the safety threshold are searchable multiselect filters.
+  Resource defaults to both `components` and `setups`; selecting a
+  component-only filter narrows the resource to components before loading
+  results. Safety thresholds are single-select values 75, 85, 90 and 99.
+  `Include experimental` remains a request-scoped consent. Each filter has a
+  separate accessible help.
 - `REQ-3406`: Structured refinement opens upon request in responsive
   refinement surface. On desktop, inline/docked/attached panels are acceptable if
   results remain available without a reload. On a narrow screen, the surface
@@ -165,6 +171,10 @@ Browser editor setups and arbitrary HTML are not included.
 - `REQ-3432`: Multi-value filters are trimmed, de-duplicated, and sorted before
   matching and before the cursor signature. Singular `harness_id` and
   `component_type` merge with `harness_ids` and `component_types` using OR.
+- `REQ-3439`: Public catalog authors are loaded as a complete searchable list,
+  sorted with Latin labels before Cyrillic labels. Author values are
+  multi-select and filter by stable account id; labels may use the published
+  public profile name.
 - `REQ-3433`: Latest public version selection, structural filters, relationship
   filters, Catalog QL, relevance ranking, `updated_at` and `likes` sorts, page
   totals, and keyset pagination execute as parameterized SQL against one search
@@ -257,6 +267,7 @@ the previous scan only by reverting the change; published passports stay.
 | `REQ-3430` | Component/unit tests confirm one list, setups then components order, no group sections, independent type sorting, old resource values ​​and bounded page boundaries. |
 | `REQ-3431` | API/unit tests treat whitespace `q` as absent and share the empty-query cursor signature. |
 | `REQ-3432` | Unit tests prove singular+list OR merge, unique sorted multi-value filters, and identical cursor signatures for equivalent forms. |
+| `REQ-3439` | API and component tests cover the complete author list, Latin-before-Cyrillic ordering, search, multi-select and account-id filtering. |
 | `REQ-3433` | Integration tests walk every sort in cursor mode without duplicates or skips and compile typed QL to SQL; page mode still returns totals. |
 | `REQ-3434` | Migration and rebuild tests keep one latest row per object, including out-of-order `X.Y` publication. |
 | `REQ-3435` | A `q=pytest` probe does not match `fixture-component` unless that needle is in stored text, tags, or aliases. |

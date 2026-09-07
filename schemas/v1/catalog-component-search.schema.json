@@ -67,6 +67,15 @@
       "minimum": 1,
       "type": "integer"
     },
+    "SafetyPercent": {
+      "enum": [
+        75,
+        85,
+        90,
+        99
+      ],
+      "type": "integer"
+    },
     "SupportState": {
       "enum": [
         "verified",
@@ -87,6 +96,13 @@
       "maxLength": 32,
       "minLength": 2,
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "VerificationFilter": {
+      "enum": [
+        "verified",
+        "not_verified"
+      ],
       "type": "string"
     }
   },
@@ -181,6 +197,17 @@
       "default": false,
       "title": "Include Experimental",
       "type": "boolean"
+    },
+    "min_safety_percent": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SafetyPercent"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "page": {
       "anyOf": [
@@ -299,6 +326,14 @@
         }
       ],
       "default": null
+    },
+    "verification": {
+      "items": {
+        "$ref": "#/$defs/VerificationFilter"
+      },
+      "maxItems": 2,
+      "title": "Verification",
+      "type": "array"
     },
     "verified_only": {
       "default": false,

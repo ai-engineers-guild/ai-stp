@@ -73,7 +73,9 @@ type SearchParams = {
   harness_ids?: ReadonlyArray<string>;
   component_types?: ReadonlyArray<string>;
   authors?: ReadonlyArray<string>;
+  verification?: ReadonlyArray<"verified" | "not_verified">;
   verified_only?: boolean;
+  min_safety_percent?: 75 | 85 | 90 | 99;
   sort?: "relevance" | "updated_at" | "likes";
   sort_direction?: "asc" | "desc";
   support_tier?: "primary" | "beta";
@@ -118,6 +120,18 @@ export async function listExternalProducts(): Promise<{
   return publicApiGet("/v1/catalog/services");
 }
 
+export type CatalogAuthorOption = {
+  account_id: string;
+  display_name: string | null;
+};
+
+export async function listCatalogAuthors(): Promise<{
+  schema_version: 1;
+  items: CatalogAuthorOption[];
+}> {
+  return publicApiGet("/v1/catalog/authors");
+}
+
 export async function readExternalProduct(domain: string): Promise<ExternalProduct> {
   return publicApiGet(`/v1/catalog/services/${encodeURIComponent(domain)}`);
 }
@@ -140,7 +154,9 @@ export async function searchComponents(params: SearchParams = {}): Promise<Compo
       harness_ids: params.harness_ids ? [...params.harness_ids] : undefined,
       component_types: params.component_types ? [...params.component_types] : undefined,
       authors: params.authors ? [...params.authors] : undefined,
+      verification: params.verification ? [...params.verification] : undefined,
       verified_only: params.verified_only,
+      min_safety_percent: params.min_safety_percent,
       sort: params.sort,
       sort_direction: params.sort_direction,
       support_tier: params.support_tier,
@@ -167,7 +183,9 @@ export async function searchSetups(params: SearchParams = {}): Promise<SetupList
       harness_id: params.harness_id,
       harness_ids: params.harness_ids ? [...params.harness_ids] : undefined,
       authors: params.authors ? [...params.authors] : undefined,
+      verification: params.verification ? [...params.verification] : undefined,
       verified_only: params.verified_only,
+      min_safety_percent: params.min_safety_percent,
       sort: params.sort,
       sort_direction: params.sort_direction,
       support_tier: params.support_tier,

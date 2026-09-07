@@ -133,7 +133,9 @@ _COMPONENT_SEARCH_KEYS = frozenset(
         "harness_ids",
         "component_types",
         "authors",
+        "verification",
         "verified_only",
+        "min_safety_percent",
         "sort",
         "sort_direction",
         "support_tier",
@@ -159,7 +161,9 @@ _SETUP_SEARCH_KEYS = frozenset(
         "harness_id",
         "harness_ids",
         "authors",
+        "verification",
         "verified_only",
+        "min_safety_percent",
         "sort",
         "sort_direction",
         "support_tier",
@@ -243,6 +247,13 @@ async def list_external_products(
     return _resource(request, await service.list_external_products(db))
 
 
+@router.get("/catalog/authors", response_model=None)
+async def list_catalog_authors(
+    request: Request, db: Annotated[AsyncSession, Depends(get_db)]
+) -> JSONResponse:
+    return _resource(request, await service.list_catalog_authors(db))
+
+
 @router.get("/catalog/services/{domain}", response_model=None)
 async def read_external_product(
     request: Request, domain: str, db: Annotated[AsyncSession, Depends(get_db)]
@@ -281,7 +292,9 @@ def _component_search_request(
     harness_ids: Annotated[list[str] | None, Query()] = None,
     component_types: Annotated[list[str] | None, Query()] = None,
     authors: Annotated[list[str] | None, Query()] = None,
+    verification: Annotated[list[str] | None, Query()] = None,
     verified_only: Annotated[bool, Query()] = False,
+    min_safety_percent: Annotated[int | None, Query()] = None,
     sort: Annotated[str, Query()] = "relevance",
     sort_direction: Annotated[str, Query()] = "desc",
     support_tier: Annotated[str | None, Query()] = None,
@@ -308,7 +321,9 @@ def _component_search_request(
             harness_ids=list(harness_ids or []),  # type: ignore[arg-type]
             component_types=list(component_types or []),  # type: ignore[arg-type]
             authors=list(authors or []),
+            verification=list(verification or []),  # type: ignore[arg-type]
             verified_only=verified_only,
+            min_safety_percent=min_safety_percent,  # type: ignore[arg-type]
             sort=sort,  # type: ignore[arg-type]
             sort_direction=sort_direction,  # type: ignore[arg-type]
             support_tier=support_tier,  # type: ignore[arg-type]
@@ -340,7 +355,9 @@ def _setup_search_request(
     harness_id: Annotated[str | None, Query()] = None,
     harness_ids: Annotated[list[str] | None, Query()] = None,
     authors: Annotated[list[str] | None, Query()] = None,
+    verification: Annotated[list[str] | None, Query()] = None,
     verified_only: Annotated[bool, Query()] = False,
+    min_safety_percent: Annotated[int | None, Query()] = None,
     sort: Annotated[str, Query()] = "relevance",
     sort_direction: Annotated[str, Query()] = "desc",
     support_tier: Annotated[str | None, Query()] = None,
@@ -368,7 +385,9 @@ def _setup_search_request(
             harness_id=harness_id,  # type: ignore[arg-type]
             harness_ids=list(harness_ids or []),  # type: ignore[arg-type]
             authors=list(authors or []),
+            verification=list(verification or []),  # type: ignore[arg-type]
             verified_only=verified_only,
+            min_safety_percent=min_safety_percent,  # type: ignore[arg-type]
             sort=sort,  # type: ignore[arg-type]
             sort_direction=sort_direction,  # type: ignore[arg-type]
             support_tier=support_tier,  # type: ignore[arg-type]

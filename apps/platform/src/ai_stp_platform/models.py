@@ -367,6 +367,7 @@ class CatalogSearchProjection(Base):
     )
     trust_lane: Mapped[str] = mapped_column(String(32))
     component_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    safety_percent: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lifecycle_state: Mapped[str] = mapped_column(String(32))
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

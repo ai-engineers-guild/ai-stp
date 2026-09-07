@@ -1,3 +1,5 @@
+/* eslint-disable max-lines -- This is the single canonical parser/serializer boundary. */
+
 /**
  * Catalog search query parsing for the web (SPEC-022 REQ-2206, http-api.md).
  * Unknown query keys are a typed validation error, never silently ignored.
@@ -23,7 +25,9 @@ export const CATALOG_WEB_QUERY_KEYS = frozenset([
   "harness_ids",
   "component_types",
   "authors",
+  "verification",
   "verified_only",
+  "min_safety_percent",
   "sort",
   "sort_direction",
   "view",
@@ -35,6 +39,8 @@ export const CATALOG_WEB_QUERY_KEYS = frozenset([
   "country_codes",
   "updated_from",
   "updated_to",
+  "verification",
+  "min_safety_percent",
   "page_size",
   "page",
   "setups_page",
@@ -85,7 +91,9 @@ export type ParsedCatalogQuery = {
   harnessIds: string[];
   componentTypes: string[];
   authors: string[];
+  verification: Array<"verified" | "not_verified">;
   verifiedOnly: boolean;
+  minSafetyPercent: 75 | 85 | 90 | 99 | undefined;
   sort: "relevance" | "updated_at" | "likes";
   sortDirection: "asc" | "desc";
   view: "cards" | "list";
@@ -123,7 +131,7 @@ export type CatalogQueryParseResult =
  * Defaults: resource=all, include_experimental=true, page_size=25.
  */
 // Parsing is kept in one boundary so malformed URL state cannot reach the API client.
-// eslint-disable-next-line complexity
+// eslint-disable-next-line max-lines-per-function, complexity
 export function parseCatalogSearchParams(
   raw: Record<string, string | string[] | undefined>,
 ): CatalogQueryParseResult {
@@ -133,6 +141,16 @@ export function parseCatalogSearchParams(
   const invalidTags = tags.filter((tag) => !isValidTagId(tag));
   const supportTierRaw = firstString(raw["support_tier"]) || undefined;
   const supportStateRaw = firstString(raw["support_state"]) || undefined;
+  const verification = normalizeValues(raw["verification"]);
+  const verificationValues = new Set(["verified", "not_verified"]);
+  const minSafetyRaw = firstString(raw["min_safety_percent"])?.trim() || undefined;
+  const minSafetyValue = minSafetyRaw ? Number.parseInt(minSafetyRaw, 10) : undefined;
+  const validSafetyValues = [75, 85, 90, 99] as const;
+  const minSafetyPercent = validSafetyValues.includes(
+    minSafetyValue as (typeof validSafetyValues)[number],
+  )
+    ? (minSafetyValue as (typeof validSafetyValues)[number])
+    : undefined;
   const serviceDomain = firstString(raw["service_domain"])?.trim()
     ? normalizeDomainFilter(firstString(raw["service_domain"]) ?? "")
     : undefined;
@@ -169,6 +187,13 @@ export function parseCatalogSearchParams(
     ...(memberHarnessRaw !== undefined && !isHarnessFacet(memberHarnessRaw)
       ? [`member_harness_id=${memberHarnessRaw}`]
       : []),
+    ...verification
+      .filter((value) => !verificationValues.has(value))
+      .map((value) => `verification=${value}`),
+    ...(verification.length > 2 ? ["verification: maximum 2 values"] : []),
+    ...(minSafetyRaw !== undefined && minSafetyPercent === undefined
+      ? [`min_safety_percent=${minSafetyRaw}`]
+      : []),
   ];
   const qRaw = firstString(raw["q"]) ?? "";
   const queryError = validateCatalogQuery(qRaw);
@@ -190,7 +215,7 @@ export function parseCatalogSearchParams(
   }
 
   const resourceValues = normalizeValues(raw["resource"]);
-  const resource: CatalogResource =
+  let resource: CatalogResource =
     resourceValues.includes("components") && resourceValues.includes("setups")
       ? "all"
       : resourceValues[0] === "setups"
@@ -214,7 +239,14 @@ export function parseCatalogSearchParams(
   const harnessIds = normalizeValues(raw["harness_ids"]);
   const componentTypes = normalizeValues(raw["component_types"]);
   const authors = normalizeValues(raw["authors"]);
-  const verifiedOnly = ["1", "true"].includes(firstString(raw["verified_only"]) ?? "");
+  const verifiedOnly =
+    verification.length === 0 && ["1", "true"].includes(firstString(raw["verified_only"]) ?? "");
+  if (
+    resource !== "components" &&
+    (componentType || componentTypes.length > 0 || minSafetyPercent !== undefined)
+  ) {
+    resource = "components";
+  }
   const sortRaw = firstString(raw["sort"]);
   const sort = ["updated_at", "likes"].includes(sortRaw ?? "")
     ? (sortRaw as "updated_at" | "likes")
@@ -245,7 +277,11 @@ export function parseCatalogSearchParams(
       harnessIds,
       componentTypes,
       authors,
+      verification: verification.filter((value): value is "verified" | "not_verified" =>
+        verificationValues.has(value),
+      ),
       verifiedOnly,
+      minSafetyPercent,
       sort,
       sortDirection,
       view,
@@ -393,6 +429,7 @@ function withSingleton(values: string[], singleton: string | undefined): string[
 }
 
 /** Build query record for pagination / form preserve (string values only). */
+// eslint-disable-next-line complexity
 export function catalogQueryToRecord(
   query: ParsedCatalogQuery,
   extra: Record<string, string> = {},
@@ -424,7 +461,11 @@ export function catalogQueryToRecord(
   if (query.harnessIds.length > 0) record["harness_ids"] = query.harnessIds.join(",");
   if (query.componentTypes.length > 0) record["component_types"] = query.componentTypes.join(",");
   if (query.authors.length > 0) record["authors"] = query.authors.join(",");
+  if (query.verification.length > 0) record["verification"] = query.verification.join(",");
   if (query.verifiedOnly) record["verified_only"] = "1";
+  if (query.minSafetyPercent !== undefined) {
+    record["min_safety_percent"] = String(query.minSafetyPercent);
+  }
   if (query.sort !== "relevance") record["sort"] = query.sort;
   if (query.sortDirection !== "desc") record["sort_direction"] = query.sortDirection;
   record["view"] = query.view;

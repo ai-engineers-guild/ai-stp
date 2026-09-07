@@ -478,6 +478,40 @@ export type CapabilitySnapshot = {
 };
 
 /**
+ * CatalogAuthorListResponse
+ *
+ * All authors with at least one active public catalog object.
+ */
+export type CatalogAuthorListResponse = {
+  /**
+   * Items
+   */
+  items: Array<CatalogAuthorOption>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CatalogAuthorOption
+ *
+ * One public author available in the catalog filter.
+ */
+export type CatalogAuthorOption = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * CatalogPageInfo
  *
  * Exact public web page metadata; never used for private enumeration.
@@ -1008,6 +1042,7 @@ export type ComponentSearchRequest = {
    * Include Experimental
    */
   include_experimental?: boolean;
+  min_safety_percent?: SafetyPercent | null;
   page?: PageNumber | null;
   page_size?: PageSize;
   /**
@@ -1038,6 +1073,10 @@ export type ComponentSearchRequest = {
   tags?: Array<TagId>;
   updated_from?: CatalogUpdatedDate | null;
   updated_to?: CatalogUpdatedDate | null;
+  /**
+   * Verification
+   */
+  verification?: Array<VerificationFilter>;
   /**
    * Verified Only
    */
@@ -3755,6 +3794,15 @@ export type SafetyFindingSummary = {
   [key: string]: unknown;
 };
 
+export const SafetyPercent = {
+  75: 75,
+  85: 85,
+  90: 90,
+  99: 99,
+} as const;
+
+export type SafetyPercent = (typeof SafetyPercent)[keyof typeof SafetyPercent];
+
 /**
  * ScopeAdaptation
  *
@@ -4659,6 +4707,7 @@ export type SetupSearchRequest = {
    */
   include_experimental?: boolean;
   member_harness_id?: HarnessId | null;
+  min_safety_percent?: SafetyPercent | null;
   page?: PageNumber | null;
   page_size?: PageSize;
   /**
@@ -4689,6 +4738,10 @@ export type SetupSearchRequest = {
   tags?: Array<TagId>;
   updated_from?: CatalogUpdatedDate | null;
   updated_to?: CatalogUpdatedDate | null;
+  /**
+   * Verification
+   */
+  verification?: Array<VerificationFilter>;
   /**
    * Verified Only
    */
@@ -5802,6 +5855,10 @@ export type TrustLane = (typeof TrustLane)[keyof typeof TrustLane];
 
 export type UserCode = string;
 
+export const VerificationFilter = { VERIFIED: "verified", NOT_VERIFIED: "not_verified" } as const;
+
+export type VerificationFilter = (typeof VerificationFilter)[keyof typeof VerificationFilter];
+
 /**
  * VersionListEntry
  *
@@ -6621,6 +6678,50 @@ export type ReadOAuthCallbackResultResponses = {
 export type ReadOAuthCallbackResultResponse =
   ReadOAuthCallbackResultResponses[keyof ReadOAuthCallbackResultResponses];
 
+export type ListCatalogAuthorsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/catalog/authors";
+};
+
+export type ListCatalogAuthorsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCatalogAuthorsError = ListCatalogAuthorsErrors[keyof ListCatalogAuthorsErrors];
+
+export type ListCatalogAuthorsResponses = {
+  /**
+   * List authors with public catalog objects. Anonymous.
+   */
+  200: CatalogAuthorListResponse;
+};
+
+export type ListCatalogAuthorsResponse =
+  ListCatalogAuthorsResponses[keyof ListCatalogAuthorsResponses];
+
 export type SearchComponentsData = {
   body?: never;
   headers?: {
@@ -6661,6 +6762,7 @@ export type SearchComponentsData = {
      * Include Experimental
      */
     include_experimental?: boolean;
+    min_safety_percent?: SafetyPercent | null;
     page?: PageNumber | null;
     page_size?: PageSize;
     /**
@@ -6687,6 +6789,10 @@ export type SearchComponentsData = {
     tags?: Array<TagId>;
     updated_from?: CatalogUpdatedDate | null;
     updated_to?: CatalogUpdatedDate | null;
+    /**
+     * Verification
+     */
+    verification?: Array<VerificationFilter>;
     /**
      * Verified Only
      */
@@ -7104,6 +7210,7 @@ export type SearchSetupsData = {
      */
     include_experimental?: boolean;
     member_harness_id?: HarnessId | null;
+    min_safety_percent?: SafetyPercent | null;
     page?: PageNumber | null;
     page_size?: PageSize;
     /**
@@ -7130,6 +7237,10 @@ export type SearchSetupsData = {
     tags?: Array<TagId>;
     updated_from?: CatalogUpdatedDate | null;
     updated_to?: CatalogUpdatedDate | null;
+    /**
+     * Verification
+     */
+    verification?: Array<VerificationFilter>;
     /**
      * Verified Only
      */

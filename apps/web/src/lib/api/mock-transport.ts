@@ -11,6 +11,8 @@ import {
   getComponentDetail,
   getSetupDetail,
   FIXTURE_TIMESTAMP,
+  ALL_COMPONENT_SUMMARIES,
+  ALL_SETUP_SUMMARIES,
 } from "@/mocks/fixtures";
 import { filterComponentSummaries, filterSetupSummaries } from "@/mocks/filter-catalog";
 import { componentVersionResponse, setupVersionResponse } from "@/mocks/passport-fixtures";
@@ -36,7 +38,9 @@ const CATALOG_COMPONENT_KEYS = new Set([
   "harness_ids",
   "component_types",
   "authors",
+  "verification",
   "verified_only",
+  "min_safety_percent",
   "sort",
   "sort_direction",
   "service_domain",
@@ -60,7 +64,9 @@ const CATALOG_SETUP_KEYS = new Set([
   "include_experimental",
   "harness_ids",
   "authors",
+  "verification",
   "verified_only",
+  "min_safety_percent",
   "sort",
   "sort_direction",
   "service_domain",
@@ -358,6 +364,20 @@ function catalogHandlers(method: string, path: string, query?: URLSearchParams):
   }
   if (path === "/v1/catalog/setups") {
     return searchSetups(query);
+  }
+  if (path === "/v1/catalog/authors") {
+    const accountIds = [
+      ...new Set(
+        [...ALL_COMPONENT_SUMMARIES, ...ALL_SETUP_SUMMARIES].map((item) => item.publisher_id),
+      ),
+    ].sort();
+    return {
+      status: 200,
+      body: {
+        schema_version: 1,
+        items: accountIds.map((account_id) => ({ account_id, display_name: null })),
+      },
+    };
   }
   const componentMatch = path.match(/^\/v1\/catalog\/components\/([^/]+)$/);
   if (componentMatch) {

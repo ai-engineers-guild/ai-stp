@@ -13,6 +13,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.catalog import (
+    CatalogAuthorListResponse,
+    CatalogAuthorOption,
     CatalogPageInfo,
     CatalogReactionList,
     CatalogReactionState,
@@ -90,9 +92,12 @@ from ai_stp_platform.models import (
     CatalogExternalProduct,
     CatalogMetadata,
     CatalogReaction,
+    CatalogSearchProjection,
     ComponentMedia,
     ExternalProduct,
     ExternalProductCountry,
+    ProfileRevision,
+    PublicProfile,
 )
 
 _log = get_logger("catalog")
@@ -279,6 +284,46 @@ async def list_external_products(session: AsyncSession) -> ExternalProductListRe
         by_product.setdefault(row.external_product_id, []).append(row.country_code)
     return ExternalProductListResponse(
         items=[_product_summary(row, by_product.get(row.id, [])) for row in products]
+    )
+
+
+async def list_catalog_authors(session: AsyncSession) -> CatalogAuthorListResponse:
+    """List labels backed only by active public catalog objects and profiles."""
+    account_ids = list(
+        (
+            await session.execute(
+                select(CatalogSearchProjection.owner_account_id)
+                .where(CatalogSearchProjection.lifecycle_state == "active")
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not account_ids:
+        return CatalogAuthorListResponse()
+    profile_rows = (
+        await session.execute(
+            select(PublicProfile.account_id, ProfileRevision.display_name)
+            .join(ProfileRevision, ProfileRevision.id == PublicProfile.published_revision_id)
+            .where(PublicProfile.account_id.in_(account_ids))
+        )
+    ).all()
+    names = {account_id: name for account_id, name in profile_rows if name}
+
+    def sort_key(account_id: str) -> tuple[int, str, str]:
+        label = names.get(account_id, account_id)
+        first = label[:1]
+        bucket = (
+            0 if first.isascii() and first.isalpha() else 1 if "\u0400" <= first <= "\u04ff" else 2
+        )
+        return bucket, label.casefold(), account_id
+
+    return CatalogAuthorListResponse(
+        items=[
+            CatalogAuthorOption(account_id=account_id, display_name=names.get(account_id))
+            for account_id in sorted(account_ids, key=sort_key)
+        ]
     )
 
 
@@ -530,7 +575,9 @@ async def search_components(
         harness_ids=list(request.harness_ids),
         component_types=list(request.component_types),
         authors=list(request.authors),
+        verification=list(request.verification),
         verified_only=request.verified_only,
+        min_safety_percent=request.min_safety_percent,
         sort=request.sort,
         sort_direction=request.sort_direction,
         support_tier=request.support_tier,
@@ -596,7 +643,9 @@ async def search_setups(
         harness_ids=list(request.harness_ids),
         component_types=[],
         authors=list(request.authors),
+        verification=list(request.verification),
         verified_only=request.verified_only,
+        min_safety_percent=request.min_safety_percent,
         sort=request.sort,
         sort_direction=request.sort_direction,
         support_tier=request.support_tier,
@@ -918,7 +967,9 @@ async def _search(
     harness_ids: list[str],
     component_types: list[str],
     authors: list[str],
+    verification: list[str],
     verified_only: bool,
+    min_safety_percent: int | None,
     sort: str,
     sort_direction: str,
     support_tier: str | None,
@@ -956,7 +1007,9 @@ async def _search(
         harness_ids=harness_ids,
         component_types=component_types,
         authors=authors,
+        verification=verification,
         verified_only=verified_only,
+        min_safety_percent=min_safety_percent,
         sort=sort,
         sort_direction=sort_direction,
         support_tier=support_tier,
@@ -995,7 +1048,9 @@ async def _search(
         harness_ids=harness_ids,
         component_types=component_types,
         authors=authors,
+        verification=verification,
         verified_only=verified_only,
+        min_safety_percent=min_safety_percent,
         sort=sort,
         sort_direction=sort_direction,
         support_tier=support_tier,
