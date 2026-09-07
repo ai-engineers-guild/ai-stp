@@ -40,7 +40,7 @@ async function avatarUploadResult(response: Response) {
 /** State + mutations for the public profile editor. */
 // The hook owns one cohesive form state machine; splitting mutations would obscure its transitions.
 // eslint-disable-next-line max-lines-per-function
-export function useProfileForm(initial: OwnerPublicProfile, sessionToken: string) {
+export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
   const t = useTranslations("account");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +148,7 @@ export function useProfileForm(initial: OwnerPublicProfile, sessionToken: string
   }
 
   function applyAvatar(result: { avatar_asset_id: string; public_url: string | null }) {
+    clearLocalPreview();
     setAvatarAssetId(result.avatar_asset_id);
     if (result.public_url) setAvatarUrl(result.public_url);
     setMessage(t("profileAvatarReady"));
@@ -158,7 +159,7 @@ export function useProfileForm(initial: OwnerPublicProfile, sessionToken: string
     setMessage(null);
     startTransition(async () => {
       try {
-        const saved = await saveOwnerPublicProfileDraft(sessionToken, payload(), digest);
+        const saved = await saveOwnerPublicProfileDraft(csrfToken, payload(), digest);
         setBaseRevisionId(saved.editable.base_revision_id);
         setDigest(saved.draft.content_digest);
         setStatus(saved.state);
@@ -176,13 +177,13 @@ export function useProfileForm(initial: OwnerPublicProfile, sessionToken: string
     setMessage(null);
     startTransition(async () => {
       try {
-        const saved = await saveOwnerPublicProfileDraft(sessionToken, payload(), null);
+        const saved = await saveOwnerPublicProfileDraft(csrfToken, payload(), null);
         const nextDigest = saved.draft.content_digest;
         if (!nextDigest) {
           setError(t("profilePublishNeedDraft"));
           return;
         }
-        await publishOwnerPublicProfile(sessionToken, nextDigest);
+        await publishOwnerPublicProfile(csrfToken, nextDigest);
         setBaseRevisionId(saved.draft.revision_id);
         setDigest(nextDigest);
         setStatus("published");
@@ -207,7 +208,7 @@ export function useProfileForm(initial: OwnerPublicProfile, sessionToken: string
       try {
         const response = await fetch("/api/account/avatar", {
           method: "POST",
-          headers: { "Content-Type": file.type || "image/png" },
+          headers: { "Content-Type": file.type || "image/png", "X-CSRF-Token": csrfToken },
           body: file,
         });
         applyAvatar(await avatarUploadResult(response));
@@ -222,7 +223,9 @@ export function useProfileForm(initial: OwnerPublicProfile, sessionToken: string
     setMessage(null);
     startTransition(async () => {
       try {
-        applyAvatar(await importAvatarFromIdentity(sessionToken, provider));
+        const result = await importAvatarFromIdentity(csrfToken, provider);
+        if (!result.ok) throw new ApiError(result);
+        applyAvatar(result.avatar);
       } catch (err) {
         setError(errorMessage(err, t("profileAvatarFailed")));
       }
