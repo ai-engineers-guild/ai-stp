@@ -1152,6 +1152,8 @@ async def _exact_adaptation_bindings(
                 "mandatory": True,
                 "reason": "adaptation_unavailable",
                 "finding_summary": {
+                    "count": len(missing_ids),
+                    "severity_max": "high",
                     "missing_component_ids": missing_ids,
                     "harness_id": setup.harness_id,
                 },

@@ -93,16 +93,20 @@ describe("ComponentTargetMatrix", () => {
     expect(screen.queryByRole("button", { name: /install/i })).not.toBeInTheDocument();
   });
 
-  it("shows every target-bound safety check and exact target facts when expanded", async () => {
+  it("shows every target-bound safety check and exact target facts when expanded", () => {
+    const exact = matrix.exact.at(0);
+    if (!exact) throw new Error("matrix fixture has no exact target");
     const detailed: TargetMatrix = {
       ...matrix,
       exact: [
         {
-          ...matrix.exact[0],
+          ...exact,
           scope: "project",
           projection_kind: "native_files",
           technical_support_reason: "projection reviewed",
-          evidence_refs: [{ kind: "digest", value: "sha256:abc" }],
+          evidence_refs: [
+            { kind: "digest", value: "sha256:abc", observed_at: null, expires_at: null },
+          ],
           safety_checks: [
             {
               schema_version: 1,
@@ -140,5 +144,18 @@ describe("ComponentTargetMatrix", () => {
     expect(screen.getByText("project")).toBeVisible();
     expect(screen.getByText("Support note")).toBeVisible();
     expect(screen.getByText("digest: sha256:abc")).toBeVisible();
+  });
+
+  it("keeps legacy exact rows without recorded check details renderable", () => {
+    const legacy = {
+      ...matrix,
+      exact: [{ ...matrix.exact[0] }],
+    } as TargetMatrix;
+    delete (legacy.exact[0] as unknown as { safety_checks?: unknown }).safety_checks;
+
+    render(<ComponentTargetMatrix matrix={legacy} labels={labels} />);
+    screen.getByText("claude-code").closest("summary")?.click();
+
+    expect(screen.getByText("Per-target check details are not recorded.")).toBeVisible();
   });
 });

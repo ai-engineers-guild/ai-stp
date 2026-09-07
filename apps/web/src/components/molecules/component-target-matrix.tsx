@@ -1,4 +1,4 @@
-import type { TargetMatrix } from "@/lib/api/generated/types.gen";
+import type { SafetyCheckEntry, TargetMatrix } from "@/lib/api/generated/types.gen";
 import { UI } from "@/lib/ui-selectors";
 
 export type TargetMatrixLabels = {
@@ -128,6 +128,9 @@ function ProjectionDetails({
   row: TargetMatrix["exact"][number];
   labels: TargetMatrixLabels;
 }) {
+  const safetyChecks =
+    (row as unknown as { safety_checks?: SafetyCheckEntry[] }).safety_checks ?? [];
+
   return (
     <details className="border-border bg-card rounded-lg border shadow-sm">
       <summary className="focus-visible:ring-ring flex min-w-0 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 rounded-lg p-3 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
@@ -203,10 +206,10 @@ function ProjectionDetails({
         ) : null}
         <div className="sm:col-span-2">
           <dt className="text-foreground font-medium">{labels.safetyCheck}</dt>
-          {row.safety_checks.length ? (
+          {safetyChecks.length ? (
             <dd>
               <ul className="mt-1 space-y-1" aria-label={labels.safetyCheck}>
-                {row.safety_checks.map((check) => (
+                {safetyChecks.map((check) => (
                   <li
                     key={check.check_id}
                     className="border-border flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-md border px-2 py-1"

@@ -1,7 +1,10 @@
+import type { SafetyCheckEntry, TargetMatrix } from "@/lib/api/generated/types.gen";
+
 import { FIXTURE_ACCOUNT_ID, FIXTURE_TIMESTAMP } from "./identity";
 import {
   FIXTURE_COMPONENT_ID,
   FIXTURE_SETUP_ID,
+  SEED_MULTI_HARNESS_COMPONENT_ID,
   ZERO_DIGEST,
   experimentalTrust,
 } from "./catalog-ids";
@@ -149,6 +152,78 @@ export const componentSummaryFixture = makeComponentSummary({
 
 export const componentSummary = componentSummaryFixture;
 
+const multiHarnessIds = [
+  "antigravity",
+  "claude-code",
+  "codex",
+  "cursor",
+  "grok-build",
+  "opencode",
+  "pi",
+] as const;
+
+const multiHarnessSafetyChecks: SafetyCheckEntry[] = [
+  {
+    schema_version: 1,
+    check_id: "artifact_unpack",
+    family: "unpack",
+    mandatory: true,
+    result: "passed",
+    reason: null,
+    finding_summary: null,
+    source: "platform_safety_scan",
+  },
+  {
+    schema_version: 1,
+    check_id: "path_denylist",
+    family: "path",
+    mandatory: true,
+    result: "passed",
+    reason: null,
+    finding_summary: null,
+    source: "platform_safety_scan",
+  },
+];
+
+const multiHarnessTargetMatrix: TargetMatrix = {
+  schema_version: 1,
+  exact: multiHarnessIds.map((harness_id, index) => ({
+    schema_version: 1,
+    kind: "exact" as const,
+    harness_id,
+    adaptation_id: `adaptation_workflow_herdr_${index}`,
+    scope: "global" as const,
+    implementation_mode: "native" as const,
+    projection_kind: "native_files" as const,
+    technical_support: "experimental" as const,
+    technical_support_reason: "fixture projection",
+    supported_os: [],
+    supported_arch: [],
+    semantic_losses: [],
+    permissions_summary: [],
+    assessment_state: "verified" as const,
+    freshness: FIXTURE_TIMESTAMP,
+    recommendation: "ineffective" as const,
+    evidence_refs: [],
+    safety_checks: multiHarnessSafetyChecks,
+  })),
+};
+
+export const multiHarnessComponentSummary = makeComponentSummary({
+  stable_id: SEED_MULTI_HARNESS_COMPONENT_ID,
+  latest_version: "1.3",
+  latest_name: "workflow-herdr",
+  latest_description: "Fixture skill with one exact projection for every supported harness.",
+  latest_harness_id: "antigravity",
+  latest_harness_ids: [...multiHarnessIds],
+  latest_component_type: "skill",
+  latest_projection_kind: "native_files",
+  latest_tags: ["herdr", "workflow", "orchestration"],
+  latest_published_at: FIXTURE_TIMESTAMP,
+  owner_id: FIXTURE_ACCOUNT_ID,
+  latest_assurance: { verified_targets: 7, assessed_targets: 7 },
+});
+
 export const setupSummaryFixture = makeSetupSummary({
   stable_id: FIXTURE_SETUP_ID,
   latest_version: "1.1",
@@ -167,7 +242,11 @@ export const setupSummaryFixture = makeSetupSummary({
 
 export const setupSummary = setupSummaryFixture;
 
-export const ALL_COMPONENT_SUMMARIES = [componentSummaryFixture, ...multiAuthorComponents] as const;
+export const ALL_COMPONENT_SUMMARIES = [
+  componentSummaryFixture,
+  multiHarnessComponentSummary,
+  ...multiAuthorComponents,
+] as const;
 
 export const ALL_SETUP_SUMMARIES = [setupSummaryFixture, ...multiAuthorSetups] as const;
 
@@ -183,7 +262,7 @@ type ComponentDetailFixture = {
     caption: string;
     source_label: string;
   }>;
-  target_matrix: { schema_version: 1; exact: [] };
+  target_matrix: TargetMatrix;
 };
 
 type SetupDetailFixture = {
@@ -207,6 +286,7 @@ type SetupDetailFixture = {
 function componentDetailFrom(
   summary: ComponentSummaryFixture,
   versions: string[] = ["1.0"],
+  targetMatrix: TargetMatrix = { schema_version: 1, exact: [] },
 ): ComponentDetailFixture {
   return {
     schema_version: 1,
@@ -221,7 +301,7 @@ function componentDetailFrom(
         source_label: "ai_stp signed storage",
       },
     ],
-    target_matrix: { schema_version: 1, exact: [] },
+    target_matrix: targetMatrix,
     versions: versions.map((version) =>
       versionEntry(
         version,
@@ -273,14 +353,21 @@ export const componentDetail = componentDetailFrom(componentSummaryFixture, ["1.
 // naming 1.1 beside 1.0's digest.
 export const setupDetail = setupDetailFrom(setupSummaryFixture, ["1.0", "1.1"]);
 
-const COMPONENT_DETAILS: Record<string, ComponentDetailFixture> = Object.fromEntries(
-  ALL_COMPONENT_SUMMARIES.map((summary) => [
+const componentDetailsEntries: Array<[string, ComponentDetailFixture]> = [
+  ...ALL_COMPONENT_SUMMARIES.map((summary): [string, ComponentDetailFixture] => [
     summary.stable_id,
     summary.stable_id === FIXTURE_COMPONENT_ID
       ? componentDetailFrom(summary, ["1.0", "1.2"])
       : componentDetailFrom(summary),
   ]),
-);
+  [
+    multiHarnessComponentSummary.stable_id,
+    componentDetailFrom(multiHarnessComponentSummary, ["1.0", "1.3"], multiHarnessTargetMatrix),
+  ],
+];
+
+const COMPONENT_DETAILS: Record<string, ComponentDetailFixture> =
+  Object.fromEntries(componentDetailsEntries);
 
 const SETUP_DETAILS: Record<string, SetupDetailFixture> = Object.fromEntries(
   ALL_SETUP_SUMMARIES.map((summary) => [summary.stable_id, setupDetailFrom(summary)]),

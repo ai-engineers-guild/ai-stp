@@ -708,6 +708,8 @@ async def test_setup_exact_adaptation_is_one_unique_check_for_many_missing_pins(
     assert len(bindings) == 1
     assert bindings[0]["check_id"] == "setup_exact_adaptation"
     assert bindings[0]["result"] == "failed"
+    assert bindings[0]["finding_summary"]["count"] == 2
+    assert bindings[0]["finding_summary"]["severity_max"] == "high"
     assert bindings[0]["finding_summary"]["missing_component_ids"] == sorted(
         [EMBEDDED_ID, CATALOG_ID]
     )

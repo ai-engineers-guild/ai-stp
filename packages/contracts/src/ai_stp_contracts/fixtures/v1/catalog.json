@@ -308,7 +308,8 @@
               "assessment_state": "not_verified",
               "freshness": null,
               "recommendation": "ineffective",
-              "evidence_refs": []
+              "evidence_refs": [],
+              "safety_checks": []
             }
           ]
         }
@@ -599,7 +600,8 @@
               "assessment_state": "not_verified",
               "freshness": null,
               "recommendation": "ineffective",
-              "evidence_refs": []
+              "evidence_refs": [],
+              "safety_checks": []
             }
           ]
         }
