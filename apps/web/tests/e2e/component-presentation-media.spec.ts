@@ -3,11 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { FIXTURE_COMPONENT_ID, FIXTURE_SETUP_ID } from "../../src/mocks/fixtures/catalog-ids";
 
 async function selectUploadSource(page: Page): Promise<void> {
-  const sourceSelect = page
-    .locator("select")
-    .filter({ has: page.locator('option[value="upload"]') })
-    .first();
-  await sourceSelect.selectOption("upload");
+  await page.getByRole("button", { name: "Upload file" }).first().click();
   await expect(page.locator('input[type="file"]').first()).toBeAttached({ timeout: 10_000 });
 }
 
