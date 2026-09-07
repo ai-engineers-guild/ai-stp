@@ -183,7 +183,7 @@ describe("CatalogResults", () => {
     expect(container.querySelector("article[data-kind='setup']")).not.toBeNull();
     expect(screen.getByRole("link", { name: setupSummaryFixture.latest_name })).toHaveAttribute(
       "href",
-      `/catalog/setups/${setupSummaryFixture.stable_id}`,
+      `/catalog/setups/${setupSummaryFixture.stable_id}?return_to=${encodeURIComponent("/catalog?resource=components")}`,
     );
   });
 

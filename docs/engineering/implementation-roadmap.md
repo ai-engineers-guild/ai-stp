@@ -251,8 +251,11 @@ completed rows:
 | `#111` `#112` → `#146` | closeout implemented; GitHub status is maintained separately | Exact adaptation/scope assessments, worker projection scans, target matrix, and exact-only harness filters are owned by the current platform path. |
 | `#155` | implemented in current platform closeout | Public catalog is exact-only; assessment identity is server-validated and target-bound; latest is atomic; recommendations mean current verified full-auto eligibility. |
 | `#117` `#118` | source repairs present | Cache admission/freshness and shared in-flight task ownership changed. Preserve the regression tests; do not infer all platform work completed from these two fixes. |
-| `#139` | web remaining | Canonical seed preserves `ported_from` and `related_setup_ids`. Setup detail still needs to present their actual values; generated types already carry them. |
+| `#139` | implemented | Setup detail and exact-version pages show `ported_from` as an exact-version link and `related_setup_ids` as separate setup links. Null lineage is omitted. |
 | `#140` | implemented | Search rebuild derives tiers from the shared registry and no longer invents `primary`. Bootstrap rebuilds existing rows; web harness/type facets derive from generated contracts and fixture defaults are all-beta. `primary` remains a valid empty OBT filter. |
+
+| `#165`–`#166` | implemented | Both object kinds share owner presentation routes, full public bio/media readback and atomic search refresh. Service editing has separate labeled groups. Upload forwarding enforces CSRF and a streamed byte limit; private media requires its owner. |
+| `#167` | implemented | Detail links preserve the catalog query in a validated local `return_to`; the back link restores filtering, sorting, page and view. |
 
 Backlog issues `#18`–`#60` stay backlog.
 

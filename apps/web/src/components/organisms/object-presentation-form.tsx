@@ -62,9 +62,9 @@ const FIELD_CLASS =
 
 // eslint-disable-next-line max-lines-per-function
 export function ObjectPresentationForm({
-  objectKind,
   locale,
   stableId,
+  objectKind = "component",
   csrfToken,
   initialBio,
   initialMedia,

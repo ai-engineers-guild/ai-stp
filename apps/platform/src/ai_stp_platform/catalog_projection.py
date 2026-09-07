@@ -511,7 +511,7 @@ def setup_summary(
         updated_at=format_timestamp(row.metadata.updated_at or row.published_at),  # type: ignore[arg-type]
         latest_version=passport.version,  # type: ignore[arg-type]
         latest_name=passport.name,
-        latest_description=_card_excerpt(passport.description),
+        latest_description=_card_excerpt(row.metadata.presentation_bio or passport.description),
         latest_harness_id=passport.harness_id,
         latest_harness_ids=named_harness_ids(passport.model_dump(mode="json")),  # type: ignore[arg-type]
         latest_purpose=passport.purpose,
@@ -593,6 +593,7 @@ def component_detail(
         and trust.component_verified
     )
     return ComponentDetail(
+        presentation_bio=latest.metadata.presentation_bio,
         summary=component_summary(latest, now=now, assessments=assessments),
         versions=[version_list_entry(v, now=now) for v in versions],
         target_matrix=project_target_matrix(
@@ -610,6 +611,7 @@ def setup_detail(versions: list[PublicVersionRow], *, now: datetime | None = Non
     latest = max(versions, key=lambda r: _version_key(r.version))
     passport = SetupVersionPassport.model_validate(latest.passport)
     return SetupDetail(
+        presentation_bio=latest.metadata.presentation_bio,
         summary=setup_summary(latest, now=now),
         versions=[version_list_entry(v, now=now) for v in versions],
         component_checks=project_component_checks(latest),

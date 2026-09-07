@@ -49,6 +49,7 @@ import {
   countryPublicFacts,
   servicePublicFacts,
   summaryFactsFromComponentPassport,
+  summaryWithPresentation,
 } from "@/lib/projection/page-facts";
 import { isExternalCatalogEnabled } from "@/lib/projection/inventory";
 import { orNotFound } from "@/lib/projection/not-found";
@@ -184,7 +185,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
         : { stars: null, archived: null };
       return presentComponentDetail({
         facts: componentFactsFromLoaders({
-          summary: detail.summary,
+          summary: summaryWithPresentation(detail.summary, detail.presentation_bio),
           digest:
             latest?.passport_digest ??
             detail.versions.find((item) => item.version === detail.summary.latest_version)
@@ -248,8 +249,13 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       const detail = await orNotFound(readSetup(setupId));
       if (!detail) return null;
       const relations = catalogRelations(detail);
+      const latest = await readSetupVersion(
+        setupId,
+        asVersionId(detail.summary.latest_version),
+      ).catch(() => null);
       return presentSetupDetail({
-        summary: detail.summary,
+        ...(latest ? { lineage: latest.passport } : {}),
+        summary: summaryWithPresentation(detail.summary, detail.presentation_bio),
         // The digest of the version the summary names, not the first row.
         // `versions` arrives ascending, so `[0]` is the *oldest*: the page said
         // "version: 1.1" beside 1.0's digest the moment any object gained a
@@ -274,6 +280,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       if (!response) return null;
       const passport = response.passport;
       return presentSetupVersion({
+        lineage: passport,
         stableId,
         name: passport.name,
         version: passport.version,

@@ -41,6 +41,8 @@ of provenance (`#139`).
 - `REQ-6202`: Apply records a new setup whose `harness_id` is the target,
   `ported_from` is the exact source setup version, and `related_setup_ids`
   contains the source `stable_id`. The source setup is unchanged.
+  Public setup detail and exact-version pages display this lineage: the origin
+  links to its exact version and related IDs link to their setup pages.
 - `REQ-6203`: Apply refuses a plan that is not complete, a stale plan digest,
   or a member that became blocked after planning. Completeness requires every
   member to be `reuse` or `derive`. Before reporting `derive`, planning reads

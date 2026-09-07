@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { catalogReturnHref } from "@/lib/catalog-return";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -54,7 +55,10 @@ import { metadataFromSeo } from "@/lib/seo/metadata";
 import { ComponentTypeIcon } from "@/theme/component-types";
 import { Icon } from "@/theme/icons";
 
-type PageProps = { params: Promise<{ locale: string; stableId: string }> };
+type PageProps = {
+  params: Promise<{ locale: string; stableId: string }>;
+  searchParams?: Promise<{ return_to?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, stableId } = await params;
@@ -64,8 +68,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 // Page owns both human layout and machine presenter branch from the same reads.
 // eslint-disable-next-line max-lines-per-function, complexity
-export default async function ComponentDetailPage({ params }: PageProps) {
+export default async function ComponentDetailPage({ params, searchParams }: PageProps) {
   const { locale, stableId } = await params;
+  const backHref = catalogReturnHref(
+    (await searchParams)?.return_to,
+    locale,
+    "/catalog?include_experimental=1&resource=components",
+  );
   setRequestLocale(locale);
   const componentId = tryAsComponentId(stableId);
   if (!componentId) notFound();
@@ -129,7 +138,7 @@ export default async function ComponentDetailPage({ params }: PageProps) {
     <article className="mx-auto max-w-6xl min-w-0 space-y-8 overflow-x-clip">
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
       <Button asChild variant="ghost" size="sm">
-        <Link href="/catalog?include_experimental=1&resource=components">
+        <Link href={backHref}>
           <Icon name="arrowLeft" size="sm" /> {t("backToCatalog")}
         </Link>
       </Button>
@@ -195,7 +204,12 @@ export default async function ComponentDetailPage({ params }: PageProps) {
       <ObjectDetailFrame
         description={
           <MarkdownDescription
-            source={seo?.profile.summary ?? passport?.description ?? summary.latest_description}
+            source={
+              detail.presentation_bio ??
+              seo?.profile.summary ??
+              passport?.description ??
+              summary.latest_description
+            }
             heading={t("description")}
           />
         }

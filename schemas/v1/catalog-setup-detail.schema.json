@@ -227,6 +227,92 @@
       "pattern": "^component_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
     },
+    "ComponentMediaItem": {
+      "additionalProperties": true,
+      "description": "Safe public component media projection (SPEC-035).",
+      "properties": {
+        "alt": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ComponentMediaKind"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_label": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Source Label",
+          "type": "string"
+        },
+        "thumbnail_url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Thumbnail Url"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "alt",
+        "caption",
+        "id",
+        "kind",
+        "schema_version",
+        "source_label",
+        "thumbnail_url",
+        "url"
+      ],
+      "title": "ComponentMediaItem",
+      "type": "object"
+    },
+    "ComponentMediaKind": {
+      "enum": [
+        "image",
+        "video",
+        "youtube"
+      ],
+      "type": "string"
+    },
     "CountryCode": {
       "pattern": "^[A-Z]{2}$",
       "type": "string"
@@ -1309,6 +1395,14 @@
       ],
       "default": null
     },
+    "media": {
+      "items": {
+        "$ref": "#/$defs/ComponentMediaItem"
+      },
+      "maxItems": 5,
+      "title": "Media",
+      "type": "array"
+    },
     "ported_from": {
       "anyOf": [
         {
@@ -1319,6 +1413,19 @@
         }
       ],
       "default": null
+    },
+    "presentation_bio": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Presentation Bio"
     },
     "related_setup_ids": {
       "items": {
@@ -1359,7 +1466,9 @@
     "composition",
     "country_codes",
     "family",
+    "media",
     "ported_from",
+    "presentation_bio",
     "related_setup_ids",
     "schema_version",
     "services",

@@ -17,7 +17,7 @@ import { componentVersionResponse, setupVersionResponse } from "@/mocks/passport
 
 import { mapHttpError, ApiError } from "./errors";
 import { profileHandlers } from "./mock-profile";
-import { workspaceHandlers } from "./mock-workspace";
+import { readMockPresentation, workspaceHandlers } from "./mock-workspace";
 
 type MockResult = { status: number; body: unknown; headers?: Record<string, string> };
 
@@ -349,6 +349,20 @@ function contentHandlers(method: string, path: string, query?: URLSearchParams):
   };
 }
 
+function presentedDetail(detail: object, stableId: string) {
+  const presentation = readMockPresentation(stableId);
+  if (!presentation) return detail;
+  return {
+    ...detail,
+    presentation_bio: presentation.bio,
+    media: presentation.media.map((item, index) => ({
+      ...item,
+      id: `mock_media_${index}`,
+      source_label: item.kind === "youtube" ? "YouTube" : "ai_stp storage",
+    })),
+  };
+}
+
 function catalogHandlers(method: string, path: string, query?: URLSearchParams): MockResult | null {
   if (method !== "GET") {
     return null;
@@ -362,12 +376,16 @@ function catalogHandlers(method: string, path: string, query?: URLSearchParams):
   const componentMatch = path.match(/^\/v1\/catalog\/components\/([^/]+)$/);
   if (componentMatch) {
     const detail = getComponentDetail(componentMatch[1] ?? "");
-    return detail ? { status: 200, body: detail } : notFound("readComponent.unknownObject");
+    return detail
+      ? { status: 200, body: presentedDetail(detail, componentMatch[1] ?? "") }
+      : notFound("readComponent.unknownObject");
   }
   const setupMatch = path.match(/^\/v1\/catalog\/setups\/([^/]+)$/);
   if (setupMatch) {
     const detail = getSetupDetail(setupMatch[1] ?? "");
-    return detail ? { status: 200, body: detail } : notFound("readSetup.unknownObject");
+    return detail
+      ? { status: 200, body: presentedDetail(detail, setupMatch[1] ?? "") }
+      : notFound("readSetup.unknownObject");
   }
   const componentVersionMatch = path.match(
     /^\/v1\/catalog\/components\/([^/]+)\/versions\/([^/]+)$/,

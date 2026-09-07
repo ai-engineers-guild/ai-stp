@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, Final, cast
+from typing import Any, Final, Literal, cast
 from uuid import uuid4
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import and_, delete, false, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_api.audit import emit_audit
@@ -45,6 +45,7 @@ from ai_stp_contracts.publication import (
     PublicationPlanResponse,
 )
 from ai_stp_passports.versions import SetupVersionPassport
+from ai_stp_platform.catalog_read import PUBLIC_LIFECYCLES
 from ai_stp_platform.external_catalog import COUNTRY_CODES, canonical_external_url
 from ai_stp_platform.models import (
     CatalogExternalProduct,
@@ -60,7 +61,11 @@ from ai_stp_platform.storage.avatar_store import AvatarObjectStore
 
 
 async def read_owner_presentation(
-    db: AsyncSession, *, ctx: AuthContext, stable_id: str
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    stable_id: str,
+    object_kind: Literal["component", "setup"] = "component",
 ) -> OwnerPresentationResponse:
     rows = list(
         (
@@ -68,7 +73,7 @@ async def read_owner_presentation(
                 select(CatalogMetadata)
                 .where(
                     CatalogMetadata.owner_account_id == ctx.account_id,
-                    CatalogMetadata.object_kind == "component",
+                    CatalogMetadata.object_kind == object_kind,
                     CatalogMetadata.stable_id == stable_id,
                 )
                 .order_by(CatalogMetadata.updated_at.desc(), CatalogMetadata.id.desc())
@@ -78,7 +83,7 @@ async def read_owner_presentation(
         .all()
     )
     if not rows:
-        raise ApiError(ErrorCategory.NOT_FOUND, "component not found")
+        raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
     latest = rows[0]
     bio = latest.presentation_bio
     if bio is None and isinstance(latest.passport_document, dict):
@@ -321,16 +326,22 @@ async def read_object_external_products(
     )
 
 
-async def _require_owned_component(db: AsyncSession, *, ctx: AuthContext, stable_id: str) -> None:
+async def _require_owned_object(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    stable_id: str,
+    object_kind: Literal["component", "setup"],
+) -> None:
     owned = await db.scalar(
         select(CatalogMetadata.id).where(
             CatalogMetadata.owner_account_id == ctx.account_id,
-            CatalogMetadata.object_kind == "component",
+            CatalogMetadata.object_kind == object_kind,
             CatalogMetadata.stable_id == stable_id,
         )
     )
     if owned is None:
-        raise ApiError(ErrorCategory.NOT_FOUND, "component not found")
+        raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
 
 
 async def upload_owner_component_media(
@@ -341,9 +352,10 @@ async def upload_owner_component_media(
     stable_id: str,
     content_type: str,
     payload: bytes,
+    object_kind: Literal["component", "setup"] = "component",
 ) -> dict[str, Any]:
     """Store author upload and return a ready public media path for the editor."""
-    await _require_owned_component(db, ctx=ctx, stable_id=stable_id)
+    await _require_owned_object(db, ctx=ctx, stable_id=stable_id, object_kind=object_kind)
     try:
         kind = validate_component_media_upload(content_type=content_type, size_bytes=len(payload))
     except ValueError as exc:
@@ -413,10 +425,27 @@ async def read_component_media_bytes(
     store: AvatarObjectStore,
     *,
     media_id: str,
+    account_id: str | None = None,
 ) -> tuple[bytes, str] | None:
     """Serve ready component media bytes by public media id."""
     row = await db.get(ComponentMedia, media_id)
     if row is None or row.state != "ready" or not row.object_key:
+        return None
+    visible = await db.scalar(
+        select(CatalogMetadata.id)
+        .where(
+            CatalogMetadata.stable_id == row.stable_id,
+            or_(
+                and_(
+                    CatalogMetadata.visibility == "public",
+                    CatalogMetadata.lifecycle_state.in_(tuple(PUBLIC_LIFECYCLES)),
+                ),
+                CatalogMetadata.owner_account_id == account_id if account_id else false(),
+            ),
+        )
+        .limit(1)
+    )
+    if visible is None:
         return None
     body = await store.read_bytes(object_key=row.object_key)
     if body is None:
@@ -430,13 +459,14 @@ async def update_owner_presentation(
     ctx: AuthContext,
     stable_id: str,
     body: OwnerPresentationUpdateRequest,
+    object_kind: Literal["component", "setup"] = "component",
 ) -> OwnerPresentationResponse:
-    await _require_owned_component(db, ctx=ctx, stable_id=stable_id)
+    await _require_owned_object(db, ctx=ctx, stable_id=stable_id, object_kind=object_kind)
     await db.execute(
         update(CatalogMetadata)
         .where(
             CatalogMetadata.owner_account_id == ctx.account_id,
-            CatalogMetadata.object_kind == "component",
+            CatalogMetadata.object_kind == object_kind,
             CatalogMetadata.stable_id == stable_id,
         )
         .values(presentation_bio=body.bio)
@@ -530,6 +560,9 @@ async def update_owner_presentation(
     for row in rebuilt:
         db.add(row)
     await db.flush()
+    from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+
+    await upsert_catalog_search_projection(db, object_kind=object_kind, stable_id=stable_id)
     return OwnerPresentationResponse(
         schema_version=1,
         stable_id=stable_id,

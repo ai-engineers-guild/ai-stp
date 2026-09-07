@@ -199,8 +199,22 @@ class OwnerPresentationMedia(BaseModel):
         )
 
 
+class OwnerMediaUploadResponse(BaseModel):
+    """Ready upload reference; the owning object's access policy still applies."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    media_id: Annotated[str, Field(min_length=1, max_length=64)]
+    kind: Literal["image", "video"]
+    public_url: Annotated[str, Field(min_length=1, max_length=2048)]
+    content_type: Annotated[str, Field(min_length=1, max_length=128)]
+    size_bytes: Annotated[int, Field(gt=0, le=COMPONENT_MEDIA_MAX_BYTES)]
+    state: Literal["ready"]
+
+
 class OwnerPresentationUpdateRequest(BaseModel):
-    """Mutable component presentation only; never changes passport identity."""
+    """Mutable component/setup presentation; never changes passport identity."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
@@ -215,7 +229,7 @@ class OwnerPresentationUpdateRequest(BaseModel):
 
 
 class OwnerPresentationResponse(BaseModel):
-    """Current mutable component presentation for its owner."""
+    """Current mutable object presentation for its owner."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

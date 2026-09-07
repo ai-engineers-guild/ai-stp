@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -25,6 +25,7 @@ type Props = {
 // eslint-disable-next-line max-lines-per-function
 export function ExternalProductManager(props: Props) {
   const t = useTranslations("objects");
+  const headingId = useId();
   const [products] = useState(props.initialProducts);
   const [selected, setSelected] = useState(new Set(props.selectedDomains));
   const [name, setName] = useState("");
@@ -99,130 +100,156 @@ export function ExternalProductManager(props: Props) {
     });
   }
   return (
-    <section
-      className="space-y-4 rounded-lg border p-4"
-      aria-labelledby="external-products-heading"
-    >
+    <section className="space-y-4 rounded-lg border p-4" aria-labelledby={headingId}>
       <div>
-        <h2 id="external-products-heading" className="text-lg font-medium">
+        <h2 id={headingId} className="text-lg font-medium">
           {t("externalTitle")}
         </h2>
         <p className="text-muted-foreground text-sm">{t("externalHint")}</p>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {products.map((product) => (
-          <label
-            className="flex items-center gap-2 rounded border px-3 py-2"
-            key={product.canonical_domain}
-          >
-            <input
-              type="checkbox"
-              checked={selected.has(product.canonical_domain)}
+      <fieldset className="space-y-3">
+        <legend className="font-medium">{t("externalLinkedHeading")}</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {products.map((product) => (
+            <label
+              className="flex items-center gap-2 rounded border px-3 py-2"
+              key={product.canonical_domain}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(product.canonical_domain)}
+                onChange={(event) => {
+                  setSelected((current) => {
+                    const next = new Set(current);
+                    if (event.target.checked) next.add(product.canonical_domain);
+                    else next.delete(product.canonical_domain);
+                    return next;
+                  });
+                }}
+              />
+              <span>
+                {product.name}{" "}
+                <small className="text-muted-foreground">{product.canonical_domain}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+        <Button type="button" onClick={save} disabled={pending}>
+          {t("externalSave")}
+        </Button>
+      </fieldset>
+      <fieldset className="space-y-3 border-t pt-4">
+        <legend className="font-medium">{t("externalRequestHeading")}</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="space-y-1 text-sm">
+            <span>{t("externalName")}</span>
+            <Input
+              placeholder={t("externalNamePlaceholder")}
+              value={name}
               onChange={(event) => {
-                setSelected((current) => {
-                  const next = new Set(current);
-                  if (event.target.checked) next.add(product.canonical_domain);
-                  else next.delete(product.canonical_domain);
-                  return next;
-                });
+                setName(event.target.value);
               }}
             />
-            <span>
-              {product.name}{" "}
-              <small className="text-muted-foreground">{product.canonical_domain}</small>
-            </span>
           </label>
-        ))}
-      </div>
-      <Button type="button" onClick={save} disabled={pending}>
-        {t("externalSave")}
-      </Button>
-      <div className="grid gap-2 border-t pt-4 sm:grid-cols-2">
-        <Input
-          aria-label={t("externalName")}
-          placeholder={t("externalNamePlaceholder")}
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-          }}
-        />
-        <Input
-          aria-label={t("externalDescriptionRu")}
-          value={descriptionRu}
-          onChange={(event) => {
-            setDescriptionRu(event.target.value);
-          }}
-        />
-        <Input
-          aria-label={t("externalDescriptionEn")}
-          value={descriptionEn}
-          onChange={(event) => {
-            setDescriptionEn(event.target.value);
-          }}
-        />
-        <Input
-          aria-label={t("externalSourceUrl")}
-          value={sourceUrl}
-          onChange={(event) => {
-            setSourceUrl(event.target.value);
-          }}
-        />
-        <Input
-          aria-label={t("externalUrl")}
-          placeholder={t("externalUrlPlaceholder")}
-          value={url}
-          onChange={(event) => {
-            setUrl(event.target.value);
-          }}
-        />
-        <Input
-          aria-label={t("externalCountries")}
-          placeholder={t("externalCountriesPlaceholder")}
-          value={countries}
-          onChange={(event) => {
-            setCountries(event.target.value);
-          }}
-        />
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={requestService}
-        disabled={pending || !name || !url || !descriptionRu || !descriptionEn || !sourceUrl}
-      >
-        {t("externalRequest")}
-      </Button>
-      <div className="grid gap-2 border-t pt-4 sm:grid-cols-3">
-        <Input
-          aria-label={t("countryCode")}
-          value={countryCode}
-          onChange={(event) => {
-            setCountryCode(event.target.value);
-          }}
-        />
-        <Input
-          aria-label={t("countryNameRu")}
-          value={countryNameRu}
-          onChange={(event) => {
-            setCountryNameRu(event.target.value);
-          }}
-        />
-        <Input
-          aria-label={t("countryNameEn")}
-          value={countryNameEn}
-          onChange={(event) => {
-            setCountryNameEn(event.target.value);
-          }}
-        />
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={requestCountry}
-        disabled={pending || !/^[A-Za-z]{2}$/.test(countryCode) || !countryNameRu || !countryNameEn}
-      >
-        {t("countryRequest")}
-      </Button>
+          <label className="space-y-1 text-sm">
+            <span>{t("externalDescriptionRu")}</span>
+            <Input
+              value={descriptionRu}
+              onChange={(event) => {
+                setDescriptionRu(event.target.value);
+              }}
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("externalDescriptionEn")}</span>
+            <Input
+              value={descriptionEn}
+              onChange={(event) => {
+                setDescriptionEn(event.target.value);
+              }}
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("externalSourceUrl")}</span>
+            <Input
+              value={sourceUrl}
+              onChange={(event) => {
+                setSourceUrl(event.target.value);
+              }}
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("externalUrl")}</span>
+            <Input
+              placeholder={t("externalUrlPlaceholder")}
+              value={url}
+              onChange={(event) => {
+                setUrl(event.target.value);
+              }}
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("externalCountries")}</span>
+            <Input
+              placeholder={t("externalCountriesPlaceholder")}
+              value={countries}
+              onChange={(event) => {
+                setCountries(event.target.value);
+              }}
+            />
+          </label>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={requestService}
+          disabled={pending || !name || !url || !descriptionRu || !descriptionEn || !sourceUrl}
+        >
+          {t("externalRequest")}
+        </Button>
+      </fieldset>
+      <fieldset className="space-y-3 border-t pt-4">
+        <legend className="font-medium">{t("countryRequestHeading")}</legend>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="space-y-1 text-sm">
+            <span>{t("countryCode")}</span>
+            <Input
+              value={countryCode}
+              onChange={(event) => {
+                setCountryCode(event.target.value);
+              }}
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("countryNameRu")}</span>
+            <Input
+              value={countryNameRu}
+              onChange={(event) => {
+                setCountryNameRu(event.target.value);
+              }}
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("countryNameEn")}</span>
+            <Input
+              value={countryNameEn}
+              onChange={(event) => {
+                setCountryNameEn(event.target.value);
+              }}
+            />
+          </label>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={requestCountry}
+          disabled={
+            pending || !/^[A-Za-z]{2}$/.test(countryCode) || !countryNameRu || !countryNameEn
+          }
+        >
+          {t("countryRequest")}
+        </Button>
+      </fieldset>
       {message ? (
         <p role="status" className="text-sm">
           {message}
