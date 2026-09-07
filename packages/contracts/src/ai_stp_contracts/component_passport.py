@@ -23,6 +23,7 @@ from ai_stp_passports.versions import (
     SupportedArch,
     SupportedOs,
     TagId,
+    TargetScope,
 )
 
 MAX_COMPONENT_PATCH_LIST_ITEMS: Final[int] = 256
@@ -41,6 +42,7 @@ class ComponentPassportPatch(BaseModel):
     tags: Annotated[list[TagId], Field(min_length=1, max_length=MAX_TAGS)] | None = None
     source: GitSource | None = None
     harness_id: HarnessId | None = None
+    scope: TargetScope | None = None
     component_type: ComponentType | None = None
     projection_kind: ProjectionKind | None = None
     provides_capabilities: (

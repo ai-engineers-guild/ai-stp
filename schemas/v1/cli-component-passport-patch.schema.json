@@ -262,6 +262,14 @@
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "type": "string"
     },
+    "TargetScope": {
+      "enum": [
+        "global",
+        "user_root",
+        "project"
+      ],
+      "type": "string"
+    },
     "Version": {
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
       "type": "string"
@@ -554,6 +562,17 @@
       ],
       "default": null,
       "title": "Runtime Requirements"
+    },
+    "scope": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TargetScope"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "source": {
       "anyOf": [

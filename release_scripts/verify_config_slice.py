@@ -42,8 +42,8 @@ from release_scripts._evidence import (
     cli,
     data,
     error_code,
+    release_draft_patch,
     release_draft_update_arguments,
-    write_release_draft_patch,
 )
 
 HARNESSES: Final[tuple[str, ...]] = (
@@ -99,7 +99,7 @@ def _config_root(harness_id: str, home: Path) -> Path:
     return harnesses.config_root(detector, _environment(home))
 
 
-def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Path, str, str]:
+def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Path, str, str, bool]:
     """Where to seed, what kind it will be adopted as, and the layout's relative.
 
     Read from the catalog, not written here: a hand-written path is a second
@@ -119,11 +119,15 @@ def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Pat
         # remove. The row models the real arc — one repository's surface,
         # carried into another.
         base = home / "seed"
-        rules = [rule for rule in components.PROJECT_RULES if rule.harness_id == harness_id]
+        rules = [rule for rule in components.PROJECT_RULES if rule.harness_id in {harness_id, ""}]
         rules = [
             rule
             for rule in rules
-            if composition.rule_for(rule.component_type, harness_id, scope="project") is not None
+            if (
+                projection := composition.rule_for(rule.component_type, harness_id, scope="project")
+            )
+            is not None
+            and (rule.harness_id == harness_id or projection.relative == rule.relative)
         ]
     elif scope == "user_root":
         # The shared convention's one row: `$HOME/.agents/skills`, read by every
@@ -135,7 +139,7 @@ def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Pat
         place = home / ".agents" / "skills" / "probe"
         place.mkdir(parents=True, exist_ok=True)
         (place / "SKILL.md").write_text(SEED_BODY, encoding="utf-8")
-        return place, "skill", "skills"
+        return place, "skill", "skills", True
     else:
         base = _config_root(harness_id, home)
         rules = [rule for rule in components.GLOBAL_RULES if rule.harness_id == harness_id]
@@ -147,7 +151,7 @@ def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Pat
         place = base / rule.relative / "probe"
         place.mkdir(parents=True, exist_ok=True)
         (place / "SKILL.md").write_text(SEED_BODY, encoding="utf-8")
-        return place, "skill", rule.relative
+        return place, "skill", rule.relative, not rule.harness_id
     instructions = [
         rule
         for rule in rules
@@ -164,7 +168,7 @@ def _surface(harness_id: str, home: Path, *, scope: str = "global") -> tuple[Pat
         place = base / rule.relative
     place.parent.mkdir(parents=True, exist_ok=True)
     place.write_text(SEED_BODY, encoding="utf-8")
-    return place, "instruction", rule.relative
+    return place, "instruction", rule.relative, not rule.harness_id
 
 
 def _stage(name: str, arguments: list[str], *, home: Path, python: str) -> dict[str, Any]:
@@ -247,6 +251,7 @@ def _prepare_release(
     home: Path,
     python: str,
     name: str,
+    route: dict[str, object] | None = None,
 ) -> bool:
     """Declare name, description and tags on an adopted draft before release.
 
@@ -265,7 +270,11 @@ def _prepare_release(
     stages.append(shown)
     if shown["outcome"] != PASSED:
         return False
-    patch = write_release_draft_patch(home / f"release-draft-{identifier[-6:]}.json", name=name)
+    patch = home / f"release-draft-{identifier[-6:]}.json"
+    declared = release_draft_patch(name=name)
+    if route is not None:
+        declared.update(route)
+    patch.write_text(json.dumps(declared, indent=2) + "\n", encoding="utf-8")
     updated = _stage(
         f"passport:update:{identifier[-6:]}",
         release_draft_update_arguments(
@@ -287,15 +296,13 @@ def _adopted(
     home: Path,
     python: str,
     scope: str = "global",
+    portable: bool = False,
 ) -> list[str] | None:
     """The seeded surface alone, as one adopted draft."""
     arguments = ["component", "adopt", "--path", str(seeded), "--kind", kind]
-    if scope == "user_root":
-        # The shared root belongs to no harness: `.agents/skills` is the
-        # convention's own surface, so the skill is adopted portable and
-        # proposed for the harness afterwards (`REQ-631`).
-        pass
-    else:
+    # Shared AGENTS.md and .agents/skills have no native harness owner.
+    # Adopt them portable, then propose them for the requested harness.
+    if not portable:
         arguments += ["--harness", harness_id]
     if scope == "project":
         arguments += ["--root", str(home / "seed")]
@@ -394,7 +401,7 @@ def _row(
             home=home,
             python=python,
         )
-        seeded, kind, relative = _surface(harness_id, home, scope=scope)
+        seeded, kind, relative, portable = _surface(harness_id, home, scope=scope)
     except EvidenceError as error:
         return {
             "harness_id": harness_id,
@@ -422,7 +429,14 @@ def _row(
         identifiers = _imported(stages, harness_id, home=home, python=python)
     else:
         identifiers = _adopted(
-            stages, harness_id, seeded, kind, home=home, python=python, scope=scope
+            stages,
+            harness_id,
+            seeded,
+            kind,
+            home=home,
+            python=python,
+            scope=scope,
+            portable=portable,
         )
     if identifiers is None:
         return _settle(harness_id, kind, relative, stages, seeded, target)
@@ -430,7 +444,20 @@ def _row(
     references: list[str] = []
     for identifier in identifiers:
         if not _prepare_release(
-            stages, identifier, home=home, python=python, name=f"evidence-{identifier[-6:]}"
+            stages,
+            identifier,
+            home=home,
+            python=python,
+            name=f"evidence-{identifier[-6:]}",
+            route=(
+                {
+                    "harness_id": harness_id,
+                    "scope": scope,
+                    "managed_paths": [f"{relative}/{seeded.name}" if kind == "skill" else relative],
+                }
+                if portable and not from_import
+                else None
+            ),
         ):
             return _settle(harness_id, kind, relative, stages, seeded, target)
         released = _stage(
