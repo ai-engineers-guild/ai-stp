@@ -131,6 +131,15 @@ async def current_author_verification(
         )
     )
     verified_rows = with_current_author_verification(rows, dict(result.tuples().all()))
+    from ai_stp_platform.catalog_assessments import current_component_verification
+
+    components = await current_component_verification(session, [row.metadata for row in rows])
+    verified_rows = [
+        replace(row, component_verified=components[row.metadata.id][0])
+        if row.metadata.id in components
+        else row
+        for row in verified_rows
+    ]
     repositories = {repository for row in verified_rows if (repository := _repository(row))}
     if not repositories:
         return await _with_catalog_identity(session, verified_rows)

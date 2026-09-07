@@ -447,7 +447,7 @@ async def test_publication_plan_confirm_validate_publish(
     status = await client.get(f"/v1/publications/plans/{plan_id}", headers=_auth(token))
     assert status.status_code == 200
     assert status.json()["state"] == "published"
-    assert status.json()["component_verified"] is True
+    assert status.json()["component_verified"] is False
 
     public_detail = await client.get("/v1/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z")
     assert public_detail.status_code == 200, public_detail.text
@@ -466,7 +466,12 @@ async def test_publication_plan_confirm_validate_publish(
         )
         assert cat is not None
         assert cat.lifecycle_state == "active"
-        assert cat.component_verified is True
+        assert cat.component_verified is False
+        assert cat.component_verified == status.json()["component_verified"]
+        assert (
+            public_detail.json()["summary"]["latest_trust"]["component_verified"]
+            == cat.component_verified
+        )
         assert cat.owner_account_id == account_id
 
     # same version different digest rejected
