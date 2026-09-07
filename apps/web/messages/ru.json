@@ -330,6 +330,7 @@
     "safetyPaths": "Файлы",
     "safetyPayloadHidden": "Содержимое находок скрыто: оно может включать секреты или вредоносные инструкции.",
     "safetyHelp": "О проверках безопасности",
+    "safetyCheckColumn": "Safety-проверка",
     "safetyCheck": {
       "structure": {
         "name": "Структура паспорта",
@@ -419,7 +420,10 @@
         "name": "pip-audit",
         "description": "Офлайн-аудит закреплённых Python-зависимостей, если есть lock-файл."
       },
-      "sast_gosec": { "name": "gosec", "description": "Запускает gosec на исходниках Go." },
+      "sast_gosec": {
+        "name": "gosec",
+        "description": "Запускает gosec на исходниках Go."
+      },
       "sca_govulncheck": {
         "name": "govulncheck",
         "description": "Проверяет модули Go на известные уязвимости."
@@ -489,7 +493,7 @@
     "linkedServices": "Связанные сервисы",
     "servicesNotExclusive": "Сервисы указаны как связанные, без исключительности.",
     "setupProvenance": "Происхождение сетапа",
-    "portedFrom": "Перенесён из",
+    "portedFrom": "Портирован из",
     "relatedSetups": "Связанные сетапы",
     "targetMatrix": "Проекции под харнесы",
     "targetMatrixSummary": "У каждой опубликованной проекции под harness есть отдельная safety-проверка. Поддержкой считаются только опубликованные адаптации.",
@@ -540,7 +544,6 @@
     "alignmentMissingHint": "Этот участник недоступен.",
     "browseFamily": "Открыть семейство в каталоге",
     "harnessProjection": "проекция харнеса",
-    "safetyCheck": "Safety-проверка",
     "projectionDetails": "Открыть детали проекции",
     "passport": "Паспорт",
     "passportHint": "Полная машиночитаемая запись; полезные поля уже собраны выше",
@@ -556,7 +559,12 @@
     "technicalDetails": "Технические детали",
     "versionHistory": "История версий",
     "currentVersion": "Текущая",
-    "seoDescription": "Каталог ИИ-сетапов и компонентов: скиллы, MCP-серверы, хуки, субагенты. Проверки, установка через агента, сопровождение в организации."
+    "seoDescription": "Каталог ИИ-сетапов и компонентов: скиллы, MCP-серверы, хуки, субагенты. Проверки, установка через агента, сопровождение в организации.",
+    "contextBudgetArtifactCorrupt": "Сохранённый артефакт не прошёл проверку целостности.",
+    "contextBudgetInvalidGraph": "Не удалось проверить точный граф компонентов.",
+    "contextBudgetDependencyFailure": "Хранилище артефактов или API недоступно. Повторите попытку.",
+    "contextBudgetNonUtf8": "Артефакт не является текстом UTF-8.",
+    "contextBudgetAdaptationRequired": "Для этой версии с несколькими адаптациями нужен расчёт под конкретную среду."
   },
   "publisher": {
     "title": "Издатель",
@@ -963,7 +971,10 @@
     "countryNameRu": "Название страны на русском",
     "countryNameEn": "Название страны на английском",
     "countryRequest": "Запросить страну",
-    "countryRequested": "Заявка на страну отправлена:"
+    "countryRequested": "Заявка на страну отправлена:",
+    "externalLinkedHeading": "Связанные сервисы",
+    "externalRequestHeading": "Запросить сервис",
+    "countryRequestHeading": "Запросить страну"
   },
   "publications": {
     "title": "План публикации",

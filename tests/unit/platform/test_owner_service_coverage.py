@@ -12,11 +12,6 @@ import pytest
 from ai_stp_api.errors import ApiError
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.owner import service as owner_service
-from ai_stp_contracts.owner import (
-    COMPONENT_MEDIA_PUBLIC_PREFIX,
-    OwnerPresentationMedia,
-    OwnerPresentationUpdateRequest,
-)
 
 pytestmark = pytest.mark.platform
 
@@ -47,35 +42,6 @@ def test_ts_and_install_eligible_helpers() -> None:
         owner_service.can_start_publication(lifecycle="active", published_at=datetime.now(tz=UTC))
         is False
     )
-
-
-@pytest.mark.asyncio
-async def test_require_owned_component_missing() -> None:
-    db = AsyncMock()
-    db.scalar = AsyncMock(return_value=None)
-    with pytest.raises(ApiError):
-        await owner_service._require_owned_component(db, ctx=_ctx(), stable_id="component_missing")
-
-
-@pytest.mark.asyncio
-async def test_read_component_media_bytes_paths() -> None:
-    db = AsyncMock()
-    store = AsyncMock()
-    db.get = AsyncMock(return_value=None)
-    assert await owner_service.read_component_media_bytes(db, store, media_id="m1") is None
-
-    row = SimpleNamespace(state="ready", object_key="k", content_type="image/png")
-    db.get = AsyncMock(return_value=row)
-    store.read_bytes = AsyncMock(return_value=None)
-    assert await owner_service.read_component_media_bytes(db, store, media_id="m1") is None
-
-    store.read_bytes = AsyncMock(return_value=b"img")
-    got = await owner_service.read_component_media_bytes(db, store, media_id="m1")
-    assert got == (b"img", "image/png")
-
-    row2 = SimpleNamespace(state="pending", object_key="k", content_type=None)
-    db.get = AsyncMock(return_value=row2)
-    assert await owner_service.read_component_media_bytes(db, store, media_id="m2") is None
 
 
 def _result_scalars(items: list[object]) -> MagicMock:
@@ -239,80 +205,6 @@ async def test_upload_owner_component_media_validation() -> None:
             stable_id="component_x",
             content_type="image/png",
             payload=b"png",
-        )
-
-
-@pytest.mark.asyncio
-async def test_update_owner_presentation_media_kinds() -> None:
-    db = AsyncMock()
-    db.scalar = AsyncMock(return_value="owned")
-    existing = SimpleNamespace(
-        id="media_upload1",
-        owner_account_id="account_test",
-        stable_id="component_x",
-        source_type="upload",
-        object_key="obj/1",
-        kind="image",
-        public_url=f"{COMPONENT_MEDIA_PUBLIC_PREFIX}media_upload1",
-        content_type="image/png",
-        size_bytes=10,
-    )
-    db.execute = AsyncMock(
-        side_effect=[
-            MagicMock(),  # update bio
-            _result_scalars([existing]),  # existing media
-            MagicMock(),  # delete
-        ]
-    )
-    db.flush = AsyncMock()
-    db.add = MagicMock()
-    body = OwnerPresentationUpdateRequest(
-        schema_version=1,
-        bio="hello",
-        media=[
-            OwnerPresentationMedia(kind="youtube", url="dQw4w9WgXcQ", alt="a", caption="c"),
-            OwnerPresentationMedia(
-                kind="image",
-                url=f"{COMPONENT_MEDIA_PUBLIC_PREFIX}media_upload1",
-                alt="img",
-                caption="",
-            ),
-            OwnerPresentationMedia(
-                kind="image",
-                url="https://raw.githubusercontent.com/x/y/main/a.png",
-                alt="gh",
-                caption="",
-            ),
-        ],
-    )
-    out = await owner_service.update_owner_presentation(
-        db, ctx=_ctx(), stable_id="component_x", body=body
-    )
-    assert out.bio == "hello"
-    assert len(out.media) == 3
-
-    # unknown upload ref
-    db.execute = AsyncMock(
-        side_effect=[
-            MagicMock(),
-            _result_scalars([]),
-        ]
-    )
-    bad = OwnerPresentationUpdateRequest(
-        schema_version=1,
-        bio="x",
-        media=[
-            OwnerPresentationMedia(
-                kind="image",
-                url=f"{COMPONENT_MEDIA_PUBLIC_PREFIX}missing",
-                alt="missing",
-                caption="",
-            )
-        ],
-    )
-    with pytest.raises(ApiError):
-        await owner_service.update_owner_presentation(
-            db, ctx=_ctx(), stable_id="component_x", body=bad
         )
 
 

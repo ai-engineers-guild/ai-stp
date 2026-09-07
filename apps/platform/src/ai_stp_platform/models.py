@@ -371,7 +371,7 @@ class CatalogSearchProjection(Base):
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     likes_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    support_tier: Mapped[str] = mapped_column(String(32), default="beta")
+    support_tier: Mapped[str] = mapped_column(String(32))
     support_state: Mapped[str] = mapped_column(String(32), default="missing")
     support_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

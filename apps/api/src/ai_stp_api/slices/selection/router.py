@@ -14,6 +14,7 @@ from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_contracts.impact import AccountSelectionImpactQuery
 from ai_stp_platform.selection_impact import (
+    SelectionDependency,
     SelectionInvalid,
     SelectionNotFound,
     account_impact,
@@ -69,6 +70,8 @@ async def read_selection_impact(
         )
     except SelectionNotFound as exc:
         raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
+    except SelectionDependency as exc:
+        raise ApiError(ErrorCategory.DEPENDENCY, "artifact storage is unavailable") from exc
     except SelectionInvalid as exc:
         raise ApiError(ErrorCategory.VALIDATION, str(exc)) from exc
     return _resource(result)

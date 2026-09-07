@@ -575,3 +575,11 @@ export function accountProfilePublicFacts(input: {
 export function machineTextLeaks(text: string): boolean {
   return LEAKAGE.test(text);
 }
+
+/** Overlay only mutable presentation; every other summary fact stays pinned. */
+export function summaryWithPresentation<T extends { latest_description: string }>(
+  summary: T,
+  bio: string | null | undefined,
+): T {
+  return { ...summary, latest_description: bio ?? summary.latest_description };
+}

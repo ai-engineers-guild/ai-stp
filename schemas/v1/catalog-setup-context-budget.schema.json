@@ -190,6 +190,18 @@
     "estimator": {
       "$ref": "#/$defs/TokenEstimator"
     },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -222,6 +234,7 @@
     "conditional_tokens",
     "coordinate",
     "estimator",
+    "reason",
     "schema_version",
     "status",
     "total_tokens",

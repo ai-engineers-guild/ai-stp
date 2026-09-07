@@ -3,6 +3,8 @@ import { CATALOG_DEFAULT_PAGE_SIZE } from "@/lib/catalog-query";
 import { publicApiGet, publicApiGetLive } from "@/lib/api/public-http";
 
 import type {
+  ComponentContextBudget,
+  SetupContextBudget,
   ComponentDetail,
   ComponentListResponse,
   ComponentVersionResponse,
@@ -17,49 +19,7 @@ export type GitHubMetadata = {
   archived: boolean | null;
 };
 
-export type SetupContextBudget = {
-  schema_version: 1;
-  coordinate: {
-    stable_id: string;
-    version: string;
-    passport_digest: string;
-  };
-  estimator: {
-    profile: "ai-stp:utf8-bytes/1" | "ai-stp:unicode-chars-div4/1";
-    accuracy: "exact" | "estimated";
-    method: "utf8_byte_count" | "unicode_codepoints_div_4";
-  };
-  always_tokens: number;
-  conditional_tokens: number;
-  total_tokens: number;
-  unavailable_components: number;
-  status: "ready" | "unavailable" | "invalid_graph";
-  components: Array<{
-    component: {
-      stable_id: string;
-      version: string;
-      passport_digest: string;
-    };
-    component_type: "instruction" | "skill" | "agent" | "command";
-    loading: "always" | "conditional";
-    status: "exact" | "estimated" | "unavailable";
-    tokens: number | null;
-    utf8_bytes: number;
-    reason?: string | null;
-  }>;
-};
-
-export type ComponentContextBudget = {
-  schema_version: 1;
-  coordinate: { stable_id: string; version: string; passport_digest: string };
-  estimator: SetupContextBudget["estimator"];
-  component_type: string;
-  loading: "always" | "conditional" | null;
-  tokens: number | null;
-  utf8_bytes: number | null;
-  status: "exact" | "estimated" | "unavailable" | "not_applicable";
-  reason: string | null;
-};
+export type { ComponentContextBudget, SetupContextBudget } from "./generated/types.gen";
 
 type SearchParams = {
   q?: string;
@@ -230,7 +190,10 @@ export async function readComponent(stableId: ComponentId): Promise<ComponentDet
 }
 
 export async function readSetup(stableId: SetupId): Promise<SetupDetail> {
-  return publicApiGet<SetupDetail>(`/v1/catalog/setups/${stableId}`);
+  // An older server may omit the additive gallery field during a rolling upgrade.
+  const detail = await publicApiGet<SetupDetail>(`/v1/catalog/setups/${stableId}`);
+  const media = (detail as { media?: SetupDetail["media"] }).media;
+  return { ...detail, media: media ?? [] };
 }
 
 export async function readComponentVersion(

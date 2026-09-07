@@ -32,17 +32,20 @@ test.describe("component machine document and switch (REQ-3604, REQ-3623)", () =
     await page.goto("/en/catalog?q=river-planner&include_experimental=1&resource=components");
     await page.getByRole("heading", { name: "river-planner-agent" }).click();
     await expect(page).toHaveURL(new RegExp(humanDetail.replaceAll("/", "\\/")));
+    const detailQuery = new URL(page.url()).search;
+    const returnTo = new URL(page.url()).searchParams.get("return_to");
+    expect(returnTo).toContain("q=river-planner");
     const machine = page.locator('[data-ui="projection-machine"]');
-    await expect(machine).toHaveAttribute("href", machineDetail);
+    await expect(machine).toHaveAttribute("href", `${machineDetail}${detailQuery}`);
     await expect(machine).not.toHaveAttribute("href", /\/en\/ai\/catalog$/);
     await machine.click();
-    await expect(page).toHaveURL(machineDetail);
+    await expect(page).toHaveURL(`${machineDetail}${detailQuery}`);
     await expect(page.locator('[data-ui="machine-page-projection"]')).toBeVisible();
     expectCompleteDocument(await page.locator('[data-ui="machine-page-projection"]').innerText());
     const human = page.locator('[data-ui="projection-human"]');
-    await expect(human).toHaveAttribute("href", humanDetail);
+    await expect(human).toHaveAttribute("href", `${humanDetail}${detailQuery}`);
     await human.click({ force: true });
-    await expect(page).toHaveURL(humanDetail);
+    await expect(page).toHaveURL(`${humanDetail}${detailQuery}`);
     await expect(
       page.getByRole("heading", { level: 1, name: "river-planner-agent" }),
     ).toBeVisible();

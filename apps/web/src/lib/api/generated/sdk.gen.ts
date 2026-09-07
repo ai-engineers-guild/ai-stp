@@ -141,6 +141,9 @@ import type {
   ReadOwnerObjectData,
   ReadOwnerObjectErrors,
   ReadOwnerObjectResponses,
+  ReadOwnerPresentationData,
+  ReadOwnerPresentationErrors,
+  ReadOwnerPresentationResponses,
   ReadOwnerSetupFamilyData,
   ReadOwnerSetupFamilyErrors,
   ReadOwnerSetupFamilyResponses,
@@ -249,6 +252,12 @@ import type {
   UpdateAccountPrivacyData,
   UpdateAccountPrivacyErrors,
   UpdateAccountPrivacyResponses,
+  UpdateOwnerPresentationData,
+  UpdateOwnerPresentationErrors,
+  UpdateOwnerPresentationResponses,
+  UploadOwnerPresentationMediaData,
+  UploadOwnerPresentationMediaErrors,
+  UploadOwnerPresentationMediaResponses,
 } from "./types.gen";
 
 export type Options<
@@ -953,6 +962,67 @@ export const readOwnerObject = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/owner/objects/{object_kind}/{stable_id}",
     ...options,
+  });
+
+/**
+ * Read the current owner's mutable component or setup presentation.
+ */
+export const readOwnerPresentation = <ThrowOnError extends boolean = false>(
+  options: Options<ReadOwnerPresentationData, ThrowOnError>,
+): RequestResult<ReadOwnerPresentationResponses, ReadOwnerPresentationErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadOwnerPresentationResponses,
+    ReadOwnerPresentationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/objects/{object_kind}/{stable_id}/presentation",
+    ...options,
+  });
+
+/**
+ * Replace an owned object's presentation without changing its passport.
+ */
+export const updateOwnerPresentation = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateOwnerPresentationData, ThrowOnError>,
+): RequestResult<UpdateOwnerPresentationResponses, UpdateOwnerPresentationErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdateOwnerPresentationResponses,
+    UpdateOwnerPresentationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/objects/{object_kind}/{stable_id}/presentation",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Upload image or video bytes for an owned object's presentation.
+ */
+export const uploadOwnerPresentationMedia = <ThrowOnError extends boolean = false>(
+  options: Options<UploadOwnerPresentationMediaData, ThrowOnError>,
+): RequestResult<
+  UploadOwnerPresentationMediaResponses,
+  UploadOwnerPresentationMediaErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    UploadOwnerPresentationMediaResponses,
+    UploadOwnerPresentationMediaErrors,
+    ThrowOnError
+  >({
+    bodySerializer: null,
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/owner/objects/{object_kind}/{stable_id}/presentation/media",
+    ...options,
+    headers: {
+      "Content-Type": "application/octet-stream",
+      ...options.headers,
+    },
   });
 
 /**

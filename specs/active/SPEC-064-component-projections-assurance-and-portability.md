@@ -203,7 +203,9 @@ may be calculated at read time from expiry or current policy/profile identity.
   write one target assessment per exact adaptation/scope. Identical bytes MUST
   reuse the observation identity. Missing projection bytes MUST project
   `not_verified`. A failed projection MUST NOT change another projection's
-  stored state. The version-level publish gate remains the common-source scan.
+  stored state. The worker MUST refuse to issue target evidence on an unknown
+  OS or architecture rather than substitute a supported platform. The
+  version-level publish gate remains the common-source scan.
 
 ## API contract
 

@@ -33,7 +33,10 @@ operate locally and do not transmit private content externally.
 Always-loaded and conditionally-loaded content are separated in the report. A
 signed delta is returned for the baseline: a negative number means a reduction.
 Binary/non-UTF-8 content has status `unavailable`; a missing measurement is not
-replaced with a zero estimate.
+replaced with a zero estimate. Canonical component files, trees, imported envelopes
+and adaptation projections use `ai_stp_contracts.component_artifacts` in both CLI
+installation and the server estimator. Container manifests and base64 wrappers
+are not model context.
 
 ## Cost and capabilities
 
@@ -66,3 +69,18 @@ and before CLI installation and Version history: a collapsed summary and a
 nested `select impact` command separate from the CLI installation block. Web
 does not display account blast radius or an installed baseline guessed by the
 server.
+
+A server context response is complete only when `status=ready`. Existing numeric
+aggregates under `unavailable` cover known members only; Web hides these partial
+totals. `reason` distinguishes missing/corrupt artifacts, invalid container bytes,
+non-UTF-8 content and an adaptation that needs an explicit target. Storage
+transport failures use the dependency error envelope; invalid graph identity uses
+the validation error envelope. Both receive distinct localized display states.
+Historical passports retain their original canonical digest and revision seal;
+normalizing a read model cannot rewrite the identity being measured.
+
+Artifact reads follow the persisted `ObjectLocation` for the authorized exact
+catalog version, including its stored object key. The declared digest and size
+must match that pointer before any bytes are read. Changing the current storage
+prefix does not change which historical object is measured. A missing pointer
+is unavailable; a conflicting pointer or failed byte verification is corrupt.

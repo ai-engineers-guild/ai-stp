@@ -192,8 +192,16 @@ def scan_host_platform() -> tuple[SupportedOs, SupportedArch]:
     elif system.startswith("win"):
         os_name = "windows"
     else:
-        os_name = "linux"
-    arch: SupportedArch = "arm64" if machine in {"arm64", "aarch64"} else "x86_64"
+        raise AssessmentError("AI_STP_VALIDATION_ERROR", "assessment worker OS is unsupported")
+    arch: SupportedArch
+    if machine in {"arm64", "aarch64"}:
+        arch = "arm64"
+    elif machine in {"x86_64", "amd64"}:
+        arch = "x86_64"
+    else:
+        raise AssessmentError(
+            "AI_STP_VALIDATION_ERROR", "assessment worker architecture is unsupported"
+        )
     return os_name, arch
 
 

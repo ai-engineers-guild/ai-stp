@@ -1278,6 +1278,19 @@
       "title": "Media",
       "type": "array"
     },
+    "presentation_bio": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Presentation Bio"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -1310,6 +1323,7 @@
   "required": [
     "country_codes",
     "media",
+    "presentation_bio",
     "schema_version",
     "services",
     "summary",

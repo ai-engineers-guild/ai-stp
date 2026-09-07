@@ -10,6 +10,7 @@ import {
   type MachineDocument,
 } from "@/lib/projection/machine-document";
 import { registryCommand } from "@/lib/cli-copy";
+import type { SetupVersionPassport } from "@/lib/api/generated/types.gen";
 import type { PublicObjectFacts } from "@/lib/projection/page-facts";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
 import type { DocsNavNode } from "@/lib/docs-nav";
@@ -199,7 +200,27 @@ export function presentComponentDetail(input: {
   return presentComponentObject(input.facts, input.labels, "detail");
 }
 
+type SetupLineageFacts = Pick<SetupVersionPassport, "ported_from" | "related_setup_ids">;
+
+function setupLineageBlocks(lineage?: SetupLineageFacts): MachineDocument {
+  if (!lineage) return [];
+  const source = lineage.ported_from;
+  return [
+    ...(source
+      ? [
+          link(
+            `ported_from: ${source.stable_id}@${source.version}`,
+            `/catalog/setups/${source.stable_id}/versions/${source.version}`,
+          ),
+          field("ported_from_passport_digest", source.passport_digest),
+        ]
+      : []),
+    ...lineage.related_setup_ids.map((id) => link(`related_setup: ${id}`, `/catalog/setups/${id}`)),
+  ];
+}
+
 export function presentSetupDetail(input: {
+  lineage?: SetupLineageFacts;
   summary: SetupSummaryLike;
   passportDigest: string | null;
   labels: Labels;
@@ -212,6 +233,7 @@ export function presentSetupDetail(input: {
   return [
     heading(1, `${summary.latest_name}@${summary.latest_version}`),
     paragraph(summary.latest_description),
+    ...setupLineageBlocks(input.lineage),
     link("Catalog", "/catalog"),
     link("Publisher", `/publishers/${summary.publisher_id}`),
     ...(input.sourceUrl ? [link("GitHub", input.sourceUrl)] : []),
@@ -373,6 +395,7 @@ function pushOptionalComponentFields(
 }
 
 export function presentSetupVersion(input: {
+  lineage?: SetupLineageFacts;
   stableId: string;
   name: string;
   version: string;
@@ -392,6 +415,7 @@ export function presentSetupVersion(input: {
   return [
     heading(1, `${input.name}@${input.version}`),
     paragraph(input.description),
+    ...setupLineageBlocks(input.lineage),
     link("Object", `/catalog/setups/${input.stableId}`),
     link("Catalog", "/catalog"),
     field(input.labels.stableId, input.stableId),
