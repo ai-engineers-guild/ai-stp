@@ -4,10 +4,11 @@ import json
 from pathlib import Path
 from typing import cast
 
+from tests.support.catalog_seed import FIXTURE_COMPONENT_ID, seed_corpus
+
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_passports.envelope import derive_revision_id
-from ai_stp_platform.catalog_seed import FIXTURE_COMPONENT_ID, seed_corpus
 
 TARGET = Path("packages/contracts/src/ai_stp_contracts/fixtures/v1/catalog.json")
 
