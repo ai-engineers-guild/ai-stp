@@ -248,6 +248,9 @@ draft creation and publication recheck it under the same transaction-scoped
 stable-ID lock, including when the line has no rows yet. A prepared plan does
 not reserve ownership, so the worker repeats the check before materialization.
 Component identity and ownership transfer remain owned by `SPEC-059`.
+Allocation of a missing component identity also checks existing catalog rows
+under the component's stable-ID lock. Legacy version ownership cannot be
+replaced merely because the separate identity row is absent.
 
 The accepted evidence source is defined for each check:
 
