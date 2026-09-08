@@ -17,6 +17,12 @@ last_verified: "2026-09-04"
 
 The native surface in this table is a delivery form, not a component type: the catalog taxonomy expresses it through `projection_kind` under `ADR-0015`.
 
+Repository projection directories include the English and Russian playbooks
+beside their Skill entrypoints, so direct adoption and publication have the same
+local reference closure as CLI installation. The generator checks every carried
+Markdown file against its canonical source. The wheel shares playbooks across
+harnesses and materializes the selected projection during installation.
+
 The single canonical procedure is not copied manually. A projection is generated
 from that procedure (`ADR-0149`): it preserves semantics or reports a loss, and
 it carries the playbooks rather than a repository pointer. Runtime capability is

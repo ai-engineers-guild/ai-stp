@@ -120,15 +120,23 @@ def _write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
+def projection_files() -> dict[Path, str]:
+    """Self-contained repository packages, including each locale's playbooks."""
+    files: dict[Path, str] = {}
+    for projection in TARGETS:
+        root = PROJECTIONS / projection.directory
+        for locale, directory in (("en", root), ("ru", root / "locale" / "ru")):
+            files[directory / projection.filename] = render(projection, locale=locale)
+            for name, content in reference_files(locale).items():
+                files[directory / "references" / name] = content
+    return files
+
+
 def write() -> list[Path]:
     written: list[Path] = []
-    for projection in TARGETS:
-        target = PROJECTIONS / projection.directory / projection.filename
-        _write_text(target, render(projection))
+    for target, content in projection_files().items():
+        _write_text(target, content)
         written.append(target)
-        ru = PROJECTIONS / projection.directory / "locale" / "ru" / projection.filename
-        _write_text(ru, render(projection, locale="ru"))
-        written.append(ru)
     for source, packaged in packaged_targets().items():
         _write_text(packaged, source.read_text(encoding="utf-8"))
         written.append(packaged)
@@ -172,23 +180,15 @@ def check() -> list[str]:
         if not path.exists():
             problems.append(f"canonical reference is missing: {path.relative_to(ROOT)}")
     problems.extend(_locale_loss())
-    expected = set()
-    for projection in TARGETS:
-        target = PROJECTIONS / projection.directory / projection.filename
-        expected.add(target)
+    expected = projection_files()
+    for target, content in expected.items():
         if not target.exists():
             problems.append(f"projection is missing: {target.relative_to(ROOT)}")
-        elif target.read_text(encoding="utf-8") != render(projection):
+        elif target.read_text(encoding="utf-8") != content:
             problems.append(f"projection drifted from the generator: {target.relative_to(ROOT)}")
-        ru = PROJECTIONS / projection.directory / "locale" / "ru" / projection.filename
-        expected.add(ru)
-        if not ru.exists():
-            problems.append(f"russian projection is missing: {ru.relative_to(ROOT)}")
-        elif ru.read_text(encoding="utf-8") != render(projection, locale="ru"):
-            problems.append(
-                f"russian projection drifted from the generator: {ru.relative_to(ROOT)}"
-            )
-    for found in PROJECTIONS.rglob("SKILL.md"):
+    for found in PROJECTIONS.rglob("*.md"):
+        if found == PROJECTIONS / "index.md":
+            continue
         if found not in expected:
             problems.append(f"unexpected projection without a generator: {found.relative_to(ROOT)}")
 
