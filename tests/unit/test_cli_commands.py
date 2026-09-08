@@ -481,19 +481,29 @@ def test_doctor_reports_a_registry_written_by_a_newer_build_as_failed() -> None:
 
 
 def test_doctor_reports_a_registry_awaiting_migration() -> None:
-    import sqlite3
-
     from ai_stp_cli.commands import passport
-    from ai_stp_cli.local.database import configured_path
+    from ai_stp_cli.local.database import SCHEMA_VERSION, configured_path, downgrade, open_registry
 
     passport.developer_init({})
-    connection = sqlite3.connect(configured_path())
-    connection.execute("PRAGMA user_version=0")
-    connection.close()
+    with closing(open_registry(configured_path())) as connection:
+        downgrade(connection, SCHEMA_VERSION - 1)
+        before = tuple(connection.iterdump())
 
-    check = next(item for item in doctor.run({}).payload.checks if item.name == "local_registry")
-    assert check.state == "needs_user_action"
+    report = doctor.run({}).payload
+    check = next(item for item in report.checks if item.name == "local_registry")
+    assert check.state == "ready"
     assert "migrates it" in check.detail
+    from ai_stp_cli.local.database import open_readonly, schema_version
+
+    with closing(open_readonly(configured_path())) as connection:
+        assert schema_version(connection) == SCHEMA_VERSION - 1
+        assert tuple(connection.iterdump()) == before
+    with closing(open_registry(configured_path())) as connection:
+        assert schema_version(connection) == SCHEMA_VERSION
+    assert (
+        next(item for item in doctor.run({}).payload.checks if item.name == "local_registry").state
+        == "ready"
+    )
 
 
 @pytest.mark.skipif(
