@@ -306,38 +306,56 @@ def _component_layout_check() -> DoctorCheck:
 
 
 def _provider_binding_check() -> DoctorCheck:
-    """Name the tool `provider fetch` shells out to, before it is needed.
-
-    Installing a published setup goes through `provider fetch`, which binds an
-    attested OpenNetwork release by running `gh attestation verify`. The shipped
-    policy pins no bytes and allows no publisher, so that binding is the only
-    path an install takes — and `gh` is not a dependency of this package. On a
-    machine installed from PyPI there is no reason for it to be present.
-
-    The refusal when it is absent is honest (`AI_STP_DEPENDENCY_UNAVAILABLE`
-    with `dependency: gh`), but it arrives after an agent has already chosen to
-    install. This is the same shape as `composition_passports`, and it takes the
-    same answer: an installation without `gh` is still sound, and somebody who
-    only searches the catalogue never needs it, so the state stays `ready` and
-    the detail carries the fact (`SPEC-011` `REQ-1124`).
-
-    Presence only. Running `gh` to ask its version would make a command declared
-    `read` execute a third-party binary, and diagnostics do not do that.
-    """
+    """Describe default index acquisition and the optional GitHub transport."""
     found = shutil.which("gh")
-    if found is None:
-        return DoctorCheck(
-            name="provider_binding",
-            state="ready",
-            detail="`gh` is not on PATH; `provider fetch` needs it to verify an "
-            "attested provider release before binding it",
-        )
+    github = "not on PATH" if found is None else f"at {paths.redact_home(Path(found))}"
     return DoctorCheck(
         name="provider_binding",
         state="ready",
-        detail=f"`gh` at {paths.redact_home(Path(found))}; `provider fetch` uses it to verify "
-        "an attested provider release",
+        detail="`provider fetch` defaults to PyPI with the CLI-managed uv verifier; "
+        f"no standalone verifier is required. Explicit GitHub acquisition uses `gh` ({github})",
     )
+
+
+def _cli_update_check() -> DoctorCheck:
+    """Journal and check cache only. A down index is not a failed installation."""
+    from ai_stp_cli.self_update import store
+    from ai_stp_cli.self_update.method import current_installation
+
+    try:
+        journal = store.read_json(store.journal_path()) or {}
+        state = str(journal.get("state") or "idle")
+        if state in {"applying", "pending", "recovery_required", "failed"}:
+            return DoctorCheck(
+                name="cli_update",
+                state="needs_user_action",
+                detail=(
+                    f"CLI update journal is {state}; run update recover --json or "
+                    "update status --json"
+                ),
+            )
+        held = current_installation()
+        if held.method == "source_managed":
+            return DoctorCheck(
+                name="cli_update",
+                state="ready",
+                detail="source-managed installation; wheel replacement is refused",
+            )
+        cache = store.read_json(store.cache_path())
+        if isinstance(cache, dict) and cache.get("state") == "available":
+            version = str(cache.get("candidate_version") or "")
+            return DoctorCheck(
+                name="cli_update",
+                state="needs_user_action",
+                detail=f"a newer CLI {version} is cached; run update plan --json",
+            )
+        return DoctorCheck(name="cli_update", state="ready", detail="no interrupted CLI update")
+    except Exception as failure:
+        return DoctorCheck(
+            name="cli_update",
+            state="ready",
+            detail=f"updater journal unread ({type(failure).__name__})",
+        )
 
 
 def _addressable_objects_check() -> DoctorCheck:
@@ -409,5 +427,6 @@ def run(_parameters: Mapping[str, object]) -> Answer[DoctorReport]:
         _composition_passports_check(),
         _addressable_objects_check(),
         _provider_binding_check(),
+        _cli_update_check(),
     ]
     return Answer(DoctorReport(state=worst([check.state for check in checks]), checks=checks))

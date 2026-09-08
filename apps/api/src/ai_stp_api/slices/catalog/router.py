@@ -29,7 +29,6 @@ from ai_stp_contracts.catalog import (
     SetupSearchRequest,
 )
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
-from ai_stp_contracts.private_access import AccessVersionResponse
 from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.versioning import VersionError, parse_version
 from ai_stp_platform.catalog_usage import (
@@ -48,39 +47,6 @@ from ai_stp_platform.selection_impact import (
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
 
 router = APIRouter(tags=["catalog"])
-
-
-@router.get("/access/components/{stable_id}/versions/{version}")
-async def access_component_version(
-    stable_id: str,
-    version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
-) -> AccessVersionResponse:
-    return await service.read_access_version(
-        db,
-        object_kind="component",
-        stable_id=stable_id,
-        version=version,
-        ctx=ctx,
-    )
-
-
-@router.get("/access/setups/{stable_id}/versions/{version}")
-async def access_setup_version(
-    stable_id: str,
-    version: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
-) -> AccessVersionResponse:
-    return await service.read_access_version(
-        db,
-        object_kind="setup",
-        stable_id=stable_id,
-        version=version,
-        ctx=ctx,
-    )
-
 
 _COMPONENT_ID_RE = re.compile(stable_id_pattern("component"))
 _SETUP_ID_RE = re.compile(stable_id_pattern("setup"))

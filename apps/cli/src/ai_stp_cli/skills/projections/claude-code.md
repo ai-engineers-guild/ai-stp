@@ -1,6 +1,7 @@
 ---
 name: ai-stp
-description: Operate the ai-stp CLI on the claude-code native surface.
+description: >-
+  Operate the ai-stp CLI to prepare project environments across harnesses, preserve and restore existing setups, inspect, select, compose, install, recover, author, and publish AI harness setups and components. Use when the user asks to prepare a harness, install or repair a setup, manage passports, search the catalog, sign in to ai-stp, publish a component, or drive any `ai-stp` command — even if they say “NDDev”, “ai_stp”, or “the setup CLI” instead of the skill name. Do NOT use for calling a model API, editing a harness target by hand, writing a generic SKILL.md for some other product, or answering questions that do not involve this CLI.
 license: AGPL-3.0-or-later
 metadata:
   harness: "claude-code"
@@ -13,70 +14,80 @@ Native surface for this harness: Plugin/Skill and explicit import through `CLAUD
 
 # ai-stp
 
-## Use this Skill when
-
-- the user wants to prepare a harness, inspect local state, or drive `ai-stp`;
-- they ask to search the catalog, compose or install a setup, update, roll back,
-  or recover after a timeout;
-- they ask to sign in, manage passports, scaffold, or publish a component.
-
-Do not use this Skill to call a model API, edit a harness target by hand, write
-a SKILL.md for another product, or answer a question that does not involve this
-CLI.
+Help the user's coding agent choose, install and maintain complete harness
+setups through the installed CLI. Finish the requested operation and report
+what was actually verified.
 
 ## Start here
 
-1. Run `ai-stp doctor --json` and read the installation state.
-2. Run `ai-stp help --agent --json` and take the command list, mutation classes,
-   confirmation rules, and schema links from it.
-3. Call only commands present in that response. Resolve argv, mutability,
-   confirmation, and `result_schema` from the descriptor, never from memory or
-   this file.
+1. Run `ai-stp doctor --json`, then `ai-stp help --agent --json`.
+   If the executable is missing, follow [bootstrap](references/bootstrap.md).
+2. Read the envelope and keep the installed version's command descriptors.
+   Use their parameters, parameter rules, confirmation and result schemas to
+   construct calls. Reload help after a CLI update or a command mismatch;
+   reuse it within the same version instead of fetching it before every call.
+3. Take the harness, project root and requested outcome from the conversation
+   and current workspace. Inspect missing facts. Ask only for information that
+   cannot be determined and materially changes the requested effect.
+4. Open the matching playbook below and continue through its verification step.
+   A request to install or fix something authorizes the corresponding reversible
+   work; a machine confirmation parameter is not a new conversational question.
 
-These two invocations are the only flags this package may name. Everything else
-comes from machine help for the installed version.
+Only these two bootstrap invocations fix CLI flags in this package. Other
+command paths describe a workflow; their executable arguments come from help.
+Use machine JSON for subsequent calls, as declared by the installed registry.
+
+## What is being installed
+
+| Object | Meaning |
+|---|---|
+| ai-stp CLI | This product; its own updater replaces its installed package |
+| Control Skill | These instructions, installed separately into the agent's harness |
+| Provider | Setup manager automatically acquired by the CLI when needed |
+| Harness program | The coding-agent executable; its installation prefix is separate from its configuration target |
+| Setup | One harness's exact versioned configuration and component graph |
+
+Installing a program does not install a setup. Downloading a setup does not
+apply it. Preparing or approving a plan does not prove an installed result.
 
 ## Router
 
-Match the user's request to one playbook. If nothing matches, stay on read
-commands from machine help. Ask only for the irreversible or access-expanding
-stops in `references/decisions.md`. Uncertainty is research, not a pause.
+Read one relevant playbook first. Consult [envelope](references/envelope.md)
+for response handling, [decisions](references/decisions.md) for task authority,
+and [traps](references/traps.md) when a returned state is ambiguous.
 
 | User intent | Open |
 |---|---|
-| first run, “is it installed?”, version, which projects to index | bootstrap |
-| local config, developer or device passport | onboard |
-| sign in, logout, grants, sync, complain | account |
-| what harnesses, projects, components, targets exist | inspect |
-| find or show a catalog object | catalog |
-| select, eligibility, compose a setup | compose |
-| prepare a project environment or several harnesses | environment |
-| save the current setup or return to its original state | install |
-| install, update, roll back a setup | install |
-| drift, selected vs installed | daily |
-| timeout, partial install, stuck operation | recover |
-| scaffold, adopt, validate, publish | author |
-| provider binary, toolchain pin | provider |
-| install or remove this Skill | self |
-
-Envelope, error handling: envelope.
-Decision boundary: decisions.
-Named traps: traps.
+| first run, missing CLI, identify the current project | [bootstrap](references/bootstrap.md) |
+| local settings and passports | [onboard](references/onboard.md) |
+| install a ready setup, update, preserve or restore configuration | [install](references/install.md) |
+| find an exact public or granted object | [catalog](references/catalog.md) |
+| build a setup from components, adapt it to a harness | [compose](references/compose.md) |
+| prepare a project or several harnesses | [environment](references/environment.md) |
+| discover local harnesses, projects or components | [inspect](references/inspect.md) |
+| compare selected and installed state, drift | [daily](references/daily.md) |
+| recover an interrupted or partial operation | [recover](references/recover.md) |
+| update ai-stp itself | [self-update](references/self-update.md) |
+| create, adopt, validate or publish content | [author](references/author.md) |
+| install a harness program or maintain a provider | [provider](references/provider.md) |
+| sign in, manage access or synchronize | [account](references/account.md) |
+| install or refresh this control Skill | [self](references/self.md) |
 
 ## Hard rules
 
-- Machine help is the only executable capability source. Do not guess flags.
-- Do not call a command absent from machine help.
-- Do not edit XDG files, pass secrets, or write harness targets.
-- Do not delete this Skill together with a user setup.
-- Default to the `authoritative` trust line. `experimental` may be used under
-  task authority and stays labeled; it is never reported as verified.
-- `author_verified` and `component_verified` are independent; show both.
-- After `install apply`, trust `target status` / `pending_authorization`, not
-  the apply exit code.
-- Stop on a partial result or error and show `next_actions`.
-
-## Pointer
-
-Open envelope, decisions, traps, and the matched playbook under references/.
-Do not treat this map as a command list.
+- Machine help owns supported commands, parameters, schemas and error handling.
+  Execute returned next actions only after resolving their actual inputs.
+- Use CLI configuration and installation commands. The provider writes the
+  harness target; do not replace its work with manual native-file edits.
+- Keep exact setup/component versions, proposal and operation identifiers,
+  plan digests and preserved-setup references from real responses.
+- Default to `authoritative`. Under existing task authority, an `experimental`
+  choice stays explicitly labeled. Show `author_verified` and
+  `component_verified` independently.
+- Keep the control Skill available across setup changes. Change an active
+  environment through its staged handoff/restart path.
+- On an error or partial result, inspect the actual state and follow recovery.
+  A timeout is not proof that no effect occurred. A required browser sign-in
+  remains pending until it actually completes.
+- Finish with the installed identity, target status, remaining authorization
+  and the available recovery reference. Report any unverified part explicitly.

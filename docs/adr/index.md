@@ -166,8 +166,11 @@ last_verified: "2026-08-03"
 | [ADR-0166-separate-artifact-and-asset-storage.md](ADR-0166-separate-artifact-and-asset-storage.md) | Separate immutable artifacts from mutable platform assets while keeping visibility in the authorization layer. | 2026-09-07 |
 | [ADR-0167-preserved-setups-bind-complete-native-snapshots.md](ADR-0167-preserved-setups-bind-complete-native-snapshots.md) | ADR-0167: A preserved setup binds a complete provider-owned native snapshot. | 2026-09-07 |
 | [ADR-0168-environments-coordinate-separate-harness-setups.md](ADR-0168-environments-coordinate-separate-harness-setups.md) | ADR-0168: Project environments coordinate separate harness setup operations. | 2026-09-07 |
-| [ADR-0169-distribution-visibility-does-not-rewrite-versions.md](ADR-0169-distribution-visibility-does-not-rewrite-versions.md) | ADR-0169: Distribution visibility changes independently of immutable version passports. | 2026-09-07 |
-| [ADR-0170-github-source-authority-is-separate-from-login.md](ADR-0170-github-source-authority-is-separate-from-login.md) | ADR-0170: One GitHub App, separate management consent and immutable provenance bindings. | 2026-09-08 |
+| [ADR-0169-distribution-visibility-does-not-rewrite-versions.md](ADR-0169-distribution-visibility-does-not-rewrite-versions.md) | ADR-0169: Distribution visibility changes independently of immutable version passports. | 2026-09-08 |
+| [ADR-0170-cli-self-update-through-owning-installer.md](ADR-0170-cli-self-update-through-owning-installer.md) | ADR-0170: The CLI updates itself through the installer that owns the PyPI distribution. | 2026-09-08 |
+| [ADR-0171-installed-cli-owns-index-verification-runtime.md](ADR-0171-installed-cli-owns-index-verification-runtime.md) | The installed CLI bootstraps its pinned PyPI provenance verifier without manual tools. | 2026-09-08 |
+| [ADR-0172-beta-qualification-on-three-primary-platforms.md](ADR-0172-beta-qualification-on-three-primary-platforms.md) | Beta qualification requires Linux x86_64, Windows x86_64 and macOS arm64; other pairs remain not_verified. | 2026-09-08 |
+| [ADR-0173-github-source-authority-is-separate-from-login.md](ADR-0173-github-source-authority-is-separate-from-login.md) | ADR-0173: One GitHub App, separate management consent and immutable provenance bindings. | 2026-09-08 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

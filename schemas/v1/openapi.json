@@ -95,72 +95,6 @@
         "title": "AccessGrantResponse",
         "type": "object"
       },
-      "AccessVersionResponse": {
-        "additionalProperties": true,
-        "description": "Metadata delivered only after exact owner or major-line grant authorization.",
-        "properties": {
-          "access_basis": {
-            "enum": [
-              "owner",
-              "grant",
-              "admin"
-            ],
-            "title": "Access Basis",
-            "type": "string"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/ObjectKind"
-          },
-          "lifecycle": {
-            "$ref": "#/components/schemas/PublicLifecycle"
-          },
-          "passport": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ai_stp_foundation__canonical__JsonValue"
-            },
-            "title": "Passport",
-            "type": "object"
-          },
-          "passport_digest": {
-            "$ref": "#/components/schemas/PassportDigest"
-          },
-          "published_at": {
-            "$ref": "#/components/schemas/Timestamp"
-          },
-          "schema_version": {
-            "const": 1,
-            "default": 1,
-            "title": "Schema Version",
-            "type": "integer"
-          },
-          "stable_id": {
-            "maxLength": 64,
-            "minLength": 8,
-            "title": "Stable Id",
-            "type": "string"
-          },
-          "trust": {
-            "$ref": "#/components/schemas/PrivateVersionTrust"
-          },
-          "version": {
-            "$ref": "#/components/schemas/ai_stp_contracts__catalog__Version"
-          }
-        },
-        "required": [
-          "access_basis",
-          "kind",
-          "lifecycle",
-          "passport",
-          "passport_digest",
-          "published_at",
-          "schema_version",
-          "stable_id",
-          "trust",
-          "version"
-        ],
-        "title": "AccessVersionResponse",
-        "type": "object"
-      },
       "AccountFreshness": {
         "enum": [
           "account_snapshot",
@@ -7194,33 +7128,6 @@
         "title": "PrivateVersionResponse",
         "type": "object"
       },
-      "PrivateVersionTrust": {
-        "additionalProperties": true,
-        "description": "Exact local acquisition authority does not assert public verification.",
-        "properties": {
-          "author_verified": {
-            "title": "Author Verified",
-            "type": "boolean"
-          },
-          "component_verified": {
-            "title": "Component Verified",
-            "type": "boolean"
-          },
-          "trust_lane": {
-            "const": "local_owner_or_pinned",
-            "default": "local_owner_or_pinned",
-            "title": "Trust Lane",
-            "type": "string"
-          }
-        },
-        "required": [
-          "author_verified",
-          "component_verified",
-          "trust_lane"
-        ],
-        "title": "PrivateVersionTrust",
-        "type": "object"
-      },
       "ProjectedMember": {
         "additionalProperties": false,
         "allOf": [
@@ -12752,29 +12659,6 @@
         "title": "VersionListEntry",
         "type": "object"
       },
-      "VisibilityConfirmRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "confirmed": {
-            "const": true,
-            "title": "Confirmed",
-            "type": "boolean"
-          },
-          "idempotency_key": {
-            "$ref": "#/components/schemas/IdempotencyKey"
-          },
-          "plan_hash": {
-            "$ref": "#/components/schemas/PassportDigest"
-          }
-        },
-        "required": [
-          "plan_hash",
-          "confirmed",
-          "idempotency_key"
-        ],
-        "title": "VisibilityConfirmRequest",
-        "type": "object"
-      },
       "VisibilityPlanCreateRequest": {
         "additionalProperties": false,
         "description": "Plan one owner's access change without rewriting immutable content.",
@@ -13095,7 +12979,7 @@
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/AccessVersionResponse"
+                  "$ref": "#/components/schemas/PrivateVersionResponse"
                 }
               }
             },
@@ -13294,7 +13178,7 @@
                   }
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/AccessVersionResponse"
+                  "$ref": "#/components/schemas/PrivateVersionResponse"
                 }
               }
             },
@@ -13460,15 +13344,14 @@
           "content": {
             "application/json": {
               "examples": {
-                "createVisibilityPlan.answer": {
-                  "summary": "Visibility planning exposes the exact immutable object coordinates before approval.",
+                "createVisibilityPlan.owner": {
+                  "summary": "Owner visibility preserves the exact published passport identity.",
                   "value": {
                     "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                    "idempotency_key": "idem_visibility_plan_01",
+                    "idempotency_key": "visibility-create-012345",
                     "object_kind": "component",
-                    "schema_version": 1,
                     "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-                    "version": "1.2",
+                    "version": "1.0",
                     "visibility": "public"
                   }
                 }
@@ -13481,29 +13364,28 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "examples": {
-                  "createVisibilityPlan.answer": {
-                    "summary": "Visibility planning exposes the exact immutable object coordinates before approval.",
+                  "createVisibilityPlan.owner": {
+                    "summary": "Owner visibility preserves the exact published passport identity.",
                     "value": {
                       "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "effects": [
-                        "catalog_visibility",
-                        "public_artifact"
+                        "set_distribution_visibility_public"
                       ],
-                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "expires_at": "2026-08-09T00:00:00.000Z",
                       "object_kind": "component",
-                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
-                      "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-                      "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "previous_visibility": "private",
                       "schema_version": 1,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "planned",
-                      "version": "1.2",
+                      "version": "1.0",
                       "visibility": "public"
                     }
                   }
@@ -13513,7 +13395,7 @@
                 }
               }
             },
-            "description": "Plan owner-only private-to-public component distribution.",
+            "description": "createVisibilityPlan for the exact owner distribution effect.",
             "headers": {
               "X-Operation-Id": {
                 "description": "Durable operation id of this mutation.",
@@ -13588,6 +13470,44 @@
               }
             }
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "429": {
             "content": {
               "application/json": {
@@ -13651,7 +13571,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Plan owner-only private-to-public component distribution."
+        "summary": "createVisibilityPlan for the exact owner distribution effect."
       }
     },
     "/v1/access/visibility/plans/{plan_id}": {
@@ -13659,7 +13579,7 @@
         "operationId": "readVisibilityPlan",
         "parameters": [
           {
-            "description": "Exact visibility plan.",
+            "description": "Visibility plan identifier.",
             "in": "path",
             "name": "plan_id",
             "required": true,
@@ -13705,6 +13625,27 @@
                       "version": "1.2",
                       "visibility": "public"
                     }
+                  },
+                  "readVisibilityPlan.owner": {
+                    "summary": "Owner visibility preserves the exact published passport identity.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "set_distribution_visibility_public"
+                      ],
+                      "expires_at": "2026-08-09T00:00:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "planned",
+                      "version": "1.0",
+                      "visibility": "public"
+                    }
                   }
                 },
                 "schema": {
@@ -13712,7 +13653,7 @@
                 }
               }
             },
-            "description": "Read an owner's exact visibility plan.",
+            "description": "readVisibilityPlan for the exact owner distribution effect.",
             "headers": {
               "X-Request-Id": {
                 "description": "Correlation id, echoed or minted.",
@@ -13770,6 +13711,44 @@
               }
             },
             "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
             "headers": {
               "X-Request-Id": {
                 "description": "Correlation id.",
@@ -13843,7 +13822,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Read an owner's exact visibility plan."
+        "summary": "readVisibilityPlan for the exact owner distribution effect."
       }
     },
     "/v1/access/visibility/plans/{plan_id}/confirm": {
@@ -13851,7 +13830,7 @@
         "operationId": "confirmVisibilityPlan",
         "parameters": [
           {
-            "description": "Exact visibility plan.",
+            "description": "Visibility plan identifier.",
             "in": "path",
             "name": "plan_id",
             "required": true,
@@ -13891,10 +13870,18 @@
                     "idempotency_key": "idem_visibility_confirm_01",
                     "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
                   }
+                },
+                "confirmVisibilityPlan.owner": {
+                  "summary": "Owner visibility preserves the exact published passport identity.",
+                  "value": {
+                    "confirmed": true,
+                    "idempotency_key": "visibility-confirm-012345",
+                    "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  }
                 }
               },
               "schema": {
-                "$ref": "#/components/schemas/VisibilityConfirmRequest"
+                "$ref": "#/components/schemas/PublicationConfirmRequest"
               }
             }
           },
@@ -13926,6 +13913,27 @@
                       "version": "1.2",
                       "visibility": "public"
                     }
+                  },
+                  "confirmVisibilityPlan.owner": {
+                    "summary": "Owner visibility preserves the exact published passport identity.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "set_distribution_visibility_public"
+                      ],
+                      "expires_at": "2026-08-09T00:00:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "applied",
+                      "version": "1.0",
+                      "visibility": "public"
+                    }
                   }
                 },
                 "schema": {
@@ -13933,7 +13941,7 @@
                 }
               }
             },
-            "description": "Validate public eligibility and expose immutable component bytes.",
+            "description": "confirmVisibilityPlan for the exact owner distribution effect.",
             "headers": {
               "X-Operation-Id": {
                 "description": "Durable operation id of this mutation.",
@@ -14008,6 +14016,44 @@
               }
             }
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "429": {
             "content": {
               "application/json": {
@@ -14071,7 +14117,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Validate public eligibility and expose immutable component bytes."
+        "summary": "confirmVisibilityPlan for the exact owner distribution effect."
       }
     },
     "/v1/account": {
@@ -27476,7 +27522,6 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
-                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -29073,7 +29118,6 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
-                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -29297,7 +29341,6 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
-                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -29534,7 +29577,6 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
-                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -29807,7 +29849,6 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
-                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -30080,7 +30121,6 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
-                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "validating",
                       "version": "1.0",

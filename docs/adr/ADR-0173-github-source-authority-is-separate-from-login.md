@@ -1,9 +1,9 @@
 ---
-description: "ADR-0170: One GitHub App, separate management consent and immutable provenance bindings."
+description: "ADR-0173: One GitHub App, separate management consent and immutable provenance bindings."
 last_verified: "2026-09-08"
 ---
 
-# ADR-0170: GitHub source authority is separate from login
+# ADR-0173: GitHub source authority is separate from login
 
 Status: accepted
 

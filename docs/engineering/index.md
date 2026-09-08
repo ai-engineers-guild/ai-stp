@@ -22,11 +22,11 @@ last_verified: "2026-08-03"
 | [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-08-12 |
 | [github-connector-implementation-plan.md](github-connector-implementation-plan.md) | Implementation and verification sequence for GitHub Connector issues 181 through 186. | 2026-09-08 |
 | [github-connector-operations.md](github-connector-operations.md) | Operator runbook for the single GitHub App used by source access and repository actions. | 2026-09-08 |
-| [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-07 |
+| [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-08 |
 | [official-registry-identity-and-requests-implementation-plan.md](official-registry-identity-and-requests-implementation-plan.md) | Implementation sequence for unique public identities, the Git-owned Official registry, recoverable updates, and unified ownership and verification requests. | 2026-09-04 |
 | [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-04 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
-| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-07 |
+| [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-08 |
 | [repository-structure.md](repository-structure.md) | Target monorepository structure and code ownership rules. | 2026-08-05 |
 | [runner-separation-readiness.md](runner-separation-readiness.md) | Dated images of inventory of separate CI/deploy trust domains and the solutions that replaced the planned barrier. | 2026-08-16 |
 | [schema-evolution.md](schema-evolution.md) | Versioning, compatibility, and migration of persisted and transmitted schemas. | 2026-08-03 |

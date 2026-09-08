@@ -97,6 +97,7 @@ Checks this build currently names:
 | `composition_passports` | whether recorded compositions still have a head |
 | `addressable_objects` | whether every local object has a head revision |
 | `provider_binding` | whether a remembered provider still resolves |
+| `cli_update` | whether a CLI self-update is interrupted or a newer wheel is cached |
 
 `doctor` does not create a device when `device_identity` is empty. It does
 not install a toolchain, an Agent Skill, or a harness program. Those are

@@ -1,6 +1,6 @@
 ---
 description: "Current ai_stp status and the ordered plan for remaining work."
-last_verified: "2026-09-07"
+last_verified: "2026-09-08"
 ---
 
 # Current status and plan
@@ -14,6 +14,42 @@ scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 `#151` (transform `1.3`). Shared `cli` prefix containment landed in `#152`.
 The `#146`/`#155` platform closeout is implemented in this tree; GitHub issue
 state remains a separate maintainer action. Merged PRs are not the OBT release.
+
+## Active full-beta execution — September 8
+
+The user selected seven harnesses on three required platforms: Linux x86_64,
+Windows x86_64 and macOS arm64. Linux arm64, Windows arm64 and macOS x86_64
+are explicitly not_verified and do not delay this beta. One agent owns implementation and integration across CLI,
+contracts, API/platform/worker/web/deployment and the source setup systems. No
+subagents or new worktrees are used. The installed `ai-stp-cli` is the user's
+entry point for acquisition, installation, updates and recovery.
+
+Baseline: public `1d4a9e89`, setup source `b767490`. Colleague PR #187 is already
+merged and included locally. Focused checks pass, but the measured failures below
+are not covered by their current assertions. Historical snapshots below remain
+historical; this table owns the active execution order.
+
+| Stage | Remaining outcome | State |
+|---|---|---|
+| R1 | Concise current instructions/checkpoint and reusable installed-process tests | In progress |
+| R2 | One private metadata response; visibility lifecycle; immutable publication and every projection bind | Merged and deployed in edbb6da9; live account evidence continues in R6 |
+| R3 | Merge-aware deployment verifier; real storage/migration/restore and web integration | Verifier merged and production migration 0056 observed; remaining recovery evidence open |
+| R4 | Self-updater reconciliation, installer ownership, rollback bytes, total deadline and PyPI provider bootstrap | Updater merged; automatic PyPI bootstrap implemented and under validation; final release qualification open |
+| R5 | Seven source-owned native setup systems, all four postures and builder capabilities | All seven providers released at 0.0.69; complete native configuration evidence remains open |
+| R6 | Current corpus publication/readback, real account journey and all final machine-help commands | Open; baseline 106 exact coordinates unavailable and 185 commands |
+| R7 | Exact candidate on the three required OS/arch: 21 provider/launch combinations and 84 setup/posture/platform combinations | Open |
+| R8 | Reader-before-writer release, file-bound estate evidence, PyPI/PATH/production readback | Open |
+
+Confirmed repairs include mismatched private wire models, missing visibility
+routes, artifact resealing of an existing X.Y, unchecked projection bind answers,
+updater false rollback success and interrupted-update reconciliation. The estate
+validator must bind actual artifact/evidence files; matrix labels alone are not
+qualification. Native consumer workflows must consume the same candidate wheel.
+
+Fast iterations run affected checks; final qualification covers the full selected
+matrix and the repository gates. Technical reader releases may satisfy rollout
+ordering but do not finish the beta. Version numbers remain independent across
+CLI, API, providers, kit and immutable objects.
 
 ## September 7 audit and execution order
 
@@ -115,7 +151,7 @@ follow from finding an incomplete deployed user flow.
 | Platform | `/v1`, PostgreSQL, object storage, queue, authentication/devices, sync, publication, grants/reports, public catalog, article, and SEO projections |
 | Web | Landing, catalog/detail, account/device/owner surfaces, content hub, machine projections, and a three-OS test matrix |
 | Providers | Seven provider integrations with native configuration, backup/recovery and software lifecycle interfaces. Current consumer contracts still name protocol v3; per-provider launch completeness requires G4/G5 evidence. |
-| Release | Recorded published line is `0.0.18` as one `ai-stp-cli` wheel (`ADR-0146`, tag `v0.0.18`); GitHub attested acquisition is the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Current release qualification and deployed state require exact-SHA evidence, not this row. |
+| Release | Published consumer line is `ai-stp-cli==0.0.20` (`ADR-0146`, tag `v0.0.20`, main `185b4549`). The user PATH command was still `0.0.17` on 2026-09-08. GitHub attested acquisition remains the default provider path; PyPI provenance is a second, explicit path (`ADR-0141`). Self-update of the CLI wheel is `SPEC-072` / `ADR-0170`. |
 | Catalog | The canonical first-party corpus models seven harness families and four postures. Identity projection, exact target assurance, and normal-path publication/readback evidence are implemented in the current platform closeout for `#146`/`#155`. |
 | OBT support tiers | All seven harnesses are `beta` (`SUPPORT_TIERS`, `SPEC-033` REQ-3315). `primary` remains a valid later GA label with no current members |
 
@@ -250,7 +286,45 @@ dependency.
 | G3 | Cross-harness component adaptations and executable lifecycle | Component materialize, per-adaptation eval, claimed-portable overlay, and shared `cli` program lifecycle are in tree (`#151`, prefix containment `#152`). Occupied next-minor and overlay identities refuse a different intended passport; install/invoke/status bind to installed bytes and the requested version, not a newer registry `current` or first ZIP member. Setup eval is the setup harness only; `eval component` enumerates every advertised adaptation. `--all-missing` stamps every remaining derivable harness in one owner version. Overlay stays private. Pi MCP packages remain blocked without a measured package transform. | Native format-specific positive and negative controls; one shared executable with verified install/invoke/remove; no sevenfold runtime duplication |
 | G4 | Antigravity launch against the documented home | Public `antigravity-setup-system` `main` (`#113`, merge `a4e817de`) declares `LaunchBinding::DocumentedHome`; `config_home_env` stays empty. Six siblings received the shared runtime on the same render. Native `can_launch` against `~/.gemini` is still an evidence run, not this merge. Do not invent `ANTIGRAVITY_*`. | `can_launch` true for the documented home on the published public tree; alternate-root launch still refused by name |
 | G5 | Native 7 × 3 OS × x86/arm qualification | Estate record `ai-stp-estate-release/1` already refuses `complete` without 42 launch cells. Installed-artifact and launched-process rows remain `NOT_MEASURED` on current main. | Filled estate record with retained evidence; skipped cells keep the verdict `incomplete` |
-| G6 | Coordinated 0.1.0 / OBT cut | Published consumer `0.0.18`, providers `0.0.67`; the refreshed corpus preserves independent `X.Y` lines and awaits normal-path publication. Re-resolve those coordinates, then coordinate ai-stp and all seven providers after G0–G5 and the platform dependencies. One standard family is not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
+| G6 | Coordinated 0.1.0 / OBT cut | Published consumer `0.0.20`, providers `0.0.68`; corpus pins may still name `0.0.67` when bytes are unchanged. Re-resolve those coordinates, then coordinate ai-stp and all seven providers after G0–G5, B01–B08, and the platform dependencies. One standard family is not a relabel of old numbers (`ADR-0154`). | Matching tags, wheel digest, seven provider artifact digests, catalog readback, estate verdict derived from those rows |
+
+### 8 September 2026 CLI beta remainder
+
+Remeasured against public main `185b4549`, PyPI `ai-stp-cli==0.0.20`, production
+`git_commit=185b4549` / schema `0053`, and PATH `uv tool` pin `==0.0.17`. The
+dated audit is
+`/home/rldyourmnd/Developer/guild/ai_stp/plans/2026-09-08-cli-beta-readiness-plan.md`
+(archive input only). Requirements stay in specs/ADR/contracts.
+
+Historical J1–J6 / F01–F07 from 7 September remain executed with the limitations
+recorded in that day's evidence. They are not re-opened as implementation work.
+
+| ID | Priority | Remainder | Owner / close-out |
+|---|---|---|---|
+| B01 | P0 | PATH is `0.0.17`; no CLI self-updater | CLI: `SPEC-072` updater, bootstrap from the owning installer, then a normal updater-to-updater transition |
+| B02 | P0 | Current corpus exact coordinates return public 404 | CLI publication + platform: ordinary plan/bind/validate/confirm and full readback |
+| B03 | P0 | Live private version is `GET /v1/catalog/.../versions/{X.Y}/private`; visibility `/access` is still undeployed | CLI version/artifact client uses the live catalog routes; visibility API remains platform |
+| B04 | P0 | `#187` merged `61828fb4`; CLI `/access` version reads were dead against OpenAPI | Same as B03: one live version route, no `/access` fallback for artifacts |
+| B05 | P0 | `#187` bind reseals visibility/artifact/revision of an existing `X.Y` | CLI bind and setup publication send sealed passport bytes; catalog projection emits `distribution_visibility=public` for opened private passports |
+| B06 | P0 | No current real browser login, two-device sync, grant, private fetch, visibility, revoke | Real sessions; mock transport is not evidence |
+| B07 | P0 | 179 commands counted; no current manual command ledger | Ledger against final machine help, including updater commands |
+| B08 | P0 | No complete estate record on this line; GitHub `0.0.20` has five assets | Candidate + required evidence cells; incomplete is not complete |
+| B09 | P1 | `verify_live_slice` reads one page and one object per kind | Full pagination and exact corpus inventory |
+| B10 | P1 | `_evidence.cli` checks JSON `ok` without `returncode` / timeout | Exit/envelope/timeout oracle |
+| B11 | P1 | Estate validator does not read artifact files | Executable `--artifacts` or equivalent byte check |
+| B12 | P1 | Antigravity launch reasons disagree with released `DocumentedHome` | Re-read exact provider-info; fix the measurement |
+| B13 | P1 | `--version` / doctor do not prove plugin/skill/hook/MCP execution | Native loading/invocation probes |
+| B14 | P1 | Corpus pins `0.0.67`, runtime providers `0.0.68` | Byte compare; do not bump `X.Y` for a tag-only change |
+| B15 | P1 | Roadmap/release docs mixed `0.0.18` / `0.0.65` / unfinished PyPI deletion | This table and the release row; historical snapshot stays historical |
+| B16 | P1 | “Everything through PyPI” vs GitHub-default provider acquire | Qualify each layer; no silent source fallback |
+| B17 | P1 | Native workflows used checkout consumer, not the published wheel | Matrices install the exact candidate wheel |
+| B18 | P1 | PyPI classifier is still Alpha | Beta classifier only after acceptance |
+| B19 | P2 | Serena core memory points at missing current-work files in some trees | Drop false pointers; do not revive the archive |
+
+Private/visibility: live private version/artifact reads use the deployed
+`/v1/catalog/.../private` and `/artifact` routes. Visibility plans stay on
+`/v1/access/visibility/plans` and are not in the current OpenAPI. `#187` is
+merged (`61828fb4`); publication bind must not rewrite sealed `X.Y` identity.
 
 Posture (`minimal` / `baseline` / `full-auto` / `nddev-builder`) is the
 content footprint of a setup (`ADR-0130`). `execution_profile` is independently
@@ -269,7 +343,7 @@ completed rows:
 
 | Issue | State | Evidence boundary or remaining action |
 |---|---|---|
-| `#100` | one deletion remains | Four former internal projects return 404. The explicitly authorized `ai-stp-sources` deletion is blocked by browser policy verification; the clean installed CLI has no dependency on those projects. |
+| `#100` | closed for publication | `https://pypi.org/pypi/ai-stp-sources/json` returns 404. Re-deletion is not required. The four other former internal projects also 404. |
 | `#125` → `#146` | closeout implemented; GitHub status is maintained separately | Canonical component taxonomy includes `cli` and continues to reject `marketplace`; migration `0033` remains unchanged. |
 | `#127` → `#146` | closeout implemented; GitHub status is maintained separately | Fixture seeding remains dev/test only; canonical first-party publication uses the authenticated publication tool and requires catalog/object-store readback and setup provenance evidence. |
 | `#111` `#112` → `#146` | closeout implemented; GitHub status is maintained separately | Exact adaptation/scope assessments, worker projection scans, target matrix, and exact-only harness filters are owned by the current platform path. |

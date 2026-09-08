@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+import yaml
+
 ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 CANONICAL: Final[Path] = ROOT / "skills" / "canonical" / "ai-stp"
 CANONICAL_SKILL: Final[Path] = CANONICAL / "SKILL.md"
@@ -57,22 +59,8 @@ TARGETS: Final[tuple[Projection, ...]] = (
     ),
 )
 
-REFERENCE_NAMES: Final[tuple[str, ...]] = (
-    "envelope.md",
-    "decisions.md",
-    "traps.md",
-    "bootstrap.md",
-    "onboard.md",
-    "account.md",
-    "inspect.md",
-    "catalog.md",
-    "compose.md",
-    "install.md",
-    "daily.md",
-    "recover.md",
-    "author.md",
-    "provider.md",
-    "self.md",
+REFERENCE_NAMES: Final[tuple[str, ...]] = tuple(
+    sorted(path.name for path in REFERENCES.glob("*.md") if path.is_file())
 )
 
 
@@ -85,10 +73,13 @@ def render(projection: Projection, *, locale: str = "en") -> str:
     """Harness projection: the procedure plus native-surface metadata."""
     source = CANONICAL_SKILL if locale == "en" else LOCALE_RU / "SKILL.md"
     text = source.read_text(encoding="utf-8")
+    frontmatter = yaml.safe_load(text.split("---", 2)[1])
+    description = " ".join(str(frontmatter["description"]).split())
     locale_line = "" if locale == "en" else '  locale: "ru"\n'
     header = f"""---
 name: ai-stp
-description: Operate the ai-stp CLI on the {projection.harness_id} native surface.
+description: >-
+  {description}
 license: AGPL-3.0-or-later
 metadata:
   harness: "{projection.harness_id}"

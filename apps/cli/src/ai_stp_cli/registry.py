@@ -447,8 +447,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "component-root",
                 "string",
-                "Exact component directory to package with Git ignore rules.",
-                required=True,
+                "Optional source directory to compare with the already released artifact.",
             ),
             option(
                 "attestation-file",
@@ -472,8 +471,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "component-root",
                 "string",
-                "Exact component directory evaluated and signed with Git ignore rules.",
-                required=True,
+                "Optional source directory to compare with the evaluated released artifact.",
             ),
             option(
                 "visibility",
@@ -3529,7 +3527,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "source",
                 "string",
-                "github (default) binds a GitHub release; index binds a PEP 740 wheel.",
+                "index (default) verifies a PyPI wheel; github selects a GitHub release.",
                 choices=("github", "index"),
             ),
         ),
@@ -3677,6 +3675,89 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-toolchain-profile",
         handler="toolchain:profile",
         next_actions=("doctor",),
+    ),
+    Declaration(
+        path=["update", "check"],
+        summary="Report whether a newer compatible ai-stp-cli wheel is install-ready.",
+        result_schema="urn:ai-stp:schema:v1:cli-self-update-check",
+        handler="update:check",
+        parameters=(
+            option("offline", "boolean", "Use only the check cache; never the network."),
+            option(
+                "channel",
+                "string",
+                "Release channel. Omit to use update.channel from configuration.",
+                choices=("stable", "prerelease"),
+            ),
+            option("version", "string", "Exact PEP 440 version to inspect instead of newest."),
+        ),
+        next_actions=("update plan", "update status"),
+    ),
+    Declaration(
+        path=["update", "plan"],
+        summary="Pin one exact PyPI wheel and the installer that must apply it.",
+        result_schema="urn:ai-stp:schema:v1:cli-self-update-plan",
+        handler="update:plan",
+        mutability="plan",
+        parameters=(
+            option(
+                "channel",
+                "string",
+                "Release channel. Omit to use update.channel from configuration.",
+                choices=("stable", "prerelease"),
+            ),
+            option("version", "string", "Exact PEP 440 version to pin instead of newest."),
+        ),
+        next_actions=("update apply", "update status"),
+    ),
+    Declaration(
+        path=["update", "apply"],
+        summary="Replace this CLI with the exact wheel a stored update plan named.",
+        result_schema="urn:ai-stp:schema:v1:cli-self-update-result",
+        handler="update:apply",
+        mutability="apply",
+        confirmation="plan_digest",
+        parameters=(
+            option(
+                "expected-plan-digest",
+                "string",
+                "Exact digest returned by update plan.",
+                required=True,
+            ),
+        ),
+        next_actions=("update status", "update rollback"),
+    ),
+    Declaration(
+        path=["update", "status"],
+        summary="Read the CLI update journal and the distribution a new process reports.",
+        result_schema="urn:ai-stp:schema:v1:cli-self-update-status",
+        handler="update:status",
+        next_actions=("update recover", "update rollback"),
+    ),
+    Declaration(
+        path=["update", "recover"],
+        summary="Finish or restore an interrupted CLI update from the journalled plan.",
+        result_schema="urn:ai-stp:schema:v1:cli-self-update-result",
+        handler="update:recover",
+        mutability="apply",
+        next_actions=("update status",),
+    ),
+    Declaration(
+        path=["update", "rollback"],
+        summary="Restore the previous verified CLI distribution from retained wheel bytes.",
+        result_schema="urn:ai-stp:schema:v1:cli-self-update-result",
+        handler="update:rollback",
+        mutability="apply",
+        confirmation="plan_digest",
+        parameters=(
+            option(
+                "expected-plan-digest",
+                "string",
+                "Rollback digest recorded after the last verified update.",
+                required=True,
+            ),
+        ),
+        next_actions=("update status",),
     ),
     Declaration(
         path=["version"],

@@ -3,9 +3,8 @@
 import base64
 import json
 import os
-import sqlite3
+from contextlib import closing
 from pathlib import Path
-from sqlite3 import Connection
 from typing import cast
 
 import pytest
@@ -15,13 +14,12 @@ from ai_stp_cli import identity
 from ai_stp_cli.cloud import session
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
-    component_passports,
-    components,
     content,
-    publication_snapshot,
+    revisions,
     versions,
 )
 from ai_stp_cli.local.cache import digest_of
+from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_contracts.first_party import versions as first_party_versions
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.refs import ComponentRef
@@ -49,15 +47,23 @@ def test_sign_writes_one_owner_only_full_record_and_load_verifies(
     signer, _warning = identity.load_or_create()
     passport = _passport()
     passport_document = cast(dict[str, JsonValue], passport.model_dump(mode="json"))
-    recorded = versions.Recorded(
-        stable_id=passport.stable_id,
-        version=passport.version,
-        major=1,
-        minor=0,
-        passport_digest=digest_of(passport_document),
-        revision_id="revision_" + "a" * 64,
-        created_at="2026-08-13T00:00:00.000Z",
+    artifact_bytes = next(
+        item.artifact
+        for item in first_party_versions()
+        if item.passport.stable_id == passport.stable_id
+        and item.passport.version == passport.version
     )
+    with closing(open_registry(configured_path())) as connection, transaction(connection):
+        content.put(connection, artifact_bytes, at=passport.created_at)
+        stored = revisions.commit(connection, passport_document, device_id=signer.device_id)
+        versions.record(
+            connection,
+            stable_id=passport.stable_id,
+            version=passport.version,
+            passport_digest=digest_of(passport_document),
+            revision_id=stored.revision_id,
+            at=passport.created_at,
+        )
     monkeypatch.setattr(
         attestations,
         "_session",
@@ -71,38 +77,12 @@ def test_sign_writes_one_owner_only_full_record_and_load_verifies(
     )
     monkeypatch.setattr(attestations, "_identity", lambda: (signer, None))
 
-    def open_memory(_path: Path) -> Connection:
-        return sqlite3.connect(":memory:")
-
-    def passport_for_version(
-        _connection: Connection, _stable_id: str, _version: str
-    ) -> ComponentVersionPassport:
-        return passport
-
-    def held_version(_connection: Connection, _stable_id: str, _version: str) -> versions.Recorded:
-        return recorded
-
-    monkeypatch.setattr(attestations, "open_readonly", open_memory)
-    monkeypatch.setattr(
-        component_passports,
-        "version_passport",
-        passport_for_version,
-    )
-    monkeypatch.setattr(
-        versions,
-        "held",
-        held_version,
-    )
     output = tmp_path / "evidence" / "attestation.json"
-    component_root = tmp_path / "component"
-    component_root.mkdir()
-    (component_root / "SKILL.md").write_text("# Exact publication\n", encoding="utf-8")
 
     result = attestations.sign(
         {
             "id": passport.stable_id,
             "version": passport.version,
-            "component-root": str(component_root),
             "check-id": "credentials",
             "policy-version": "1",
             "tool-version": ("runner=2.0",),
@@ -117,18 +97,8 @@ def test_sign_writes_one_owner_only_full_record_and_load_verifies(
     ).payload
 
     loaded = attestations.load(output)
-    artifact_bytes, _inventory = components.package_publication_root(component_root)
-    artifact_digest = content.address_of(artifact_bytes)
-    publication_passport = publication_snapshot.bind(
-        passport,
-        visibility=passport.visibility,
-        digest=artifact_digest,
-        size_bytes=len(artifact_bytes),
-    )
-    assert loaded.object_digest == artifact_digest
-    assert loaded.subject.passport_digest == digest_of(
-        cast(JsonValue, publication_passport.model_dump(mode="json"))
-    )
+    assert loaded.object_digest == passport.artifact.digest
+    assert loaded.subject.passport_digest == digest_of(passport_document)
     assert result.attestation_digest == attestation_digest(loaded)
     assert attestations.verify(loaded, signer)
     if os.name != "nt":

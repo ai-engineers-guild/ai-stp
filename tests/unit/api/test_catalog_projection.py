@@ -426,11 +426,19 @@ def test_verify_passport_integrity_rejects_revision_seal_mismatch() -> None:
         verify_passport_integrity(bad)
 
 
-def test_verify_passport_integrity_rejects_private_passport() -> None:
+def test_verify_passport_integrity_rejects_private_passport_on_private_metadata() -> None:
     row = _row_with_passport_variant(visibility="private")
     row.metadata.visibility = "private"
     with pytest.raises(CatalogIntegrityError, match="not public"):
         verify_passport_integrity(row)
+
+
+def test_verify_passport_integrity_accepts_opened_private_passport() -> None:
+    row = _row_with_passport_variant(visibility="private")
+    verify_passport_integrity(row)
+    opened = component_version_response(row)
+    assert opened.passport.visibility == "private"
+    assert opened.distribution_visibility == "public"
 
 
 def test_verify_passport_integrity_rejects_identity_mismatch() -> None:

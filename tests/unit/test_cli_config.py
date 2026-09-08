@@ -82,6 +82,8 @@ def test_a_file_that_is_not_a_mapping_is_a_validation_error() -> None:
         ("search:\n  result_limit: many\n", "a whole number"),
         ("search:\n  result_limit: true\n", "a whole number"),
         ("catalog:\n  url: 8\n", "a string"),
+        ("update:\n  channel: nightly\n", "stable or prerelease"),
+        ("update:\n  check_ttl_hours: 0\n", "a whole number of hours, at least 1"),
         ("projects:\n  discovery_roots: /srv\n", "a list of strings"),
         ("projects:\n  discovery_roots:\n    - 8\n", "a list of strings"),
     ],

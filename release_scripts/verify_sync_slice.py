@@ -262,16 +262,11 @@ def _seed_component(home: Path, *, python: str) -> str:
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         shutil.rmtree(target)
-    # The scaffold emits an authoring workspace whose generated native half lives
-    # under `projections/<harness>/` — SKILL.md and the GENERATED marker for this
-    # probe. Adoption reads the native component, and handing it the whole
-    # workspace was this slice's own defect, found the first time a real account
-    # ran it after the authoring template rework: `component adopt` refused with
-    # "this directory holds no manifest to adopt", and the refusal was correct.
-    native = scaffold / "projections" / "portable"
-    if not native.is_dir():
-        raise EvidenceError(f"the scaffold at {scaffold} has no projections/portable half to adopt")
-    shutil.copytree(native, target, ignore=shutil.ignore_patterns("GENERATED.md"))
+    # Portable skill scaffolds own their adoptable native files under source/.
+    native = scaffold / "source"
+    if not (native / "SKILL.md").is_file():
+        raise EvidenceError(f"the scaffold at {scaffold} has no source/SKILL.md to adopt")
+    shutil.copytree(native, target)
     adopted = data(
         cli(
             ["component", "adopt", "--path", str(target), "--root", str(project)],

@@ -97,12 +97,15 @@ FIRST_PARTY_SOURCES: Final[tuple[Path, ...]] = (
 #: `ADR-0058`, `httpx` by `#75`, `jsonschema` for the closed provider status
 #: boundary, `pyyaml` for the configuration file, `pydantic`
 #: for the wire and report models, `rfc8785` for canonical JSON in foundation,
-#: `markdown-it-py` for passport markdown, and `tomlkit` by `ADR-0129` for
+#: `markdown-it-py` for passport markdown, `packaging` for PEP 440 comparison in
+#: the self-updater (`SPEC-072` / `ADR-0170`), and `tomlkit` by `ADR-0129` for
 #: format-preserving writes to a host file a component contributes one key to
 #: — `tomllib` in the standard library only reads, and writing values back
 #: would erase every comment the file's owner put there. `python-ulid` provides
 #: stable IDs for local setup composition. First-party modules ship inside the
 #: wheel (`ADR-0146`) and are not PyPI requirements.
+#: `uv` provisions the isolated provenance verifier (`ADR-0171`); it runs as a
+#: Python module in a child process instead of importing into the CLI process.
 #: A name reaching this set without a reason is the thing to argue about.
 ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
     {
@@ -111,12 +114,14 @@ ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
         "jsonschema",
         "keyring",
         "markdown-it-py",
+        "packaging",
         "pynacl",
         "pydantic",
         "pyyaml",
         "python-ulid",
         "rfc8785",
         "tomlkit",
+        "uv",
     }
 )
 
@@ -136,7 +141,7 @@ def _declared(wheel: Path) -> set[str]:
 
 
 def _directly_imported() -> set[str]:
-    """Every third-party distribution the shipped first-party sources import."""
+    """Dependencies imported or invoked with Python's module entry point."""
     found: set[str] = set()
     for root in FIRST_PARTY_SOURCES:
         for source in root.rglob("*.py"):
@@ -147,6 +152,22 @@ def _directly_imported() -> set[str]:
                 elif isinstance(node, ast.ImportFrom):
                     # A relative import is this package talking to itself.
                     names = [node.module or ""] if not node.level else []
+                elif (
+                    isinstance(node, ast.List | ast.Tuple)
+                    and node.elts
+                    and ast.unparse(node.elts[0]) == "sys.executable"
+                ):
+                    # Only this interpreter's modules are CLI dependencies.
+                    # Git's -m is a message; a target installer's pip belongs
+                    # to that target environment, not to this distribution.
+                    names = [
+                        following.value
+                        for current, following in zip(node.elts, node.elts[1:], strict=False)
+                        if isinstance(current, ast.Constant)
+                        and current.value == "-m"
+                        and isinstance(following, ast.Constant)
+                        and isinstance(following.value, str)
+                    ]
                 else:
                     continue
                 for name in names:

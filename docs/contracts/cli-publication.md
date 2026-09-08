@@ -1,6 +1,6 @@
 ---
 description: "Client-side publication plan sequence and the boundary of transmitted data."
-last_verified: "2026-08-25"
+last_verified: "2026-09-08"
 ---
 
 # CLI publication
@@ -75,3 +75,9 @@ the same digest is skipped by reading the catalog, without seeding or direct
 writes. Ordering, resume behavior, and fail-closed behavior belong to
 [first-party-launch-publication.md](../operations/runbooks/first-party-launch-publication.md)
 and `SPEC-026` `REQ-2628`.
+
+Publication and attestation signing read the released artifact from local content
+storage. Optional `component-root` checks current source content against that
+artifact; it does not create a replacement passport. Every canonical and projection
+bind response must retain the original plan identity. Changed source content is
+captured and released before creating its publication plan.

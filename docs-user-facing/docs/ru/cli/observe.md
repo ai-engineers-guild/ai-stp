@@ -99,6 +99,7 @@ ai-stp doctor --json
 | `composition_passports` | есть ли у записанных композиций голова |
 | `addressable_objects` | есть ли у каждого локального объекта головная ревизия |
 | `provider_binding` | резолвится ли ещё запомненный provider |
+| `cli_update` | прервано ли self-update CLI или в кэше есть более новый wheel |
 
 `doctor` не создаёт устройство, когда `device_identity` пуст. Он не
 ставит toolchain, Agent Skill и программу harness. Это отдельные

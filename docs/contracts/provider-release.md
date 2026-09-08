@@ -57,8 +57,8 @@ the Ed25519 path: OpenNetwork bytes are not added there.
 
 The same seven providers are also pinned as `[[index_publishers]]` tables:
 `pypi_project`, PEP 740 `repository` (`owner/name`), `workflow`, `environment`,
-and `verified_publisher`. That pin does not change the default acquire path.
-`provider fetch` still binds a GitHub release unless `--source index` is named.
+and `verified_publisher`. Automatic missing-provider acquisition uses the index
+under ADR-0171. An explicitly selected GitHub fetch remains available.
 Empty `index_publishers` is the rollback: every wheel-delivered provider stays
 `unverified` (`REQ-851`). Cryptographic verification of a PEP 740 bundle uses
 `pypi-attestations` the way GitHub verification uses `gh`; its absence is
@@ -185,9 +185,13 @@ Before the provider's first execution, the trusted installation path verifies
 the signature, policy identifier, membership in the pinned list, platform, and
 exact executable bytes, preserves the canonical manifest within the plan
 digest, and repeats policy and byte verification before `apply`. For an attested
-release, the stored JSON response from
+GitHub release, the stored JSON response from
 `gh attestation verify --format=json` is reverified with `gh --bundle` against
 the extracted Sigstore bundle rather than against the GitHub CLI wrapper.
+For an index release, the plan-bound manifest selects PEP 740 revalidation:
+the retained wheel must contain the exact executable, the receipt must bind its
+digest and source commit, and retained provenance must match the approved
+document before its signature and pinned publisher are verified again.
 History advances atomically only together with operation state `verified`. A
 history write failure rolls back `verified`, leaving the operation in
 `applied_unverified`. The diagnostic manifest-verification command reads the
@@ -249,3 +253,19 @@ cross a minimum raised after a compromise.
 Updating the provider does not update user targets or setups. The new version is
 installed alongside the old one; the current pointer changes after diagnostics,
 and the previous version is preserved for rollback.
+
+## Managed index verification runtime
+
+ADR-0171 makes PyPI the automatic missing-provider source. The installed CLI
+provides uv and a hash-pinned verifier environment, bootstrapped on demand in its
+owned cache. The verified response binds repository, workflow, environment, exact
+wheel filename/digest and source commit from the successful attestation. Runtime
+architecture is retained in a local verification receipt. Qualification covers Linux x86_64, Windows x86_64 and macOS arm64. The other
+three platform/architecture pairs remain not_verified.
+Explicit GitHub acquisition remains an independent selected path.
+
+Index binding retains `index-release.json`, the exact wheel and its provenance
+beside `release.json`. Subsequent checks verify the wheel, compare its packaged
+executable with the runnable bytes and recheck the verified commit against the
+manifest. They do not switch to GitHub attestation because the publisher uses
+GitHub source control.

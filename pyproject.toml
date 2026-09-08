@@ -19,6 +19,8 @@ dependencies = [
 ]
 
 [dependency-groups]
+# Exported into the CLI verifier runtime; never installed into the native CLI.
+provider-verifier = ["pypi-attestations==0.0.30"]
 dev = [
     "httpx>=0.28",
     "hypothesis>=6.112",

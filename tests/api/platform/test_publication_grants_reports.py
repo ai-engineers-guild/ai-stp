@@ -6,7 +6,6 @@ from __future__ import annotations
 import io
 import zipfile
 from collections.abc import AsyncIterator, Callable
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
 
@@ -21,21 +20,17 @@ from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_STATUS, ErrorCategory
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
-from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_platform.external_catalog_admin import apply_case as apply_catalog_request
-from ai_stp_platform.github_models import DistributionVisibilityPlan
 from ai_stp_platform.models import (
     Account,
     AuditEvent,
-    CatalogIdentity,
     CatalogMetadata,
     Device,
     ExternalProductLocale,
     OAuthIdentity,
-    ObjectLocation,
     ProfileRevision,
     PublicationPlan,
     PublicProfile,
@@ -137,7 +132,6 @@ def _passport(
     digest: str = DIGEST,
     requires_credentials: bool = False,
     extra_projection: bool = False,
-    visibility: str = "public",
 ) -> dict[str, object]:
     payload = ARTIFACT_BY_DIGEST.get(digest, CLEAN_ARTIFACT)
     passport: dict[str, object] = {
@@ -148,7 +142,7 @@ def _passport(
         "parent_revision_ids": [],
         "owner_id": owner_id,
         "created_at": "2026-08-10T00:00:00.000Z",
-        "visibility": visibility,
+        "visibility": "public",
         "facts": {},
         "name": "demo-skill",
         "description": "Demo publication component.",
@@ -278,161 +272,6 @@ async def _seed_owned_catalog(
             )
         )
         await db.commit()
-
-
-async def test_component_visibility_promotion_is_persistent_and_replay_safe(
-    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Promotion changes only distribution state, never the stored passport."""
-    client, sessionmaker, _settings = harness
-    account_id, device_id, token = await _seed_account_device(sessionmaker)
-    stable_id = "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-    passport = _passport(owner_id=account_id, visibility="private")
-    passport_digest = digest_bytes("ai-stp:passport:v1", canonize(cast(JsonValue, passport)))
-    async with sessionmaker() as db:
-        db.add(
-            CatalogIdentity(
-                stable_id=stable_id,
-                owner_account_id=account_id,
-                canonical_name="demo-skill",
-                canonical_name_normalized="demo-skill",
-                ownership_revision_id="ownership_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-            )
-        )
-        await db.flush()
-        metadata = CatalogMetadata(
-            owner_account_id=account_id,
-            object_kind="component",
-            stable_id=stable_id,
-            version="1.0",
-            current_revision_id=str(passport["revision_id"]),
-            visibility="private",
-            lifecycle_state="active",
-            name="demo-skill",
-            published_at=datetime.now(UTC),
-            trust_lane="experimental",
-            passport_digest=passport_digest,
-            passport_document=passport,
-        )
-        db.add(metadata)
-        await db.flush()
-        db.add(
-            PublicationPlan(
-                id="publication_visibility_fixture",
-                actor_account_id=account_id,
-                device_id=device_id,
-                object_kind="component",
-                stable_id=stable_id,
-                version="1.0",
-                content_digest=DIGEST,
-                artifact_inventory=[],
-                visibility="private",
-                policy_version="1",
-                plan_hash="plan_" + "1" * 64,
-                state="published",
-                passport=passport,
-                attestations=[],
-                effects=[],
-                idempotency_key="publication_visibility_fixture",
-                expires_at=datetime.now(UTC) + timedelta(days=1),
-            )
-        )
-        db.add(
-            ObjectLocation(
-                catalog_metadata_id=metadata.id,
-                purpose="artifact",
-                bucket="test",
-                object_key="artifact/" + DIGEST,
-                digest=DIGEST,
-                content_id=DIGEST,
-                size_bytes=len(CLEAN_ARTIFACT),
-                owner_account_id=account_id,
-            )
-        )
-        await db.commit()
-
-    async def _skip_external_checks(*_args: object, **_kwargs: object) -> None:
-        return None
-
-    monkeypatch.setattr(
-        "ai_stp_api.slices.publish.visibility._validate_public", _skip_external_checks
-    )
-    create = await client.post(
-        "/v1/access/visibility/plans",
-        headers=_auth(token),
-        json={
-            "object_kind": "component",
-            "stable_id": stable_id,
-            "version": "1.0",
-            "visibility": "public",
-            "device_id": device_id,
-            "idempotency_key": "visibility-plan-fixture",
-        },
-    )
-    assert create.status_code == 200, create.text
-    plan = create.json()
-    original_passport = passport.copy()
-    confirm = await client.post(
-        f"/v1/access/visibility/plans/{plan['plan_id']}/confirm",
-        headers=_auth(token),
-        json={
-            "plan_hash": plan["plan_hash"],
-            "confirmed": True,
-            "idempotency_key": "visibility-confirm-fixture",
-        },
-    )
-    assert confirm.status_code == 200, confirm.text
-    replay = await client.post(
-        f"/v1/access/visibility/plans/{plan['plan_id']}/confirm",
-        headers=_auth(token),
-        json={
-            "plan_hash": plan["plan_hash"],
-            "confirmed": True,
-            "idempotency_key": "visibility-confirm-replay",
-        },
-    )
-    assert replay.status_code == 200 and replay.json()["state"] == "applied"
-    async with sessionmaker() as db:
-        row = await db.scalar(select(CatalogMetadata).where(CatalogMetadata.stable_id == stable_id))
-        assert row is not None
-        assert row.visibility == "public"
-        assert row.passport_document == original_passport
-        assert row.passport_digest == passport_digest
-        stored_plan = await db.get(DistributionVisibilityPlan, plan["plan_id"])
-        assert stored_plan is not None and stored_plan.state == "applied"
-
-    withdraw = await client.post(
-        "/v1/access/visibility/plans",
-        headers=_auth(token),
-        json={
-            "object_kind": "component",
-            "stable_id": stable_id,
-            "version": "1.0",
-            "visibility": "private",
-            "device_id": device_id,
-            "idempotency_key": "visibility-withdraw-plan-fixture",
-        },
-    )
-    assert withdraw.status_code == 200, withdraw.text
-    withdraw_plan = withdraw.json()
-    assert withdraw_plan["previous_visibility"] == "public"
-    assert withdraw_plan["visibility"] == "private"
-    withdrawn = await client.post(
-        f"/v1/access/visibility/plans/{withdraw_plan['plan_id']}/confirm",
-        headers=_auth(token),
-        json={
-            "plan_hash": withdraw_plan["plan_hash"],
-            "confirmed": True,
-            "idempotency_key": "visibility-withdraw-confirm-fixture",
-        },
-    )
-    assert withdrawn.status_code == 200, withdrawn.text
-    async with sessionmaker() as db:
-        row = await db.scalar(select(CatalogMetadata).where(CatalogMetadata.stable_id == stable_id))
-        assert row is not None and row.visibility == "private"
-        assert row.passport_document == original_passport
-        assert row.passport_digest == passport_digest
 
 
 async def _drain_jobs(

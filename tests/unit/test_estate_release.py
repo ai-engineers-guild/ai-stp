@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -11,8 +12,11 @@ from release_scripts.build_estate_record import policy_provider_repositories
 from release_scripts.validate_estate_record import validate
 
 from ai_stp_contracts.estate_release import (
+    LEGACY_REQUIRED_LEGS,
+    NOT_VERIFIED_LEGS,
     REQUIRED_LEGS,
     REQUIRED_PROVIDERS,
+    SCHEMA_ID,
     EstateRelease,
     computed_verdict,
 )
@@ -97,7 +101,8 @@ def _qualified_record(**changes: object) -> dict[str, object]:
 def _record(**changes: object) -> dict[str, object]:
     evidence = [_row("software", os_name, arch) for os_name, arch in REQUIRED_LEGS]
     payload: dict[str, object] = {
-        "schema_id": "ai-stp-estate-release/1",
+        "schema_id": SCHEMA_ID,
+        "not_verified_platforms": [f"{os_name}/{arch}" for os_name, arch in NOT_VERIFIED_LEGS],
         "record_id": "cut-1",
         "created_at": "2026-09-04T00:00:00.000Z",
         "consumer": {
@@ -379,3 +384,65 @@ def test_seven_by_six_passed_launch_cells_can_be_complete() -> None:
 
 def test_required_providers_match_the_attested_policy() -> None:
     assert frozenset(REQUIRED_PROVIDERS) == frozenset(policy_provider_repositories())
+
+
+def test_artifacts_must_match_the_recorded_digest(tmp_path: Path) -> None:
+    payload = _record()
+    payload["verdict"] = "incomplete"
+    payload["required_slices"] = []
+    filename = "ai_stp_cli-0.0.17-py3-none-any.whl"
+    body = b"wheel-bytes"
+    digest = "sha256:" + sha256(body).hexdigest()
+    payload["distributions"] = [
+        {
+            "name": "ai-stp-cli",
+            "version": "0.0.17",
+            "filename": filename,
+            "digest": digest,
+        }
+    ]
+    place = tmp_path / "estate.json"
+    place.write_text(json.dumps(payload), encoding="utf-8")
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    (artifacts / filename).write_bytes(body)
+    assert validate(place, artifacts=artifacts) == []
+    (artifacts / filename).write_bytes(b"tampered")
+    problems = validate(place, artifacts=artifacts)
+    assert problems
+    assert "digest" in problems[0]
+
+
+def test_a_missing_artifacts_file_is_refused(tmp_path: Path) -> None:
+    payload = _record()
+    payload["verdict"] = "incomplete"
+    payload["required_slices"] = []
+    place = tmp_path / "estate.json"
+    place.write_text(json.dumps(payload), encoding="utf-8")
+    artifacts = tmp_path / "empty"
+    artifacts.mkdir()
+    problems = validate(place, artifacts=artifacts)
+    assert problems
+    assert "missing artifact" in problems[0]
+
+
+def test_three_platform_beta_does_not_reinterpret_legacy_six_platform_evidence() -> None:
+    current = EstateRelease.model_validate(_qualified_record())
+    assert computed_verdict(current) == "complete"
+    legacy = current.model_copy(update={"schema_id": "ai-stp-estate-release/1"})
+    assert set(REQUIRED_LEGS) < set(LEGACY_REQUIRED_LEGS)
+    assert computed_verdict(legacy) == "incomplete"
+
+
+@pytest.mark.parametrize(("os_name", "arch"), NOT_VERIFIED_LEGS)
+def test_optional_platform_failure_does_not_delay_primary_beta(os_name: str, arch: str) -> None:
+    payload = _qualified_record()
+    record = EstateRelease.model_validate(payload)
+    evidence = [row.model_dump() for row in record.evidence]
+    payload["evidence"] = [*evidence, _row("software", os_name, arch, result="failed")]
+    assert computed_verdict(EstateRelease.model_validate(payload)) == "complete"
+
+
+def test_primary_beta_must_disclose_the_unverified_platforms() -> None:
+    record = EstateRelease.model_validate(_qualified_record(not_verified_platforms=[]))
+    assert computed_verdict(record) == "incomplete"

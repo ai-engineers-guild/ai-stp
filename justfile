@@ -121,9 +121,9 @@ security:
     {{bunreq}}
     cd apps/web && bun run audit
 
-# Offline check of one `ai-stp-estate-release/1` record (`docs/contracts/estate-release.md`).
-estate-validate path:
-    {{run}} python -m release_scripts.validate_estate_record "{{path}}"
+# Offline check of an estate record (`docs/contracts/estate-release.md`).
+estate-validate path *args:
+    {{run}} python -m release_scripts.validate_estate_record "{{path}}" {{args}}
 
 # Build one estate record from local identities. Does not fetch.
 estate-record version commit tag checksums output:
@@ -366,6 +366,7 @@ back-gen:
     {{run}} python -m ai_stp_contracts.schemas schemas/v1
     {{run}} python -m ai_stp_contracts.web_projections
     {{run}} python release_scripts/provider_kit.py provider-kit/v3
+    {{run}} python release_scripts/verifier_requirements.py
     {{py}} {{scripts}}/skill_projections.py
 
 # Формат, линт, типы и расхождение порождённого с источником одним прогоном.
@@ -410,6 +411,7 @@ back-static:
     {{run}} python -m ai_stp_contracts.schemas --check schemas/v1
     {{run}} python -m ai_stp_contracts.web_projections --check
     {{run}} python release_scripts/provider_kit.py --check provider-kit/v3
+    {{run}} python release_scripts/verifier_requirements.py --check
     {{py}} {{scripts}}/skill_projections.py --check
 
 # Coverage is printed, not a fail-under (ADR-0147). The second call reads

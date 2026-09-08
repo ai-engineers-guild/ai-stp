@@ -12,15 +12,26 @@ fact this week. They live here once, and both callers read the same decision.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
+from urllib.parse import urlparse
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import provider_releases
 from ai_stp_cli.paths import redact_home
-from ai_stp_cli.provider import build_attestation, network_launcher, protocol_v3, release
+from ai_stp_cli.provider import (
+    build_attestation,
+    index_attestation,
+    index_wheel,
+    network_launcher,
+    protocol_v3,
+    release,
+)
+from ai_stp_foundation.canonical import JsonValue, canonize
 
 
 @dataclass(frozen=True)
@@ -201,6 +212,8 @@ def trusted_manifest(
         )
     if not attested:
         return ReleaseEvidence(manifest, verdict.trust_level)
+    if urlparse(manifest.artifact_url).hostname == "files.pythonhosted.org":
+        return _index_evidence(manifest, policy, Path(executable))
     rule = policy.build_attestations[manifest.repository]
     given_bundle = str(parameters.get("provider-attestation-bundle") or "")
     bundle = Path(given_bundle).expanduser() if given_bundle else None
@@ -219,5 +232,101 @@ def trusted_manifest(
             verified_publisher=rule.verified_publisher,
         ),
         bundle=bundle,
+    )
+    return ReleaseEvidence(manifest, evidence.trust_level, evidence.document)
+
+
+def _index_evidence(
+    manifest: release.ReleaseManifest,
+    policy: release.TrustPolicy,
+    executable: Path,
+    *,
+    stored_document: str | None = None,
+) -> ReleaseEvidence:
+    project = manifest.provider_id
+    rule = policy.index_publishers.get(project)
+    if rule is None or f"github.com/{rule.repository}" != manifest.repository:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
+        )
+    try:
+        receipt = json.loads((executable.parent / "index-release.json").read_text(encoding="utf-8"))
+        filename = receipt["wheel"]
+        if (
+            not isinstance(filename, str)
+            or Path(filename).name != filename
+            or receipt.get("source_commit") != manifest.commit
+            or receipt.get("artifact_digest") != manifest.artifact_digest
+        ):
+            raise ValueError("index receipt does not match the release")
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
+        ) from error
+    wheel = executable.parent / filename
+    provenance_file = wheel.parent / f"{wheel.name}.provenance.json"
+    if (
+        wheel.is_symlink()
+        or not wheel.is_file()
+        or provenance_file.is_symlink()
+        or not provenance_file.is_file()
+    ):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
+        )
+    payload = index_wheel.inspect(
+        wheel,
+        project=project,
+        version=manifest.provider_version,
+        platform_name=release.current_platform(),
+    )
+    if payload.executable_name != executable.name or payload.executable != executable.read_bytes():
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the downloaded wheel is not the subject of its provenance",
+        )
+    try:
+        document = json.loads(provenance_file.read_text(encoding="utf-8"))
+        if stored_document is not None and canonize(cast(JsonValue, document)) != canonize(
+            cast(JsonValue, json.loads(stored_document))
+        ):
+            raise ValueError("index provenance differs from the approved plan")
+    except (OSError, ValueError) as error:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
+        ) from error
+    if not isinstance(document, dict):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
+        )
+    evidence = index_attestation.verify(wheel, cast(dict[str, object], document), rule)
+    if evidence.identity.source_commit != manifest.commit or evidence.digest != receipt.get(
+        "wheel_digest"
+    ):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
+        )
+    return ReleaseEvidence(manifest, evidence.trust_level, evidence.document)
+
+
+def verify_stored(
+    manifest: release.ReleaseManifest,
+    policy: release.TrustPolicy,
+    executable: Path,
+    document: str,
+) -> ReleaseEvidence:
+    """Re-verify approved evidence using the manifest-bound delivery channel."""
+    if urlparse(manifest.artifact_url).hostname == "files.pythonhosted.org":
+        return _index_evidence(manifest, policy, executable, stored_document=document)
+    rule = policy.build_attestations[manifest.repository]
+    evidence = build_attestation.verify_stored(
+        executable,
+        build_attestation.Policy(
+            repository=manifest.repository.removeprefix("github.com/"),
+            source_commit=manifest.commit,
+            signer_workflow=rule.signer_workflow,
+            verified_publisher=rule.verified_publisher,
+        ),
+        document,
     )
     return ReleaseEvidence(manifest, evidence.trust_level, evidence.document)

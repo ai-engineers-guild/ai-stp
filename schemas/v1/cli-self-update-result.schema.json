@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "CliUpdateApplyOutcome": {
+      "enum": [
+        "replaced",
+        "unchanged",
+        "pending",
+        "recovered",
+        "rolled_back",
+        "refused"
+      ],
+      "type": "string"
+    },
+    "CliUpdateJournalState": {
+      "enum": [
+        "idle",
+        "planned",
+        "downloaded",
+        "applying",
+        "pending",
+        "verified",
+        "recovery_required",
+        "rolled_back",
+        "failed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-self-update-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Outcome of apply, recover or rollback.",
+  "properties": {
+    "executable": {
+      "minLength": 1,
+      "title": "Executable",
+      "type": "string"
+    },
+    "installed_version": {
+      "minLength": 1,
+      "title": "Installed Version",
+      "type": "string"
+    },
+    "journal_state": {
+      "$ref": "#/$defs/CliUpdateJournalState"
+    },
+    "outcome": {
+      "$ref": "#/$defs/CliUpdateApplyOutcome"
+    },
+    "plan_digest": {
+      "default": "",
+      "pattern": "^(?:^sha256:[0-9a-f]{64}$)?$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "rollback_digest": {
+      "default": "",
+      "pattern": "^(?:^sha256:[0-9a-f]{64}$)?$",
+      "title": "Rollback Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "target_version": {
+      "minLength": 1,
+      "title": "Target Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "executable",
+    "installed_version",
+    "journal_state",
+    "outcome",
+    "plan_digest",
+    "reason",
+    "rollback_digest",
+    "schema_version",
+    "target_version"
+  ],
+  "title": "CliSelfUpdateResult",
+  "type": "object"
+}

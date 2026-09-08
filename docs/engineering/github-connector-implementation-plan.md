@@ -10,7 +10,7 @@ last_verified: "2026-09-08"
 Finish issues 181 through 186 on branch
 `codex/issues-181-186-mainline-20260908`. The implementation baseline is commit
 `766ef302`, recovered from GitWork3 and applied on remote `main` commit `61828fb4`.
-SPEC-072 and ADR-0170 are normative. This document replaces the ignored local note
+SPEC-072 and ADR-0173 are normative. This document replaces the ignored local note
 `plans/plan_github_connector_181_186_20260908.md` as the tracked execution plan.
 
 Issue 185 remains in SPEC-072 because issue 182 includes repository-management

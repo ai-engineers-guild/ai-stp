@@ -1,7 +1,7 @@
 """Repair assurance expiry on partially applied catalog schemas.
 
 Revision ID: 0057_catalog_assurance_expiry_compat
-Revises: 0056_github_connector
+Revises: 0056_github_connector, 0056_distribution_visibility_plans
 """
 
 from __future__ import annotations
@@ -12,7 +12,10 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0057_catalog_assurance_expiry_compat"
-down_revision: str | None = "0056_github_connector"
+down_revision: str | tuple[str, str] | None = (
+    "0056_github_connector",
+    "0056_distribution_visibility_plans",
+)
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

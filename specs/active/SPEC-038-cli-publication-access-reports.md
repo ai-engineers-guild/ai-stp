@@ -61,11 +61,11 @@ This excludes the server-side state machine, background jobs, PostgreSQL, modera
 - `REQ-3815`: The CLI exposes read-only request status and recovery after an
   indeterminate submit result. It exposes no command that approves ownership
   transfer or grants/revokes `author_verified`.
-- `REQ-3816`: Publication packages the exact selected component root through
-  the canonical component-tree format. It includes tracked files and untracked
-  files not excluded by applicable Git ignore rules, excludes repository
-  metadata and ignored untracked files, shows the bound inventory, and uploads
-  exactly those bytes to the plan before confirmation.
+- `REQ-3816`: Publication uploads the exact artifact already sealed into the
+  selected local X.Y, with its decoded path inventory. An optional component root
+  is packaged through the canonical Git-aware component-tree encoder and checked
+  against that released content. It cannot replace artifact bytes or reseal X.Y;
+  changed source content must be captured and released before publication.
 - `REQ-3817`: A private catalog download and install uses the authenticated
   server route and accepts only owner or active-grant responses. The CLI does
   not infer rights locally, does not receive an object key or storage

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from pydantic import Field, SerializerFunctionWrapHandler, ValidationError, model_serializer
 
@@ -50,6 +50,14 @@ from ai_stp_platform.catalog_targets import (
 from ai_stp_platform.safety.percent import is_user_facing_row, verdict_percent
 
 PASSPORT_DIGEST_DOMAIN = "ai-stp:passport:v1"
+
+
+def _opened_distribution(
+    row: PublicVersionRow, passport_visibility: str
+) -> Literal["public"] | None:
+    if row.metadata.visibility == "public" and passport_visibility == "private":
+        return "public"
+    return None
 
 
 def _overlay_stored_passport(dumped: object, stored: dict[str, JsonValue]) -> dict[str, Any]:
@@ -324,11 +332,8 @@ def verify_passport_integrity(row: PublicVersionRow, *, allow_private: bool = Fa
     stored = cast(dict[str, JsonValue], row.passport)
     if stored.get("revision_id") != derive_revision_id(stored):
         raise CatalogIntegrityError("passport revision seal mismatch")
-    if (
-        passport.visibility != "public"
-        and not allow_private
-        and getattr(row.metadata, "visibility", None) != "public"
-    ):
+    opened = row.metadata.visibility == "public" and passport.visibility == "private"
+    if passport.visibility != "public" and not allow_private and not opened:
         raise CatalogIntegrityError("passport is not public")
     if passport.stable_id != row.stable_id or passport.version != row.version:
         raise CatalogIntegrityError("passport identity mismatch")
@@ -677,7 +682,7 @@ def component_version_response(
         eligible_for_full_auto=eligible_for_full_auto,
     )
     return _WiredComponentVersionResponse(
-        distribution_visibility="public",
+        distribution_visibility=_opened_distribution(row, passport.visibility),
         passport=passport,
         passport_digest=row.passport_digest,  # type: ignore[arg-type]
         lifecycle=row.lifecycle,  # type: ignore[arg-type]
@@ -699,6 +704,7 @@ def setup_version_response(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
     )
     return _WiredSetupVersionResponse(
+        distribution_visibility=_opened_distribution(row, passport.visibility),
         passport=passport,
         passport_digest=row.passport_digest,  # type: ignore[arg-type]
         lifecycle=row.lifecycle,  # type: ignore[arg-type]

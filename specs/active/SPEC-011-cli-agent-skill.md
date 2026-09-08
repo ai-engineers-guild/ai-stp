@@ -27,7 +27,7 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
 - `REQ-1103`: A sensitive change has an immutable plan and a separate apply step using an exact hash.
 - `REQ-1104`: Automatic code work does not remove the remaining stops named by `skills/canonical/ai-stp/references/decisions.md` (`ADR-0150`, `ADR-0159`). Unverified install under task authority, Git promotion, and deploy of requested verified work are not remaining stops. Unverified stays labeled unverified.
 - `REQ-1105`: One canonical agent skill creates testable native projections for seven harnesses. A projection delivers the procedure as an installed package (`SKILL.md` plus `references/`) with harness metadata; it is not a pointer at a repository path.
-- `REQ-1106`: The skill obtains parameters, schemas, and error handling from machine help, rather than copying flags, exit codes, or error disposition manually. Command **paths** that exist in the registry may be named; flags other than the bootstrap pair (`doctor --json`, `help --agent --json`) are forbidden in Skill text.
+- `REQ-1106`: The skill obtains parameters, schemas, and error handling from machine help, rather than copying flags, exit codes, or error disposition manually. Command **paths** that exist in the registry may be named; flags other than the bootstrap pair (`doctor --json`, `help --agent --json`) are forbidden in Skill text. Every linked playbook must exist in the installed package for each supported harness and locale; native projections preserve the canonical routing description. A missing executable is bootstrapped through the supported package installer.
 - `REQ-1107`: The control skill is not deleted or overwritten by a custom setup. Installation, update, or removal of a user setup must not remove this package.
 - `REQ-1108`: The password, token, and privilege escalation secret are never passed to the agent, CLI arguments, standard input, environment, or log.
 - `REQ-1109`: Unknown harness and native configurations found in it are recorded as unknown observations; setup, option, target and adaptation draft are not created for them, and an attempt to apply it returns error `AI_STP_UNSUPPORTED_APPLY` with a list of supported harnesses.
@@ -47,12 +47,13 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
 - `REQ-1124`: Diagnostics reports the preconditions for creating a setup with a separate check, the state of which remains `ready` in their absence, and `detail` names the exact commands for creating missing passports. The list of these commands has one owner and matches the list named by the corresponding command's refusal.
 - `REQ-1125`: Diagnostics names registered objects that hold no head revision, because every command reaches an object through its head and such an object is addressable by none of them; the check reports them and changes nothing, and the state remains `ready` because the installation is sound.
 - `REQ-1123`: For integration scenarios, machine help allows you to build argv without parsing prose: mandatory, type, repeatability and private parameter values ​​are structured, and each payload is associated with a published schema; the update is expressed by an exact version selection and `install plan` with `action=update`, rather than a hidden automatic command.
-- `REQ-1126`: After the bootstrap pair, a first-run Skill playbook uses the
-  project directories the user already named, or asks which to index if none
-  were named. It then uses machine-help command paths `project discover`,
-  `project index`, `component inventory`, and `component adopt`. It does not
-  scan the home directory, does not invent roots, and does not ask again for
-  roots already named in the conversation.
+- `REQ-1126`: After the bootstrap pair, the Skill uses project roots already
+  named by the user or established from the current workspace. It asks only
+  when the required root cannot be determined. Project discovery and indexing
+  run when the task needs that context; inventory and adoption run when the
+  request includes preserving or reusing existing components. Installing a
+  ready setup does not require adopting every discovered component. The Skill
+  does not scan the home directory by default or ask again for known roots.
 
 ## States and errors
 
@@ -95,4 +96,4 @@ Machine JSON, help and skill projection have versions. Unknown optional fields a
 | `REQ-1124` | The test proves that the installation without passports gives `ready` with `detail` calling both commands, and that there is only one owner of the command list. |
 | `REQ-1125` | A registry holding an entity without a head revision reports it by count and kind in the `addressable_objects` check, the check stays `ready`, and the row is still there afterwards. |
 | `REQ-1123` | The contract test for search, discover, adopt, status, diff and rollback builds the required parameters and enum from machine help only, checks the existence of each `result_schema`; update plan only accepts the declared value `action=update`. |
-| `REQ-1126` | Canonical bootstrap names `project discover`, `project index`, `component inventory`, and `component adopt` as command paths, uses already-named roots without asking again, and asks only when no root was named. |
+| `REQ-1126` | Bootstrap uses known workspace roots and scopes discovery/adoption to the requested outcome; a ready-setup scenario reaches acquire and install without broad home discovery or unrelated adoption. |

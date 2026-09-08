@@ -1,6 +1,6 @@
 ---
 description: "ADR-0169: Distribution visibility changes independently of immutable version passports."
-last_verified: "2026-09-07"
+last_verified: "2026-09-08"
 ---
 
 # ADR-0169: Distribution visibility does not rewrite versions

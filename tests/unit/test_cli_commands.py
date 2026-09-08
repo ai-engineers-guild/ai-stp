@@ -56,6 +56,7 @@ def test_doctor_reports_a_fresh_installation_as_needing_action_not_as_broken() -
         "composition_passports",
         "addressable_objects",
         "provider_binding",
+        "cli_update",
     }
 
 
@@ -80,28 +81,21 @@ def test_doctor_names_the_composition_preconditions_without_narrowing_ready() ->
     assert "passport device refresh --json" in check.detail
 
 
-def test_doctor_names_the_tool_provider_binding_shells_out_to() -> None:
-    """`provider fetch` runs `gh`, and nothing said so before the refusal.
+def test_doctor_distinguishes_default_index_from_optional_github(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_tool(_name: str) -> None:
+        return None
 
-    Installing a published setup goes through `provider fetch`, which binds an
-    attested OpenNetwork release by running `gh attestation verify`. On a
-    machine installed from PyPI there is no reason for `gh` to be present, and
-    on one where it is present but has no usable `GH_CONFIG_DIR` the call fails
-    too. The refusal itself is honest — `AI_STP_DEPENDENCY_UNAVAILABLE` with
-    `dependency: gh` — but it arrives only after an agent has decided to
-    install, and nothing in the diagnostic named it beforehand.
-
-    Same shape as `composition_passports` and for the same reason: an
-    installation without `gh` is still sound, and somebody who only searches the
-    catalogue never needs it. So the state stays `ready` and the detail carries
-    the fact, per `SPEC-011` `REQ-1124`.
-    """
+    monkeypatch.setattr("ai_stp_cli.commands.doctor.shutil.which", no_tool)
     report = doctor.run({}).payload
     check = next(item for item in report.checks if item.name == "provider_binding")
 
-    assert check.state == "ready", "a machine without gh is still a sound installation"
-    assert "gh" in check.detail
-    assert "provider fetch" in check.detail
+    assert check.state == "ready", "default index acquisition does not require gh"
+    assert "PyPI" in check.detail
+    assert "CLI-managed uv" in check.detail
+    assert "Explicit GitHub" in check.detail
+    assert "not on PATH" in check.detail
 
 
 def test_the_command_that_creates_a_passport_is_named_in_one_place() -> None:

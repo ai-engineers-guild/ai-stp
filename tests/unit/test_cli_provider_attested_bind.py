@@ -252,7 +252,7 @@ def test_provider_fetch_command_binds_into_the_named_directory(
     monkeypatch.setattr(attested_bind, "GithubReleases", lambda: _Github())
     monkeypatch.setattr(attested_bind, "inspect_provider", inspect)
     view = select.provider_fetch(
-        {"harness": "pi", "tag": "0.0.1", "directory": str(tmp_path)}
+        {"harness": "pi", "tag": "0.0.1", "directory": str(tmp_path), "source": "github"}
     ).payload
     assert view.harness_id == "pi"
     assert view.tag == "0.0.1"

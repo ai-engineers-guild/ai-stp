@@ -38,6 +38,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache, installation, journal
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import moment
+from ai_stp_cli.paths import ensure_directory
 from ai_stp_cli.provider import (
     conformance,
     invocation,
@@ -496,7 +497,7 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
     # the whole command family. The reason is not new authority: it reads which
     # of two things the caller already established, a verified release or a
     # deliberate `--unverified-provider`.
-    with open_registry(configured_path()) as connection:
+    with closing(open_registry(configured_path())) as connection:
         # The registry answers which provider serves this harness, so `--provider`
         # is an override rather than something every caller must carry. It was
         # required here while `provider fetch` had already installed one and
@@ -512,6 +513,9 @@ def _perform(action: str, parameters: Mapping[str, object]) -> Answer[HarnessPro
         )
         trusted_release = evidence.manifest
         trust.release_required(effective_parameters, protocol_v3.VERSION, trusted_release)
+        if action in {"install", "update"}:
+            ensure_directory(target)
+            ensure_directory(prefix)
 
         # The prefix is where the program goes, and the sandbox binds only the
         # target unless told otherwise. Without this the provider writes into

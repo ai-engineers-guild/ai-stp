@@ -12,8 +12,6 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_stp_api.errors import ApiError, ErrorCategory
-from ai_stp_api.session import AuthContext
 from ai_stp_contracts.catalog import (
     CatalogAuthorListResponse,
     CatalogAuthorOption,
@@ -45,7 +43,6 @@ from ai_stp_contracts.catalog import (
     SetupVersionResponse,
 )
 from ai_stp_contracts.http import PageInfo
-from ai_stp_contracts.private_access import AccessVersionResponse
 from ai_stp_contracts.safety_checks import SafetyChecksSummary
 from ai_stp_contracts.tag_vocabulary import TagVocabularyResponse, tag_vocabulary_response
 from ai_stp_foundation.timestamps import format_timestamp
@@ -972,64 +969,6 @@ async def read_private_version_document(
             component_verified=row.component_verified,
         ),
         published_at=format_timestamp(row.published_at),
-    )
-
-
-async def read_access_version(
-    session: AsyncSession,
-    *,
-    object_kind: ObjectKind,
-    stable_id: str,
-    version: str,
-    ctx: AuthContext,
-) -> AccessVersionResponse:
-    from ai_stp_contracts.private_access import PrivateVersionTrust
-    from ai_stp_foundation.versioning import VersionError, parse_version
-    from ai_stp_platform.catalog_read import public_version_row
-    from ai_stp_platform.models import AccessGrant
-
-    try:
-        major, _minor = parse_version(version)
-    except VersionError:
-        raise ApiError(ErrorCategory.NOT_FOUND, "version not found") from None
-    metadata = await get_visible_metadata(
-        session,
-        object_kind=object_kind,
-        stable_id=stable_id,
-        version=version,
-        account_id=ctx.account_id,
-    )
-    if metadata is None or metadata.lifecycle_state not in {"active", "deprecated"}:
-        raise ApiError(ErrorCategory.NOT_FOUND, "version not found")
-    basis = "owner"
-    if metadata.owner_account_id != ctx.account_id:
-        grant = await session.scalar(
-            select(AccessGrant.id).where(
-                AccessGrant.object_kind == object_kind,
-                AccessGrant.stable_id == stable_id,
-                AccessGrant.major == major,
-                AccessGrant.owner_account_id == metadata.owner_account_id,
-                AccessGrant.grantee_account_id == ctx.account_id,
-                AccessGrant.state == "active",
-            )
-        )
-        if grant is None:
-            raise ApiError(ErrorCategory.NOT_FOUND, "version not found")
-        basis = "grant"
-    row = public_version_row(metadata)
-    verify_passport_integrity(row, allow_private=True)
-    return AccessVersionResponse(
-        kind=object_kind,
-        stable_id=stable_id,
-        version=version,
-        passport_digest=row.passport_digest,
-        passport=row.passport,
-        lifecycle=cast(Literal["active", "deprecated"], row.lifecycle),
-        trust=PrivateVersionTrust(
-            author_verified=row.author_verified, component_verified=row.component_verified
-        ),
-        published_at=format_timestamp(row.published_at),
-        access_basis=basis,
     )
 
 

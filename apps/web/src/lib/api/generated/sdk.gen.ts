@@ -365,7 +365,7 @@ export const readAccessSetupVersion = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Plan owner-only private-to-public component distribution.
+ * createVisibilityPlan for the exact owner distribution effect.
  */
 export const createVisibilityPlan = <ThrowOnError extends boolean = false>(
   options: Options<CreateVisibilityPlanData, ThrowOnError>,
@@ -385,7 +385,7 @@ export const createVisibilityPlan = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Read an owner's exact visibility plan.
+ * readVisibilityPlan for the exact owner distribution effect.
  */
 export const readVisibilityPlan = <ThrowOnError extends boolean = false>(
   options: Options<ReadVisibilityPlanData, ThrowOnError>,
@@ -401,7 +401,7 @@ export const readVisibilityPlan = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Validate public eligibility and expose immutable component bytes.
+ * confirmVisibilityPlan for the exact owner distribution effect.
  */
 export const confirmVisibilityPlan = <ThrowOnError extends boolean = false>(
   options: Options<ConfirmVisibilityPlanData, ThrowOnError>,

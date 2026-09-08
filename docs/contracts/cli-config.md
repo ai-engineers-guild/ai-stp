@@ -1,6 +1,6 @@
 ---
 description: "Global CLI configuration fields, defaults, and source precedence."
-last_verified: "2026-09-05"
+last_verified: "2026-09-08"
 ---
 
 # Global CLI configuration
@@ -27,6 +27,11 @@ projects:
 telemetry:
   enabled: false
   url: "https://telemetry.ai-stp.example"
+update:
+  enabled: true
+  channel: stable
+  check_ttl_hours: 24
+  notifications: true
 provider:
   paths:
     claude-code: ""
@@ -48,6 +53,10 @@ provider:
 | `projects.discovery_roots` | empty list | Explicit roots within which project candidates are searched for. |
 | `telemetry.enabled` | `false` | Whether to send the anonymous installation ping. `true` is accepted only after explicit consent; writing it directly is rejected. |
 | `telemetry.url` | collector address | Address to which the ping is sent; HTTPS is accepted, as is HTTP for a loopback address, as with `catalog.url`. |
+| `update.enabled` | `true` | Whether opportunistic PyPI checks and `update check` without `--offline` may contact the index. Disabling it does not remove the commands. |
+| `update.channel` | `stable` | `stable` ignores pre-releases; `prerelease` includes them. Local versions are never selected. Owner: `SPEC-072`. |
+| `update.check_ttl_hours` | `24` | Minimum age of a successful check cache before a TTY startup check contacts the index again. |
+| `update.notifications` | `true` | Whether TTY/JSON notices attach to other commands. `update check` still answers. |
 | `provider.paths.antigravity` | empty string | Absolute path to the setup-system provider for `antigravity`. An empty value delegates selection to the registry, then to discovery. |
 | `provider.paths.claude-code` | empty string | Absolute path to the setup-system provider for `claude-code`. An empty value delegates selection to the registry, then to discovery. |
 | `provider.paths.codex` | empty string | Absolute path to the setup-system provider for `codex`. An empty value delegates selection to the registry, then to discovery. |

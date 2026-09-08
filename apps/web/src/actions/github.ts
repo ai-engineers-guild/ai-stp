@@ -16,7 +16,7 @@ import type {
   GitHubActionConfirmRequest,
   VisibilityPlanCreateRequest,
   VisibilityPlanResponse,
-  VisibilityConfirmRequest,
+  PublicationConfirmRequest,
 } from "@/lib/api/generated/types.gen";
 
 type Result<T> = { ok: true; data: T } | { ok: false; code: string; reason?: string };
@@ -83,7 +83,7 @@ export async function visibilityPlan(csrf: string, body: VisibilityPlanCreateReq
 export async function visibilityConfirm(
   csrf: string,
   planId: string,
-  body: VisibilityConfirmRequest,
+  body: PublicationConfirmRequest,
 ) {
   return request<VisibilityPlanResponse>(
     csrf,

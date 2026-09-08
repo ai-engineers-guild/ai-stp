@@ -99,6 +99,26 @@ def declared_fields() -> tuple[Field, ...]:
             "Where the anonymous install ping goes. HTTPS, or cleartext to a"
             " loopback host for local development, as for the catalogue.",
         ),
+        Field(
+            "update.enabled",
+            True,
+            "Whether opportunistic PyPI checks may run. Commands still exist when off.",
+        ),
+        Field(
+            "update.channel",
+            "stable",
+            "Release channel: stable ignores pre-releases; prerelease includes them.",
+        ),
+        Field(
+            "update.check_ttl_hours",
+            24,
+            "Hours a successful check cache stays fresh for startup notices.",
+        ),
+        Field(
+            "update.notifications",
+            True,
+            "Whether other commands may attach an update warning or TTY notice.",
+        ),
         # One field per supported harness rather than a `provider.paths` map
         # (`#452`). The schema is closed on purpose, and a map keyed by
         # anything the user types is not a closed schema: an unknown harness
@@ -311,12 +331,13 @@ def _parse_scalar(text: str, field: Field) -> ConfigScalar:
         raise _wrong_type(field, "a true/false value")
     if isinstance(field.default, int):
         try:
-            return int(text)
+            parsed = int(text)
         except ValueError as error:
             raise _wrong_type(field, "a whole number") from error
+        return _bounded_int(field, parsed)
     if isinstance(field.default, list):
         return [item for item in (part.strip() for part in text.split(",")) if item]
-    return text
+    return _closed_string(field, text)
 
 
 def _as_scalar(value: object, field: Field) -> ConfigScalar:
@@ -328,7 +349,7 @@ def _as_scalar(value: object, field: Field) -> ConfigScalar:
     if isinstance(field.default, int):
         if isinstance(value, bool) or not isinstance(value, int):
             raise _wrong_type(field, "a whole number")
-        return value
+        return _bounded_int(field, value)
     if isinstance(field.default, list):
         if not isinstance(value, list):
             raise _wrong_type(field, "a list of strings")
@@ -338,6 +359,18 @@ def _as_scalar(value: object, field: Field) -> ConfigScalar:
         return [str(item) for item in items]
     if not isinstance(value, str):
         raise _wrong_type(field, "a string")
+    return _closed_string(field, value)
+
+
+def _bounded_int(field: Field, value: int) -> int:
+    if field.path == "update.check_ttl_hours" and value < 1:
+        raise _wrong_type(field, "a whole number of hours, at least 1")
+    return value
+
+
+def _closed_string(field: Field, value: str) -> str:
+    if field.path == "update.channel" and value not in {"stable", "prerelease"}:
+        raise _wrong_type(field, "stable or prerelease")
     return value
 
 

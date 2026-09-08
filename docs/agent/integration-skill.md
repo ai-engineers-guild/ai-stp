@@ -31,3 +31,18 @@ executable but no procedure.
 Installation uses an explicit destination rather than discovery. Where a harness looks for a native Skill is a fact about that harness and differs across the five; inventing five paths would present guesses as support. Discovery will arrive with the harness detectors under `SPEC-014`; until then, the caller—a person, agent, or website installer—specifies the path.
 
 Nothing is overwritten silently. Installation places an ownership record beside the Skill; removal takes only what that record confirms, while a Skill written by someone else or changed after installation remains in place and is named in the response. The local registry and user-configured state are not part of the control layer and are never touched.
+
+## Installed workflow
+
+The entrypoint distinguishes the CLI, control Skill, provider, harness program
+and setup. It reuses the installed command descriptors within one version and
+opens the playbook relevant to the request. The ready-setup route obtains an
+exact catalog graph, plans, approves and applies its operation, then verifies
+target state. First-run indexing and adoption are scoped to the requested
+project rather than performed for every discovered component. A missing CLI
+uses the supported package installation before the bootstrap command pair.
+
+Every linked playbook is shipped in each installed language/harness package.
+The generator discovers the canonical reference inventory and preserves its
+routing description in native projections. Installation tests resolve the
+links from the delivered package, independently of the generator's file list.

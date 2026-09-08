@@ -10,6 +10,7 @@ executable; what that provider then does to a harness is still its own
 operation, planned and confirmed separately.
 """
 
+import json
 import shutil
 import sqlite3
 import stat
@@ -19,6 +20,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final, cast
+from urllib.parse import urlparse
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.config import effective_config
@@ -459,9 +461,19 @@ def _replace(
         # *plan* create a second installation — after which the machine was
         # ambiguous and the update it had just planned refused to run.
         with tempfile.TemporaryDirectory(prefix="ai-stp-provider-") as staging:
-            bound = attested_bind.fetch(
-                harness=harness_id, tag=tag or None, directory=Path(staging)
-            )
+            from ai_stp_cli.provider import index_bind
+
+            try:
+                installed_manifest = release.parse_manifest(
+                    (target.parent / attested_bind.MANIFEST_NAME).read_text("utf-8")
+                )
+                from_index = (
+                    urlparse(installed_manifest.artifact_url).hostname == "files.pythonhosted.org"
+                )
+            except (OSError, CliFailure):
+                from_index = False
+            fetcher = index_bind.fetch if from_index else attested_bind.fetch
+            bound = fetcher(harness=harness_id, tag=tag or None, directory=Path(staging))
             return _planned_or_applied(
                 connection,
                 bound=bound,
@@ -561,18 +573,10 @@ def _planned_or_applied(
 
 
 def _identity(executable: Path) -> Identity:
-    """Read the installed provider's version and digest, tolerating silence.
-
-    A provider that will not answer `provider-info` is still replaceable — that
-    is often *why* it is being replaced — so an unreadable version is empty
-    rather than fatal. The digest is read from the file and always available.
-    """
+    """Read replacement identity without executing the bytes being replaced."""
     digest, _size = release.artifact_identity(executable)
-    try:
-        capabilities = attested_bind.inspect_provider(executable)
-    except CliFailure:
-        return Identity("", digest)
-    return Identity(capabilities.provider_version, digest)
+    manifest = _manifest_identity(executable)
+    return Identity("" if manifest is None else manifest.provider_version, digest)
 
 
 def _is_managed(connection: sqlite3.Connection, executable: Path) -> bool:
@@ -611,6 +615,20 @@ def _write_bound_manifest(target: Path, bound: attested_bind.BoundRelease) -> No
     unmanaged: the old manifest named a different digest, and the command
     refuses to spawn an unmatched file to ask who it is.
     """
+    index_receipt = bound.artifact.parent / "index-release.json"
+    if index_receipt.is_file():
+        metadata = json.loads(index_receipt.read_text("utf-8"))
+        wheel_name = metadata["wheel"]
+        if not isinstance(wheel_name, str) or Path(wheel_name).name != wheel_name:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the provider wheel has no acceptable PEP 740 provenance",
+            )
+        for name in (wheel_name, f"{wheel_name}.provenance.json", "index-release.json"):
+            source = bound.artifact.parent / name
+            destination = target.parent / name
+            if source.resolve() != destination.resolve():
+                shutil.copy2(source, destination)
     write_private(
         target.parent / attested_bind.MANIFEST_NAME,
         release.serialize_manifest(bound.manifest),
@@ -644,6 +662,10 @@ def _install(source: Path, target: Path, current: Identity) -> str:
 
     backup = _backup_path(target, current.digest)
     shutil.copy2(target, backup)
+    for name in (attested_bind.MANIFEST_NAME, "index-release.json"):
+        metadata = target.parent / name
+        if metadata.is_file() and not metadata.is_symlink():
+            shutil.copy2(metadata, backup.with_name(f"{backup.name}.{name}"))
     staged = target.with_name(f"{target.name}.incoming")
     shutil.copy2(source, staged)
     staged.chmod(staged.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)

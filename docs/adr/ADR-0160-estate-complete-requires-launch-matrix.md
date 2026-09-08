@@ -5,7 +5,7 @@ last_verified: "2026-09-05"
 
 # ADR-0160: Estate complete requires a harness launch matrix
 
-Status: accepted.
+Status: superseded for new beta qualification by ADR-0172. Historical /1 records retain this rule.
 
 Clarifies `docs/contracts/estate-release.md` and `ADR-0120` without retagging
 a historical consumer or provider release.

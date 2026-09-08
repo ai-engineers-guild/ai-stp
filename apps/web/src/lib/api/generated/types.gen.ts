@@ -42,39 +42,6 @@ export type AccessGrantResponse = {
   [key: string]: unknown;
 };
 
-/**
- * AccessVersionResponse
- *
- * Metadata delivered only after exact owner or major-line grant authorization.
- */
-export type AccessVersionResponse = {
-  /**
-   * Access Basis
-   */
-  access_basis: "owner" | "grant" | "admin";
-  kind: ObjectKind;
-  lifecycle: PublicLifecycle;
-  /**
-   * Passport
-   */
-  passport: {
-    [key: string]: AiStpFoundationCanonicalJsonValue;
-  };
-  passport_digest: PassportDigest;
-  published_at: Timestamp;
-  /**
-   * Schema Version
-   */
-  schema_version: 1;
-  /**
-   * Stable Id
-   */
-  stable_id: string;
-  trust: PrivateVersionTrust;
-  version: AiStpContractsCatalogVersion;
-  [key: string]: unknown;
-};
-
 export const AccountFreshness = {
   ACCOUNT_SNAPSHOT: "account_snapshot",
   STALE: "stale",
@@ -3716,27 +3683,6 @@ export type PrivateVersionResponse = {
 };
 
 /**
- * PrivateVersionTrust
- *
- * Exact local acquisition authority does not assert public verification.
- */
-export type PrivateVersionTrust = {
-  /**
-   * Author Verified
-   */
-  author_verified: boolean;
-  /**
-   * Component Verified
-   */
-  component_verified: boolean;
-  /**
-   * Trust Lane
-   */
-  trust_lane: "local_owner_or_pinned";
-  [key: string]: unknown;
-};
-
-/**
  * ProjectedMember
  *
  * One canonical projected path and the provider semantics it requires.
@@ -6374,18 +6320,6 @@ export type VersionListEntry = {
 };
 
 /**
- * VisibilityConfirmRequest
- */
-export type VisibilityConfirmRequest = {
-  /**
-   * Confirmed
-   */
-  confirmed: true;
-  idempotency_key: IdempotencyKey;
-  plan_hash: PassportDigest;
-};
-
-/**
  * VisibilityPlanCreateRequest
  *
  * Plan one owner's access change without rewriting immutable content.
@@ -6563,7 +6497,7 @@ export type ReadAccessComponentVersionResponses = {
   /**
    * Read an exact owned or granted component.
    */
-  200: AccessVersionResponse;
+  200: PrivateVersionResponse;
 };
 
 export type ReadAccessComponentVersionResponse =
@@ -6625,7 +6559,7 @@ export type ReadAccessSetupVersionResponses = {
   /**
    * Read an exact owned or granted setup.
    */
-  200: AccessVersionResponse;
+  200: PrivateVersionResponse;
 };
 
 export type ReadAccessSetupVersionResponse =
@@ -6662,6 +6596,14 @@ export type CreateVisibilityPlanErrors = {
    */
   403: ErrorEnvelope;
   /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
    * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
    */
   429: ErrorEnvelope;
@@ -6680,9 +6622,9 @@ export type CreateVisibilityPlanError =
 
 export type CreateVisibilityPlanResponses = {
   /**
-   * Plan owner-only private-to-public component distribution.
+   * createVisibilityPlan for the exact owner distribution effect.
    */
-  200: VisibilityPlanResponse;
+  201: VisibilityPlanResponse;
 };
 
 export type CreateVisibilityPlanResponse =
@@ -6698,7 +6640,7 @@ export type ReadVisibilityPlanData = {
   };
   path: {
     /**
-     * Exact visibility plan.
+     * Visibility plan identifier.
      */
     plan_id: string;
   };
@@ -6720,6 +6662,14 @@ export type ReadVisibilityPlanErrors = {
    */
   403: ErrorEnvelope;
   /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
    * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
    */
   429: ErrorEnvelope;
@@ -6737,7 +6687,7 @@ export type ReadVisibilityPlanError = ReadVisibilityPlanErrors[keyof ReadVisibil
 
 export type ReadVisibilityPlanResponses = {
   /**
-   * Read an owner's exact visibility plan.
+   * readVisibilityPlan for the exact owner distribution effect.
    */
   200: VisibilityPlanResponse;
 };
@@ -6746,7 +6696,7 @@ export type ReadVisibilityPlanResponse =
   ReadVisibilityPlanResponses[keyof ReadVisibilityPlanResponses];
 
 export type ConfirmVisibilityPlanData = {
-  body: VisibilityConfirmRequest;
+  body: PublicationConfirmRequest;
   headers: {
     /**
      * Wire major the client speaks. An unknown one fails typed.
@@ -6759,7 +6709,7 @@ export type ConfirmVisibilityPlanData = {
   };
   path: {
     /**
-     * Exact visibility plan.
+     * Visibility plan identifier.
      */
     plan_id: string;
   };
@@ -6781,6 +6731,14 @@ export type ConfirmVisibilityPlanErrors = {
    */
   403: ErrorEnvelope;
   /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
    * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
    */
   429: ErrorEnvelope;
@@ -6799,7 +6757,7 @@ export type ConfirmVisibilityPlanError =
 
 export type ConfirmVisibilityPlanResponses = {
   /**
-   * Validate public eligibility and expose immutable component bytes.
+   * confirmVisibilityPlan for the exact owner distribution effect.
    */
   200: VisibilityPlanResponse;
 };

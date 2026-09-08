@@ -17,7 +17,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import acquired_trust, content, passports, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.private_access import PrivateVersionResponse, PrivateVersionTrust
+from ai_stp_contracts.catalog import CatalogTrust, PrivateVersionResponse
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
@@ -49,26 +49,25 @@ def test_private_graph_acquires_compiles_forks_and_retains_bytes_after_revocatio
 
     def serve(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        if "/catalog/" in request.url.path:
-            assert "authorization" not in request.headers and "cookie" not in request.headers
+        path = request.url.path
+        if "authorization" not in request.headers:
+            assert "cookie" not in request.headers
             return httpx.Response(404, json={"error": {"code": "AI_STP_NOT_FOUND"}})
         assert request.headers["authorization"] == f"Bearer {held.access_token}"
         if revoked:
             return httpx.Response(403, json={"error": {"code": "AI_STP_PERMISSION_DENIED"}})
-        stable_id = request.url.path.split("/")[4]
+        stable_id = path.split("/")[4]
         document = documents[stable_id]
-        if request.url.path.endswith("/artifact"):
+        if path.endswith("/artifact"):
             return httpx.Response(200, content=artifacts[stable_id])
         response = PrivateVersionResponse(
-            kind="component" if stable_id == component_id else "setup",
-            stable_id=stable_id,
-            version="1.0",
             passport=document,
             passport_digest=digest_canonical("ai-stp:passport:v1", document),
             lifecycle="active",
-            trust=PrivateVersionTrust(author_verified=False, component_verified=False),
+            trust=CatalogTrust(
+                trust_lane="experimental", author_verified=False, component_verified=False
+            ),
             published_at=str(document["created_at"]),
-            access_basis="grant",
         )
         return httpx.Response(200, json=response.model_dump(mode="json"))
 
@@ -85,6 +84,9 @@ def test_private_graph_acquires_compiles_forks_and_retains_bytes_after_revocatio
     acquired = registry.acquire(parameters).payload
     assert acquired.passport_digest == digest_canonical("ai-stp:passport:v1", setup_document)
     assert len(acquired.components) == 1 and acquired.components[0].stable_id == component_id
+    assert any(request.url.path.endswith("/private") for request in requests)
+    assert any(request.url.path.endswith("/artifact") for request in requests)
+    assert all("/access/" not in request.url.path for request in requests)
     manifest = tmp_path / "private-composition.json"
     manifest.write_text(
         json.dumps(
@@ -196,15 +198,13 @@ def test_private_version_refuses_a_different_passport_inside_the_requested_envel
     secret_store, _warning = open_store()
     session.save(secret_store, held)
     response = PrivateVersionResponse(
-        kind="component",
-        stable_id=requested,
-        version="1.0",
         passport=other,
         passport_digest=digest_canonical("ai-stp:passport:v1", other),
         lifecycle="active",
-        trust=PrivateVersionTrust(author_verified=False, component_verified=False),
+        trust=CatalogTrust(
+            trust_lane="experimental", author_verified=False, component_verified=False
+        ),
         published_at=str(other["created_at"]),
-        access_basis="owner",
     )
     endpoint = Endpoint(
         "https://private.test",

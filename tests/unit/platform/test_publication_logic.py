@@ -316,6 +316,65 @@ def test_validate_publication_passport_rejects_field_mismatches() -> None:
     assert "owner_id" in invalid
 
 
+def test_validate_publication_passport_keeps_private_bytes_when_opening() -> None:
+    from ai_stp_passports.envelope import derive_revision_id
+    from ai_stp_passports.versions import ComponentVersionPassport
+
+    digest = "sha256:" + "b" * 64
+    account = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    component = "component_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    draft: dict[str, object] = {
+        "schema_version": 1,
+        "kind": "component",
+        "stable_id": component,
+        "parent_revision_ids": [],
+        "owner_id": account,
+        "created_at": "2026-08-10T00:00:00.000Z",
+        "visibility": "private",
+        "revision_id": "revision_" + "0" * 64,
+        "facts": {},
+        "name": "demo",
+        "description": "Demo component.",
+        "version": "1.0",
+        "license": {"spdx_id": "MIT", "redistribution_allowed": True},
+        "tags": ["test"],
+        "source": {
+            "repository": "https://example.test/repo",
+            "commit": "a" * 40,
+            "path": ".",
+        },
+        "artifact": {"digest": digest, "size_bytes": 1},
+        **adaptation_fields(digest=digest, size=1),
+        "component_type": "skill",
+        "conflicts": {
+            "paths": [],
+            "commands": [],
+            "hooks": [],
+            "mcp": [],
+            "agents": [],
+            "plugins": [],
+        },
+    }
+    validated = ComponentVersionPassport.model_validate(draft)
+    document = validated.model_dump(mode="json")
+    document["revision_id"] = derive_revision_id(document)
+    sealed = document["revision_id"]
+
+    model, invalid = validate_publication_passport(
+        document,
+        object_kind="component",
+        stable_id=component,
+        version="1.0",
+        content_digest=digest,
+        owner_account_id=account,
+        expected_visibility="public",
+    )
+    assert invalid == []
+    assert model is not None
+    assert model.visibility == "private"
+    assert model.revision_id == sealed
+
+
 @pytest.mark.parametrize(
     "tags",
     ([f"tag-{index}" for index in range(11)], ["a" * 33], ["tag name"], ["тест"]),

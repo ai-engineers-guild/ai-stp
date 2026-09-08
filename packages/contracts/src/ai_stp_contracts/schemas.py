@@ -156,6 +156,10 @@ from ai_stp_contracts.machine_help import (
     CatalogSetupAcquisition,
     CatalogVersionView,
     CliProgram,
+    CliSelfUpdateCheck,
+    CliSelfUpdatePlan,
+    CliSelfUpdateResult,
+    CliSelfUpdateStatus,
     CliSignedAttestation,
     ComponentMaterializePlan,
     ComponentMaterializeResult,
@@ -264,8 +268,7 @@ from ai_stp_contracts.ownership import (
     OwnershipRevisionView,
 )
 from ai_stp_contracts.private_access import (
-    AccessVersionResponse,
-    VisibilityConfirmRequest,
+    CliPrivateVersionResponse,
     VisibilityPlanCreateRequest,
     VisibilityPlanResponse,
 )
@@ -321,7 +324,6 @@ from ai_stp_foundation.schemas import ExportedSchema, check, schema_id, write
 #: The `/v1` HTTP boundary. Every one of these is served by a route, and a test
 #: rejects any that is not.
 HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
-    "private-version-response": AccessVersionResponse,
     "github-connect-request": GitHubConnectRequest,
     "github-connect-response": GitHubConnectResponse,
     "github-connector-status": GitHubConnectorStatus,
@@ -332,9 +334,6 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "github-action-plan-response": GitHubActionPlanResponse,
     "github-action-confirm-request": GitHubActionConfirmRequest,
     "github-callback-query": GitHubCallbackQuery,
-    "visibility-plan-create-request": VisibilityPlanCreateRequest,
-    "visibility-plan-response": VisibilityPlanResponse,
-    "visibility-confirm-request": VisibilityConfirmRequest,
     "catalog-component-detail": ComponentDetail,
     "catalog-component-context-budget": ComponentContextBudget,
     "catalog-component-list": ComponentListResponse,
@@ -353,6 +352,9 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "catalog-github-metadata": GitHubMetadata,
     "catalog-author-list": CatalogAuthorListResponse,
     "catalog-private-version": PrivateVersionResponse,
+    "private-version-response": CliPrivateVersionResponse,
+    "visibility-plan-create-request": VisibilityPlanCreateRequest,
+    "visibility-plan-response": VisibilityPlanResponse,
     "catalog-usage-metrics": CatalogUsageMetrics,
     "catalog-reaction-list": CatalogReactionList,
     "catalog-reaction-state": CatalogReactionState,
@@ -463,6 +465,10 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
 #: document, so the two surfaces cannot be confused for one.
 CLI_MODELS: Final[dict[str, ExportedSchema]] = {
     "cli-signed-attestation": CliSignedAttestation,
+    "cli-self-update-check": CliSelfUpdateCheck,
+    "cli-self-update-plan": CliSelfUpdatePlan,
+    "cli-self-update-result": CliSelfUpdateResult,
+    "cli-self-update-status": CliSelfUpdateStatus,
     "cli-owner-object-list": CliOwnerObjectListView,
     "cli-owner-object-detail": CliOwnerObjectDetailView,
     "cli-owner-version-detail": CliOwnerVersionDetailView,

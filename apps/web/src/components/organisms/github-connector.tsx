@@ -55,7 +55,9 @@ export function GithubConnector({
   function connect(purpose: "source" | "administration", mode: "install" | "authorize") {
     run(
       () => githubConnect(csrfToken, { purpose, locale, mode, confirmed: true }),
-      (result) => { window.location.assign(result.authorization_url); },
+      (result) => {
+        window.location.assign(result.authorization_url);
+      },
     );
   }
 
@@ -119,14 +121,18 @@ export function GithubConnector({
           <div className="flex flex-wrap gap-3">
             <Button
               disabled={busy || !source?.configured}
-              onClick={() => { connect("source", "install"); }}
+              onClick={() => {
+                connect("source", "install");
+              }}
             >
               {t("connect")}
             </Button>
             <Button
               variant="ghost"
               disabled={busy || !source?.configured}
-              onClick={() => { connect("source", "authorize"); }}
+              onClick={() => {
+                connect("source", "authorize");
+              }}
             >
               {t("alreadyInstalled")}
             </Button>
@@ -146,12 +152,12 @@ export function GithubConnector({
             <Button
               variant="outline"
               disabled={busy}
-              onClick={() =>
-                { run(
+              onClick={() => {
+                run(
                   () => githubDisconnect(csrfToken, { purpose: "source", confirmed: true }),
                   setStatus,
-                ); }
-              }
+                );
+              }}
             >
               {t("disconnect")}
             </Button>
@@ -162,7 +168,9 @@ export function GithubConnector({
               <Button
                 variant="outline"
                 disabled={busy}
-                onClick={() => { connect("administration", "authorize"); }}
+                onClick={() => {
+                  connect("administration", "authorize");
+                }}
               >
                 {t("enableManagement")}
               </Button>
@@ -184,7 +192,9 @@ export function GithubConnector({
                   <Button
                     variant="outline"
                     disabled={busy || !deviceId}
-                    onClick={() => { review(repository); }}
+                    onClick={() => {
+                      review(repository);
+                    }}
                   >
                     {repository.private ? t("makeRepositoryPublic") : t("makeRepositoryPrivate")}
                   </Button>
@@ -210,7 +220,9 @@ export function GithubConnector({
             {t("typeName")}
             <Input
               value={typedName}
-              onChange={(event) => { setTypedName(event.target.value); }}
+              onChange={(event) => {
+                setTypedName(event.target.value);
+              }}
               autoComplete="off"
             />
           </label>
@@ -218,8 +230,8 @@ export function GithubConnector({
             <Button
               variant={plan.action === "make_public" ? "default" : "destructive"}
               disabled={busy || typedName !== plan.repository.full_name}
-              onClick={() =>
-                { run(
+              onClick={() => {
+                run(
                   () =>
                     githubConfirm(csrfToken, plan.plan_id, {
                       plan_hash: plan.plan_hash,
@@ -231,12 +243,17 @@ export function GithubConnector({
                     setPlan(result);
                     refresh();
                   },
-                ); }
-              }
+                );
+              }}
             >
               {t("confirmAction")}
             </Button>
-            <Button variant="ghost" onClick={() => { setPlan(null); }}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPlan(null);
+              }}
+            >
               {t("cancel")}
             </Button>
           </div>

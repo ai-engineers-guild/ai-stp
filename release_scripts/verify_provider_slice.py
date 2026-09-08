@@ -56,13 +56,9 @@ HARNESSES: tuple[str, ...] = (
 
 
 def _artifact(directory: Path) -> Path:
-    """The single executable a fetch left behind, beside its manifest."""
-    found = [item for item in sorted(directory.iterdir()) if item.name != "release.json"]
-    if len(found) != 1:
-        raise EvidenceError(
-            f"expected one artifact in {directory.name}, found {[item.name for item in found]}"
-        )
-    return found[0]
+    from release_scripts._evidence import provider_artifact
+
+    return provider_artifact(directory)
 
 
 def _declaration(executable: Path) -> dict[str, Any]:

@@ -13,51 +13,12 @@ from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
 from ai_stp_api.slices.github_connector.router import Client
-from ai_stp_api.slices.publish import service, visibility
-from ai_stp_contracts.private_access import (
-    VisibilityConfirmRequest,
-    VisibilityPlanCreateRequest,
-    VisibilityPlanResponse,
-)
+from ai_stp_api.slices.publish import service
 from ai_stp_contracts.publication import PublicationConfirmRequest, PublicationPlanCreateRequest
 from ai_stp_platform.safety.workdir import MAX_ARTIFACT_BYTES
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
 
 router = APIRouter(tags=["publications"])
-
-
-@router.post("/access/visibility/plans")
-async def create_visibility_plan(
-    body: VisibilityPlanCreateRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
-) -> VisibilityPlanResponse:
-    return await visibility.create_plan(db, ctx=ctx, body=body)
-
-
-@router.post("/access/visibility/plans/{plan_id}/confirm")
-async def confirm_visibility_plan(
-    plan_id: str,
-    body: VisibilityConfirmRequest,
-    request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    client: Client,
-) -> VisibilityPlanResponse:
-    store = ImmutableObjectStore(settings=settings.storage, client=request.app.state.object_client)
-    return await visibility.confirm(
-        db, ctx=ctx, plan_id=plan_id, body=body, store=store, client=client
-    )
-
-
-@router.get("/access/visibility/plans/{plan_id}")
-async def read_visibility_plan(
-    plan_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    ctx: Annotated[AuthContext, Depends(require_auth)],
-) -> VisibilityPlanResponse:
-    return await visibility.read_plan(db, ctx=ctx, plan_id=plan_id)
 
 
 async def _bounded_body(request: Request, *, max_bytes: int) -> bytes:

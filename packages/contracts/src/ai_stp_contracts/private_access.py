@@ -5,10 +5,9 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from ai_stp_contracts.auth import AccountId, DeviceId
-from ai_stp_contracts.catalog import PassportDigest, PublicLifecycle, Version
+from ai_stp_contracts.catalog import PassportDigest, PrivateVersionResponse, Version
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
 from ai_stp_contracts.publication import ObjectKind, PlanId
-from ai_stp_foundation.canonical import JsonValue
 
 
 class PrivateVersionTrust(BaseModel):
@@ -21,24 +20,8 @@ class PrivateVersionTrust(BaseModel):
     component_verified: bool
 
 
-class AccessVersionResponse(BaseModel):
-    """Metadata delivered only after exact owner or major-line grant authorization."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    schema_version: Literal[1] = 1
-    kind: ObjectKind
-    stable_id: Annotated[str, Field(min_length=8, max_length=64)]
-    version: Version
-    passport_digest: PassportDigest
-    passport: dict[str, JsonValue]
-    lifecycle: PublicLifecycle
-    trust: PrivateVersionTrust
-    published_at: Timestamp
-    access_basis: Literal["owner", "grant", "admin"]
-
-
-PrivateVersionResponse = AccessVersionResponse
+# The API and CLI deserialize exactly the same private catalog document.
+CliPrivateVersionResponse = PrivateVersionResponse
 
 
 class VisibilityPlanCreateRequest(BaseModel):
@@ -74,11 +57,3 @@ class VisibilityPlanResponse(BaseModel):
     device_id: DeviceId
     expires_at: Timestamp
     effects: list[str]
-
-
-class VisibilityConfirmRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
-
-    plan_hash: PassportDigest
-    confirmed: Literal[True]
-    idempotency_key: IdempotencyKey

@@ -1,0 +1,176 @@
+{
+  "$defs": {
+    "CliInstallMethod": {
+      "enum": [
+        "uv_tool",
+        "pipx",
+        "pip_venv",
+        "shared_environment",
+        "system_environment",
+        "source_managed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-self-update-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Exact replacement of this CLI distribution (`SPEC-072`).",
+  "properties": {
+    "apply_ready": {
+      "title": "Apply Ready",
+      "type": "boolean"
+    },
+    "artifact_bytes": {
+      "minimum": 0,
+      "title": "Artifact Bytes",
+      "type": "integer"
+    },
+    "artifact_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Artifact Digest",
+      "type": "string"
+    },
+    "artifact_filename": {
+      "minLength": 1,
+      "title": "Artifact Filename",
+      "type": "string"
+    },
+    "artifact_url": {
+      "minLength": 1,
+      "title": "Artifact Url",
+      "type": "string"
+    },
+    "channel": {
+      "enum": [
+        "stable",
+        "prerelease"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
+    "data_backup": {
+      "minLength": 1,
+      "title": "Data Backup",
+      "type": "string"
+    },
+    "distribution": {
+      "const": "ai-stp-cli",
+      "default": "ai-stp-cli",
+      "title": "Distribution",
+      "type": "string"
+    },
+    "executable": {
+      "minLength": 1,
+      "title": "Executable",
+      "type": "string"
+    },
+    "index_origin": {
+      "minLength": 1,
+      "title": "Index Origin",
+      "type": "string"
+    },
+    "install_method": {
+      "$ref": "#/$defs/CliInstallMethod"
+    },
+    "install_root": {
+      "minLength": 1,
+      "title": "Install Root",
+      "type": "string"
+    },
+    "installer_argv": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Installer Argv",
+      "type": "array"
+    },
+    "installer_environment": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Installer Environment",
+      "type": "object"
+    },
+    "plan_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "minLength": 1,
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "python_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "title": "Python Version",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "receipt_fingerprint": {
+      "minLength": 1,
+      "title": "Receipt Fingerprint",
+      "type": "string"
+    },
+    "restart_effect": {
+      "const": "new_process_required",
+      "default": "new_process_required",
+      "title": "Restart Effect",
+      "type": "string"
+    },
+    "rollback_available": {
+      "title": "Rollback Available",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_version": {
+      "minLength": 1,
+      "title": "Source Version",
+      "type": "string"
+    },
+    "target_version": {
+      "minLength": 1,
+      "title": "Target Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "apply_ready",
+    "artifact_bytes",
+    "artifact_digest",
+    "artifact_filename",
+    "artifact_url",
+    "channel",
+    "data_backup",
+    "distribution",
+    "executable",
+    "index_origin",
+    "install_method",
+    "install_root",
+    "installer_argv",
+    "installer_environment",
+    "plan_digest",
+    "plan_id",
+    "python_version",
+    "reason",
+    "receipt_fingerprint",
+    "restart_effect",
+    "rollback_available",
+    "schema_version",
+    "source_version",
+    "target_version"
+  ],
+  "title": "CliSelfUpdatePlan",
+  "type": "object"
+}

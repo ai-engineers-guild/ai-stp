@@ -51,13 +51,19 @@ export function OwnerObjectActions(props: Props) {
         device_id: deviceId,
         idempotency_key: crypto.randomUUID(),
       });
-      if (!planned.ok) { setError(planned.code); return; }
+      if (!planned.ok) {
+        setError(planned.code);
+        return;
+      }
       const applied = await visibilityConfirm(props.csrfToken, planned.data.plan_id, {
         plan_hash: planned.data.plan_hash,
         confirmed: true,
         idempotency_key: crypto.randomUUID(),
       });
-      if (!applied.ok) { setError(applied.code); return; }
+      if (!applied.ok) {
+        setError(applied.code);
+        return;
+      }
       setOpen(false);
       setTypedName("");
       router.refresh();
@@ -78,7 +84,9 @@ export function OwnerObjectActions(props: Props) {
             <button
               className="hover:bg-muted min-h-11 rounded-md px-3 py-2 text-left text-sm"
               type="button"
-              onClick={() => { setOpen(true); }}
+              onClick={() => {
+                setOpen(true);
+              }}
             >
               {target === "public" ? t("makePublic") : t("makePrivate")}
             </button>
@@ -113,7 +121,9 @@ export function OwnerObjectActions(props: Props) {
               <span className="text-sm">{t("typeObjectName")}</span>
               <Input
                 value={typedName}
-                onChange={(event) => { setTypedName(event.target.value); }}
+                onChange={(event) => {
+                  setTypedName(event.target.value);
+                }}
                 autoComplete="off"
               />
             </label>
@@ -124,7 +134,12 @@ export function OwnerObjectActions(props: Props) {
             </p>
           ) : null}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setOpen(false); }}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
               {t("cancel")}
             </Button>
             <Button

@@ -101,3 +101,33 @@ def test_the_machine_projection_is_the_surface_an_agent_reads() -> None:
     assert "/ai/" in verify_live_slice.MACHINE_PROJECTION
     assert "{collection}" in verify_live_slice.MACHINE_PROJECTION
     assert "{stable_id}" in verify_live_slice.MACHINE_PROJECTION
+
+
+def test_a_repeated_catalog_id_is_not_merged() -> None:
+    found = {"component_1": "1.0"}
+    with pytest.raises(_evidence.EvidenceError, match="more than one page"):
+        verify_live_slice._merge_identifiers(  # pyright: ignore[reportPrivateUsage]
+            found, {"component_1": "1.0"}, command="search"
+        )
+
+
+def test_an_inconsistent_catalog_version_is_not_merged() -> None:
+    found = {"component_1": "1.0"}
+    with pytest.raises(_evidence.EvidenceError, match=r"then 1\.1"):
+        verify_live_slice._merge_identifiers(  # pyright: ignore[reportPrivateUsage]
+            found, {"component_1": "1.1"}, command="search"
+        )
+
+
+def test_a_reused_pagination_cursor_is_refused() -> None:
+    seen = {"abc"}
+    with pytest.raises(_evidence.EvidenceError, match="reused"):
+        verify_live_slice._advance_cursor(  # pyright: ignore[reportPrivateUsage]
+            seen, "abc", command="search"
+        )
+    assert (
+        verify_live_slice._advance_cursor(  # pyright: ignore[reportPrivateUsage]
+            set(), None, command="search"
+        )
+        is None
+    )
