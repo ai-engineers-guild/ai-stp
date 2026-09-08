@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-cli"
-version = "0.0.21"
+version = "0.0.22"
 description = "The ai_stp command line interface: a strict machine contract an agent drives."
 readme = "README.md"
 requires-python = ">=3.12"
