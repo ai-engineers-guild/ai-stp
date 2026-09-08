@@ -34,7 +34,7 @@ async def create_catalog_metadata_and_enqueue_upload(
     name: str | None = None,
 ) -> CatalogWriteResult:
     """Create catalog metadata and enqueue upload in the caller's transaction."""
-    if object_kind == "setup":
+    if object_kind in {"component", "setup"}:
         await assert_publication_owner(
             session,
             stable_id=stable_id,
