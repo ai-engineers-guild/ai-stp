@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "CliInstallMethod": {
+      "enum": [
+        "uv_tool",
+        "pipx",
+        "pip_venv",
+        "shared_environment",
+        "system_environment",
+        "source_managed"
+      ],
+      "type": "string"
+    },
+    "CliUpdateCheckState": {
+      "enum": [
+        "current",
+        "available",
+        "unknown",
+        "stale",
+        "unsupported",
+        "source_managed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-self-update-check",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What `update check` observed, including why nothing is offered.",
+  "properties": {
+    "cache_age_seconds": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cache Age Seconds"
+    },
+    "candidate_digest": {
+      "default": "",
+      "pattern": "^(?:^sha256:[0-9a-f]{64}$)?$",
+      "title": "Candidate Digest",
+      "type": "string"
+    },
+    "candidate_filename": {
+      "default": "",
+      "title": "Candidate Filename",
+      "type": "string"
+    },
+    "candidate_version": {
+      "default": "",
+      "title": "Candidate Version",
+      "type": "string"
+    },
+    "channel": {
+      "enum": [
+        "stable",
+        "prerelease"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
+    "distribution": {
+      "const": "ai-stp-cli",
+      "default": "ai-stp-cli",
+      "title": "Distribution",
+      "type": "string"
+    },
+    "executable": {
+      "minLength": 1,
+      "title": "Executable",
+      "type": "string"
+    },
+    "index_origin": {
+      "minLength": 1,
+      "title": "Index Origin",
+      "type": "string"
+    },
+    "install_method": {
+      "$ref": "#/$defs/CliInstallMethod"
+    },
+    "installed_version": {
+      "minLength": 1,
+      "title": "Installed Version",
+      "type": "string"
+    },
+    "prefix": {
+      "minLength": 1,
+      "title": "Prefix",
+      "type": "string"
+    },
+    "python_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "title": "Python Version",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "simple_index_ready": {
+      "default": false,
+      "title": "Simple Index Ready",
+      "type": "boolean"
+    },
+    "state": {
+      "$ref": "#/$defs/CliUpdateCheckState"
+    }
+  },
+  "required": [
+    "cache_age_seconds",
+    "candidate_digest",
+    "candidate_filename",
+    "candidate_version",
+    "channel",
+    "distribution",
+    "executable",
+    "index_origin",
+    "install_method",
+    "installed_version",
+    "prefix",
+    "python_version",
+    "reason",
+    "schema_version",
+    "simple_index_ready",
+    "state"
+  ],
+  "title": "CliSelfUpdateCheck",
+  "type": "object"
+}

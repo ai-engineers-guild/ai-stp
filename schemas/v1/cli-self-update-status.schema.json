@@ -1,0 +1,98 @@
+{
+  "$defs": {
+    "CliInstallMethod": {
+      "enum": [
+        "uv_tool",
+        "pipx",
+        "pip_venv",
+        "shared_environment",
+        "system_environment",
+        "source_managed"
+      ],
+      "type": "string"
+    },
+    "CliUpdateJournalState": {
+      "enum": [
+        "idle",
+        "planned",
+        "downloaded",
+        "applying",
+        "pending",
+        "verified",
+        "recovery_required",
+        "rolled_back",
+        "failed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-self-update-status",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Journal plus the distribution a new process actually imported.",
+  "properties": {
+    "executable": {
+      "minLength": 1,
+      "title": "Executable",
+      "type": "string"
+    },
+    "install_method": {
+      "$ref": "#/$defs/CliInstallMethod"
+    },
+    "installed_version": {
+      "minLength": 1,
+      "title": "Installed Version",
+      "type": "string"
+    },
+    "journal_state": {
+      "$ref": "#/$defs/CliUpdateJournalState"
+    },
+    "plan_digest": {
+      "default": "",
+      "pattern": "^(?:^sha256:[0-9a-f]{64}$)?$",
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "previous_version": {
+      "default": "",
+      "title": "Previous Version",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "rollback_digest": {
+      "default": "",
+      "pattern": "^(?:^sha256:[0-9a-f]{64}$)?$",
+      "title": "Rollback Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "target_version": {
+      "default": "",
+      "title": "Target Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "executable",
+    "install_method",
+    "installed_version",
+    "journal_state",
+    "plan_digest",
+    "previous_version",
+    "reason",
+    "rollback_digest",
+    "schema_version",
+    "target_version"
+  ],
+  "title": "CliSelfUpdateStatus",
+  "type": "object"
+}

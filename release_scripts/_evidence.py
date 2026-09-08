@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import urllib.parse
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, cast
+
+DEFAULT_CLI_TIMEOUT_SECONDS = 300.0
 
 # Anything credential-shaped must not reach a report. Two of the five slices
 # hold a session, which makes the guard load-bearing rather than decorative.
@@ -59,6 +62,7 @@ def cli(
     python: str,
     allow_failure: bool = False,
     offline: bool = False,
+    timeout: float = DEFAULT_CLI_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     """Run one machine command in one home and return its envelope.
 
@@ -69,6 +73,10 @@ def cli(
     `offline` denies the route rather than asking the CLI for an offline switch.
     Inventing a switch would test the switch; a proxy on a closed port fails
     every outbound call the way a lost network does.
+
+    The OS exit and the JSON `ok` field must agree. A hang is a failure, not a
+    missing report: the child is started in its own session so a timeout can
+    stop the process group.
     """
     environment = dict(os.environ)
     environment["HOME"] = str(home)
@@ -84,23 +92,54 @@ def cli(
         for name in proxies:
             environment.pop(name, None)
 
-    result = subprocess.run(
-        [python, "-m", "ai_stp_cli", *arguments, "--json"],
-        env=environment,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    argv = [python, "-m", "ai_stp_cli", *arguments, "--json"]
+    if os.name != "nt":
+        process = subprocess.Popen(
+            argv,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+    else:
+        process = subprocess.Popen(
+            argv,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        if os.name != "nt":
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except OSError:
+                process.kill()
+        else:
+            process.kill()
+        process.communicate()
+        raise EvidenceError(f"{' '.join(arguments)} timed out after {timeout:.0f}s") from error
+    result = subprocess.CompletedProcess(argv, process.returncode or 0, stdout, stderr)
     try:
         envelope = json.loads(result.stdout)
     except ValueError as error:
         detail = result.stderr.strip().splitlines()
-        suffix = detail[-1] if detail else "no stderr"
+        suffix = detail[-1] if detail else f"exit {result.returncode}, no stderr"
         raise EvidenceError(f"{' '.join(arguments)} emitted no envelope: {suffix}") from error
     if not isinstance(envelope, dict):
         raise EvidenceError(f"{' '.join(arguments)} answered something that is not an envelope")
     typed = cast(dict[str, Any], envelope)
-    if typed.get("ok") is not True and not allow_failure:
+    ok = typed.get("ok") is True
+    if ok and result.returncode != 0:
+        raise EvidenceError(f"{' '.join(arguments)} claimed ok with exit {result.returncode}")
+    if not ok and result.returncode == 0:
+        raise EvidenceError(f"{' '.join(arguments)} claimed failure with exit 0")
+    if not ok and not allow_failure:
         raise EvidenceError(f"{' '.join(arguments)} refused: {result.stdout.strip()[:200]}")
     return typed
 

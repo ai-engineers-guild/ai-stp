@@ -130,6 +130,7 @@ READ_COMMANDS = [
     ("install", "status"),
     ("consent", "list"),
     ("component", "find"),
+    ("update", "status"),
 ]
 
 #: Commands that create durable local state. Kept apart from the read list so a
@@ -1151,3 +1152,14 @@ def test_every_command_declared_read_writes_nothing(ready: Path) -> None:
         result = run(*argv, "--json", home=ready)
         assert result.returncode == 0, (argv, result.stdout[:200])
     assert snapshot() == before
+
+
+def test_update_check_offline_answers_without_contacting_the_index(ready: Path) -> None:
+    result = run("update", "check", "--offline", "--json", home=ready)
+    assert result.returncode == 0
+    assert result.stderr == ""
+    envelope = json.loads(result.stdout)
+    assert envelope["ok"] is True
+    payload = envelope["data"]
+    assert payload["state"] == "source_managed"
+    assert payload["install_method"] == "source_managed"

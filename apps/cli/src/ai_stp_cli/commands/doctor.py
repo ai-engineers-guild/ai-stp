@@ -340,6 +340,47 @@ def _provider_binding_check() -> DoctorCheck:
     )
 
 
+def _cli_update_check() -> DoctorCheck:
+    """Journal and check cache only. A down index is not a failed installation."""
+    from ai_stp_cli.self_update import store
+    from ai_stp_cli.self_update.method import current_installation
+
+    try:
+        journal = store.read_json(store.journal_path()) or {}
+        state = str(journal.get("state") or "idle")
+        if state in {"applying", "pending", "recovery_required", "failed"}:
+            return DoctorCheck(
+                name="cli_update",
+                state="needs_user_action",
+                detail=(
+                    f"CLI update journal is {state}; run update recover --json or "
+                    "update status --json"
+                ),
+            )
+        held = current_installation()
+        if held.method == "source_managed":
+            return DoctorCheck(
+                name="cli_update",
+                state="ready",
+                detail="source-managed installation; wheel replacement is refused",
+            )
+        cache = store.read_json(store.cache_path())
+        if isinstance(cache, dict) and cache.get("state") == "available":
+            version = str(cache.get("candidate_version") or "")
+            return DoctorCheck(
+                name="cli_update",
+                state="needs_user_action",
+                detail=f"a newer CLI {version} is cached; run update plan --json",
+            )
+        return DoctorCheck(name="cli_update", state="ready", detail="no interrupted CLI update")
+    except Exception as failure:
+        return DoctorCheck(
+            name="cli_update",
+            state="ready",
+            detail=f"updater journal unread ({type(failure).__name__})",
+        )
+
+
 def _addressable_objects_check() -> DoctorCheck:
     """Entities with no head revision: registered, and reachable by no command.
 
@@ -409,5 +450,6 @@ def run(_parameters: Mapping[str, object]) -> Answer[DoctorReport]:
         _composition_passports_check(),
         _addressable_objects_check(),
         _provider_binding_check(),
+        _cli_update_check(),
     ]
     return Answer(DoctorReport(state=worst([check.state for check in checks]), checks=checks))

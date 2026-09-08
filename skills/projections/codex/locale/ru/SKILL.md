@@ -56,6 +56,7 @@ CLI.
 | установка, обновление, откат сетапа | install |
 | drift, выбранное vs установленное | daily |
 | timeout, частичная установка, зависшая операция | recover |
+| обновить этот CLI, wheel на PyPI, self-update | self-update |
 | scaffold, adopt, validate, publish | author |
 | бинарь провайдера, pin toolchain | provider |
 | установить или удалить этот Skill | self |

@@ -101,6 +101,80 @@ def test_an_empty_leftover_directory_is_not_the_contributed_component(tmp_path: 
     assert _evidence.contribution_probe_present(tmp_path, "extensions")
 
 
+def test_ok_true_with_a_nonzero_exit_is_not_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+
+    def fake_popen(*_args: object, **_kwargs: object) -> object:
+        class _Process:
+            pid = 424242
+            returncode = 1
+
+            def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+                return '{"ok": true, "data": {}}\n', ""
+
+            def kill(self) -> None:
+                return None
+
+        return _Process()
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    with pytest.raises(_evidence.EvidenceError, match="claimed ok"):
+        _evidence.cli(("version",), home=tmp_path, python="python")
+
+
+def test_ok_false_with_exit_zero_is_not_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+
+    def fake_popen(*_args: object, **_kwargs: object) -> object:
+        class _Process:
+            pid = 424242
+            returncode = 0
+
+            def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+                return '{"ok": false, "error": {"code": "AI_STP_NOT_FOUND"}}\n', ""
+
+            def kill(self) -> None:
+                return None
+
+        return _Process()
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    with pytest.raises(_evidence.EvidenceError, match="claimed failure"):
+        _evidence.cli(("version",), home=tmp_path, python="python", allow_failure=True)
+
+
+def test_a_hanging_child_is_a_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    def fake_popen(*_args: object, **_kwargs: object) -> object:
+        class _Process:
+            pid = 424242
+            returncode = None
+
+            def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+                if timeout is not None:
+                    raise subprocess.TimeoutExpired(cmd="ai-stp", timeout=timeout)
+                return "", ""
+
+            def kill(self) -> None:
+                return None
+
+        return _Process()
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    def _killpg(_pid: int, _sig: int) -> None:
+        return None
+
+    monkeypatch.setattr(_evidence.os, "killpg", _killpg, raising=False)
+    with pytest.raises(_evidence.EvidenceError, match="timed out"):
+        _evidence.cli(("version",), home=tmp_path, python="python", timeout=0.01)
+
+
 def test_a_host_file_holds_the_key_by_its_bytes(tmp_path: Path) -> None:
     host = tmp_path / "config.toml"
     host.write_text('# kept by the person\nmodel = "sibling"\n', encoding="utf-8")

@@ -51,6 +51,27 @@ COLLECTIONS: dict[str, str] = {"component": "components", "setup": "setups"}
 MACHINE_PROJECTION = "/en/ai/catalog/{collection}/{stable_id}"
 
 REQUEST_TIMEOUT = 20.0
+MAX_CATALOGUE_PAGES = 10_000
+
+
+def _merge_identifiers(found: dict[str, str], page: dict[str, str], *, command: str) -> None:
+    for stable_id, version in page.items():
+        if stable_id in found:
+            if found[stable_id] != version:
+                raise EvidenceError(
+                    f"{command} listed {stable_id} as {found[stable_id]} then {version}"
+                )
+            raise EvidenceError(f"{command} listed {stable_id} on more than one page")
+        found[stable_id] = version
+
+
+def _advance_cursor(seen: set[str], token: object, *, command: str) -> str | None:
+    if not isinstance(token, str) or not token:
+        return None
+    if token in seen:
+        raise EvidenceError(f"{command} reused a pagination cursor")
+    seen.add(token)
+    return token
 
 
 def _get(url: str) -> dict[str, Any]:
@@ -80,17 +101,32 @@ def _identifiers(rows: Sequence[Any], command: str) -> dict[str, str]:
 
 
 def _catalogue(origin: str, collection: str) -> dict[str, str]:
-    url = f"{origin}/v1/catalog/{collection}?include_experimental=true"
-    payload = _get(url)
-    rows: list[Any] = []
-    for field in ("items", "experimental"):
-        held = payload.get(field)
-        if held is None:
-            continue
-        if not isinstance(held, list):
-            raise EvidenceError(f"{url} answered {field} that is not a list")
-        rows.extend(cast(list[Any], held))
-    return _identifiers(rows, url)
+    found: dict[str, str] = {}
+    seen_cursors: set[str] = set()
+    cursor: str | None = None
+    for _ in range(MAX_CATALOGUE_PAGES):
+        query = ["include_experimental=true"]
+        if cursor is not None:
+            query.append(f"cursor={urllib.parse.quote(cursor, safe='')}")
+        url = f"{origin}/v1/catalog/{collection}?{'&'.join(query)}"
+        payload = _get(url)
+        rows: list[Any] = []
+        for field in ("items", "experimental"):
+            held = payload.get(field)
+            if held is None:
+                continue
+            if not isinstance(held, list):
+                raise EvidenceError(f"{url} answered {field} that is not a list")
+            rows.extend(cast(list[Any], held))
+        _merge_identifiers(found, _identifiers(rows, url), command=url)
+        page = payload.get("page")
+        token: object = None
+        if isinstance(page, dict):
+            token = page.get("next_cursor")
+        cursor = _advance_cursor(seen_cursors, token, command=url)
+        if cursor is None:
+            return found
+    raise EvidenceError(f"{origin}/v1/catalog/{collection} did not finish paginating")
 
 
 def _fetch_text(url: str) -> str:
@@ -154,24 +190,41 @@ def _exact_digest(kind: str, stable_id: str, version: str, *, home: Path, python
 
 def _search(kind: str, *, home: Path, python: str) -> tuple[dict[str, str], str]:
     command = f"registry search --kind {kind}"
-    envelope = cli(
-        ("registry", "search", "--kind", kind, "--include-experimental"),
-        home=home,
-        python=python,
-    )
-    payload = data(envelope, command)
-    source = payload.get("source")
-    if source != "online":
-        raise EvidenceError(
-            f"{command} answered from {source!r}; the deployed catalogue was not read"
-        )
-    rows: list[Any] = []
-    for field in ("items", "experimental"):
-        held = payload.get(field)
-        if not isinstance(held, list):
-            raise EvidenceError(f"{command} answered {field} that is not a list")
-        rows.extend(cast(list[Any], held))
-    return _identifiers(rows, command), cast(str, payload.get("checked_at", ""))
+    found: dict[str, str] = {}
+    seen_cursors: set[str] = set()
+    cursor: str | None = None
+    checked_at = ""
+    for _ in range(MAX_CATALOGUE_PAGES):
+        arguments: list[str] = [
+            "registry",
+            "search",
+            "--kind",
+            kind,
+            "--include-experimental",
+        ]
+        if cursor is not None:
+            arguments.extend(["--cursor", cursor])
+        envelope = cli(tuple(arguments), home=home, python=python)
+        payload = data(envelope, command)
+        source = payload.get("source")
+        if source != "online":
+            raise EvidenceError(
+                f"{command} answered from {source!r}; the deployed catalogue was not read"
+            )
+        stamp = payload.get("checked_at")
+        if isinstance(stamp, str) and stamp:
+            checked_at = stamp
+        rows: list[Any] = []
+        for field in ("items", "experimental"):
+            held = payload.get(field)
+            if not isinstance(held, list):
+                raise EvidenceError(f"{command} answered {field} that is not a list")
+            rows.extend(cast(list[Any], held))
+        _merge_identifiers(found, _identifiers(rows, command), command=command)
+        cursor = _advance_cursor(seen_cursors, payload.get("next_cursor"), command=command)
+        if cursor is None:
+            return found, checked_at
+    raise EvidenceError(f"{command} did not finish paginating")
 
 
 def _show(kind: str, stable_id: str, *, home: Path, python: str, offline: bool) -> str:

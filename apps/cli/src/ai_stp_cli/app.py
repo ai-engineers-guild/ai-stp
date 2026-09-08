@@ -106,12 +106,28 @@ def _callback_for(command: Command) -> Any:
         declared = _as_declared(command, parameters)
         _require_declared_flags(command, declared)
         answer = command.handler(declared)
+        extra_warnings: tuple[str, ...] = ()
+        extra_actions: tuple[str, ...] = ()
+        try:
+            from ai_stp_cli.self_update.service import maybe_notice
+
+            extra_warnings, extra_actions = maybe_notice(
+                command.descriptor.path,
+                machine=bool(state.get("machine")),
+                tty=sys.stdout.isatty(),
+            )
+        except Exception:
+            extra_warnings, extra_actions = (), ()
+        actions = list(command.descriptor.next_actions)
+        for action in extra_actions:
+            if action not in actions:
+                actions.append(action)
         render_success(
             answer.payload,
             machine=bool(state.get("machine")),
             request_id=str(state.get("request_id") or new_request_id()),
-            next_actions=list(command.descriptor.next_actions),
-            warnings=list(answer.warnings),
+            next_actions=actions,
+            warnings=[*answer.warnings, *extra_warnings],
         )
 
     return _invoke

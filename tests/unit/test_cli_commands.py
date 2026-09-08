@@ -56,6 +56,7 @@ def test_doctor_reports_a_fresh_installation_as_needing_action_not_as_broken() -
         "composition_passports",
         "addressable_objects",
         "provider_binding",
+        "cli_update",
     }
 
 

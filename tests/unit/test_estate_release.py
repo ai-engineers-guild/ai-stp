@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -379,3 +380,43 @@ def test_seven_by_six_passed_launch_cells_can_be_complete() -> None:
 
 def test_required_providers_match_the_attested_policy() -> None:
     assert frozenset(REQUIRED_PROVIDERS) == frozenset(policy_provider_repositories())
+
+
+def test_artifacts_must_match_the_recorded_digest(tmp_path: Path) -> None:
+    payload = _record()
+    payload["verdict"] = "incomplete"
+    payload["required_slices"] = []
+    filename = "ai_stp_cli-0.0.17-py3-none-any.whl"
+    body = b"wheel-bytes"
+    digest = "sha256:" + sha256(body).hexdigest()
+    payload["distributions"] = [
+        {
+            "name": "ai-stp-cli",
+            "version": "0.0.17",
+            "filename": filename,
+            "digest": digest,
+        }
+    ]
+    place = tmp_path / "estate.json"
+    place.write_text(json.dumps(payload), encoding="utf-8")
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    (artifacts / filename).write_bytes(body)
+    assert validate(place, artifacts=artifacts) == []
+    (artifacts / filename).write_bytes(b"tampered")
+    problems = validate(place, artifacts=artifacts)
+    assert problems
+    assert "digest" in problems[0]
+
+
+def test_a_missing_artifacts_file_is_refused(tmp_path: Path) -> None:
+    payload = _record()
+    payload["verdict"] = "incomplete"
+    payload["required_slices"] = []
+    place = tmp_path / "estate.json"
+    place.write_text(json.dumps(payload), encoding="utf-8")
+    artifacts = tmp_path / "empty"
+    artifacts.mkdir()
+    problems = validate(place, artifacts=artifacts)
+    assert problems
+    assert "missing artifact" in problems[0]

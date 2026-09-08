@@ -8572,6 +8572,173 @@
     },
     {
       "path": [
+        "update",
+        "apply"
+      ],
+      "summary": "Replace this CLI with the exact wheel a stored update plan named.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by update plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-self-update-result",
+      "next_actions": [
+        "update status",
+        "update rollback"
+      ]
+    },
+    {
+      "path": [
+        "update",
+        "check"
+      ],
+      "summary": "Report whether a newer compatible ai-stp-cli wheel is install-ready.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "offline",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Use only the check cache; never the network.",
+          "choices": []
+        },
+        {
+          "name": "channel",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Release channel. Omit to use update.channel from configuration.",
+          "choices": [
+            "stable",
+            "prerelease"
+          ]
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact PEP 440 version to inspect instead of newest.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-self-update-check",
+      "next_actions": [
+        "update plan",
+        "update status"
+      ]
+    },
+    {
+      "path": [
+        "update",
+        "plan"
+      ],
+      "summary": "Pin one exact PyPI wheel and the installer that must apply it.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "channel",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Release channel. Omit to use update.channel from configuration.",
+          "choices": [
+            "stable",
+            "prerelease"
+          ]
+        },
+        {
+          "name": "version",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Exact PEP 440 version to pin instead of newest.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-self-update-plan",
+      "next_actions": [
+        "update apply",
+        "update status"
+      ]
+    },
+    {
+      "path": [
+        "update",
+        "recover"
+      ],
+      "summary": "Finish or restore an interrupted CLI update from the journalled plan.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-self-update-result",
+      "next_actions": [
+        "update status"
+      ]
+    },
+    {
+      "path": [
+        "update",
+        "rollback"
+      ],
+      "summary": "Restore the previous verified CLI distribution from retained wheel bytes.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "expected-plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Rollback digest recorded after the last verified update.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-self-update-result",
+      "next_actions": [
+        "update status"
+      ]
+    },
+    {
+      "path": [
+        "update",
+        "status"
+      ],
+      "summary": "Read the CLI update journal and the distribution a new process reports.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-self-update-status",
+      "next_actions": [
+        "update recover",
+        "update rollback"
+      ]
+    },
+    {
+      "path": [
         "version"
       ],
       "summary": "Report the running build and the contract versions it speaks.",

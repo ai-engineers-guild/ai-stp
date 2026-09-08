@@ -59,6 +59,7 @@ stops in `references/decisions.md`. Uncertainty is research, not a pause.
 | install, update, roll back a setup | install |
 | drift, selected vs installed | daily |
 | timeout, partial install, stuck operation | recover |
+| update this CLI, PyPI wheel, self-update | self-update |
 | scaffold, adopt, validate, publish | author |
 | provider binary, toolchain pin | provider |
 | install or remove this Skill | self |

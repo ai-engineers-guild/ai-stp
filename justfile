@@ -122,8 +122,8 @@ security:
     cd apps/web && bun run audit
 
 # Offline check of one `ai-stp-estate-release/1` record (`docs/contracts/estate-release.md`).
-estate-validate path:
-    {{run}} python -m release_scripts.validate_estate_record "{{path}}"
+estate-validate path *args:
+    {{run}} python -m release_scripts.validate_estate_record "{{path}}" {{args}}
 
 # Build one estate record from local identities. Does not fetch.
 estate-record version commit tag checksums output:

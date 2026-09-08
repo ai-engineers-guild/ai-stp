@@ -70,6 +70,7 @@ REFERENCE_NAMES: Final[tuple[str, ...]] = (
     "install.md",
     "daily.md",
     "recover.md",
+    "self-update.md",
     "author.md",
     "provider.md",
     "self.md",
