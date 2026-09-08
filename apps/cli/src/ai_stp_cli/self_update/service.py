@@ -518,6 +518,18 @@ def rollback(
         index_mod.verify_wheel(
             wheel, expected_digest=str(receipt["digest"]), expected_size=int(str(receipt["size"]))
         )
+        from ai_stp_cli.local.database import configured_path
+        from ai_stp_cli.self_update import helper
+
+        try:
+            helper.check_registry_compatibility(wheel, configured_path())
+        except helper.RegistryCompatibilityError as error:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "the previous CLI cannot read the current registry schema",
+                details={"previous": previous, "reason": str(error)},
+                next_actions=["update status --json"],
+            ) from error
         if held.version == previous and _observe_version(held.executable) == previous:
             return _rolled_back(planned, held, expected, previous)
         store.write_json(
@@ -551,6 +563,16 @@ def rollback(
                 "previous CLI version was not restored",
                 next_actions=["update recover --json", "update status --json"],
             )
+        try:
+            helper.check_registry_compatibility(wheel, configured_path())
+        except helper.RegistryCompatibilityError as error:
+            _fail_journal(planned, "registry schema changed during CLI rollback")
+            raise CliFailure(
+                "AI_STP_PARTIAL_OPERATION",
+                "registry schema changed during CLI rollback",
+                details={"previous": previous, "reason": str(error)},
+                next_actions=["update status --json"],
+            ) from error
         return _rolled_back(planned, held, expected, observed)
 
 
@@ -587,6 +609,10 @@ def _continue_outside_prefix(
         "rollback_digest": _rollback_digest(planned),
         "direction": direction,
     }
+    if direction == "rollback":
+        from ai_stp_cli.local.database import configured_path
+
+        job["registry_path"] = str(configured_path())
     job_path = directory / "job.json"
     write_private(job_path, json.dumps(job, sort_keys=True))
     digest = hashlib.sha256(job_path.read_bytes()).hexdigest()
