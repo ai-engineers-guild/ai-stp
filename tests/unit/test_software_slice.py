@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -68,7 +70,15 @@ def test_transparent_mode_exercises_acquisition_and_reuses_the_managed_provider(
         if arguments[:2] == ["harness", "install"]:
             release = home / "data/ai-stp/providers/cursor/0.0.60"
             release.mkdir(parents=True)
-            (release / "release.json").write_text("{}", encoding="utf-8")
+            (release / "release.json").write_text(
+                json.dumps(
+                    {
+                        "entry_point": "cursor-setup-system",
+                        "artifact_digest": "sha256:" + hashlib.sha256(b"provider").hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
             (release / "cursor-setup-system").write_bytes(b"provider")
         return {"ok": True, "data": {"state": "verified"}}
 

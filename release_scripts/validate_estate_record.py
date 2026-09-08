@@ -1,4 +1,4 @@
-"""Offline validator for `ai-stp-estate-release/1`."""
+"""Offline validator for current and historical estate release records."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def validate(path: Path, *, artifacts: Path | None = None) -> list[str]:
     try:
         record = EstateRelease.model_validate(payload)
     except ValidationError as error:
-        return [f"the estate release record does not satisfy ai-stp-estate-release/1: {error}"]
+        return [f"the estate release record does not satisfy the estate schema: {error}"]
     problems: list[str] = []
     actual = computed_verdict(record)
     if actual != record.verdict:

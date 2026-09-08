@@ -1,4 +1,4 @@
-"""Missing managed providers are acquired through attested GitHub releases."""
+"""Missing managed providers are acquired through attested PyPI wheels."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def _executable(tmp_path: Path, name: str = "provider") -> Path:
 
 
 def _patch_fetch(monkeypatch: pytest.MonkeyPatch, fetch: object) -> None:
-    monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    monkeypatch.setattr("ai_stp_cli.provider.acquire.index_bind.fetch", fetch)
 
 
 def _bound(place: Path, harness_id: str = "codex") -> SimpleNamespace:

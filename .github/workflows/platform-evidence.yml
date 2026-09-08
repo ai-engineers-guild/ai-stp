@@ -70,16 +70,6 @@ jobs:
             os: linux
             arch: x86_64
             python: "3.14"
-          - id: linux-arm64-python314
-            runner: ubuntu-24.04-arm
-            os: linux
-            arch: arm64
-            python: "3.14"
-          - id: macos-x86_64-python314
-            runner: macos-15-intel
-            os: darwin
-            arch: x86_64
-            python: "3.14"
           - id: macos-arm64-python314
             runner: macos-15
             os: darwin
@@ -89,11 +79,6 @@ jobs:
             runner: windows-2025
             os: windows
             arch: x86_64
-            python: "3.14"
-          - id: windows-arm64-python314
-            runner: windows-11-arm
-            os: windows
-            arch: arm64
             python: "3.14"
           - id: linux-x86_64-python312
             runner: ubuntu-24.04

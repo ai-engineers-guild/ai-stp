@@ -1,6 +1,6 @@
 ---
 description: "Required release evidence for the CLI, platform, and providers."
-last_verified: "2026-09-07"
+last_verified: "2026-09-08"
 ---
 
 # Release evidence
@@ -68,8 +68,9 @@ release network or on a deployed environment being reachable.
 | `just evidence-publication <home>` | publication, grants, reports and owner reads — needs a real browser login |
 
 `software-evidence` and `config-evidence` are the two workflows that run their
-slice on all six native legs (`ubuntu-24.04`, `ubuntu-24.04-arm`,
-`macos-15-intel`, `macos-15`, `windows-2025`, `windows-11-arm`). They are
+slice on the three required native legs (`ubuntu-24.04`, `macos-15`,
+`windows-2025`). Linux arm64, macOS x86_64 and Windows arm64 are not_verified
+and do not delay this beta (ADR-0172). They are
 `workflow_dispatch` only and take the exact provider tag as input. Their
 package-only environment installs the CLI with `--no-editable` in both `uv sync`
 and `uv run`: only the wheel bundles the first-party modules (`ADR-0146`),
@@ -80,24 +81,18 @@ omits `--provider` and `--provider-manifest`; the report verifies that the
 managed release retained the requested exact tag. `config-evidence` also takes
 `from_import` to drive the import capture path.
 
-## First public catalog
+## Full-beta catalog and qualification
 
-The launch-catalog composition is a release barrier under `ADR-0034`, not a schema invariant. The first public release requires an inventory:
+The current corpus inventory and its immutable publication procedure belong to
+[first-party-corpus.md](first-party-corpus.md). Every exact launch reference must
+resolve to the recorded bytes through the public catalog. Historical MVP subsets
+are not the scope of this full beta.
 
-- one baseline setup each for Claude Code, Codex, Pi, OpenCode, and Grok Build;
-- role families were removed from the barrier by the 2026-08-28 amendment to `ADR-0034`: their source is archived, there is no live repository from which to rebuild them, and provenance inside a content-addressed passport cannot be repaired by an edit;
-- reusable first-party components sufficient to build these setups;
-- every launch object is published from a verified AI Engineers Guild namespace with a complete passport, provenance, current required evidence, and compatibility and installation evidence;
-- launch-catalog object content— instructions, descriptions, and components—is maintained in English under `ADR-0035`;
-- every exact launch-catalog reference resolves, and no object has expired or missing required evidence.
-
-Guild owners divide the role families among themselves, and peer review of every launch object is mandatory. Open beta ships all seven harnesses at the `beta` tier. A missing run is `not_verified` and does not drop a harness from the product. Specific object content is created during the content phase against real harnesses and is not fixed here.
-
-## Release lines
-
-The first MVP release is blocked by completeness of the product requirements for the core, local environment, server, and web; complete end-to-end evidence for Claude Code and Codex across the declared matrix; and the populated launch catalog described above.
-
-The Pi, OpenCode, and Grok Build lines advance independently and do not block the first release. Incomplete beta evidence is grounds neither to delay the release nor to declare the beta line supported: a line without a recorded run receives `not_verified`.
+Qualification follows [SPEC-061](../../specs/active/SPEC-061-estate-release-qualification.md)
+and [ADR-0172](../adr/ADR-0172-beta-qualification-on-three-primary-platforms.md).
+All seven harnesses remain in scope. Only the three optional platform pairs are
+not_verified without delaying this beta. The active implementation and evidence
+work is tracked in [implementation-roadmap.md](implementation-roadmap.md).
 
 ## Blocking conditions
 

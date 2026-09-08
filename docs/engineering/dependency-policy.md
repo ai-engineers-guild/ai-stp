@@ -20,6 +20,14 @@ transfer and total retry time. A checksum or installed-version mismatch still
 fails the installation. Retry behavior follows the
 [curl retry contract](https://curl.se/docs/manpage.html#--retry-all-errors).
 
+## Installed CLI verification runtime
+
+`apps/cli` owns the pinned `uv` runtime dependency and the isolated
+`provider-verifier` dependency group. Their purpose, lifecycle, failure model,
+supported qualification and removal path belong to
+[ADR-0171](../adr/ADR-0171-installed-cli-owns-index-verification-runtime.md).
+The verifier requirements are generated from `uv.lock` by `just back-gen`.
+
 ## Approved dependencies `apps/api` (issue #80, ADR-0041)
 
 Each entry below is a sign-off for adding to `apps/api/pyproject.toml` and the root `uv.lock`. The exact version is fixed by the lock file during `uv lock` / `uv sync`.

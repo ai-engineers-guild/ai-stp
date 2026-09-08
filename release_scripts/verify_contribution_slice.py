@@ -106,14 +106,9 @@ def _environment(home: Path) -> dict[str, str]:
 
 
 def _artifact(directory: Path) -> Path:
-    found = [
-        item
-        for item in sorted(directory.iterdir())
-        if item.is_file() and item.name != "release.json"
-    ]
-    if len(found) != 1:
-        raise EvidenceError(f"{directory} holds {len(found)} provider artifacts, expected one")
-    return found[0]
+    from release_scripts._evidence import provider_artifact
+
+    return provider_artifact(directory)
 
 
 def _seed(home: Path, harness_id: str) -> tuple[Path, str]:

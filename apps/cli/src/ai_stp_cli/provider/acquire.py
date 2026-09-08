@@ -3,7 +3,7 @@
 `ADR-0146` / `REQ-853`: the public install is `ai-stp-cli` alone. The first
 plan or install operation for a harness, with no explicit, configured,
 remembered or discovered provider, binds the pinned OpenNetwork release
-through the same `attested_bind` path `provider fetch` uses. Trust failures
+through the managed PyPI provenance path (`ADR-0171`). Trust failures
 stay refusals. This never becomes `--unverified-provider`.
 """
 
@@ -18,7 +18,7 @@ from ai_stp_cli.config import effective_config
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import provider_installations as installations
 from ai_stp_cli.local.passports import moment
-from ai_stp_cli.provider import attested_bind, conformance
+from ai_stp_cli.provider import attested_bind, conformance, index_bind
 
 
 @dataclass(frozen=True)
@@ -93,7 +93,7 @@ def provider_context(
                 f"provider fetch --harness {harness_id} --json",
             ],
         )
-    bound = attested_bind.fetch(harness=harness_id)
+    bound = index_bind.fetch(harness=harness_id)
     at = moment()
     installations.remember(
         connection,

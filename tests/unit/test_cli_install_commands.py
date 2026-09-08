@@ -2795,7 +2795,7 @@ def test_a_missing_managed_provider_is_acquired(
         trust_inputs.append(str(parameters.get("provider-manifest") or ""))
         return trust.ReleaseEvidence(None)
 
-    monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    monkeypatch.setattr("ai_stp_cli.provider.acquire.index_bind.fetch", fetch)
     monkeypatch.setattr(trust, "trusted_manifest", trusted_manifest)
     planned = install.plan({"proposal": proposal_id}).payload
     assert planned.state == "planned"

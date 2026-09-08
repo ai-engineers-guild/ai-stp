@@ -9,11 +9,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ai_stp_contracts.http import Timestamp
 from ai_stp_foundation.digests import DIGEST_PATTERN
 
-SCHEMA_ID = "ai-stp-estate-release/1"
+SCHEMA_ID = "ai-stp-estate-release/2"
+LEGACY_SCHEMA_ID = "ai-stp-estate-release/1"
 SOFTWARE_SLICE = "software"
 LAUNCH_SLICE = "launch"
 _FLOATING = frozenset({"latest", "main", "master", "head"})
-REQUIRED_LEGS: tuple[tuple[str, str], ...] = (
+LEGACY_REQUIRED_LEGS: tuple[tuple[str, str], ...] = (
     ("linux", "x86_64"),
     ("linux", "arm64"),
     ("macos", "x86_64"),
@@ -21,6 +22,16 @@ REQUIRED_LEGS: tuple[tuple[str, str], ...] = (
     ("windows", "x86_64"),
     ("windows", "arm64"),
 )
+REQUIRED_LEGS: tuple[tuple[str, str], ...] = (
+    ("linux", "x86_64"),
+    ("macos", "arm64"),
+    ("windows", "x86_64"),
+)
+NOT_VERIFIED_LEGS: tuple[tuple[str, str], ...] = tuple(
+    leg for leg in LEGACY_REQUIRED_LEGS if leg not in REQUIRED_LEGS
+)
+
+
 REQUIRED_PROVIDERS: tuple[str, ...] = (
     "github.com/NDDev-OpenNetwork/claude-setup-system",
     "github.com/NDDev-OpenNetwork/codex-setup-system",
@@ -99,7 +110,7 @@ class EstateRelease(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_id: Literal["ai-stp-estate-release/1"]
+    schema_id: Literal["ai-stp-estate-release/1", "ai-stp-estate-release/2"]
     record_id: Annotated[str, Field(min_length=1)]
     created_at: Timestamp
     consumer: EstateConsumer
@@ -107,6 +118,7 @@ class EstateRelease(BaseModel):
     providers: list[EstateProvider]
     evidence: list[EstateEvidenceRow]
     known_limitations: list[str] = []
+    not_verified_platforms: list[str] = []
     verdict: Literal["complete", "incomplete", "failed"]
     required_slices: list[str] = []
     web: EstateWeb | None = None
@@ -126,8 +138,17 @@ class EstateRelease(BaseModel):
 
 def computed_verdict(record: EstateRelease) -> Literal["complete", "incomplete", "failed"]:
     """Recompute the verdict. The stored field is a claim, not the decision."""
-    if any(row.result == "failed" for row in record.evidence):
+    required_legs = LEGACY_REQUIRED_LEGS if record.schema_id == LEGACY_SCHEMA_ID else REQUIRED_LEGS
+    if any(
+        row.result == "failed"
+        and (record.schema_id == LEGACY_SCHEMA_ID or (row.os, row.arch) in required_legs)
+        for row in record.evidence
+    ):
         return "failed"
+    if record.schema_id == SCHEMA_ID and sorted(record.not_verified_platforms) != sorted(
+        f"{os_name}/{arch}" for os_name, arch in NOT_VERIFIED_LEGS
+    ):
+        return "incomplete"
     if not record.required_slices or not record.distributions:
         return "incomplete"
     if {item.name for item in record.distributions} != {"ai-stp-cli"}:
@@ -146,10 +167,10 @@ def computed_verdict(record: EstateRelease) -> Literal["complete", "incomplete",
             wanted.update(
                 (LAUNCH_SLICE, repository, os_name, arch)
                 for repository in REQUIRED_PROVIDERS
-                for os_name, arch in REQUIRED_LEGS
+                for os_name, arch in required_legs
             )
             continue
-        wanted.update((slice_name, os_name, arch) for os_name, arch in REQUIRED_LEGS)
+        wanted.update((slice_name, os_name, arch) for os_name, arch in required_legs)
     observed: set[tuple[str, ...]] = set()
     for row in record.evidence:
         if row.slice == LAUNCH_SLICE:

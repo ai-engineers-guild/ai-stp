@@ -2625,15 +2625,15 @@ def provider_fetch(parameters: Mapping[str, object]) -> Answer[ProviderBoundRele
     """Materialise a closed release manifest from attested OpenNetwork bytes.
 
     Writes the artifact and the bound JSON. Install still plans against that
-    file; this command does not change a harness target. `--source index` is
-    the PEP 740 path; omitting it keeps GitHub as the default (`ADR-0146`).
+    file; this command does not change a harness target. The managed PEP 740
+    index path is the default; `--source github` selects GitHub explicitly.
     """
     harness = _harness_of(parameters)
     tag = str(parameters.get("tag") or "") or None
     directory_raw = str(parameters.get("directory") or "")
     artifact_raw = str(parameters.get("artifact") or "")
     bundle_raw = str(parameters.get("attestation-bundle") or "")
-    source = str(parameters.get("source") or "github")
+    source = str(parameters.get("source") or "index")
     if source == "index":
         from ai_stp_cli.provider import index_bind
 

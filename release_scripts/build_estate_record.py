@@ -1,4 +1,4 @@
-"""Build an offline `ai-stp-estate-release/1` record from local identities.
+"""Build an offline current estate release record from local identities.
 
 The builder does not fetch GitHub, PyPI, or the host. Provider tags and
 commits are supplied as inputs. The stored verdict is always the recomputed
@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Final
 
 from ai_stp_contracts.estate_release import (
+    NOT_VERIFIED_LEGS,
+    SCHEMA_ID,
     EstateConsumer,
     EstateDistribution,
     EstateEvidenceRow,
@@ -124,7 +126,8 @@ def build_record(
 ) -> EstateRelease:
     distributions = distributions_from_checksums(checksums, version=version)
     draft = EstateRelease(
-        schema_id="ai-stp-estate-release/1",
+        schema_id=SCHEMA_ID,
+        not_verified_platforms=[f"{os_name}/{arch}" for os_name, arch in NOT_VERIFIED_LEGS],
         record_id="pending",
         created_at=created_at,  # pyright: ignore[reportArgumentType]
         consumer=EstateConsumer(

@@ -54,16 +54,10 @@ jobs:
         include:
           - id: linux-x86_64
             runner: ubuntu-24.04
-          - id: linux-arm64
-            runner: ubuntu-24.04-arm
-          - id: macos-x86_64
-            runner: macos-15-intel
           - id: macos-arm64
             runner: macos-15
           - id: windows-x86_64
             runner: windows-2025
-          - id: windows-arm64
-            runner: windows-11-arm
     env:
       AI_STP_FORCE_FILE_CREDENTIAL_STORE: "1"
       GH_TOKEN: ${{ github.token }}
