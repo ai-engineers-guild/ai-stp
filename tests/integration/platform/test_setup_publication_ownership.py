@@ -64,11 +64,13 @@ async def test_setup_job_rechecks_line_owner_after_plan_creation(db_session: Asy
     assert existing.metadata.owner_account_id == owner
 
 
-async def test_concurrent_first_setup_versions_have_one_owner(
+@pytest.mark.parametrize("object_kind", ["component", "setup"])
+async def test_concurrent_first_catalog_versions_have_one_owner(
     db_sessionmaker: async_sessionmaker[AsyncSession],
+    object_kind: str,
 ) -> None:
     owners = [new_id("account"), new_id("account")]
-    stable_id = new_id("setup")
+    stable_id = new_id(object_kind)
     async with db_sessionmaker() as session, session.begin():
         session.add_all([Account(id=owner) for owner in owners])
     start = asyncio.Barrier(len(owners))
@@ -81,7 +83,7 @@ async def test_concurrent_first_setup_versions_have_one_owner(
                     await create_catalog_metadata_and_enqueue_upload(
                         session,
                         owner_account_id=owner,
-                        object_kind="setup",
+                        object_kind=object_kind,
                         stable_id=stable_id,
                         current_revision_id="revision_" + "0" * 64,
                         version=version,
