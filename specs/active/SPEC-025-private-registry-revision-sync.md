@@ -1,6 +1,6 @@
 ---
 description: "SPEC-025: Private registry and server-side revision synchronization."
-last_verified: "2026-08-15"
+last_verified: "2026-09-08"
 ---
 
 # SPEC-025: Private registry and server-side revision synchronization
@@ -43,7 +43,7 @@ deletion.
 - `REQ-2501`: In its initial form, the server ledger accepts and serves only the
   cross-device developer passport, the permitted summary of a specific device,
   private component or setup revisions, scoped consent, and their tombstones for
-  the current account. This slice does not store artifact bytes, backups, a full
+  the current account. This slice does not store artifact bytes, backups, a full device
   passport or project index, absolute paths, secrets, or environment values.
 - `REQ-2502`: Every event has an account-scoped idempotent receipt. Retrying the
   same event, or retrying after a lost response, returns the original result,

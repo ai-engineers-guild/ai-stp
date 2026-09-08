@@ -1,5 +1,6 @@
 """Durable client state for replay-safe private revision synchronisation."""
 
+import json
 import sqlite3
 import uuid
 from dataclasses import dataclass
@@ -7,10 +8,11 @@ from typing import cast
 
 from ai_stp_cli.cloud import login
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import lifecycle, revisions, versions
+from ai_stp_cli.local import lifecycle, revisions, sync_versions
 from ai_stp_cli.local.database import transaction
 from ai_stp_contracts.sync import SyncEvent, SyncEventReceipt, SyncPullResponse, SyncStreamEvent
 from ai_stp_contracts.sync_payload import SyncPayloadRejection, check_sync_payload
+from ai_stp_contracts.sync_versions import VersionBindingError, validate_payload
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.revisions import revision_id
@@ -59,39 +61,121 @@ def _validate_payload(value: object) -> None:
         ) from rejection
 
 
+def _advance_remote_head(
+    connection: sqlite3.Connection,
+    account_id: str,
+    entity_id: str,
+    incoming: str,
+    ancestry: dict[str, frozenset[str]] | None = None,
+) -> None:
+    held = connection.execute(
+        "SELECT remote_revision_id FROM sync_remote_head WHERE account_id = ? AND entity_id = ?",
+        (account_id, entity_id),
+    ).fetchone()
+    current_head = None if held is None else str(held[0])
+    if current_head == incoming:
+        return
+    incoming_row = connection.execute(
+        "SELECT request_json FROM sync_event WHERE account_id = ? AND remote_revision_id = ?",
+        (account_id, incoming),
+    ).fetchone()
+    incoming_parents: list[str] = (
+        []
+        if incoming_row is None
+        else cast(list[str], json.loads(str(incoming_row[0])).get("parent_revision_ids", []))
+    )
+    if current_head is not None and current_head not in incoming_parents:
+        known = None if ancestry is None else ancestry.get(current_head)
+        if known is None:
+            frontier = [current_head]
+            visited: set[str] = set()
+            complete = True
+            while frontier:
+                current = frontier.pop()
+                if current in visited:
+                    continue
+                visited.add(current)
+                row = connection.execute(
+                    "SELECT request_json FROM sync_event WHERE account_id = ? "
+                    "AND remote_revision_id = ?",
+                    (account_id, current),
+                ).fetchone()
+                if row is None:
+                    complete = False
+                else:
+                    document = json.loads(str(row[0]))
+                    frontier.extend(cast(list[str], document.get("parent_revision_ids", [])))
+            known = frozenset(visited)
+            if ancestry is not None and complete:
+                ancestry[current_head] = known
+        if incoming in known:
+            return
+    connection.execute(
+        "INSERT INTO sync_remote_head (account_id, entity_id, remote_revision_id) "
+        "VALUES (?, ?, ?) ON CONFLICT (account_id, entity_id) DO UPDATE SET "
+        "remote_revision_id = excluded.remote_revision_id",
+        (account_id, entity_id, incoming),
+    )
+
+
 def _remote_parents(
     connection: sqlite3.Connection, account_id: str, local_parents: tuple[str, ...]
 ) -> list[str]:
     result: list[str] = []
     for parent in local_parents:
-        row = connection.execute(
-            "SELECT remote_revision_id FROM sync_event "
-            "WHERE account_id = ? AND local_revision_id = ? "
-            "AND state IN ('accepted', 'conflict')",
-            (account_id, parent),
-        ).fetchone()
-        if row is None:
+        mapping = mapping_for_local(connection, account_id=account_id, local_revision_id=parent)
+        if mapping is None:
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",
                 "a parent revision must be accepted before its child can be pushed",
                 details={"revision_id": parent},
             )
-        result.append(str(row[0]))
+        result.append(mapping.remote_revision_id)
     return result
 
 
 def mapping_for_local(
-    connection: sqlite3.Connection, *, account_id: str, local_revision_id: str
+    connection: sqlite3.Connection,
+    *,
+    account_id: str,
+    local_revision_id: str,
+    payload: dict[str, object] | None = None,
 ) -> MappingRecord | None:
-    row = connection.execute(
-        "SELECT event_id, remote_revision_id, state FROM sync_event "
+    rows = connection.execute(
+        "SELECT event_id, remote_revision_id, state, request_json FROM sync_event "
         "WHERE account_id = ? AND local_revision_id = ? "
-        "AND state IN ('accepted', 'conflict') ORDER BY direction LIMIT 1",
+        "AND state IN ('accepted', 'conflict') ORDER BY "
+        "(remote_revision_id = (SELECT remote_revision_id FROM sync_remote_head h "
+        "WHERE h.account_id = sync_event.account_id AND h.entity_id = sync_event.entity_id)) DESC, "
+        "rowid DESC",
         (account_id, local_revision_id),
-    ).fetchone()
-    if row is None:
-        return None
-    return MappingRecord(str(row[0]), str(row[1]), str(row[2]))
+    ).fetchall()
+    for row in rows:
+        if payload is not None:
+            document = json.loads(str(row[3]))
+            if canonize(cast(JsonValue, document["payload"])) != canonize(cast(JsonValue, payload)):
+                continue
+        return MappingRecord(str(row[0]), str(row[1]), str(row[2]))
+    return None
+
+
+def payload_for(
+    connection: sqlite3.Connection,
+    stored: revisions.StoredRevision,
+    *,
+    include_versions: bool = True,
+) -> dict[str, object]:
+    payload = cast(dict[str, object], stored.envelope.model_dump(mode="json"))
+    if stored.envelope.kind in {"component", "setup"}:
+        payload["sync_released_versions"] = (
+            sync_versions.outgoing(connection, stored) if include_versions else []
+        )
+    _validate_payload(payload)
+    try:
+        validate_payload(payload, stable_id=stored.stable_id, kind=stored.envelope.kind)
+    except VersionBindingError as error:
+        raise CliFailure("AI_STP_VALIDATION_ERROR", str(error)) from error
+    return payload
 
 
 def prepare(
@@ -100,15 +184,42 @@ def prepare(
     account_id: str,
     device_id: str,
     stored: revisions.StoredRevision,
+    payload: dict[str, object] | None = None,
 ) -> Pending:
-    """Return an existing exact event or durably create it once."""
-    known = connection.execute(
-        "SELECT request_json, state FROM sync_event "
-        "WHERE account_id = ? AND sync_key = ? AND direction = 'push'",
+    """Retain an outstanding exact event before creating a new payload generation."""
+    with transaction(connection):
+        return _prepare(
+            connection, account_id=account_id, device_id=device_id, stored=stored, payload=payload
+        )
+
+
+def _prepare(
+    connection: sqlite3.Connection,
+    *,
+    account_id: str,
+    device_id: str,
+    stored: revisions.StoredRevision,
+    payload: dict[str, object] | None,
+) -> Pending:
+    outstanding = connection.execute(
+        "SELECT request_json, state FROM sync_event WHERE account_id = ? "
+        "AND local_revision_id = ? AND direction = 'push' AND state = 'pending' "
+        "ORDER BY rowid LIMIT 1",
         (account_id, stored.revision_id),
     ).fetchone()
-    if known is not None:
-        return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
+    if outstanding is not None:
+        return Pending(SyncEvent.model_validate_json(str(outstanding[0])), str(outstanding[1]))
+    payload = payload_for(connection, stored) if payload is None else payload
+    _validate_payload(payload)
+    accepted = connection.execute(
+        "SELECT request_json FROM sync_event WHERE account_id = ? AND local_revision_id = ? "
+        "AND direction = 'push' AND state = 'accepted' ORDER BY rowid DESC",
+        (account_id, stored.revision_id),
+    ).fetchall()
+    for row in accepted:
+        request = SyncEvent.model_validate_json(str(row[0]))
+        if canonize(cast(JsonValue, request.payload)) == canonize(cast(JsonValue, payload)):
+            return Pending(request, "accepted")
     entity_kind = _KIND.get(stored.envelope.kind)
     if entity_kind is None:
         raise CliFailure(
@@ -116,19 +227,19 @@ def prepare(
             "this local passport kind is not allowed in private sync",
             details={"kind": stored.envelope.kind},
         )
-    payload = cast(dict[str, object], stored.envelope.model_dump(mode="json"))
-    if stored.envelope.kind in {"component", "setup"}:
-        payload["sync_released_versions"] = [
-            {
-                "version": item.version,
-                "passport_digest": item.passport_digest,
-                "revision_id": item.revision_id,
-                "created_at": item.created_at,
-            }
-            for item in versions.line(connection, stored.stable_id)
-        ]
-    _validate_payload(payload)
-    remote_parents = _remote_parents(connection, account_id, stored.parents)
+    previous = connection.execute(
+        "SELECT remote_revision_id FROM sync_event WHERE account_id = ? AND local_revision_id = ? "
+        "AND state = 'accepted' ORDER BY "
+        "(remote_revision_id = (SELECT remote_revision_id FROM sync_remote_head h "
+        "WHERE h.account_id = sync_event.account_id AND h.entity_id = sync_event.entity_id)) DESC, "
+        "rowid DESC LIMIT 1",
+        (account_id, stored.revision_id),
+    ).fetchone()
+    remote_parents = (
+        [str(previous[0])]
+        if previous is not None
+        else _remote_parents(connection, account_id, stored.parents)
+    )
     head = connection.execute(
         "SELECT remote_revision_id FROM sync_remote_head WHERE account_id = ? AND entity_id = ?",
         (account_id, stored.stable_id),
@@ -146,6 +257,14 @@ def prepare(
         "actor_id": account_id,
         "created_at": created_at,
     }
+    sync_key = revision_id(sealed)
+    known = connection.execute(
+        "SELECT request_json, state FROM sync_event WHERE account_id = ? AND sync_key = ? "
+        "AND direction = 'push'",
+        (account_id, sync_key),
+    ).fetchone()
+    if known is not None:
+        return Pending(SyncEvent.model_validate_json(str(known[0])), str(known[1]))
     request = SyncEvent(
         event_id=f"event_{uuid.uuid4().hex}",
         entity_id=stored.stable_id,
@@ -171,7 +290,7 @@ def prepare(
             (
                 account_id,
                 request.event_id,
-                stored.revision_id,
+                sync_key,
                 stored.revision_id,
                 request.revision_id,
                 stored.stable_id,
@@ -286,11 +405,8 @@ def record_receipt(
                 (account_id, receipt.event_id),
             ).fetchone()
             assert row is not None
-            connection.execute(
-                "INSERT INTO sync_remote_head (account_id, entity_id, remote_revision_id) "
-                "VALUES (?, ?, ?) ON CONFLICT (account_id, entity_id) DO UPDATE SET "
-                "remote_revision_id = excluded.remote_revision_id",
-                (account_id, str(row[0]), receipt.server_head_revision_id),
+            _advance_remote_head(
+                connection, account_id, str(row[0]), receipt.server_head_revision_id
             )
 
 
@@ -343,7 +459,13 @@ def cursor(connection: sqlite3.Connection, account_id: str) -> str | None:
     return None if row is None or row[0] is None else str(row[0])
 
 
-def _apply_event(connection: sqlite3.Connection, *, account_id: str, event: SyncStreamEvent) -> str:
+def _apply_event(
+    connection: sqlite3.Connection,
+    *,
+    account_id: str,
+    event: SyncStreamEvent,
+    ancestry: dict[str, frozenset[str]] | None = None,
+) -> str:
     sealed: dict[str, JsonValue] = {
         "schema_version": 1,
         "entity_id": event.entity_id,
@@ -365,11 +487,28 @@ def _apply_event(connection: sqlite3.Connection, *, account_id: str, event: Sync
             "AI_STP_VALIDATION_ERROR",
             "a pulled event fails its content-addressed account binding",
         )
+    _validate_payload(event.payload)
     known = connection.execute(
-        "SELECT state FROM sync_event WHERE account_id = ? AND remote_revision_id = ?",
+        "SELECT event_id, state FROM sync_event WHERE account_id = ? AND remote_revision_id = ?",
         (account_id, event.revision_id),
     ).fetchone()
     if known is not None:
+        if str(known[0]) == event.event_id and str(known[1]) == "pending":
+            record_receipt(
+                connection,
+                account_id=account_id,
+                receipt=SyncEventReceipt(
+                    event_id=event.event_id,
+                    state="accepted",
+                    revision_id=event.revision_id,
+                    server_head_revision_id=event.revision_id,
+                    cursor=None,
+                    conflict=None,
+                    conflicting_entity_id=None,
+                    error_code=None,
+                ),
+            )
+        _advance_remote_head(connection, account_id, event.entity_id, event.revision_id, ancestry)
         return "replayed"
     local_revision_id: str | None = None
     if event.operation == "upsert":
@@ -424,47 +563,16 @@ def _apply_event(connection: sqlite3.Connection, *, account_id: str, event: Sync
         )
         local_revision_id = stored.revision_id
         for raw in raw_versions:
-            if not isinstance(raw, dict):
-                raise CliFailure(
-                    "AI_STP_VALIDATION_ERROR", "a pulled released version is not an object"
-                )
-            item = cast(dict[str, object], raw)
-            try:
-                version = str(item["version"])
-                passport_digest = str(item["passport_digest"])
-                version_revision = str(item["revision_id"])
-                created_at = str(item["created_at"])
-            except KeyError as error:
-                raise CliFailure(
-                    "AI_STP_VALIDATION_ERROR", "a pulled released version is incomplete"
-                ) from error
-            # A released number points at a revision, and this device may not
-            # hold it: the revision's own event was walked past with
-            # `--skip-event`, so its number arrives with nothing to stand on.
-            # Measured on a real account after such a skip, the recorder's
-            # foreign key refused and the refusal reached the caller as
-            # `AI_STP_INTERNAL: IntegrityError` — a defect report about a
-            # decision the operator had just made. Named here instead, with
-            # the way past it, which is the same one that led here.
-            if revisions.get(connection, version_revision) is None:
-                raise CliFailure(
-                    "AI_STP_CONFLICT",
-                    "a pulled released version points at a revision this device does not hold",
-                    details={
-                        "stable_id": event.entity_id,
-                        "version": version,
-                        "version_revision_id": version_revision,
-                    },
-                    next_actions=["sync pull --skip-event <event_id> --confirm --json"],
-                )
-            versions.record(
+            sync_versions.receive(
                 connection,
+                raw,
+                account=account_id,
+                event_id=event.event_id,
                 stable_id=event.entity_id,
-                version=version,
-                passport_digest=passport_digest,
-                revision_id=version_revision,
-                at=created_at,
+                kind=envelope.kind,
+                device_id=event.device_id,
             )
+
     else:
         lifecycle.entomb(
             connection,
@@ -488,12 +596,7 @@ def _apply_event(connection: sqlite3.Connection, *, account_id: str, event: Sync
             event.created_at,
         ),
     )
-    connection.execute(
-        "INSERT INTO sync_remote_head (account_id, entity_id, remote_revision_id) "
-        "VALUES (?, ?, ?) ON CONFLICT (account_id, entity_id) DO UPDATE SET "
-        "remote_revision_id = excluded.remote_revision_id",
-        (account_id, event.entity_id, event.revision_id),
-    )
+    _advance_remote_head(connection, account_id, event.entity_id, event.revision_id, ancestry)
     return "applied"
 
 
@@ -548,6 +651,7 @@ def apply_page(
                 (account_id, event_id, at),
             )
         walk_past = skip_event_ids | remembered
+        ancestry: dict[str, frozenset[str]] = {}
         for event in response.items:
             # Named, one exact id at a time, and never inferred. An event that
             # fails validation stops this account's pulls on every device and
@@ -564,7 +668,9 @@ def apply_page(
                 skipped.append(event.event_id)
                 continue
             try:
-                outcome = _apply_event(connection, account_id=account_id, event=event)
+                outcome = _apply_event(
+                    connection, account_id=account_id, event=event, ancestry=ancestry
+                )
             except CliFailure as failure:
                 # A refusal raised deeper than this loop knows nothing about
                 # sync and cannot name the event, so the id `--skip-event`
@@ -596,6 +702,7 @@ def apply_page(
                 ) from failure
             applied += outcome == "applied"
             replayed += outcome == "replayed"
+        sync_versions.reconcile(connection, account=account_id)
         if response.page.next_cursor is None:
             # The row still records that a walk reached its end here, so a
             # cursor absent because nothing was ever pulled stays
