@@ -542,7 +542,7 @@ def _seed_publishable(home: Path, *, python: str) -> tuple[str, str]:
     patch.write_text(
         json.dumps(
             {
-                "name": "ai-stp skill for Claude Code",
+                "name": f"ai-stp publication probe {stable_id.removeprefix('component_').lower()}",
                 "description": (
                     "The ai-stp skill projection for Claude Code as shipped in the "
                     "public repository."
