@@ -61,7 +61,7 @@ last_verified: "2026-08-03"
 | [skill-authoring.md](skill-authoring.md) | Skill package structure, required and optional fields, and rejection codes. | 2026-08-29 |
 | [standard-family.md](standard-family.md) | Coordinated standard-family identity, contract digest, and classification axes. | 2026-09-05 |
 | [structured-logging.md](structured-logging.md) | Closed event fields and redaction at the API and worker log sinks. | 2026-09-07 |
-| [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-01 |
+| [sync-event.md](sync-event.md) | Synchronization event fields, responses, retries, and conflicts. | 2026-09-08 |
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
 | [target-assessments.md](target-assessments.md) | Exact target assessment identity, conservative projection, and concurrent ingestion contract. | 2026-09-07 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable records by publisher, major line, and authorized task profile. | 2026-09-05 |
