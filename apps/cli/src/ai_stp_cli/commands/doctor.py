@@ -101,7 +101,7 @@ def _registry_check() -> DoctorCheck:
     if found < database.SCHEMA_VERSION:
         return DoctorCheck(
             name="local_registry",
-            state="needs_user_action",
+            state="ready",
             detail=f"schema {found}; the next write migrates it to {database.SCHEMA_VERSION}",
         )
     return DoctorCheck(name="local_registry", state="ready", detail="present")

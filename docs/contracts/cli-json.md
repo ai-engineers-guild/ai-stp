@@ -48,6 +48,12 @@ A warning does not change `ok` when the requested result was obtained in full.
 A partially completed mutating operation returns an error and `operation_id`
 rather than being masked as a warning.
 
+`doctor` reports diagnostic results without applying registry migrations. Its
+`local_registry` check is `ready` when an existing readable registry only needs
+a supported automatic migration; `detail` names the current and target schema.
+This condition does not require a user decision. An unreadable registry or a
+schema newer than the installed reader remains `failed`.
+
 Each element of `next_actions` is a command of this CLI, runnable as written
 with `--json` and carrying every option the command requires. A value the
 caller must supply stands in angle brackets; `...` stands for the caller's own
