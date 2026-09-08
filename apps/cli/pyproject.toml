@@ -1,6 +1,6 @@
 [project]
 name = "ai-stp-cli"
-version = "0.0.20"
+version = "0.0.21"
 description = "The ai_stp command line interface: a strict machine contract an agent drives."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -9,7 +9,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "AI Engineers Guild" }]
 keywords = ["ai", "cli", "developer-tools", "setup", "agents"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
