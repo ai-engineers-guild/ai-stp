@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,7 @@ from ai_stp_foundation.identity import (
     normalize_handle,
     submitted_display_name,
 )
-from ai_stp_platform.models import Account, CatalogIdentity, CatalogIdentityLocale
+from ai_stp_platform.models import Account, CatalogIdentity, CatalogIdentityLocale, CatalogMetadata
 
 
 class IdentityError(Exception):
@@ -218,7 +218,27 @@ async def assert_publication_owner(
     expected_ownership_revision_id: str | None,
     object_kind: str,
 ) -> CatalogIdentity | None:
-    """Fence a later version of an owned component line."""
+    """Keep version publication within the catalog line's current ownership."""
+    if object_kind == "setup":
+        # The first catalog row establishes setup ownership. Serialize absent
+        # rows too, so concurrent first publications cannot split the line.
+        await session.execute(
+            select(func.pg_advisory_xact_lock(func.hashtextextended("setup-owner:" + stable_id, 0)))
+        )
+        foreign = await session.scalar(
+            select(CatalogMetadata.id)
+            .where(
+                CatalogMetadata.object_kind == "setup",
+                CatalogMetadata.stable_id == stable_id,
+                CatalogMetadata.owner_account_id != actor_account_id,
+            )
+            .limit(1)
+        )
+        if foreign is not None:
+            raise IdentityError(
+                "AI_STP_FOREIGN_LINE_OWNERSHIP", "the catalog line is owned by another account"
+            )
+        return None
     if object_kind != "component":
         return None
     identity = await session.scalar(

@@ -65,7 +65,7 @@ last_verified: "2026-08-03"
 | [tag-vocabulary.md](tag-vocabulary.md) | Tag vocabulary format, validation, limit, and search behavior. | 2026-09-04 |
 | [target-assessments.md](target-assessments.md) | Exact target assessment identity, conservative projection, and concurrent ingestion contract. | 2026-09-07 |
 | [unverified-consent.md](unverified-consent.md) | Session-scoped consent marker for unverified objects and durable records by publisher, major line, and authorized task profile. | 2026-09-05 |
-| [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-06 |
+| [validation-policy.md](validation-policy.md) | Mandatory checks by component type, MCP class, and setup. | 2026-09-08 |
 | [web-cookie-consent.md](web-cookie-consent.md) | Cookie categories and the rule for starting optional Web integrations. | 2026-08-22 |
 | [web-machine-projection.md](web-machine-projection.md) | Fields of the web machine document, paired URLs, and leak prevention. | 2026-09-05 |
 

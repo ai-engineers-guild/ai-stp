@@ -96,6 +96,12 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
   version metadata, the verified artifact location and visibility, the public
   catalog projection only when visibility is public, `component_verified`, and
   lifecycle `published` / `active`.
+  An existing owned draft at the exact version coordinates is materialized in
+  place through the same successful validation and artifact binding. Its mere
+  existence is not a successful publication. A foreign draft is rejected;
+  replay of a materialized version preserves its lifecycle and visibility.
+  Setup ownership applies across all versions of its stable ID and is rechecked
+  by the publication job. Concurrent first materializations establish one owner.
   Republishing different bytes under the same `X.Y` is rejected (`SPEC-007`
   REQ-712). A new `X.Y` with artifact bytes already published for another
   version is allowed: `object_location` points to the same content-addressed key
@@ -254,7 +260,7 @@ version during the compatibility window (`SPEC-010`).
 | `REQ-2603` | Fault injection before commit leaves neither `validating` nor a `validate` job. |
 | `REQ-2604` | Fixtures for required `failed`, `degraded`, `not_run`, `expired`, and `warning` results. |
 | `REQ-2605` | An attestation with a bad signature, a string of sixteen `s` characters, a revoked device, a shifted digest, or secret fields is rejected; an accepted record is verified with the device key over the canonical digest. |
-| `REQ-2606` | Successful publish writes one version; another digest under the same `X.Y` is rejected; a new `X.Y` with the same artifact digest gets its own `object_location` row pointing to the same key; the catalog projection is visible. |
+| `REQ-2606` | Successful publish writes one version; another digest under the same `X.Y` is rejected; a new `X.Y` with the same artifact digest gets its own `object_location` row pointing to the same key; the catalog projection is visible. Real PostgreSQL tests promote an owned draft, reject a foreign or unvalidated draft, and preserve lifecycle, visibility and artifact uniqueness on replay. |
 | `REQ-2607` | Expiry and policy tightening remove `component_verified` and block new installations without rewriting bytes. |
 | `REQ-2608` | A seeded experimental object has no markers of the full publication barrier. |
 | `REQ-2628` | A process test carries the complete `ai_stp_contracts.first_party` corpus through plan/bind/confirm/validate/publish, components before setups, repeats the run without a second effect, and proves the absence of seed/direct-write and first-party exceptions. |

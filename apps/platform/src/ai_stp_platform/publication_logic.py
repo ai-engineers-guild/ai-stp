@@ -905,15 +905,32 @@ async def execute_publish(
         raise ValueError(msg)
 
     existing = await session.scalar(
-        select(CatalogMetadata).where(
+        select(CatalogMetadata)
+        .where(
             CatalogMetadata.object_kind == plan.object_kind,
             CatalogMetadata.stable_id == plan.stable_id,
             CatalogMetadata.version == plan.version,
         )
+        .with_for_update()
     )
     if existing is not None:
+        if existing.owner_account_id != plan.actor_account_id:
+            msg = "the catalog version is owned by another account"
+            raise ValueError(msg)
         if existing.passport_digest and existing.passport_digest != canonical_digest:
             msg = "version already published with different digest"
+            raise ValueError(msg)
+        if existing.lifecycle_state == "draft" and existing.published_at is not None:
+            msg = "published catalog version cannot be rematerialized as a draft"
+            raise ValueError(msg)
+    if existing is not None and existing.lifecycle_state != "draft":
+        if (
+            existing.passport_digest != canonical_digest
+            or canonize(cast(JsonValue, existing.passport_document))
+            != canonize(cast(JsonValue, canonical_passport))
+            or existing.published_at is None
+        ):
+            msg = "published catalog version has incomplete immutable metadata"
             raise ValueError(msg)
         plan.state = "published"
         if plan.object_kind == "component":
@@ -1002,23 +1019,23 @@ async def execute_publish(
             )
         except IdentityError as exc:
             raise ValueError(exc.message) from exc
-    metadata = CatalogMetadata(
+    metadata = existing or CatalogMetadata(
         owner_account_id=plan.actor_account_id,
         object_kind=plan.object_kind,
         stable_id=plan.stable_id,
         version=plan.version,
-        current_revision_id=passport.revision_id,
-        visibility=plan_visibility,
-        lifecycle_state="active",
-        name=str(name) if name is not None else None,
-        published_at=datetime.now(UTC),
-        trust_lane=trust_lane,
-        author_verified=author_verified,
-        component_verified=component_verified,
-        passport_digest=canonical_digest,
-        passport_document=canonical_passport,
-        checks_summary=summary,
     )
+    metadata.current_revision_id = passport.revision_id
+    metadata.visibility = plan_visibility
+    metadata.lifecycle_state = "active"
+    metadata.name = str(name) if name is not None else None
+    metadata.published_at = datetime.now(UTC)
+    metadata.trust_lane = trust_lane
+    metadata.author_verified = author_verified
+    metadata.component_verified = component_verified
+    metadata.passport_digest = canonical_digest
+    metadata.passport_document = canonical_passport
+    metadata.checks_summary = summary
     session.add(metadata)
     plan.state = "published"
     plan.component_verified = component_verified

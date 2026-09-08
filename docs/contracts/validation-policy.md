@@ -1,6 +1,6 @@
 ---
 description: "Mandatory checks by component type, MCP class, and setup."
-last_verified: "2026-09-06"
+last_verified: "2026-09-08"
 ---
 
 # Validation policy
@@ -234,6 +234,20 @@ Publication requires every mandatory check to have current, policy-accepted
 evidence with result `passed`. A mandatory check in state `failed`, `degraded`,
 `not_run`, or `expired` blocks public publication. A completed `warning`-class
 check does not block publication.
+
+The publication transaction locks an existing exact catalog version. An owned
+`draft` row follows the validated materialization path: its row ID is retained
+while the exact passport, artifact location, publication timestamp, eligibility
+and search projection are recorded together. A draft is not a publish receipt.
+An existing non-draft row is replayable only with complete matching immutable
+metadata and the same owner; replay does not reset visibility or lifecycle.
+
+For a setup, ownership is established by its first catalog row and applies to
+all versions of that stable ID. Plan creation rejects a known foreign line;
+draft creation and publication recheck it under the same transaction-scoped
+stable-ID lock, including when the line has no rows yet. A prepared plan does
+not reserve ownership, so the worker repeats the check before materialization.
+Component identity and ownership transfer remain owned by `SPEC-059`.
 
 The accepted evidence source is defined for each check:
 

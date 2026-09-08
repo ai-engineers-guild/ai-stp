@@ -15,16 +15,18 @@ from tests.support.component_passports import adaptation_fields
 from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports.envelope import derive_revision_id
+from ai_stp_platform.catalog import create_catalog_metadata_and_enqueue_upload
 from ai_stp_platform.models import (
     Account,
     CatalogMetadata,
     EvidenceBinding,
+    ObjectLocation,
     PublicationPlan,
     ValidationSnapshot,
 )
 from ai_stp_platform.publication_logic import execute_publish, execute_validate
 from ai_stp_platform.queue.models import Job
-from ai_stp_platform.queue.states import JobType
+from ai_stp_platform.queue.states import JobType, Visibility
 from ai_stp_platform.safety.orchestrator import clear_safety_cache
 from ai_stp_platform.safety.policy import POLICY_VERSION, SafetyProfile
 from ai_stp_platform.settings import StorageSettings
@@ -138,6 +140,9 @@ def _settings() -> StorageSettings:
     "case",
     [
         "skill_clean",
+        "skill_draft",
+        "draft_unvalidated",
+        "draft_foreign",
         "skill_pi",
         "secret",
         "env",
@@ -206,7 +211,7 @@ async def test_publication_safety_gate_persists_the_actual_verdict_and_replay(
         object_store=store,
         safety_profile=SafetyProfile.STRICT if case == "malware" else SafetyProfile.STANDARD,
     )
-    safe = case in {"skill_clean", "mcp_clean"}
+    safe = case in {"skill_clean", "mcp_clean", "skill_draft", "draft_unvalidated", "draft_foreign"}
     assert plan.state == ("publish_planned" if safe else "failed")
     bindings = (
         await db_session.scalars(
@@ -219,16 +224,72 @@ async def test_publication_safety_gate_persists_the_actual_verdict_and_replay(
     )
     if safe:
         assert jobs == 1
+        draft = None
+        if "draft" in case:
+            owner_id = ACCOUNT_ID
+            if case == "draft_foreign":
+                owner_id = new_id("account")
+                db_session.add(Account(id=owner_id))
+                await db_session.flush()
+            draft = (
+                await create_catalog_metadata_and_enqueue_upload(
+                    db_session,
+                    owner_account_id=owner_id,
+                    object_kind="component",
+                    stable_id=COMPONENT_ID,
+                    current_revision_id=str(passport["revision_id"]),
+                    version=plan.version,
+                    visibility=Visibility.PUBLIC,
+                    idempotency_key=new_id("operation"),
+                )
+            ).metadata
+        if case == "draft_unvalidated":
+            snapshot.state = "failed"
+            await db_session.flush()
+            with pytest.raises(ValueError, match="successful validation snapshot"):
+                await execute_publish(db_session, plan_id=plan.id, store=store)
+        elif case == "draft_foreign":
+            with pytest.raises(ValueError, match="owned by another account"):
+                await execute_publish(db_session, plan_id=plan.id, store=store)
+        if case in {"draft_unvalidated", "draft_foreign"}:
+            assert plan.state == "publish_planned"
+            assert draft is not None and draft.lifecycle_state == "draft"
+            assert draft.passport_document is None
+            assert await db_session.scalar(select(func.count()).select_from(ObjectLocation)) == 0
+            return
         metadata = await execute_publish(db_session, plan_id=plan.id, store=store)
         assert plan.state == "published"
+        if draft is not None:
+            assert metadata.id == draft.id
+        assert metadata.lifecycle_state == "active"
+        assert metadata.passport_document == plan.passport
+        assert metadata.passport_digest
+        assert metadata.published_at is not None
+        assert metadata.name == passport["name"]
+        assert metadata.current_revision_id == passport["revision_id"]
+        locations = (await db_session.scalars(select(ObjectLocation))).all()
+        assert len(locations) == 1
+        assert locations[0].catalog_metadata_id == metadata.id
+        assert locations[0].digest == digest
         # A generic safe ZIP is not a canonical declared native projection.
         assert metadata.component_verified is False
         assert plan.component_verified == metadata.component_verified == snapshot.component_verified
+        assert metadata.passport_document is not None
+        immutable_document = dict(metadata.passport_document)
+        published_at = metadata.published_at
+        metadata.lifecycle_state = "blocked"
+        metadata.visibility = "private"
+        await db_session.flush()
         replay = await execute_publish(db_session, plan_id=plan.id, store=store)
         assert replay.id == metadata.id
+        assert replay.lifecycle_state == "blocked"
+        assert replay.visibility == "private"
+        assert replay.published_at == published_at
+        assert replay.passport_document == immutable_document
         assert plan.component_verified == replay.component_verified
         assert await db_session.scalar(select(func.count()).select_from(CatalogMetadata)) == 1
         assert await db_session.scalar(select(func.count()).select_from(ValidationSnapshot)) == 1
+        assert await db_session.scalar(select(func.count()).select_from(ObjectLocation)) == 1
     else:
         assert jobs == 0
         assert any(
