@@ -70,6 +70,12 @@ published wheels that do not contain this command family.
   distribution. `recover` finishes or restores without repeating a verified
   effect. `rollback` restores the previous verified distribution when the data
   schema remains compatible. Missing rollback bytes are a typed refusal.
+  The retained wheel's supported registry schema is checked against the current
+  SQLite header before replacement and rechecked by the standalone helper.
+  A migrated registry newer than that reader refuses rollback before the
+  installer runs. A changed schema during replacement cannot report success.
+  Saved data backups are never restored implicitly to make a binary rollback
+  possible; post-update user writes remain intact.
 - `REQ-7208`: A Windows helper, when required, runs outside the replaced prefix.
   Linux and macOS paths with spaces or Unicode remain valid. Two concurrent apply
   operations contend on one lock.
@@ -114,5 +120,5 @@ and `update.notifications` default to a working check on `stable`.
 | `REQ-7204` | Yanked, prerelease-on-stable, unsupported Python, local version: correct refusal/reason |
 | `REQ-7205` | uv tool pin, pipx and dedicated venv each replace the selected executable |
 | `REQ-7206` | Kill during apply leaves a recoverable journal; data files survive |
-| `REQ-7207` | Rollback restores previous version; status from a new process agrees |
+| `REQ-7207` | Rollback restores a compatible previous version; a newer SQLite schema refuses before installer execution, and a schema changed during replacement cannot report success. The standalone helper repeats the check. A real isolated uv-tool update/rollback retains registry rows and confirms the version from fresh processes. |
 | `REQ-7208` | Concurrent apply: one lock holder, the other `AI_STP_CONFLICT` |

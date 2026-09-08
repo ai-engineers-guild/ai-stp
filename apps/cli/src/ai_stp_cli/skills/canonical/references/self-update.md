@@ -20,6 +20,11 @@ pipes keep one envelope; they do not prompt.
 If the journal is `recovery_required`, run `ai-stp update recover` or read
 `ai-stp update status`. Do not repeat `update apply` to “sync”.
 
+If rollback reports that the previous CLI cannot read the current registry
+schema, keep the compatible CLI. The refusal preserves the current data;
+restoring a pre-update data backup would discard later work and is not part of
+binary rollback.
+
 If this old CLI cannot start or read a registry created by a newer version,
 preserve the registry and use its owning installer to install an exact published
 compatible version. Never downgrade or rewrite the registry to fit an old

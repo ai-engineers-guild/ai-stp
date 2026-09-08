@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import subprocess
 import threading
+import zipfile
 from collections.abc import Mapping, Sequence
+from contextlib import closing
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -369,6 +373,151 @@ def test_recover_is_idle_without_a_journal(tmp_path: Path) -> None:
     with pytest.raises(CliFailure) as raised:
         service.recover(installation=held)
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+@pytest.mark.parametrize("migration_at", ["never", "before", "during"])
+def test_rollback_checks_current_registry_compatibility_before_replacing_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, migration_at: str
+) -> None:
+    from ai_stp_cli.local import database
+
+    ceiling = database.SCHEMA_VERSION - 1
+    with closing(database.open_registry(database.configured_path())) as connection:
+        database.downgrade(connection, ceiling)
+    old = io.BytesIO()
+    with zipfile.ZipFile(old, "w") as wheel:
+        wheel.writestr("ai_stp_cli/local/database.py", f"SCHEMA_VERSION: int = {ceiling}\n")
+    held = _held(tmp_path)
+    client = FakeIndex([_wheel(held.version, old.getvalue()), _wheel("0.0.21", b"new")])
+    planned = service.plan({}, installation=held, releases=client)
+    monkeypatch.setattr(service, "_observe_version", _observe(planned.target_version))
+    applied = service.apply(
+        {"expected-plan-digest": planned.plan_digest},
+        installation=held,
+        releases=client,
+        runner=lambda argv: subprocess.CompletedProcess(argv, 0, "", ""),
+    )
+    if migration_at == "before":
+        with closing(database.open_registry(database.configured_path())):
+            pass
+    with closing(database.open_readonly(database.configured_path())) as connection:
+        before = tuple(connection.iterdump())
+        schema_before = database.schema_version(connection)
+    preserved = [(before, schema_before)]
+    invoked: list[Sequence[str]] = []
+
+    def installer(argv: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        invoked.append(argv)
+        if migration_at == "during":
+            with closing(database.open_registry(database.configured_path())) as connection:
+                preserved[0] = (tuple(connection.iterdump()), database.schema_version(connection))
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(service, "_observe_version", _observe(held.version))
+    if migration_at != "never":
+        with pytest.raises(CliFailure, match="registry schema") as refused:
+            service.rollback(
+                {"expected-plan-digest": applied.rollback_digest},
+                installation=replace(held, version=planned.target_version),
+                runner=installer,
+            )
+        assert refused.value.code == (
+            "AI_STP_PRECONDITION_FAILED" if migration_at == "before" else "AI_STP_PARTIAL_OPERATION"
+        )
+        assert len(invoked) == (0 if migration_at == "before" else 1)
+        assert service.status(installation=held).journal_state == (
+            "verified" if migration_at == "before" else "recovery_required"
+        )
+    else:
+        result = service.rollback(
+            {"expected-plan-digest": applied.rollback_digest},
+            installation=replace(held, version=planned.target_version),
+            runner=installer,
+        )
+        assert result.outcome == "rolled_back"
+        assert len(invoked) == 1
+    with closing(database.open_readonly(database.configured_path())) as connection:
+        assert database.schema_version(connection) == preserved[0][1]
+        assert tuple(connection.iterdump()) == preserved[0][0]
+
+
+def test_retained_wheel_schema_is_read_without_executing_its_module(tmp_path: Path) -> None:
+    from ai_stp_cli.local import database
+    from ai_stp_cli.self_update import helper
+
+    artifact = tmp_path / "reader.whl"
+    source = Path(database.__file__).read_bytes()
+    with zipfile.ZipFile(artifact, "w") as archive:
+        archive.writestr(
+            "ai_stp_cli/local/database.py", b"raise RuntimeError('must not execute')\n" + source
+        )
+    assert helper.wheel_schema_version(artifact) == database.SCHEMA_VERSION
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "SCHEMA_VERSION = True",
+        "SCHEMA_VERSION = int('34')",
+        "SCHEMA_VERSION = -1",
+        "SCHEMA_VERSION = MIGRATIONS[0].version\nMIGRATIONS = (Migration(1),)",
+        "SCHEMA_VERSION = MIGRATIONS[-1].version\nMIGRATIONS = (Migration(2), Migration(1))",
+        "SCHEMA_VERSION = MIGRATIONS[-1].version\nMIGRATIONS = (Migration(1), Migration(1))",
+        "SCHEMA_VERSION = MIGRATIONS[-1].version\nMIGRATIONS = (Migration(True),)",
+        "SCHEMA_VERSION = MIGRATIONS[-1].version\nMIGRATIONS = ()",
+        "SCHEMA_VERSION = (",
+    ],
+)
+def test_unverifiable_rollback_reader_schema_is_refused(tmp_path: Path, source: str) -> None:
+    from ai_stp_cli.self_update import helper
+
+    artifact = tmp_path / "reader.whl"
+    with zipfile.ZipFile(artifact, "w") as archive:
+        archive.writestr("ai_stp_cli/local/database.py", source)
+    with pytest.raises(helper.RegistryCompatibilityError, match="schema declaration"):
+        helper.wheel_schema_version(artifact)
+
+
+def test_rollback_continuation_rechecks_schema_before_any_process_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+
+    from ai_stp_cli.local import database
+    from ai_stp_cli.self_update import helper
+
+    with closing(database.open_registry(database.configured_path())):
+        pass
+    artifact = tmp_path / "reader.whl"
+    with zipfile.ZipFile(artifact, "w") as archive:
+        archive.writestr(
+            "ai_stp_cli/local/database.py", f"SCHEMA_VERSION = {database.SCHEMA_VERSION - 1}\n"
+        )
+    journal = tmp_path / "journal.json"
+    journal.write_text(
+        json.dumps({"plan_digest": "bound-plan", "direction": "rollback", "state": "pending"})
+    )
+    job: dict[str, object] = {
+        "plan_digest": "bound-plan",
+        "direction": "rollback",
+        "journal": str(journal),
+        "lock": str(tmp_path / "update.lock"),
+        "environment": {},
+        "wheel": str(artifact),
+        "wheel_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "registry_path": str(database.configured_path()),
+    }
+    job_path = tmp_path / "job.json"
+    job_path.write_text(json.dumps(job))
+
+    def no_process(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("an incompatible rollback must not invoke a process")
+
+    monkeypatch.setattr(subprocess, "run", no_process)
+    helper.execute(job_path, hashlib.sha256(job_path.read_bytes()).hexdigest())
+    outcome = json.loads(journal.read_text())
+    assert outcome["state"] == "recovery_required"
+    assert "newer than rollback reader" in outcome["reason"]
 
 
 def test_requested_yanked_version_is_refused(tmp_path: Path) -> None:
