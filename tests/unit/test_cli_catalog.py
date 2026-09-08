@@ -280,7 +280,7 @@ def test_an_exact_version_is_verified_against_its_published_digest() -> None:
     assert cache.digest_of(view.passport) == view.passport_digest
 
 
-def test_an_authorized_private_version_uses_the_private_route_and_cache() -> None:
+def test_an_authorized_private_version_never_populates_the_anonymous_cache() -> None:
     served = next(
         case
         for case in load_cases()
@@ -320,7 +320,7 @@ def test_an_authorized_private_version_uses_the_private_route_and_cache() -> Non
     assert asked == [
         (
             f"/v1/catalog/components/{params['stable_id']}/versions/{params['version']}",
-            "Bearer private-token",
+            None,
         ),
         (
             f"/v1/catalog/components/{params['stable_id']}/versions/{params['version']}/private",
@@ -331,14 +331,18 @@ def test_an_authorized_private_version_uses_the_private_route_and_cache() -> Non
     def offline(_request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("no route")
 
-    cached = catalog.version(
-        Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(offline)),
-        "component",
-        str(params["stable_id"]),
-        str(params["version"]),
-    )
-    assert cached.source == "cache"
-    assert cached.passport == view.passport
+    with pytest.raises(CliFailure) as unavailable:
+        catalog.version(
+            Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(offline)),
+            "component",
+            str(params["stable_id"]),
+            str(params["version"]),
+        )
+    assert unavailable.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+    with pytest.raises(CliFailure) as missing:
+        catalog.cached_version("component", str(params["stable_id"]), str(params["version"]))
+
+    assert missing.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
 
 
 def test_a_version_digest_is_over_the_wire_passport_not_a_model_dump() -> None:

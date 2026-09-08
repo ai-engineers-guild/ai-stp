@@ -44,9 +44,9 @@
           "name": "component-root",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Exact component directory evaluated and signed with Git ignore rules.",
+          "summary": "Optional source directory to compare with the evaluated released artifact.",
           "choices": []
         },
         {
@@ -5138,9 +5138,9 @@
           "name": "component-root",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
-          "summary": "Exact component directory to package with Git ignore rules.",
+          "summary": "Optional source directory to compare with the already released artifact.",
           "choices": []
         },
         {

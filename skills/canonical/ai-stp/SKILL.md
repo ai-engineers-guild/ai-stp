@@ -79,7 +79,9 @@ Named traps: traps.
 - `author_verified` and `component_verified` are independent; show both.
 - After `install apply`, trust `target status` / `pending_authorization`, not
   the apply exit code.
-- Stop on a partial result or error and show `next_actions`.
+- On a partial result or error, inspect status and follow the matching recovery
+  playbook and executable `next_actions` within task authority. Continue until
+  the requested outcome is verified; never report a partial effect as success.
 
 ## Pointer
 

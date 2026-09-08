@@ -22,6 +22,7 @@ from tests.support.catalog_seed import (
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
 from ai_stp_api.session import issue_session
+from ai_stp_contracts.private_access import CliPrivateVersionResponse
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
@@ -219,8 +220,12 @@ async def test_private_artifact_owner_grantee_and_revocation_matrix(
     assert grantee_artifact.status_code == 200
     assert grantee_artifact.content == payload.encode()
     assert (await client.get(artifact_path, headers=outsider_headers)).status_code == 404
-    assert (await client.get(private_path, headers=owner_headers)).status_code == 200
-    assert (await client.get(private_path, headers=grantee_headers)).status_code == 200
+    for headers in (owner_headers, grantee_headers):
+        metadata_response = await client.get(private_path, headers=headers)
+        assert metadata_response.status_code == 200
+        metadata = CliPrivateVersionResponse.model_validate(metadata_response.json())
+        assert metadata.passport["stable_id"] == FIXTURE_COMPONENT_ID
+        assert metadata.passport_digest == row.passport_digest
 
     async with sessionmaker() as session:
         persisted = await session.get(AccessGrant, grant.id)

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
+import tomllib
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
@@ -51,6 +53,7 @@ def current_installation(
             apply_ready=True,
             reason="uv tool environment with a receipt",
         )
+    pipx_receipt = held_prefix / "pipx_metadata.json"
     if _is_pipx_prefix(held_prefix):
         return Installation(
             method="pipx",
@@ -58,7 +61,7 @@ def current_installation(
             prefix=held_prefix,
             python=held_python,
             version=version,
-            receipt=None,
+            receipt=pipx_receipt,
             apply_ready=True,
             reason="pipx managed virtual environment",
         )
@@ -121,6 +124,11 @@ def fingerprint(installation: Installation) -> str:
         "executable": str(installation.executable),
         "python": str(installation.python),
         "version": installation.version,
+        "receipt_digest": (
+            hashlib.sha256(installation.receipt.read_bytes()).hexdigest()
+            if installation.receipt is not None and installation.receipt.is_file()
+            else ""
+        ),
     }
     return digest_canonical("ai-stp:plan:v1", body)
 
@@ -132,14 +140,54 @@ def display_path(path: Path) -> str:
 def _argv_executable() -> Path:
     if sys.argv and sys.argv[0]:
         candidate = Path(sys.argv[0])
-        if candidate.exists():
+        if candidate.is_file() and candidate.name in {"ai-stp", "ai-stp.exe"}:
             return candidate
-    return Path(sys.executable)
+    scripts = Path(sys.prefix) / ("Scripts" if sys.platform == "win32" else "bin")
+    executable = scripts / ("ai-stp.exe" if sys.platform == "win32" else "ai-stp")
+    return executable
 
 
 def _is_pipx_prefix(prefix: Path) -> bool:
-    parts = {part.lower() for part in prefix.parts}
-    return "pipx" in parts and "venvs" in parts
+    receipt = prefix / "pipx_metadata.json"
+    if not receipt.is_file() or receipt.is_symlink():
+        return False
+    try:
+        document = json.loads(receipt.read_text(encoding="utf-8"))
+        return isinstance(document, dict) and isinstance(
+            cast(dict[str, object], document).get("main_package"), dict
+        )
+    except (ValueError, OSError):
+        return False
+
+
+def installer_environment(held: Installation) -> dict[str, str]:
+    """Bind the managed tool root independently of the next shell's environment."""
+    if held.method == "uv_tool":
+        result = {"UV_TOOL_DIR": str(held.prefix.parent)}
+        if held.receipt is not None:
+            try:
+                receipt = tomllib.loads(held.receipt.read_text(encoding="utf-8"))
+                tool = receipt.get("tool")
+                entries: object = (
+                    cast(dict[str, object], tool).get("entrypoints", [])
+                    if isinstance(tool, dict)
+                    else []
+                )
+                if not isinstance(entries, list):
+                    entries = []
+                for raw in cast(list[object], entries):
+                    if not isinstance(raw, dict):
+                        continue
+                    entry = cast(dict[str, object], raw)
+                    install_path = entry.get("install-path")
+                    if entry.get("name") == "ai-stp" and isinstance(install_path, str):
+                        result["UV_TOOL_BIN_DIR"] = str(Path(install_path).parent)
+            except (ValueError, OSError):
+                pass
+        return result
+    if held.method == "pipx":
+        return {"PIPX_HOME": str(held.prefix.parent.parent)}
+    return {}
 
 
 def _externally_managed(prefix: Path) -> bool:
@@ -169,9 +217,6 @@ def _editable() -> bool:
             continue
         held = cast(dict[str, object], payload)
         info = held.get("dir_info")
-        if isinstance(info, dict):
-            return True
-        url = held.get("url")
-        if isinstance(url, str) and url.startswith("file:"):
+        if isinstance(info, dict) and cast(dict[str, object], info).get("editable") is True:
             return True
     return False

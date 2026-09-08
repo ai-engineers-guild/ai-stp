@@ -18,6 +18,9 @@ import type {
   ConfirmPublicationPlanData,
   ConfirmPublicationPlanErrors,
   ConfirmPublicationPlanResponses,
+  ConfirmVisibilityPlanData,
+  ConfirmVisibilityPlanErrors,
+  ConfirmVisibilityPlanResponses,
   CreateComplaintData,
   CreateComplaintErrors,
   CreateComplaintResponses,
@@ -45,6 +48,9 @@ import type {
   CreateRequestCaseData,
   CreateRequestCaseErrors,
   CreateRequestCaseResponses,
+  CreateVisibilityPlanData,
+  CreateVisibilityPlanErrors,
+  CreateVisibilityPlanResponses,
   DeleteStaffContentData,
   DeleteStaffContentErrors,
   DeleteStaffContentResponses,
@@ -159,6 +165,12 @@ import type {
   ReadOwnerVersionData,
   ReadOwnerVersionErrors,
   ReadOwnerVersionResponses,
+  ReadPrivateComponentVersionData,
+  ReadPrivateComponentVersionErrors,
+  ReadPrivateComponentVersionResponses,
+  ReadPrivateSetupVersionData,
+  ReadPrivateSetupVersionErrors,
+  ReadPrivateSetupVersionResponses,
   ReadPublicationPlanData,
   ReadPublicationPlanErrors,
   ReadPublicationPlanResponses,
@@ -207,6 +219,9 @@ import type {
   ReadSystemVersionData,
   ReadSystemVersionErrors,
   ReadSystemVersionResponses,
+  ReadVisibilityPlanData,
+  ReadVisibilityPlanErrors,
+  ReadVisibilityPlanResponses,
   RegisterDeviceData,
   RegisterDeviceErrors,
   RegisterDeviceResponses,
@@ -283,6 +298,62 @@ export type Options<
    */
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * createVisibilityPlan for the exact owner distribution effect.
+ */
+export const createVisibilityPlan = <ThrowOnError extends boolean = false>(
+  options: Options<CreateVisibilityPlanData, ThrowOnError>,
+): RequestResult<CreateVisibilityPlanResponses, CreateVisibilityPlanErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateVisibilityPlanResponses,
+    CreateVisibilityPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/access/visibility/plans",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * readVisibilityPlan for the exact owner distribution effect.
+ */
+export const readVisibilityPlan = <ThrowOnError extends boolean = false>(
+  options: Options<ReadVisibilityPlanData, ThrowOnError>,
+): RequestResult<ReadVisibilityPlanResponses, ReadVisibilityPlanErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadVisibilityPlanResponses,
+    ReadVisibilityPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/access/visibility/plans/{plan_id}",
+    ...options,
+  });
+
+/**
+ * confirmVisibilityPlan for the exact owner distribution effect.
+ */
+export const confirmVisibilityPlan = <ThrowOnError extends boolean = false>(
+  options: Options<ConfirmVisibilityPlanData, ThrowOnError>,
+): RequestResult<ConfirmVisibilityPlanResponses, ConfirmVisibilityPlanErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ConfirmVisibilityPlanResponses,
+    ConfirmVisibilityPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/access/visibility/plans/{plan_id}/confirm",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
 
 /**
  * Read the current account. Carries no address.
@@ -599,6 +670,26 @@ export const readComponentGithubMetadata = <ThrowOnError extends boolean = false
   >({ url: "/v1/catalog/components/{stable_id}/versions/{version}/github-metadata", ...options });
 
 /**
+ * Read one authorized private component version.
+ */
+export const readPrivateComponentVersion = <ThrowOnError extends boolean = false>(
+  options: Options<ReadPrivateComponentVersionData, ThrowOnError>,
+): RequestResult<
+  ReadPrivateComponentVersionResponses,
+  ReadPrivateComponentVersionErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadPrivateComponentVersionResponses,
+    ReadPrivateComponentVersionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/catalog/components/{stable_id}/versions/{version}/private",
+    ...options,
+  });
+
+/**
  * Read one public setup family. Never installable content.
  */
 export const readSetupFamily = <ThrowOnError extends boolean = false>(
@@ -675,6 +766,22 @@ export const readSetupGithubMetadata = <ThrowOnError extends boolean = false>(
     ReadSetupGithubMetadataErrors,
     ThrowOnError
   >({ url: "/v1/catalog/setups/{stable_id}/versions/{version}/github-metadata", ...options });
+
+/**
+ * Read one authorized private setup version.
+ */
+export const readPrivateSetupVersion = <ThrowOnError extends boolean = false>(
+  options: Options<ReadPrivateSetupVersionData, ThrowOnError>,
+): RequestResult<ReadPrivateSetupVersionResponses, ReadPrivateSetupVersionErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadPrivateSetupVersionResponses,
+    ReadPrivateSetupVersionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/catalog/setups/{stable_id}/versions/{version}/private",
+    ...options,
+  });
 
 /**
  * Accept a complaint about an author, catalog object, or other target.

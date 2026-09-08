@@ -73,7 +73,6 @@ def test_component_upload_defaults_private_and_refuses_a_legacy_public_plan(
     parameters = {
         "id": component_id,
         "version": "1.0",
-        "component-root": str(tmp_path),
     }
     if legacy_response:
         with pytest.raises(CliFailure, match="published contract"):

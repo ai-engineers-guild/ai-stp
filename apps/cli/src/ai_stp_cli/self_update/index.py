@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,13 +105,17 @@ class PypiIndex:
                 details={"size": str(expected_size)},
             )
         ensure_directory(destination.parent)
+        if destination.is_symlink():
+            raise CliFailure("AI_STP_PLAN_STALE", "the download destination is a symlink")
+        handle_fd, temporary_name = tempfile.mkstemp(prefix=".download-", dir=destination.parent)
+        temporary = Path(temporary_name)
         try:
             with (
+                os.fdopen(handle_fd, "wb") as handle,
                 httpx.Client(
                     timeout=CHECK_TIMEOUT,
-                    follow_redirects=True,
+                    follow_redirects=False,
                     headers=_headers("application/octet-stream"),
-                    max_redirects=3,
                 ) as client,
                 client.stream("GET", url) as response,
             ):
@@ -116,36 +123,27 @@ class PypiIndex:
                     raise _rate_limited(response)
                 response.raise_for_status()
                 written = 0
-                hasher = hashlib.sha256()
-                with destination.open("wb") as handle:
-                    for chunk in response.iter_bytes():
-                        written += len(chunk)
-                        if written > expected_size or written > WHEEL_LIMIT:
-                            raise CliFailure(
-                                "AI_STP_DEPENDENCY_UNAVAILABLE",
-                                "the index artifact exceeded its declared size",
-                                details={"url": url},
-                            )
-                        hasher.update(chunk)
-                        handle.write(chunk)
-        except CliFailure:
-            raise
+                for chunk in response.iter_bytes():
+                    written += len(chunk)
+                    if written > expected_size or written > WHEEL_LIMIT:
+                        raise CliFailure(
+                            "AI_STP_DEPENDENCY_UNAVAILABLE",
+                            "the index artifact exceeded its declared size",
+                        )
+                    handle.write(chunk)
+                if written != expected_size:
+                    raise CliFailure("AI_STP_PLAN_STALE", "the wheel size does not match the plan")
+                handle.flush()
+                os.fsync(handle.fileno())
+            temporary.replace(destination)
         except httpx.HTTPError as error:
             raise CliFailure(
                 "AI_STP_DEPENDENCY_UNAVAILABLE",
                 "the CLI wheel could not be downloaded",
                 details={"exception": type(error).__name__},
             ) from error
-        if written != expected_size:
-            raise CliFailure(
-                "AI_STP_PLAN_STALE",
-                "the downloaded wheel size does not match the plan",
-                details={
-                    "expected": str(expected_size),
-                    "observed": str(written),
-                    "path": redact_home(destination),
-                },
-            )
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def inspect_channel(
@@ -226,7 +224,7 @@ def select_candidate(
             parsed = Version(wheel.version)
         except InvalidVersion:
             continue
-        if wheel.yanked:
+        if wheel.yanked or parsed.local or parsed.is_devrelease:
             continue
         if channel == "stable" and parsed.is_prerelease:
             continue
@@ -366,7 +364,8 @@ def _simple_file(raw: object) -> WheelFile | None:
     sha = cast(dict[str, object], hashes).get("sha256")
     if not isinstance(sha, str) or len(sha) != 64:
         return None
-    yanked = item.get("yanked") is True
+    yanked_value = item.get("yanked")
+    yanked = yanked_value is True or isinstance(yanked_value, str)
     stem = filename[: -len(WHEEL_SUFFIX)]
     prefix = PROJECT.replace("-", "_") + "-"
     if not stem.startswith(prefix):
@@ -430,14 +429,25 @@ def _empty_reason(
 
 def _get_json(url: str, *, timeout: float, accept: str, limit: int) -> dict[str, object]:
     _require_https(url)
+    deadline = time.monotonic() + timeout
     try:
-        with httpx.Client(
-            timeout=timeout,
-            follow_redirects=True,
-            headers=_headers(accept),
-            max_redirects=3,
-        ) as client:
-            response = client.get(url)
+        with (
+            httpx.Client(
+                timeout=timeout,
+                follow_redirects=False,
+                headers=_headers(accept),
+            ) as client,
+            client.stream("GET", url) as response,
+        ):
+            content = bytearray()
+            for chunk in response.iter_bytes():
+                if time.monotonic() >= deadline:
+                    raise httpx.TimeoutException("index response exceeded the total deadline")
+                content.extend(chunk)
+                if len(content) > limit:
+                    raise CliFailure(
+                        "AI_STP_DEPENDENCY_UNAVAILABLE", "the package index response is too large"
+                    )
     except httpx.TimeoutException as error:
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE",
@@ -467,14 +477,14 @@ def _get_json(url: str, *, timeout: float, accept: str, limit: int) -> dict[str,
             "the package index refused the request",
             details={"status": str(response.status_code)},
         )
-    if len(response.content) > limit:
+    if len(content) > limit:
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE",
             "the package index response is too large",
-            details={"bytes": str(len(response.content))},
+            details={"bytes": str(len(content))},
         )
     try:
-        payload: object = json.loads(response.content)
+        payload: object = json.loads(content)
     except ValueError as error:
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE",

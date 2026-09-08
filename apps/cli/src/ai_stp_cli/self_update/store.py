@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import sys
 import threading
 import time
 from collections.abc import Generator, Mapping
@@ -23,7 +25,8 @@ _thread_lock = threading.RLock()
 
 
 def root() -> Path:
-    return data_dir() / "self-update"
+    identity = hashlib.sha256(str(Path(sys.prefix).resolve()).encode()).hexdigest()
+    return data_dir() / "self-update" / "installations" / identity
 
 
 def cache_path() -> Path:

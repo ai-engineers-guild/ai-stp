@@ -15,6 +15,41 @@ scopes, and native MCP/agent/hook/plugin transforms landed in `#145` / `#147` /
 The `#146`/`#155` platform closeout is implemented in this tree; GitHub issue
 state remains a separate maintainer action. Merged PRs are not the OBT release.
 
+## Active full-beta execution — September 8
+
+The user selected the complete seven-harness beta on Linux, macOS and Windows,
+on x86_64 and arm64. One agent owns implementation and integration across CLI,
+contracts, API/platform/worker/web/deployment and the source setup systems. No
+subagents or new worktrees are used. The installed `ai-stp-cli` is the user's
+entry point for acquisition, installation, updates and recovery.
+
+Baseline: public `1d4a9e89`, setup source `b767490`. Colleague PR #187 is already
+merged and included locally. Focused checks pass, but the measured failures below
+are not covered by their current assertions. Historical snapshots below remain
+historical; this table owns the active execution order.
+
+| Stage | Remaining outcome | State |
+|---|---|---|
+| R1 | Concise current instructions/checkpoint and reusable installed-process tests | In progress |
+| R2 | One private metadata response; visibility lifecycle; immutable publication and every projection bind | Open |
+| R3 | Merge-aware deployment verifier; real storage/migration/restore and web integration | In progress: verifier reproduced and repaired locally |
+| R4 | Self-updater reconciliation, installer ownership, rollback bytes, total deadline and PyPI provider bootstrap | Open; updater source exists but is not release-qualified |
+| R5 | Seven source-owned native setup systems, all four postures and builder capabilities | Open |
+| R6 | Current corpus publication/readback, real account journey and all final machine-help commands | Open; baseline 106 exact coordinates unavailable and 185 commands |
+| R7 | Exact candidate on six OS/arch: 42 provider/launch combinations and 168 setup/posture/platform combinations | Open |
+| R8 | Reader-before-writer release, file-bound estate evidence, PyPI/PATH/production readback | Open |
+
+Confirmed repairs include mismatched private wire models, missing visibility
+routes, artifact resealing of an existing X.Y, unchecked projection bind answers,
+updater false rollback success and interrupted-update reconciliation. The estate
+validator must bind actual artifact/evidence files; matrix labels alone are not
+qualification. Native consumer workflows must consume the same candidate wheel.
+
+Fast iterations run affected checks; final qualification covers the full selected
+matrix and the repository gates. Technical reader releases may satisfy rollout
+ordering but do not finish the beta. Version numbers remain independent across
+CLI, API, providers, kit and immutable objects.
+
 ## September 7 audit and execution order
 
 The initial measurement started at `44116426`, after reviewing September 4–7

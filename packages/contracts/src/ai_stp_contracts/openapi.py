@@ -150,6 +150,7 @@ from ai_stp_contracts.ownership import (
     OwnershipRevisionListResponse,
     OwnershipRevisionView,
 )
+from ai_stp_contracts.private_access import VisibilityPlanCreateRequest, VisibilityPlanResponse
 from ai_stp_contracts.publication import (
     AuthorAttestation,
     EvidenceBindingView,
@@ -706,6 +707,54 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         query=SyncPullQuery,
         authenticated=True,
         errors=("AI_STP_VALIDATION_ERROR",),
+    ),
+    Operation(
+        method="post",
+        path="/access/visibility/plans",
+        operation_id="createVisibilityPlan",
+        summary="createVisibilityPlan for the exact owner distribution effect.",
+        response=VisibilityPlanResponse,
+        authenticated=True,
+        status=201,
+        body=VisibilityPlanCreateRequest,
+        idempotent_mutation=True,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_CONFLICT", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="get",
+        path="/access/visibility/plans/{plan_id}",
+        operation_id="readVisibilityPlan",
+        summary="readVisibilityPlan for the exact owner distribution effect.",
+        response=VisibilityPlanResponse,
+        authenticated=True,
+        status=200,
+        path_params=(
+            PathParam(
+                name="plan_id",
+                description="Visibility plan identifier.",
+                pattern=r"^[A-Za-z0-9._~-]{8,64}$",
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_CONFLICT", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="post",
+        path="/access/visibility/plans/{plan_id}/confirm",
+        operation_id="confirmVisibilityPlan",
+        summary="confirmVisibilityPlan for the exact owner distribution effect.",
+        response=VisibilityPlanResponse,
+        authenticated=True,
+        status=200,
+        body=PublicationConfirmRequest,
+        idempotent_mutation=True,
+        path_params=(
+            PathParam(
+                name="plan_id",
+                description="Visibility plan identifier.",
+                pattern=r"^[A-Za-z0-9._~-]{8,64}$",
+            ),
+        ),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_CONFLICT", "AI_STP_VALIDATION_ERROR"),
     ),
     Operation(
         method="post",

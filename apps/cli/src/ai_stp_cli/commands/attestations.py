@@ -17,7 +17,6 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     cache,
     component_passports,
-    components,
     content,
     publication_snapshot,
     versions,
@@ -83,8 +82,8 @@ def _identity() -> tuple[identity.Identity | None, str | None]:
 def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
     stable_id = _required(parameters, "id")
     version = _required(parameters, "version")
-    component_root = Path(_required(parameters, "component-root")).expanduser()
-    artifact_bytes, _inventory = components.package_publication_root(component_root)
+    selected_root = parameters.get("component-root")
+    component_root = Path(str(selected_root)).expanduser() if selected_root else None
     output = Path(_required(parameters, "output")).expanduser()
     if parameters.get("confirm") is not True:
         raise CliFailure(
@@ -114,6 +113,9 @@ def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
         )
     with closing(open_readonly(configured_path())) as connection:
         passport = component_passports.version_passport(connection, stable_id, version)
+        artifact_bytes, _inventory = publication_snapshot.prepared_bytes(
+            connection, passport, root=component_root
+        )
         recorded = versions.held(connection, stable_id, version)
     if recorded is None:
         raise CliFailure("AI_STP_NOT_FOUND", "the exact released component version is absent")

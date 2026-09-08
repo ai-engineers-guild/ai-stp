@@ -41,7 +41,8 @@ published wheels that do not contain this command family.
   command's exit status or prompt. `--json`, pipes and non-TTY receive the same
   fact only as envelope `warnings` / `next_actions`. Stdout stays one envelope.
 - `REQ-7202`: A network check is bounded (startup total ≤500 ms, TTL default 24
-  hours, backoff after 429/5xx/timeout). Fresh cache does not contact the index.
+  hours, backoff after 429/5xx/timeout). Fresh cache does not contact the index on startup; explicit `update check`
+  refreshes the index.
   Offline, timeout, 429, 5xx, TLS failure, invalid JSON, oversized body and
   corrupt cache do not fail the original command and do not mean "no updates":
   state is `unknown` or `stale`.

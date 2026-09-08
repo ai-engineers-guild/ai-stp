@@ -38,6 +38,9 @@ restricts future reads, not previously acquired copies.
   public 404 permits authenticated owner/grant lookup. Public requests contain no
   credentials. Online denial cannot become stale cached success. Offline use is
   explicit and retains acquired bytes.
+  API and CLI share the catalog private-version response model; the CLI verifies
+  the requested coordinates against the sealed passport. Local acquisition trust
+  is derived after authorization, not substituted for server verification facts.
 - `REQ-7104`: Private caches are scoped to endpoint and account. Graph acquisition
   checks each component digest and compiles the same native bundle without claiming
   public author or component verification. `setup compose` resolves exact granted
@@ -45,6 +48,9 @@ restricts future reads, not previously acquired copies.
 - `REQ-7105`: Invitations and grants retain SPEC-026 authority. Only an owner can
   expose an existing object through a separate exact plan and confirmation. Upload
   and invitation acceptance do not change visibility.
+  Visibility plan creation and confirmation are durable and idempotent. An expired
+  or stale plan leaves distribution unchanged, and public setup exposure requires
+  all exact component pins to be public at confirmation.
 - `REQ-7106`: Private preparation reuses accessible exact private and public pins;
   public preparation refuses private pins. An altered or merely cached passport
   cannot justify skipping publication of an exact participant.

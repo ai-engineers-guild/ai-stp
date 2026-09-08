@@ -41,7 +41,9 @@ The Agent reads `mutability` and `confirmation` independently: `confirmation: no
 - `read` only observes: it does not create an identity or local registry, run a migration, or change existing state;
 - `plan` stores an exact plan or short-lived session snapshot, but does not create a version or change a target;
 - `apply` changes local or external state; the required method for recording the user's decision is defined by the separate `confirmation` field;
-- `destructive` deletes data, a target, or a backup and always requires a separate decision under the rules above.
+- `destructive` deletes data, a target, or a backup; a separate decision is needed
+  for irreversible removal under the rules above. Reversible removal already
+  requested by the task is performed with its recorded recovery path.
 
 Empty local state for a collection returns an honest empty result when the collection's absence is normal. A command that requires an existing object or context returns a typed refusal with a safe next action and creates nothing itself.
 

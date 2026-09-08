@@ -410,7 +410,7 @@ def test_every_command_returns_the_model_its_declared_schema_names() -> None:
     import typing
 
     from ai_stp_cli.registry import COMMANDS
-    from ai_stp_contracts.schemas import CLI_MODELS
+    from ai_stp_contracts.schemas import CONTRACT_MODELS
 
     mismatched: list[str] = []
     for command in COMMANDS:
@@ -421,7 +421,7 @@ def test_every_command_returns_the_model_its_declared_schema_names() -> None:
         assert inside, f"{' '.join(command.descriptor.path)} does not return Answer[Model]"
 
         name = declared.removeprefix("urn:ai-stp:schema:v1:")
-        if CLI_MODELS.get(name) is not inside[0]:
+        if CONTRACT_MODELS.get(name) is not inside[0]:
             mismatched.append(
                 f"{' '.join(command.descriptor.path)} declares {name} "
                 f"but returns {getattr(inside[0], '__name__', inside[0])}"

@@ -13,7 +13,9 @@
           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
           "version": "1.0",
           "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-          "artifact_inventory": ["SKILL.md"],
+          "artifact_inventory": [
+            "SKILL.md"
+          ],
           "policy_version": "1",
           "passport": {
             "name": "demo",
@@ -49,8 +51,10 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "artifact_inventory": ["SKILL.md"],
-        "visibility": "private",
+        "artifact_inventory": [
+          "SKILL.md"
+        ],
+        "visibility": "public",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -60,8 +64,7 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ],
-        "visibility": "public"
+        ]
       }
     },
     {
@@ -84,8 +87,10 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "artifact_inventory": ["SKILL.md"],
-        "visibility": "private",
+        "artifact_inventory": [
+          "SKILL.md"
+        ],
+        "visibility": "public",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -95,8 +100,7 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ],
-        "visibility": "public"
+        ]
       }
     },
     {
@@ -119,7 +123,9 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "artifact_inventory": ["SKILL.md"],
+        "artifact_inventory": [
+          "SKILL.md"
+        ],
         "visibility": "private",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -154,8 +160,10 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "artifact_inventory": ["SKILL.md"],
-        "visibility": "private",
+        "artifact_inventory": [
+          "SKILL.md"
+        ],
+        "visibility": "public",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -165,8 +173,7 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ],
-        "visibility": "public"
+        ]
       }
     },
     {
@@ -195,8 +202,10 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "artifact_inventory": ["SKILL.md"],
-        "visibility": "private",
+        "artifact_inventory": [
+          "SKILL.md"
+        ],
+        "visibility": "public",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -206,8 +215,7 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ],
-        "visibility": "public"
+        ]
       }
     },
     {
@@ -652,8 +660,10 @@
         "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "version": "1.0",
         "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "artifact_inventory": ["SKILL.md"],
-        "visibility": "private",
+        "artifact_inventory": [
+          "SKILL.md"
+        ],
+        "visibility": "public",
         "policy_version": "1",
         "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -663,8 +673,7 @@
         "effects": [
           "validate",
           "publish_catalog_version"
-        ],
-        "visibility": "public"
+        ]
       }
     },
     {
@@ -1021,6 +1030,106 @@
         "content_type": "image/png",
         "size_bytes": 128,
         "state": "ready"
+      }
+    },
+    {
+      "case_id": "createVisibilityPlan.owner",
+      "operation_id": "createVisibilityPlan",
+      "kind": "positive",
+      "why": "Owner visibility preserves the exact published passport identity.",
+      "request": {
+        "body": {
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0",
+          "visibility": "public",
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "idempotency_key": "visibility-create-012345"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "planned",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "previous_visibility": "private",
+        "visibility": "public",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "effects": [
+          "set_distribution_visibility_public"
+        ]
+      }
+    },
+    {
+      "case_id": "readVisibilityPlan.owner",
+      "operation_id": "readVisibilityPlan",
+      "kind": "positive",
+      "why": "Owner visibility preserves the exact published passport identity.",
+      "request": {
+        "path_params": {
+          "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "planned",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "previous_visibility": "private",
+        "visibility": "public",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "effects": [
+          "set_distribution_visibility_public"
+        ]
+      }
+    },
+    {
+      "case_id": "confirmVisibilityPlan.owner",
+      "operation_id": "confirmVisibilityPlan",
+      "kind": "positive",
+      "why": "Owner visibility preserves the exact published passport identity.",
+      "request": {
+        "path_params": {
+          "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "confirmed": true,
+          "idempotency_key": "visibility-confirm-012345"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "applied",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "previous_visibility": "private",
+        "visibility": "public",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-09T00:00:00.000Z",
+        "effects": [
+          "set_distribution_visibility_public"
+        ]
       }
     }
   ]

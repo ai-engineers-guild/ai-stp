@@ -424,8 +424,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "component-root",
                 "string",
-                "Exact component directory to package with Git ignore rules.",
-                required=True,
+                "Optional source directory to compare with the already released artifact.",
             ),
             option(
                 "attestation-file",
@@ -455,8 +454,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "component-root",
                 "string",
-                "Exact component directory evaluated and signed with Git ignore rules.",
-                required=True,
+                "Optional source directory to compare with the evaluated released artifact.",
             ),
             option(
                 "visibility",
