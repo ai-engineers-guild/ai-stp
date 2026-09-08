@@ -137,9 +137,8 @@ test.describe("exact harness projection presentation", () => {
       .locator("xpath=ancestor::article");
     await expect(card).toBeVisible();
     const before = await card.boundingBox();
-    await card.locator("summary").filter({ hasText: "+4" }).click();
-    await expect(card.locator("details[open] > div")).toBeVisible();
-    await expect(card.locator("details[open] > div")).toHaveCSS("position", "absolute");
+    await card.getByRole("button", { name: /Harness:/ }).click();
+    await expect(page.getByRole("menu")).toBeVisible();
     const after = await card.boundingBox();
     expect(before).not.toBeNull();
     expect(after).not.toBeNull();
