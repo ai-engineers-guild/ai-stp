@@ -49,15 +49,16 @@ def test_private_graph_acquires_compiles_forks_and_retains_bytes_after_revocatio
 
     def serve(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        if "/catalog/" in request.url.path:
-            assert "authorization" not in request.headers and "cookie" not in request.headers
+        path = request.url.path
+        if "authorization" not in request.headers:
+            assert "cookie" not in request.headers
             return httpx.Response(404, json={"error": {"code": "AI_STP_NOT_FOUND"}})
         assert request.headers["authorization"] == f"Bearer {held.access_token}"
         if revoked:
             return httpx.Response(403, json={"error": {"code": "AI_STP_PERMISSION_DENIED"}})
-        stable_id = request.url.path.split("/")[4]
+        stable_id = path.split("/")[4]
         document = documents[stable_id]
-        if request.url.path.endswith("/artifact"):
+        if path.endswith("/artifact"):
             return httpx.Response(200, content=artifacts[stable_id])
         response = PrivateVersionResponse(
             kind="component" if stable_id == component_id else "setup",
@@ -85,6 +86,9 @@ def test_private_graph_acquires_compiles_forks_and_retains_bytes_after_revocatio
     acquired = registry.acquire(parameters).payload
     assert acquired.passport_digest == digest_canonical("ai-stp:passport:v1", setup_document)
     assert len(acquired.components) == 1 and acquired.components[0].stable_id == component_id
+    assert any(request.url.path.endswith("/private") for request in requests)
+    assert any(request.url.path.endswith("/artifact") for request in requests)
+    assert all("/access/" not in request.url.path for request in requests)
     manifest = tmp_path / "private-composition.json"
     manifest.write_text(
         json.dumps(

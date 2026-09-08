@@ -97,7 +97,8 @@ FIRST_PARTY_SOURCES: Final[tuple[Path, ...]] = (
 #: `ADR-0058`, `httpx` by `#75`, `jsonschema` for the closed provider status
 #: boundary, `pyyaml` for the configuration file, `pydantic`
 #: for the wire and report models, `rfc8785` for canonical JSON in foundation,
-#: `markdown-it-py` for passport markdown, and `tomlkit` by `ADR-0129` for
+#: `markdown-it-py` for passport markdown, `packaging` for PEP 440 comparison in
+#: the self-updater (`SPEC-072` / `ADR-0170`), and `tomlkit` by `ADR-0129` for
 #: format-preserving writes to a host file a component contributes one key to
 #: — `tomllib` in the standard library only reads, and writing values back
 #: would erase every comment the file's owner put there. `python-ulid` provides
@@ -111,6 +112,7 @@ ALLOWED_DEPENDENCIES: Final[frozenset[str]] = frozenset(
         "jsonschema",
         "keyring",
         "markdown-it-py",
+        "packaging",
         "pynacl",
         "pydantic",
         "pyyaml",

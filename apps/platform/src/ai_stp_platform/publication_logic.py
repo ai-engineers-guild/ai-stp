@@ -158,7 +158,11 @@ def validate_publication_passport(
     owner_account_id: str | None = None,
     expected_visibility: str = "public",
 ) -> tuple[ComponentVersionPassport | SetupVersionPassport | None, list[str]]:
-    """Validate the exact immutable passport accepted by the public catalog."""
+    """Validate the exact immutable passport accepted into catalog storage.
+
+    Plan `visibility` is distribution (ADR-0169). A historically private passport
+    may be opened publicly without rewriting sealed identity fields.
+    """
     model_type = ComponentVersionPassport if object_kind == "component" else SetupVersionPassport
     try:
         model = model_type.model_validate(passport)
@@ -173,8 +177,8 @@ def validate_publication_passport(
         invalid.append("stable_id")
     if model.version != version:
         invalid.append("version")
-    if model.visibility != expected_visibility:
-        invalid.append("visibility")
+    if expected_visibility not in {"public", "private"}:
+        invalid.append("expected_visibility")
     if owner_account_id is not None and model.owner_id != owner_account_id:
         invalid.append("owner_id")
     if object_kind == "component" and model.source is None:

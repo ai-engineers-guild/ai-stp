@@ -73,6 +73,11 @@
     "install_method": {
       "$ref": "#/$defs/CliInstallMethod"
     },
+    "install_root": {
+      "minLength": 1,
+      "title": "Install Root",
+      "type": "string"
+    },
     "installer_argv": {
       "items": {
         "type": "string"
@@ -89,11 +94,6 @@
     "plan_id": {
       "minLength": 1,
       "title": "Plan Id",
-      "type": "string"
-    },
-    "prefix": {
-      "minLength": 1,
-      "title": "Prefix",
       "type": "string"
     },
     "python_version": {
@@ -150,10 +150,10 @@
     "executable",
     "index_origin",
     "install_method",
+    "install_root",
     "installer_argv",
     "plan_digest",
     "plan_id",
-    "prefix",
     "python_version",
     "reason",
     "receipt_fingerprint",

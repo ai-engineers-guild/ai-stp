@@ -17,15 +17,17 @@ def bind(
     digest: str,
     size_bytes: int,
 ) -> ComponentVersionPassport:
-    if (
-        passport.visibility == visibility
-        and passport.artifact.digest == digest
-        and passport.artifact.size_bytes == size_bytes
-        and (passport.model_extra or {}).get("artifact_format") == components.COMPONENT_TREE_FORMAT
-    ):
+    """Bind unpublished artifact bytes without rewriting sealed identity.
+
+    `visibility` is the requested distribution for the publication plan. ADR-0169
+    keeps that field off the passport: opening or closing access uses a separate
+    owner plan and must not mint a new `revision_id`.
+    """
+    if visibility not in {"public", "private"}:
+        raise ValueError("visibility must be public or private")
+    if passport.artifact.digest == digest and passport.artifact.size_bytes == size_bytes:
         return passport
     document = cast(dict[str, object], passport.model_dump(mode="json"))
-    document["visibility"] = visibility
     document["artifact"] = {"digest": digest, "size_bytes": size_bytes}
     document["artifact_format"] = components.COMPONENT_TREE_FORMAT
     document["revision_id"] = derive_revision_id(cast(dict[str, JsonValue], document))

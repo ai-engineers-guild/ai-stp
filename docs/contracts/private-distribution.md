@@ -1,6 +1,6 @@
 ---
 description: "Private upload, exact access reads and owner visibility plans shared with the platform owner."
-last_verified: "2026-09-07"
+last_verified: "2026-09-08"
 ---
 
 # Private distribution
@@ -17,13 +17,12 @@ validation and confirmation retain the existing publication lifecycle. Private
 distribution needs no public publisher profile. Publication must not implicitly
 change distribution visibility of an already stored version.
 
-Authenticated `GET /v1/access/{components|setups}/{stable_id}/versions/{X.Y}` returns
-`PrivateVersionResponse`; its sibling `/artifact` returns exact artifact bytes.
-Both authorize the owner or an active major-line grant before reading private
-metadata or storage. Source repository credentials are separate server credentials,
-not grants or passport fields. These routes are required from the platform owner
-and are not implemented by the CLI. Until implemented, their models are exported
-as client schemas; OpenAPI does not declare nonexistent server routes.
+Authenticated `GET /v1/catalog/{components|setups}/{stable_id}/versions/{X.Y}/private`
+returns `CliPrivateVersionResponse` (`PrivateVersionResponse` is the same model).
+Exact artifact bytes are `GET /v1/catalog/.../artifact` with the same session.
+Anonymous public version/artifact 404 is what permits the authenticated retry;
+the CLI does not invent a second private prefix. Visibility plans remain the
+`/v1/access/visibility/plans` boundary below and are not the live version route.
 
 `registry version`, `fetch` and `acquire` accept explicit private access. Anonymous
 lookup sends no token; only public 404 permits authenticated lookup. Private cache

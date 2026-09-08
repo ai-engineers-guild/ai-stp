@@ -95,9 +95,7 @@ class _Detail:
                     connection, stable_id, version
                 ).model_dump(mode="json")
             else:
-                passport = setup_publication._passport_document(
-                    stable_id, version, visibility="public"
-                )
+                passport = setup_publication._passport_document(stable_id, version)
         self.passport = cast(dict[str, JsonValue], passport)
         self.passport_digest = digest_canonical("ai-stp:passport:v1", self.passport)
         self.source = "online"
@@ -262,16 +260,12 @@ def test_setup_is_private_by_default_and_publicization_is_explicit() -> None:
     _materialize()
 
     with closing(open_registry(configured_path(), create=False)) as connection:
-        private = setup_publication._setup_passport(connection, SETUP, SETUP_VERSION)
-        public = setup_publication._setup_passport(
-            connection, SETUP, SETUP_VERSION, visibility="public"
-        )
+        passport = setup_publication._setup_passport(connection, SETUP, SETUP_VERSION)
         recorded = versions.held(connection, SETUP, SETUP_VERSION)
         assert recorded is not None
         stored = revisions.get(connection, recorded.revision_id)
 
-    assert private.visibility == "private"
-    assert public.visibility == "public"
+    assert passport.visibility == "private"
     assert stored is not None
     assert stored.envelope.visibility == "private"
 

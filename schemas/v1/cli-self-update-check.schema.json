@@ -84,14 +84,14 @@
     "install_method": {
       "$ref": "#/$defs/CliInstallMethod"
     },
+    "install_root": {
+      "minLength": 1,
+      "title": "Install Root",
+      "type": "string"
+    },
     "installed_version": {
       "minLength": 1,
       "title": "Installed Version",
-      "type": "string"
-    },
-    "prefix": {
-      "minLength": 1,
-      "title": "Prefix",
       "type": "string"
     },
     "python_version": {
@@ -129,8 +129,8 @@
     "executable",
     "index_origin",
     "install_method",
+    "install_root",
     "installed_version",
-    "prefix",
     "python_version",
     "reason",
     "schema_version",

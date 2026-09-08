@@ -1,6 +1,6 @@
 ---
 description: "Client-side publication plan sequence and the boundary of transmitted data."
-last_verified: "2026-08-25"
+last_verified: "2026-09-08"
 ---
 
 # CLI publication

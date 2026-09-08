@@ -74,7 +74,8 @@ def version(
 
     held = held_session()
     path = (
-        f"/access/{'components' if kind == 'component' else 'setups'}/{stable_id}/versions/{number}"
+        f"/catalog/{'components' if kind == 'component' else 'setups'}"
+        f"/{stable_id}/versions/{number}/private"
     )
     with client.open_client(endpoint, access_token=held.access_token) as http:
         response = client.call(

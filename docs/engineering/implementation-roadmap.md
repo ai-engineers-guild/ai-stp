@@ -267,9 +267,9 @@ recorded in that day's evidence. They are not re-opened as implementation work.
 |---|---|---|---|
 | B01 | P0 | PATH is `0.0.17`; no CLI self-updater | CLI: `SPEC-072` updater, bootstrap from the owning installer, then a normal updater-to-updater transition |
 | B02 | P0 | Current corpus exact coordinates return public 404 | CLI publication + platform: ordinary plan/bind/validate/confirm and full readback |
-| B03 | P0 | CLI private client expects `/v1/access/...`; deployed OpenAPI has none | Platform implements the agreed `/access` contract; CLI proves a released consumer |
-| B04 | P0 | PR `#187` adds `/catalog/.../private` beside `/access` and two private response shapes | One route and one model. `#187` is not a ready dependency |
-| B05 | P0 | `#187` bind reseals visibility/artifact/revision of an existing `X.Y` | Forbidden by `ADR-0169`; ACL changes do not rewrite sealed identity |
+| B03 | P0 | Live private version is `GET /v1/catalog/.../versions/{X.Y}/private`; visibility `/access` is still undeployed | CLI version/artifact client uses the live catalog routes; visibility API remains platform |
+| B04 | P0 | `#187` merged `61828fb4`; CLI `/access` version reads were dead against OpenAPI | Same as B03: one live version route, no `/access` fallback for artifacts |
+| B05 | P0 | `#187` bind reseals visibility/artifact/revision of an existing `X.Y` | CLI bind and setup publication send sealed passport bytes; catalog projection emits `distribution_visibility=public` for opened private passports |
 | B06 | P0 | No current real browser login, two-device sync, grant, private fetch, visibility, revoke | Real sessions; mock transport is not evidence |
 | B07 | P0 | 179 commands counted; no current manual command ledger | Ledger against final machine help, including updater commands |
 | B08 | P0 | No complete estate record on this line; GitHub `0.0.20` has five assets | Candidate + required evidence cells; incomplete is not complete |
@@ -285,7 +285,10 @@ recorded in that day's evidence. They are not re-opened as implementation work.
 | B18 | P1 | PyPI classifier is still Alpha | Beta classifier only after acceptance |
 | B19 | P2 | Serena core memory points at missing current-work files in some trees | Drop false pointers; do not revive the archive |
 
-Private/visibility integration for B03–B05: keep `GET /v1/access/{components,setups}/{id}/versions/{version}` and `PrivateVersionResponse` as specified. Do not treat `#187` as merged. Visibility is a separate owner plan and must not rewrite `passport` / artifact / revision of an existing `X.Y`.
+Private/visibility: live private version/artifact reads use the deployed
+`/v1/catalog/.../private` and `/artifact` routes. Visibility plans stay on
+`/v1/access/visibility/plans` and are not in the current OpenAPI. `#187` is
+merged (`61828fb4`); publication bind must not rewrite sealed `X.Y` identity.
 
 Posture (`minimal` / `baseline` / `full-auto` / `nddev-builder`) is the
 content footprint of a setup (`ADR-0130`). `execution_profile` is independently

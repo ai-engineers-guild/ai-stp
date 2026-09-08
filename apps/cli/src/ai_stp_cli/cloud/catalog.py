@@ -386,24 +386,14 @@ def fetch_artifact(
             endpoint, path, expected, transport=transport, access_token=access_token
         )
     except CliFailure as failure:
-        if access_token is not None and failure.code == "AI_STP_NOT_FOUND":
-            return _download_artifact(
-                endpoint,
-                path.replace("/catalog/", "/access/", 1),
-                expected,
-                transport=transport,
-                access_token=access_token,
-            )
-        if not include_private or failure.code != "AI_STP_NOT_FOUND":
+        if failure.code != "AI_STP_NOT_FOUND":
             raise
-        held_session = private_access.held_session()
-        return _download_artifact(
-            endpoint,
-            path.replace("/catalog/", "/access/", 1),
-            expected,
-            transport=transport,
-            access_token=held_session.access_token,
-        )
+        token = access_token
+        if token is None and include_private:
+            token = private_access.held_session().access_token
+        if token is None or token == access_token:
+            raise
+        return _download_artifact(endpoint, path, expected, transport=transport, access_token=token)
 
 
 def _download_artifact(

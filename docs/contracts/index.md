@@ -21,7 +21,7 @@ last_verified: "2026-08-03"
 | [cli-grants.md](cli-grants.md) | Client sequence for issuing, accepting, and revoking access grants. | 2026-08-13 |
 | [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-09-01 |
 | [cli-owner-objects.md](cli-owner-objects.md) | Authorized reading of owner objects through the CLI. | 2026-08-13 |
-| [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-08-25 |
+| [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-09-08 |
 | [cli-self-update.md](cli-self-update.md) | Machine boundary for ai-stp CLI self-update: commands, plan fields, journal states. | 2026-09-08 |
 | [cli-telemetry.md](cli-telemetry.md) | Closed list of anonymous telemetry ping fields, sending conditions, and excluded data. | 2026-08-21 |
 | [complaint-intake.md](complaint-intake.md) | Public complaint intake: fields, distinction from a private report case, and configurable limits. | 2026-08-22 |
@@ -45,7 +45,7 @@ last_verified: "2026-08-03"
 | [passport-envelope.md](passport-envelope.md) | Canonical passport envelope and fact provenance. | 2026-08-04 |
 | [path-inventory.md](path-inventory.md) | Machine contract for passport-first inventory of one explicit authoring root. | 2026-09-05 |
 | [preserved-setups.md](preserved-setups.md) | Local setup identities, verified native recovery bindings and CLI selection. | 2026-09-07 |
-| [private-distribution.md](private-distribution.md) | Private upload, exact access reads and owner visibility plans shared with the platform owner. | 2026-09-07 |
+| [private-distribution.md](private-distribution.md) | Private upload, exact access reads and owner visibility plans shared with the platform owner. | 2026-09-08 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
 | [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |

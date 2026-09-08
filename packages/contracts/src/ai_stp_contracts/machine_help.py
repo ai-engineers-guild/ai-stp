@@ -3495,7 +3495,7 @@ class CliSelfUpdateCheck(BaseModel):
     python_version: Annotated[str, Field(pattern=r"^\d+\.\d+\.\d+")]
     install_method: CliInstallMethod
     executable: Annotated[str, Field(min_length=1)]
-    prefix: Annotated[str, Field(min_length=1)]
+    install_root: Annotated[str, Field(min_length=1)]
     channel: Literal["stable", "prerelease"]
     candidate_version: str = ""
     candidate_filename: str = ""
@@ -3518,7 +3518,7 @@ class CliSelfUpdatePlan(BaseModel):
     python_version: Annotated[str, Field(pattern=r"^\d+\.\d+\.\d+")]
     install_method: CliInstallMethod
     executable: Annotated[str, Field(min_length=1)]
-    prefix: Annotated[str, Field(min_length=1)]
+    install_root: Annotated[str, Field(min_length=1)]
     receipt_fingerprint: Annotated[str, Field(min_length=1)]
     distribution: Literal["ai-stp-cli"] = "ai-stp-cli"
     artifact_filename: Annotated[str, Field(min_length=1)]

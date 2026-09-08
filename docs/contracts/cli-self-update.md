@@ -32,7 +32,7 @@ the caller.
 `uv_tool` | `pipx` | `pip_venv` | `shared_environment` | `system_environment` | `source_managed`
 
 `INSTALLER` inside dist-info is not sufficient to distinguish `uv tool` from
-`uv pip`. Detection uses receipt, prefix and executable identity.
+`uv pip`. Detection uses receipt, install root and executable identity.
 
 ## Check states
 
