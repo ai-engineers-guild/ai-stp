@@ -17,7 +17,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import acquired_trust, content, passports, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.private_access import PrivateVersionResponse, PrivateVersionTrust
+from ai_stp_contracts.catalog import CatalogTrust, PrivateVersionResponse
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
@@ -61,15 +61,13 @@ def test_private_graph_acquires_compiles_forks_and_retains_bytes_after_revocatio
         if path.endswith("/artifact"):
             return httpx.Response(200, content=artifacts[stable_id])
         response = PrivateVersionResponse(
-            kind="component" if stable_id == component_id else "setup",
-            stable_id=stable_id,
-            version="1.0",
             passport=document,
             passport_digest=digest_canonical("ai-stp:passport:v1", document),
             lifecycle="active",
-            trust=PrivateVersionTrust(author_verified=False, component_verified=False),
+            trust=CatalogTrust(
+                trust_lane="experimental", author_verified=False, component_verified=False
+            ),
             published_at=str(document["created_at"]),
-            access_basis="grant",
         )
         return httpx.Response(200, json=response.model_dump(mode="json"))
 
@@ -200,15 +198,13 @@ def test_private_version_refuses_a_different_passport_inside_the_requested_envel
     secret_store, _warning = open_store()
     session.save(secret_store, held)
     response = PrivateVersionResponse(
-        kind="component",
-        stable_id=requested,
-        version="1.0",
         passport=other,
         passport_digest=digest_canonical("ai-stp:passport:v1", other),
         lifecycle="active",
-        trust=PrivateVersionTrust(author_verified=False, component_verified=False),
+        trust=CatalogTrust(
+            trust_lane="experimental", author_verified=False, component_verified=False
+        ),
         published_at=str(other["created_at"]),
-        access_basis="owner",
     )
     endpoint = Endpoint(
         "https://private.test",

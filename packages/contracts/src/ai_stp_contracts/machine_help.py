@@ -44,17 +44,17 @@ from ai_stp_foundation.errors import ErrorHandling, ExitClass
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_passports.versions import ComponentType
 
-#: What a command does to state, and therefore whether the agent must ask first
-#: (`SPEC-011` REQ-1103/REQ-1104, `docs/agent/interaction-policy.md`).
+#: State effects are independent of task authority and the confirmation binding
+#: (`SPEC-011`, `docs/agent/interaction-policy.md`).
 #:
-#: - `read` — observes only; never needs a question;
-#: - `plan` — computes an immutable plan and has no effect of its own;
-#: - `apply` — carries out a plan and needs the user's explicit decision;
-#: - `destructive` — removes data, a target or a backup, and needs a decision of
-#:   its own even when the caller already approved the surrounding work.
+#: - `read` observes; explicitly documented caches may be refreshed;
+#: - `plan` computes and stores an exact plan without applying its target effect;
+#: - `apply` performs the requested effect within the user's task authority;
+#: - `destructive` removes state; irreversible removal follows the decision policy.
 type MutabilityClass = Literal["read", "plan", "apply", "destructive"]
 
-#: How a caller expresses the user's decision. The CLI never asks in the
+#: How a caller binds an already-authorized effect. This is not another approval
+#: question within the user's task. The CLI never asks in the
 #: terminal — a decision arrives as an explicit flag or as the exact digest of a
 #: stored plan, and its absence is answered with `needs_user_action` rather than
 #: a prompt. That keeps one execution path for a human and for an agent, and
@@ -3528,6 +3528,7 @@ class CliSelfUpdatePlan(BaseModel):
     index_origin: Annotated[str, Field(min_length=1)]
     channel: Literal["stable", "prerelease"]
     installer_argv: Annotated[list[str], Field(min_length=1)]
+    installer_environment: dict[str, str] = Field(default_factory=dict)
     restart_effect: Literal["new_process_required"] = "new_process_required"
     data_backup: Annotated[str, Field(min_length=1)]
     rollback_available: bool

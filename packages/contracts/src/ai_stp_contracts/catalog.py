@@ -389,12 +389,6 @@ class PrivateVersionResponse(BaseModel):
     published_at: Timestamp
     visibility: Literal["private"] = "private"
 
-    @model_validator(mode="after")
-    def _passport_is_private(self) -> "PrivateVersionResponse":
-        if self.passport.get("visibility") != "private":
-            raise ValueError("the private catalog cannot represent a public passport")
-        return self
-
 
 class VersionListEntry(BaseModel):
     """One offered version of an object, as listed on its card.

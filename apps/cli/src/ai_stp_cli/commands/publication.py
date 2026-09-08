@@ -17,14 +17,12 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     cache,
     component_passports,
-    components,
     content,
     lifecycle,
     publication_snapshot,
     versions,
 )
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry, transaction
-from ai_stp_cli.local.passports import moment
 from ai_stp_contracts.machine_help import PublicationPlanView
 from ai_stp_contracts.publication import (
     AuthorAttestation,
@@ -112,8 +110,8 @@ def validated_attestations(
 def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
     stable_id = _required(parameters, "id")
     version = _required(parameters, "version")
-    component_root = Path(_required(parameters, "component-root")).expanduser()
-    artifact_bytes, artifact_inventory = components.package_publication_root(component_root)
+    selected_root = parameters.get("component-root")
+    component_root = Path(str(selected_root)).expanduser() if selected_root else None
     held = _session()
     with (
         closing(open_registry(configured_path(), create=True)) as connection,
@@ -122,7 +120,10 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
         passport = component_passports.version_passport(connection, stable_id, version)
         recorded = versions.held(connection, stable_id, version)
         overlay = lifecycle.version_is_overlay(connection, stable_id, version)
-        artifact = content.put(connection, artifact_bytes, at=moment())
+        _artifact_bytes, artifact_inventory = publication_snapshot.prepared_bytes(
+            connection, passport, root=component_root
+        )
+        artifact = passport.artifact
     if recorded is None:
         raise CliFailure("AI_STP_NOT_FOUND", "the exact released component version is absent")
     if overlay:
@@ -142,7 +143,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
         passport,
         visibility=visibility,
         digest=artifact.digest,
-        size_bytes=artifact.byte_length,
+        size_bytes=artifact.size_bytes,
     )
     publication_passport_digest = cache.digest_of(
         cast(JsonValue, publication_passport.model_dump(mode="json"))
@@ -222,7 +223,10 @@ def confirm(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
         bound = publication.bind(where, held.access_token, plan_id, artifact)
         publication.require_same_plan(current, bound)
         for digest, payload in projection_payloads:
-            publication.bind_projection(where, held.access_token, plan_id, digest, payload)
+            projection_bound = publication.bind_projection(
+                where, held.access_token, plan_id, digest, payload
+            )
+            publication.require_same_plan(current, projection_bound)
     request = PublicationConfirmRequest(
         plan_hash=plan_hash,
         confirmed=True,

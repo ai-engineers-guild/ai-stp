@@ -100,6 +100,8 @@ providers; secrets in GitHub or issue text; contents of domain handlers
   internal network, and not through a public address.
 - `REQ-2405`: Migrations and seeding are performed in a certain order before receiving traffic;
   readiness blocks traffic until dependencies and migrations are ready (`SPEC-017`).
+  Public deployment verification resolves the full Alembic revision graph,
+  including merge revisions with multiple parents, to the same single head.
 - `REQ-2406`: Production TLS and a domain corresponding to the available deployment
   host, terminated by the host's `nginx` with certbot-issued certificates and its own
   renewal timer; local **dev** works via plain HTTP on the published port `web`

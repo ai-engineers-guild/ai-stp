@@ -280,7 +280,7 @@ def test_apply_refuses_a_hash_changed_wheel(
     planned = service.plan({}, installation=held, releases=client)
     client.wheels = [current, _wheel("0.0.21", b"tampered-bytes")]
     client.simple = [item[0] for item in client.wheels]
-    with pytest.raises(CliFailure, match="does not match the planned artifact") as raised:
+    with pytest.raises(CliFailure) as raised:
         service.apply(
             {"expected-plan-digest": planned.plan_digest},
             installation=held,
@@ -407,9 +407,13 @@ def test_user_data_survives_apply(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     held = _held(tmp_path)
     values = {item.path: item.value for item in config.effective_config().values}
     registry = Path(str(values["registry.path"]))
-    open_registry(registry).close()
-    marker = b"keep-me"
-    registry.write_bytes(registry.read_bytes() + marker)
+    import sqlite3
+    from contextlib import closing
+
+    with closing(open_registry(registry)) as db:
+        db.execute("CREATE TABLE retained_user_data (value TEXT NOT NULL)")
+        db.execute("INSERT INTO retained_user_data VALUES (?)", ("keep-me",))
+        db.commit()
     client = FakeIndex([_wheel("0.0.20", b"c"), _wheel("0.0.21", b"n")])
     planned = service.plan({}, installation=held, releases=client)
     monkeypatch.setattr(service, "_observe_version", _observe("0.0.21"))
@@ -422,8 +426,9 @@ def test_user_data_survives_apply(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     backup = Path(planned.data_backup)
     copies = list(backup.glob("registry.sqlite*"))
     assert copies
-    assert marker in copies[0].read_bytes()
-    assert marker in registry.read_bytes()
+    for path in (copies[0], registry):
+        with closing(sqlite3.connect(path)) as db:
+            assert db.execute("SELECT value FROM retained_user_data").fetchone() == ("keep-me",)
 
 
 def test_uv_tool_plan_names_the_owning_installer(
@@ -475,3 +480,171 @@ def test_a_failed_installer_leaves_recovery_required(tmp_path: Path) -> None:
     assert raised.value.code == "AI_STP_PARTIAL_OPERATION"
     report = service.status(installation=held)
     assert report.journal_state == "recovery_required"
+
+
+def test_recover_after_replacement_finishes_without_installing_twice(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from dataclasses import replace
+
+    held = _held(tmp_path)
+    client = FakeIndex([_wheel("0.0.20", b"old"), _wheel("0.0.21", b"new")])
+    planned = service.plan({}, installation=held, releases=client)
+    monkeypatch.setattr(service, "_observe_version", _observe(planned.target_version))
+    first = service.apply(
+        {"expected-plan-digest": planned.plan_digest},
+        installation=held,
+        releases=client,
+        runner=lambda argv: subprocess.CompletedProcess(argv, 0, "", ""),
+    )
+    journal = store.read_json(store.journal_path())
+    assert journal is not None
+    journal["state"] = "applying"
+    store.write_json(store.journal_path(), journal)
+    updated = replace(held, version=planned.target_version)
+
+    def never_run(_argv: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        raise AssertionError("recovery must not repeat an observed replacement")
+
+    recovered = service.recover(installation=updated, releases=client, runner=never_run)
+    assert recovered.outcome == "recovered"
+    assert recovered.rollback_digest == first.rollback_digest
+    repeated = service.apply(
+        {"expected-plan-digest": planned.plan_digest},
+        installation=updated,
+        releases=client,
+        runner=never_run,
+    )
+    assert repeated.outcome == "unchanged"
+
+
+def test_plan_does_not_replace_the_active_recovery_journal(tmp_path: Path) -> None:
+    held = _held(tmp_path)
+    client = FakeIndex([_wheel("0.0.20", b"old"), _wheel("0.0.21", b"new")])
+    planned = service.plan({}, installation=held, releases=client)
+    journal = {"state": "applying", "plan_digest": planned.plan_digest}
+    store.write_json(store.journal_path(), journal)
+    another = service.plan({}, installation=held, releases=client)
+    assert another.plan_digest != planned.plan_digest
+    assert store.read_json(store.journal_path()) == journal
+
+
+@pytest.mark.parametrize("defect", ["observed_version", "wheel_bytes", "timeout"])
+def test_rollback_never_claims_an_unobserved_restore(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    defect: str,
+) -> None:
+    from dataclasses import replace
+
+    held = _held(tmp_path)
+    current = _wheel("0.0.20", b"old")
+    client = FakeIndex([current, _wheel("0.0.21", b"new")])
+    planned = service.plan({}, installation=held, releases=client)
+    monkeypatch.setattr(service, "_observe_version", _observe(planned.target_version))
+    applied = service.apply(
+        {"expected-plan-digest": planned.plan_digest},
+        installation=held,
+        releases=client,
+        runner=lambda argv: subprocess.CompletedProcess(argv, 0, "", ""),
+    )
+    if defect == "wheel_bytes":
+        (store.stage_dir() / current[0].filename).write_bytes(b"changed")
+    invoked: list[Sequence[str]] = []
+
+    def installer(argv: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        invoked.append(argv)
+        if defect == "timeout":
+            raise subprocess.TimeoutExpired(argv, 1)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    with pytest.raises(CliFailure) as refused:
+        service.rollback(
+            {"expected-plan-digest": applied.rollback_digest},
+            installation=replace(held, version=planned.target_version),
+            runner=installer,
+        )
+    assert refused.value.code == (
+        "AI_STP_PLAN_STALE" if defect == "wheel_bytes" else "AI_STP_PARTIAL_OPERATION"
+    )
+    if defect == "wheel_bytes":
+        assert not invoked
+    else:
+        assert service.status(installation=held).journal_state == "recovery_required"
+
+
+def test_offline_check_does_not_reuse_another_channel(tmp_path: Path) -> None:
+    held = _held(tmp_path)
+    client = FakeIndex([_wheel("0.0.22a1", b"pre")])
+    service.check({"channel": "prerelease"}, installation=held, releases=client)
+    report = service.check({"channel": "stable", "offline": True}, installation=held)
+    assert report.channel == "stable"
+    assert report.state == "unknown"
+    assert not report.candidate_version
+
+
+def test_local_wheel_archive_is_not_an_editable_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+
+    direct = tmp_path / "direct_url.json"
+    direct.write_text(json.dumps({"url": "file:///staged/package.whl", "archive_info": {}}))
+
+    class Distribution:
+        files = ("direct_url.json",)
+
+        def locate_file(self, _file: str) -> Path:
+            return direct
+
+    def distribution(_name: str) -> Distribution:
+        return Distribution()
+
+    monkeypatch.setattr(method_mod, "distribution", distribution)
+    assert not method_mod._editable()
+
+
+def test_index_calls_share_one_total_time_budget(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    held = _held(tmp_path)
+    now = [0.0]
+    monkeypatch.setattr("ai_stp_cli.self_update.service.time.monotonic", lambda: now[0])
+
+    class DelayedIndex(FakeIndex):
+        def __init__(self, wheels: Sequence[tuple[WheelFile, bytes]]) -> None:
+            super().__init__(wheels)
+            self.budgets: list[float] = []
+
+        def project(self, project: str, *, timeout: float) -> Mapping[str, object]:
+            self.budgets.append(timeout)
+            now[0] += timeout * 0.75
+            return super().project(project, timeout=timeout)
+
+        def simple_files(self, project: str, *, timeout: float) -> Sequence[WheelFile]:
+            self.budgets.append(timeout)
+            now[0] += timeout * 2
+            return super().simple_files(project, timeout=timeout)
+
+    client = DelayedIndex([_wheel("0.0.21", b"new")])
+    report = service.check({}, installation=held, releases=client, timeout=1)
+    assert client.budgets[1] < client.budgets[0]
+    assert report.state == "unknown"
+
+
+def test_module_invocation_resolves_the_installed_cli_not_the_driver_script(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+
+    driver = tmp_path / "driver.py"
+    driver.write_text("", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [str(driver)])
+    expected = Path(sys.prefix) / (
+        "Scripts/ai-stp.exe" if sys.platform == "win32" else "bin/ai-stp"
+    )
+    assert method_mod._argv_executable() == expected

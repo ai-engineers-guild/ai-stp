@@ -26,7 +26,6 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache
 from ai_stp_cli.paths import ensure_directory
 from ai_stp_contracts.catalog import (
-    CatalogTrust,
     ComponentDetail,
     ComponentListResponse,
     ComponentSearchRequest,
@@ -44,6 +43,7 @@ from ai_stp_contracts.machine_help import (
     CatalogSearchResult,
     CatalogVersionView,
 )
+from ai_stp_contracts.private_access import CliPrivateVersionResponse
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_passports.versions import ArtifactRef
@@ -180,7 +180,7 @@ def version(
     )
     key = cache.key_for(f"{kind}-version", f"{stable_id}@{number}")
     try:
-        with client.open_client(endpoint, access_token=access_token) as http:
+        with client.open_client(endpoint) as http:
             document = client.call_document(
                 http,
                 "GET",
@@ -199,11 +199,16 @@ def version(
                     private_path,
                     attempts=endpoint.max_attempts,
                 )
-            passport, digest = _published_bytes(document)
-            cache.verify(passport, digest)
-            checked_at = _moment()
-            cache.store(key, document, checked_at=checked_at)
-            return _private_version_view(kind, document, checked_at, passport)
+            # An explicit token carries no durable account identity. Never put
+            # its private response in the anonymous cache shared by accounts.
+            return private_access.version_view(
+                CliPrivateVersionResponse.model_validate(document),
+                kind=kind,
+                stable_id=stable_id,
+                number=number,
+                source="online",
+                checked_at=_moment(),
+            )
         elif failure.code in UNREACHABLE:
             return _version_from_cache(kind, key, failure)
         else:
@@ -236,35 +241,6 @@ def _version_view(
         published_at=answer.published_at,
         passport=passport,
     )
-
-
-def _private_version_view(
-    kind: CatalogKind,
-    document: dict[str, JsonValue],
-    checked_at: str,
-    passport: dict[str, JsonValue],
-) -> CatalogVersionView:
-    trust = document.get("trust")
-    if not isinstance(trust, dict):
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR", "the private catalogue answer is missing trust metadata"
-        )
-    try:
-        return CatalogVersionView(
-            kind=kind,
-            source="online",
-            checked_at=checked_at,
-            passport_digest=str(document["passport_digest"]),
-            lifecycle=str(document["lifecycle"]),  # type: ignore[arg-type]
-            trust=CatalogTrust.model_validate(trust),
-            published_at=str(document["published_at"]),
-            passport=passport,
-        )
-    except (KeyError, TypeError, ValidationError) as error:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "the private catalogue answer is missing version metadata",
-        ) from error
 
 
 def _published_bytes(document: dict[str, JsonValue]) -> tuple[dict[str, JsonValue], str]:
@@ -301,9 +277,9 @@ def _version_from_cache(kind: CatalogKind, key: str, failure: CliFailure) -> Cat
     # check performed only on arrival protects only the arrival.
     cache.verify(passport, digest)
     if entry.document.get("visibility") == "private":
-        return _private_version_view(kind, entry.document, entry.checked_at, passport).model_copy(
-            update={"source": "cache"}
-        )
+        # Older clients wrote authenticated documents under public keys.
+        # Preserve the file, but never disclose it through anonymous lookup.
+        raise failure
     answer = _version_model(kind, entry.document)
     return _version_view(kind, answer, "cache", entry.checked_at, passport)
 

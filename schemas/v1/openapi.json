@@ -12020,6 +12020,147 @@
         "title": "VersionListEntry",
         "type": "object"
       },
+      "VisibilityPlanCreateRequest": {
+        "additionalProperties": false,
+        "description": "Plan one owner's access change without rewriting immutable content.",
+        "properties": {
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "object_kind": {
+            "$ref": "#/components/schemas/ObjectKind"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ai_stp_contracts__catalog__Version"
+          },
+          "visibility": {
+            "enum": [
+              "public",
+              "private"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_kind",
+          "stable_id",
+          "version",
+          "visibility",
+          "device_id",
+          "idempotency_key"
+        ],
+        "title": "VisibilityPlanCreateRequest",
+        "type": "object"
+      },
+      "VisibilityPlanResponse": {
+        "additionalProperties": true,
+        "description": "A reviewed exposure effect with immutable identity and current access bindings.",
+        "properties": {
+          "actor_id": {
+            "$ref": "#/components/schemas/AccountId"
+          },
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "effects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Effects",
+            "type": "array"
+          },
+          "expires_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "object_kind": {
+            "$ref": "#/components/schemas/ObjectKind"
+          },
+          "passport_digest": {
+            "$ref": "#/components/schemas/PassportDigest"
+          },
+          "plan_hash": {
+            "$ref": "#/components/schemas/PassportDigest"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "previous_visibility": {
+            "enum": [
+              "public",
+              "private"
+            ],
+            "title": "Previous Visibility",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "planned",
+              "applied",
+              "expired",
+              "refused"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ai_stp_contracts__catalog__Version"
+          },
+          "visibility": {
+            "enum": [
+              "public",
+              "private"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor_id",
+          "device_id",
+          "effects",
+          "expires_at",
+          "object_kind",
+          "passport_digest",
+          "plan_hash",
+          "plan_id",
+          "previous_visibility",
+          "schema_version",
+          "stable_id",
+          "state",
+          "version",
+          "visibility"
+        ],
+        "title": "VisibilityPlanResponse",
+        "type": "object"
+      },
       "WithdrawalSemantics": {
         "enum": [
           "remove_path",
@@ -12138,6 +12279,758 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/access/visibility/plans": {
+      "post": {
+        "operationId": "createVisibilityPlan",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "createVisibilityPlan.owner": {
+                  "summary": "Owner visibility preserves the exact published passport identity.",
+                  "value": {
+                    "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "idempotency_key": "visibility-create-012345",
+                    "object_kind": "component",
+                    "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "version": "1.0",
+                    "visibility": "public"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/VisibilityPlanCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "createVisibilityPlan.owner": {
+                    "summary": "Owner visibility preserves the exact published passport identity.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "set_distribution_visibility_public"
+                      ],
+                      "expires_at": "2026-08-09T00:00:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "planned",
+                      "version": "1.0",
+                      "visibility": "public"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/VisibilityPlanResponse"
+                }
+              }
+            },
+            "description": "createVisibilityPlan for the exact owner distribution effect.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "createVisibilityPlan for the exact owner distribution effect."
+      }
+    },
+    "/v1/access/visibility/plans/{plan_id}": {
+      "get": {
+        "operationId": "readVisibilityPlan",
+        "parameters": [
+          {
+            "description": "Visibility plan identifier.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._~-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readVisibilityPlan.owner": {
+                    "summary": "Owner visibility preserves the exact published passport identity.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "set_distribution_visibility_public"
+                      ],
+                      "expires_at": "2026-08-09T00:00:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "planned",
+                      "version": "1.0",
+                      "visibility": "public"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/VisibilityPlanResponse"
+                }
+              }
+            },
+            "description": "readVisibilityPlan for the exact owner distribution effect.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "readVisibilityPlan for the exact owner distribution effect."
+      }
+    },
+    "/v1/access/visibility/plans/{plan_id}/confirm": {
+      "post": {
+        "operationId": "confirmVisibilityPlan",
+        "parameters": [
+          {
+            "description": "Visibility plan identifier.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._~-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "confirmVisibilityPlan.owner": {
+                  "summary": "Owner visibility preserves the exact published passport identity.",
+                  "value": {
+                    "confirmed": true,
+                    "idempotency_key": "visibility-confirm-012345",
+                    "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/PublicationConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "confirmVisibilityPlan.owner": {
+                    "summary": "Owner visibility preserves the exact published passport identity.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "set_distribution_visibility_public"
+                      ],
+                      "expires_at": "2026-08-09T00:00:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "plan_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "applied",
+                      "version": "1.0",
+                      "visibility": "public"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/VisibilityPlanResponse"
+                }
+              }
+            },
+            "description": "confirmVisibilityPlan for the exact owner distribution effect.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "confirmVisibilityPlan for the exact owner distribution effect."
+      }
+    },
     "/v1/account": {
       "get": {
         "operationId": "readAccount",

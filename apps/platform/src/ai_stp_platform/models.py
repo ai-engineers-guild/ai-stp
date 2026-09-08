@@ -758,6 +758,28 @@ class PublicationPlan(Base):
     )
 
 
+class VisibilityPlan(Base):
+    """Durable owner decision changing access without replacing immutable bytes."""
+
+    __tablename__ = "visibility_plan"
+    __table_args__ = (
+        UniqueConstraint(
+            "actor_account_id", "idempotency_key", name="uq_visibility_plan_actor_key"
+        ),
+        CheckConstraint(
+            "state in ('planned', 'applied', 'expired', 'refused')", name="ck_visibility_plan_state"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    actor_account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), index=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    state: Mapped[str] = mapped_column(String(16))
+    document: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
 class ValidationSnapshot(Base):
     """Durable validation results for one plan/digest (SPEC-026)."""
 

@@ -745,7 +745,7 @@ export type CliError = {
    * Details
    */
   details: {
-    [key: string]: JsonValue;
+    [key: string]: PydanticTypesJsonValue;
   };
   /**
    * Message
@@ -1323,6 +1323,10 @@ export type ComponentVersionPassport = {
  */
 export type ComponentVersionResponse = {
   checks: SafetyChecksSummary | null;
+  /**
+   * Distribution Visibility
+   */
+  distribution_visibility: "public" | null;
   lifecycle: PublicLifecycle;
   passport: ComponentVersionPassport;
   passport_digest: PassportDigest;
@@ -2241,7 +2245,7 @@ export type Fact = {
    * Source Refs
    */
   source_refs?: Array<string>;
-  value: JsonValue;
+  value: PydanticTypesJsonValue;
   [key: string]: unknown;
 };
 
@@ -2493,8 +2497,6 @@ export const InvitationState = {
 } as const;
 
 export type InvitationState = (typeof InvitationState)[keyof typeof InvitationState];
-
-export type JsonValue = unknown;
 
 /**
  * LegalOnboardingCompleteRequest
@@ -3387,6 +3389,36 @@ export type PlanState = (typeof PlanState)[keyof typeof PlanState];
 export type PolicyVersion = string;
 
 /**
+ * PrivateVersionResponse
+ *
+ * Exact private version metadata after owner/grant authorization.
+ */
+export type PrivateVersionResponse = {
+  /**
+   * Lifecycle
+   */
+  lifecycle: "active" | "deprecated";
+  /**
+   * Passport
+   */
+  passport: {
+    [key: string]: AiStpFoundationCanonicalJsonValue;
+  };
+  passport_digest: PassportDigest;
+  published_at: Timestamp;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  trust: CatalogTrust;
+  /**
+   * Visibility
+   */
+  visibility: "private";
+  [key: string]: unknown;
+};
+
+/**
  * ProjectedMember
  *
  * One canonical projected path and the provider semantics it requires.
@@ -3510,6 +3542,10 @@ export type PublicationConfirmRequest = {
  */
 export type PublicationPlanCreateRequest = {
   /**
+   * Artifact Inventory
+   */
+  artifact_inventory?: Array<string>;
+  /**
    * Attestations
    */
   attestations?: Array<AuthorAttestation>;
@@ -3543,6 +3579,10 @@ export type PublicationPlanCreateRequest = {
  */
 export type PublicationPlanResponse = {
   actor_id: AccountId;
+  /**
+   * Artifact Inventory
+   */
+  artifact_inventory: Array<string>;
   /**
    * Component Verified
    */
@@ -5107,6 +5147,10 @@ export type SetupVersionResponse = {
    * Composition
    */
   composition: Array<SetupCompositionMember>;
+  /**
+   * Distribution Visibility
+   */
+  distribution_visibility: "public" | null;
   family: SetupFamilyPublic | null;
   lifecycle: PublicLifecycle;
   passport: SetupVersionPassport;
@@ -6007,6 +6051,71 @@ export type VersionListEntry = {
   [key: string]: unknown;
 };
 
+/**
+ * VisibilityPlanCreateRequest
+ *
+ * Plan one owner's access change without rewriting immutable content.
+ */
+export type VisibilityPlanCreateRequest = {
+  device_id: DeviceId;
+  idempotency_key: IdempotencyKey;
+  object_kind: ObjectKind;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  version: AiStpContractsCatalogVersion;
+  /**
+   * Visibility
+   */
+  visibility: "public" | "private";
+};
+
+/**
+ * VisibilityPlanResponse
+ *
+ * A reviewed exposure effect with immutable identity and current access bindings.
+ */
+export type VisibilityPlanResponse = {
+  actor_id: AccountId;
+  device_id: DeviceId;
+  /**
+   * Effects
+   */
+  effects: Array<string>;
+  expires_at: Timestamp;
+  object_kind: ObjectKind;
+  passport_digest: PassportDigest;
+  plan_hash: PassportDigest;
+  plan_id: PlanId;
+  /**
+   * Previous Visibility
+   */
+  previous_visibility: "public" | "private";
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "planned" | "applied" | "expired" | "refused";
+  version: AiStpContractsCatalogVersion;
+  /**
+   * Visibility
+   */
+  visibility: "public" | "private";
+  [key: string]: unknown;
+};
+
 export const WithdrawalSemantics = {
   REMOVE_PATH: "remove_path",
   PRESERVE_UNOWNED: "preserve_unowned",
@@ -6049,7 +6158,220 @@ export const AiStpContractsSafetyChecksCheckResult = {
 export type AiStpContractsSafetyChecksCheckResult =
   (typeof AiStpContractsSafetyChecksCheckResult)[keyof typeof AiStpContractsSafetyChecksCheckResult];
 
+export type AiStpFoundationCanonicalJsonValue =
+  | boolean
+  | number
+  | number
+  | string
+  | Array<AiStpFoundationCanonicalJsonValue>
+  | {
+      [key: string]: AiStpFoundationCanonicalJsonValue;
+    }
+  | null;
+
 export type AiStpFoundationRefsVersion = string;
+
+export type PydanticTypesJsonValue = unknown;
+
+export type CreateVisibilityPlanData = {
+  body: VisibilityPlanCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/access/visibility/plans";
+};
+
+export type CreateVisibilityPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateVisibilityPlanError =
+  CreateVisibilityPlanErrors[keyof CreateVisibilityPlanErrors];
+
+export type CreateVisibilityPlanResponses = {
+  /**
+   * createVisibilityPlan for the exact owner distribution effect.
+   */
+  201: VisibilityPlanResponse;
+};
+
+export type CreateVisibilityPlanResponse =
+  CreateVisibilityPlanResponses[keyof CreateVisibilityPlanResponses];
+
+export type ReadVisibilityPlanData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Visibility plan identifier.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/access/visibility/plans/{plan_id}";
+};
+
+export type ReadVisibilityPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadVisibilityPlanError = ReadVisibilityPlanErrors[keyof ReadVisibilityPlanErrors];
+
+export type ReadVisibilityPlanResponses = {
+  /**
+   * readVisibilityPlan for the exact owner distribution effect.
+   */
+  200: VisibilityPlanResponse;
+};
+
+export type ReadVisibilityPlanResponse =
+  ReadVisibilityPlanResponses[keyof ReadVisibilityPlanResponses];
+
+export type ConfirmVisibilityPlanData = {
+  body: PublicationConfirmRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Visibility plan identifier.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/access/visibility/plans/{plan_id}/confirm";
+};
+
+export type ConfirmVisibilityPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ConfirmVisibilityPlanError =
+  ConfirmVisibilityPlanErrors[keyof ConfirmVisibilityPlanErrors];
+
+export type ConfirmVisibilityPlanResponses = {
+  /**
+   * confirmVisibilityPlan for the exact owner distribution effect.
+   */
+  200: VisibilityPlanResponse;
+};
+
+export type ConfirmVisibilityPlanResponse =
+  ConfirmVisibilityPlanResponses[keyof ConfirmVisibilityPlanResponses];
 
 export type ReadAccountData = {
   body?: never;
@@ -7249,6 +7571,72 @@ export type ReadComponentGithubMetadataResponses = {
 export type ReadComponentGithubMetadataResponse =
   ReadComponentGithubMetadataResponses[keyof ReadComponentGithubMetadataResponses];
 
+export type ReadPrivateComponentVersionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+    /**
+     * Exact two-integer version. A range or `latest` is not a reference.
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/v1/catalog/components/{stable_id}/versions/{version}/private";
+};
+
+export type ReadPrivateComponentVersionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CATALOG_INTEGRITY, AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadPrivateComponentVersionError =
+  ReadPrivateComponentVersionErrors[keyof ReadPrivateComponentVersionErrors];
+
+export type ReadPrivateComponentVersionResponses = {
+  /**
+   * Read one authorized private component version.
+   */
+  200: PrivateVersionResponse;
+};
+
+export type ReadPrivateComponentVersionResponse =
+  ReadPrivateComponentVersionResponses[keyof ReadPrivateComponentVersionResponses];
+
 export type ReadSetupFamilyData = {
   body?: never;
   headers?: {
@@ -7693,6 +8081,72 @@ export type ReadSetupGithubMetadataResponses = {
 
 export type ReadSetupGithubMetadataResponse =
   ReadSetupGithubMetadataResponses[keyof ReadSetupGithubMetadataResponses];
+
+export type ReadPrivateSetupVersionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+    /**
+     * Exact two-integer version. A range or `latest` is not a reference.
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/v1/catalog/setups/{stable_id}/versions/{version}/private";
+};
+
+export type ReadPrivateSetupVersionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CATALOG_INTEGRITY, AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadPrivateSetupVersionError =
+  ReadPrivateSetupVersionErrors[keyof ReadPrivateSetupVersionErrors];
+
+export type ReadPrivateSetupVersionResponses = {
+  /**
+   * Read one authorized private setup version.
+   */
+  200: PrivateVersionResponse;
+};
+
+export type ReadPrivateSetupVersionResponse =
+  ReadPrivateSetupVersionResponses[keyof ReadPrivateSetupVersionResponses];
 
 export type CreateComplaintData = {
   body: ComplaintCreateRequest;

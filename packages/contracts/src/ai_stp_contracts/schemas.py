@@ -330,6 +330,9 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "catalog-github-metadata": GitHubMetadata,
     "catalog-author-list": CatalogAuthorListResponse,
     "catalog-private-version": PrivateVersionResponse,
+    "private-version-response": CliPrivateVersionResponse,
+    "visibility-plan-create-request": VisibilityPlanCreateRequest,
+    "visibility-plan-response": VisibilityPlanResponse,
     "catalog-usage-metrics": CatalogUsageMetrics,
     "catalog-reaction-list": CatalogReactionList,
     "catalog-reaction-state": CatalogReactionState,
@@ -439,10 +442,6 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
 #: no route serves it, and a test pins that it never leaks into the OpenAPI
 #: document, so the two surfaces cannot be confused for one.
 CLI_MODELS: Final[dict[str, ExportedSchema]] = {
-    # Client contracts; the server routes are an explicit SPEC-071 dependency.
-    "private-version-response": CliPrivateVersionResponse,
-    "visibility-plan-create-request": VisibilityPlanCreateRequest,
-    "visibility-plan-response": VisibilityPlanResponse,
     "cli-signed-attestation": CliSignedAttestation,
     "cli-self-update-check": CliSelfUpdateCheck,
     "cli-self-update-plan": CliSelfUpdatePlan,

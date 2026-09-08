@@ -86,6 +86,13 @@
       "title": "Installer Argv",
       "type": "array"
     },
+    "installer_environment": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Installer Environment",
+      "type": "object"
+    },
     "plan_digest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Plan Digest",
@@ -152,6 +159,7 @@
     "install_method",
     "install_root",
     "installer_argv",
+    "installer_environment",
     "plan_digest",
     "plan_id",
     "python_version",

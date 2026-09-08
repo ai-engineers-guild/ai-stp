@@ -18,7 +18,13 @@ distribution needs no public publisher profile. Publication must not implicitly
 change distribution visibility of an already stored version.
 
 Authenticated `GET /v1/catalog/{components|setups}/{stable_id}/versions/{X.Y}/private`
-returns `CliPrivateVersionResponse` (`PrivateVersionResponse` is the same model).
+returns the catalog `PrivateVersionResponse`; `CliPrivateVersionResponse` is an
+import alias of that model, not a second wire shape. Exact kind, stable ID and
+version are read from the verified passport and compared with the requested
+coordinates. The response's catalog verification axes stay independent; the CLI
+assigns `local_owner_or_pinned` only to its authorized local acquisition view.
+Historical passport visibility may be public or private; the private endpoint
+asserts the current private distribution after owner/grant authorization.
 Exact artifact bytes are `GET /v1/catalog/.../artifact` with the same session.
 Anonymous public version/artifact 404 is what permits the authenticated retry;
 the CLI does not invent a second private prefix. Visibility plans remain the
@@ -42,7 +48,11 @@ The owner visibility boundary is:
 | `GET /v1/access/visibility/plans/{plan_id}` | `VisibilityPlanResponse` |
 | `POST /v1/access/visibility/plans/{plan_id}/confirm` | `PublicationConfirmRequest` / `VisibilityPlanResponse` |
 
-Models belong to `ai_stp_contracts.private_access`. The plan binds exact object,
+Visibility models belong to `ai_stp_contracts.private_access`. Server plans are
+stored in `visibility_plan` and expire after 30 minutes. Creating the same
+actor/idempotency key with different coordinates returns conflict; confirmation
+rechecks current ownership and device. A stale visibility or passport returns
+`refused`, expiry returns `expired`, and neither changes the version. The plan binds exact object,
 version and passport digest, previous and requested visibility, actor, device,
 expiry and effects. States are `planned`, `applied`, `expired`, `refused`. Confirm
 rechecks owner authority, hash, device, expiry and prior visibility under a

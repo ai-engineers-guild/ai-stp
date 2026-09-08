@@ -46,7 +46,7 @@ class StrictHttpsRedirectHandler(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(request, file_pointer, code, message, headers, new_url)
 
 
-def _literal_assignment(path: Path, name: str) -> str | None:
+def _literal_assignment(path: Path, name: str) -> str | tuple[str, ...] | None:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     for node in tree.body:
         target: ast.expr | None = None
@@ -63,6 +63,12 @@ def _literal_assignment(path: Path, name: str) -> str | None:
             value = ast.literal_eval(value_node)
             if value is None or isinstance(value, str):
                 return value
+            if (
+                name == "down_revision"
+                and isinstance(value, tuple)
+                and all(isinstance(parent, str) and parent for parent in value)
+            ):
+                return value
             raise VerificationError(f"{path}: {name} is not a string literal")
     raise VerificationError(f"{path}: {name} is absent")
 
@@ -76,13 +82,18 @@ def migration_head(directory: Path) -> str:
             continue
         revision = _literal_assignment(path, "revision")
         parent = _literal_assignment(path, "down_revision")
-        if revision is None:
-            raise VerificationError(f"{path}: revision cannot be null")
+        if not isinstance(revision, str) or not revision:
+            raise VerificationError(f"{path}: revision must be a nonempty string")
         if revision in revisions:
             raise VerificationError(f"duplicate migration revision: {revision}")
         revisions.add(revision)
-        if parent is not None:
+        if isinstance(parent, tuple):
+            parents.update(parent)
+        elif parent is not None:
             parents.add(parent)
+    missing = sorted(parents - revisions)
+    if missing:
+        raise VerificationError(f"migration parents are absent: {missing}")
     heads = sorted(revisions - parents)
     if len(heads) != 1:
         raise VerificationError(f"expected one migration head, found: {heads}")
