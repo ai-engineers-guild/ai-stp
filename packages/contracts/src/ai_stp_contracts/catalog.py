@@ -379,6 +379,16 @@ class CatalogTrust(BaseModel):
         return self
 
 
+class PrivateVersionTrust(BaseModel):
+    """Exact local acquisition authority, independent of public trust."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    trust_lane: Literal["local_owner_or_pinned"] = "local_owner_or_pinned"
+    author_verified: bool
+    component_verified: bool
+
+
 class PrivateVersionResponse(BaseModel):
     """Exact private version metadata after owner/grant authorization."""
 
@@ -388,7 +398,7 @@ class PrivateVersionResponse(BaseModel):
     passport: dict[str, JsonValue]
     passport_digest: PassportDigest
     lifecycle: Literal["active", "deprecated"]
-    trust: CatalogTrust
+    trust: PrivateVersionTrust
     published_at: Timestamp
     visibility: Literal["private"] = "private"
 

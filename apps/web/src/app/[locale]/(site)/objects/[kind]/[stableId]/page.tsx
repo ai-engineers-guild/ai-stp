@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
+import { VisibilityLabel } from "@/components/molecules/visibility-label";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { ExternalProductManager } from "@/components/organisms/external-product-manager";
@@ -27,6 +28,7 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
   await requireSession(locale, `/${locale}/objects/${kind}/${stableId}`);
   const t = await getTranslations("objects");
   const tc = await getTranslations("common");
+  const tCatalog = await getTranslations("catalog");
   const token = await sessionCookieValue();
 
   let detail;
@@ -59,21 +61,29 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <HistoryBackButton label={t("backToObjects")} fallback="/objects" />
-      <div className="space-y-2">
+      <div className="relative space-y-2 pr-24">
+        <VisibilityLabel
+          className="absolute top-0 right-0"
+          visibility={detail.versions[0]?.visibility ?? "private"}
+          publicLabel={tCatalog("public")}
+          privateLabel={tCatalog("private")}
+        />
         <p className="text-muted-foreground font-mono text-xs tracking-wide uppercase">
           {detail.object_kind}
         </p>
         <h1 className="text-3xl font-medium tracking-tight">{detail.name}</h1>
         <p className="text-muted-foreground font-mono text-xs">{detail.stable_id}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link
-              href={`/catalog/${kind === "component" ? "components" : "setups"}/${stableId}`}
-              prefetch={false}
-            >
-              <Icon name="eye" size="sm" /> {t("viewPublic")}
-            </Link>
-          </Button>
+          {detail.versions.some((version) => version.visibility === "public") ? (
+            <Button asChild variant="outline">
+              <Link
+                href={`/catalog/${kind === "component" ? "components" : "setups"}/${stableId}`}
+                prefetch={false}
+              >
+                <Icon name="eye" size="sm" /> {t("viewPublic")}
+              </Link>
+            </Button>
+          ) : null}
           <Button asChild>
             <Link href={`/objects/${kind}/${stableId}/edit`} prefetch={false}>
               <Icon name="edit" size="sm" /> {t("editPresentation")}

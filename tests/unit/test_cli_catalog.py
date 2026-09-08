@@ -291,6 +291,7 @@ def test_an_authorized_private_version_never_populates_the_anonymous_cache() -> 
     passport["visibility"] = "private"
     passport["revision_id"] = derive_revision_id(passport)
     body["passport_digest"] = cache.digest_of(passport)
+    body["trust"]["trust_lane"] = "local_owner_or_pinned"
     body["visibility"] = "private"
     asked: list[tuple[str, str | None]] = []
 

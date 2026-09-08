@@ -68,6 +68,17 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
     },
   },
   {
+    pattern: "account/github",
+    resolve: async () => {
+      const t = await getTranslations("githubConnector");
+      return presentPage({
+        title: t("title"),
+        summary: t("simpleIntro"),
+        links: [[t("back"), "/account"]],
+      });
+    },
+  },
+  {
     pattern: "account/privacy",
     resolve: async () => {
       const t = await getTranslations("account");

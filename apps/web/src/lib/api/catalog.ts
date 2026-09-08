@@ -92,7 +92,7 @@ export async function listCatalogAuthors(): Promise<{
   schema_version: 1;
   items: CatalogAuthorOption[];
 }> {
-  return publicApiGet("/v1/catalog/authors");
+  return publicApiGetLive("/v1/catalog/authors");
 }
 
 export async function readExternalProduct(domain: string): Promise<ExternalProduct> {

@@ -423,9 +423,10 @@ def component_summary(
     *,
     now: datetime | None = None,
     assessments: dict[tuple[str, str, str], EffectiveAssessment] | None = None,
+    allow_private: bool = False,
 ) -> ComponentSummary:
     """Card projection: latest_* fields from the version passport (REQ-2103)."""
-    verify_passport_integrity(row)
+    verify_passport_integrity(row, allow_private=allow_private)
     passport = component_passport(row.passport)
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)
@@ -525,9 +526,10 @@ def setup_summary(
     family_id: str | None = None,
     family_member_count: int | None = None,
     family_match_kind: str | None = None,
+    allow_private: bool = False,
 ) -> SetupSummary:
     """Setup card projection from the version passport."""
-    verify_passport_integrity(row)
+    verify_passport_integrity(row, allow_private=allow_private)
     passport = SetupVersionPassport.model_validate(row.passport)
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)

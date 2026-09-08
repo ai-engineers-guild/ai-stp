@@ -18,6 +18,7 @@ describe("public catalog cache policy", () => {
     expect(isPublicCatalogGetPath("/v1/catalog/services")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/catalog/services/kaspi.kz")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/catalog/countries/KZ")).toBe(true);
+    expect(isPublicCatalogGetPath("/v1/catalog/authors")).toBe(true);
     expect(isPublicCatalogGetPath("/v1/catalog/components")).toBe(true);
     expect(
       isPublicCatalogGetPath("/v1/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y70"),

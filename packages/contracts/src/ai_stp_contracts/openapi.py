@@ -328,15 +328,6 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         path_params=(_OBJECT_ID, _VERSION),
     ),
     Operation(
-        method="get",
-        path="/access/visibility/plans/{plan_id}",
-        operation_id="readVisibilityPlan",
-        summary="Read an owner's exact visibility plan.",
-        response=VisibilityPlanResponse,
-        authenticated=True,
-        path_params=(PathParam("plan_id", "Exact visibility plan.", r"^[A-Za-z0-9._~-]{8,64}$"),),
-    ),
-    Operation(
         method="post",
         path="/connectors/github/connect",
         operation_id="connectGithub",
@@ -417,27 +408,6 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         path_params=(
             PathParam("plan_id", "Exact repository action plan.", r"^[A-Za-z0-9._~-]{8,64}$"),
         ),
-    ),
-    Operation(
-        method="post",
-        path="/access/visibility/plans",
-        operation_id="createVisibilityPlan",
-        summary="Plan owner-only private-to-public component distribution.",
-        response=VisibilityPlanResponse,
-        body=VisibilityPlanCreateRequest,
-        authenticated=True,
-        idempotent_mutation=True,
-    ),
-    Operation(
-        method="post",
-        path="/access/visibility/plans/{plan_id}/confirm",
-        operation_id="confirmVisibilityPlan",
-        summary="Validate public eligibility and expose immutable component bytes.",
-        response=VisibilityPlanResponse,
-        body=PublicationConfirmRequest,
-        authenticated=True,
-        idempotent_mutation=True,
-        path_params=(PathParam("plan_id", "Exact visibility plan.", r"^[A-Za-z0-9._~-]{8,64}$"),),
     ),
     Operation(
         method="get",

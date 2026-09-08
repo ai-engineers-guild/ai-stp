@@ -39,9 +39,30 @@ def test_ts_and_install_eligible_helpers() -> None:
     assert stamped is not None and stamped.endswith("Z")
     aware = datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=UTC)
     assert owner_service._ts(aware) is not None
-    assert owner_service._install_eligible(component_verified=True, lifecycle="active") is True
-    assert owner_service._install_eligible(component_verified=True, lifecycle="blocked") is False
-    assert owner_service._install_eligible(component_verified=False, lifecycle="active") is False
+    assert (
+        owner_service._install_eligible(
+            component_verified=True, lifecycle="active", visibility="public"
+        )
+        is True
+    )
+    assert (
+        owner_service._install_eligible(
+            component_verified=True, lifecycle="active", visibility="private"
+        )
+        is False
+    )
+    assert (
+        owner_service._install_eligible(
+            component_verified=True, lifecycle="blocked", visibility="public"
+        )
+        is False
+    )
+    assert (
+        owner_service._install_eligible(
+            component_verified=False, lifecycle="active", visibility="public"
+        )
+        is False
+    )
     assert owner_service.can_start_publication(lifecycle="ready", published_at=None) is True
     assert (
         owner_service.can_start_publication(lifecycle="active", published_at=datetime.now(tz=UTC))

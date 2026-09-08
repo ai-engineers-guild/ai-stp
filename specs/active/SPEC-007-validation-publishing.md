@@ -46,7 +46,7 @@ The proof source accepts exactly five values, and they are not combined into one
 - `REQ-707`: Arbitrary binaries, floating dependencies and post-installation scripts are not allowed by default.
 - `REQ-708`: Publishing uses an immutable plan, expiration date, exact hash, and separate user confirmation.
 - `REQ-709`: The mandatory set of checks is determined by the check policy matrix by object type and execution class; an unknown type or transport is closed by a refusal, not a pass.
-- `REQ-710`: `author_verified` and `component_verified` are stored, displayed, and filtered separately and are not derived from one another.
+- `REQ-710`: `author_verified` and `component_verified` are stored, displayed, and filtered separately. Verifying an author initializes the component flag for that author's existing versions by default, but the two flags remain independently revocable and updateable.
 - `REQ-711`: The verification result stores the source of evidence, tool and policy versions and expiration date; an expired proof is not considered relevant for the line `authoritative`.
 - `REQ-712`: Re-publication of other content under an already released version number is rejected.
 - `REQ-713`: Publishing a component located inside a repository with project code packages the explicit component root, not the entire repository. The inventory contains tracked files and untracked files not excluded by the applicable Git ignore rules; repository metadata and ignored untracked files are absent.
@@ -56,7 +56,7 @@ The proof source accepts exactly five values, and they are not combined into one
 - `REQ-717`: Revocation of `author_verified` applies prospectively: it excludes the author's objects from the `authoritative` trust line and does not rewrite historical validation snapshots or already installed targets.
 - `REQ-718`: Tags of the published version are checked to ensure they belong to the current dictionary; unknown value and invalid form return different errors, and the response names the nearest valid entries.
 - `REQ-719`: When publishing, the platform itself performs each mandatory check that can be performed without credentials on the server, and the device report does not replace it; the accepted source of evidence for each check is given by the matrix `docs/contracts/validation-policy.md`.
-- `REQ-720`: `component_verified` means that every mandatory version check has current policy-accepted evidence of `passed`; the attribute is not issued manually, is not derived from authorship, and does not claim that each check was performed by the platform; a version with `warning` is published without verification.
+- `REQ-720`: `component_verified` is an independent persisted axis. Author verification may initialize it for the author's existing versions, but current policy, expiry, and component evidence can revoke it independently; the flag does not claim that each check was performed by the platform. A component-only verification decision remains separate from author verification.
 - `REQ-721`: The flag is cleared when the proof becomes `expired` or the new version of the policy introduces a mandatory check that the version does not have; the bytes and historical snapshots do not change.
 - `REQ-722`: Hiding, blocking, and restoring a version remain explicit, auditable actions by platform owners—based on their own finding, a private vulnerability report, or a reviewed report case under `SPEC-016`; reports themselves and their number do not automatically change the version lifecycle.
 - `REQ-723`: A mandatory check in the `failed`, `degraded`, `not_run`, or `expired` state blocks public publication; a completed `warning`-class check does not block publication.
@@ -112,7 +112,7 @@ Versions of the validation scheme, tools, and policies are recorded. Re-checking
 | `REQ-717` | After revocation, the author's objects leave `authoritative`, while historical snapshots and installed targets remain unchanged. |
 | `REQ-718` | Fixtures cover unknown tag, invalid shape, and exceeding the limit, and each gives a different error. |
 | `REQ-719` | For credential-free verification, substitution of a server result with a device report is rejected, and a forged report is rejected by signature verification. |
-| `REQ-720` | The version with `warning` is published and does not receive `component_verified`; manual issuance of a sign is rejected; the version with a full set of accepted evidence, including author's confirmation, receives the sign. |
+| `REQ-720` | Component-only verification remains evidence-based and separate; author verification initializes the component flag for existing versions, while expiry or component revocation clears it independently. |
 | `REQ-721` | Expiration of the proof and tightening of the policy remove the sign without changing the bytes and snapshots. |
 | `REQ-722` | The multiple complaints fixture does not change the state of the version, but the moderator's action changes it and creates an audit event. |
 | `REQ-723` | Mandatory fixtures `failed`, `degraded`, `not_run` and `expired` block publication, but completed `warning` does not block. |

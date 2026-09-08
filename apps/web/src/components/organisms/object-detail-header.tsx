@@ -10,6 +10,7 @@ import type { GitSource } from "@/lib/api/generated/types.gen";
 import { sourceLinksFor, type PublicSourceLink } from "@/lib/source-url";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme/icons";
+import { VisibilityLabel } from "@/components/molecules/visibility-label";
 
 export function ObjectDetailHeader({
   icon,
@@ -24,6 +25,9 @@ export function ObjectDetailHeader({
   viewSourceLabel,
   like,
   actions,
+  visibility,
+  publicVisibilityLabel,
+  privateVisibilityLabel,
 }: {
   icon: ReactNode;
   title: string;
@@ -37,6 +41,9 @@ export function ObjectDetailHeader({
   viewSourceLabel: string;
   like: ObjectActionProps;
   actions?: ReactNode;
+  visibility?: "public" | "private";
+  publicVisibilityLabel?: string;
+  privateVisibilityLabel?: string;
 }) {
   const links =
     sourceLinks ??
@@ -51,6 +58,14 @@ export function ObjectDetailHeader({
         <div data-ui={UI.component.overflow} className="absolute top-0 right-0 z-10">
           <ObjectOverflowMenu {...like} />
         </div>
+        {visibility ? (
+          <VisibilityLabel
+            className="absolute top-0 right-14 z-10"
+            visibility={visibility}
+            publicLabel={publicVisibilityLabel}
+            privateLabel={privateVisibilityLabel}
+          />
+        ) : null}
         <div className="flex min-w-0 items-start gap-3 pr-12 sm:gap-4">
           <div className="shrink-0">{icon}</div>
           <div className="min-w-0 flex-1 lg:pr-[42%]">

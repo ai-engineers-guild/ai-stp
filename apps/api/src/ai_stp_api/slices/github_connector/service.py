@@ -93,7 +93,10 @@ async def start_connect(
     config = settings.github_connector
     if not config.enabled(body.purpose):
         raise GitHubError("connector_not_configured")
-    await _linked_subject(db, ctx.account_id)
+    # App installation is the first step for a new account. The identity is
+    # only required when the user starts the OAuth re-authorization branch.
+    if body.mode == "authorize":
+        await _linked_subject(db, ctx.account_id)
     state = secrets.token_urlsafe(32)
     expiry = datetime.now(UTC) + timedelta(minutes=10)
     callback = f"{settings.auth.oauth_callback_base()}/v1/connectors/github/callback"

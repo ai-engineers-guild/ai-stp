@@ -3151,6 +3151,10 @@ export type OwnerObjectSummary = {
    */
   author_verified: boolean;
   /**
+   * Catalog Item
+   */
+  catalog_item: ComponentSummary | SetupSummary | null;
+  /**
    * Component Verified
    */
   component_verified: boolean;
@@ -3674,11 +3678,32 @@ export type PrivateVersionResponse = {
    * Schema Version
    */
   schema_version: 1;
-  trust: CatalogTrust;
+  trust: PrivateVersionTrust;
   /**
    * Visibility
    */
   visibility: "private";
+  [key: string]: unknown;
+};
+
+/**
+ * PrivateVersionTrust
+ *
+ * Exact local acquisition authority, independent of public trust.
+ */
+export type PrivateVersionTrust = {
+  /**
+   * Author Verified
+   */
+  author_verified: boolean;
+  /**
+   * Component Verified
+   */
+  component_verified: boolean;
+  /**
+   * Trust Lane
+   */
+  trust_lane: "local_owner_or_pinned";
   [key: string]: unknown;
 };
 

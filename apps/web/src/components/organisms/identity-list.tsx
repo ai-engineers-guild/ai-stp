@@ -9,6 +9,7 @@ import { unlinkIdentityAction } from "@/actions/account";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import type { LinkedIdentity } from "@/lib/api/generated/types.gen";
+import { Icon } from "@/theme";
 
 const ALL_PROVIDERS = ["google", "github"] as const;
 
@@ -33,6 +34,12 @@ function linkHref(provider: "google" | "github", returnTo: string): string {
   const params = new URLSearchParams({ return_to: returnTo });
   // Browser navigates via the edge proxy so the OAuth handshake cookie is set client-side.
   return `/v1/auth/link/${provider}?${params.toString()}`;
+}
+
+function providerIcon(provider: string): "google" | "github" | "user" {
+  if (provider === "google") return "google";
+  if (provider === "github") return "github";
+  return "user";
 }
 
 export function IdentityList({ identities, csrfToken, returnTo }: IdentityListProps) {
@@ -78,25 +85,22 @@ export function IdentityList({ identities, csrfToken, returnTo }: IdentityListPr
           return (
             <li
               key={`${provider}-${identity.linked_at}`}
-              className="border-border bg-card text-card-foreground flex flex-wrap items-center gap-3 rounded-lg border p-3 shadow-sm"
+              className="border-border bg-background text-card-foreground flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:p-4"
             >
-              {avatar ? (
-                <img
-                  src={avatar}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="border-border h-10 w-10 rounded-full border object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div
-                  className="bg-muted text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full font-mono text-sm font-medium uppercase"
-                  aria-hidden
-                >
-                  {provider.slice(0, 1)}
-                </div>
-              )}
+              <div className="bg-muted text-foreground grid size-11 shrink-0 place-items-center rounded-full">
+                {avatar ? (
+                  <img
+                    src={avatar}
+                    alt=""
+                    width={44}
+                    height={44}
+                    className="border-border size-11 rounded-full border object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <Icon name={providerIcon(provider)} size="md" />
+                )}
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">{providerLabel(provider, t)}</Badge>
@@ -104,14 +108,16 @@ export function IdentityList({ identities, csrfToken, returnTo }: IdentityListPr
                     <span className="truncate text-sm font-medium">{displayName}</span>
                   ) : null}
                 </div>
-                <p className="text-muted-foreground mt-0.5 font-mono text-[11px]">
-                  {t("availableForSignIn")}
-                </p>
+                <p className="text-muted-foreground mt-0.5 text-xs">{t("availableForSignIn")}</p>
               </div>
+              <span className="text-success inline-flex items-center gap-2 text-sm">
+                <span aria-hidden="true" className="bg-success size-2 rounded-full" />
+                <span>{t("connected")}</span>
+              </span>
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                className="min-h-11 shrink-0"
                 disabled={!canUnlink || pending}
                 onClick={() => {
                   onUnlink(provider);
@@ -129,7 +135,7 @@ export function IdentityList({ identities, csrfToken, returnTo }: IdentityListPr
           <h3 className="text-sm font-medium">{t("linkAnother")}</h3>
           <div className="flex flex-wrap gap-2">
             {missing.map((provider) => (
-              <Button key={provider} asChild size="sm" variant="secondary">
+              <Button key={provider} asChild variant="outline" className="min-h-11">
                 <a href={linkHref(provider, returnTo)}>{providerLabel(provider, t)}</a>
               </Button>
             ))}

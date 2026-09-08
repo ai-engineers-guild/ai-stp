@@ -3,7 +3,11 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
+import type {
+  ComponentSummary,
+  OwnerObjectSummary,
+  SetupSummary,
+} from "@/lib/api/generated/types.gen";
 import { componentSummaryFixture, setupSummaryFixture } from "@/mocks/fixtures/catalog";
 
 vi.mock("@/lib/features/gate", () => ({
@@ -28,7 +32,7 @@ vi.mock("@/components/organisms/contact-report-dialog", () => ({
   }) => (hideTrigger && !open ? null : <button type="button">{label}</button>),
 }));
 
-const { ObjectCard } = await import("@/components/organisms/object-card");
+const { ObjectCard, OwnerObjectCard } = await import("@/components/organisms/object-card");
 const labels = {
   harness: "Harness",
   tags: "Tags",
@@ -364,50 +368,51 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
   });
 
   it("does not use whyFailed when only optional checks failed", () => {
-    render(
+    const optionalItem: ComponentSummary = {
+      ...componentSummaryFixture,
+      latest_trust: {
+        ...componentSummaryFixture.latest_trust,
+        component_verified: true,
+      },
+      latest_checks: {
+        schema_version: 1,
+        status: "available",
+        checks_passed_percent: 90,
+        coverage_complete: true,
+        passed: 9,
+        failed: 1,
+        warning: 0,
+        not_run: 0,
+        total_countable: 10,
+        components: [],
+        checks: [
+          {
+            schema_version: 1,
+            check_id: "path_denylist",
+            result: "passed",
+            mandatory: true,
+            source: "platform_safety_scan",
+            family: "path",
+            reason: null,
+            finding_summary: null,
+          },
+          {
+            schema_version: 1,
+            check_id: "network_intent",
+            result: "failed",
+            mandatory: false,
+            source: "platform_safety_scan",
+            family: "network_intent",
+            reason: "url_pipe_shell",
+            finding_summary: null,
+          },
+        ],
+      },
+    };
+    const { rerender } = render(
       <ObjectCard
         kind="component"
-        item={{
-          ...componentSummaryFixture,
-          latest_trust: {
-            ...componentSummaryFixture.latest_trust,
-            component_verified: true,
-          },
-          latest_checks: {
-            schema_version: 1,
-            status: "available",
-            checks_passed_percent: 90,
-            coverage_complete: true,
-            passed: 9,
-            failed: 1,
-            warning: 0,
-            not_run: 0,
-            total_countable: 10,
-            components: [],
-            checks: [
-              {
-                schema_version: 1,
-                check_id: "path_denylist",
-                result: "passed",
-                mandatory: true,
-                source: "platform_safety_scan",
-                family: "path",
-                reason: null,
-                finding_summary: null,
-              },
-              {
-                schema_version: 1,
-                check_id: "network_intent",
-                result: "failed",
-                mandatory: false,
-                source: "platform_safety_scan",
-                family: "network_intent",
-                reason: "url_pipe_shell",
-                finding_summary: null,
-              },
-            ],
-          },
-        }}
+        item={optionalItem}
         href="/catalog/x"
         labels={{
           ...labels,
@@ -420,6 +425,16 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
     expect(screen.queryByText("Failed checks - review before use")).not.toBeInTheDocument();
     expect(screen.getByText("Optional findings to review")).toBeVisible();
     expect(screen.getByText("100%")).toBeVisible();
+    rerender(
+      <ObjectCard
+        kind="component"
+        item={optionalItem}
+        href="/catalog/x"
+        labels={labels}
+        view="cards"
+      />,
+    );
+    expect(screen.getByText("1 optional findings")).toBeVisible();
   });
 
   it("falls back to warning, credentials and list-description why-open copy", () => {
@@ -607,10 +622,75 @@ describe("ObjectCard compact catalog presentation (REQ-3411)", () => {
           family_member_count: 3,
         }}
         href="/catalog/setups/x"
-        labels={{ ...labels, familyMemberCount: "Family members" }}
+        labels={labels}
         view="list"
       />,
     );
     expect(screen.getByText("Family members: 3")).toBeInTheDocument();
+  });
+
+  it("renders owner metadata and management actions for a private component", () => {
+    const item: OwnerObjectSummary = {
+      schema_version: 1,
+      object_kind: "component",
+      stable_id: "component_owner_01",
+      name: "Private component",
+      latest_version: "1.0",
+      lifecycle_state: "active",
+      visibility: "private",
+      author_verified: true,
+      component_verified: true,
+      trust_lane: null,
+      updated_at: "2026-01-01T00:00:00Z",
+      catalog_item: null,
+    };
+    render(
+      <OwnerObjectCard
+        item={item}
+        href="/objects/component/component_owner_01"
+        actions={<button type="button">Manage</button>}
+        authorVerifiedLabel="Author verified"
+        componentVerifiedLabel="Component verified"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: item.name })).toBeInTheDocument();
+    expect(screen.getByText(item.stable_id)).toBeInTheDocument();
+    expect(screen.getByText("1.0")).toBeInTheDocument();
+    expect(screen.getByText("private")).toBeInTheDocument();
+    expect(screen.queryByText("Author verified")).not.toBeInTheDocument();
+    expect(screen.queryByText("Component verified")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manage" })).toBeInTheDocument();
+  });
+
+  it("renders owner cards without optional version or assurance badges", () => {
+    const item: OwnerObjectSummary = {
+      schema_version: 1,
+      object_kind: "setup",
+      stable_id: "setup_owner_01",
+      name: "Public setup",
+      latest_version: null,
+      lifecycle_state: "draft",
+      visibility: "public",
+      author_verified: false,
+      component_verified: false,
+      trust_lane: null,
+      updated_at: "2026-01-01T00:00:00Z",
+      catalog_item: null,
+    };
+    render(
+      <OwnerObjectCard
+        item={item}
+        href="/objects/setup/setup_owner_01"
+        actions={<button type="button">Manage</button>}
+        authorVerifiedLabel="Author verified"
+        componentVerifiedLabel="Component verified"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: item.name })).toBeInTheDocument();
+    expect(screen.getByText("public")).toBeInTheDocument();
+    expect(screen.queryByText("Author verified")).not.toBeInTheDocument();
+    expect(screen.queryByText("Component verified")).not.toBeInTheDocument();
   });
 });

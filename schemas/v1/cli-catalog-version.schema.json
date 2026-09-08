@@ -78,7 +78,7 @@
     },
     "PrivateVersionTrust": {
       "additionalProperties": true,
-      "description": "Exact local acquisition authority does not assert public verification.",
+      "description": "Exact local acquisition authority, independent of public trust.",
       "properties": {
         "author_verified": {
           "title": "Author Verified",

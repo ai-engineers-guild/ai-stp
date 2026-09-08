@@ -1,5 +1,6 @@
 "use client";
 
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -26,6 +27,9 @@ type Props = {
   version: string | null;
   visibility: string;
 };
+
+const menuItemClassName =
+  "hover:bg-muted focus:bg-muted flex min-h-11 w-full cursor-pointer items-center rounded-md px-3 py-2 text-left text-sm outline-none";
 
 export function OwnerObjectActions(props: Props) {
   const t = useTranslations("objects");
@@ -72,39 +76,55 @@ export function OwnerObjectActions(props: Props) {
 
   return (
     <>
-      <details className="absolute top-4 right-4">
-        <summary
-          className="border-border hover:bg-muted flex size-11 cursor-pointer list-none items-center justify-center rounded-md border"
-          aria-label={t("manageObject")}
-        >
-          <Icon name="more" size="sm" />
-        </summary>
-        <div className="border-border bg-popover absolute top-12 right-0 z-20 grid min-w-56 rounded-lg border p-1 shadow-md">
-          {canChange ? (
-            <button
-              className="hover:bg-muted min-h-11 rounded-md px-3 py-2 text-left text-sm"
-              type="button"
-              onClick={() => {
-                setOpen(true);
-              }}
-            >
-              {target === "public" ? t("makePublic") : t("makePrivate")}
-            </button>
-          ) : null}
-          <Link
-            className="hover:bg-muted rounded-md px-3 py-2 text-sm"
-            href={`/objects/${props.kind}/${props.stableId}/edit`}
+      <DropdownMenu.Root modal={false}>
+        <DropdownMenu.Trigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="border-border bg-card/80 hover:bg-muted h-11 w-11 border shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2"
+            aria-label={t("manageObject")}
           >
-            {t("editPresentation")}
-          </Link>
-          <Link
-            className="hover:bg-muted rounded-md px-3 py-2 text-sm"
-            href={`/objects/${props.kind}/${props.stableId}`}
+            <Icon name="more" size="sm" />
+          </Button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            side="bottom"
+            align="end"
+            sideOffset={4}
+            collisionPadding={12}
+            className="border-border bg-popover text-popover-foreground z-[80] grid max-w-[calc(100vw-1.5rem)] min-w-72 rounded-lg border p-1 shadow-md"
           >
-            {t("manageAccess")}
-          </Link>
-        </div>
-      </details>
+            {canChange ? (
+              <DropdownMenu.Item asChild>
+                <button
+                  className={menuItemClassName}
+                  type="button"
+                  onClick={() => {
+                    setOpen(true);
+                  }}
+                >
+                  {target === "public" ? t("makePublic") : t("makePrivate")}
+                </button>
+              </DropdownMenu.Item>
+            ) : null}
+            <DropdownMenu.Item asChild>
+              <Link
+                className={menuItemClassName}
+                href={`/objects/${props.kind}/${props.stableId}/edit`}
+              >
+                {t("editPresentation")}
+              </Link>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item asChild>
+              <Link className={menuItemClassName} href={`/objects/${props.kind}/${props.stableId}`}>
+                {t("manageAccess")}
+              </Link>
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent closeLabel={t("cancel")}>
           <DialogHeader>

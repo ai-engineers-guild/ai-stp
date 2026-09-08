@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { componentSummaryFixture, setupSummaryFixture } from "@/mocks/fixtures/catalog";
 import { SEED_A2_SKILL_CORE_ID } from "@/mocks/fixtures/catalog-ids";
-import type { ComponentSummary } from "@/lib/api/generated/types.gen";
+import type { ComponentSummary, OwnerObjectSummary } from "@/lib/api/generated/types.gen";
 
 type Href = string | { pathname: string; query?: Record<string, string> };
 
@@ -97,7 +97,10 @@ function renderResults(overrides: Partial<Parameters<typeof CatalogResults>[0]> 
 /** REQ-2202: data / empty states. REQ-2208: experimental only on consent. */
 describe("CatalogResults", () => {
   it("merges lanes into one results list when experimental is included", () => {
-    renderResults({ showExperimental: true });
+    renderResults({
+      showExperimental: true,
+      authors: { [authoritative.publisher_id]: { displayName: "Author", avatarUrl: null } },
+    });
 
     expect(screen.getByRole("heading", { name: "Components" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "authoritative-component" })).toBeInTheDocument();
@@ -260,6 +263,51 @@ describe("CatalogResults", () => {
     expect(kinds).toEqual(["setup", "component"]);
   });
 
+  it("uses the catalog card for owner-private rows in the unified result", () => {
+    const owner: OwnerObjectSummary = {
+      schema_version: 1,
+      object_kind: "component",
+      stable_id: "component_owner_01",
+      name: "Private owner row",
+      latest_version: "1.0",
+      lifecycle_state: "active",
+      visibility: "private",
+      trust_lane: "experimental",
+      author_verified: true,
+      component_verified: true,
+      updated_at: "2026-01-01T00:00:00Z",
+      catalog_item: { ...componentSummaryFixture, latest_name: "Private owner row" },
+    };
+    renderResults({
+      items: [],
+      experimental: [],
+      ownerItems: [owner],
+      ownerActions: { "component:component_owner_01": <button type="button">Manage</button> },
+      labels: { ...labels, publicVisibility: "public", privateVisibility: "private" },
+      view: "cards",
+      locale: "ru",
+    });
+
+    expect(screen.getByRole("heading", { name: "Private owner row" })).toBeInTheDocument();
+    expect(screen.getByText("private")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manage" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: componentSummaryFixture.publisher_id }),
+    ).toHaveAttribute("href", `/publishers/${componentSummaryFixture.publisher_id}`);
+    expect(screen.queryByText("Author verified")).not.toBeInTheDocument();
+    expect(screen.queryByText("active")).not.toBeInTheDocument();
+
+    renderResults({
+      items: [],
+      experimental: [],
+      ownerItems: [owner],
+      ownerActions: { "component:component_owner_01": <button type="button">Manage</button> },
+      labels: { ...labels, publicVisibility: "public", privateVisibility: "private" },
+      view: "list",
+    });
+    expect(screen.getAllByRole("heading", { name: "Private owner row" })).toHaveLength(2);
+  });
+
   it("shows one mixed page when all results fit within the requested page size", () => {
     const { container } = renderResults({
       kind: "mixed",
@@ -274,5 +322,18 @@ describe("CatalogResults", () => {
     expect(container.querySelector("article[data-kind='setup']")).toBeInTheDocument();
     expect(container.querySelector("article[data-kind='component']")).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull();
+  });
+
+  it("defaults mixed pagination to the first page when no page is supplied", () => {
+    renderResults({
+      kind: "mixed",
+      items: [componentSummaryFixture, setupSummaryFixture],
+      experimental: [],
+      setupsTotalPages: 2,
+      componentsTotalPages: 2,
+      query: { resource: "all", view: "list" },
+    });
+
+    expect(screen.getByText("1 / 4")).toBeInTheDocument();
   });
 });

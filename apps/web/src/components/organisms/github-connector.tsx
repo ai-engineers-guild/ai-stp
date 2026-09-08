@@ -12,13 +12,13 @@ import {
   githubStatus,
 } from "@/actions/github";
 import { Button } from "@/components/atoms/button";
+import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { Input } from "@/components/atoms/input";
 import type {
   GitHubActionPlanResponse,
   GitHubConnectorStatus,
   GitHubRepository,
 } from "@/lib/api/generated/types.gen";
-import { Link } from "@/lib/i18n/navigation";
 
 export function GithubConnector({
   csrfToken,
@@ -93,9 +93,7 @@ export function GithubConnector({
   return (
     <div className="min-w-0 space-y-8" aria-busy={busy}>
       <header className="space-y-3">
-        <Link href="/account" className="underline underline-offset-4">
-          {t("back")}
-        </Link>
+        <HistoryBackButton label={t("back")} fallback="/account" />
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
           <span

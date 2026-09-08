@@ -59,6 +59,23 @@ describe("CatalogSearchForm", () => {
     expect(screen.getByLabelText("disabled")).toBeDisabled();
   });
 
+  it("handles non-string form entries without adding an empty query value", () => {
+    render(
+      <CatalogSearchForm>
+        <input aria-label="attachment" type="file" name="attachment" />
+      </CatalogSearchForm>,
+    );
+
+    fireEvent.change(screen.getByLabelText("attachment"), {
+      target: { files: [new File(["content"], "catalog.txt")] },
+    });
+    fireEvent.submit(screen.getByRole("search"));
+
+    expect(push).toHaveBeenLastCalledWith("/catalog?page=1", {
+      scroll: false,
+    });
+  });
+
   it("blocks an invalid structured query before navigation", () => {
     const reportValidity = vi
       .spyOn(HTMLInputElement.prototype, "reportValidity")

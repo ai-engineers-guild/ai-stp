@@ -94,7 +94,9 @@ async def test_check_migrations_true_only_at_alembic_head() -> None:
     head = heads[0]
 
     previous = script.get_revision(head).down_revision
-    assert isinstance(previous, str), "the head must have exactly one parent to test staleness"
+    if isinstance(previous, tuple):
+        previous = sorted(previous)[0]
+    assert isinstance(previous, str), "the head must have a parent to test staleness"
 
     current = cast("Any", FakeSessionmaker(head))
     stale = cast("Any", FakeSessionmaker(previous))

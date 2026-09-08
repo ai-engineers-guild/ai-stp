@@ -558,6 +558,22 @@ async def read_private_component_version(
     return _resource(request, result)
 
 
+@router.get(
+    "/access/components/{stable_id}/versions/{version}",
+    response_model=PrivateVersionResponse,
+    operation_id="readAccessComponentVersion",
+)
+async def read_access_component_version(
+    request: Request,
+    stable_id: str,
+    version: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    """Compatibility alias for authenticated private component acquisition."""
+    return await read_private_component_version(request, stable_id, version, db, ctx)
+
+
 @router.get("/catalog/components/{stable_id}/versions/{version}/checks", response_model=None)
 async def read_component_version_checks(
     request: Request,
@@ -722,6 +738,22 @@ async def read_private_setup_version(
             ErrorCategory.CATALOG_INTEGRITY, "catalog version failed integrity verification"
         ) from exc
     return _resource(request, result)
+
+
+@router.get(
+    "/access/setups/{stable_id}/versions/{version}",
+    response_model=PrivateVersionResponse,
+    operation_id="readAccessSetupVersion",
+)
+async def read_access_setup_version(
+    request: Request,
+    stable_id: str,
+    version: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    """Compatibility alias for authenticated private setup acquisition."""
+    return await read_private_setup_version(request, stable_id, version, db, ctx)
 
 
 @router.get("/catalog/setups/{stable_id}/versions/{version}/checks", response_model=None)

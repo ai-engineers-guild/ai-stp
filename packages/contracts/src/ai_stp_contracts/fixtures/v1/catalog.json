@@ -842,7 +842,7 @@
         "passport_digest": "sha256:9e70631a56fb56d2afea8d84b5ade17cbc44655bcd0bec386d53c1ad1bb27b18",
         "lifecycle": "active",
         "trust": {
-          "trust_lane": "experimental",
+          "trust_lane": "local_owner_or_pinned",
           "author_verified": false,
           "component_verified": false
         },
@@ -875,7 +875,7 @@
         "passport_digest": "sha256:3c81d91ab53f6739f77a641bd70a599e17e8c5bfb505a99d9761ba0ae54b462c",
         "lifecycle": "active",
         "trust": {
-          "trust_lane": "experimental",
+          "trust_lane": "local_owner_or_pinned",
           "author_verified": false,
           "component_verified": false
         },

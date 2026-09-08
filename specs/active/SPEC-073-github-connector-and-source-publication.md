@@ -1,9 +1,9 @@
 ---
-description: "SPEC-072: Selected GitHub App source access and separately confirmed repository management."
+description: "SPEC-073: Selected GitHub App source access and separately confirmed repository management."
 last_verified: "2026-09-08"
 ---
 
-# SPEC-072: GitHub Connector and source publication
+# SPEC-073: GitHub Connector and source publication
 
 ## Purpose
 
@@ -33,65 +33,65 @@ administration; a component grant never confers that authority.
 
 ## Requirements
 
-- `REQ-7201`: Normal GitHub sign-in never authorizes private source access. A
+- `REQ-7301`: Normal GitHub sign-in never authorizes private source access. A
   separate authenticated, CSRF-protected connect action starts an account/session-
   bound, expiring, one-use OAuth flow. Callback replay, another account, a missing
   session and a mismatched GitHub identity refuse.
-- `REQ-7202`: Ordinary connection uses a public GitHub App with metadata and
+- `REQ-7302`: Ordinary connection uses a public GitHub App with metadata and
   contents read and repository administration write. Personal and organization
   installations support selected repositories. The same App is used for source and
   administration, but administration is a separate explicit consent and every
   mutation has its own plan and confirmation. Ordinary source operations never
   mutate GitHub.
-- `REQ-7203`: Expiring user tokens are stored encrypted on the server with a
+- `REQ-7303`: Expiring user tokens are stored encrypted on the server with a
   dedicated deployment key and account/purpose binding. Tokens, refresh material
   and App credentials never enter browser storage, passports, audit payloads,
   public responses or logs. Expired authorization requires reconnection.
-- `REQ-7204`: Repository reads recheck live user installation membership, selected
+- `REQ-7304`: Repository reads recheck live user installation membership, selected
   repository identity and effective contents permission. Missing, expired,
   revoked, suspended, unselected or insufficient access fails closed; cached
   metadata is not authority. Organization approval remains an explicit pending
   result, not a successful connection.
-- `REQ-7205`: Disconnect removes usable local token material and makes subsequent
+- `REQ-7305`: Disconnect removes usable local token material and makes subsequent
   source access fail closed. The user can separately revoke the App on GitHub.
   Disconnecting source access does not revoke existing ai-stp artifact grants.
-- `REQ-7206`: Source preparation accepts only a selected repository ID, full commit
+- `REQ-7306`: Source preparation accepts only a selected repository ID, full commit
   SHA and bounded component subpath. It verifies the returned repository and exact
   commit and downloads through official GitHub API/archive hosts, stripping
   authorization on cross-host redirects. Ref substitution, unsafe redirects,
   ambiguous archive members and traversal refuse.
-- `REQ-7207`: Preparation reuses the canonical component-tree packer and bounded
+- `REQ-7307`: Preparation reuses the canonical component-tree packer and bounded
   source extractor. GitHub archives contain tracked snapshot files, including
   tracked files matched by ignore patterns; ignored untracked working-tree files
   cannot enter that snapshot. Links, special files, secret-like paths, invalid
   text, excessive size and empty/missing roots refuse. Inventory is sorted and
   binds the exact packed bytes and digest.
-- `REQ-7208`: Private repository coordinates remain only in the server-only source
+- `REQ-7308`: Private repository coordinates remain only in the server-only source
   binding. A privately sourced passport has no GitHub source coordinates. The
   binding records observed source visibility, publisher, installation, immutable
   repository identity, commit, subpath, artifact digest/size and passport digest.
   The server accepts a missing component source only with that verified binding.
-- `REQ-7209`: Connector publication retains ordinary plan, artifact, safety and
+- `REQ-7309`: Connector publication retains ordinary plan, artifact, safety and
   owner checks. Preparation grants no public exposure. Plan confirmation rechecks
   the connector and selected repository; identical retries retain the binding and
   bytes. Public publication from a currently private source refuses.
-- `REQ-7210`: Owner component visibility changes use the SPEC-071 visibility plan
+- `REQ-7310`: Owner component visibility changes use the SPEC-071 visibility plan
   and an explicit confirmation. Private-to-public and public-to-private changes,
   including harmless repeated requests, preserve version, passport, provenance,
   artifact identity, digest, bytes and bucket location. Withdrawal stops future
   anonymous service access but cannot revoke acquired copies.
-- `REQ-7211`: Promotion rechecks current owner/device, digest, lifecycle, public
+- `REQ-7311`: Promotion rechecks current owner/device, digest, lifecycle, public
   publisher profile, license, tags, artifact integrity, mandatory validation and
   public source eligibility before updating any public projection. Bound GitHub
   sources are re-resolved anonymously at their exact commit/subpath and compared
   with stored canonical bytes. Private or unavailable sources refuse. A bound
   source may satisfy provenance without rewriting the historical passport.
-- `REQ-7212`: A public version is served with explicit
+- `REQ-7312`: A public version is served with explicit
   `distribution_visibility=public`. Catalog search, detail, exact version and
   artifact reads observe the same distribution policy; withdrawal removes every
   anonymous projection and read. Existing owner/grantee access remains valid. No
   object-store copy is performed.
-- `REQ-7213`: Invitation plans require a separately connected administration consent,
+- `REQ-7313`: Invitation plans require a separately connected administration consent,
   selected repository, current owner/admin authority and exact recipient/role. The
   consent uses the same GitHub App as source access; it does not create a second App.
   Personal private repositories warn that collaborator access includes write;
@@ -100,29 +100,32 @@ administration; a component grant never confers that authority.
   An authenticated action-status read refreshes pending/accepted invitation state
   without sending an invitation; revoked or missing invitations are not reported
   as pending. The read rechecks selected repository and owner/admin authority.
-- `REQ-7214`: Repository-visibility plans bind immutable repository ID, owner ID,
+- `REQ-7314`: Repository-visibility plans bind immutable repository ID, owner ID,
   full name, prior visibility, actor, device, expiry and digest. Confirmation
   requires the exact full repository name and a separate affirmative confirmation
   after warning about public history exposure or the limits of making a repository
   private again. The server
   rechecks scope, current admin authority, identity and visibility immediately
   before mutation. GitHub organization policy refusals produce no local success.
-- `REQ-7215`: Repository actions are durable and idempotent. Concurrent confirmation
+- `REQ-7315`: Repository actions are durable and idempotent. Concurrent confirmation
   is serialized. A lost response leaves a reconcilable result; retry reads current
   GitHub invitation/visibility before another mutation. An already-public target
   is harmless. Expired unknown plans may reconcile an observed effect but cannot
   issue a new mutation. Stale names, ownership, scope and request hashes refuse.
-- `REQ-7216`: Connector lifecycle, repository actions and failures produce audit
+- `REQ-7316`: Connector lifecycle, repository actions and failures produce audit
   records with actor, opaque target identity, outcome and timestamp, without
   private source coordinates or credentials. GitHub 401/403/404/422/429 and
   transport failures map to stable, safe, actionable platform errors.
-- `REQ-7217`: Account and owner interfaces expose one connector status, selected
+- `REQ-7317`: Account and owner interfaces expose one connector status, selected
   repositories and disconnect. Component visibility belongs to the owned-object
   action menu; repository visibility belongs to the connector repository list.
+  A disconnected account can start the GitHub App installation before a GitHub
+  identity is linked; the authorize branch still requires the linked identity.
   Both use separately confirmed plans in English and Russian. Keyboard,
-  narrow-screen, busy, failure and retry states remain usable. The CLI uses the
-  same source/publication authority and never accepts a GitHub token as a grant.
-- `REQ-7218`: Readiness distinguishes local tests from live personal/organization
+  narrow-screen, busy, failure and retry states remain usable and failed status
+  or connect requests are visible to the user. The CLI uses the same
+  source/publication authority and never accepts a GitHub token as a grant.
+- `REQ-7318`: Readiness distinguishes local tests from live personal/organization
   installation evidence. Deployment config, callbacks, permissions, credential
   rotation, rollback and the acceptance matrix are documented. Unconfigured Apps
   are unavailable, never replaced with a global token or ordinary OAuth login.
@@ -175,21 +178,21 @@ removing published artifacts. Rollback retains the new tables and immutable byte
 
 | Requirement | Executable verification |
 |---|---|
-| `REQ-7201` | Login does not connect; account/session/state mismatch and callback replay refuse. |
-| `REQ-7202` | One selected-repository App installation exposes metadata/contents read and administration write; source access and each management action still require separate consent and server-side checks. |
-| `REQ-7203` | Stored token ciphertext is account/purpose-bound; expiry refuses; response/log scans contain no token. |
-| `REQ-7204` | Personal/organization selected access passes; unselected, suspended, revoked and insufficient access refuse. |
-| `REQ-7205` | Disconnect prevents source reads while an existing private artifact grant still works. |
-| `REQ-7206` | Exact missing/mismatched commit, unsafe subpath/redirect and ambiguous members refuse. |
-| `REQ-7207` | Snapshot fixtures verify ignore semantics, sorted inventory, canonical digest, links, secrets and bounds. |
-| `REQ-7208` | Private source binding survives publication; passport/public responses expose no private coordinates. |
-| `REQ-7209` | Public with/without connector and private with connector pass; revoked confirmation and private public-source requests refuse. |
-| `REQ-7210` | Owner opening, withdrawal and replay preserve exact version/passport/artifact/location; non-owner refuses. |
-| `REQ-7211` | Each failed public precondition leaves visibility and projections unchanged. |
-| `REQ-7212` | Anonymous catalog/detail/version/download and owner/grantee reads agree after opening and withdrawal. |
-| `REQ-7213` | Owner invitation, pending/accepted replay, non-admin refusal and personal write warning are tested; administration uses the same App registration. |
-| `REQ-7214` | Typed-name, affirmative confirmation, stale target and organization-policy refusal are enforced server-side. |
-| `REQ-7215` | Concurrent and lost-response retries reconcile without duplicate invitations or unintended exposure. |
-| `REQ-7216` | Upstream error matrix and audit assertions contain safe identifiers only. |
-| `REQ-7217` | RU/EN component/browser tests and CLI contract tests exercise the same plans and refusal states. |
-| `REQ-7218` | Repository gates pass; live installation/mutation evidence is recorded separately on exact deployed identity. |
+| `REQ-7301` | Login does not connect; account/session/state mismatch and callback replay refuse. |
+| `REQ-7302` | One selected-repository App installation exposes metadata/contents read and administration write; source access and each management action still require separate consent and server-side checks. |
+| `REQ-7303` | Stored token ciphertext is account/purpose-bound; expiry refuses; response/log scans contain no token. |
+| `REQ-7304` | Personal/organization selected access passes; unselected, suspended, revoked and insufficient access refuse. |
+| `REQ-7305` | Disconnect prevents source reads while an existing private artifact grant still works. |
+| `REQ-7306` | Exact missing/mismatched commit, unsafe subpath/redirect and ambiguous members refuse. |
+| `REQ-7307` | Snapshot fixtures verify ignore semantics, sorted inventory, canonical digest, links, secrets and bounds. |
+| `REQ-7308` | Private source binding survives publication; passport/public responses expose no private coordinates. |
+| `REQ-7309` | Public with/without connector and private with connector pass; revoked confirmation and private public-source requests refuse. |
+| `REQ-7310` | Owner opening, withdrawal and replay preserve exact version/passport/artifact/location; non-owner refuses. |
+| `REQ-7311` | Each failed public precondition leaves visibility and projections unchanged. |
+| `REQ-7312` | Anonymous catalog/detail/version/download and owner/grantee reads agree after opening and withdrawal. |
+| `REQ-7313` | Owner invitation, pending/accepted replay, non-admin refusal and personal write warning are tested; administration uses the same App registration. |
+| `REQ-7314` | Typed-name, affirmative confirmation, stale target and organization-policy refusal are enforced server-side. |
+| `REQ-7315` | Concurrent and lost-response retries reconcile without duplicate invitations or unintended exposure. |
+| `REQ-7316` | Upstream error matrix and audit assertions contain safe identifiers only. |
+| `REQ-7317` | RU/EN component/browser tests and CLI contract tests exercise the same plans and refusal states. |
+| `REQ-7318` | Repository gates pass; live installation/mutation evidence is recorded separately on exact deployed identity. |

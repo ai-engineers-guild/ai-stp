@@ -1,36 +1,5 @@
 {
   "$defs": {
-    "CatalogTrust": {
-      "additionalProperties": true,
-      "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
-      "properties": {
-        "author_verified": {
-          "title": "Author Verified",
-          "type": "boolean"
-        },
-        "component_verified": {
-          "title": "Component Verified",
-          "type": "boolean"
-        },
-        "trust_lane": {
-          "$ref": "#/$defs/CatalogTrustLane"
-        }
-      },
-      "required": [
-        "author_verified",
-        "component_verified",
-        "trust_lane"
-      ],
-      "title": "CatalogTrust",
-      "type": "object"
-    },
-    "CatalogTrustLane": {
-      "enum": [
-        "authoritative",
-        "experimental"
-      ],
-      "type": "string"
-    },
     "JsonValue": {
       "anyOf": [
         {
@@ -65,6 +34,33 @@
     "PassportDigest": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
+    },
+    "PrivateVersionTrust": {
+      "additionalProperties": true,
+      "description": "Exact local acquisition authority, independent of public trust.",
+      "properties": {
+        "author_verified": {
+          "title": "Author Verified",
+          "type": "boolean"
+        },
+        "component_verified": {
+          "title": "Component Verified",
+          "type": "boolean"
+        },
+        "trust_lane": {
+          "const": "local_owner_or_pinned",
+          "default": "local_owner_or_pinned",
+          "title": "Trust Lane",
+          "type": "string"
+        }
+      },
+      "required": [
+        "author_verified",
+        "component_verified",
+        "trust_lane"
+      ],
+      "title": "PrivateVersionTrust",
+      "type": "object"
     },
     "Timestamp": {
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
@@ -104,7 +100,7 @@
       "type": "integer"
     },
     "trust": {
-      "$ref": "#/$defs/CatalogTrust"
+      "$ref": "#/$defs/PrivateVersionTrust"
     },
     "visibility": {
       "const": "private",

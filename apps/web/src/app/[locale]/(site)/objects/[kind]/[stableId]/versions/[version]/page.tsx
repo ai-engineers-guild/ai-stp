@@ -5,6 +5,7 @@ import { Badge } from "@/components/atoms/badge";
 import { EvidenceList } from "@/components/organisms/evidence-list";
 import { StartPublicationForm } from "@/components/organisms/start-publication-form";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { VisibilityLabel } from "@/components/molecules/visibility-label";
 import { ApiError } from "@/lib/api/errors";
 import type { OwnerVersionDetail } from "@/lib/api/generated/types.gen";
 import { readOwnerVersion } from "@/lib/api/owner";
@@ -28,6 +29,7 @@ export default async function OwnerVersionPage({ params }: PageProps) {
   );
   const t = await getTranslations("objects");
   const tc = await getTranslations("common");
+  const tCatalog = await getTranslations("catalog");
   const token = await sessionCookieValue();
   const csrf = await readCsrfToken();
 
@@ -46,7 +48,13 @@ export default async function OwnerVersionPage({ params }: PageProps) {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
+      <div className="relative space-y-2 pr-24">
+        <VisibilityLabel
+          className="absolute top-0 right-0"
+          visibility={detail.visibility}
+          publicLabel={tCatalog("public")}
+          privateLabel={tCatalog("private")}
+        />
         <p className="text-muted-foreground font-mono text-xs tracking-wide uppercase">
           {detail.object_kind} · {detail.version}
         </p>

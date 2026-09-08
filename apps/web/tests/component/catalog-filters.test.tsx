@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ParsedCatalogQuery } from "@/lib/catalog-query";
 
+const routerPush = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ href, children, ...props }: { href: string; children?: ReactNode }) => (
     <a href={href} {...props}>
@@ -13,7 +15,7 @@ vi.mock("@/lib/i18n/navigation", () => ({
     </a>
   ),
   usePathname: () => "/catalog",
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: routerPush }),
 }));
 
 const { CatalogFilters } = await import("@/components/organisms/catalog-filters");
@@ -175,6 +177,10 @@ describe("CatalogFilters", () => {
     expect(screen.getByRole("link", { name: /codex/i })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Filters (4)" }));
     expect(screen.getByRole("button", { name: "Reset all" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset all" }));
+    expect(routerPush).toHaveBeenCalledWith(expect.stringContaining("include_experimental=1"));
+    expect(screen.getByRole("button", { name: "Filters" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply filters" })).toBeInTheDocument();
   });
 
   it("opens separate sort and view popup controls", async () => {
@@ -405,6 +411,47 @@ describe("CatalogFilters", () => {
         .getAllByRole("checkbox")
         .map((checkbox) => checkbox.getAttribute("aria-label")),
     ).toEqual(["Ada", "Zed", "Яна"]);
+  });
+
+  it("shows the selected author chip with display name and avatar", () => {
+    const { container } = render(
+      <CatalogFilters
+        query={query({ authors: ["alice"] })}
+        labels={labels}
+        authors={[
+          {
+            account_id: "alice",
+            first_name: "Alice",
+            last_name: "Example",
+            display_name: "Alice Example",
+            avatar_url: "https://example.test/alice.png",
+          },
+        ]}
+      />,
+    );
+
+    const chip = screen.getByRole("link", { name: /Alice Example/ });
+    expect(chip).toContainElement(container.querySelector("img"));
+  });
+
+  it("falls back to an author's first and last name in the selected chip", () => {
+    render(
+      <CatalogFilters
+        query={query({ authors: ["alice"] })}
+        labels={labels}
+        authors={[
+          {
+            account_id: "alice",
+            first_name: "Alice",
+            last_name: "Example",
+            display_name: null,
+            avatar_url: null,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /Alice Example/ })).toBeInTheDocument();
   });
 
   it("uses an overlay filter surface on a narrow viewport without dropping controls", async () => {

@@ -520,6 +520,7 @@ export {
   type PrepareGithubSourceResponse,
   type PrepareGithubSourceResponses,
   type PrivateVersionResponse,
+  type PrivateVersionTrust,
   type ProjectedMember,
   ProjectedObjectType,
   ProjectionKind,

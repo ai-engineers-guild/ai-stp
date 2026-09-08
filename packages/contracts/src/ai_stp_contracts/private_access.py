@@ -5,19 +5,21 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from ai_stp_contracts.auth import AccountId, DeviceId
-from ai_stp_contracts.catalog import PassportDigest, PrivateVersionResponse, Version
+from ai_stp_contracts.catalog import (
+    PassportDigest,
+    PrivateVersionResponse,
+    PrivateVersionTrust,
+    Version,
+)
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
 from ai_stp_contracts.publication import ObjectKind, PlanId
 
-
-class PrivateVersionTrust(BaseModel):
-    """Exact local acquisition authority does not assert public verification."""
-
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-
-    trust_lane: Literal["local_owner_or_pinned"] = "local_owner_or_pinned"
-    author_verified: bool
-    component_verified: bool
+__all__ = [
+    "CliPrivateVersionResponse",
+    "PrivateVersionTrust",
+    "VisibilityPlanCreateRequest",
+    "VisibilityPlanResponse",
+]
 
 
 # The API and CLI deserialize exactly the same private catalog document.

@@ -6,6 +6,7 @@ import json
 import os
 import tarfile
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -147,6 +148,29 @@ async def test_live_selected_repository_scope(
             await read()
     else:
         assert (await read()).repository_id == 42
+
+
+@pytest.mark.asyncio
+async def test_app_install_does_not_require_linked_github_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Database:
+        def add(self, _value: object) -> None:
+            return None
+
+    monkeypatch.setattr(service, "emit_audit", AsyncMock())
+    settings = SimpleNamespace(
+        github_connector=config(),
+        auth=SimpleNamespace(oauth_callback_base=lambda: "https://ai-stp.test"),
+    )
+    response = await service.start_connect(
+        cast(Any, Database()),
+        ctx=context(),
+        body=GitHubConnectRequest(mode="install", confirmed=True),
+        settings=cast(Any, settings),
+    )
+
+    assert "/apps/synthetic-github/installations/new" in response.authorization_url
 
 
 @pytest.mark.asyncio

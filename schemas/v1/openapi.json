@@ -6103,6 +6103,21 @@
             "title": "Author Verified",
             "type": "boolean"
           },
+          "catalog_item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentSummary"
+              },
+              {
+                "$ref": "#/components/schemas/SetupSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Catalog Item"
+          },
           "component_verified": {
             "default": false,
             "title": "Component Verified",
@@ -6168,6 +6183,7 @@
         },
         "required": [
           "author_verified",
+          "catalog_item",
           "component_verified",
           "latest_version",
           "lifecycle_state",
@@ -7107,7 +7123,7 @@
             "type": "integer"
           },
           "trust": {
-            "$ref": "#/components/schemas/CatalogTrust"
+            "$ref": "#/components/schemas/PrivateVersionTrust"
           },
           "visibility": {
             "const": "private",
@@ -7126,6 +7142,33 @@
           "visibility"
         ],
         "title": "PrivateVersionResponse",
+        "type": "object"
+      },
+      "PrivateVersionTrust": {
+        "additionalProperties": true,
+        "description": "Exact local acquisition authority, independent of public trust.",
+        "properties": {
+          "author_verified": {
+            "title": "Author Verified",
+            "type": "boolean"
+          },
+          "component_verified": {
+            "title": "Component Verified",
+            "type": "boolean"
+          },
+          "trust_lane": {
+            "const": "local_owner_or_pinned",
+            "default": "local_owner_or_pinned",
+            "title": "Trust Lane",
+            "type": "string"
+          }
+        },
+        "required": [
+          "author_verified",
+          "component_verified",
+          "trust_lane"
+        ],
+        "title": "PrivateVersionTrust",
         "type": "object"
       },
       "ProjectedMember": {
@@ -12974,7 +13017,8 @@
                         "component_verified": false,
                         "trust_lane": "local_owner_or_pinned"
                       },
-                      "version": "1.2"
+                      "version": "1.2",
+                      "visibility": "private"
                     }
                   }
                 },
@@ -13173,7 +13217,8 @@
                         "component_verified": false,
                         "trust_lane": "local_owner_or_pinned"
                       },
-                      "version": "1.0"
+                      "version": "1.0",
+                      "visibility": "private"
                     }
                   }
                 },
@@ -13344,6 +13389,18 @@
           "content": {
             "application/json": {
               "examples": {
+                "createVisibilityPlan.answer": {
+                  "summary": "Visibility planning exposes the exact immutable object coordinates before approval.",
+                  "value": {
+                    "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "idempotency_key": "idem_visibility_plan_01",
+                    "object_kind": "component",
+                    "schema_version": 1,
+                    "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "version": "1.2",
+                    "visibility": "public"
+                  }
+                },
                 "createVisibilityPlan.owner": {
                   "summary": "Owner visibility preserves the exact published passport identity.",
                   "value": {
@@ -13368,6 +13425,28 @@
             "content": {
               "application/json": {
                 "examples": {
+                  "createVisibilityPlan.answer": {
+                    "summary": "Visibility planning exposes the exact immutable object coordinates before approval.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "catalog_visibility",
+                        "public_artifact"
+                      ],
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                      "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "planned",
+                      "version": "1.2",
+                      "visibility": "public"
+                    }
+                  },
                   "createVisibilityPlan.owner": {
                     "summary": "Owner visibility preserves the exact published passport identity.",
                     "value": {
@@ -18493,7 +18572,7 @@
                       "trust": {
                         "author_verified": false,
                         "component_verified": false,
-                        "trust_lane": "experimental"
+                        "trust_lane": "local_owner_or_pinned"
                       },
                       "visibility": "private"
                     }
@@ -20421,7 +20500,7 @@
                       "trust": {
                         "author_verified": false,
                         "component_verified": false,
-                        "trust_lane": "experimental"
+                        "trust_lane": "local_owner_or_pinned"
                       },
                       "visibility": "private"
                     }
@@ -25659,6 +25738,7 @@
                       "items": [
                         {
                           "author_verified": false,
+                          "catalog_item": null,
                           "component_verified": false,
                           "latest_version": "1.0",
                           "lifecycle_state": "draft",
@@ -27522,6 +27602,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -29118,6 +29199,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -29341,6 +29423,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -29577,6 +29660,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -29849,6 +29933,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -30121,6 +30206,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "validating",
                       "version": "1.0",

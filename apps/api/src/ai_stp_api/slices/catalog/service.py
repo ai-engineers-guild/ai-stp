@@ -18,7 +18,6 @@ from ai_stp_contracts.catalog import (
     CatalogPageInfo,
     CatalogReactionList,
     CatalogReactionState,
-    CatalogTrust,
     CatalogUsageMetrics,
     ComponentDetail,
     ComponentListResponse,
@@ -36,6 +35,7 @@ from ai_stp_contracts.catalog import (
     GitHubMetadata,
     LikedCatalogItem,
     PrivateVersionResponse,
+    PrivateVersionTrust,
     SetupDetail,
     SetupListResponse,
     SetupSearchRequest,
@@ -963,8 +963,8 @@ async def read_private_version_document(
         passport=row.passport,
         passport_digest=row.passport_digest,
         lifecycle=cast(Literal["active", "deprecated"], row.lifecycle),
-        trust=CatalogTrust(
-            trust_lane=cast(Literal["authoritative", "experimental"], row.trust_lane),
+        trust=PrivateVersionTrust(
+            trust_lane="local_owner_or_pinned",
             author_verified=row.author_verified,
             component_verified=row.component_verified,
         ),
