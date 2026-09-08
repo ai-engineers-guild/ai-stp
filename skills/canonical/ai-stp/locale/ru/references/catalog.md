@@ -6,7 +6,8 @@
 `ai-stp registry version`, `ai-stp registry fetch`, `ai-stp registry acquire`.
 
 Закрепляйте точный `id` и `X.Y`. По умолчанию линия `authoritative`.
-`experimental` — только с явным consent, в отдельном разделе. Ключ объекта не
+`experimental` допустим в рамках уже разрешённой задачи, с явной маркировкой
+в отдельном разделе. Ключ объекта не
 даёт права скачивать. Проверьте возвращённую идентичность до compose или
 install.
 

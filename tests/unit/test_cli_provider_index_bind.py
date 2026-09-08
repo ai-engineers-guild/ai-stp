@@ -829,3 +829,83 @@ def test_index_release_revalidation_does_not_require_the_github_verifier(
         )
     assert checked.manifest == bound.manifest
     assert checked.trust == bound.trust_level
+
+
+@pytest.mark.parametrize(
+    "tamper", [None, "wheel", "provenance", "provenance_type", "receipt", "executable", "plan"]
+)
+def test_approved_index_release_rechecks_bound_provenance_before_apply(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tamper: str | None,
+) -> None:
+    """The actual apply boundary accepts PEP 740 and refuses changed delivery evidence."""
+    from contextlib import closing
+
+    from ai_stp_cli.commands import install
+    from ai_stp_cli.local import installation
+    from ai_stp_cli.local.database import configured_path, open_registry
+    from ai_stp_cli.provider import build_attestation
+    from ai_stp_foundation.ids import new_id
+
+    blob, filename = _wheel_bytes(), _filename()
+    provenance = _provenance(filename=filename, digest=_digest(blob))
+    verifier = _Verifier()
+    bound = index_bind.fetch(
+        harness="pi",
+        tag="0.0.1",
+        directory=tmp_path,
+        index=_Index(blob=blob, filename=filename, provenance=provenance),
+        inspect=_inspect(),
+        verifier=verifier,
+    )
+    monkeypatch.setattr(index_attestation, "production_verifier", lambda: verifier)
+
+    def no_github(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("approved index evidence must not use the GitHub verifier")
+
+    monkeypatch.setattr(build_attestation, "verify_stored", no_github)
+    plan = installation.Plan(
+        operation_id=new_id("operation"),
+        action="install",
+        author=new_id("device"),
+        target_id="test-target",
+        expected_target_digest="",
+        provider_version=bound.manifest.provider_version,
+        effects=(),
+        confirmation="none",
+        recovery_action="inspect",
+        expires_at="",
+        created_at="",
+        provider_protocol_version=bound.manifest.protocol_version,
+        provider_release_manifest=release.serialize_manifest(bound.manifest),
+        provider_release_trust=bound.trust_level,
+        provider_release_evidence=json.dumps(provenance if tamper != "plan" else {}),
+    )
+    if tamper == "wheel":
+        (tmp_path / filename).write_bytes(b"changed wheel")
+    elif tamper == "provenance":
+        (tmp_path / f"{filename}.provenance.json").write_text("{}", encoding="utf-8")
+    elif tamper == "provenance_type":
+        changed = {**provenance, "version": True}
+        (tmp_path / f"{filename}.provenance.json").write_text(json.dumps(changed), encoding="utf-8")
+    elif tamper == "receipt":
+        receipt_path = tmp_path / "index-release.json"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        receipt["source_commit"] = "b" * 40
+        receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    elif tamper == "executable":
+        bound.artifact.write_bytes(b"changed executable")
+    with closing(open_registry(configured_path())) as connection:
+        if tamper is None:
+            checked = install._verify_bound_release(  # pyright: ignore[reportPrivateUsage]
+                connection, plan, str(bound.artifact)
+            )
+            assert checked == bound.manifest
+            assert verifier.calls == ["verify", "verify"]
+        else:
+            with pytest.raises(CliFailure) as raised:
+                install._verify_bound_release(  # pyright: ignore[reportPrivateUsage]
+                    connection, plan, str(bound.artifact)
+                )
+            assert raised.value.code == "AI_STP_PRECONDITION_FAILED"

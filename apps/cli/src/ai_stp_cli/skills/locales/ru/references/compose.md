@@ -2,6 +2,13 @@
 
 Намерения: выбрать сетап, проверить eligibility, подтвердить proposal.
 
+Для готового опубликованного сетапа используйте [install](install.md), не
+пересобирайте его вручную по компонентам. Для своего сетапа получите точные
+версии компонентов и нужные файлы, изучите адаптации, создайте proposal для
+выбранных проекта и харнесса. Проверьте отчёты и конфликты, подтвердите именно
+полученный proposal и передайте его идентификатор в install plan. Подтверждение
+фиксирует приватную версию, но ещё не устанавливает и не публикует её.
+
 Берите из machine help: `ai-stp select eligibility`,
 `ai-stp select eligibility-matrix`, `ai-stp select impact`,
 `ai-stp select propose`, `ai-stp select confirm`, `ai-stp select cancel`,
@@ -25,9 +32,9 @@ MCP-файлы и host-file contributions выводятся; settings, не-MCP
 и MCP plugin packages остаются заблокированными.
 
 Одна недостающая адаптация pinned-компонента — `component materialize plan` и
-`apply`. Повторяйте `--to-harness` или передайте `--all-missing`, если source
+`apply`. Повторяйте параметр выбора target harness или передайте параметр выбора всех отсутствующих target harness, если source
 уже корректен для каждого оставшегося закрытого харнесса. Заблокированный
-член проваливает весь набор `--all-missing`. Явный claimed-portable путь без
+член проваливает весь набор параметр выбора всех отсутствующих target harness. Явный claimed-portable путь без
 опубликованной адаптации — `component portability plan` / `apply`: частный
 overlay, исходная публичная версия не меняется. Overlay входит в частный
 сетап через `select propose`; публичная композиция и публикация сетапа его

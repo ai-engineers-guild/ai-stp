@@ -10,7 +10,9 @@ Resolve from machine help: `ai-stp component scaffold plan`,
 `ai-stp publication plan`, `ai-stp publication confirm`,
 `ai-stp setup publish plan`, `ai-stp attestation sign`.
 
-Replace every scaffold draft marker before compose or release. Run
+Portable scaffolds keep editable native files in `source/`; read the scaffold
+result before choosing an adoption root. Replace every scaffold draft marker
+before compose or release. Run
 `ai-stp component skill validate` on the package directory (the directory with
 `SKILL.md` at its root), not the whole authoring tree. Publicity and access
 are a separate user decision.
@@ -26,3 +28,7 @@ public publication as a fallback.
 `setup compose` creates a private local setup and can resolve exact granted
 catalog pins through authenticated private access after an anonymous public miss.
 Review its plan digest before apply; public exposure remains a separate owner decision.
+
+A released version is an immutable snapshot. Publish the recorded artifact
+through publication plan/confirm; do not rebuild its bytes from a subsequently
+edited directory. Content changes require another version before publication.

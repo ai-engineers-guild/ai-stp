@@ -58,7 +58,6 @@ from ai_stp_cli.local.database import configured_path, open_readonly, open_regis
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
 from ai_stp_cli.provider import (
-    build_attestation,
     bundle_protocol,
     conformance,
     invocation,
@@ -2088,18 +2087,13 @@ def _verify_bound_release(
             next_actions=["provider trust --json"],
         )
     if attested:
-        rule = policy.build_attestations[manifest.repository]
-        evidence = build_attestation.verify_stored(
+        evidence = trust.verify_stored(
+            manifest,
+            policy,
             Path(executable),
-            build_attestation.Policy(
-                repository=manifest.repository.removeprefix("github.com/"),
-                source_commit=manifest.commit,
-                signer_workflow=rule.signer_workflow,
-                verified_publisher=rule.verified_publisher,
-            ),
             plan.provider_release_evidence,
         )
-        if evidence.trust_level != plan.provider_release_trust:
+        if evidence.trust != plan.provider_release_trust:
             raise CliFailure(
                 "AI_STP_PRECONDITION_FAILED",
                 "the provider release trust level changed after plan approval",

@@ -31,6 +31,7 @@ from ai_stp_cli.provider import (
     protocol_v3,
     release,
 )
+from ai_stp_foundation.canonical import JsonValue, canonize
 
 
 @dataclass(frozen=True)
@@ -239,6 +240,8 @@ def _index_evidence(
     manifest: release.ReleaseManifest,
     policy: release.TrustPolicy,
     executable: Path,
+    *,
+    stored_document: str | None = None,
 ) -> ReleaseEvidence:
     project = manifest.provider_id
     rule = policy.index_publishers.get(project)
@@ -284,6 +287,10 @@ def _index_evidence(
         )
     try:
         document = json.loads(provenance_file.read_text(encoding="utf-8"))
+        if stored_document is not None and canonize(cast(JsonValue, document)) != canonize(
+            cast(JsonValue, json.loads(stored_document))
+        ):
+            raise ValueError("index provenance differs from the approved plan")
     except (OSError, ValueError) as error:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
@@ -299,4 +306,27 @@ def _index_evidence(
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED", "the provider wheel has no acceptable PEP 740 provenance"
         )
+    return ReleaseEvidence(manifest, evidence.trust_level, evidence.document)
+
+
+def verify_stored(
+    manifest: release.ReleaseManifest,
+    policy: release.TrustPolicy,
+    executable: Path,
+    document: str,
+) -> ReleaseEvidence:
+    """Re-verify approved evidence using the manifest-bound delivery channel."""
+    if urlparse(manifest.artifact_url).hostname == "files.pythonhosted.org":
+        return _index_evidence(manifest, policy, executable, stored_document=document)
+    rule = policy.build_attestations[manifest.repository]
+    evidence = build_attestation.verify_stored(
+        executable,
+        build_attestation.Policy(
+            repository=manifest.repository.removeprefix("github.com/"),
+            source_commit=manifest.commit,
+            signer_workflow=rule.signer_workflow,
+            verified_publisher=rule.verified_publisher,
+        ),
+        document,
+    )
     return ReleaseEvidence(manifest, evidence.trust_level, evidence.document)
