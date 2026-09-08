@@ -3510,7 +3510,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option(
                 "source",
                 "string",
-                "github (default) binds a GitHub release; index binds a PEP 740 wheel.",
+                "index (default) verifies a PyPI wheel; github selects a GitHub release.",
                 choices=("github", "index"),
             ),
         ),

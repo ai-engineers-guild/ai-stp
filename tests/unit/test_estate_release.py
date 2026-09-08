@@ -12,8 +12,11 @@ from release_scripts.build_estate_record import policy_provider_repositories
 from release_scripts.validate_estate_record import validate
 
 from ai_stp_contracts.estate_release import (
+    LEGACY_REQUIRED_LEGS,
+    NOT_VERIFIED_LEGS,
     REQUIRED_LEGS,
     REQUIRED_PROVIDERS,
+    SCHEMA_ID,
     EstateRelease,
     computed_verdict,
 )
@@ -98,7 +101,8 @@ def _qualified_record(**changes: object) -> dict[str, object]:
 def _record(**changes: object) -> dict[str, object]:
     evidence = [_row("software", os_name, arch) for os_name, arch in REQUIRED_LEGS]
     payload: dict[str, object] = {
-        "schema_id": "ai-stp-estate-release/1",
+        "schema_id": SCHEMA_ID,
+        "not_verified_platforms": [f"{os_name}/{arch}" for os_name, arch in NOT_VERIFIED_LEGS],
         "record_id": "cut-1",
         "created_at": "2026-09-04T00:00:00.000Z",
         "consumer": {
@@ -420,3 +424,25 @@ def test_a_missing_artifacts_file_is_refused(tmp_path: Path) -> None:
     problems = validate(place, artifacts=artifacts)
     assert problems
     assert "missing artifact" in problems[0]
+
+
+def test_three_platform_beta_does_not_reinterpret_legacy_six_platform_evidence() -> None:
+    current = EstateRelease.model_validate(_qualified_record())
+    assert computed_verdict(current) == "complete"
+    legacy = current.model_copy(update={"schema_id": "ai-stp-estate-release/1"})
+    assert set(REQUIRED_LEGS) < set(LEGACY_REQUIRED_LEGS)
+    assert computed_verdict(legacy) == "incomplete"
+
+
+@pytest.mark.parametrize(("os_name", "arch"), NOT_VERIFIED_LEGS)
+def test_optional_platform_failure_does_not_delay_primary_beta(os_name: str, arch: str) -> None:
+    payload = _qualified_record()
+    record = EstateRelease.model_validate(payload)
+    evidence = [row.model_dump() for row in record.evidence]
+    payload["evidence"] = [*evidence, _row("software", os_name, arch, result="failed")]
+    assert computed_verdict(EstateRelease.model_validate(payload)) == "complete"
+
+
+def test_primary_beta_must_disclose_the_unverified_platforms() -> None:
+    record = EstateRelease.model_validate(_qualified_record(not_verified_platforms=[]))
+    assert computed_verdict(record) == "incomplete"

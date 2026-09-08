@@ -125,6 +125,7 @@ def fetch(
         destination, project=project, version=version, platform_name=platform_name
     )
     document = _load_provenance(client, project, version, held.filename, provenance)
+    write_private(destination.parent / f"{destination.name}.provenance.json", json.dumps(document))
     evidence = index_attestation.verify(destination, document, rule, verifier=verifier)
     if not evidence.identity.source_commit:
         raise CliFailure(
@@ -188,6 +189,18 @@ def fetch(
             "the provider wheel has no acceptable PEP 740 provenance",
             details={"project": project},
         )
+    write_private(
+        executable.parent / "index-release.json",
+        json.dumps(
+            {
+                "wheel": destination.name,
+                "wheel_digest": evidence.digest,
+                "source_commit": evidence.identity.source_commit,
+                "artifact_digest": digest,
+            },
+            sort_keys=True,
+        ),
+    )
     manifest_path = executable.parent / attested_bind.MANIFEST_NAME
     write_private(manifest_path, release.serialize_manifest(manifest))
     return attested_bind.BoundRelease(

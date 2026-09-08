@@ -94,15 +94,9 @@ _ENVIRONMENT_CODES: Final[frozenset[str]] = frozenset(
 
 
 def _artifact(directory: Path) -> Path:
-    """The one executable `provider fetch` wrote, and its manifest beside it."""
-    found = [
-        item
-        for item in sorted(directory.iterdir())
-        if item.is_file() and item.name != "release.json"
-    ]
-    if len(found) != 1:
-        raise EvidenceError(f"{directory} holds {len(found)} provider artifacts, expected one")
-    return found[0]
+    from release_scripts._evidence import provider_artifact
+
+    return provider_artifact(directory)
 
 
 def _acquired_artifact(home: Path, harness_id: str, tag: str) -> Path:

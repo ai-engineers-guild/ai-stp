@@ -112,7 +112,7 @@ def test_no_provider_acquires_the_attested_release(
             artifact_digest="sha256:" + "b" * 64,
         )
 
-    monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    monkeypatch.setattr("ai_stp_cli.provider.acquire.index_bind.fetch", fetch)
     with open_registry(configured_path(), create=True) as connection:
         found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
             connection, "codex", {}
@@ -162,7 +162,7 @@ def test_a_discovered_observation_does_not_become_the_answer(
             artifact_digest="sha256:" + "b" * 64,
         )
 
-    monkeypatch.setattr("ai_stp_cli.provider.acquire.attested_bind.fetch", fetch)
+    monkeypatch.setattr("ai_stp_cli.provider.acquire.index_bind.fetch", fetch)
     with open_registry(registry) as connection:
         found = harness_commands._resolve_provider(  # pyright: ignore[reportPrivateUsage]
             connection, "codex", {}

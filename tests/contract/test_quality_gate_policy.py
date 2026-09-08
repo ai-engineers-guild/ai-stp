@@ -210,7 +210,7 @@ def test_primary_quality_gates_do_not_require_bash_on_windows() -> None:
         assert "bash release_scripts/clean_install_regress.sh" not in output
 
 
-def test_platform_matrix_installs_one_exact_candidate_on_six_native_targets() -> None:
+def test_platform_matrix_installs_one_exact_candidate_on_required_native_targets() -> None:
     text = PLATFORM_WORKFLOW.read_text(encoding="utf-8")
     workflow = yaml.safe_load(text)
     verify_job = workflow["jobs"]["verify"]
@@ -219,13 +219,12 @@ def test_platform_matrix_installs_one_exact_candidate_on_six_native_targets() ->
         step["run"] for step in verify_job["steps"] if isinstance(step.get("run"), str)
     )
     observed = {(row["os"], row["arch"], row["runner"]) for row in rows}
+    from ai_stp_contracts.estate_release import REQUIRED_LEGS
+
+    runners = {"linux": "ubuntu-24.04", "macos": "macos-15", "windows": "windows-2025"}
     expected = {
-        ("linux", "x86_64", "ubuntu-24.04"),
-        ("linux", "arm64", "ubuntu-24.04-arm"),
-        ("darwin", "x86_64", "macos-15-intel"),
-        ("darwin", "arm64", "macos-15"),
-        ("windows", "x86_64", "windows-2025"),
-        ("windows", "arm64", "windows-11-arm"),
+        ("darwin" if os_name == "macos" else os_name, arch, runners[os_name])
+        for os_name, arch in REQUIRED_LEGS
     }
     assert observed == expected
     assert sum(row["python"] == "3.12" for row in rows) == 1

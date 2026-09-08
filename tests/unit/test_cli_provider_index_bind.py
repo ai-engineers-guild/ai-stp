@@ -1,4 +1,4 @@
-"""PEP 740 index path (`SPEC-008` REQ-850). GitHub remains the default acquire."""
+"""PEP 740 index acquisition through the managed verifier (SPEC-008 REQ-850)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import base64
 import hashlib
 import importlib
 import json
-import shutil
 import subprocess
 import tempfile
 import zipfile
@@ -528,19 +527,32 @@ def _force_cli_verifier(
 
     monkeypatch.setattr(importlib, "import_module", missing)
 
-    def which_fn(_name: str) -> str | None:
-        return which
+    def run_fn(*args: object, **_kwargs: object) -> SimpleNamespace:
+        if which is None:
+            raise FileNotFoundError("managed verifier unavailable")
+        command = cast(list[str], args[0])
+        artifact = Path(command[-3])
+        expected = json.loads(Path(command[-1]).read_text())
+        verified = {
+            **expected,
+            "subject_name": artifact.name,
+            "subject_digest": _digest(artifact.read_bytes()),
+            "source_commit": "d" * 40,
+            "runtime_architecture": "x86_64",
+            "runtime_python": "3.14.6",
+        }
+        return SimpleNamespace(
+            returncode=returncode,
+            stdout=json.dumps(verified),
+            stderr=json.dumps({"stage": "verification", "error": "ValueError"})
+            if returncode
+            else "",
+        )
 
-    monkeypatch.setattr(shutil, "which", which_fn)
-    if which is not None:
-
-        def run_fn(*_args: object, **_kwargs: object) -> SimpleNamespace:
-            return SimpleNamespace(returncode=returncode, stdout="", stderr="")
-
-        monkeypatch.setattr(subprocess, "run", run_fn)
+    monkeypatch.setattr(subprocess, "run", run_fn)
 
 
-def test_production_verifier_is_unavailable_without_pypi_attestations(
+def test_production_verifier_reports_a_managed_runtime_start_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _force_cli_verifier(monkeypatch, which=None)
@@ -558,7 +570,7 @@ def test_production_verifier_is_unavailable_without_pypi_attestations(
     assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
 
 
-def test_the_cli_verifier_succeeds_without_a_source_commit(
+def test_managed_verifier_returns_the_verified_source_commit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _force_cli_verifier(monkeypatch, which="/usr/bin/pypi-attestations")
@@ -573,7 +585,7 @@ def test_the_cli_verifier_succeeds_without_a_source_commit(
         release.pinned_policy().index_publishers["pi-setup-system"],
     )
     assert evidence.trust_level == "verified_publisher"
-    assert evidence.identity.source_commit == ""
+    assert evidence.identity.source_commit == "d" * 40
 
 
 def test_the_cli_verifier_refuses_a_failed_subprocess(
@@ -714,8 +726,9 @@ def test_an_unknown_platform_has_no_wheel_tag() -> None:
     assert "no attested provider asset" in raised.value.message
 
 
+@pytest.mark.parametrize("claim", ["sha", "1.3.6.1.4.1.57264.1.13"])
 def test_the_library_verifier_supplies_the_source_commit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, claim: str
 ) -> None:
     class _Error(Exception):
         pass
@@ -724,8 +737,9 @@ def test_the_library_verifier_supplies_the_source_commit(
         def verify(self, *, identity: object, dist: object) -> None:
             return None
 
+        @property
         def certificate_claims(self) -> dict[str, str]:
-            return {"sha": "d" * 40}
+            return {claim: "d" * 40}
 
     class _Bundle:
         def __init__(self) -> None:
@@ -775,3 +789,43 @@ def test_the_library_verifier_supplies_the_source_commit(
     )
     assert evidence.identity.source_commit == "d" * 40
     assert evidence.trust_level == "verified_publisher"
+
+
+def test_index_release_revalidation_does_not_require_the_github_verifier(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from contextlib import closing
+
+    from ai_stp_cli.local.database import configured_path, open_registry
+    from ai_stp_cli.provider import build_attestation, trust
+
+    blob, filename = _wheel_bytes(), _filename()
+    verifier = _Verifier()
+    bound = index_bind.fetch(
+        harness="pi",
+        tag="0.0.1",
+        directory=tmp_path,
+        index=_Index(
+            blob=blob,
+            filename=filename,
+            provenance=_provenance(filename=filename, digest=_digest(blob)),
+        ),
+        inspect=_inspect(),
+        verifier=verifier,
+    )
+    monkeypatch.setattr(index_attestation, "production_verifier", lambda: verifier)
+
+    def no_github(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("index evidence must not invoke GitHub verification")
+
+    monkeypatch.setattr(build_attestation, "verify", no_github)
+    with closing(open_registry(configured_path())) as connection:
+        checked = trust.trusted_manifest(
+            connection,
+            {"provider-manifest": str(bound.manifest_path)},
+            str(bound.artifact),
+            recovery_requested=False,
+        )
+    assert checked.manifest == bound.manifest
+    assert checked.trust == bound.trust_level

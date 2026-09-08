@@ -13,8 +13,7 @@ import base64
 import hashlib
 import importlib
 import json
-import shutil
-import subprocess
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -125,7 +124,7 @@ def parse_identity(provenance: Mapping[str, object]) -> PublisherIdentity:
 
 
 def production_verifier() -> BundleVerifier:
-    """Library first, then the `pypi-attestations` executable, then unavailable."""
+    """Use an available verifier library or the CLI-owned pinned runtime."""
     return _ProductionVerifier()
 
 
@@ -137,7 +136,12 @@ class _ProductionVerifier:
             return _verify_with_library(artifact, provenance, rule)
         except ImportError:
             pass
-        return _verify_with_cli(artifact, provenance, rule)
+        from ai_stp_cli.provider import verification_runtime
+
+        verified = verification_runtime.verify(artifact, provenance, rule)
+        return PublisherIdentity(
+            **{name: verified[name] for name in PublisherIdentity.__dataclass_fields__}
+        )
 
 
 def _verify_with_library(
@@ -197,54 +201,6 @@ def _verify_with_library(
         "the provider wheel has no acceptable PEP 740 provenance",
         details={"project": rule.pypi_project, "detail": last_error},
     )
-
-
-def _verify_with_cli(
-    artifact: Path, provenance: Mapping[str, object], rule: IndexPublisherRule
-) -> PublisherIdentity:
-    found = shutil.which("pypi-attestations")
-    if found is None:
-        raise CliFailure(
-            "AI_STP_DEPENDENCY_UNAVAILABLE",
-            "index provenance verification is unavailable",
-            details={"dependency": "pypi-attestations"},
-        )
-    provenance_file = artifact.parent / f"{artifact.name}.provenance"
-    provenance_file.write_text(json.dumps(provenance), encoding="utf-8")
-    command = [
-        found,
-        "verify",
-        "pypi",
-        "--repository",
-        f"https://github.com/{rule.repository}",
-        "--provenance-file",
-        str(provenance_file),
-        str(artifact),
-    ]
-    try:
-        completed = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=60,
-            shell=False,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired) as error:
-        raise CliFailure(
-            "AI_STP_DEPENDENCY_UNAVAILABLE",
-            "index provenance verification is unavailable",
-            details={"dependency": "pypi-attestations", "exception": type(error).__name__},
-        ) from error
-    if completed.returncode != 0:
-        raise CliFailure(
-            "AI_STP_PRECONDITION_FAILED",
-            "the provider wheel has no acceptable PEP 740 provenance",
-            details={"project": rule.pypi_project},
-        )
-    return parse_identity(provenance)
 
 
 def _match_publisher(identity: PublisherIdentity, rule: IndexPublisherRule) -> None:
@@ -353,14 +309,12 @@ def _object_list(value: object, field: str) -> list[object]:
 
 def _commit_from_claims(attestation: object) -> str:
     claims = getattr(attestation, "certificate_claims", None)
-    if not callable(claims):
-        return ""
-    held: object = claims()
+    held: object = claims() if callable(claims) else claims
     if not isinstance(held, dict):
         return ""
     mapping = cast(dict[str, object], held)
-    for key in ("sha", "source_sha", "1.3.6.1.4.1.57264.1.3"):
+    for key in ("1.3.6.1.4.1.57264.1.13", "sha", "source_sha", "1.3.6.1.4.1.57264.1.3"):
         value = mapping.get(key)
-        if isinstance(value, str) and len(value) == 40 and value == value.lower():
+        if isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value):
             return value
     return ""

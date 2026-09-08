@@ -13,8 +13,8 @@
 #     ->  the native path is gone again
 #
 # Until this workflow existed that arc was measured by hand, on linux/x86_64
-# alone, while the release target is three operating systems on two
-# architectures. One row per harness, typed outcomes, a missing row is an error.
+# alone. Qualification now targets Linux x86_64, Windows x86_64 and macOS
+# arm64. One row per harness, typed outcomes, a missing row is an error.
 # Not part of `check`: the repository gate must not depend on another party's
 # release network.
 name: config-evidence
@@ -70,16 +70,10 @@ jobs:
         include:
           - id: linux-x86_64
             runner: ubuntu-24.04
-          - id: linux-arm64
-            runner: ubuntu-24.04-arm
-          - id: macos-x86_64
-            runner: macos-15-intel
           - id: macos-arm64
             runner: macos-15
           - id: windows-x86_64
             runner: windows-2025
-          - id: windows-arm64
-            runner: windows-11-arm
     env:
       AI_STP_FORCE_FILE_CREDENTIAL_STORE: "1"
       GH_TOKEN: ${{ github.token }}

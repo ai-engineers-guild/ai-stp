@@ -4729,7 +4729,7 @@
           "value_type": "string",
           "required": false,
           "repeatable": false,
-          "summary": "github (default) binds a GitHub release; index binds a PEP 740 wheel.",
+          "summary": "index (default) verifies a PyPI wheel; github selects a GitHub release.",
           "choices": [
             "github",
             "index"

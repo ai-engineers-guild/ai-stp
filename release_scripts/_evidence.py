@@ -13,6 +13,7 @@ that matters: an evidence artefact is meant to be pasted into an issue.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import signal
@@ -43,6 +44,26 @@ FORBIDDEN_IN_REPORT: tuple[str, ...] = (
 
 class EvidenceError(RuntimeError):
     """The deployed environment did not answer as an evidence slice requires."""
+
+
+def provider_artifact(directory: Path) -> Path:
+    """Select the manifest-bound executable among retained delivery evidence."""
+    try:
+        manifest = json.loads((directory / "release.json").read_text(encoding="utf-8"))
+        entry = manifest["entry_point"]
+        if not isinstance(entry, str) or not entry or Path(entry).name != entry:
+            raise ValueError("invalid entry point")
+        artifact = directory / entry
+        if artifact.is_symlink() or not artifact.is_file():
+            raise ValueError("missing regular executable")
+        digest = "sha256:" + hashlib.sha256(artifact.read_bytes()).hexdigest()
+        if digest != manifest["artifact_digest"]:
+            raise ValueError("executable differs from the manifest")
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise EvidenceError(
+            f"{directory} has no intact manifest-bound provider: {error}"
+        ) from error
+    return artifact
 
 
 def origin(value: str) -> str:

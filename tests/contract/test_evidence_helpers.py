@@ -8,6 +8,8 @@ matching in one of them, and the artefact it protects is meant to be pasted into
 an issue.
 """
 
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,22 @@ from release_scripts.verify_config_slice import (
     _scoped_harnesses,  # pyright: ignore[reportPrivateUsage]
     _surface,  # pyright: ignore[reportPrivateUsage]
 )
+
+
+def test_provider_selection_uses_the_manifest_among_retained_index_files(tmp_path: Path) -> None:
+    executable = tmp_path / "provider"
+    executable.write_bytes(b"native executable")
+    manifest = {
+        "entry_point": executable.name,
+        "artifact_digest": "sha256:" + hashlib.sha256(executable.read_bytes()).hexdigest(),
+    }
+    (tmp_path / "release.json").write_text(json.dumps(manifest))
+    (tmp_path / "provider.whl").write_bytes(b"retained wheel")
+    (tmp_path / "provider.whl.provenance.json").write_text("{}")
+    assert _evidence.provider_artifact(tmp_path) == executable
+    executable.write_bytes(b"different executable")
+    with pytest.raises(_evidence.EvidenceError, match="differs from the manifest"):
+        _evidence.provider_artifact(tmp_path)
 
 
 @pytest.mark.parametrize(

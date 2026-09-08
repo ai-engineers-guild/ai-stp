@@ -272,6 +272,14 @@
       "title": "Known Limitations",
       "type": "array"
     },
+    "not_verified_platforms": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Not Verified Platforms",
+      "type": "array"
+    },
     "provider_kit": {
       "anyOf": [
         {
@@ -314,7 +322,10 @@
       "type": "string"
     },
     "schema_id": {
-      "const": "ai-stp-estate-release/1",
+      "enum": [
+        "ai-stp-estate-release/1",
+        "ai-stp-estate-release/2"
+      ],
       "title": "Schema Id",
       "type": "string"
     },
