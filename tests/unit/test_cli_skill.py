@@ -1,5 +1,6 @@
 """Delivering the Agent Skill: shipped, owned, and never taking over a file."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,25 @@ def test_every_declared_harness_has_a_projection_in_the_package() -> None:
         files = skill.package_files(harness)
         assert "references/bootstrap.md" in files
         assert b"ai-stp help --agent --json" in files["references/bootstrap.md"]
+
+
+@pytest.mark.parametrize("harness", skill.HARNESSES)
+@pytest.mark.parametrize("locale", skill.LOCALES)
+def test_installed_skill_closes_every_playbook_link(
+    tmp_path: Path, harness: str, locale: str
+) -> None:
+    target = tmp_path / "ai-stp"
+    installed = skill.install(target, harness, locale)
+    canonical = Path(__file__).parents[2] / "skills/canonical/ai-stp/references"
+    expected = {f"references/{item.name}" for item in canonical.glob("*.md")}
+    assert expected <= set(installed.files)
+    for source in target.rglob("*.md"):
+        for link in re.findall(r"\]\(([^)]+)\)", source.read_text(encoding="utf-8")):
+            if "://" in link or link.startswith("#"):
+                continue
+            destination = (source.parent / link.split("#", 1)[0]).resolve()
+            assert destination.is_relative_to(target), (source, link)
+            assert destination.is_file(), (source, link)
 
 
 def test_a_harness_with_no_projection_is_named_rather_than_guessed() -> None:

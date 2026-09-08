@@ -185,9 +185,13 @@ Before the provider's first execution, the trusted installation path verifies
 the signature, policy identifier, membership in the pinned list, platform, and
 exact executable bytes, preserves the canonical manifest within the plan
 digest, and repeats policy and byte verification before `apply`. For an attested
-release, the stored JSON response from
+GitHub release, the stored JSON response from
 `gh attestation verify --format=json` is reverified with `gh --bundle` against
 the extracted Sigstore bundle rather than against the GitHub CLI wrapper.
+For an index release, the plan-bound manifest selects PEP 740 revalidation:
+the retained wheel must contain the exact executable, the receipt must bind its
+digest and source commit, and retained provenance must match the approved
+document before its signature and pinned publisher are verified again.
 History advances atomically only together with operation state `verified`. A
 history write failure rolls back `verified`, leaving the operation in
 `applied_unverified`. The diagnostic manifest-verification command reads the

@@ -13,6 +13,14 @@ Resolve from machine help: `ai-stp select eligibility`,
 `ai-stp eval plan`, `ai-stp eval run`,
 `ai-stp eval component plan`, `ai-stp eval component run`.
 
+For a ready published setup use [install](install.md); do not reconstruct it
+component by component. For a custom composition, obtain exact component
+versions and their required bytes, inspect their harness adaptations, then
+propose that member set for the selected project and harness. Inspect the
+proposal's conflicts and reports, confirm that returned proposal, and pass its
+identifier into the installation plan. Confirmation freezes a private setup;
+it does not install it or publish it.
+
 Read eligibility and reports before proposing. Confirm only the proposal just
 returned, not an older row from a listing. `experimental` or unverified-author
 members may enter under task authority and stay labeled; they do not become
@@ -24,10 +32,9 @@ blocked member is not a setup. MCP files and host-file contributions derive;
 settings, non-MCP contributions, and MCP plugin packages stay blocked.
 
 To materialize one missing target adaptation of a pinned component, resolve
-`component materialize plan` and `component materialize apply`. Repeat
-`--to-harness` or pass `--all-missing` when the source is already correct for
-every remaining closed harness. A blocked member fails the whole `--all-missing`
-set. A claimed-portable install without a published adaptation is
+`component materialize plan` and `component materialize apply`. Choose the target harness set using the installed
+descriptor. Request all missing targets only when the source is already correct
+for each of them; a blocked member makes the aggregate incomplete. A claimed-portable install without a published adaptation is
 `component portability plan` / `apply`, which forks a private overlay and never
 mutates the public version. Compose the overlay into a private setup through
 `select propose`; a public setup composition and publication refuse it.

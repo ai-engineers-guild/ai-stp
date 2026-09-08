@@ -19,8 +19,8 @@
 - Называйте GitHub origin точным только при `provenance.kind: github` и
   `state: exact`. Имя каталога кэша — не доказательство.
 - `harness_id: null` агент не назначает харнессу.
-- В browser device flow покажите verification URL и user code; не завершайте
-  grant за пользователя.
+- В browser device flow нужен настоящий браузерный вход. Следуйте account
+  playbook; искусственная сессия не доказывает вход пользователя.
 - Не конструируйте web-маршруты. Canonical links и `cli_argv` даёт `link web`.
 - `source: cache` — прошлое: покажите `checked_at` и не выдавайте это за
   текущее облачное состояние.

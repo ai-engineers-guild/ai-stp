@@ -1,29 +1,28 @@
 # Bootstrap
 
-User intents: first message after install, “is ai-stp installed?”, version,
-“set me up”, which projects to index.
+If `ai-stp` is missing, use the supported PyPI installation path:
+`uv tool install ai-stp-cli`. If uv itself is absent, use its official
+installation instructions at <https://docs.astral.sh/uv/getting-started/installation/>.
+Refresh the shell's executable lookup and verify that the selected ai-stp belongs
+to that installation. A repository checkout or a provider binary is not the CLI.
 
-Resolve from machine help: `ai-stp doctor`, `ai-stp help`, `ai-stp capabilities`,
-`ai-stp version`, `ai-stp skill install`, `ai-stp project discover`,
-`ai-stp project index`, `ai-stp component inventory`, `ai-stp component adopt`.
+Run `ai-stp doctor --json`, then `ai-stp help --agent --json`.
+Resolve `ai-stp version`, `ai-stp capabilities` and `ai-stp config show`
+when installation identity or local readiness needs explanation. Doctor is a
+summary: an unrelated optional capability does not block the requested operation.
 
-Run `ai-stp doctor --json`, then `ai-stp help --agent --json`. Treat envelope
-`ok` and installation state as the picture. Call only commands that help
-returned. Do not invent a missing command.
+Use project roots already named in the conversation. Do not ask again.
+For “this project”, inspect the current workspace and use its actual root.
+Ask which directory only when no root is available or several materially
+incompatible roots remain. Do not scan the home directory by default.
 
-After those two reads, if this is a first run or the user asked to set up:
+Resolve `ai-stp project discover` and `ai-stp project index` for the selected
+project when its passport or index is needed. Use `ai-stp component inventory`
+and `ai-stp component adopt` when the request is to preserve or reuse existing
+configuration; do not adopt every discovered component merely to install a
+ready catalog setup.
 
-1. If the user already named project directories in this conversation, use
-   those roots. Do not ask again.
-2. Otherwise ask which project directories to index. That question names their
-   trees; it is not a remaining stop in `decisions.md`.
-3. For each named root, resolve `project discover` and `project index` from
-   machine help. Treat a partial index as partial; do not call it complete.
-4. Resolve `component inventory` on the same roots. Adopt each reported
-   component through `component adopt`. A second adopt of the same source is a
-   no-op.
-5. If doctor shows this Skill is not installed in the harness they are using,
-   resolve `skill install` from machine help.
-
-Do not scan the home directory. Do not invent roots. Do not write a harness
-target.
+Public catalog discovery and acquisition work without an account. Sign in when
+the requested private access, publication or synchronization requires it.
+Continue with [install](install.md) for a ready setup, [compose](compose.md) for
+custom composition, or [self](self.md) to deliver this Skill into another harness.

@@ -20,8 +20,8 @@ look like success.
 - Call a GitHub origin exact only with `provenance.kind: github` and
   `state: exact`. A cache directory name is not evidence.
 - `harness_id: null` is not assigned to a harness by the agent.
-- In browser device flow, show the verification URL and user code; do not
-  complete the grant for the user.
+- Browser device flow must complete through the real browser account. Follow
+  the account playbook; a locally fabricated session proves no user sign-in.
 - Do not construct web routes. Use `link web` for canonical links and
   `cli_argv`.
 - `source: cache` is the past: show `checked_at` and do not present it as

@@ -14,5 +14,8 @@ stale plan, or a request for a user decision.
 Retry only when `retryable: true`. After an unconfirmed timeout, first check the
 actual effect through the proposed status or recovery command.
 
-`next_actions` is an ordered hint, not permission. Before every next call, read
-its descriptor again.
+`next_actions` is an ordered hint, not permission. Resolve the next call against the cached
+descriptor for the installed version. Read a result schema only when its fields
+are unclear. A corrected input or a freshly computed plan is a new operation,
+not a blind retry of a permanent error. Honor server retry timing; retain
+completed work while waiting.
