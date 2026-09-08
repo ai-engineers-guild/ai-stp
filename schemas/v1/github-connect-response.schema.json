@@ -1,0 +1,27 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:github-connect-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "authorization_url": {
+      "pattern": "^https://github\\.com/",
+      "title": "Authorization Url",
+      "type": "string"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/Timestamp"
+    }
+  },
+  "required": [
+    "authorization_url",
+    "expires_at"
+  ],
+  "title": "GitHubConnectResponse",
+  "type": "object"
+}

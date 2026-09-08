@@ -21,7 +21,7 @@ class PrivateVersionTrust(BaseModel):
     component_verified: bool
 
 
-class CliPrivateVersionResponse(BaseModel):
+class AccessVersionResponse(BaseModel):
     """Metadata delivered only after exact owner or major-line grant authorization."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -38,7 +38,7 @@ class CliPrivateVersionResponse(BaseModel):
     access_basis: Literal["owner", "grant", "admin"]
 
 
-PrivateVersionResponse = CliPrivateVersionResponse
+PrivateVersionResponse = AccessVersionResponse
 
 
 class VisibilityPlanCreateRequest(BaseModel):
@@ -74,3 +74,11 @@ class VisibilityPlanResponse(BaseModel):
     device_id: DeviceId
     expires_at: Timestamp
     effects: list[str]
+
+
+class VisibilityConfirmRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+
+    plan_hash: PassportDigest
+    confirmed: Literal[True]
+    idempotency_key: IdempotencyKey

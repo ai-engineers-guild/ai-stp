@@ -103,6 +103,18 @@ from ai_stp_contracts.federation import (
     FederatedSourceSet,
 )
 from ai_stp_contracts.first_party import FirstPartyCatalogIdentity
+from ai_stp_contracts.github_connector import (
+    GitHubActionConfirmRequest,
+    GitHubActionPlanRequest,
+    GitHubActionPlanResponse,
+    GitHubCallbackQuery,
+    GitHubConnectorStatus,
+    GitHubConnectRequest,
+    GitHubConnectResponse,
+    GitHubDisconnectRequest,
+    GitHubSourcePrepared,
+    GitHubSourcePrepareRequest,
+)
 from ai_stp_contracts.github_evidence import GitHubArchiveEvidence, GitHubArchiveHistory
 from ai_stp_contracts.grants import (
     AccessGrantResponse,
@@ -252,7 +264,8 @@ from ai_stp_contracts.ownership import (
     OwnershipRevisionView,
 )
 from ai_stp_contracts.private_access import (
-    CliPrivateVersionResponse,
+    AccessVersionResponse,
+    VisibilityConfirmRequest,
     VisibilityPlanCreateRequest,
     VisibilityPlanResponse,
 )
@@ -308,6 +321,20 @@ from ai_stp_foundation.schemas import ExportedSchema, check, schema_id, write
 #: The `/v1` HTTP boundary. Every one of these is served by a route, and a test
 #: rejects any that is not.
 HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
+    "private-version-response": AccessVersionResponse,
+    "github-connect-request": GitHubConnectRequest,
+    "github-connect-response": GitHubConnectResponse,
+    "github-connector-status": GitHubConnectorStatus,
+    "github-disconnect-request": GitHubDisconnectRequest,
+    "github-source-prepare-request": GitHubSourcePrepareRequest,
+    "github-source-prepared": GitHubSourcePrepared,
+    "github-action-plan-request": GitHubActionPlanRequest,
+    "github-action-plan-response": GitHubActionPlanResponse,
+    "github-action-confirm-request": GitHubActionConfirmRequest,
+    "github-callback-query": GitHubCallbackQuery,
+    "visibility-plan-create-request": VisibilityPlanCreateRequest,
+    "visibility-plan-response": VisibilityPlanResponse,
+    "visibility-confirm-request": VisibilityConfirmRequest,
     "catalog-component-detail": ComponentDetail,
     "catalog-component-context-budget": ComponentContextBudget,
     "catalog-component-list": ComponentListResponse,
@@ -435,10 +462,6 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
 #: no route serves it, and a test pins that it never leaks into the OpenAPI
 #: document, so the two surfaces cannot be confused for one.
 CLI_MODELS: Final[dict[str, ExportedSchema]] = {
-    # Client contracts; the server routes are an explicit SPEC-071 dependency.
-    "private-version-response": CliPrivateVersionResponse,
-    "visibility-plan-create-request": VisibilityPlanCreateRequest,
-    "visibility-plan-response": VisibilityPlanResponse,
     "cli-signed-attestation": CliSignedAttestation,
     "cli-owner-object-list": CliOwnerObjectListView,
     "cli-owner-object-detail": CliOwnerObjectDetailView,

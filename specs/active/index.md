@@ -80,5 +80,6 @@ last_verified: "2026-08-03"
 | [SPEC-069-multi-harness-environments.md](SPEC-069-multi-harness-environments.md) | SPEC-069: Coordinate separate harness setups within one project environment. | 2026-09-07 |
 | [SPEC-070-environment-prerequisite-inspection.md](SPEC-070-environment-prerequisite-inspection.md) | SPEC-070: Inspect exact setup prerequisites and expose executable preparation steps. | 2026-09-07 |
 | [SPEC-071-private-first-agent-distribution.md](SPEC-071-private-first-agent-distribution.md) | SPEC-071: Private-first CLI distribution with explicit owner-controlled public exposure. | 2026-09-07 |
+| [SPEC-072-github-connector-and-source-publication.md](SPEC-072-github-connector-and-source-publication.md) | SPEC-072: Selected GitHub App source access and separately confirmed repository management. | 2026-09-07 |
 
 <!-- END CONTENTS -->

@@ -291,6 +291,17 @@
       "title": "Schema Version",
       "type": "integer"
     },
+    "source_binding_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PlanId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "stable_id": {
       "title": "Stable Id",
       "type": "string"
@@ -319,6 +330,7 @@
     "plan_id",
     "policy_version",
     "schema_version",
+    "source_binding_id",
     "stable_id",
     "state",
     "version",

@@ -167,6 +167,7 @@ last_verified: "2026-08-03"
 | [ADR-0167-preserved-setups-bind-complete-native-snapshots.md](ADR-0167-preserved-setups-bind-complete-native-snapshots.md) | ADR-0167: A preserved setup binds a complete provider-owned native snapshot. | 2026-09-07 |
 | [ADR-0168-environments-coordinate-separate-harness-setups.md](ADR-0168-environments-coordinate-separate-harness-setups.md) | ADR-0168: Project environments coordinate separate harness setup operations. | 2026-09-07 |
 | [ADR-0169-distribution-visibility-does-not-rewrite-versions.md](ADR-0169-distribution-visibility-does-not-rewrite-versions.md) | ADR-0169: Distribution visibility changes independently of immutable version passports. | 2026-09-07 |
+| [ADR-0170-github-source-authority-is-separate-from-login.md](ADR-0170-github-source-authority-is-separate-from-login.md) | ADR-0170: Separate GitHub App source authority, management consent and immutable provenance bindings. | 2026-09-07 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

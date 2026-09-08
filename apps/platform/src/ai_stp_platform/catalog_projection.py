@@ -324,7 +324,11 @@ def verify_passport_integrity(row: PublicVersionRow, *, allow_private: bool = Fa
     stored = cast(dict[str, JsonValue], row.passport)
     if stored.get("revision_id") != derive_revision_id(stored):
         raise CatalogIntegrityError("passport revision seal mismatch")
-    if passport.visibility != "public" and not allow_private:
+    if (
+        passport.visibility != "public"
+        and not allow_private
+        and getattr(row.metadata, "visibility", None) != "public"
+    ):
         raise CatalogIntegrityError("passport is not public")
     if passport.stable_id != row.stable_id or passport.version != row.version:
         raise CatalogIntegrityError("passport identity mismatch")
@@ -673,6 +677,7 @@ def component_version_response(
         eligible_for_full_auto=eligible_for_full_auto,
     )
     return _WiredComponentVersionResponse(
+        distribution_visibility="public",
         passport=passport,
         passport_digest=row.passport_digest,  # type: ignore[arg-type]
         lifecycle=row.lifecycle,  # type: ignore[arg-type]

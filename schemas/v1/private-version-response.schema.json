@@ -150,6 +150,6 @@
     "trust",
     "version"
   ],
-  "title": "CliPrivateVersionResponse",
+  "title": "AccessVersionResponse",
   "type": "object"
 }

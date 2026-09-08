@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "RepositoryId": {
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:github-source-prepare-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "commit": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Commit",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "installation_id": {
+      "$ref": "#/$defs/RepositoryId"
+    },
+    "repository_id": {
+      "$ref": "#/$defs/RepositoryId"
+    },
+    "subpath": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Subpath",
+      "type": "string"
+    }
+  },
+  "required": [
+    "installation_id",
+    "repository_id",
+    "commit",
+    "subpath",
+    "idempotency_key"
+  ],
+  "title": "GitHubSourcePrepareRequest",
+  "type": "object"
+}

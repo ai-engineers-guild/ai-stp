@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
+from ai_stp_api.settings import Settings
 from ai_stp_api.slices.profile.service import get_public_publisher
 from ai_stp_contracts.publication import (
     PublicationConfirmRequest,
@@ -24,6 +26,9 @@ from ai_stp_platform.artifact_bind import (
     bind_plan_artifact,
     plan_artifact_is_durable,
 )
+from ai_stp_platform.github_client import GitHubClient, GitHubError
+from ai_stp_platform.github_models import GitHubSourceBinding
+from ai_stp_platform.github_sources import authorize_binding, bound_source
 from ai_stp_platform.identity import IdentityError, ensure_catalog_identity
 from ai_stp_platform.models import (
     Account,
@@ -36,6 +41,7 @@ from ai_stp_platform.models import (
 from ai_stp_platform.publication_logic import (
     PLAN_TTL,
     compute_plan_hash,
+    passport_digest,
     plan_to_wire,
     validate_publication_passport,
 )
@@ -72,6 +78,8 @@ async def create_plan(
     *,
     ctx: AuthContext,
     body: PublicationPlanCreateRequest,
+    settings: Settings | None = None,
+    github_client: GitHubClient | None = None,
 ) -> PublicationPlanResponse:
     await _require_active_device(db, ctx=ctx, device_id=body.device_id)
     if body.object_kind == "setup" and body.artifact_inventory:
@@ -97,6 +105,34 @@ async def create_plan(
             "publish a non-empty public publisher profile before publishing catalog objects",
             details={"field": "publisher_profile"},
         )
+    binding = None
+    if body.source_binding_id is not None:
+        binding = await db.scalar(
+            select(GitHubSourceBinding)
+            .where(GitHubSourceBinding.id == body.source_binding_id)
+            .with_for_update()
+        )
+        if binding is None or binding.account_id != ctx.account_id:
+            raise GitHubError("source_binding_unavailable", status=404)
+        artifact = body.passport.get("artifact")
+        if (
+            body.object_kind != "component"
+            or body.passport.get("source") is not None
+            or binding.content_digest != body.content_digest
+            or not isinstance(artifact, dict)
+            or cast(dict[str, object], artifact).get("size_bytes") != binding.size_bytes
+            or list(body.artifact_inventory) != binding.inventory
+        ):
+            raise GitHubError("source_binding_mismatch", status=412)
+        if settings is None:
+            raise GitHubError("connector_not_configured")
+        await authorize_binding(
+            db,
+            binding,
+            client=github_client or GitHubClient(),
+            settings=settings.github_connector,
+            public=visibility == "public",
+        )
     existing = await db.scalar(
         select(PublicationPlan).where(
             PublicationPlan.actor_account_id == ctx.account_id,
@@ -104,6 +140,19 @@ async def create_plan(
         )
     )
     if existing is not None:
+        if (
+            existing.device_id != body.device_id
+            or existing.object_kind != body.object_kind
+            or existing.stable_id != body.stable_id
+            or existing.version != body.version
+            or existing.content_digest != body.content_digest
+            or existing.visibility != visibility
+            or existing.source_binding_id != body.source_binding_id
+            or list(existing.artifact_inventory) != list(body.artifact_inventory)
+            or existing.attestations != [a.model_dump(mode="json") for a in body.attestations]
+            or existing.passport.get("revision_id") != body.passport.get("revision_id")
+        ):
+            raise ApiError(ErrorCategory.CONFLICT, "idempotency key belongs to another request")
         return _to_response(existing)
 
     passport_model, invalid = validate_publication_passport(
@@ -114,6 +163,7 @@ async def create_plan(
         content_digest=body.content_digest,
         owner_account_id=ctx.account_id,
         expected_visibility=visibility,
+        source_bound=binding is not None,
     )
     if passport_model is None:
         raise ApiError(
@@ -123,6 +173,11 @@ async def create_plan(
         )
     attestations = [a.model_dump(mode="json") for a in body.attestations]
     passport = passport_model.model_dump(mode="json")
+    if binding is not None:
+        exact_passport_digest = passport_digest(passport_model)
+        if binding.passport_digest not in {None, exact_passport_digest}:
+            raise GitHubError("source_binding_mismatch", status=412)
+        binding.passport_digest = exact_passport_digest
     expected_ownership_revision_id: str | None = None
     if body.object_kind == "component":
         display_name = str(passport.get("name") or body.stable_id)
@@ -160,6 +215,7 @@ async def create_plan(
         attestations=attestations,
         artifact_inventory=list(body.artifact_inventory),
         visibility=visibility,
+        source_binding_id=body.source_binding_id,
     )
     plan = PublicationPlan(
         id=new_id("plan"),
@@ -171,6 +227,7 @@ async def create_plan(
         content_digest=body.content_digest,
         artifact_inventory=list(body.artifact_inventory),
         visibility=visibility,
+        source_binding_id=body.source_binding_id,
         policy_version=POLICY_VERSION,
         plan_hash=plan_hash,
         state="ready",
@@ -370,11 +427,27 @@ async def confirm_plan(
     plan_id: str,
     body: PublicationConfirmRequest,
     store: ImmutableObjectStore,
+    settings: Settings | None = None,
+    github_client: GitHubClient | None = None,
 ) -> PublicationPlanResponse:
     plan = await db.get(PublicationPlan, plan_id)
     if plan is None or plan.actor_account_id != ctx.account_id:
         raise ApiError(ErrorCategory.NOT_FOUND, "plan not found")
     await _require_active_device(db, ctx=ctx, device_id=plan.device_id)
+
+    if body.plan_hash != plan.plan_hash:
+        raise ApiError(ErrorCategory.VALIDATION, "plan_hash mismatch")
+    binding = await bound_source(db, plan)
+    if binding is not None and plan.state != "published":
+        if settings is None:
+            raise GitHubError("connector_not_configured")
+        await authorize_binding(
+            db,
+            binding,
+            client=github_client or GitHubClient(),
+            settings=settings.github_connector,
+            public=plan.visibility == "public",
+        )
 
     if plan.confirm_idempotency_key == body.idempotency_key:
         evidence = await _evidence_for_plan(db, plan_id=plan.id)

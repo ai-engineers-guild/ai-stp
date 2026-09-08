@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "ConnectorPurpose": {
+      "enum": [
+        "source",
+        "administration"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:github-connect-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "confirmed": {
+      "const": true,
+      "title": "Confirmed",
+      "type": "boolean"
+    },
+    "locale": {
+      "default": "en",
+      "enum": [
+        "en",
+        "ru"
+      ],
+      "title": "Locale",
+      "type": "string"
+    },
+    "mode": {
+      "default": "install",
+      "enum": [
+        "install",
+        "authorize"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "purpose": {
+      "$ref": "#/$defs/ConnectorPurpose",
+      "default": "source"
+    }
+  },
+  "required": [
+    "confirmed"
+  ],
+  "title": "GitHubConnectRequest",
+  "type": "object"
+}

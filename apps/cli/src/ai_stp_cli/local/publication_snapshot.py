@@ -16,9 +16,11 @@ def bind(
     visibility: str,
     digest: str,
     size_bytes: int,
+    source_bound: bool = False,
 ) -> ComponentVersionPassport:
     if (
         passport.visibility == visibility
+        and (not source_bound or passport.source is None)
         and passport.artifact.digest == digest
         and passport.artifact.size_bytes == size_bytes
         and (passport.model_extra or {}).get("artifact_format") == components.COMPONENT_TREE_FORMAT
@@ -26,6 +28,8 @@ def bind(
         return passport
     document = cast(dict[str, object], passport.model_dump(mode="json"))
     document["visibility"] = visibility
+    if source_bound:
+        document["source"] = None
     document["artifact"] = {"digest": digest, "size_bytes": size_bytes}
     document["artifact_format"] = components.COMPONENT_TREE_FORMAT
     document["revision_id"] = derive_revision_id(cast(dict[str, JsonValue], document))

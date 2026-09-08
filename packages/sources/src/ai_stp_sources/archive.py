@@ -50,13 +50,19 @@ def extract_component_files(
     files: dict[str, bytes] = {}
     extracted = 0
     members = 0
+    archive_root: str | None = None
     prefix = "" if subpath in {".", ""} else subpath.replace("\\", "/").strip("/")
     try:
         with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:*") as tarball:
-            for member in tarball.getmembers():
+            for member in tarball:
                 relative = safe_member_path(member, reject_special=False)
                 if relative is None:
                     continue
+                root = member.name.replace("\\", "/").split("/", 1)[0]
+                if archive_root is None:
+                    archive_root = root
+                elif root != archive_root:
+                    raise SourceError(UNSAFE_ARCHIVE, "archive contains multiple roots")
                 if member.isdir():
                     continue
                 if not member.isfile():
@@ -66,6 +72,10 @@ def extract_component_files(
                 target = _component_member_path(relative, prefix)
                 if target is None:
                     continue
+                if target in files:
+                    raise SourceError(UNSAFE_ARCHIVE, "archive contains duplicate component paths")
+                if ".git" in target.split("/"):
+                    raise SourceError(UNSAFE_ARCHIVE, "archive contains repository metadata")
                 members += 1
                 if members > MAX_EXTRACTED_FILES:
                     raise SourceError(UNSAFE_ARCHIVE, "extracted archive exceeds the accepted size")

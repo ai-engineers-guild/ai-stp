@@ -67,6 +67,8 @@ def _redirect_url(response: GithubHttpResponse) -> str | None:
         or parsed.hostname not in ALLOWED_HOSTS
         or parsed.username is not None
         or parsed.password is not None
+        or parsed.port not in {None, 443}
+        or parsed.fragment
     ):
         raise SourceError(UNSAFE_ARCHIVE, "GitHub redirect left the allowed hosts")
     return location
@@ -96,6 +98,8 @@ async def _get(
         current = redirected
     if response is None:
         raise SourceError(UNAVAILABLE_SOURCE, "GitHub request failed")
+    if response.status_code in {301, 302, 307, 308}:
+        raise SourceError(UNSAFE_ARCHIVE, "GitHub redirect exceeded the accepted hops")
     declared = response.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > max_bytes:
         raise SourceError(UNSAFE_ARCHIVE, "GitHub response exceeds the accepted size")
@@ -157,6 +161,7 @@ async def resolve_git(
     *,
     fetch: FetchFn,
     token: str | None = None,
+    authorized_repository_id: int | None = None,
     now: datetime | None = None,
 ) -> SourceSnapshot:
     """Resolve a branch or tag to a full commit and download the tarball."""
@@ -171,10 +176,16 @@ async def resolve_git(
     )
     _require_github_ok(repo, "GitHub repository is unavailable")
     repo_body = _json_object(repo.body)
-    if repo_body.get("private") is True:
-        raise SourceError(UNAVAILABLE_SOURCE, "GitHub repository is unavailable")
     repo_id = repo_body.get("id")
-    if not isinstance(repo_id, int):
+    if authorized_repository_id is not None and (
+        not token
+        or type(authorized_repository_id) is not int
+        or repo_id != authorized_repository_id
+    ):
+        raise SourceError(UNAVAILABLE_SOURCE, "GitHub repository is unavailable")
+    if repo_body.get("private") is True and authorized_repository_id is None:
+        raise SourceError(UNAVAILABLE_SOURCE, "GitHub repository is unavailable")
+    if type(repo_id) is not int or repo_id <= 0:
         raise SourceError(UNAVAILABLE_SOURCE, "GitHub repository identity is missing")
     commit_response = await _get(
         f"{API_ROOT}/repos/{quote(owner, safe='')}/{quote(name, safe='')}/commits/"
@@ -188,6 +199,8 @@ async def resolve_git(
     if not isinstance(sha, str):
         raise SourceError(UNAVAILABLE_SOURCE, "GitHub ref did not resolve to a commit")
     commit = reject_floating_commit(sha)
+    if COMMIT_RE.fullmatch(canonical.tracked_ref) and commit != canonical.tracked_ref:
+        raise SourceError(UNAVAILABLE_SOURCE, "GitHub exact commit did not match")
     archive = await _get(
         f"{API_ROOT}/repos/{quote(owner, safe='')}/{quote(name, safe='')}/tarball/{commit}",
         fetch=fetch,

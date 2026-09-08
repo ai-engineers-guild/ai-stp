@@ -257,6 +257,11 @@
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
     },
+    "PlanId": {
+      "maxLength": 64,
+      "minLength": 8,
+      "type": "string"
+    },
     "PolicyVersion": {
       "maxLength": 32,
       "minLength": 1,
@@ -349,6 +354,17 @@
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "source_binding_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PlanId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "stable_id": {
       "maxLength": 64,

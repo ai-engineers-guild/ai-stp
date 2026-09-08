@@ -21,6 +21,7 @@ from ai_stp_contracts.catalog import (
     USAGE_METRICS_ENABLED_BY_DEFAULT,
 )
 from ai_stp_platform.catalog_usage import CatalogUsagePolicy
+from ai_stp_platform.github_settings import GitHubConnectorSettings
 from ai_stp_platform.settings import DatabaseSettings, StorageSettings
 
 # Fail-closed single-node HTTP gate (SPEC-010 REQ-1015, ADR-0128).
@@ -282,6 +283,7 @@ class Settings:
     catalog: CatalogSettings
     complaint: ComplaintSettings = field(default_factory=ComplaintSettings)
     content: ContentSettings = field(default_factory=ContentSettings)
+    github_connector: GitHubConnectorSettings = field(default_factory=GitHubConnectorSettings)
 
 
 def load_settings() -> Settings:
@@ -294,4 +296,5 @@ def load_settings() -> Settings:
         catalog=CatalogSettings(),  # pyright: ignore[reportCallIssue]
         complaint=ComplaintSettings(),
         content=ContentSettings(),
+        github_connector=GitHubConnectorSettings(),
     )

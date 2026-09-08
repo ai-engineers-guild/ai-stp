@@ -143,11 +143,15 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
         visibility=visibility,
         digest=artifact.digest,
         size_bytes=artifact.byte_length,
+        source_bound=bool(parameters.get("source-binding-id")),
     )
     publication_passport_digest = cache.digest_of(
         cast(JsonValue, publication_passport.model_dump(mode="json"))
     )
     request = PublicationPlanCreateRequest(
+        source_binding_id=str(parameters["source-binding-id"])
+        if parameters.get("source-binding-id")
+        else None,
         object_kind="component",
         visibility=cast(Literal["public", "private"], visibility),
         stable_id=stable_id,

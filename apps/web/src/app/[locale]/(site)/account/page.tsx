@@ -21,6 +21,7 @@ export default async function AccountPage({ params }: PageProps) {
   const t = await getTranslations("account");
   const tc = await getTranslations("common");
   const tn = await getTranslations("nav");
+  const tg = await getTranslations("githubConnector");
   const token = await sessionCookieValue();
   const csrfToken = (await readCsrfToken()) ?? "";
 
@@ -73,6 +74,10 @@ export default async function AccountPage({ params }: PageProps) {
           returnTo={`/${locale}/account`}
         />
       </section>
+
+      <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto">
+        <Link href="/account/github">{tg("title")}</Link>
+      </Button>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button asChild variant="outline" className="min-h-11 w-full shrink-0 sm:w-auto">
