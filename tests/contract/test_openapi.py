@@ -165,9 +165,10 @@ def test_the_anonymous_catalog_stays_anonymous() -> None:
     # The catalog is readable without an account (SPEC-001); requiring a token
     # here would silently close the product's front door.
     for path, _method, entry in operations():
-        if path.startswith(f"{API_BASE_PATH}/catalog") or path.startswith(
-            f"{API_BASE_PATH}/health"
-        ):
+        public_catalog = path.startswith(f"{API_BASE_PATH}/catalog") and not path.endswith(
+            "/private"
+        )
+        if public_catalog or path.startswith(f"{API_BASE_PATH}/health"):
             assert entry["security"] == []
 
 

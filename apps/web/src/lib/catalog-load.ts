@@ -23,7 +23,7 @@ const defaultCatalogReadDeps: CatalogReadDeps = {
   searchSetups,
 };
 
-type CatalogSearchInput = Parameters<typeof searchComponents>[0];
+type CatalogSearchInput = NonNullable<Parameters<typeof searchComponents>[0]>;
 
 // Field-by-field copy of the parsed catalog query; keep one function so callers
 // cannot drop a filter when adding an axis.
@@ -35,12 +35,16 @@ export function catalogSearchInput(
   const setupsPageNumber = query.setupsPage ?? query.pageNumber;
   const componentsPageNumber = query.componentsPage ?? query.pageNumber;
   const input: CatalogSearchInput = {
+    verification: query.verification,
     verified_only: query.verifiedOnly,
     sort: query.sort,
     sort_direction: query.sortDirection,
     page_size: query.pageSize,
     include_experimental: query.includeExperimental,
   };
+  if (query.minSafetyPercent !== undefined) {
+    input.min_safety_percent = query.minSafetyPercent;
+  }
   if (query.q) input.q = query.q;
   if (query.resource !== "all" && query.cursor) input.cursor = query.cursor;
   if (query.tags.length > 0) input.tags = query.tags;

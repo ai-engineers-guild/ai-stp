@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -92,10 +92,16 @@ def project_target_matrix(
     passport: ComponentVersionPassport,
     *,
     assessments: dict[tuple[str, str, str], EffectiveAssessment] | None = None,
+    fallback_safety_checks: Sequence[SafetyCheckEntry] = (),
     now: datetime | None = None,
     eligible_for_full_auto: bool = True,
 ) -> TargetMatrix:
-    """Build the public exact matrix. Missing evidence is not_verified."""
+    """Build the public exact matrix. Missing evidence is not_verified.
+
+    Older target assessments may have a state but no check rows. Keep those
+    published projections useful by reusing the component's public check list;
+    an assessment that is missing entirely still remains empty and unverified.
+    """
     del now
     rows: list[ExactTargetRow] = []
     found = assessments or {}
@@ -129,7 +135,11 @@ def project_target_matrix(
                         eligible_for_full_auto=eligible_for_full_auto,
                     ),
                     evidence_refs=list(evidence.evidence_refs) if evidence is not None else [],
-                    safety_checks=list(evidence.safety_checks) if evidence is not None else [],
+                    safety_checks=(
+                        list(evidence.safety_checks or fallback_safety_checks)
+                        if evidence is not None
+                        else []
+                    ),
                 )
             )
     return TargetMatrix(exact=rows)

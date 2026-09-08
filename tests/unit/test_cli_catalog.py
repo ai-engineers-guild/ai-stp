@@ -13,6 +13,7 @@ from ai_stp_cli.local import cache
 from ai_stp_contracts.fixtures import load_cases
 from ai_stp_contracts.mock import MOCK_BASE_URL, build_transport
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
 
 
@@ -277,6 +278,67 @@ def test_an_exact_version_is_verified_against_its_published_digest() -> None:
     assert view.passport
     # The check is the point of fetching a version at all.
     assert cache.digest_of(view.passport) == view.passport_digest
+
+
+def test_an_authorized_private_version_uses_the_private_route_and_cache() -> None:
+    served = next(
+        case
+        for case in load_cases()
+        if case.operation_id == "readComponentVersion" and case.kind == "positive"
+    )
+    body = json.loads(json.dumps(served.body))
+    passport = body["passport"]
+    passport["visibility"] = "private"
+    passport["revision_id"] = derive_revision_id(passport)
+    body["passport_digest"] = cache.digest_of(passport)
+    body["visibility"] = "private"
+    asked: list[tuple[str, str | None]] = []
+
+    def private_only(request: httpx.Request) -> httpx.Response:
+        asked.append((request.url.path, request.headers.get("authorization")))
+        if request.url.path.endswith("/private"):
+            return httpx.Response(200, json=body)
+        return httpx.Response(
+            404, json={"error": {"code": "AI_STP_NOT_FOUND", "message": "not public"}}
+        )
+
+    params = served.request.path_params
+    where = Endpoint(
+        MOCK_BASE_URL,
+        max_attempts=1,
+        transport=httpx.MockTransport(private_only),
+    )
+    view = catalog.version(
+        where,
+        "component",
+        str(params["stable_id"]),
+        str(params["version"]),
+        access_token="private-token",
+    )
+
+    assert view.passport["visibility"] == "private"
+    assert asked == [
+        (
+            f"/v1/catalog/components/{params['stable_id']}/versions/{params['version']}",
+            "Bearer private-token",
+        ),
+        (
+            f"/v1/catalog/components/{params['stable_id']}/versions/{params['version']}/private",
+            "Bearer private-token",
+        ),
+    ]
+
+    def offline(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no route")
+
+    cached = catalog.version(
+        Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(offline)),
+        "component",
+        str(params["stable_id"]),
+        str(params["version"]),
+    )
+    assert cached.source == "cache"
+    assert cached.passport == view.passport
 
 
 def test_a_version_digest_is_over_the_wire_passport_not_a_model_dump() -> None:

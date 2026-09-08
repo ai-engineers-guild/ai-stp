@@ -312,6 +312,7 @@ def _plan_create(
         stable_id=item.stable_id,
         version=item.version,
         content_digest=item.content_digest,
+        artifact_inventory=[],
         passport=item.passport,
         attestations=[],
         idempotency_key=record.create_idempotency_key,

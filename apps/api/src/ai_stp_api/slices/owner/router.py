@@ -141,20 +141,20 @@ async def get_component_media(
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> Response:
-    """Serve ready component media bytes; never expose object keys."""
+    """Serve media only when its component is public or visible to the caller."""
     result = await service.read_component_media_bytes(
         db,
         _avatar_store(request),
         media_id=media_id,
-        account_id=ctx.account_id if ctx else None,
+        account_id=ctx.account_id if ctx is not None else None,
     )
     if result is None:
         raise ApiError(ErrorCategory.NOT_FOUND, "not found")
-    body, content_type = result
+    body, content_type, is_public = result
     return Response(
         content=body,
         media_type=content_type,
-        headers={"Cache-Control": "private, no-store"},
+        headers={"Cache-Control": "public, max-age=300" if is_public else "private, no-store"},
     )
 
 

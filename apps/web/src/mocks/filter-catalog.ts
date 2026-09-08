@@ -14,6 +14,9 @@ export function filterComponentSummaries(options: {
   componentType?: string | null;
   supportTier?: "primary" | "beta" | null;
   supportState?: "verified" | "stale" | "missing" | "not_verified" | null;
+  verification?: Array<"verified" | "not_verified">;
+  minSafetyPercent?: 75 | 85 | 90 | 99;
+  authors?: string[];
   updatedFrom?: string;
   updatedTo?: string;
   includeExperimental: boolean;
@@ -37,6 +40,13 @@ export function filterComponentSummaries(options: {
       return false;
     }
     if (options.supportState && item.latest_support.state !== options.supportState) {
+      return false;
+    }
+    if (options.authors?.length && !options.authors.includes(item.publisher_id)) return false;
+    if (
+      !matchesVerification(item.latest_trust, options.verification) ||
+      !matchesSafety(item.latest_checks?.checks_passed_percent, options.minSafetyPercent)
+    ) {
       return false;
     }
     if (tags.length > 0 && !tags.every((tag) => item.latest_tags.includes(tag))) {
@@ -69,6 +79,9 @@ export function filterSetupSummaries(options: {
   harnessId?: string | null;
   supportTier?: "primary" | "beta" | null;
   supportState?: "verified" | "stale" | "missing" | "not_verified" | null;
+  verification?: Array<"verified" | "not_verified">;
+  minSafetyPercent?: 75 | 85 | 90 | 99;
+  authors?: string[];
   updatedFrom?: string;
   updatedTo?: string;
   includeExperimental: boolean;
@@ -89,6 +102,13 @@ export function filterSetupSummaries(options: {
       return false;
     }
     if (options.supportState && item.latest_support.state !== options.supportState) {
+      return false;
+    }
+    if (options.authors?.length && !options.authors.includes(item.publisher_id)) return false;
+    if (
+      !matchesVerification(item.latest_trust, options.verification) ||
+      !matchesSafety(undefined, options.minSafetyPercent)
+    ) {
       return false;
     }
     if (tags.length > 0 && !tags.every((tag) => item.latest_tags.includes(tag))) {
@@ -120,4 +140,20 @@ function inUpdatedRange(updatedAt: string, from?: string, to?: string): boolean 
   if (from && day < from) return false;
   if (to && day > to) return false;
   return true;
+}
+
+function matchesVerification(
+  trust: { author_verified: boolean; component_verified: boolean },
+  verification: Array<"verified" | "not_verified"> | undefined,
+): boolean {
+  if (!verification?.length) return true;
+  const verified = trust.author_verified && trust.component_verified;
+  return verification.some((value) => (value === "verified" ? verified : !verified));
+}
+
+function matchesSafety(
+  percent: number | null | undefined,
+  minimum: 75 | 85 | 90 | 99 | undefined,
+): boolean {
+  return minimum === undefined || (percent ?? -1) >= minimum;
 }

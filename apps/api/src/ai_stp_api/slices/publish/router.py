@@ -84,6 +84,28 @@ async def bind_publication_artifact(
     return _resource(result)
 
 
+@router.put("/publications/plans/{plan_id}/artifacts/{projection_digest}", response_model=None)
+async def bind_publication_projection_artifact(
+    plan_id: str,
+    projection_digest: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> JSONResponse:
+    payload = await _bounded_body(request, max_bytes=MAX_ARTIFACT_BYTES)
+    store = ImmutableObjectStore(settings=settings.storage, client=request.app.state.object_client)
+    result = await service.bind_projection_artifact(
+        db,
+        ctx=ctx,
+        plan_id=plan_id,
+        projection_digest=projection_digest,
+        payload=payload,
+        store=store,
+    )
+    return _resource(result)
+
+
 @router.post("/publications/plans/{plan_id}/confirm", response_model=None)
 async def confirm_publication_plan(
     plan_id: str,

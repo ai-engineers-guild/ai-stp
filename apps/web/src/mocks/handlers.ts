@@ -9,6 +9,8 @@ import {
   getComponentDetail,
   getSetupDetail,
   FIXTURE_TIMESTAMP,
+  ALL_COMPONENT_SUMMARIES,
+  ALL_SETUP_SUMMARIES,
 } from "./fixtures";
 import { componentVersionResponse, setupVersionResponse } from "./passport-fixtures";
 
@@ -33,7 +35,9 @@ export const handlers = [
           "harness_ids",
           "component_types",
           "authors",
+          "verification",
           "verified_only",
+          "min_safety_percent",
           "sort",
           "sort_direction",
           "support_tier",
@@ -144,6 +148,19 @@ export const handlers = [
       },
     });
   }),
+
+  http.get(api("/catalog/authors"), () =>
+    HttpResponse.json({
+      schema_version: 1,
+      items: [
+        ...new Set(
+          [...ALL_COMPONENT_SUMMARIES, ...ALL_SETUP_SUMMARIES].map((item) => item.publisher_id),
+        ),
+      ]
+        .sort()
+        .map((account_id) => ({ account_id, display_name: null })),
+    }),
+  ),
 
   http.get(api("/catalog/components/:stableId"), ({ params }) => {
     const detail = getComponentDetail(String(params["stableId"]));

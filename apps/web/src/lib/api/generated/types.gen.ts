@@ -478,6 +478,40 @@ export type CapabilitySnapshot = {
 };
 
 /**
+ * CatalogAuthorListResponse
+ *
+ * All authors with at least one active public catalog object.
+ */
+export type CatalogAuthorListResponse = {
+  /**
+   * Items
+   */
+  items: Array<CatalogAuthorOption>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CatalogAuthorOption
+ *
+ * One public author available in the catalog filter.
+ */
+export type CatalogAuthorOption = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * CatalogPageInfo
  *
  * Exact public web page metadata; never used for private enumeration.
@@ -1012,6 +1046,7 @@ export type ComponentSearchRequest = {
    * Include Experimental
    */
   include_experimental?: boolean;
+  min_safety_percent?: SafetyPercent | null;
   page?: PageNumber | null;
   page_size?: PageSize;
   /**
@@ -1042,6 +1077,10 @@ export type ComponentSearchRequest = {
   tags?: Array<TagId>;
   updated_from?: CatalogUpdatedDate | null;
   updated_to?: CatalogUpdatedDate | null;
+  /**
+   * Verification
+   */
+  verification?: Array<VerificationFilter>;
   /**
    * Verified Only
    */
@@ -3494,6 +3533,7 @@ export type PublicationPlanCreateRequest = {
    */
   stable_id: string;
   version: AiStpContractsPublicationVersion;
+  visibility?: PublicationVisibility;
 };
 
 /**
@@ -3535,8 +3575,14 @@ export type PublicationPlanResponse = {
   stable_id: string;
   state: PlanState;
   version: AiStpContractsPublicationVersion;
+  visibility: PublicationVisibility;
   [key: string]: unknown;
 };
+
+export const PublicationVisibility = { PUBLIC: "public", PRIVATE: "private" } as const;
+
+export type PublicationVisibility =
+  (typeof PublicationVisibility)[keyof typeof PublicationVisibility];
 
 /**
  * ReadinessChecks
@@ -3864,6 +3910,15 @@ export type SafetyFindingSummary = {
   truncated: boolean;
   [key: string]: unknown;
 };
+
+export const SafetyPercent = {
+  75: 75,
+  85: 85,
+  90: 90,
+  99: 99,
+} as const;
+
+export type SafetyPercent = (typeof SafetyPercent)[keyof typeof SafetyPercent];
 
 /**
  * ScopeAdaptation
@@ -4596,6 +4651,10 @@ export type SetupFamilyMember = {
   exact_version: AiStpContractsFamiliesVersion | null;
   harness_id: HarnessId;
   latest_version: AiStpContractsFamiliesVersion | null;
+  /**
+   * Name
+   */
+  name: string;
   passport_digest: Digest | null;
   ported_from: SetupRef | null;
   /**
@@ -4777,6 +4836,7 @@ export type SetupSearchRequest = {
    */
   include_experimental?: boolean;
   member_harness_id?: HarnessId | null;
+  min_safety_percent?: SafetyPercent | null;
   page?: PageNumber | null;
   page_size?: PageSize;
   /**
@@ -4807,6 +4867,10 @@ export type SetupSearchRequest = {
   tags?: Array<TagId>;
   updated_from?: CatalogUpdatedDate | null;
   updated_to?: CatalogUpdatedDate | null;
+  /**
+   * Verification
+   */
+  verification?: Array<VerificationFilter>;
   /**
    * Verified Only
    */
@@ -5920,6 +5984,10 @@ export type TrustLane = (typeof TrustLane)[keyof typeof TrustLane];
 
 export type UserCode = string;
 
+export const VerificationFilter = { VERIFIED: "verified", NOT_VERIFIED: "not_verified" } as const;
+
+export type VerificationFilter = (typeof VerificationFilter)[keyof typeof VerificationFilter];
+
 /**
  * VersionListEntry
  *
@@ -6739,6 +6807,50 @@ export type ReadOAuthCallbackResultResponses = {
 export type ReadOAuthCallbackResultResponse =
   ReadOAuthCallbackResultResponses[keyof ReadOAuthCallbackResultResponses];
 
+export type ListCatalogAuthorsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/catalog/authors";
+};
+
+export type ListCatalogAuthorsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCatalogAuthorsError = ListCatalogAuthorsErrors[keyof ListCatalogAuthorsErrors];
+
+export type ListCatalogAuthorsResponses = {
+  /**
+   * List authors with public catalog objects. Anonymous.
+   */
+  200: CatalogAuthorListResponse;
+};
+
+export type ListCatalogAuthorsResponse =
+  ListCatalogAuthorsResponses[keyof ListCatalogAuthorsResponses];
+
 export type SearchComponentsData = {
   body?: never;
   headers?: {
@@ -6779,6 +6891,7 @@ export type SearchComponentsData = {
      * Include Experimental
      */
     include_experimental?: boolean;
+    min_safety_percent?: SafetyPercent | null;
     page?: PageNumber | null;
     page_size?: PageSize;
     /**
@@ -6805,6 +6918,10 @@ export type SearchComponentsData = {
     tags?: Array<TagId>;
     updated_from?: CatalogUpdatedDate | null;
     updated_to?: CatalogUpdatedDate | null;
+    /**
+     * Verification
+     */
+    verification?: Array<VerificationFilter>;
     /**
      * Verified Only
      */
@@ -7222,6 +7339,7 @@ export type SearchSetupsData = {
      */
     include_experimental?: boolean;
     member_harness_id?: HarnessId | null;
+    min_safety_percent?: SafetyPercent | null;
     page?: PageNumber | null;
     page_size?: PageSize;
     /**
@@ -7248,6 +7366,10 @@ export type SearchSetupsData = {
     tags?: Array<TagId>;
     updated_from?: CatalogUpdatedDate | null;
     updated_to?: CatalogUpdatedDate | null;
+    /**
+     * Verification
+     */
+    verification?: Array<VerificationFilter>;
     /**
      * Verified Only
      */
@@ -9631,6 +9753,80 @@ export type BindPublicationArtifactResponses = {
 
 export type BindPublicationArtifactResponse =
   BindPublicationArtifactResponses[keyof BindPublicationArtifactResponses];
+
+export type BindPublicationProjectionArtifactData = {
+  body: Blob | File;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Publication plan identifier.
+     */
+    plan_id: string;
+    /**
+     * Declared projection artifact digest.
+     */
+    projection_digest: string;
+  };
+  query?: never;
+  url: "/v1/publications/plans/{plan_id}/artifacts/{projection_digest}";
+};
+
+export type BindPublicationProjectionArtifactErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type BindPublicationProjectionArtifactError =
+  BindPublicationProjectionArtifactErrors[keyof BindPublicationProjectionArtifactErrors];
+
+export type BindPublicationProjectionArtifactResponses = {
+  /**
+   * Bind one declared exact projection artifact to a publication plan.
+   */
+  200: PublicationPlanResponse;
+};
+
+export type BindPublicationProjectionArtifactResponse =
+  BindPublicationProjectionArtifactResponses[keyof BindPublicationProjectionArtifactResponses];
 
 export type ConfirmPublicationPlanData = {
   body: PublicationConfirmRequest;

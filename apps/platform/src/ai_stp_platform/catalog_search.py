@@ -237,6 +237,16 @@ def _projection_row(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchPro
     name = str(meta.name or passport.get("name") or "")
     verified = 0
     assessed = 0
+    safety_percent = None
+    raw_checks = meta.checks_summary
+    if isinstance(raw_checks, dict):
+        raw_percent = raw_checks.get("checks_passed_percent")
+        if (
+            isinstance(raw_percent, int)
+            and not isinstance(raw_percent, bool)
+            and 0 <= raw_percent <= 100
+        ):
+            safety_percent = raw_percent
     if meta.object_kind == "component":
         try:
             matrix = project_target_matrix(ComponentVersionPassport.model_validate(passport))
@@ -262,6 +272,7 @@ def _projection_row(meta: CatalogMetadata, *, now: datetime) -> CatalogSearchPro
         tag_aliases=aliases,
         trust_lane=str(meta.trust_lane or "experimental"),
         component_verified=bool(meta.component_verified),
+        safety_percent=safety_percent,
         lifecycle_state=meta.lifecycle_state,
         published_at=meta.published_at or now,
         updated_at=meta.updated_at or meta.published_at or now,
@@ -654,7 +665,9 @@ async def search_catalog(
     harness_ids: Sequence[str],
     component_types: Sequence[str],
     authors: Sequence[str],
-    verified_only: bool,
+    verification: Sequence[str] = (),
+    verified_only: bool = False,
+    min_safety_percent: int | None = None,
     sort: str,
     sort_direction: str,
     support_tier: str | None,
@@ -681,6 +694,7 @@ async def search_catalog(
     harness_filter = merged_or_values(harness_id, harness_ids)
     type_filter = merged_or_values(component_type, component_types)
     author_filter = unique_sorted(authors)
+    verification_filter = unique_sorted(verification)
     descending = sort_direction != "asc"
     projection = CatalogSearchProjection
     author_verified = func.coalesce(AccountAuthorVerification.verified, False)
@@ -710,6 +724,19 @@ async def search_catalog(
         stmt = stmt.where(is_authoritative)
     if verified_only:
         stmt = stmt.where(author_verified.is_(True), _current_component_verified(projection))
+    if verification_filter:
+        verification_clauses: list[ColumnElement[bool]] = []
+        if "verified" in verification_filter:
+            verification_clauses.append(
+                and_(author_verified.is_(True), _current_component_verified(projection))
+            )
+        if "not_verified" in verification_filter:
+            verification_clauses.append(
+                or_(author_verified.is_(False), ~_current_component_verified(projection))
+            )
+        stmt = stmt.where(or_(*verification_clauses))
+    if min_safety_percent is not None:
+        stmt = stmt.where(projection.safety_percent >= min_safety_percent)
     if tag_filter:
         stmt = stmt.where(projection.tags.contains(tag_filter))
     facet_base = stmt

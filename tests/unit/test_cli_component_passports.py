@@ -704,7 +704,7 @@ def test_a_publication_passport_is_built_from_the_exact_released_revision(
     assert changed.revision_id != enriched.revision_id
     assert passport.name != "later-draft-name"
     assert passport.version == "1.0"
-    assert passport.visibility == "public"
+    assert passport.visibility == "private"
     assert passport.parent_revision_ids == []
     assert passport.artifact.digest == released.artifact.digest
     # The digest has to describe the passport as the server will see it. The

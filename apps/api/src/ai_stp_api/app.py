@@ -90,7 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         else:
             s3_client = S3ObjectClient(resolved.storage)
             await s3_client.__aenter__()
-            await s3_client.ensure_bucket()
+            await s3_client.ensure_buckets()
             app.state.object_client = s3_client
             app.state.avatar_store = AvatarObjectStore(settings=resolved.storage, client=s3_client)
         log.info("startup", environment=resolved.service.environment)

@@ -262,6 +262,13 @@
       "minLength": 1,
       "type": "string"
     },
+    "PublicationVisibility": {
+      "enum": [
+        "public",
+        "private"
+      ],
+      "type": "string"
+    },
     "SetupRef": {
       "additionalProperties": false,
       "description": "Exact reference to a setup version; a setup has no variant axis.",
@@ -300,6 +307,14 @@
   "additionalProperties": false,
   "description": "POST /v1/publications/plans body.",
   "properties": {
+    "artifact_inventory": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 1000,
+      "title": "Artifact Inventory",
+      "type": "array"
+    },
     "attestations": {
       "items": {
         "$ref": "#/$defs/AuthorAttestation"
@@ -345,13 +360,8 @@
       "$ref": "#/$defs/Version"
     },
     "visibility": {
-      "default": "public",
-      "enum": [
-        "public",
-        "private"
-      ],
-      "title": "Visibility",
-      "type": "string"
+      "$ref": "#/$defs/PublicationVisibility",
+      "default": "private"
     }
   },
   "required": [

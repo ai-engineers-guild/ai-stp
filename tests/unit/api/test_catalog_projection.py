@@ -28,6 +28,7 @@ from ai_stp_platform.catalog_projection import (
     verify_passport_integrity,
 )
 from ai_stp_platform.catalog_read import CatalogIntegrityError, PublicVersionRow
+from ai_stp_platform.catalog_targets import EffectiveAssessment
 from ai_stp_platform.models import CatalogMetadata
 
 pytestmark = pytest.mark.platform
@@ -611,6 +612,40 @@ def test_component_detail_projects_a_not_verified_exact_matrix() -> None:
     assert detail.summary.latest_assurance.assessed_targets == len(detail.target_matrix.exact)
     assert detail.summary.latest_assurance.verified_targets == 0
     assert detail.summary.latest_projection_kind is not None
+
+
+def test_component_detail_backfills_legacy_target_check_rows_from_component_summary() -> None:
+    row = _row_from_seed()
+    row.metadata.checks_summary = {  # pyright: ignore[reportAttributeAccessIssue]
+        "status": "available",
+        "checks": [
+            {"check_id": "structure", "result": "passed", "mandatory": True},
+            {"check_id": "safety", "result": "warning", "mandatory": True},
+        ],
+        "passed": 1,
+        "failed": 0,
+        "warning": 1,
+        "total_countable": 2,
+        "checks_passed_percent": 50,
+    }
+    adaptation = ComponentVersionPassport.model_validate(row.passport).adaptations[0]
+    scope = adaptation.scope_adaptations[0]
+    assessment = EffectiveAssessment(
+        adaptation_id=adaptation.adaptation_id,
+        harness_id=adaptation.harness_id,
+        scope=scope.scope,
+        state="verified",
+    )
+
+    detail = component_detail(
+        [row],
+        assessments={(adaptation.adaptation_id, adaptation.harness_id, scope.scope): assessment},
+    )
+
+    projected = detail.target_matrix.exact[0]
+    assert [check.check_id for check in projected.safety_checks] == ["structure", "safety"]
+    assert detail.summary.latest_checks is not None
+    assert detail.summary.latest_checks.checks_passed_percent == 50
 
 
 def test_setup_detail_keeps_provenance_separate_from_family() -> None:

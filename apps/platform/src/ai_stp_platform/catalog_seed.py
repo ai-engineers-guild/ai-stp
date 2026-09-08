@@ -137,6 +137,7 @@ async def load_first_party_seed(
             item.artifact,
             expected_digest=passport.artifact.digest,
             expected_size=passport.artifact.size_bytes,
+            owner_account_id=passport.owner_id,
         )
         retained = await store.read_verified(
             object_key=stored.key,
@@ -179,6 +180,8 @@ async def load_first_party_seed(
                 ObjectLocation(
                     catalog_metadata_id=row.id,
                     purpose="artifact",
+                    bucket=stored.bucket,
+                    owner_account_id=passport.owner_id,
                     object_key=stored.key,
                     digest=stored.digest,
                     content_id=stored.content_id,
@@ -187,6 +190,8 @@ async def load_first_party_seed(
             )
         elif (
             location.object_key != stored.key
+            or location.bucket not in {None, stored.bucket}
+            or location.owner_account_id not in {None, passport.owner_id}
             or location.digest != stored.digest
             or location.content_id != stored.content_id
             or location.size_bytes != stored.size_bytes

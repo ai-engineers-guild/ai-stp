@@ -3,4 +3,4 @@
 # Logs must not capture secrets (redirect to a dedicated log file).
 #
 # Daily at 03:15 UTC, keep AI_STP_BACKUP_RETENTION newest backups (default 7).
-# 15 3 * * * cd /opt/ai_stp && AI_STP_BACKUP_RETENTION=7 ./deploy/backup.sh --label daily >>/var/log/ai_stp/backup.log 2>&1
+# 15 3 * * * cd /opt/ai_stp && AI_STP_BACKUP_DIR=/mnt/ai-stp-off-host AI_STP_BACKUP_RETENTION=7 ./deploy/backup.sh --label daily >>/var/log/ai_stp/backup.log 2>&1

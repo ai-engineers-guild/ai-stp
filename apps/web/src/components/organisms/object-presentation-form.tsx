@@ -69,7 +69,7 @@ export function ObjectPresentationForm({
   initialBio,
   initialMedia,
   labels,
-  afterMedia,
+  beforeMedia,
 }: {
   objectKind?: "component" | "setup" | undefined;
   locale: string;
@@ -78,7 +78,7 @@ export function ObjectPresentationForm({
   initialBio: string;
   initialMedia: OwnerPresentationMedia[];
   labels: Labels;
-  afterMedia?: ReactNode;
+  beforeMedia?: ReactNode;
 }) {
   const form = useObjectPresentationForm({
     objectKind,
@@ -137,6 +137,8 @@ export function ObjectPresentationForm({
           </p>
         ) : null}
       </section>
+
+      {beforeMedia}
 
       <section className="space-y-4" aria-labelledby="presentation-media-heading">
         <header className="space-y-1">
@@ -205,8 +207,6 @@ export function ObjectPresentationForm({
           </Button>
         ) : null}
       </section>
-
-      {afterMedia}
 
       <div
         className="border-border bg-background/95 sticky bottom-0 z-10 -mx-1 space-y-3 border-t px-1 py-4 backdrop-blur-sm"

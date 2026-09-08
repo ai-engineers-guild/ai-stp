@@ -9,8 +9,10 @@ from typing import Any, Literal, cast
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_foundation.versioning import VersionError, parse_version
 from ai_stp_platform.catalog_cursor import CursorKey
 from ai_stp_platform.models import (
+    AccessGrant,
     Account,
     AccountAuthorVerification,
     CatalogIdentity,
@@ -360,20 +362,52 @@ async def get_visible_metadata(
     version: str,
     account_id: str | None,
 ) -> CatalogMetadata | None:
-    """Public version, or the caller's owned version. Missing and foreign private are None."""
-    public = await get_public_version(
-        session, object_kind=object_kind, stable_id=stable_id, version=version
+    """Return public metadata or private metadata authorized by ownership/grant."""
+    public = await session.scalar(
+        _public_base(object_kind).where(
+            CatalogMetadata.stable_id == stable_id,
+            CatalogMetadata.version == version,
+        )
     )
     if public is not None:
-        return public.metadata
+        return public
     if not account_id:
         return None
-    return await session.scalar(
+    owned = await session.scalar(
         select(CatalogMetadata).where(
             CatalogMetadata.owner_account_id == account_id,
             CatalogMetadata.object_kind == object_kind,
             CatalogMetadata.stable_id == stable_id,
             CatalogMetadata.version == version,
+            CatalogMetadata.visibility == "private",
+            CatalogMetadata.published_at.is_not(None),
+            CatalogMetadata.passport_document.is_not(None),
+            CatalogMetadata.passport_digest.is_not(None),
+        )
+    )
+    if owned is not None:
+        return owned
+    try:
+        major, _minor = parse_version(version)
+    except VersionError:
+        return None
+    return await session.scalar(
+        select(CatalogMetadata)
+        .join(
+            AccessGrant,
+            (AccessGrant.object_kind == CatalogMetadata.object_kind)
+            & (AccessGrant.stable_id == CatalogMetadata.stable_id)
+            & (AccessGrant.major == major)
+            & (AccessGrant.owner_account_id == CatalogMetadata.owner_account_id)
+            & (AccessGrant.grantee_account_id == account_id)
+            & (AccessGrant.state == "active"),
+        )
+        .where(
+            CatalogMetadata.object_kind == object_kind,
+            CatalogMetadata.stable_id == stable_id,
+            CatalogMetadata.version == version,
+            CatalogMetadata.visibility == "private",
+            CatalogMetadata.published_at.is_not(None),
             CatalogMetadata.passport_document.is_not(None),
             CatalogMetadata.passport_digest.is_not(None),
         )

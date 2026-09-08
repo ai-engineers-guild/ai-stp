@@ -1,9 +1,10 @@
+/* eslint-disable max-lines -- Filter panel keeps the related facets in one render owner. */
 "use client";
 
 import { useMemo, useState } from "react";
 
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
-import type { ExternalProduct } from "@/lib/api/catalog";
+import type { CatalogAuthorOption, ExternalProduct } from "@/lib/api/catalog";
 import { CATALOG_UNSPECIFIED_FILTER, type ParsedCatalogQuery } from "@/lib/catalog-query";
 import { localizedCountryName } from "@/lib/country-name";
 import { COMPONENT_TYPE_FACETS, HARNESS_FACETS, TAG_FACETS } from "@/lib/tag-vocabulary";
@@ -34,12 +35,18 @@ export type CatalogFilterPanelLabels = {
   typeFilterHelp?: string;
   authorFilterHelp?: string;
   verifiedOnlyHelp?: string;
+  verificationHelp?: string;
+  safetyPercentHelp?: string;
   countryFilterHelp?: string;
   serviceFilterHelp?: string;
   updatedRangeHelp?: string;
   searchOptions: string;
   authorFilter: string;
   verifiedOnly: string;
+  verificationFilter?: string;
+  verifiedOption?: string;
+  notVerifiedOption?: string;
+  safetyPercentFilter?: string;
   serviceFilter: string;
   countryFilter: string;
   unspecifiedOption?: string;
@@ -47,17 +54,19 @@ export type CatalogFilterPanelLabels = {
   updatedTo?: string;
   clearUpdatedRange?: string;
 };
-
+// eslint-disable-next-line max-lines-per-function, complexity
 export function CatalogFilterPanel({
   query,
   labels,
   services,
+  authors = [],
   locale = "en",
   hideAuthorFilter = false,
 }: {
   query: ParsedCatalogQuery;
   labels: CatalogFilterPanelLabels;
   services: ExternalProduct[];
+  authors?: CatalogAuthorOption[];
   locale?: string;
   hideAuthorFilter?: boolean;
 }) {
@@ -82,10 +91,88 @@ export function CatalogFilterPanel({
       return service.country_codes.some((code) => countryCodes.includes(code));
     });
   }, [countryCodes, services]);
-
+  const authorOptions = useMemo(
+    () => sortAuthorOptions(authors, query.authors),
+    [authors, query.authors],
+  );
+  const resourceValues = query.resource === "all" ? ["components", "setups"] : [query.resource];
+  const verificationLabel = labels.verificationFilter ?? labels.verifiedOnly;
+  const verificationOptions = [
+    { value: "verified", label: labels.verifiedOption ?? labels.verifiedOnly },
+    { value: "not_verified", label: labels.notVerifiedOption ?? "Not verified" },
+  ];
   return (
     <div className="min-w-0 space-y-6">
       <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
+        <Facet label={labels.resourceLegend}>
+          <SearchableMultiSelect
+            name="resource"
+            label={labels.resourceLegend}
+            searchLabel={labels.searchOptions}
+            options={[
+              { value: "components", label: labels.components },
+              { value: "setups", label: labels.setups },
+            ]}
+            selected={resourceValues}
+          />
+        </Facet>
+        {query.resource !== "setups" ? (
+          <Facet
+            label={labels.typeFilter}
+            help={labels.typeFilterHelp ?? labels.filterHelpBody}
+            helpLabel={labels.filterHelpLabel}
+          >
+            <SearchableMultiSelect
+              name="component_types"
+              label={labels.typeFilter}
+              searchLabel={labels.searchOptions}
+              options={COMPONENT_TYPE_FACETS}
+              selected={
+                query.componentTypes.length
+                  ? query.componentTypes
+                  : query.componentType
+                    ? [query.componentType]
+                    : []
+              }
+            />
+          </Facet>
+        ) : null}
+        <Facet
+          label={verificationLabel}
+          help={labels.verificationHelp ?? labels.verifiedOnlyHelp ?? labels.filterHelpBody}
+          helpLabel={labels.filterHelpLabel}
+        >
+          <SearchableMultiSelect
+            name="verification"
+            label={verificationLabel}
+            searchLabel={labels.searchOptions}
+            options={verificationOptions}
+            selected={
+              query.verification.length
+                ? query.verification
+                : query.verifiedOnly
+                  ? ["verified"]
+                  : []
+            }
+          />
+        </Facet>
+        <Facet
+          label={labels.safetyPercentFilter ?? "Safety checks"}
+          help={labels.safetyPercentHelp ?? labels.filterHelpBody}
+          helpLabel={labels.filterHelpLabel}
+        >
+          <SearchableMultiSelect
+            name="min_safety_percent"
+            label={labels.safetyPercentFilter ?? "Safety checks"}
+            searchLabel={labels.searchOptions}
+            options={[75, 85, 90, 99].map((value) => ({
+              value: String(value),
+              label: `${value}%`,
+            }))}
+            selected={query.minSafetyPercent === undefined ? [] : [String(query.minSafetyPercent)]}
+            multiple={false}
+          />
+        </Facet>
         <Facet
           label={labels.tagFilter}
           help={labels.tagFilterHelp ?? labels.filterHelpBody}
@@ -114,27 +201,6 @@ export function CatalogFilterPanel({
             }
           />
         </Facet>
-        {query.resource !== "setups" ? (
-          <Facet
-            label={labels.typeFilter}
-            help={labels.typeFilterHelp ?? labels.filterHelpBody}
-            helpLabel={labels.filterHelpLabel}
-          >
-            <SearchableMultiSelect
-              name="component_types"
-              label={labels.typeFilter}
-              searchLabel={labels.searchOptions}
-              options={COMPONENT_TYPE_FACETS}
-              selected={
-                query.componentTypes.length
-                  ? query.componentTypes
-                  : query.componentType
-                    ? [query.componentType]
-                    : []
-              }
-            />
-          </Facet>
-        ) : null}
         <LinkedRelationFacets
           labels={labels}
           unspecifiedLabel={unspecifiedLabel}
@@ -160,12 +226,12 @@ export function CatalogFilterPanel({
                 text={labels.authorFilterHelp ?? labels.filterHelpBody}
               />
             </span>
-            <input
+            <SearchableMultiSelect
               name="authors"
-              type="search"
-              aria-label={labels.authorFilter}
-              className={selectClassName}
-              defaultValue={query.authors.join(", ")}
+              label={labels.authorFilter}
+              searchLabel={labels.authorFilter}
+              options={authorOptions}
+              selected={query.authors}
             />
           </label>
         )}
@@ -177,21 +243,38 @@ export function CatalogFilterPanel({
           onToChange={setUpdatedTo}
         />
       </div>
-      <Facet
-        label={labels.verifiedOnly}
-        help={labels.verifiedOnlyHelp ?? labels.filterHelpBody}
-        helpLabel={labels.filterHelpLabel}
-      >
-        <SearchableMultiSelect
-          name="verified_only"
-          label={labels.verifiedOnly}
-          searchLabel={labels.searchOptions}
-          options={[{ value: "1", label: labels.verifiedOnly }]}
-          selected={query.verifiedOnly ? ["1"] : []}
-        />
-      </Facet>
     </div>
   );
+}
+function sortAuthorOptions(
+  authors: readonly CatalogAuthorOption[],
+  selected: readonly string[],
+): Array<{ value: string; label: string }> {
+  const byId = new Map(authors.map((author) => [author.account_id, author]));
+  for (const accountId of selected) {
+    if (!byId.has(accountId)) byId.set(accountId, { account_id: accountId, display_name: null });
+  }
+  return [...byId.values()]
+    .map((author) => ({
+      value: author.account_id,
+      label: author.display_name || author.account_id,
+    }))
+    .sort((left, right) => {
+      const leftBucket = authorScriptBucket(left.label);
+      const rightBucket = authorScriptBucket(right.label);
+      return (
+        leftBucket - rightBucket ||
+        left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
+        left.value.localeCompare(right.value)
+      );
+    });
+}
+
+function authorScriptBucket(value: string): number {
+  const first = value.slice(0, 1);
+  if (first && /[A-Za-z]/.test(first)) return 0;
+  if (first && /[А-Яа-яЁё]/.test(first)) return 1;
+  return 2;
 }
 
 function LinkedRelationFacets({

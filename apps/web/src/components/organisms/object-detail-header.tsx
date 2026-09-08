@@ -15,7 +15,6 @@ export function ObjectDetailHeader({
   icon,
   title,
   badges,
-  versionLabel,
   githubStars,
   githubStarsLabel,
   archived,
@@ -29,7 +28,6 @@ export function ObjectDetailHeader({
   icon: ReactNode;
   title: string;
   badges: ReactNode;
-  versionLabel: string;
   githubStars: number | null | undefined;
   githubStarsLabel: string;
   archived?: boolean | null;
@@ -59,10 +57,7 @@ export function ObjectDetailHeader({
             <h1 className="max-w-4xl text-xl leading-tight font-semibold tracking-tight [overflow-wrap:anywhere] break-words sm:text-2xl lg:text-3xl">
               {title}
             </h1>
-            <div className="mt-3 min-w-0 space-y-2">
-              {badges}
-              <span className="text-muted-foreground text-sm">{versionLabel}</span>
-            </div>
+            <div className="mt-3 min-w-0">{badges}</div>
             <div
               data-ui={UI.component.actions}
               className="mt-5 flex min-w-0 flex-wrap items-center gap-2 lg:absolute lg:right-12 lg:bottom-8 lg:max-w-[40%] lg:justify-end"

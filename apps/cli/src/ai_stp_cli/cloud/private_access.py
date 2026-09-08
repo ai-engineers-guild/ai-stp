@@ -8,7 +8,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache
 from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.machine_help import CatalogKind, CatalogVersionView
-from ai_stp_contracts.private_access import PrivateVersionResponse
+from ai_stp_contracts.private_access import CliPrivateVersionResponse
 from ai_stp_passports import ComponentVersionPassport, SetupVersionPassport
 
 
@@ -31,7 +31,9 @@ def _key(endpoint: Endpoint, account: str, kind: CatalogKind, stable_id: str, nu
     return cache.key_for(f"{kind}-private-version", scope)
 
 
-def _view(response: PrivateVersionResponse, *, source: str, checked_at: str) -> CatalogVersionView:
+def _view(
+    response: CliPrivateVersionResponse, *, source: str, checked_at: str
+) -> CatalogVersionView:
     if tuple(response.passport.get(name) for name in ("kind", "stable_id", "version")) != (
         response.kind,
         response.stable_id,
@@ -76,7 +78,7 @@ def version(
     )
     with client.open_client(endpoint, access_token=held.access_token) as http:
         response = client.call(
-            http, "GET", path, PrivateVersionResponse, attempts=endpoint.max_attempts
+            http, "GET", path, CliPrivateVersionResponse, attempts=endpoint.max_attempts
         )
     if (response.kind, response.stable_id, response.version) != (kind, stable_id, number):
         raise CliFailure(
@@ -101,7 +103,7 @@ def cached_version(
         raise CliFailure(
             "AI_STP_DEPENDENCY_UNAVAILABLE", "this account has no cached private version"
         )
-    response = PrivateVersionResponse.model_validate(entry.document)
+    response = CliPrivateVersionResponse.model_validate(entry.document)
     if (response.kind, response.stable_id, response.version) != (kind, stable_id, number):
         raise CliFailure(
             "AI_STP_CATALOG_INTEGRITY", "cached private version identity does not match"

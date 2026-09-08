@@ -1,6 +1,6 @@
 ---
 description: "SPEC-026: Server-side publication, validation jobs, grants, reports, and staff audit."
-last_verified: "2026-08-25"
+last_verified: "2026-09-07"
 ---
 
 # SPEC-026: Server-side publication, validation jobs, grants, reports, and staff audit
@@ -63,9 +63,10 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
 ### Publication and validation jobs
 
 - `REQ-2601`: Creating a `PublicationPlan` requires an active device for the
-  current session, ownership of the object (or staff with audit), the exact
-  authenticated account as passport owner, and a non-empty published public
-  profile with publisher listing enabled. It also requires the exact
+  current session, ownership of the object, and the exact
+  authenticated account as passport owner. Public publication additionally
+  requires a non-empty published public profile with publisher listing enabled.
+  It also requires the exact
   content digest, an `X.Y` version, complete passport fields from `SPEC-007`
   REQ-706, a policy version, and an idempotency key. The response returns the
   plan id, `plan_hash`, `expires_at`, and effects.
@@ -92,8 +93,9 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
   are rejected (`SPEC-007` REQ-724, `ADR-0092`).
 - `REQ-2606`: The `publish` job runs only after a snapshot in which all required
   checks have current accepted `passed` evidence. It atomically records immutable
-  version metadata, the location of public bytes when needed, the catalog
-  projection, `component_verified`, and lifecycle `published` / `active`.
+  version metadata, the verified artifact location and visibility, the public
+  catalog projection only when visibility is public, `component_verified`, and
+  lifecycle `published` / `active`.
   Republishing different bytes under the same `X.Y` is rejected (`SPEC-007`
   REQ-712). A new `X.Y` with artifact bytes already published for another
   version is allowed: `object_location` points to the same content-addressed key
@@ -192,12 +194,25 @@ owned by `ADR-0092`. Artifact-byte binding is owned by `ADR-0093`.
   and staff for every route class; knowing an account id is not authority
   (`SPEC-010` REQ-1003).
 - `REQ-2627`: Before confirm, the author binds verified artifact bytes to the
-  plan through one authenticated plan-scoped upload. The server compares digest
-  and size with the plan, rejects root escapes, links, device/special files, and
-  size excess, writes the bytes immutably to object storage, and rejects confirm
-  until the bytes are durable. Public version reads return exactly the accepted
-  bytes and digest. A different body under the same `X.Y` is rejected
-  (`SPEC-007` REQ-701/712, `SPEC-020` REQ-2005, `ADR-0093`).
+  plan through authenticated plan-scoped uploads. For a component, this
+  includes every unique declared projection artifact digest and size. The
+  server compares digest and size with the plan, rejects root escapes, links,
+  device/special files, and size excess, writes the bytes immutably to object
+  storage, and rejects confirm until every required artifact is durable. Public
+  version reads return exactly the accepted bytes and digest. A different body
+  under the same `X.Y` is rejected (`SPEC-007` REQ-701/712, `SPEC-020`
+  REQ-2005, `ADR-0093`).
+- `REQ-2629`: Exact artifact delivery authorizes from catalog metadata before
+  resolving the object location. A public active version is readable without a
+  session; a private active version is readable only by its owner or the holder
+  of an active grant for the exact object and major line. Outsider, foreign
+  owner, revoked grant, and uncovered major return the same not-found surface.
+  An authorized missing or corrupt object returns the typed dependency or
+  integrity error from `SPEC-020` rather than not-found.
+- `REQ-2630`: Plan-scoped upload and confirm are recoverable after request or
+  response loss. Status returns whether exact bytes are already durable, and a
+  retry with the same plan and bytes is idempotent; confirmation never exposes
+  a version whose bytes are incomplete or unverified.
 
 ## States and errors
 
@@ -217,8 +232,8 @@ before a durable write on device-bound publication and attestation paths.
 The server does not store author credentials: credential-dependent evidence is
 author-attested only. Object-store keys are not authority; private bytes require
 an owner/grant check on every serving route. Invitation tokens and OAuth secrets
-do not enter audit/log/trace. Staff reads of private objects require a reason
-when policy specifies one and always write audit. Report diagnostics are
+do not enter audit/log/trace. Staff authority does not bypass artifact delivery
+or publication ownership. Report diagnostics are
 redacted; home paths are shortened to relative paths.
 
 ## Compatibility and migration
@@ -262,3 +277,5 @@ version during the compatibility window (`SPEC-010`).
 | `REQ-2623` | Double handler delivery has no second effect; dead-letter contains a safe error. |
 | `REQ-2624` | Complete authz matrix by route class. |
 | `REQ-2627` | A process or bind-layer test covers the plan, upload of real bytes, confirm, and anonymous reading matching the digest; a second body under the same `X.Y` and a dangerous archive are rejected. |
+| `REQ-2629` | A real-store API matrix covers anonymous public read, private owner, active grantee, outsider, foreign owner, revoked grant, and uncovered major, then distinguishes authorized missing and corrupt bytes. |
+| `REQ-2630` | Fault injection loses each upload/confirm response; status plus same-input retry reaches one publication and never exposes partial bytes. |

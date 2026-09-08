@@ -2,6 +2,7 @@
 
 import os
 import sqlite3
+import subprocess
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
@@ -774,6 +775,52 @@ def test_adopting_a_skill_directory_preserves_its_complete_tree(
         ("SKILL.md", b"# reviewing\n"),
         ("references/guide.md", b"guide\n"),
     ]
+
+
+def test_git_component_tree_includes_tracked_and_nonignored_untracked_files(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "repository"
+    skill = repository / "skills" / "review"
+    (skill / "nested").mkdir(parents=True)
+    (repository / ".gitignore").write_text("*.tmp\n", encoding="utf-8")
+    (skill / ".gitignore").write_text("nested/ignored.md\n*.log\n", encoding="utf-8")
+    (skill / "SKILL.md").write_text("# Review\n", encoding="utf-8")
+    (skill / "tracked.log").write_text("tracked\n", encoding="utf-8")
+    (skill / "keep.md").write_text("untracked\n", encoding="utf-8")
+    (skill / "ignored.tmp").write_text("ignored\n", encoding="utf-8")
+    (skill / "nested" / "ignored.md").write_text("ignored\n", encoding="utf-8")
+    subprocess.run(["git", "init", str(repository)], check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "add",
+            ".gitignore",
+            "skills/review/.gitignore",
+            "skills/review/SKILL.md",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repository), "add", "-f", "skills/review/tracked.log"],
+        check=True,
+        capture_output=True,
+    )
+
+    held = components.inspect_content(skill)
+    published, inventory = components.package_publication_root(skill)
+
+    assert [item.path for item in components.expand(held.payload, held.format)] == [
+        ".gitignore",
+        "SKILL.md",
+        "keep.md",
+        "tracked.log",
+    ]
+    assert published == held.payload
+    assert inventory == (".gitignore", "SKILL.md", "keep.md", "tracked.log")
 
 
 def test_a_grok_build_plugin_root_is_a_complete_directory_artifact(tmp_path: Path) -> None:

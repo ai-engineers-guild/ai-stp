@@ -1,6 +1,6 @@
 ---
 description: "SPEC-028: Author public profile, safe avatars, and preview."
-last_verified: "2026-09-04"
+last_verified: "2026-09-07"
 ---
 
 # SPEC-028: Public profile, media, and preview
@@ -80,6 +80,10 @@ granting access through a profile link.
   API errors after submit; links are normalized by the server, and duplicates
   and non-HTTPS URLs are rejected. Removing the avatar and all fields is an
   explicit action with a preview.
+- `REQ-2811`: Avatar originals, quarantine objects, and processed variants use
+  the asset bucket under a server-derived user namespace. Replacing an avatar
+  creates new verified bytes and changes the profile pointer; it never
+  overwrites an existing object or places profile media in the artifact bucket.
 
 ## States and errors
 
@@ -118,3 +122,4 @@ the generated client is rebuilt only from the contract.
 | `REQ-2807` | Upload checks cover the image MIME allowlist, size, pixels, EXIF removal, and quarantine. |
 | `REQ-2809` | An access-redaction check proves the absence of identity, email, source URL, and object key. |
 | `REQ-2810` | Accessible RU/EN form tests cover validation, deletion, and conflict recovery. |
+| `REQ-2811` | Storage tests prove user-prefix ownership, quarantine isolation, append-only replacement, and absence from the artifact bucket. |

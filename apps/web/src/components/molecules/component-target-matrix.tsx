@@ -1,5 +1,7 @@
 import type { SafetyCheckEntry, TargetMatrix } from "@/lib/api/generated/types.gen";
+import { Badge } from "@/components/atoms/badge";
 import { UI } from "@/lib/ui-selectors";
+import { Icon } from "@/theme";
 
 export type TargetMatrixLabels = {
   heading: string;
@@ -37,6 +39,8 @@ export type TargetMatrixLabels = {
   checkFailed: string;
   checkNotRun: string;
   checkIncomplete: string;
+  checksComplete: string;
+  projections: string;
 };
 
 export function targetMatrixLabels(t: (key: string) => string): TargetMatrixLabels {
@@ -76,6 +80,8 @@ export function targetMatrixLabels(t: (key: string) => string): TargetMatrixLabe
     checkFailed: t("checkFailed"),
     checkNotRun: t("checkNotRun"),
     checkIncomplete: t("checkIncomplete"),
+    checksComplete: t("safetyChecksComplete"),
+    projections: t("harnessProjectionsCount"),
   };
 }
 
@@ -88,23 +94,49 @@ export function ComponentTargetMatrix({
 }) {
   if (!matrix) return null;
   if (matrix.exact.length === 0) return null;
+  const score = checkScore(matrix.exact.flatMap(safetyChecksFor));
 
   return (
     <section
       data-ui={UI.catalog.targetMatrix}
       aria-labelledby="target-matrix-heading"
-      className="border-border min-w-0 space-y-4 rounded-lg border p-4"
+      className="border-border min-w-0 rounded-lg border"
     >
-      <div className="space-y-1">
-        <h2 id="target-matrix-heading" className="font-semibold">
-          {labels.heading}
-        </h2>
-        <p className="text-muted-foreground text-sm">{labels.summary}</p>
-        <p data-ui={UI.catalog.assurance} className="text-sm">
-          {matrixScore(matrix, labels)}
-        </p>
-      </div>
-      <MatrixCards matrix={matrix} labels={labels} />
+      <details className="group">
+        <summary className="focus-visible:ring-ring flex min-h-20 cursor-pointer list-none items-center gap-3 rounded-lg p-4 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 id="target-matrix-heading" className="font-semibold">
+                {labels.heading}
+              </h2>
+              <span
+                className="text-muted-foreground inline-flex size-7 shrink-0 items-center justify-center"
+                title={labels.summary}
+                aria-label={labels.summary}
+              >
+                <Icon name="help" size="sm" />
+              </span>
+            </div>
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <Score score={score} />
+              <span>
+                {score.passed} / {score.total} {labels.checksComplete}
+              </span>
+              <span>
+                {matrix.exact.length} {labels.projections}
+              </span>
+            </div>
+          </div>
+          <Icon
+            name="chevronDown"
+            size="sm"
+            className="shrink-0 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="border-border border-t p-3">
+          <MatrixCards matrix={matrix} labels={labels} />
+        </div>
+      </details>
     </section>
   );
 }
@@ -128,19 +160,22 @@ function ProjectionDetails({
   row: TargetMatrix["exact"][number];
   labels: TargetMatrixLabels;
 }) {
-  const safetyChecks =
-    (row as unknown as { safety_checks?: SafetyCheckEntry[] }).safety_checks ?? [];
+  const safetyChecks = safetyChecksFor(row);
+  const score = checkScore(safetyChecks);
 
   return (
-    <details className="border-border bg-card rounded-lg border shadow-sm">
-      <summary className="focus-visible:ring-ring flex min-w-0 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 rounded-lg p-3 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+    <details className="group/row border-border bg-card rounded-lg border shadow-sm">
+      <summary className="focus-visible:ring-ring flex min-h-14 min-w-0 cursor-pointer list-none items-center gap-3 rounded-lg p-3 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1 font-medium break-words">{row.harness_id}</span>
-        <span className="text-muted-foreground text-sm">
-          {labels.assessment}: {assessmentLabel(row.assessment_state, labels)}
+        <span className="text-muted-foreground hidden text-sm sm:inline">
+          {score.passed} / {score.total} {labels.checksComplete}
         </span>
-        <span className="text-muted-foreground text-sm">
-          {labels.implementation}: {row.implementation_mode}
-        </span>
+        <Score score={score} />
+        <Icon
+          name="chevronDown"
+          size="sm"
+          className="shrink-0 transition-transform group-open/row:rotate-180"
+        />
         <span className="sr-only">{labels.projectionDetails}</span>
       </summary>
       <dl className="border-border text-muted-foreground grid gap-3 border-t px-3 py-3 text-xs sm:grid-cols-2">
@@ -212,15 +247,26 @@ function ProjectionDetails({
                 {safetyChecks.map((check) => (
                   <li
                     key={check.check_id}
-                    className="border-border flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-md border px-2 py-1"
+                    className="border-border flex min-w-0 items-start gap-2 rounded-md border px-3 py-2"
                   >
-                    <span className="min-w-0 font-mono break-words">{check.check_id}</span>
-                    <span>{checkResultLabel(check.result, labels)}</span>
-                    {check.reason ? (
-                      <span className="text-muted-foreground basis-full break-words">
-                        {check.reason}
+                    <Icon
+                      name={checkResultIcon(check.result)}
+                      size="sm"
+                      className={checkResultTone(check.result)}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium break-words">{check.check_id}</span>
+                        <Badge variant={checkResultVariant(check.result)}>
+                          {checkResultLabel(check.result, labels)}
+                        </Badge>
                       </span>
-                    ) : null}
+                      {check.reason ? (
+                        <span className="text-muted-foreground mt-1 block break-words">
+                          {check.reason}
+                        </span>
+                      ) : null}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -261,11 +307,53 @@ function ProjectionDetails({
   );
 }
 
-function matrixScore(matrix: TargetMatrix, labels: TargetMatrixLabels): string {
-  const assessed = matrix.exact.length;
-  const verified = matrix.exact.filter((row) => row.assessment_state === "verified").length;
-  const percent = assessed > 0 ? Math.round((verified / assessed) * 100) : 0;
-  return `${labels.score}: ${verified} / ${assessed} (${percent}%)`;
+function checkScore(checks: SafetyCheckEntry[]): {
+  passed: number;
+  total: number;
+  percent: number;
+} {
+  const countable = checks.filter((check) =>
+    ["passed", "failed", "warning"].includes(check.result),
+  );
+  const passed = countable.filter((check) => check.result === "passed").length;
+  return {
+    passed,
+    total: countable.length,
+    percent: countable.length ? Math.round((passed / countable.length) * 100) : 0,
+  };
+}
+
+function safetyChecksFor(row: TargetMatrix["exact"][number]): SafetyCheckEntry[] {
+  return (row as unknown as { safety_checks?: SafetyCheckEntry[] }).safety_checks ?? [];
+}
+
+function Score({ score }: { score: ReturnType<typeof checkScore> }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5"
+      role="meter"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={score.percent}
+      aria-valuetext={`${score.passed} / ${score.total}`}
+    >
+      <span className="bg-muted relative block h-1 w-10 overflow-hidden rounded-full" aria-hidden>
+        <span
+          className="absolute inset-y-0 left-0 overflow-hidden"
+          style={{ width: `${score.percent}%` }}
+        >
+          <span
+            className="block h-full w-10"
+            style={{
+              background:
+                "linear-gradient(90deg, hsl(var(--destructive)), hsl(var(--warning)), hsl(var(--success)))",
+            }}
+          />
+        </span>
+      </span>
+      <span className="font-mono text-sm font-medium tabular-nums">{score.percent}%</span>
+    </span>
+  );
 }
 
 function supportLabel(value: string, labels: TargetMatrixLabels): string {
@@ -293,4 +381,25 @@ function checkResultLabel(value: string, labels: TargetMatrixLabels): string {
   if (value === "failed") return labels.checkFailed;
   if (value === "not_run") return labels.checkNotRun;
   return labels.checkIncomplete;
+}
+
+function checkResultTone(value: string): string {
+  if (value === "passed") return "text-success";
+  if (value === "failed") return "text-destructive";
+  if (value === "warning") return "text-warning";
+  return "text-muted-foreground";
+}
+
+function checkResultIcon(value: string): "check" | "close" | "alert" | "clock" {
+  if (value === "passed") return "check";
+  if (value === "failed") return "close";
+  if (value === "warning") return "alert";
+  return "clock";
+}
+
+function checkResultVariant(value: string): "success" | "destructive" | "warning" | "outline" {
+  if (value === "passed") return "success";
+  if (value === "failed") return "destructive";
+  if (value === "warning") return "warning";
+  return "outline";
 }

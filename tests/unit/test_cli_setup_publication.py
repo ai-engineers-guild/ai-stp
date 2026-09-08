@@ -15,7 +15,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Collection, Iterator
 from contextlib import closing
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -90,12 +90,15 @@ class _Platform:
 class _Detail:
     def __init__(self, stable_id: str, version: str) -> None:
         with closing(open_registry(configured_path())) as connection:
-            passport = (
-                setup_publication._setup_passport(connection, stable_id, version)
-                if stable_id.startswith("setup_")
-                else component_passports.version_passport(connection, stable_id, version)
-            )
-        self.passport = passport.model_dump(mode="json")
+            if stable_id.startswith("setup_"):
+                passport = setup_publication._setup_passport(
+                    connection, stable_id, version
+                ).model_dump(mode="json")
+            else:
+                passport = setup_publication._passport_document(
+                    stable_id, version, visibility="public"
+                )
+        self.passport = cast(dict[str, JsonValue], passport)
         self.passport_digest = digest_canonical("ai-stp:passport:v1", self.passport)
         self.source = "online"
         self.distribution_visibility = "public"
@@ -255,16 +258,20 @@ def _plan() -> Any:
     ).payload
 
 
-def test_distribution_planning_preserves_the_exact_immutable_setup_passport() -> None:
+def test_setup_is_private_by_default_and_publicization_is_explicit() -> None:
     _materialize()
 
     with closing(open_registry(configured_path(), create=False)) as connection:
-        public = setup_publication._setup_passport(connection, SETUP, SETUP_VERSION)
+        private = setup_publication._setup_passport(connection, SETUP, SETUP_VERSION)
+        public = setup_publication._setup_passport(
+            connection, SETUP, SETUP_VERSION, visibility="public"
+        )
         recorded = versions.held(connection, SETUP, SETUP_VERSION)
         assert recorded is not None
         stored = revisions.get(connection, recorded.revision_id)
 
-    assert public.visibility == "private"
+    assert private.visibility == "private"
+    assert public.visibility == "public"
     assert stored is not None
     assert stored.envelope.visibility == "private"
 

@@ -18,6 +18,8 @@ from ai_stp_contracts.auth import (
     OAuthProvider,
 )
 from ai_stp_contracts.catalog import (
+    CatalogAuthorListResponse,
+    CatalogAuthorOption,
     CatalogReactionList,
     CatalogReactionState,
     CatalogSupport,
@@ -32,6 +34,7 @@ from ai_stp_contracts.catalog import (
     ComponentSummary,
     ComponentVersionResponse,
     GitHubMetadata,
+    PrivateVersionResponse,
     PublicLifecycle,
     SetupContextBudget,
     SetupContextBudgetQuery,
@@ -42,6 +45,7 @@ from ai_stp_contracts.catalog import (
     SetupVersionResponse,
     SupportState,
     SupportTier,
+    VerificationFilter,
     VersionListEntry,
 )
 from ai_stp_contracts.health import (
@@ -101,6 +105,8 @@ __all__ = [
     "SCHEMA_VERSION_HEADER",
     "AccountPrivacyUpdate",
     "AccountProfile",
+    "CatalogAuthorListResponse",
+    "CatalogAuthorOption",
     "CatalogReactionList",
     "CatalogReactionState",
     "CatalogSupport",
@@ -137,6 +143,7 @@ __all__ = [
     "OAuthProvider",
     "PageInfo",
     "PageSize",
+    "PrivateVersionResponse",
     "PublicLifecycle",
     "ReadinessChecks",
     "ReadinessResponse",
@@ -150,6 +157,7 @@ __all__ = [
     "SupportState",
     "SupportTier",
     "Timestamp",
+    "VerificationFilter",
     "VersionListEntry",
     "http_status_for",
     "strict_request_object",

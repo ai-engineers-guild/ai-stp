@@ -7,6 +7,7 @@ import io
 import zipfile
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
+from typing import cast
 
 import pytest
 import pytest_asyncio
@@ -66,6 +67,8 @@ ARTIFACT_BY_DIGEST = {
     DIGEST: CLEAN_ARTIFACT,
     DIGEST2: CLEAN_ARTIFACT_B,
 }
+PROJECTION_ARTIFACT = b"codex projection bytes"
+PROJECTION_DIGEST = digest_bytes(ARTIFACT_DIGEST_DOMAIN, PROJECTION_ARTIFACT)
 
 
 @pytest.fixture(autouse=True)
@@ -128,6 +131,7 @@ def _passport(
     version: str = "1.0",
     digest: str = DIGEST,
     requires_credentials: bool = False,
+    extra_projection: bool = False,
 ) -> dict[str, object]:
     payload = ARTIFACT_BY_DIGEST.get(digest, CLEAN_ARTIFACT)
     passport: dict[str, object] = {
@@ -171,6 +175,14 @@ def _passport(
             "plugins": [],
         },
     }
+    if extra_projection:
+        adaptations = cast(list[object], passport["adaptations"])
+        extra = adaptation_fields(
+            digest=PROJECTION_DIGEST,
+            size=len(PROJECTION_ARTIFACT),
+            harness_id="codex",
+        )["adaptations"]
+        passport["adaptations"] = [*adaptations, *cast(list[object], extra)]
     passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]
     return passport
 
@@ -509,7 +521,69 @@ async def test_publication_plan_confirm_validate_publish(
         plan_row = await db.get(PublicationPlan, plan2["plan_id"])
         assert plan_row is not None
         # publish handler fails with different digest → failed or stuck publish_planned
-        assert plan_row.state in {"failed", "publish_planned", "published"}
+    assert plan_row.state in {"failed", "publish_planned", "published"}
+
+
+async def test_publication_requires_every_declared_projection_artifact(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = harness
+    account_id, device_id, token = await _seed_account_device(sessionmaker)
+    passport = _passport(owner_id=account_id, version="4.0", extra_projection=True)
+    create = await client.post(
+        "/v1/publications/plans",
+        headers=_auth(token),
+        json={
+            "schema_version": 1,
+            "object_kind": "component",
+            "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "version": "4.0",
+            "content_digest": DIGEST,
+            "policy_version": "1",
+            "passport": passport,
+            "attestations": [],
+            "idempotency_key": "projection-plan-0001",
+            "device_id": device_id,
+        },
+    )
+    assert create.status_code == 201, create.text
+    plan = create.json()
+
+    await _bind_plan_bytes(client, token, plan["plan_id"], CLEAN_ARTIFACT)
+    missing = await client.post(
+        f"/v1/publications/plans/{plan['plan_id']}/confirm",
+        headers=_auth(token),
+        json={
+            "schema_version": 1,
+            "plan_hash": plan["plan_hash"],
+            "confirmed": True,
+            "idempotency_key": "projection-confirm-0001",
+        },
+    )
+    assert missing.status_code == 400
+    assert missing.json()["error"]["message"] == (
+        "publication projection artifact bytes are not bound"
+    )
+
+    bound = await client.put(
+        f"/v1/publications/plans/{plan['plan_id']}/artifacts/{PROJECTION_DIGEST}",
+        headers={**_auth(token), "Content-Type": "application/octet-stream"},
+        content=PROJECTION_ARTIFACT,
+    )
+    assert bound.status_code == 200, bound.text
+
+    confirmed = await client.post(
+        f"/v1/publications/plans/{plan['plan_id']}/confirm",
+        headers=_auth(token),
+        json={
+            "schema_version": 1,
+            "plan_hash": plan["plan_hash"],
+            "confirmed": True,
+            "idempotency_key": "projection-confirm-0002",
+        },
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["state"] == "validating"
 
 
 async def test_publication_rejects_invalid_device_and_publishes_warning(

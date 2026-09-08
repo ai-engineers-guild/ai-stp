@@ -804,6 +804,84 @@
         "status": "estimated",
         "reason": null
       }
+    },
+    {
+      "case_id": "listCatalogAuthors.empty",
+      "operation_id": "listCatalogAuthors",
+      "kind": "positive",
+      "why": "An empty catalog has no author filter options.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": []
+      }
+    },
+    {
+      "case_id": "readPrivateComponentVersion.authorized",
+      "operation_id": "readPrivateComponentVersion",
+      "kind": "positive",
+      "why": "An authenticated owner or exact-major grantee receives the private passport only after authorization.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "visibility": "private",
+          "revision_id": "revision_73513aa9c3b143b808cf6b5ee921a3d83ed32d942ca4b12471f618dcdf1e428f"
+        },
+        "passport_digest": "sha256:9e70631a56fb56d2afea8d84b5ade17cbc44655bcd0bec386d53c1ad1bb27b18",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "visibility": "private"
+      }
+    },
+    {
+      "case_id": "readPrivateSetupVersion.authorized",
+      "operation_id": "readPrivateSetupVersion",
+      "kind": "positive",
+      "why": "Private setup metadata follows the same owner or exact-major grant boundary as its artifact.",
+      "request": {
+        "path_params": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "passport": {
+          "schema_version": 1,
+          "kind": "setup",
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "visibility": "private",
+          "revision_id": "revision_96d95c341c106f702f57d6d3f7cef9ca3680da5286c3f5b5d971e52927bafaf4"
+        },
+        "passport_digest": "sha256:3c81d91ab53f6739f77a641bd70a599e17e8c5bfb505a99d9761ba0ae54b462c",
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "experimental",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "visibility": "private"
+      }
     }
   ]
 }

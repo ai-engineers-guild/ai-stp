@@ -47,6 +47,46 @@ describe("parseCatalogSearchParams", () => {
     }
   });
 
+  it("narrows mixed resource reads for component-only filters", () => {
+    const byType = parseCatalogSearchParams({
+      resource: ["components", "setups"],
+      component_types: "skill",
+    });
+    const bySafety = parseCatalogSearchParams({
+      resource: "all",
+      min_safety_percent: "90",
+    });
+    expect(byType.ok && byType.value.resource).toBe("components");
+    expect(bySafety.ok && bySafety.value.resource).toBe("components");
+    expect(bySafety.ok && bySafety.value.minSafetyPercent).toBe(90);
+  });
+
+  it("parses verification and safety filters with bounded values", () => {
+    const parsed = parseCatalogSearchParams({
+      verification: ["not_verified", "verified", "verified"],
+      min_safety_percent: "85",
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.verification).toEqual(["not_verified", "verified"]);
+    expect(catalogQueryToRecord(parsed.value)).toMatchObject({
+      verification: "not_verified,verified",
+      min_safety_percent: "85",
+    });
+    expect(countAppliedFilters(parsed.value)).toBe(3);
+  });
+
+  it("rejects unknown verification and safety thresholds", () => {
+    const parsed = parseCatalogSearchParams({
+      verification: "maybe",
+      min_safety_percent: "80",
+    });
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.invalidSupport).toEqual(["verification=maybe", "min_safety_percent=80"]);
+    }
+  });
+
   it("accepts known keys and tag facets", () => {
     const result = parseCatalogSearchParams({
       q: "python",

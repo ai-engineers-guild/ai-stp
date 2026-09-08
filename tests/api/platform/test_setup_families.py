@@ -117,6 +117,7 @@ async def test_owner_family_create_keeps_setup_identity(
     body = created.json()
     assert body["created_from"] == "owner"
     assert {item["stable_id"] for item in body["members"]} == {claude_id, codex_id}
+    assert {item["name"] for item in body["members"]} == {"claude-code-setup", "codex-setup"}
     assert "install" not in created.text.lower()
 
     async with sessionmaker() as db:

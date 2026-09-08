@@ -13,9 +13,12 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_contracts.catalog import (
+    CatalogAuthorListResponse,
+    CatalogAuthorOption,
     CatalogPageInfo,
     CatalogReactionList,
     CatalogReactionState,
+    CatalogTrust,
     CatalogUsageMetrics,
     ComponentDetail,
     ComponentListResponse,
@@ -32,6 +35,7 @@ from ai_stp_contracts.catalog import (
     ExternalProductSummary,
     GitHubMetadata,
     LikedCatalogItem,
+    PrivateVersionResponse,
     SetupDetail,
     SetupListResponse,
     SetupSearchRequest,
@@ -41,6 +45,7 @@ from ai_stp_contracts.catalog import (
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.safety_checks import SafetyChecksSummary
 from ai_stp_contracts.tag_vocabulary import TagVocabularyResponse, tag_vocabulary_response
+from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_passports.versions import ComponentVersionPassport, SetupVersionPassport
 from ai_stp_platform.catalog_assessments import (
     load_effective_assessments,
@@ -63,6 +68,7 @@ from ai_stp_platform.catalog_projection import (
     setup_detail,
     setup_summary,
     setup_version_response,
+    verify_passport_integrity,
 )
 from ai_stp_platform.catalog_query_language import QuerySyntaxError, parse_query
 from ai_stp_platform.catalog_read import (
@@ -90,9 +96,12 @@ from ai_stp_platform.models import (
     CatalogExternalProduct,
     CatalogMetadata,
     CatalogReaction,
+    CatalogSearchProjection,
     ComponentMedia,
     ExternalProduct,
     ExternalProductCountry,
+    ProfileRevision,
+    PublicProfile,
 )
 
 _log = get_logger("catalog")
@@ -279,6 +288,46 @@ async def list_external_products(session: AsyncSession) -> ExternalProductListRe
         by_product.setdefault(row.external_product_id, []).append(row.country_code)
     return ExternalProductListResponse(
         items=[_product_summary(row, by_product.get(row.id, [])) for row in products]
+    )
+
+
+async def list_catalog_authors(session: AsyncSession) -> CatalogAuthorListResponse:
+    """List labels backed only by active public catalog objects and profiles."""
+    account_ids = list(
+        (
+            await session.execute(
+                select(CatalogSearchProjection.owner_account_id)
+                .where(CatalogSearchProjection.lifecycle_state == "active")
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not account_ids:
+        return CatalogAuthorListResponse()
+    profile_rows = (
+        await session.execute(
+            select(PublicProfile.account_id, ProfileRevision.display_name)
+            .join(ProfileRevision, ProfileRevision.id == PublicProfile.published_revision_id)
+            .where(PublicProfile.account_id.in_(account_ids))
+        )
+    ).all()
+    names = {account_id: name for account_id, name in profile_rows if name}
+
+    def sort_key(account_id: str) -> tuple[int, str, str]:
+        label = names.get(account_id, account_id)
+        first = label[:1]
+        bucket = (
+            0 if first.isascii() and first.isalpha() else 1 if "\u0400" <= first <= "\u04ff" else 2
+        )
+        return bucket, label.casefold(), account_id
+
+    return CatalogAuthorListResponse(
+        items=[
+            CatalogAuthorOption(account_id=account_id, display_name=names.get(account_id))
+            for account_id in sorted(account_ids, key=sort_key)
+        ]
     )
 
 
@@ -530,7 +579,9 @@ async def search_components(
         harness_ids=list(request.harness_ids),
         component_types=list(request.component_types),
         authors=list(request.authors),
+        verification=list(request.verification),
         verified_only=request.verified_only,
+        min_safety_percent=request.min_safety_percent,
         sort=request.sort,
         sort_direction=request.sort_direction,
         support_tier=request.support_tier,
@@ -596,7 +647,9 @@ async def search_setups(
         harness_ids=list(request.harness_ids),
         component_types=[],
         authors=list(request.authors),
+        verification=list(request.verification),
         verified_only=request.verified_only,
+        min_safety_percent=request.min_safety_percent,
         sort=request.sort,
         sort_direction=request.sort_direction,
         support_tier=request.support_tier,
@@ -834,6 +887,63 @@ async def read_component_version(
         raise _corrupt(exc, object_kind="component", stable_id=stable_id, version=version) from exc
 
 
+async def read_private_version_document(
+    session: AsyncSession,
+    *,
+    object_kind: ObjectKind,
+    stable_id: str,
+    version: str,
+    account_id: str,
+) -> PrivateVersionResponse:
+    """Return only the exact private passport after platform authorization."""
+    metadata = await get_visible_metadata(
+        session,
+        object_kind=object_kind,
+        stable_id=stable_id,
+        version=version,
+        account_id=account_id,
+    )
+    if (
+        metadata is None
+        or metadata.visibility != "private"
+        or metadata.lifecycle_state not in {"active", "deprecated"}
+        or metadata.published_at is None
+        or not isinstance(metadata.passport_document, dict)
+        or not metadata.passport_digest
+        or not metadata.trust_lane
+    ):
+        raise CatalogNotFound
+    row = PublicVersionRow(
+        metadata=metadata,
+        passport=dict(metadata.passport_document),
+        passport_digest=metadata.passport_digest,
+        published_at=metadata.published_at,
+        trust_lane=metadata.trust_lane,
+        author_verified=bool(metadata.author_verified),
+        component_verified=bool(metadata.component_verified),
+        lifecycle=metadata.lifecycle_state,
+        stable_id=stable_id,
+        version=version,
+        object_kind=object_kind,
+        support_evidence=list(metadata.support_evidence or []),
+    )
+    try:
+        verify_passport_integrity(row, allow_private=True)
+    except CatalogIntegrityError as exc:
+        raise _corrupt(exc, object_kind=object_kind, stable_id=stable_id, version=version) from exc
+    return PrivateVersionResponse(
+        passport=row.passport,
+        passport_digest=row.passport_digest,
+        lifecycle=cast(Literal["active", "deprecated"], row.lifecycle),
+        trust=CatalogTrust(
+            trust_lane=cast(Literal["authoritative", "experimental"], row.trust_lane),
+            author_verified=row.author_verified,
+            component_verified=row.component_verified,
+        ),
+        published_at=format_timestamp(row.published_at),
+    )
+
+
 async def read_setup_version(
     session: AsyncSession, stable_id: str, version: str
 ) -> SetupVersionResponse:
@@ -906,6 +1016,16 @@ async def read_github_metadata(
         version=version,
         account_id=account_id,
     )
+    if row is None and account_id is not None:
+        row = await session.scalar(
+            select(CatalogMetadata).where(
+                CatalogMetadata.owner_account_id == account_id,
+                CatalogMetadata.object_kind == object_kind,
+                CatalogMetadata.stable_id == stable_id,
+                CatalogMetadata.version == version,
+                CatalogMetadata.visibility == "private",
+            )
+        )
     if row is None:
         raise CatalogNotFound
     repository = repository_from_passport(row.passport_document)
@@ -925,7 +1045,9 @@ async def _search(
     harness_ids: list[str],
     component_types: list[str],
     authors: list[str],
+    verification: list[str],
     verified_only: bool,
+    min_safety_percent: int | None,
     sort: str,
     sort_direction: str,
     support_tier: str | None,
@@ -963,7 +1085,9 @@ async def _search(
         harness_ids=harness_ids,
         component_types=component_types,
         authors=authors,
+        verification=verification,
         verified_only=verified_only,
+        min_safety_percent=min_safety_percent,
         sort=sort,
         sort_direction=sort_direction,
         support_tier=support_tier,
@@ -1002,7 +1126,9 @@ async def _search(
         harness_ids=harness_ids,
         component_types=component_types,
         authors=authors,
+        verification=verification,
         verified_only=verified_only,
+        min_safety_percent=min_safety_percent,
         sort=sort,
         sort_direction=sort_direction,
         support_tier=support_tier,

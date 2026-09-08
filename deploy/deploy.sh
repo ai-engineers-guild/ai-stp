@@ -115,6 +115,11 @@ record_deploy_stage "${COMMIT}" "dependencies_started"
 compose run --rm migrate
 log info "migrate_ok"
 record_deploy_stage "${COMMIT}" "migrated"
+# Copies old unscoped objects into the two owner-scoped buckets. It is
+# idempotent and deliberately leaves the legacy bytes for rollback.
+compose run --rm --no-deps api python -m ai_stp_platform.storage.migrate
+log info "storage_migrate_ok"
+record_deploy_stage "${COMMIT}" "storage_migrated"
 compose run --rm seed
 log info "seed_ok"
 record_deploy_stage "${COMMIT}" "seeded"
