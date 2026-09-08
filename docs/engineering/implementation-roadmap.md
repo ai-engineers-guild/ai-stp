@@ -48,6 +48,13 @@ publication journeys; complete variant/native evidence and artifact-bound estate
 qualification. Each change is checked against its canonical contract before a
 subsequent coordinated release.
 
+The post-broadcast publication repair promotes an existing owned draft through
+the validated materialization path and preserves published lifecycle/visibility
+on replay. Setup ownership is checked across versions in the API and worker;
+concurrent first catalog writes establish one owner. The affected PostgreSQL,
+API and publication regression suite passed 78 tests. These repairs do not
+replace the remaining live publication/grant evidence.
+
 Confirmed repairs include mismatched private wire models, missing visibility
 routes, artifact resealing of an existing X.Y, unchecked projection bind answers,
 updater false rollback success and interrupted-update reconciliation. The estate
