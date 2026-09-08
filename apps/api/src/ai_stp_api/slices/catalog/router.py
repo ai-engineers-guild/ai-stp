@@ -24,6 +24,7 @@ from ai_stp_api.slices.catalog.artifact_service import (
 from ai_stp_contracts.catalog import (
     CATALOG_UNSPECIFIED_FILTER,
     ComponentSearchRequest,
+    PrivateVersionResponse,
     SetupContextBudgetQuery,
     SetupSearchRequest,
 )
@@ -134,7 +135,9 @@ _COMPONENT_SEARCH_KEYS = frozenset(
         "harness_ids",
         "component_types",
         "authors",
+        "verification",
         "verified_only",
+        "min_safety_percent",
         "sort",
         "sort_direction",
         "support_tier",
@@ -160,7 +163,9 @@ _SETUP_SEARCH_KEYS = frozenset(
         "harness_id",
         "harness_ids",
         "authors",
+        "verification",
         "verified_only",
+        "min_safety_percent",
         "sort",
         "sort_direction",
         "support_tier",
@@ -244,6 +249,13 @@ async def list_external_products(
     return _resource(request, await service.list_external_products(db))
 
 
+@router.get("/catalog/authors", response_model=None)
+async def list_catalog_authors(
+    request: Request, db: Annotated[AsyncSession, Depends(get_db)]
+) -> JSONResponse:
+    return _resource(request, await service.list_catalog_authors(db))
+
+
 @router.get("/catalog/services/{domain}", response_model=None)
 async def read_external_product(
     request: Request, domain: str, db: Annotated[AsyncSession, Depends(get_db)]
@@ -282,7 +294,9 @@ def _component_search_request(
     harness_ids: Annotated[list[str] | None, Query()] = None,
     component_types: Annotated[list[str] | None, Query()] = None,
     authors: Annotated[list[str] | None, Query()] = None,
+    verification: Annotated[list[str] | None, Query()] = None,
     verified_only: Annotated[bool, Query()] = False,
+    min_safety_percent: Annotated[int | None, Query()] = None,
     sort: Annotated[str, Query()] = "relevance",
     sort_direction: Annotated[str, Query()] = "desc",
     support_tier: Annotated[str | None, Query()] = None,
@@ -309,7 +323,9 @@ def _component_search_request(
             harness_ids=list(harness_ids or []),  # type: ignore[arg-type]
             component_types=list(component_types or []),  # type: ignore[arg-type]
             authors=list(authors or []),
+            verification=list(verification or []),  # type: ignore[arg-type]
             verified_only=verified_only,
+            min_safety_percent=min_safety_percent,  # type: ignore[arg-type]
             sort=sort,  # type: ignore[arg-type]
             sort_direction=sort_direction,  # type: ignore[arg-type]
             support_tier=support_tier,  # type: ignore[arg-type]
@@ -341,7 +357,9 @@ def _setup_search_request(
     harness_id: Annotated[str | None, Query()] = None,
     harness_ids: Annotated[list[str] | None, Query()] = None,
     authors: Annotated[list[str] | None, Query()] = None,
+    verification: Annotated[list[str] | None, Query()] = None,
     verified_only: Annotated[bool, Query()] = False,
+    min_safety_percent: Annotated[int | None, Query()] = None,
     sort: Annotated[str, Query()] = "relevance",
     sort_direction: Annotated[str, Query()] = "desc",
     support_tier: Annotated[str | None, Query()] = None,
@@ -369,7 +387,9 @@ def _setup_search_request(
             harness_id=harness_id,  # type: ignore[arg-type]
             harness_ids=list(harness_ids or []),  # type: ignore[arg-type]
             authors=list(authors or []),
+            verification=list(verification or []),  # type: ignore[arg-type]
             verified_only=verified_only,
+            min_safety_percent=min_safety_percent,  # type: ignore[arg-type]
             sort=sort,  # type: ignore[arg-type]
             sort_direction=sort_direction,  # type: ignore[arg-type]
             support_tier=support_tier,  # type: ignore[arg-type]
@@ -507,6 +527,37 @@ async def read_component_version(
     return _resource(request, result)
 
 
+@router.get(
+    "/catalog/components/{stable_id}/versions/{version}/private",
+    response_model=PrivateVersionResponse,
+)
+async def read_private_component_version(
+    request: Request,
+    stable_id: str,
+    version: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    """Return an authorized private passport for CLI acquisition."""
+    stable_id = require_component_id(stable_id)
+    version = require_version(version)
+    try:
+        result = await service.read_private_version_document(
+            db,
+            object_kind="component",
+            stable_id=stable_id,
+            version=version,
+            account_id=ctx.account_id,
+        )
+    except service.CatalogNotFound as exc:
+        raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
+    except service.CatalogCorrupt as exc:
+        raise ApiError(
+            ErrorCategory.CATALOG_INTEGRITY, "catalog version failed integrity verification"
+        ) from exc
+    return _resource(request, result)
+
+
 @router.get("/catalog/components/{stable_id}/versions/{version}/checks", response_model=None)
 async def read_component_version_checks(
     request: Request,
@@ -533,6 +584,7 @@ async def read_component_artifact(
     version: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> StreamingResponse:
     """Return verified component bytes without exposing the opaque object key."""
     stable_id = require_component_id(stable_id)
@@ -545,6 +597,7 @@ async def read_component_artifact(
             object_kind="component",
             stable_id=stable_id,
             version=version,
+            account_id=ctx.account_id if ctx is not None else None,
         )
         await _count_artifact_download(request, db, stable_id)
     except ArtifactNotFound as exc:
@@ -640,6 +693,37 @@ async def read_setup_version(
     return _resource(request, result)
 
 
+@router.get(
+    "/catalog/setups/{stable_id}/versions/{version}/private",
+    response_model=PrivateVersionResponse,
+)
+async def read_private_setup_version(
+    request: Request,
+    stable_id: str,
+    version: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> JSONResponse:
+    """Return an authorized private passport for CLI acquisition."""
+    stable_id = require_setup_id(stable_id)
+    version = require_version(version)
+    try:
+        result = await service.read_private_version_document(
+            db,
+            object_kind="setup",
+            stable_id=stable_id,
+            version=version,
+            account_id=ctx.account_id,
+        )
+    except service.CatalogNotFound as exc:
+        raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc
+    except service.CatalogCorrupt as exc:
+        raise ApiError(
+            ErrorCategory.CATALOG_INTEGRITY, "catalog version failed integrity verification"
+        ) from exc
+    return _resource(request, result)
+
+
 @router.get("/catalog/setups/{stable_id}/versions/{version}/checks", response_model=None)
 async def read_setup_version_checks(
     request: Request,
@@ -666,6 +750,7 @@ async def read_setup_artifact(
     version: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> StreamingResponse:
     """Return verified setup bytes without exposing the opaque object key."""
     stable_id = require_setup_id(stable_id)
@@ -678,6 +763,7 @@ async def read_setup_artifact(
             object_kind="setup",
             stable_id=stable_id,
             version=version,
+            account_id=ctx.account_id if ctx is not None else None,
         )
         await _count_artifact_download(request, db, stable_id)
     except ArtifactNotFound as exc:

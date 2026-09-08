@@ -675,8 +675,9 @@ async def test_execute_publish_keeps_axes_and_caps_embedded_at_experimental(
     monkeypatch.setattr("ai_stp_platform.publication_logic.enqueue", AsyncMock())
     monkeypatch.setattr("ai_stp_platform.seo.enqueue.enqueue_seo_build", AsyncMock())
     store = SimpleNamespace(
+        bucket="objects",
         read_by_digest=AsyncMock(return_value=frozen.payload),
-        key_for_digest=lambda value: f"objects/{value}",
+        key_for_digest=lambda value, **_: f"objects/{value}",
     )
     published = await execute_publish(
         session, plan_id=plan.id, store=cast(ImmutableObjectStore, store)

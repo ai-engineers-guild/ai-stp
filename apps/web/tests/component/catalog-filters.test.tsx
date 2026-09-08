@@ -46,6 +46,8 @@ const labels = {
   typeFilterHelp: "Help for component types",
   authorFilterHelp: "Help for authors",
   verifiedOnlyHelp: "Help for verified only",
+  verificationHelp: "Help for verification",
+  safetyPercentHelp: "Help for safety checks",
   countryFilterHelp: "Help for countries",
   serviceFilterHelp: "Help for services",
   updatedRangeHelp: "Help for update dates",
@@ -80,7 +82,9 @@ function query(overrides: Partial<ParsedCatalogQuery> = {}): ParsedCatalogQuery 
     harnessIds: [],
     componentTypes: [],
     authors: [],
+    verification: [],
     verifiedOnly: false,
+    minSafetyPercent: undefined,
     sort: "relevance",
     sortDirection: "desc",
     view: "list",
@@ -100,8 +104,8 @@ describe("CatalogFilters", () => {
     expect(screen.queryByRole("navigation", { name: "Catalog resource" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Reset all" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    expect(screen.getByRole("combobox", { name: "Catalog resource" })).toHaveValue("components");
-    expect(screen.getByRole("option", { name: "Both" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Components" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Setups" })).not.toBeChecked();
     await user.click(screen.getByRole("button", { name: "Search" }));
     expect(screen.getByRole("button", { name: "Filters" })).toBeInTheDocument();
   });
@@ -120,7 +124,7 @@ describe("CatalogFilters", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: /^Filters/ }));
-    expect(screen.getByRole("combobox", { name: "Catalog resource" })).toHaveValue("components");
+    expect(screen.getByRole("checkbox", { name: "Components" })).toBeChecked();
     expect(screen.queryByRole("checkbox", { name: /Include experimental/i })).toBeNull();
     expect(screen.getByRole("group", { name: /Tag/ })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Harness" })).toBeInTheDocument();
@@ -148,7 +152,7 @@ describe("CatalogFilters", () => {
     );
     await user.click(screen.getByRole("button", { name: /^Filters/ }));
     expect(screen.queryByLabelText("Component type")).toBeNull();
-    expect(screen.getByRole("combobox", { name: "Catalog resource" })).toHaveValue("setups");
+    expect(screen.getByRole("checkbox", { name: "Setups" })).toBeChecked();
   });
 
   it("shows applied filter count and dismissible chips with reset in the popup", async () => {
@@ -170,7 +174,7 @@ describe("CatalogFilters", () => {
     expect(screen.getByRole("link", { name: /security/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /codex/i })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Filters (4)" }));
-    expect(screen.getByRole("link", { name: "Reset all" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset all" })).toBeInTheDocument();
   });
 
   it("opens separate sort and view popup controls", async () => {
@@ -349,7 +353,7 @@ describe("CatalogFilters", () => {
     expect(screen.getByRole("checkbox", { name: "codex" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "skill" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /Only verified/ })).toBeChecked();
-    expect(screen.getByRole("searchbox", { name: /Author/ })).toHaveValue("alice");
+    expect(screen.getByRole("checkbox", { name: "alice" })).toBeChecked();
     expect(screen.queryByRole("combobox", { name: "Support tier" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Support state" })).toBeNull();
   });
@@ -371,7 +375,7 @@ describe("CatalogFilters", () => {
     );
     expect(surface).toContainElement(document.activeElement as HTMLElement);
     expect(within(surface).getByRole("button", { name: "Close" })).toBeInTheDocument();
-    expect(within(surface).getByRole("combobox", { name: "Catalog resource" })).toBeInTheDocument();
+    expect(within(surface).getByRole("checkbox", { name: "Components" })).toBeInTheDocument();
     expect(within(surface).getByRole("group", { name: /Tag/ })).toBeInTheDocument();
     expect(within(surface).getByRole("group", { name: "Harness" })).toBeInTheDocument();
     expect(within(surface).getByRole("searchbox", { name: /Author/ })).toBeInTheDocument();
@@ -413,7 +417,7 @@ describe("CatalogFilters", () => {
     expect(screen.getByRole("link", { name: /Updated from: 2026-01-01/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Updated to: 2026-01-31/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^Filters/ }));
-    expect(screen.getByRole("option", { name: "Both" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Components" })).toBeInTheDocument();
     const from = screen.getByLabelText("Updated from");
     await user.clear(from);
     await user.type(from, "2026-02-01");
@@ -477,7 +481,8 @@ describe("CatalogFilters", () => {
         "Help for harnesses",
         "Help for component types",
         "Help for authors",
-        "Help for verified only",
+        "Help for verification",
+        "Help for safety checks",
         "Help for countries",
         "Help for services",
         "Help for update dates",
@@ -494,6 +499,8 @@ describe("CatalogFilters", () => {
     delete (fallbackLabels as Partial<typeof labels>).typeFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).authorFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).verifiedOnlyHelp;
+    delete (fallbackLabels as Partial<typeof labels>).verificationHelp;
+    delete (fallbackLabels as Partial<typeof labels>).safetyPercentHelp;
     delete (fallbackLabels as Partial<typeof labels>).countryFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).serviceFilterHelp;
     delete (fallbackLabels as Partial<typeof labels>).updatedRangeHelp;

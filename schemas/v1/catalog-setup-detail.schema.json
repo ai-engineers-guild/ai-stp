@@ -897,6 +897,12 @@
           ],
           "default": null
         },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
         "passport_digest": {
           "anyOf": [
             {
@@ -934,6 +940,7 @@
         "exact_version",
         "harness_id",
         "latest_version",
+        "name",
         "passport_digest",
         "ported_from",
         "schema_version",

@@ -24,6 +24,16 @@ def test_validate_component_media_upload_allowlist() -> None:
         validate_component_media_upload(
             content_type="video/webm", size_bytes=COMPONENT_MEDIA_MAX_BYTES + 1
         )
+    with pytest.raises(ValueError, match="magic"):
+        validate_component_media_upload(
+            content_type="image/png", size_bytes=3, payload=b"not-an-image"
+        )
+    assert (
+        validate_component_media_upload(
+            content_type="image/png", size_bytes=8, payload=b"\x89PNG\r\n\x1a\n"
+        )
+        == "image"
+    )
 
 
 def test_owner_presentation_media_accepts_upload_and_github() -> None:

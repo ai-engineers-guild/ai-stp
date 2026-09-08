@@ -986,6 +986,63 @@
         "title": "CapabilitySnapshot",
         "type": "object"
       },
+      "CatalogAuthorListResponse": {
+        "additionalProperties": true,
+        "description": "All authors with at least one active public catalog object.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogAuthorOption"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "schema_version"
+        ],
+        "title": "CatalogAuthorListResponse",
+        "type": "object"
+      },
+      "CatalogAuthorOption": {
+        "additionalProperties": true,
+        "description": "One public author available in the catalog filter.",
+        "properties": {
+          "account_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Account Id",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Display Name"
+          }
+        },
+        "required": [
+          "account_id",
+          "display_name"
+        ],
+        "title": "CatalogAuthorOption",
+        "type": "object"
+      },
       "CatalogPageInfo": {
         "additionalProperties": true,
         "description": "Exact public web page metadata; never used for private enumeration.",
@@ -1341,7 +1398,7 @@
           },
           "details": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/JsonValue"
+              "$ref": "#/components/schemas/pydantic__types__JsonValue"
             },
             "title": "Details",
             "type": "object"
@@ -1992,6 +2049,17 @@
             "title": "Include Experimental",
             "type": "boolean"
           },
+          "min_safety_percent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SafetyPercent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "page": {
             "anyOf": [
               {
@@ -2109,6 +2177,14 @@
               }
             ],
             "default": null
+          },
+          "verification": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationFilter"
+            },
+            "maxItems": 2,
+            "title": "Verification",
+            "type": "array"
           },
           "verified_only": {
             "default": false,
@@ -4416,7 +4492,7 @@
             "type": "array"
           },
           "value": {
-            "$ref": "#/components/schemas/JsonValue"
+            "$ref": "#/components/schemas/pydantic__types__JsonValue"
           }
         },
         "required": [
@@ -4801,7 +4877,6 @@
         ],
         "type": "string"
       },
-      "JsonValue": {},
       "LegalOnboardingCompleteRequest": {
         "additionalProperties": false,
         "description": "Accept the exact two legal revisions required to activate an account.",
@@ -6389,6 +6464,59 @@
         "minLength": 1,
         "type": "string"
       },
+      "PrivateVersionResponse": {
+        "additionalProperties": true,
+        "description": "Exact private version metadata after owner/grant authorization.",
+        "properties": {
+          "lifecycle": {
+            "enum": [
+              "active",
+              "deprecated"
+            ],
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "passport": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ai_stp_foundation__canonical__JsonValue"
+            },
+            "title": "Passport",
+            "type": "object"
+          },
+          "passport_digest": {
+            "$ref": "#/components/schemas/PassportDigest"
+          },
+          "published_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "trust": {
+            "$ref": "#/components/schemas/CatalogTrust"
+          },
+          "visibility": {
+            "const": "private",
+            "default": "private",
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lifecycle",
+          "passport",
+          "passport_digest",
+          "published_at",
+          "schema_version",
+          "trust",
+          "visibility"
+        ],
+        "title": "PrivateVersionResponse",
+        "type": "object"
+      },
       "ProjectedMember": {
         "additionalProperties": false,
         "allOf": [
@@ -6653,6 +6781,14 @@
         "additionalProperties": false,
         "description": "POST /v1/publications/plans body.",
         "properties": {
+          "artifact_inventory": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Artifact Inventory",
+            "type": "array"
+          },
           "attestations": {
             "items": {
               "$ref": "#/components/schemas/AuthorAttestation"
@@ -6698,13 +6834,8 @@
             "$ref": "#/components/schemas/ai_stp_contracts__publication__Version"
           },
           "visibility": {
-            "default": "public",
-            "enum": [
-              "public",
-              "private"
-            ],
-            "title": "Visibility",
-            "type": "string"
+            "$ref": "#/components/schemas/PublicationVisibility",
+            "default": "private"
           }
         },
         "required": [
@@ -6725,6 +6856,14 @@
         "properties": {
           "actor_id": {
             "$ref": "#/components/schemas/AccountId"
+          },
+          "artifact_inventory": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Artifact Inventory",
+            "type": "array"
           },
           "component_verified": {
             "default": false,
@@ -6786,17 +6925,12 @@
             "$ref": "#/components/schemas/ai_stp_contracts__publication__Version"
           },
           "visibility": {
-            "default": "public",
-            "enum": [
-              "public",
-              "private"
-            ],
-            "title": "Visibility",
-            "type": "string"
+            "$ref": "#/components/schemas/PublicationVisibility"
           }
         },
         "required": [
           "actor_id",
+          "artifact_inventory",
           "component_verified",
           "content_digest",
           "device_id",
@@ -6815,6 +6949,13 @@
         ],
         "title": "PublicationPlanResponse",
         "type": "object"
+      },
+      "PublicationVisibility": {
+        "enum": [
+          "public",
+          "private"
+        ],
+        "type": "string"
       },
       "ReadinessChecks": {
         "additionalProperties": true,
@@ -7457,6 +7598,15 @@
         ],
         "title": "SafetyFindingSummary",
         "type": "object"
+      },
+      "SafetyPercent": {
+        "enum": [
+          75,
+          85,
+          90,
+          99
+        ],
+        "type": "integer"
       },
       "ScopeAdaptation": {
         "additionalProperties": false,
@@ -8903,6 +9053,12 @@
             ],
             "default": null
           },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
           "passport_digest": {
             "anyOf": [
               {
@@ -8940,6 +9096,7 @@
           "exact_version",
           "harness_id",
           "latest_version",
+          "name",
           "passport_digest",
           "ported_from",
           "schema_version",
@@ -9340,6 +9497,17 @@
             ],
             "default": null
           },
+          "min_safety_percent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SafetyPercent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "page": {
             "anyOf": [
               {
@@ -9457,6 +9625,14 @@
               }
             ],
             "default": null
+          },
+          "verification": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationFilter"
+            },
+            "maxItems": 2,
+            "title": "Verification",
+            "type": "array"
           },
           "verified_only": {
             "default": false,
@@ -11791,6 +11967,13 @@
         "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$",
         "type": "string"
       },
+      "VerificationFilter": {
+        "enum": [
+          "verified",
+          "not_verified"
+        ],
+        "type": "string"
+      },
       "VersionListEntry": {
         "additionalProperties": true,
         "description": "One offered version of an object, as listed on its card.\n\n\"Offered\", not \"every\": a hidden version is absent, which is why the list\nmakes no contiguity claim.",
@@ -11903,10 +12086,42 @@
         ],
         "type": "string"
       },
+      "ai_stp_foundation__canonical__JsonValue": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "$ref": "#/components/schemas/ai_stp_foundation__canonical__JsonValue"
+            },
+            "type": "array"
+          },
+          {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ai_stp_foundation__canonical__JsonValue"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "ai_stp_foundation__refs__Version": {
         "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
         "type": "string"
-      }
+      },
+      "pydantic__types__JsonValue": {}
     },
     "securitySchemes": {
       "bearerAuth": {
@@ -14524,6 +14739,131 @@
         "summary": "Read the outcome of the browser half of a sign-in."
       }
     },
+    "/v1/catalog/authors": {
+      "get": {
+        "operationId": "listCatalogAuthors",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "listCatalogAuthors.empty": {
+                    "summary": "An empty catalog has no author filter options.",
+                    "value": {
+                      "items": [],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogAuthorListResponse"
+                }
+              }
+            },
+            "description": "List authors with public catalog objects. Anonymous.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "List authors with public catalog objects. Anonymous."
+      }
+    },
     "/v1/catalog/components": {
       "get": {
         "operationId": "searchComponents",
@@ -14663,6 +15003,22 @@
               "default": false,
               "title": "Include Experimental",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_safety_percent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SafetyPercent"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
             }
           },
           {
@@ -14835,6 +15191,19 @@
                 }
               ],
               "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "verification",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VerificationFilter"
+              },
+              "maxItems": 2,
+              "title": "Verification",
+              "type": "array"
             }
           },
           {
@@ -16084,6 +16453,228 @@
         "summary": "Read on-demand GitHub stars and archive state for one exact component."
       }
     },
+    "/v1/catalog/components/{stable_id}/versions/{version}/private": {
+      "get": {
+        "operationId": "readPrivateComponentVersion",
+        "parameters": [
+          {
+            "description": "Typed stable identifier of the catalog object.",
+            "in": "path",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact two-integer version. A range or `latest` is not a reference.",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readPrivateComponentVersion.authorized": {
+                    "summary": "An authenticated owner or exact-major grantee receives the private passport only after authorization.",
+                    "value": {
+                      "lifecycle": "active",
+                      "passport": {
+                        "kind": "component",
+                        "revision_id": "revision_73513aa9c3b143b808cf6b5ee921a3d83ed32d942ca4b12471f618dcdf1e428f",
+                        "schema_version": 1,
+                        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.2",
+                        "visibility": "private"
+                      },
+                      "passport_digest": "sha256:9e70631a56fb56d2afea8d84b5ade17cbc44655bcd0bec386d53c1ad1bb27b18",
+                      "published_at": "2026-08-05T00:00:00.000Z",
+                      "schema_version": 1,
+                      "trust": {
+                        "author_verified": false,
+                        "component_verified": false,
+                        "trust_lane": "experimental"
+                      },
+                      "visibility": "private"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateVersionResponse"
+                }
+              }
+            },
+            "description": "Read one authorized private component version.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CATALOG_INTEGRITY, AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read one authorized private component version."
+      }
+    },
     "/v1/catalog/setup-families/{family_id}": {
       "get": {
         "operationId": "readSetupFamily",
@@ -16131,6 +16722,7 @@
                           "exact_version": "1.0",
                           "harness_id": "claude-code",
                           "latest_version": "1.0",
+                          "name": "fixture-family",
                           "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
                           "ported_from": null,
                           "schema_version": 1,
@@ -16420,6 +17012,22 @@
           },
           {
             "in": "query",
+            "name": "min_safety_percent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SafetyPercent"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
             "name": "page",
             "required": false,
             "schema": {
@@ -16588,6 +17196,19 @@
                 }
               ],
               "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "verification",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VerificationFilter"
+              },
+              "maxItems": 2,
+              "title": "Verification",
+              "type": "array"
             }
           },
           {
@@ -17758,6 +18379,228 @@
         },
         "security": [],
         "summary": "Read on-demand GitHub stars and archive state for one exact setup."
+      }
+    },
+    "/v1/catalog/setups/{stable_id}/versions/{version}/private": {
+      "get": {
+        "operationId": "readPrivateSetupVersion",
+        "parameters": [
+          {
+            "description": "Typed stable identifier of the catalog object.",
+            "in": "path",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact two-integer version. A range or `latest` is not a reference.",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readPrivateSetupVersion.authorized": {
+                    "summary": "Private setup metadata follows the same owner or exact-major grant boundary as its artifact.",
+                    "value": {
+                      "lifecycle": "active",
+                      "passport": {
+                        "kind": "setup",
+                        "revision_id": "revision_96d95c341c106f702f57d6d3f7cef9ca3680da5286c3f5b5d971e52927bafaf4",
+                        "schema_version": 1,
+                        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.2",
+                        "visibility": "private"
+                      },
+                      "passport_digest": "sha256:3c81d91ab53f6739f77a641bd70a599e17e8c5bfb505a99d9761ba0ae54b462c",
+                      "published_at": "2026-08-05T00:00:00.000Z",
+                      "schema_version": 1,
+                      "trust": {
+                        "author_verified": false,
+                        "component_verified": false,
+                        "trust_lane": "experimental"
+                      },
+                      "visibility": "private"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateVersionResponse"
+                }
+              }
+            },
+            "description": "Read one authorized private setup version.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CATALOG_INTEGRITY, AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read one authorized private setup version."
       }
     },
     "/v1/complaints": {
@@ -23048,6 +23891,9 @@
                     "summary": "Starting publication from an owned version returns a reviewable plan without browser passport composition.",
                     "value": {
                       "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "artifact_inventory": [
+                        "SKILL.md"
+                      ],
                       "component_verified": false,
                       "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                       "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -23337,6 +24183,7 @@
                           "exact_version": "1.0",
                           "harness_id": "claude-code",
                           "latest_version": "1.0",
+                          "name": "fixture-family",
                           "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
                           "ported_from": null,
                           "schema_version": 1,
@@ -23347,6 +24194,7 @@
                           "exact_version": "1.0",
                           "harness_id": "codex",
                           "latest_version": "1.0",
+                          "name": "codex-fixture-family",
                           "passport_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                           "ported_from": null,
                           "schema_version": 1,
@@ -23597,6 +24445,7 @@
                           "exact_version": "1.0",
                           "harness_id": "claude-code",
                           "latest_version": "1.0",
+                          "name": "fixture-family",
                           "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
                           "ported_from": null,
                           "schema_version": 1,
@@ -23850,6 +24699,7 @@
                           "exact_version": "1.0",
                           "harness_id": "claude-code",
                           "latest_version": "1.0",
+                          "name": "fixture-family",
                           "passport_digest": "sha256:18728b7a9da500da37ec83b45a7027093651a94fae5127f2cb488625dce08bbe",
                           "ported_from": null,
                           "schema_version": 1,
@@ -24587,6 +25437,9 @@
                 "createPublicationPlan.ready": {
                   "summary": "A complete passport plan is accepted and returns plan_hash without executing validation.",
                   "value": {
+                    "artifact_inventory": [
+                      "SKILL.md"
+                    ],
                     "attestations": [],
                     "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                     "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -24634,6 +25487,9 @@
                     "summary": "A complete passport plan is accepted and returns plan_hash without executing validation.",
                     "value": {
                       "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "artifact_inventory": [
+                        "SKILL.md"
+                      ],
                       "component_verified": false,
                       "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                       "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -24854,6 +25710,9 @@
                     "summary": "The owner reads back the plan they created.",
                     "value": {
                       "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "artifact_inventory": [
+                        "SKILL.md"
+                      ],
                       "component_verified": false,
                       "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                       "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -25087,6 +25946,9 @@
                     "summary": "Exact plan digest bytes are accepted and the plan stays ready until confirm.",
                     "value": {
                       "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "artifact_inventory": [
+                        "SKILL.md"
+                      ],
                       "component_verified": false,
                       "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                       "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -25104,7 +25966,7 @@
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
-                      "visibility": "public"
+                      "visibility": "private"
                     }
                   }
                 },
@@ -25292,6 +26154,278 @@
         "summary": "Bind exact artifact bytes to one publication plan."
       }
     },
+    "/v1/publications/plans/{plan_id}/artifacts/{projection_digest}": {
+      "put": {
+        "operationId": "bindPublicationProjectionArtifact",
+        "parameters": [
+          {
+            "description": "Publication plan identifier.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._~-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Declared projection artifact digest.",
+            "in": "path",
+            "name": "projection_digest",
+            "required": true,
+            "schema": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "bindPublicationProjectionArtifact.bound": {
+                    "summary": "An exact projection artifact bind returns the unchanged publication plan.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "artifact_inventory": [
+                        "SKILL.md"
+                      ],
+                      "component_verified": false,
+                      "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "validate",
+                        "publish_catalog_version"
+                      ],
+                      "evidence": [],
+                      "expires_at": "2026-08-09T00:00:00.000Z",
+                      "object_kind": "component",
+                      "plan_hash": "plan_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "policy_version": "1",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "ready",
+                      "version": "1.0",
+                      "visibility": "public"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationPlanResponse"
+                }
+              }
+            },
+            "description": "Bind one declared exact projection artifact to a publication plan.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Bind one declared exact projection artifact to a publication plan."
+      }
+    },
     "/v1/publications/plans/{plan_id}/confirm": {
       "post": {
         "operationId": "confirmPublicationPlan",
@@ -25356,6 +26490,9 @@
                     "summary": "Confirm with the exact plan_hash moves the plan to validating.",
                     "value": {
                       "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "artifact_inventory": [
+                        "SKILL.md"
+                      ],
                       "component_verified": false,
                       "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                       "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",

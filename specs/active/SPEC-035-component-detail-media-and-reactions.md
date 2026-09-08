@@ -1,6 +1,6 @@
 ---
 description: "Grouped component page, author media gallery, and reactions."
-last_verified: "2026-08-17"
+last_verified: "2026-09-07"
 ---
 
 # SPEC-035: Component page, media, and reactions
@@ -67,6 +67,10 @@ arbitrary embeds, and disclosure of the list of reacting accounts are excluded.
 - `REQ-3514`: An authenticated user sees their own reactions on a separate page,
   can navigate to it from the account menu, and can remove a reaction by repeating
   the action on the detail page. The list does not disclose other accounts' reactions.
+- `REQ-3515`: Component upload originals, quarantine objects, and processed
+  media use the asset bucket under the owning account and component namespace.
+  Replacing media creates a new verified object and changes presentation
+  metadata without changing or overwriting the immutable component artifact.
 
 ## States and errors
 
@@ -109,3 +113,4 @@ a zero `likes_count`.
 | `REQ-3512` | Locale parity, a11y, and desktop/mobile browser tests pass for detail and gallery. |
 | `REQ-3513` | API test changes the owner's bio/media, verifies passport immutability, and rejects another account. |
 | `REQ-3514` | API test verifies idempotent like, private list, and unlike; web test covers the page and menu link. |
+| `REQ-3515` | Storage tests reject a foreign owner/component namespace, keep quarantine private, replace only the metadata pointer, and leave artifact bytes unchanged. |

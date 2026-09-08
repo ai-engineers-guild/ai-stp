@@ -20,8 +20,11 @@ class S3ObjectClient:
         self._client: Any | None = None
 
     async def __aenter__(self) -> Self:
+        from botocore.config import Config  # type: ignore[import-untyped]
+
         self._cm = self._session.create_client(
             "s3",
+            config=Config(retries={"max_attempts": 4, "mode": "standard"}),
             region_name=self._settings.region,
             aws_access_key_id=self._settings.access_key_id,
             aws_secret_access_key=self._settings.secret_access_key,
@@ -48,7 +51,7 @@ class S3ObjectClient:
             raise RuntimeError("S3ObjectClient is not entered")
         return self._client
 
-    async def ensure_bucket(self) -> None:
+    async def ensure_bucket(self, bucket: str | None = None) -> None:
         """Create the configured bucket when a fresh RustFS/S3 instance has none.
 
         Raises ClientError with a clearer message when credentials are rejected
@@ -58,9 +61,9 @@ class S3ObjectClient:
         from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
         client = self._require()
+        bucket_name = bucket or self._settings.artifact_bucket_name
         try:
-            await client.head_bucket(Bucket=self._settings.bucket)
-            return
+            await client.head_bucket(Bucket=bucket_name)
         except ClientError as exc:
             err = cast(dict[str, Any], getattr(exc, "response", {}))
             code = str(err.get("Error", {}).get("Code", ""))
@@ -76,7 +79,7 @@ class S3ObjectClient:
                             "Code": "AccessDenied",
                             "Message": (
                                 f"HeadBucket forbidden for bucket "
-                                f"{self._settings.bucket!r} at "
+                                f"{bucket_name!r} at "
                                 f"{self._settings.endpoint}. Check that object-store "
                                 f"credentials match the storage service "
                                 f"(RUSTFS_ACCESS_KEY / AI_STP_STORAGE_ACCESS_KEY_ID)."
@@ -88,7 +91,27 @@ class S3ObjectClient:
                 ) from exc
             else:
                 raise
-        await client.create_bucket(Bucket=self._settings.bucket)
+            await client.create_bucket(Bucket=bucket_name)
+
+        # RustFS supports the standard S3 public-access-block API.  Apply it on
+        # every startup so a pre-existing bucket cannot silently retain a public
+        # policy from before the application was deployed.
+        await client.put_public_access_block(
+            Bucket=bucket_name,
+            PublicAccessBlockConfiguration={
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
+        )
+
+    async def ensure_buckets(self) -> None:
+        """Ensure both private application buckets exist."""
+        for bucket in dict.fromkeys(
+            (self._settings.artifact_bucket_name, self._settings.asset_bucket_name)
+        ):
+            await self.ensure_bucket(bucket)
 
     async def head_object(self, *, bucket: str, key: str) -> dict[str, object] | None:
         from botocore.exceptions import ClientError  # type: ignore[import-untyped]

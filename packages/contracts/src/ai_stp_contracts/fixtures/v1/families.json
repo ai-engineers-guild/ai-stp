@@ -25,6 +25,7 @@
         "members": [
           {
             "schema_version": 1,
+            "name": "fixture-family",
             "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "harness_id": "claude-code",
             "latest_version": "1.0",
@@ -61,6 +62,7 @@
         "members": [
           {
             "schema_version": 1,
+            "name": "fixture-family",
             "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "harness_id": "claude-code",
             "latest_version": "1.0",
@@ -118,6 +120,7 @@
         "members": [
           {
             "schema_version": 1,
+            "name": "fixture-family",
             "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "harness_id": "claude-code",
             "latest_version": "1.0",
@@ -128,6 +131,7 @@
           },
           {
             "schema_version": 1,
+            "name": "codex-fixture-family",
             "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3YC1",
             "harness_id": "codex",
             "latest_version": "1.0",
@@ -179,6 +183,7 @@
         "members": [
           {
             "schema_version": 1,
+            "name": "fixture-family",
             "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
             "harness_id": "claude-code",
             "latest_version": "1.0",

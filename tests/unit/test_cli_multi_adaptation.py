@@ -195,6 +195,11 @@ def test_release_freezes_two_adaptations_and_keeps_the_previous_version(tmp_path
         assert {member.path for member in codex.scope_adaptations[0].members} == {"AGENTS.md"}
         assert claude.adaptation_id != codex.adaptation_id
 
+        preserved, _preserved_revision = component_passports.materialize_version_passport(
+            connection, stored.stable_id, "1.1", device_id="device_test", at=CREATED
+        )
+        assert {item.harness_id for item in preserved.adaptations} == {"claude-code", "codex"}
+
         changed = b"# Codex instruction changed\n"
         content.put(connection, changed, at=CREATED)
         changed_digest = digest_bytes("ai-stp:artifact:v1", changed)

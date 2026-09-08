@@ -161,6 +161,7 @@ markers = [
     # needs AI_STP_TEST_DB_URL, and selection by marker must not drift from
     # what the fixtures actually require.
     "pg: requires PostgreSQL via AI_STP_TEST_DB_URL",
+    "s3: requires dedicated RustFS/S3 test buckets via AI_STP_TEST_S3_*",
 ]
 
 [tool.coverage.run]

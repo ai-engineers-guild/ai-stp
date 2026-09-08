@@ -1,7 +1,9 @@
 import { Badge } from "@/components/atoms/badge";
-import type { SetupFamilyPublic } from "@/lib/api/generated/types.gen";
+import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
+import type { SetupFamilyPublic, SetupRef } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
+import { Icon } from "@/theme";
 
 export type SetupFamilyLabels = {
   heading: string;
@@ -22,6 +24,17 @@ export type SetupFamilyLabels = {
   harness: string;
   portedFrom: string;
   browseFamily: string;
+  setup: string;
+  parent: string;
+  recast: string;
+  moreActions: string;
+  copyUrl: string;
+  copyCli: string;
+  copyId: string;
+  copied: string;
+  like: string;
+  unlike: string;
+  report: string;
 };
 
 export function setupFamilyLabels(t: (key: string) => string): SetupFamilyLabels {
@@ -44,19 +57,40 @@ export function setupFamilyLabels(t: (key: string) => string): SetupFamilyLabels
     harness: t("harness"),
     portedFrom: t("portedFrom"),
     browseFamily: t("browseFamily"),
+    setup: t("setupKind"),
+    parent: t("familyParent"),
+    recast: t("familyRecast"),
+    moreActions: t("moreActions"),
+    copyUrl: t("copyUrl"),
+    copyCli: t("copyCli"),
+    copyId: t("copyId"),
+    copied: t("copied"),
+    like: t("likeMenu"),
+    unlike: t("unlikeMenu"),
+    report: t("reportSetup"),
   };
 }
 
 export function SetupFamilyBlock({
   family,
   currentStableId,
+  portedFrom,
   labels,
 }: {
   family: SetupFamilyPublic | null;
   currentStableId: string;
+  portedFrom?: SetupRef | null;
   labels: SetupFamilyLabels;
 }) {
   if (!family || family.members.length === 0) return null;
+
+  const parentMember = portedFrom
+    ? family.members.find((member) => member.stable_id === portedFrom.stable_id)
+    : undefined;
+  const parentName = parentMember?.name ?? portedFrom?.stable_id;
+  const parentHref = portedFrom
+    ? `/catalog/setups/${portedFrom.stable_id}/versions/${portedFrom.version}`
+    : null;
 
   const ordered = [...family.members].sort((left, right) => {
     if (left.stable_id === currentStableId) return -1;
@@ -68,86 +102,100 @@ export function SetupFamilyBlock({
     <section
       data-ui={UI.catalog.setupFamily}
       aria-labelledby="setup-family-heading"
-      className="border-border min-w-0 space-y-4 rounded-lg border p-4"
+      className="border-border min-w-0 rounded-lg border"
     >
-      <div className="space-y-1">
-        <h2 id="setup-family-heading" className="font-semibold">
-          {labels.heading}
-        </h2>
-        <p className="text-muted-foreground text-sm">{labels.summary}</p>
-        <p className="text-sm">
-          {family.name} · {labels.members}: {family.members.length}
-        </p>
-        {family.current_member ? (
-          <p className="text-sm">
-            {labels.harness}: {family.current_member.harness_id}
+      <details className="group">
+        <summary className="focus-visible:ring-ring flex min-h-20 cursor-pointer list-none items-center gap-3 rounded-lg p-4 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0 flex-1 space-y-1">
+            <h2 id="setup-family-heading" className="font-semibold">
+              {labels.heading}
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              {currentStableId === family.baseline.stable_id ? labels.parent : labels.recast}
+              {" · "}
+              {labels.members}: {family.members.length}
+            </p>
+          </div>
+          <Icon
+            name="chevronDown"
+            size="sm"
+            className="shrink-0 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        {portedFrom && parentName && parentHref ? (
+          <p className="border-border text-muted-foreground border-t px-4 py-3 text-sm">
+            {labels.portedFrom}:{" "}
+            <Link
+              href={parentHref}
+              className="text-foreground font-medium underline-offset-4 hover:underline"
+              prefetch={false}
+            >
+              {parentName}
+            </Link>
+            <span className="text-muted-foreground"> @{portedFrom.version}</span>
           </p>
         ) : null}
-        <p className="text-muted-foreground text-sm">
-          {labels.baseline}: {family.baseline.stable_id}@{family.baseline.version}
-        </p>
-      </div>
-      <ul className="divide-border border-border divide-y overflow-hidden rounded-md border">
-        {ordered.map((member) => {
-          const current = member.stable_id === currentStableId;
-          const href = member.exact_version
-            ? `/catalog/setups/${member.stable_id}/versions/${member.exact_version}`
-            : `/catalog/setups/${member.stable_id}`;
-          const alignment = alignmentCopy(member.alignment, labels);
-          return (
-            <li key={member.stable_id} className="space-y-2 p-3">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                {current ? (
-                  <span className="font-medium">{member.stable_id}</span>
+        <ul className="divide-border border-border divide-y border-t">
+          {ordered.map((member) => {
+            const current = member.stable_id === currentStableId;
+            const name = member.name;
+            const href = member.exact_version
+              ? `/catalog/setups/${member.stable_id}/versions/${member.exact_version}`
+              : `/catalog/setups/${member.stable_id}`;
+            const menuVersion = member.exact_version ?? member.latest_version;
+            return (
+              <li key={member.stable_id} className="flex min-w-0 items-center gap-2 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={href}
+                    className="font-medium break-words underline-offset-4 hover:underline"
+                    prefetch={false}
+                  >
+                    {name}
+                  </Link>
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    <Badge variant="outline">{labels.setup}</Badge>
+                    <Badge variant="secondary">{member.harness_id}</Badge>
+                    {member.latest_version ? (
+                      <span className="text-muted-foreground text-xs">
+                        {labels.version} {member.latest_version}
+                      </span>
+                    ) : null}
+                    {current ? <Badge variant="outline">{labels.current}</Badge> : null}
+                  </div>
+                </div>
+                {menuVersion ? (
+                  <CatalogItemMenu
+                    kind="setup"
+                    stableId={member.stable_id}
+                    version={menuVersion}
+                    href={href}
+                    labels={{
+                      more: labels.moreActions,
+                      copyUrl: labels.copyUrl,
+                      copyCli: labels.copyCli,
+                      copyId: labels.copyId,
+                      copied: labels.copied,
+                      report: labels.report,
+                      like: labels.like,
+                      unlike: labels.unlike,
+                    }}
+                  />
                 ) : (
                   <Link
                     href={href}
-                    className="font-medium underline underline-offset-4"
+                    aria-label={`${labels.browseFamily}: ${name}`}
+                    className="hover:bg-muted focus-visible:ring-ring inline-flex size-11 shrink-0 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:outline-none"
                     prefetch={false}
                   >
-                    {member.stable_id}
+                    <Icon name="moreVertical" size="sm" />
                   </Link>
                 )}
-                <Badge variant="outline">{member.harness_id}</Badge>
-                {current ? <Badge variant="secondary">{labels.current}</Badge> : null}
-                {member.latest_version ? (
-                  <Badge variant="outline">
-                    {labels.version} {member.latest_version}
-                  </Badge>
-                ) : null}
-              </div>
-              <p className="text-sm">
-                {labels.alignment}: {alignment.label}
-              </p>
-              <p className="text-muted-foreground text-xs">{alignment.hint}</p>
-              {member.ported_from ? (
-                <p className="text-muted-foreground text-xs">
-                  {labels.portedFrom}: {member.ported_from.stable_id}@{member.ported_from.version}
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-      <p>
-        <Link
-          href={`/catalog?resource=setups&family_id=${encodeURIComponent(family.family_id)}`}
-          className="text-sm underline underline-offset-4"
-          prefetch={false}
-        >
-          {labels.browseFamily}
-        </Link>
-      </p>
+              </li>
+            );
+          })}
+        </ul>
+      </details>
     </section>
   );
-}
-
-function alignmentCopy(
-  state: SetupFamilyPublic["members"][number]["alignment"],
-  labels: SetupFamilyLabels,
-): { label: string; hint: string } {
-  if (state === "aligned") return { label: labels.aligned, hint: labels.alignedHint };
-  if (state === "diverged") return { label: labels.diverged, hint: labels.divergedHint };
-  if (state === "missing") return { label: labels.missing, hint: labels.missingHint };
-  return { label: labels.unknown, hint: labels.unknownHint };
 }

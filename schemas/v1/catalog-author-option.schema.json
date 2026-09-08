@@ -1,0 +1,34 @@
+{
+  "$id": "urn:ai-stp:schema:v1:catalog-author-option",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One public author available in the catalog filter.",
+  "properties": {
+    "account_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Account Id",
+      "type": "string"
+    },
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Display Name"
+    }
+  },
+  "required": [
+    "account_id",
+    "display_name"
+  ],
+  "title": "CatalogAuthorOption",
+  "type": "object"
+}

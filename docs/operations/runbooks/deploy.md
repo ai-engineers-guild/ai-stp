@@ -309,7 +309,7 @@ private paths, or environment values (`REQ-2408`, `SPEC-013`).
 ## Backup
 
 ```bash
-./deploy/backup.sh --label pre-deploy
+AI_STP_BACKUP_DIR=/mnt/ai-stp-off-host ./deploy/backup.sh --label pre-deploy
 # Directory: .backups/<timestamp>[-label]/ with MANIFEST.txt
 ```
 
@@ -323,6 +323,9 @@ restorable, but still pass the archive-content checks.
 - PostgreSQL: logical `pg_dump` (custom format)
 - RustFS: copy of the volume data
 - Retention: `AI_STP_BACKUP_RETENTION` (the 7 newest directories by default)
+- `AI_STP_BACKUP_DIR` must be a separately mounted off-host destination. The
+  script refuses the deployment filesystem. Development-only local rehearsal
+  may set `AI_STP_ALLOW_LOCAL_BACKUP=1` explicitly.
 - Schedule: example `deploy/schedule-backup.example.cron`
 - The backup log does not print secrets or object bytes
 

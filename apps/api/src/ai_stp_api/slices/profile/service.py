@@ -22,7 +22,6 @@ from ai_stp_contracts.public_profile import (
     public_projection,
     validate_avatar_upload,
 )
-from ai_stp_foundation.digests import digest_bytes
 from ai_stp_platform.models import (
     AccountAuthorVerification,
     AvatarAsset,
@@ -31,7 +30,6 @@ from ai_stp_platform.models import (
     PublicProfile,
 )
 from ai_stp_platform.storage.avatar_store import AvatarObjectStore
-from ai_stp_platform.storage.object_store import ARTIFACT_DIGEST_DOMAIN
 
 
 def _new_id(prefix: str) -> str:
@@ -340,6 +338,8 @@ async def create_avatar_from_bytes(
             asset_id=asset_id,
             payload=payload,
             content_type=content_type,
+            owner_account_id=account_id,
+            namespace="users/avatars",
         )
     except Exception as exc:
         asset.state = "rejected"
@@ -441,13 +441,13 @@ async def read_avatar_bytes(
     if asset is None or asset.state != "ready" or not asset.object_key:
         return None
     try:
-        body = await store.read_bytes(object_key=asset.object_key)
+        body = await store.read_bytes(
+            object_key=asset.object_key,
+            expected_digest=asset.content_digest,
+            expected_size=asset.size_bytes,
+        )
     except Exception as exc:
         raise ApiError(ErrorCategory.DEPENDENCY, "avatar storage unavailable") from exc
-    if (
-        body is None
-        or len(body) != asset.size_bytes
-        or digest_bytes(ARTIFACT_DIGEST_DOMAIN, body) != asset.content_digest
-    ):
+    if body is None:
         raise ApiError(ErrorCategory.DEPENDENCY, "avatar stored bytes are unavailable or invalid")
     return body, asset.content_type

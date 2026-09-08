@@ -15,6 +15,7 @@ Usage: deploy/restore.sh --from BACKUP_DIR [--yes]
 Restores:
   - PostgreSQL from postgres/ai_stp.dump via pg_restore
   - RustFS objects by replacing volume contents from rustfs/
+  - object manifest checksum and database/object-reference count checks
 
 Requires explicit --yes. Does not print secrets or object payload bytes.
 EOF
@@ -47,10 +48,16 @@ done
 [[ -f "${FROM}/postgres/ai_stp.dump" ]] || die "missing postgres dump in backup"
 [[ -d "${FROM}/rustfs" ]] || die "missing rustfs directory in backup"
 [[ -f "${FROM}/MANIFEST.txt" ]] || die "missing backup manifest"
+[[ -f "${FROM}/postgres/object_manifest.tsv" ]] || die "missing object manifest"
+[[ -f "${FROM}/postgres/object_manifest.tsv.sha256" ]] || die "missing object manifest checksum"
 
 require_cmd docker
 require_cmd sha256sum
 log info "restore_start"
+
+if ! (cd "${FROM}/postgres" && sha256sum -c object_manifest.tsv.sha256 >/dev/null); then
+  die "object_manifest_checksum_mismatch"
+fi
 
 # Stop writers that depend on database/storage identity before restore.
 compose stop api worker web seed migrate content-import >/dev/null 2>&1 || true
@@ -90,6 +97,13 @@ if [[ -n "${EXPECTED_OAUTH_IDENTITY_FINGERPRINT}" && "${RESTORED_OAUTH_IDENTITY_
 fi
 log info "postgres_restore_ok"
 
+EXPECTED_OBJECT_REFERENCE_COUNT="$(wc -l <"${FROM}/postgres/object_manifest.tsv" | tr -d '[:space:]')"
+RESTORED_OBJECT_REFERENCE_COUNT="$(compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT (SELECT count(*) FROM object_location WHERE purpose = '\''artifact'\'') + (SELECT count(*) FROM avatar_asset WHERE object_key IS NOT NULL) + (SELECT count(*) FROM component_media WHERE object_key IS NOT NULL)"')"
+[[ "${EXPECTED_OBJECT_REFERENCE_COUNT}" =~ ^[0-9]+$ ]] || die "object_manifest_count_failed"
+[[ "${RESTORED_OBJECT_REFERENCE_COUNT}" =~ ^[0-9]+$ ]] || die "restored_object_reference_count_failed"
+[[ "${EXPECTED_OBJECT_REFERENCE_COUNT}" == "${RESTORED_OBJECT_REFERENCE_COUNT}" ]] || die "object_reference_count_mismatch"
+log info "object_manifest_references_ok"
+
 # Restore RustFS volume contents.
 RUSTFS_VOLUME="$(compose_service_volume rustfs /data)"
 compose stop rustfs >/dev/null 2>&1 || true
@@ -108,6 +122,10 @@ log info "rustfs_restore_ok"
 # already-exited importer container cannot skip the POST.
 compose up -d postgres rustfs >/dev/null
 compose run --rm migrate >/dev/null
+compose run --rm --no-deps api python -m ai_stp_platform.storage.migrate >/dev/null
+if ! compose run --rm --no-deps api python -m ai_stp_platform.storage.verify >/dev/null; then
+  die "restored_object_verification_failed"
+fi
 compose rm -fs content-import >/dev/null 2>&1 || true
 compose up -d api worker content-import web docs >/dev/null
 wait_for_readiness

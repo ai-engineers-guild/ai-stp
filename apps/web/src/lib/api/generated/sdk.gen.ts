@@ -9,6 +9,9 @@ import type {
   BindPublicationArtifactData,
   BindPublicationArtifactErrors,
   BindPublicationArtifactResponses,
+  BindPublicationProjectionArtifactData,
+  BindPublicationProjectionArtifactErrors,
+  BindPublicationProjectionArtifactResponses,
   CompleteLegalOnboardingData,
   CompleteLegalOnboardingErrors,
   CompleteLegalOnboardingResponses,
@@ -63,6 +66,9 @@ import type {
   LikeCatalogObjectData,
   LikeCatalogObjectErrors,
   LikeCatalogObjectResponses,
+  ListCatalogAuthorsData,
+  ListCatalogAuthorsErrors,
+  ListCatalogAuthorsResponses,
   ListCatalogReactionsData,
   ListCatalogReactionsErrors,
   ListCatalogReactionsResponses,
@@ -501,6 +507,18 @@ export const readOAuthCallbackResult = <ThrowOnError extends boolean = false>(
     ReadOAuthCallbackResultErrors,
     ThrowOnError
   >({ url: "/v1/auth/{provider}/callback", ...options });
+
+/**
+ * List authors with public catalog objects. Anonymous.
+ */
+export const listCatalogAuthors = <ThrowOnError extends boolean = false>(
+  options?: Options<ListCatalogAuthorsData, ThrowOnError>,
+): RequestResult<ListCatalogAuthorsResponses, ListCatalogAuthorsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListCatalogAuthorsResponses,
+    ListCatalogAuthorsErrors,
+    ThrowOnError
+  >({ url: "/v1/catalog/authors", ...options });
 
 /**
  * Search public components. Anonymous.
@@ -1219,6 +1237,31 @@ export const bindPublicationArtifact = <ThrowOnError extends boolean = false>(
     bodySerializer: null,
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/publications/plans/{plan_id}/artifact",
+    ...options,
+    headers: {
+      "Content-Type": "application/octet-stream",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Bind one declared exact projection artifact to a publication plan.
+ */
+export const bindPublicationProjectionArtifact = <ThrowOnError extends boolean = false>(
+  options: Options<BindPublicationProjectionArtifactData, ThrowOnError>,
+): RequestResult<
+  BindPublicationProjectionArtifactResponses,
+  BindPublicationProjectionArtifactErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    BindPublicationProjectionArtifactResponses,
+    BindPublicationProjectionArtifactErrors,
+    ThrowOnError
+  >({
+    bodySerializer: null,
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/publications/plans/{plan_id}/artifacts/{projection_digest}",
     ...options,
     headers: {
       "Content-Type": "application/octet-stream",

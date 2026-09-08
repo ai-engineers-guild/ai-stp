@@ -1,8 +1,8 @@
-/* eslint-disable max-lines -- Catalog toolbar, chips, and display controls stay one owner. */
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import type { CatalogAuthorOption, ExternalProduct } from "@/lib/api/catalog";
 import { Button } from "@/components/atoms/button";
 import { CatalogQueryField } from "@/components/molecules/catalog-query-field";
 import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
@@ -11,7 +11,6 @@ import {
   type CatalogFilterPanelLabels,
 } from "@/components/organisms/catalog-filter-panel";
 import { CatalogSearchForm } from "@/components/organisms/catalog-search-form";
-import type { ExternalProduct } from "@/lib/api/catalog";
 import {
   appliedFilterChips,
   catalogQueryToRecord,
@@ -21,7 +20,7 @@ import {
 } from "@/lib/catalog-query";
 import { defaultCatalogQuery } from "@/lib/catalog-query-defaults";
 import { cn } from "@/lib/cn";
-import { Link } from "@/lib/i18n/navigation";
+import { Link, useRouter } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme";
 
@@ -33,6 +32,7 @@ type CatalogFiltersProps = {
   hideAuthorFilter?: boolean;
   fixedAuthors?: string[];
   services?: ExternalProduct[];
+  authors?: CatalogAuthorOption[];
   intro?: string;
   labels: CatalogFilterPanelLabels & {
     search: string;
@@ -70,7 +70,10 @@ const FILTER_QUERY_KEYS = new Set([
   "component_type",
   "component_types",
   "authors",
+  "resource",
+  "verification",
   "verified_only",
+  "min_safety_percent",
   "include_experimental",
   "sort",
   "sort_direction",
@@ -94,6 +97,7 @@ export function CatalogFilters({
   query,
   labels,
   services = [],
+  authors = [],
   intro = "",
   locale = "en",
   basePath = "/catalog",
@@ -103,13 +107,11 @@ export function CatalogFilters({
 }: CatalogFiltersProps) {
   const [searchOpen, setSearchOpen] = useState(!hideSearch && Boolean(query.q));
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const router = useRouter();
   const visibleQuery = fixedAuthors.length > 0 ? { ...query, authors: [] } : query;
   const appliedCount = countAppliedFilters(visibleQuery);
   const chips = appliedFilterChips(visibleQuery);
-  const resetHref = hrefFor(
-    { ...defaultCatalogQuery(query.resource), authors: fixedAuthors },
-    basePath,
-  );
+  const resetHref = hrefFor({ ...defaultCatalogQuery(), authors: fixedAuthors }, basePath);
   const hiddenOmit = new Set(["page", "page_size", "resource"]);
   if (searchOpen || hideSearch) hiddenOmit.add("q");
   if (fixedAuthors.length > 0) hiddenOmit.add("authors");
@@ -191,24 +193,24 @@ export function CatalogFilters({
               setFiltersOpen(false);
             }}
           >
-            <div className="mb-5 max-w-xs">
-              <ResourceSwitch query={query} labels={labels} />
-            </div>
             <CatalogFilterPanel
               query={query}
               labels={labels}
               services={services}
+              authors={authors}
               locale={locale}
               hideAuthorFilter={hideAuthorFilter}
             />
             <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
-              <Link
-                href={resetHref}
-                prefetch={false}
+              <button
+                type="button"
                 className="text-muted-foreground inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+                onClick={() => {
+                  router.push(resetHref);
+                }}
               >
                 {labels.resetAll}
-              </Link>
+              </button>
               <Button type="submit" className="min-h-11 w-full sm:w-auto">
                 <Icon name="filter" size="sm" />
                 {labels.applyFilters}
@@ -421,35 +423,6 @@ function chipLabel(key: string, label: string, labels: CatalogFiltersProps["labe
   return label;
 }
 
-function ResourceSwitch({
-  query,
-  labels,
-}: {
-  query: ParsedCatalogQuery;
-  labels: CatalogFiltersProps["labels"];
-}) {
-  const options: Array<[CatalogResource, string]> = [
-    ["components", labels.components],
-    ["setups", labels.setups],
-    ["all", labels.resourceBoth ?? "Both"],
-  ];
-  return (
-    <Control label={labels.resourceLegend}>
-      <select
-        name="resource"
-        defaultValue={query.resource}
-        className="bg-background h-11 w-full rounded-sm border px-3 text-sm"
-      >
-        {options.map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-    </Control>
-  );
-}
-
 function DisclosureButton({
   open,
   controls,
@@ -486,15 +459,6 @@ function DisclosureButton({
     >
       {children}
     </Button>
-  );
-}
-
-function Control({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1.5 text-xs font-medium">
-      {label}
-      {children}
-    </label>
   );
 }
 

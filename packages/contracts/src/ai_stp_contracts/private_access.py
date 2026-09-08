@@ -21,7 +21,7 @@ class PrivateVersionTrust(BaseModel):
     component_verified: bool
 
 
-class PrivateVersionResponse(BaseModel):
+class CliPrivateVersionResponse(BaseModel):
     """Metadata delivered only after exact owner or major-line grant authorization."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -36,6 +36,9 @@ class PrivateVersionResponse(BaseModel):
     trust: PrivateVersionTrust
     published_at: Timestamp
     access_basis: Literal["owner", "grant", "admin"]
+
+
+PrivateVersionResponse = CliPrivateVersionResponse
 
 
 class VisibilityPlanCreateRequest(BaseModel):

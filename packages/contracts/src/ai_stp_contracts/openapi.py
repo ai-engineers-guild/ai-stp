@@ -45,6 +45,7 @@ from ai_stp_contracts.auth import (
     SystemVersionResponse,
 )
 from ai_stp_contracts.catalog import (
+    CatalogAuthorListResponse,
     CatalogReactionList,
     CatalogReactionState,
     CatalogUsageMetrics,
@@ -54,6 +55,7 @@ from ai_stp_contracts.catalog import (
     ComponentSearchRequest,
     ComponentVersionResponse,
     GitHubMetadata,
+    PrivateVersionResponse,
     SetupContextBudget,
     SetupContextBudgetQuery,
     SetupDetail,
@@ -349,6 +351,13 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
     ),
     Operation(
         method="get",
+        path="/catalog/authors",
+        operation_id="listCatalogAuthors",
+        summary="List authors with public catalog objects. Anonymous.",
+        response=CatalogAuthorListResponse,
+    ),
+    Operation(
+        method="get",
         path="/catalog/components/{stable_id}",
         operation_id="readComponent",
         summary="Read one public component and the versions it offers.",
@@ -364,6 +373,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         response=ComponentVersionResponse,
         path_params=(_OBJECT_ID, _VERSION),
         errors=("AI_STP_NOT_FOUND", "AI_STP_CATALOG_INTEGRITY"),
+    ),
+    Operation(
+        method="get",
+        path="/catalog/components/{stable_id}/versions/{version}/private",
+        operation_id="readPrivateComponentVersion",
+        summary="Read one authorized private component version.",
+        response=PrivateVersionResponse,
+        path_params=(_OBJECT_ID, _VERSION),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_CATALOG_INTEGRITY"),
+        authenticated=True,
     ),
     Operation(
         method="get",
@@ -390,6 +409,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         response=SetupVersionResponse,
         path_params=(_OBJECT_ID, _VERSION),
         errors=("AI_STP_NOT_FOUND", "AI_STP_CATALOG_INTEGRITY"),
+    ),
+    Operation(
+        method="get",
+        path="/catalog/setups/{stable_id}/versions/{version}/private",
+        operation_id="readPrivateSetupVersion",
+        summary="Read one authorized private setup version.",
+        response=PrivateVersionResponse,
+        path_params=(_OBJECT_ID, _VERSION),
+        errors=("AI_STP_NOT_FOUND", "AI_STP_CATALOG_INTEGRITY"),
+        authenticated=True,
     ),
     Operation(
         method="get",
@@ -717,6 +746,29 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
                 name="plan_id",
                 description="Publication plan identifier.",
                 pattern=r"^[A-Za-z0-9._~-]{8,64}$",
+            ),
+        ),
+        authenticated=True,
+        request_media_type="application/octet-stream",
+        idempotent_mutation=True,
+        errors=("AI_STP_VALIDATION_ERROR", "AI_STP_NOT_FOUND", "AI_STP_CONFLICT"),
+    ),
+    Operation(
+        method="put",
+        path="/publications/plans/{plan_id}/artifacts/{projection_digest}",
+        operation_id="bindPublicationProjectionArtifact",
+        summary="Bind one declared exact projection artifact to a publication plan.",
+        response=PublicationPlanResponse,
+        path_params=(
+            PathParam(
+                name="plan_id",
+                description="Publication plan identifier.",
+                pattern=r"^[A-Za-z0-9._~-]{8,64}$",
+            ),
+            PathParam(
+                name="projection_digest",
+                description="Declared projection artifact digest.",
+                pattern=r"^sha256:[0-9a-f]{64}$",
             ),
         ),
         authenticated=True,

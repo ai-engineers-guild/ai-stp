@@ -10,6 +10,12 @@ class MemoryObjectClient:
         self.objects: dict[tuple[str, str], dict[str, object]] = {}
         self.put_count = 0
 
+    async def ensure_bucket(self, bucket: str | None = None) -> None:
+        del bucket
+
+    async def ensure_buckets(self) -> None:
+        return
+
     async def head_object(self, *, bucket: str, key: str) -> dict[str, object] | None:
         return self.objects.get((bucket, key))
 

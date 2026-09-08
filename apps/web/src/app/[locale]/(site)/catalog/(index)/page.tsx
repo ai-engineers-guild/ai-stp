@@ -7,6 +7,7 @@ import { CatalogResults } from "@/components/organisms/catalog-results";
 import type { CatalogAuthor } from "@/components/organisms/object-card";
 import { ApiError } from "@/lib/api/errors";
 import { listCatalogReactions } from "@/lib/api/reactions";
+import { listCatalogAuthors } from "@/lib/api/catalog";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { loadPublisherProfiles, startCatalogResourceReads } from "@/lib/catalog-load";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
@@ -82,7 +83,12 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   let componentTotalPages: number | null = null;
   let authorProfiles: Record<string, CatalogAuthor> = {};
   const started = startCatalogResourceReads(query);
-  const services = await started.services;
+  const [services, catalogAuthors] = await Promise.all([
+    started.services,
+    listCatalogAuthors()
+      .then((result) => result.items)
+      .catch(() => []),
+  ]);
 
   try {
     const [componentResult, setupResult] = await Promise.all([started.components, started.setups]);
@@ -257,12 +263,18 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
             harnessFilterHelp: t("harnessFilterHelp"),
             typeFilterHelp: t("typeFilterHelp"),
             authorFilterHelp: t("authorFilterHelp"),
+            verificationHelp: t("verificationHelp"),
+            safetyPercentHelp: t("safetyPercentHelp"),
             verifiedOnlyHelp: t("verifiedOnlyHelp"),
             countryFilterHelp: t("countryFilterHelp"),
             serviceFilterHelp: t("serviceFilterHelp"),
             updatedRangeHelp: t("updatedRangeHelp"),
             searchOptions: t("searchOptions"),
             authorFilter: t("authorFilter"),
+            verificationFilter: t("verificationFilter"),
+            verifiedOption: t("verifiedOption"),
+            notVerifiedOption: t("notVerifiedOption"),
+            safetyPercentFilter: t("safetyPercentFilter"),
             verifiedOnly: t("verifiedOnly"),
             serviceFilter: t("serviceFilter"),
             countryFilter: t("countryFilter"),
@@ -284,6 +296,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
             queryCorrection: t("queryCorrection"),
             updatingLabel: t("updating"),
           }}
+          authors={catalogAuthors}
         />
       </div>
       {errorMessage ? (

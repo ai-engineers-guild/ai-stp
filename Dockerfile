@@ -41,9 +41,6 @@ COPY --chown=appuser:appuser docs-user-facing/legal ./docs-user-facing/legal
 USER appuser
 RUN uv sync --locked --no-dev --all-packages --no-cache
 
-COPY --chown=appuser:appuser migrations ./migrations
-COPY --chown=appuser:appuser alembic.ini ./
-
 # Non-root runtime user; the log volume is mounted at /var/log/ai_stp.
 # chown only runtime paths — never a multi-hundred-MB tree (was the hung step).
 USER root
@@ -51,11 +48,9 @@ RUN mkdir -p /var/log/ai_stp \
     && chown appuser:appuser /var/log/ai_stp
 USER appuser
 
-FROM base AS api
-EXPOSE 8000
-CMD ["python", "-m", "ai_stp_api"]
-
 FROM base AS worker
+COPY --chown=appuser:appuser migrations ./migrations
+COPY --chown=appuser:appuser alembic.ini ./
 # Safety suite: in-proc engines always run. External CLIs stay off here.
 # Production scanner image: Dockerfile.worker-safety (pins + AI_STP_SAFETY_EXTERNAL_CLI=1).
 ENV AI_STP_SAFETY_EXTERNAL_CLI=0 \
@@ -64,6 +59,21 @@ ENV AI_STP_SAFETY_EXTERNAL_CLI=0 \
     OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/var/lib/ai_stp/osv \
     AI_STP_OSV_MAX_AGE_HOURS=36
 CMD ["python", "-m", "ai_stp_worker"]
+
+FROM base AS api
+USER root
+RUN sed -i \
+      -e 's|http://deb.debian.org/debian-security|https://snapshot.debian.org/archive/debian-security/20260822T000000Z|g' \
+      -e 's|http://deb.debian.org/debian|https://snapshot.debian.org/archive/debian/20260822T000000Z|g' \
+      /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Check-Valid-Until=false update \
+    && apt-get install -y --no-install-recommends ffmpeg=7:7.1.5-0+deb13u1 \
+    && rm -r -f /var/lib/apt/lists/*
+USER appuser
+COPY --chown=appuser:appuser migrations ./migrations
+COPY --chown=appuser:appuser alembic.ini ./
+EXPOSE 8000
+CMD ["python", "-m", "ai_stp_api"]
 
 # Bake the hub snapshot in a throwaway stage so the runtime image has no
 # checkout. The importer POSTs this file; it never reads Markdown on the host.

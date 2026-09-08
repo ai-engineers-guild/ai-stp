@@ -11,7 +11,9 @@ export function countAppliedFilters(query: ParsedCatalogQuery): number {
   if (query.harnessId) n += 1;
   if (query.componentType) n += 1;
   n += query.harnessIds.length + query.componentTypes.length + query.authors.length;
+  n += query.verification.length;
   if (query.verifiedOnly) n += 1;
+  if (query.minSafetyPercent !== undefined) n += 1;
   if (query.supportTier) n += 1;
   if (query.supportState) n += 1;
   if (query.serviceDomain && !(query.serviceDomains ?? []).includes(query.serviceDomain)) n += 1;
@@ -32,6 +34,35 @@ export type AppliedFilterChip = {
   /** Query after removing this chip (for href). */
   without: ParsedCatalogQuery;
 };
+
+function appendVerificationChips(chips: AppliedFilterChip[], query: ParsedCatalogQuery) {
+  if (query.verifiedOnly) {
+    chips.push({
+      key: "verified_only",
+      label: "verified",
+      without: { ...query, verifiedOnly: false, cursor: undefined, pageNumber: 1 },
+    });
+  }
+  for (const verification of query.verification) {
+    chips.push({
+      key: `verification:${verification}`,
+      label: verification === "verified" ? "Verified" : "Not verified",
+      without: {
+        ...query,
+        verification: query.verification.filter((value) => value !== verification),
+        cursor: undefined,
+        pageNumber: 1,
+      },
+    });
+  }
+  if (query.minSafetyPercent !== undefined) {
+    chips.push({
+      key: "min_safety_percent",
+      label: `Safety ≥ ${query.minSafetyPercent}%`,
+      without: { ...query, minSafetyPercent: undefined, cursor: undefined, pageNumber: 1 },
+    });
+  }
+}
 
 function resetCatalogPage(query: ParsedCatalogQuery): ParsedCatalogQuery {
   const next = { ...query, cursor: undefined, pageNumber: 1 };
@@ -158,13 +189,7 @@ export function appliedFilterChips(query: ParsedCatalogQuery): AppliedFilterChip
       },
     });
   }
-  if (query.verifiedOnly) {
-    chips.push({
-      key: "verified_only",
-      label: "verified",
-      without: { ...query, verifiedOnly: false, cursor: undefined, pageNumber: 1 },
-    });
-  }
+  appendVerificationChips(chips, query);
   if (query.supportTier) {
     chips.push({
       key: "support_tier",

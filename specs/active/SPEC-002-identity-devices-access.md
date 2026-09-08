@@ -1,6 +1,6 @@
 ---
 description: "SPEC-002: Accounts, OAuth, devices, and access."
-last_verified: "2026-08-13"
+last_verified: "2026-09-07"
 ---
 
 # SPEC-002: Accounts, OAuth, Devices, and Access
@@ -29,7 +29,7 @@ The scope includes the internal account, OAuth identities, device keys, device r
 - `REQ-203`: An identity with a different email is linked only from an already authorized account after renewed confirmation.
 - `REQ-204`: Each device has a stable ID, Ed25519 public key, last-active timestamp, and revocation state.
 - `REQ-205`: A revoked device cannot submit accepted sync events or attestations, but retains local read access.
-- `REQ-206`: A private object is accessible to its owner, the recipient of an active `AccessGrant`, and an administrator subject to mandatory auditing.
+- `REQ-206`: A private object is accessible through the product API only to its owner and the recipient of an active `AccessGrant`. Infrastructure operators have no product role that bypasses this rule; their direct PostgreSQL or RustFS access is outside the user API and follows the deployment's operational access controls.
 - `REQ-207`: A user can revoke the current device; resuming cloud access requires a new sign-in and a new key.
 - `REQ-208`: The owner can invite a recipient by normalized email address; an invitation is not an access permission and grants no read access before acceptance.
 - `REQ-209`: The response to invitation creation is the same whether or not the address is registered.
@@ -50,7 +50,7 @@ An OAuth link has the states `pending`, `linked`, `conflict`, and `revoked`. A D
 
 ## Security and privacy
 
-The device private key is stored only in secure local storage and is not synchronized. OAuth tokens and the invitation key do not appear in YAML, logs, traces, metrics, or Agent output. Knowledge of an account identifier or email address does not constitute authority. Administrative reads require a reason and create an immutable `AuditEvent`.
+The device private key is stored only in secure local storage and is not synchronized. OAuth tokens and the invitation key do not appear in YAML, logs, traces, metrics, or Agent output. Knowledge of an account identifier or email address does not constitute authority. No administrator product role bypasses private-object authorization; infrastructure-operator access remains outside the product API and follows operational controls.
 
 ## Compatibility and migration
 
@@ -65,7 +65,7 @@ The device private key is stored only in secure local storage and is not synchro
 | `REQ-203` | An auth test requires an active session and step-up confirmation for an identity with a different email. |
 | `REQ-204` | A device registration test verifies the ID, public key, timestamps, and uniqueness. |
 | `REQ-205` | A revocation test rejects sync/attestation and preserves offline read access. |
-| `REQ-206` | An authorization matrix covers owner, grantee, outsider, and audited admin. |
+| `REQ-206` | An API authorization matrix covers owner, grantee, and outsider and proves that no product administrator role bypasses the same predicate. |
 | `REQ-207` | A test that revokes the current device requires a new login for the next cloud request. |
 | `REQ-208` | An unaccepted invitation grants no read access to the private object. |
 | `REQ-209` | Responses for known and unknown addresses are indistinguishable in body, code, and timing. |

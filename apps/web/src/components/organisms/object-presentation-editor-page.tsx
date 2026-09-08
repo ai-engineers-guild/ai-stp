@@ -64,7 +64,7 @@ export async function ObjectPresentationEditorPage({
         csrfToken={(await readCsrfToken()) ?? ""}
         initialBio={presentation.bio}
         initialMedia={presentation.media}
-        afterMedia={
+        beforeMedia={
           process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED !== "false" ? (
             <ExternalProductManager
               locale={locale}

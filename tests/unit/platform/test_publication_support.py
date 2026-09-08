@@ -61,7 +61,8 @@ ACCOUNT_ID = "account_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 COMPONENT_ID = "component_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
 
-def _object_key(digest: str) -> str:
+def _object_key(digest: str, *, owner_account_id: str | None = None) -> str:
+    del owner_account_id
     return f"objects/{digest}"
 
 

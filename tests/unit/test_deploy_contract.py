@@ -216,6 +216,31 @@ def test_required_content_import_secret_is_checked_before_any_deploy_effect() ->
     assert "grep -Eq" in helper
 
 
+def test_storage_cutover_and_backups_fail_closed() -> None:
+    deploy = Path("deploy/deploy.sh").read_text(encoding="utf-8")
+    backup = Path("deploy/backup.sh").read_text(encoding="utf-8")
+    restore = Path("deploy/restore.sh").read_text(encoding="utf-8")
+
+    cutover = "python -m ai_stp_platform.storage.migrate"
+    assert cutover in deploy
+    assert deploy.index("compose run --rm migrate") < deploy.index(cutover)
+    assert deploy.index(cutover) < deploy.index("compose run --rm seed")
+
+    verifier = "python -m ai_stp_platform.storage.verify"
+    assert verifier in backup
+    assert backup.index(verifier) < backup.index("sh -c 'pg_dump")
+    assert verifier in restore
+    assert cutover in restore
+    assert restore.index(cutover) < restore.index(verifier)
+    assert restore.index(verifier) < restore.index("compose up -d api worker")
+
+    assert "require_cmd findmnt" in backup
+    assert 'ROOT_MOUNT="$(findmnt -n -o TARGET -T "${AI_STP_ROOT}")"' in backup
+    assert 'BACKUP_MOUNT="$(findmnt -n -o TARGET -T "${AI_STP_BACKUP_DIR}")"' in backup
+    assert "off_host_backup_mount_required" in backup
+    assert "AI_STP_ALLOW_LOCAL_BACKUP" in backup
+
+
 def test_deployment_verification_observes_the_service_that_gates_publication() -> None:
     """A green deploy has to mean the worker is current, not only reachable.
 
