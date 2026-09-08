@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_platform.identity import assert_publication_owner
 from ai_stp_platform.models import CatalogMetadata
 from ai_stp_platform.queue.engine import enqueue
 from ai_stp_platform.queue.models import Job
@@ -33,6 +34,14 @@ async def create_catalog_metadata_and_enqueue_upload(
     name: str | None = None,
 ) -> CatalogWriteResult:
     """Create catalog metadata and enqueue upload in the caller's transaction."""
+    if object_kind in {"component", "setup"}:
+        await assert_publication_owner(
+            session,
+            stable_id=stable_id,
+            actor_account_id=owner_account_id,
+            expected_ownership_revision_id=None,
+            object_kind=object_kind,
+        )
     metadata = CatalogMetadata(
         owner_account_id=owner_account_id,
         object_kind=object_kind,

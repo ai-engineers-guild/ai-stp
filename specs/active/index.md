@@ -17,7 +17,7 @@ last_verified: "2026-08-03"
 | [SPEC-006-search-and-setup-compiler.md](SPEC-006-search-and-setup-compiler.md) | SPEC-006: Search, candidate selection, and setup compiler. | 2026-09-05 |
 | [SPEC-007-validation-publishing.md](SPEC-007-validation-publishing.md) | SPEC-007: Tests, evidence and publication. | 2026-09-07 |
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-06 |
-| [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-08-04 |
+| [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-09-08 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Server platform and API. | 2026-09-04 |
 | [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-09-06 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Uninstallation, full cleanup, and recovery. | 2026-08-03 |
@@ -33,7 +33,7 @@ last_verified: "2026-08-03"
 | [SPEC-022-web-shell-landing-catalog.md](SPEC-022-web-shell-landing-catalog.md) | SPEC-022: Web shell, bilingual landing page and anonymous public catalog. | 2026-08-17 |
 | [SPEC-023-web-login-account-devices.md](SPEC-023-web-login-account-devices.md) | SPEC-023: Web login, account profile and device management. | 2026-08-17 |
 | [SPEC-024-reproducible-deployment.md](SPEC-024-reproducible-deployment.md) | SPEC-024: Reproducible deployment with web tier, health, logs, backups and rollback. | 2026-09-07 |
-| [SPEC-025-private-registry-revision-sync.md](SPEC-025-private-registry-revision-sync.md) | SPEC-025: Private registry and server-side revision synchronization. | 2026-08-15 |
+| [SPEC-025-private-registry-revision-sync.md](SPEC-025-private-registry-revision-sync.md) | SPEC-025: Private registry and server-side revision synchronization. | 2026-09-08 |
 | [SPEC-026-publication-validation-grants-reports.md](SPEC-026-publication-validation-grants-reports.md) | SPEC-026: Server-side publication, validation jobs, grants, reports, and staff audit. | 2026-09-07 |
 | [SPEC-027-web-publication-access-moderation.md](SPEC-027-web-publication-access-moderation.md) | SPEC-027: Web UI for owned objects, publication, rights, reports, and minimal moderation. | 2026-08-08 |
 | [SPEC-028-public-profile-media-and-preview.md](SPEC-028-public-profile-media-and-preview.md) | SPEC-028: Author public profile, safe avatars, and preview. | 2026-09-07 |

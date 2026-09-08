@@ -11,12 +11,12 @@ from ai_stp_cli.cloud import sync as cloud_sync
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import lifecycle, passports, revisions, sync_merge, sync_state
+from ai_stp_cli.local import lifecycle, passports, revisions, sync_merge, sync_state, sync_versions
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from ai_stp_contracts.machine_help import SyncPreview, SyncPullView, SyncPushView
 from ai_stp_contracts.sync import SyncEventReceipt, SyncPullQuery, SyncPushRequest
-from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_passports.envelope import seal_envelope
 
 
@@ -266,50 +266,63 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
         final_event_id = ""
         final_remote_revision_id = ""
         for candidate in ordered:
-            mapping = sync_state.mapping_for_local(
-                connection,
-                account_id=held.account_id,
-                local_revision_id=candidate.revision_id,
-            )
-            if mapping is not None and mapping.state == "accepted":
-                processed += 1
-                final_event_id = mapping.event_id
-                final_remote_revision_id = mapping.remote_revision_id
-                receipt = SyncEventReceipt(
-                    event_id=mapping.event_id,
-                    state="accepted",
-                    revision_id=mapping.remote_revision_id,
-                    server_head_revision_id=mapping.remote_revision_id,
-                    cursor=None,
-                    conflict=None,
-                    conflicting_entity_id=None,
-                    error_code=None,
+            is_head = candidate.revision_id == stored.revision_id
+            payload = sync_state.payload_for(connection, candidate, include_versions=is_head)
+            while True:
+                mapping = sync_state.mapping_for_local(
+                    connection,
+                    account_id=held.account_id,
+                    local_revision_id=candidate.revision_id,
+                    payload=payload if is_head else None,
                 )
-                continue
-            pending = sync_state.prepare(
-                connection,
-                account_id=held.account_id,
-                device_id=held.device_id,
-                stored=candidate,
-            )
-            receipt = sync_state.saved_receipt(
-                connection, account_id=held.account_id, event_id=pending.request.event_id
-            )
-            if receipt is None:
-                response = cloud_sync.push(
-                    endpoint(), held.access_token, SyncPushRequest(events=[pending.request])
-                )
-                receipt = response.receipts[0]
-                if receipt.event_id != pending.request.event_id:
-                    raise CliFailure(
-                        "AI_STP_VALIDATION_ERROR",
-                        "the sync receipt does not match the sent event",
+                if mapping is not None and mapping.state == "accepted":
+                    processed += 1
+                    final_event_id = mapping.event_id
+                    final_remote_revision_id = mapping.remote_revision_id
+                    receipt = SyncEventReceipt(
+                        event_id=mapping.event_id,
+                        state="accepted",
+                        revision_id=mapping.remote_revision_id,
+                        server_head_revision_id=mapping.remote_revision_id,
+                        cursor=None,
+                        conflict=None,
+                        conflicting_entity_id=None,
+                        error_code=None,
                     )
-                sync_state.record_receipt(connection, account_id=held.account_id, receipt=receipt)
-            final_event_id = pending.request.event_id
-            final_remote_revision_id = pending.request.revision_id
-            processed += 1
-            if receipt.state in {"rejected", "superseded"}:
+                    break
+                pending = sync_state.prepare(
+                    connection,
+                    account_id=held.account_id,
+                    device_id=held.device_id,
+                    stored=candidate,
+                    payload=payload,
+                )
+                receipt = sync_state.saved_receipt(
+                    connection, account_id=held.account_id, event_id=pending.request.event_id
+                )
+                if receipt is None:
+                    response = cloud_sync.push(
+                        endpoint(), held.access_token, SyncPushRequest(events=[pending.request])
+                    )
+                    receipt = response.receipts[0]
+                    if receipt.event_id != pending.request.event_id:
+                        raise CliFailure(
+                            "AI_STP_VALIDATION_ERROR",
+                            "the sync receipt does not match the sent event",
+                        )
+                    sync_state.record_receipt(
+                        connection, account_id=held.account_id, receipt=receipt
+                    )
+                final_event_id = pending.request.event_id
+                final_remote_revision_id = pending.request.revision_id
+                processed += 1
+                if receipt.state != "accepted" or canonize(
+                    cast(JsonValue, pending.request.payload)
+                ) == canonize(cast(JsonValue, payload)):
+                    break
+                # An older uncertain request completed. Only now may the new
+                # version closure create its own event and idempotency key.
+            if receipt.state != "accepted":
                 break
         if (
             lifecycle.entombed(connection, stable_id) is not None
@@ -380,8 +393,18 @@ def pull(parameters: Mapping[str, object]) -> Answer[SyncPullView]:
             at=passports.moment(),
             skip_event_ids=_skipped_event_ids(parameters),
         )
+        pending_count, pending_versions = sync_versions.pending(connection, account=held.account_id)
     return Answer(
         SyncPullView(
+            state="partial"
+            if pending_count
+            else (
+                "up_to_date"
+                if not response.items or response.page.next_cursor is None
+                else "pulling"
+            ),
+            pending_version_count=pending_count,
+            pending_versions=pending_versions,
             received=len(response.items),
             applied=applied,
             replayed=replayed,

@@ -1,9 +1,9 @@
 ---
-description: "ADR-0173: One GitHub App, separate management consent and immutable provenance bindings."
+description: "ADR-0174: One GitHub App, separate management consent and immutable provenance bindings."
 last_verified: "2026-09-08"
 ---
 
-# ADR-0173: GitHub source authority is separate from login
+# ADR-0174: GitHub source authority is separate from login
 
 Status: accepted
 
@@ -36,7 +36,7 @@ publication passport and artifact. The private passport retains `source=null`; a
 verified binding satisfies source provenance without introducing private coordinates
 into passport bytes. Component promotion validates the bound source anonymously and
 preserves the binding and passport. Distribution policy and public projection change
-independently, following ADR-0169. SPEC-072 defines the one-way promotion MVP and all
+independently, following ADR-0169. SPEC-073 defines the one-way promotion MVP and all
 acceptance requirements.
 
 ## Consequences

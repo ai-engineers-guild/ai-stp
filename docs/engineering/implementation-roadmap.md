@@ -24,21 +24,45 @@ contracts, API/platform/worker/web/deployment and the source setup systems. No
 subagents or new worktrees are used. The installed `ai-stp-cli` is the user's
 entry point for acquisition, installation, updates and recovery.
 
-Baseline: public `1d4a9e89`, setup source `b767490`. Colleague PR #187 is already
-merged and included locally. Focused checks pass, but the measured failures below
-are not covered by their current assertions. Historical snapshots below remain
-historical; this table owns the active execution order.
+Baseline when post-broadcast work resumed: main and production `b2e99a5e`,
+CLI `0.0.21` on PyPI and in the user's PATH, providers `0.0.69`. The release
+candidate and registry readback agreed byte-for-byte; the user's registry was
+preserved. API rate limits remain unchanged by the owner's decision. The
+post-broadcast task resumes implementation; it does not reopen completed release
+work or treat the interrupted explicit model run as a passed scenario.
 
-| Stage | Remaining outcome | State |
+| Stage | Outcome and remaining work | State |
 |---|---|---|
-| R1 | Concise current instructions/checkpoint and reusable installed-process tests | In progress |
-| R2 | One private metadata response; visibility lifecycle; immutable publication and every projection bind | Merged and deployed in edbb6da9; live account evidence continues in R6 |
-| R3 | Merge-aware deployment verifier; real storage/migration/restore and web integration | Verifier merged and production migration 0056 observed; remaining recovery evidence open |
-| R4 | Self-updater reconciliation, installer ownership, rollback bytes, total deadline and PyPI provider bootstrap | Updater merged; automatic PyPI bootstrap implemented and under validation; final release qualification open |
-| R5 | Seven source-owned native setup systems, all four postures and builder capabilities | All seven providers released at 0.0.69; complete native configuration evidence remains open |
-| R6 | Current corpus publication/readback, real account journey and all final machine-help commands | Open; baseline 106 exact coordinates unavailable and 185 commands |
-| R7 | Exact candidate on the three required OS/arch: 21 provider/launch combinations and 84 setup/posture/platform combinations | Open |
-| R8 | Reader-before-writer release, file-bound estate evidence, PyPI/PATH/production readback | Open |
+| R1 | Complete EN/RU Skill packages and usable agent procedure | Installed package released; real agy-driven Codex minimal installation passed. Standalone repository reference closure merged in #194; 49 package/probe tests passed |
+| R2 | Private metadata, visibility and immutable publication | Draft promotion and setup ownership merged in #193. Legacy component identity repair is #195; remaining live private/grant journeys belong to R6 |
+| R3 | Deployment progression and recovery | Green main checks promote production normally; do not infer deployed SHA from a merge. Broader restore evidence remains open |
+| R4 | Owning-installer update/recovery and managed PyPI provider bootstrap | Released; GitHub/PyPI apply revalidation passed. Schema-aware rollback is implemented; 43 focused tests and a real isolated uv update/compatible rollback/incompatible refusal passed on Linux. The new reader release remains pending |
+| R5 | Seven providers and all four setup variants | Providers released; native program and configuration lifecycle passed on the three required platforms; full variant content/invocation evidence remains open |
+| R6 | Corpus and account journeys | All 106 objects published. Snapshot closure/recovery merged in #192; a repeated main-source read on two copied devices reached up_to_date with no pending versions. Collision reconciliation, full artifact readback and remaining live account journeys are open |
+| R7 | Complete 28-setup by 3-platform qualification | Basic 21 provider/configuration cells passed; full 84 setup/platform cells and shared candidate binding remain open |
+| R8 | Final release evidence | CLI 0.0.21 release/PATH/production verified; file-bound estate completeness remains open |
+
+Immediate execution order: finish integration of the current fixes and publish
+the next verified CLI reader;
+then implement immutable offline-version collision reconciliation, finish live
+account/publication and artifact readback, and qualify the full variant/native
+matrix against one candidate. Bind estate verdicts to retained artifact/evidence
+files before the coordinated full-beta release. A previous CLI cannot read schema
+35 merely because its wheel was restored; rewinding user data is not an implicit
+rollback step.
+
+The post-broadcast publication repair promotes an existing owned draft through
+the validated materialization path and preserves published lifecycle/visibility
+on replay. Setup ownership is checked across versions in the API and worker;
+concurrent first catalog writes establish one owner. The affected PostgreSQL,
+API and publication regression suite passed 78 tests. These repairs do not
+replace the remaining live publication/grant evidence.
+
+The legacy identity follow-up passed 973 platform/API/integration tests with
+one skip. Database doubles were replaced by PostgreSQL commit/rollback and
+idempotency tests. Diagnostics now treats supported automatic migration as
+ready while remaining read-only; 98 CLI/registry tests passed. These source
+fixes are not yet in the user's installed 0.0.21 wheel.
 
 Confirmed repairs include mismatched private wire models, missing visibility
 routes, artifact resealing of an existing X.Y, unchecked projection bind answers,

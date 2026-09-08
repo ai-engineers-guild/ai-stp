@@ -56,6 +56,14 @@ A new plan never overwrites an active or recoverable journal. Rollback journals
 retain their direction through failures; recovery resumes that same rollback.
 Rollback digests bind the retained wheel receipt, and bytes are rehashed before
 installation. A changed or unobservable version cannot report `rolled_back`.
+Rollback also binds the configured registry path into the continuation and reads
+its SQLite schema without migrating it. The hash-verified retained wheel's
+`ai_stp_cli/local/database.py` declares the supported ceiling: an integer
+`SCHEMA_VERSION` or the final version in its ordered literal `MIGRATIONS` tuple.
+The declaration is parsed without executing wheel code; an unknown declaration
+cannot establish compatibility. A newer registry refuses replacement; the
+helper repeats the check before invoking the installer and before recording
+success. Backups are retained, not rewound implicitly.
 SQLite backups use the online backup API to include committed WAL content.
 
 ## Local files

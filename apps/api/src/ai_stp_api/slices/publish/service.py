@@ -29,7 +29,11 @@ from ai_stp_platform.artifact_bind import (
 from ai_stp_platform.github_client import GitHubClient, GitHubError
 from ai_stp_platform.github_models import GitHubSourceBinding
 from ai_stp_platform.github_sources import authorize_binding, bound_source
-from ai_stp_platform.identity import IdentityError, ensure_catalog_identity
+from ai_stp_platform.identity import (
+    IdentityError,
+    assert_publication_owner,
+    ensure_catalog_identity,
+)
 from ai_stp_platform.models import (
     Account,
     CatalogIdentity,
@@ -179,6 +183,17 @@ async def create_plan(
             raise GitHubError("source_binding_mismatch", status=412)
         binding.passport_digest = exact_passport_digest
     expected_ownership_revision_id: str | None = None
+    if body.object_kind == "setup":
+        try:
+            await assert_publication_owner(
+                db,
+                stable_id=body.stable_id,
+                actor_account_id=ctx.account_id,
+                expected_ownership_revision_id=None,
+                object_kind=body.object_kind,
+            )
+        except IdentityError as exc:
+            raise ApiError(ErrorCategory.PERMISSION, exc.message) from exc
     if body.object_kind == "component":
         display_name = str(passport.get("name") or body.stable_id)
         try:

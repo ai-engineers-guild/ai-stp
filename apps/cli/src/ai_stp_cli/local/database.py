@@ -1195,6 +1195,17 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "DEFAULT 'target' CHECK (base_root IN ('target', 'parent'))",
         ),
     ),
+    Migration(
+        version=35,
+        summary="retain incomplete legacy version references during synchronization",
+        up=(
+            "CREATE TABLE sync_pending_version ("
+            "account_id TEXT NOT NULL, stable_id TEXT NOT NULL, version TEXT NOT NULL, "
+            "passport_digest TEXT NOT NULL, revision_id TEXT NOT NULL, created_at TEXT NOT NULL, "
+            "event_id TEXT NOT NULL, PRIMARY KEY (account_id, stable_id, version)) STRICT",
+        ),
+        down=("DROP TABLE sync_pending_version",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

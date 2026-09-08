@@ -15,6 +15,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from tests.support.component_passports import adaptation_fields
+from tests.support.private_distribution import component_version, setup_version
 
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_STATUS, ErrorCategory
@@ -27,6 +28,7 @@ from ai_stp_platform.external_catalog_admin import apply_case as apply_catalog_r
 from ai_stp_platform.models import (
     Account,
     AuditEvent,
+    CatalogIdentity,
     CatalogMetadata,
     Device,
     ExternalProductLocale,
@@ -365,6 +367,70 @@ async def test_publication_requires_public_profile(
 
     assert response.status_code == int(CATEGORY_STATUS[ErrorCategory.VALIDATION])
     assert response.json()["error"]["details"]["field"] == "publisher_profile"
+
+
+@pytest.mark.parametrize("foreign", [False, True])
+@pytest.mark.parametrize("object_kind", ["component", "setup"])
+@pytest.mark.parametrize("lifecycle", ["draft", "active"])
+async def test_new_version_preserves_line_owner_without_a_separate_identity_row(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+    foreign: bool,
+    object_kind: str,
+    lifecycle: str,
+) -> None:
+    client, sessionmaker, _settings = harness
+    owner, owner_device, owner_token = await _seed_account_device(sessionmaker)
+    actor, device, token = (
+        await _seed_account_device(sessionmaker) if foreign else (owner, owner_device, owner_token)
+    )
+    stable_id = new_id(object_kind)
+    if object_kind == "setup":
+        component, _ = component_version(actor, new_id("component"), "1.0")
+        passport, _ = setup_version(actor, stable_id, "1.1", component)
+    else:
+        passport, _ = component_version(actor, stable_id, "1.1")
+    async with sessionmaker() as db:
+        db.add(
+            CatalogMetadata(
+                owner_account_id=owner,
+                object_kind=object_kind,
+                stable_id=stable_id,
+                version="1.0",
+                current_revision_id=str(passport["revision_id"]),
+                visibility="private",
+                lifecycle_state=lifecycle,
+            )
+        )
+        await db.commit()
+    artifact = cast(dict[str, str], passport["artifact"])
+    response = await client.post(
+        "/v1/publications/plans",
+        headers=_auth(token),
+        json={
+            "schema_version": 1,
+            "object_kind": object_kind,
+            "stable_id": stable_id,
+            "version": "1.1",
+            "content_digest": artifact["digest"],
+            "policy_version": "1",
+            "visibility": "private",
+            "passport": passport,
+            "attestations": [],
+            "idempotency_key": new_id("operation"),
+            "device_id": device,
+        },
+    )
+    assert response.status_code == (
+        int(CATEGORY_STATUS[ErrorCategory.PERMISSION]) if foreign else 201
+    ), response.text
+    async with sessionmaker() as db:
+        plans = (await db.scalars(select(PublicationPlan))).all()
+        assert len(plans) == (0 if foreign else 1)
+        identity = await db.get(CatalogIdentity, stable_id)
+        if foreign:
+            assert identity is None
+        elif object_kind == "component":
+            assert identity is not None and identity.owner_account_id == owner
 
 
 async def test_publication_plan_confirm_validate_publish(

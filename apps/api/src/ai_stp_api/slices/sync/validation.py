@@ -9,6 +9,7 @@ from collections.abc import Mapping
 from typing import Final, cast
 
 from ai_stp_contracts.sync_payload import SyncPayloadRejection, check_sync_payload
+from ai_stp_contracts.sync_versions import VersionBindingError, validate_payload
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import is_valid_id
@@ -192,6 +193,16 @@ def validate_event_document(
     if not is_valid_id(actor_id, "account"):
         raise SyncValidationError("actor_id is invalid")
     _scan_forbidden(payload)
+    try:
+        validate_payload(
+            payload,
+            stable_id=entity_id,
+            kind={"component_private": "component", "setup_private": "setup"}.get(
+                entity_kind, entity_kind
+            ),
+        )
+    except VersionBindingError as error:
+        raise SyncValidationError(str(error)) from error
     document = seal_revision_document(
         entity_id=entity_id,
         entity_kind=entity_kind,

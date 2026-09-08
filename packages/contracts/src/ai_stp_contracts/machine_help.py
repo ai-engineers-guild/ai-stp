@@ -243,6 +243,17 @@ class SyncPushView(BaseModel):
     conflicting_entity_id: str | None
 
 
+class SyncPendingVersion(BaseModel):
+    """An exact legacy version reference whose snapshot is not available yet."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    stable_id: str
+    version: str
+    passport_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    revision_id: str
+    event_id: str
+
+
 class SyncPullView(BaseModel):
     """One atomically applied page from the private account stream."""
 
@@ -256,6 +267,11 @@ class SyncPullView(BaseModel):
     #: abandoned revision is not a quiet outcome, so it is counted separately
     #: from `applied` and the ids are answered back.
     skipped: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
+    state: Literal["pulling", "up_to_date", "partial"] = "pulling"
+    pending_version_count: Annotated[int, Field(ge=0)] = 0
+    pending_versions: Annotated[list[SyncPendingVersion], Field(max_length=128)] = Field(
+        default_factory=list[SyncPendingVersion]
+    )
     next_cursor: str | None
 
 

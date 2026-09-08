@@ -1,6 +1,6 @@
 ---
 description: "Synchronization event fields, responses, retries, and conflicts."
-last_verified: "2026-09-01"
+last_verified: "2026-09-08"
 ---
 
 # Synchronization event
@@ -83,22 +83,44 @@ opaque cursor in one local transaction. `sync merge` writes only a mechanically
 clean developer-passport merge with two parents; conflicting values must still
 be resolved by explicitly editing the passport.
 
-For private component/setup objects, the payload additionally carries a bounded
-list of released-version metadata without artifact bytes. A collision between
-one `X.Y` and another passport digest rolls back the entire page. Durable
-continuation after the last nonempty server page uses that position's cursor.
-The client does not manufacture a signed cursor itself.
+## Released version snapshots
 
-## Abandoning an event
+Under ADR-0173, `sync_released_versions` is a bounded list (at most 128)
+inside a component/setup payload. Each entry carries `version`,
+`passport_digest`, `revision_id`, `created_at` and an optional `snapshot`.
+The snapshot is the exact passport JSON, including its revision identity;
+artifact and backup bytes are not included. A snapshot has no draft parents,
+and its kind, stable identifier, optional version field, revision identity and
+passport digest must agree with the entry and event. Canonical JSON comparison
+rejects type coercions or omitted defaults that would change the named snapshot.
+Shared validation lives
+in `ai_stp_contracts.sync_versions` and applies before server ledger writes and
+client materialization. A legacy reference without `snapshot` remains readable.
 
-A pulled event that fails validation, or that no longer has the ground it
-needs — a released version pointing at a revision this device does not hold —
-stops the walk: the page rolls back whole, the cursor stays, and the refusal
-names the event. `sync pull --skip-event <event_id>` walks past exactly that
-event, abandoning its revision on this device; there is no "skip whatever is
-broken". An abandonment is remembered by the device for the account, so a
-lineage walked past once is not named again on every later pull, and each
-pull's answer lists the events it skipped, remembered or newly named.
+The client writes snapshots independently of the draft head. Outgoing identity
+includes the version closure and transport ancestry, so a release after an
+accepted draft push is a new event. An outstanding request retains its exact
+bytes and idempotency key until its outcome is resolved before sending the new
+closure. Accepted transport parents for the same local head connect a version
+refresh; an unrelated unseen remote head is never invented as a parent.
+
+## Partial legacy recovery and abandonment
+
+If a valid event names a released version whose snapshot is absent, the client
+retains its exact coordinates and originating event in `sync_pending_version`,
+scoped by account. Head, journal and cursor progress commit together. Pull
+reports `state=partial`, the full `pending_version_count`, and up to 128
+`pending_versions` entries (`stable_id`, `version`, `passport_digest`,
+`revision_id`, `event_id`). A later matching snapshot resolves the pending
+reference without changing the draft or inventing the version. When none remain,
+`state` is `pulling` for a nonfinal page or `up_to_date` at the end of the stream.
+The original accepted event remains in the journal after reconciliation.
+
+An invalid hash, forbidden payload, foreign snapshot or immutable version
+collision still rolls back the page and cursor. `sync pull --skip-event
+<event_id>` remains explicit abandonment of an exact event, remembered for that
+account/device. Missing snapshots are retained partial work instead of automatic
+abandonment. Neither partial progress nor a skipped event means complete sync.
 
 ## What the payload may carry
 

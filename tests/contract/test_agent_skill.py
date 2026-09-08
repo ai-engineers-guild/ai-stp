@@ -8,6 +8,7 @@ by refusing to declare unimplemented commands in the first place.
 
 import re
 import shlex
+import shutil
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,21 @@ def _package_markdown() -> list[Path]:
     return sorted(
         path for path in PACKAGE.rglob("*.md") if path.is_file() and "evals" not in path.parts
     )
+
+
+@pytest.mark.parametrize("projection", skill_projections.TARGETS, ids=lambda item: item.harness_id)
+def test_repository_projection_is_a_self_contained_skill_package(
+    projection: skill_projections.Projection, tmp_path: Path
+) -> None:
+    delivered = tmp_path / "ai-stp"
+    shutil.copytree(skill_projections.PROJECTIONS / projection.directory, delivered)
+    for document in delivered.rglob("*.md"):
+        for target in re.findall(r"\]\(([^)]+)\)", document.read_text(encoding="utf-8")):
+            if "://" in target or target.startswith("#"):
+                continue
+            destination = (document.parent / target.split("#", 1)[0]).resolve()
+            assert destination.is_relative_to(delivered), (document, target)
+            assert destination.is_file(), (document, target)
 
 
 def _known_paths() -> set[str]:

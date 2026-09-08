@@ -1,6 +1,6 @@
 ---
 description: "SPEC-009: Local registry and synchronization."
-last_verified: "2026-08-04"
+last_verified: "2026-09-08"
 ---
 
 # SPEC-009: Local registry and synchronization
@@ -35,6 +35,18 @@ This includes SQLite, local content-addressed storage, revisions, device heads, 
 - `REQ-911`: The full device passport never leaves the device; only its permitted summary from `docs/contracts/device-passport.md` is synchronized as a separate entity for that device, no three-way merge is performed between summaries from different devices, and only the developer passport is merged across devices.
 - `REQ-912`: Concurrent offline creation of versions of the same object on two devices is reconciled during synchronization without rewriting immutable data: if one `X.Y` number is occupied by different hashes, the first revision accepted by the server retains the number, the losing unpublished version is automatically reissued under the next available minor number with the same content and a new passport, a `ConflictRecord` is created, and a published number is never moved this way.
 
+- `REQ-913`: Component/setup synchronization carries exact immutable version
+  snapshots independently of draft ancestry and preserves the draft head.
+  Receivers verify snapshot coordinates and passport digest before recording a
+  released version. A release after a previously accepted push creates a new
+  transport event without changing the draft revision; exact retries retain the
+  original event and idempotency key, including after an uncertain response.
+- `REQ-914`: Missing snapshots in valid legacy events remain in a durable
+  account-scoped pending journal. Other valid history can advance atomically
+  with the cursor; the client reports partial and the pending coordinates until
+  the exact snapshot arrives. No version is fabricated or silently discarded;
+  invalid identity/digest and immutable-version collisions still roll back.
+
 ## States and errors
 
 A synchronization session has the states `offline`, `up_to_date`, `pushing`, `pulling`, `conflict`, `partial`, and `failed`. A server response has the states `accepted`, `rejected`, `conflict`, and `superseded`. A revoked device receives a permanent authorization error; a network timeout permits a retry with the same idempotency key.
@@ -63,3 +75,5 @@ Old and new clients exchange only a supported major schema version. Migration pr
 | `REQ-910` | Fault injection after every persistence point confirms a resumable partial state. |
 | `REQ-911` | A two-device fixture synchronizes two separate summaries without attempting to merge them, and synchronization events contain neither the full device passport nor absolute paths. |
 | `REQ-912` | A fixture with two offline devices using the same number and different hashes retains the number of the first accepted revision, reissues the second under the next number with a `ConflictRecord`, and does not change any published snapshot. |
+| `REQ-913` | Two isolated registries transfer a separately stored version snapshot; releasing after an accepted push is delivered and replayed without changing either draft head. |
+| `REQ-914` | A legacy missing reference remains visible while later valid events apply; its matching snapshot resolves it, while a mismatched snapshot or version collision preserves the previous page and cursor. |

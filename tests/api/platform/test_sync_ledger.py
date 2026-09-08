@@ -920,3 +920,79 @@ async def test_a_revision_naming_a_parent_the_account_never_had_is_refused(
             .all()
         )
     assert child["revision_id"] not in [str(item) for item in delivered]
+
+
+@pytest.mark.parametrize(
+    "shape", ["snapshot", "legacy", "changed_snapshot", "wrong_number", "foreign_snapshot"]
+)
+async def test_version_snapshot_binding_is_checked_before_ledger_append(
+    harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str],
+    shape: str,
+) -> None:
+    from http import HTTPStatus
+
+    from ai_stp_api.errors import CATEGORY_CODE, ErrorCategory
+    from ai_stp_foundation.canonical import JsonValue
+    from ai_stp_foundation.digests import digest_canonical
+    from ai_stp_passports.envelope import seal_envelope
+
+    client, sessionmaker, _ = harness
+    account_id, device_id, token = await _seed_device_session(sessionmaker)
+    stable_id = new_id("component")
+    template = _build_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=stable_id,
+        entity_kind="component_private",
+    )
+    snapshot = seal_envelope(
+        {
+            "kind": "component",
+            "stable_id": stable_id,
+            "owner_id": account_id,
+            "created_at": template["created_at"],
+            "version": "1.0",
+        }
+    ).model_dump(mode="json")
+    snapshot_value = dict(snapshot)
+    row: dict[str, object] = {
+        "version": snapshot["version"],
+        "passport_digest": digest_canonical("ai-stp:passport:v1", cast(JsonValue, snapshot)),
+        "revision_id": snapshot["revision_id"],
+        "created_at": snapshot["created_at"],
+        "snapshot": snapshot_value,
+    }
+    if shape == "legacy":
+        row.pop("snapshot")
+    elif shape == "changed_snapshot":
+        snapshot_value["description"] = "changed after sealing"
+    elif shape == "wrong_number":
+        row["version"] = "2.0"
+    elif shape == "foreign_snapshot":
+        snapshot_value["stable_id"] = new_id("component")
+    payload: dict[str, object] = {"sync_released_versions": [row]}
+    event = _build_event(
+        account_id=account_id,
+        device_id=device_id,
+        entity_id=stable_id,
+        entity_kind="component_private",
+        payload=payload,
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+    response = await client.post(
+        "/v1/sync/push", headers=headers, json={"schema_version": 1, "events": [event]}
+    )
+    assert response.status_code == HTTPStatus.OK
+    receipt = response.json()["receipts"][0]
+    pulled = await client.get("/v1/sync/pull", headers=headers)
+    assert pulled.status_code == HTTPStatus.OK
+    if shape in {"snapshot", "legacy"}:
+        assert receipt["state"] == "accepted"
+        assert [item["payload"] for item in pulled.json()["items"]] == [payload]
+    else:
+        assert receipt["state"] == "rejected"
+        assert receipt["error_code"] == CATEGORY_CODE[ErrorCategory.VALIDATION]
+        assert pulled.json()["items"] == []
+    async with sessionmaker() as db:
+        revisions_count = await db.scalar(select(func.count()).select_from(SyncRevision))
+        assert revisions_count == len(pulled.json()["items"])

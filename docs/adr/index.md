@@ -170,7 +170,8 @@ last_verified: "2026-08-03"
 | [ADR-0170-cli-self-update-through-owning-installer.md](ADR-0170-cli-self-update-through-owning-installer.md) | ADR-0170: The CLI updates itself through the installer that owns the PyPI distribution. | 2026-09-08 |
 | [ADR-0171-installed-cli-owns-index-verification-runtime.md](ADR-0171-installed-cli-owns-index-verification-runtime.md) | The installed CLI bootstraps its pinned PyPI provenance verifier without manual tools. | 2026-09-08 |
 | [ADR-0172-beta-qualification-on-three-primary-platforms.md](ADR-0172-beta-qualification-on-three-primary-platforms.md) | Beta qualification requires Linux x86_64, Windows x86_64 and macOS arm64; other pairs remain not_verified. | 2026-09-08 |
-| [ADR-0173-github-source-authority-is-separate-from-login.md](ADR-0173-github-source-authority-is-separate-from-login.md) | ADR-0173: One GitHub App, separate management consent and immutable provenance bindings. | 2026-09-08 |
+| [ADR-0173-self-contained-version-synchronization.md](ADR-0173-self-contained-version-synchronization.md) | Sync carries immutable version snapshots and journals incomplete legacy references without blocking unrelated history. | 2026-09-08 |
+| [ADR-0174-github-source-authority-is-separate-from-login.md](ADR-0174-github-source-authority-is-separate-from-login.md) | ADR-0174: One GitHub App, separate management consent and immutable provenance bindings. | 2026-09-08 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

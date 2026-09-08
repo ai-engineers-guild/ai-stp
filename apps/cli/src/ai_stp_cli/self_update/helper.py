@@ -6,16 +6,105 @@ when the old CLI distribution and all of its third-party imports are gone.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
+import sqlite3
 import subprocess
 import sys
+import zipfile
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
+
+
+class RegistryCompatibilityError(RuntimeError):
+    """The retained reader cannot safely read the current registry."""
+
+
+def wheel_schema_version(wheel: Path) -> int:
+    """Read the retained wheel's schema declaration without executing its code."""
+    member = "ai_stp_cli/local/database.py"
+    try:
+        with zipfile.ZipFile(wheel) as archive:
+            if (
+                archive.namelist().count(member) != 1
+                or archive.getinfo(member).file_size > 1024 * 1024
+            ):
+                raise ValueError("missing or oversized schema declaration")
+            source = ast.parse(archive.read(member))
+        values: dict[str, ast.expr] = {}
+        for node in source.body:
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value:
+                values[node.target.id] = node.value
+            elif isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        values[target.id] = node.value
+        schema = values.get("SCHEMA_VERSION")
+        if isinstance(schema, ast.Constant) and type(schema.value) is int and schema.value >= 0:
+            return schema.value
+        expected = ast.parse("MIGRATIONS[-1].version", mode="eval").body
+        migrations = values.get("MIGRATIONS")
+        if (
+            schema is None
+            or ast.dump(schema) != ast.dump(expected)
+            or not isinstance(migrations, ast.Tuple)
+        ):
+            raise ValueError("unsupported schema declaration")
+        versions: list[int] = []
+        for item in migrations.elts:
+            if (
+                not isinstance(item, ast.Call)
+                or not isinstance(item.func, ast.Name)
+                or item.func.id != "Migration"
+            ):
+                raise ValueError("unsupported migration declaration")
+            declared = ([item.args[0]] if item.args else []) + [
+                keyword.value for keyword in item.keywords if keyword.arg == "version"
+            ]
+            if (
+                len(declared) != 1
+                or not isinstance(declared[0], ast.Constant)
+                or type(declared[0].value) is not int
+            ):
+                raise ValueError("unsupported migration version")
+            versions.append(declared[0].value)
+        if not versions or versions != sorted(set(versions)) or versions[0] < 1:
+            raise ValueError("invalid migration order")
+        return versions[-1]
+    except (
+        OSError,
+        ValueError,
+        SyntaxError,
+        KeyError,
+        RecursionError,
+        zipfile.BadZipFile,
+    ) as error:
+        raise RegistryCompatibilityError(
+            "rollback wheel has no verifiable registry schema declaration"
+        ) from error
+
+
+def check_registry_compatibility(wheel: Path, registry: Path) -> None:
+    """Refuse an unreadable downgrade without migrating or restoring user data."""
+    if not registry.exists():
+        return
+    ceiling = wheel_schema_version(wheel)
+    try:
+        with closing(
+            sqlite3.connect(registry.resolve().as_uri() + "?mode=ro", uri=True)
+        ) as connection:
+            current = int(connection.execute("PRAGMA user_version").fetchone()[0])
+    except (OSError, ValueError, sqlite3.Error) as error:
+        raise RegistryCompatibilityError("current registry schema cannot be inspected") from error
+    if current > ceiling:
+        raise RegistryCompatibilityError(
+            f"registry schema {current} is newer than rollback reader {ceiling}"
+        )
 
 
 def _write(path: Path, document: dict[str, Any]) -> None:
@@ -108,6 +197,13 @@ def execute(job_path: Path, expected_digest: str) -> None:
                 or hashlib.sha256(wheel.read_bytes()).hexdigest() != job["wheel_sha256"]
             ):
                 raise ValueError("staged update bytes changed before execution")
+            if job["direction"] == "rollback":
+                registry_path = job.get("registry_path")
+                if not isinstance(registry_path, str) or not registry_path:
+                    raise RegistryCompatibilityError(
+                        "rollback continuation has no registry binding"
+                    )
+                check_registry_compatibility(wheel, Path(registry_path))
             observed = _version(job["executable"], environment)
             if observed not in {job["target_version"], job["source_version"], "unknown"}:
                 raise RuntimeError("installation changed after the planned handoff")
@@ -126,6 +222,8 @@ def execute(job_path: Path, expected_digest: str) -> None:
                 observed = _version(job["executable"], environment)
             if observed != job["target_version"]:
                 raise RuntimeError("installed version does not match the planned replacement")
+            if job["direction"] == "rollback":
+                check_registry_compatibility(wheel, Path(job["registry_path"]))
             journal.update(
                 state="rolled_back" if job["direction"] == "rollback" else "verified",
                 rollback_digest=job["rollback_digest"],

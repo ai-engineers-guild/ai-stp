@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,7 @@ from ai_stp_foundation.identity import (
     normalize_handle,
     submitted_display_name,
 )
-from ai_stp_platform.models import Account, CatalogIdentity, CatalogIdentityLocale
+from ai_stp_platform.models import Account, CatalogIdentity, CatalogIdentityLocale, CatalogMetadata
 
 
 class IdentityError(Exception):
@@ -166,6 +166,12 @@ async def ensure_catalog_identity(
         ru_name = submitted_display_name(display_name_ru)
     except IdentityNormalizationError as exc:
         raise IdentityError("AI_STP_VALIDATION_ERROR", str(exc)) from exc
+    await _assert_catalog_rows_owner(
+        session,
+        stable_id=stable_id,
+        actor_account_id=owner_account_id,
+        object_kind="component",
+    )
     existing = await session.get(CatalogIdentity, stable_id)
     if existing is None:
         identity = CatalogIdentity(
@@ -210,6 +216,34 @@ async def ensure_catalog_identity(
     return existing
 
 
+async def _assert_catalog_rows_owner(
+    session: AsyncSession,
+    *,
+    stable_id: str,
+    actor_account_id: str,
+    object_kind: str,
+) -> None:
+    """Preserve ownership already recorded before a separate line identity existed."""
+    await session.execute(
+        select(
+            func.pg_advisory_xact_lock(func.hashtextextended(f"{object_kind}-owner:{stable_id}", 0))
+        )
+    )
+    foreign = await session.scalar(
+        select(CatalogMetadata.id)
+        .where(
+            CatalogMetadata.object_kind == object_kind,
+            CatalogMetadata.stable_id == stable_id,
+            CatalogMetadata.owner_account_id != actor_account_id,
+        )
+        .limit(1)
+    )
+    if foreign is not None:
+        raise IdentityError(
+            "AI_STP_FOREIGN_LINE_OWNERSHIP", "the catalog line is owned by another account"
+        )
+
+
 async def assert_publication_owner(
     session: AsyncSession,
     *,
@@ -218,8 +252,16 @@ async def assert_publication_owner(
     expected_ownership_revision_id: str | None,
     object_kind: str,
 ) -> CatalogIdentity | None:
-    """Fence a later version of an owned component line."""
-    if object_kind != "component":
+    """Keep version publication within the catalog line's current ownership."""
+    if object_kind not in {"component", "setup"}:
+        return None
+    await _assert_catalog_rows_owner(
+        session,
+        stable_id=stable_id,
+        actor_account_id=actor_account_id,
+        object_kind=object_kind,
+    )
+    if object_kind == "setup":
         return None
     identity = await session.scalar(
         select(CatalogIdentity).where(CatalogIdentity.stable_id == stable_id).with_for_update()

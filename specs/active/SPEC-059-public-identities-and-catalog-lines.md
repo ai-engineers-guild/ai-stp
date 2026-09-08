@@ -50,6 +50,10 @@ and upstream synchronization, which belong to their existing specifications.
 - `REQ-5906`: Publication verifies the current line owner when a plan is created
   and repeats the check under the publishing transaction. A plan made stale by
   ownership transfer fails without creating catalog metadata or object bytes.
+  If a legacy line has catalog versions but no separate identity row, identity
+  creation preserves the owner already recorded by those versions. A foreign
+  attempt creates neither a plan nor an identity. First catalog writes and
+  identity allocation serialize on the same stable ID.
 - `REQ-5907`: Ownership changes only through an append-only ownership revision
   that atomically updates the catalog line. Immutable passport owner fields and
   historical publisher attribution are never rewritten.

@@ -1,4 +1,42 @@
 {
+  "$defs": {
+    "SyncPendingVersion": {
+      "additionalProperties": false,
+      "description": "An exact legacy version reference whose snapshot is not available yet.",
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "passport_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Passport Digest",
+          "type": "string"
+        },
+        "revision_id": {
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stable_id",
+        "version",
+        "passport_digest",
+        "revision_id",
+        "event_id"
+      ],
+      "title": "SyncPendingVersion",
+      "type": "object"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:cli-sync-pull",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -19,6 +57,20 @@
         }
       ],
       "title": "Next Cursor"
+    },
+    "pending_version_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Pending Version Count",
+      "type": "integer"
+    },
+    "pending_versions": {
+      "items": {
+        "$ref": "#/$defs/SyncPendingVersion"
+      },
+      "maxItems": 128,
+      "title": "Pending Versions",
+      "type": "array"
     },
     "received": {
       "minimum": 0,
@@ -43,6 +95,16 @@
       "maxItems": 64,
       "title": "Skipped",
       "type": "array"
+    },
+    "state": {
+      "default": "pulling",
+      "enum": [
+        "pulling",
+        "up_to_date",
+        "partial"
+      ],
+      "title": "State",
+      "type": "string"
     }
   },
   "required": [
