@@ -114,8 +114,6 @@ async def selected_installations(
         if permissions.get("metadata") != "read" or permissions.get("contents") != "read":
             continue
         administration = permissions.get("administration")
-        if purpose == "source" and administration not in {None, "none"}:
-            raise GitHubError("reader_permissions_too_broad", status=403)
         if purpose == "administration" and administration != "write":
             continue
         positive_id(item.get("id"))

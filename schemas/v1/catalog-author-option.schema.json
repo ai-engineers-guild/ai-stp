@@ -2,13 +2,26 @@
   "$id": "urn:ai-stp:schema:v1:catalog-author-option",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "One public author available in the catalog filter.",
+  "description": "One author with an active public component or setup available in the catalog filter.",
   "properties": {
     "account_id": {
       "maxLength": 64,
       "minLength": 1,
       "title": "Account Id",
       "type": "string"
+    },
+    "avatar_url": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Avatar Url"
     },
     "display_name": {
       "anyOf": [
@@ -23,11 +36,42 @@
       ],
       "default": null,
       "title": "Display Name"
+    },
+    "first_name": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "First Name"
+    },
+    "last_name": {
+      "anyOf": [
+        {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Name"
     }
   },
   "required": [
     "account_id",
-    "display_name"
+    "avatar_url",
+    "display_name",
+    "first_name",
+    "last_name"
   ],
   "title": "CatalogAuthorOption",
   "type": "object"

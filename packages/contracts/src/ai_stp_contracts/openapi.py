@@ -501,7 +501,7 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         method="get",
         path="/catalog/authors",
         operation_id="listCatalogAuthors",
-        summary="List authors with public catalog objects. Anonymous.",
+        summary="List authors with public components or setups. Anonymous.",
         response=CatalogAuthorListResponse,
     ),
     Operation(

@@ -82,7 +82,10 @@ export async function listExternalProducts(): Promise<{
 
 export type CatalogAuthorOption = {
   account_id: string;
+  first_name: string | null;
+  last_name: string | null;
   display_name: string | null;
+  avatar_url: string | null;
 };
 
 export async function listCatalogAuthors(): Promise<{

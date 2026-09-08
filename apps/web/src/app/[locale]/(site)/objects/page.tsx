@@ -7,12 +7,13 @@ import {
   type ObjectFilterKind,
 } from "@/components/molecules/scoped-object-filters";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { OwnerObjectActions } from "@/components/organisms/owner-object-actions";
 import { ApiError } from "@/lib/api/errors";
 import { listOwnerObjects } from "@/lib/api/owner";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { readCsrfToken } from "@/lib/auth/session";
 import { ownerComponentNextStep, ownerSetupNextStep } from "@/lib/cli-copy";
 import { Link } from "@/lib/i18n/navigation";
-import { Icon } from "@/theme";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -27,7 +28,8 @@ export default async function OwnerObjectsPage({ params, searchParams }: PagePro
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/objects`);
+  const session = await requireSession(locale, `/${locale}/objects`);
+  const csrfToken = (await readCsrfToken()) ?? "";
   const t = await getTranslations("objects");
   const tc = await getTranslations("common");
   const tCli = await getTranslations("cli");
@@ -131,34 +133,15 @@ export default async function OwnerObjectsPage({ params, searchParams }: PagePro
                   ) : null}
                   {item.component_verified ? <Badge>{t("componentVerified")}</Badge> : null}
                 </div>
-                <details className="absolute top-4 right-4">
-                  <summary
-                    className="border-border hover:bg-muted flex size-10 cursor-pointer list-none items-center justify-center rounded-md border"
-                    aria-label={t("manageObject")}
-                  >
-                    <Icon name="more" size="sm" />
-                  </summary>
-                  <div className="border-border bg-popover absolute top-11 right-0 z-20 grid min-w-56 rounded-lg border p-1 shadow-md">
-                    <Link
-                      className="hover:bg-muted rounded-md px-3 py-2 text-sm"
-                      href={`/catalog/${item.object_kind === "component" ? "components" : "setups"}/${item.stable_id}`}
-                    >
-                      {t("viewPublic")}
-                    </Link>
-                    <Link
-                      className="hover:bg-muted rounded-md px-3 py-2 text-sm"
-                      href={`/objects/${item.object_kind}/${item.stable_id}/edit`}
-                    >
-                      {t("editPresentation")}
-                    </Link>
-                    <Link
-                      className="hover:bg-muted rounded-md px-3 py-2 text-sm"
-                      href={`/objects/${item.object_kind}/${item.stable_id}`}
-                    >
-                      {t("manageAccess")}
-                    </Link>
-                  </div>
-                </details>
+                <OwnerObjectActions
+                  csrfToken={csrfToken}
+                  deviceId={session.deviceId}
+                  kind={item.object_kind}
+                  stableId={item.stable_id}
+                  name={item.name}
+                  version={item.latest_version}
+                  visibility={item.visibility}
+                />
               </li>
             ))}
           </ul>

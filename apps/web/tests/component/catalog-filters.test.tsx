@@ -353,9 +353,58 @@ describe("CatalogFilters", () => {
     expect(screen.getByRole("checkbox", { name: "codex" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "skill" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /Only verified/ })).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Author (1)" }));
+    expect(screen.getByRole("dialog", { name: "Author" })).toContainElement(
+      screen.getByRole("checkbox", { name: "alice" }),
+    );
     expect(screen.getByRole("checkbox", { name: "alice" })).toBeChecked();
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Author" })).getByRole("button", { name: "Close" }),
+    );
     expect(screen.queryByRole("combobox", { name: "Support tier" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Support state" })).toBeNull();
+  });
+
+  it("orders the author list with Latin names before Cyrillic names", async () => {
+    const user = userEvent.setup();
+    render(
+      <CatalogFilters
+        query={query()}
+        labels={labels}
+        authors={[
+          {
+            account_id: "ru",
+            first_name: "Яна",
+            last_name: null,
+            display_name: "Яна",
+            avatar_url: null,
+          },
+          {
+            account_id: "z",
+            first_name: "Zed",
+            last_name: null,
+            display_name: "Zed",
+            avatar_url: null,
+          },
+          {
+            account_id: "a",
+            first_name: "Ada",
+            last_name: null,
+            display_name: "Ada",
+            avatar_url: null,
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: /^Author$/ }));
+    const authorDialog = screen.getByRole("dialog", { name: "Author" });
+    expect(
+      within(authorDialog)
+        .getAllByRole("checkbox")
+        .map((checkbox) => checkbox.getAttribute("aria-label")),
+    ).toEqual(["Ada", "Zed", "Яна"]);
   });
 
   it("uses an overlay filter surface on a narrow viewport without dropping controls", async () => {
@@ -378,12 +427,16 @@ describe("CatalogFilters", () => {
     expect(within(surface).getByRole("checkbox", { name: "Components" })).toBeInTheDocument();
     expect(within(surface).getByRole("group", { name: /Tag/ })).toBeInTheDocument();
     expect(within(surface).getByRole("group", { name: "Harness" })).toBeInTheDocument();
-    expect(within(surface).getByRole("searchbox", { name: /Author/ })).toBeInTheDocument();
+    await user.click(within(surface).getByRole("button", { name: "Author" }));
+    const authorDialog = screen.getByRole("dialog", { name: "Author" });
+    expect(within(authorDialog).getByRole("searchbox", { name: /Author/ })).toBeInTheDocument();
+    await user.click(within(authorDialog).getByRole("button", { name: "Close" }));
     expect(within(surface).getByRole("button", { name: "Apply filters" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sort results" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Result layout" })).toBeInTheDocument();
     const close = within(surface).getByRole("button", { name: "Close" });
     const apply = within(surface).getByRole("button", { name: "Apply filters" });
+    close.focus();
     expect(close).toHaveFocus();
     await user.keyboard("{Shift>}{Tab}{/Shift}");
     expect(apply).toHaveFocus();

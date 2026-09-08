@@ -457,6 +457,7 @@
       "status": 200,
       "body": {
         "schema_version": 1,
+        "distribution_visibility": "public",
         "passport": {
           "schema_version": 1,
           "kind": "component",
@@ -605,8 +606,7 @@
               "safety_checks": []
             }
           ]
-        },
-        "distribution_visibility": null
+        }
       }
     },
     {

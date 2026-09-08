@@ -19,12 +19,9 @@ class GitHubConnectorSettings(BaseSettings):
     client_id: str = ""
     client_secret: SecretStr = Field(default_factory=lambda: SecretStr(""))
     app_slug: str = ""
-    administration_client_id: str = ""
-    administration_client_secret: SecretStr = Field(default_factory=lambda: SecretStr(""))
-    administration_app_slug: str = ""
     encryption_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
 
-    @field_validator("app_slug", "administration_app_slug")
+    @field_validator("app_slug")
     @classmethod
     def _slug(cls, value: str) -> str:
         if value and (
@@ -47,12 +44,9 @@ class GitHubConnectorSettings(BaseSettings):
         return value
 
     def credentials(self, purpose: ConnectorPurpose) -> tuple[str, str, str]:
-        if purpose == "administration":
-            return (
-                self.administration_client_id,
-                self.administration_client_secret.get_secret_value(),
-                self.administration_app_slug,
-            )
+        # ``purpose`` remains part of the account consent and token binding, but
+        # both purposes use the same one GitHub App registration.
+        _ = purpose
         return self.client_id, self.client_secret.get_secret_value(), self.app_slug
 
     def enabled(self, purpose: ConnectorPurpose) -> bool:

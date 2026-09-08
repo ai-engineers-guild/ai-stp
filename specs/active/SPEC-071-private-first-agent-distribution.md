@@ -43,8 +43,9 @@ restricts future reads, not previously acquired copies.
   public author or component verification. `setup compose` resolves exact granted
   components through that same access path and creates a private setup.
 - `REQ-7105`: Invitations and grants retain SPEC-026 authority. Only an owner can
-  expose an existing object through a separate exact plan and confirmation. Upload
-  and invitation acceptance do not change visibility.
+  expose or withdraw an existing object through a separate exact plan and
+  confirmation. Withdrawal stops future anonymous service access but cannot revoke
+  acquired copies. Upload and invitation acceptance do not change visibility.
 - `REQ-7106`: Private preparation reuses accessible exact private and public pins;
   public preparation refuses private pins. An altered or merely cached passport
   cannot justify skipping publication of an exact participant.
@@ -80,6 +81,6 @@ endpoint or a new immutable identity.
 | `REQ-7102` | A legacy public answer to a private request uploads and confirms no bytes. |
 | `REQ-7103` | Anonymous requests omit tokens; private reads need a session; denial cannot be hidden by cache. |
 | `REQ-7104` | A private graph compiles and enters a new private setup; another account or endpoint cannot read its cache. |
-| `REQ-7105` | Invitations preserve authority; opening requires exact explicit approval. |
+| `REQ-7105` | Invitations preserve authority; opening and withdrawal require exact explicit approval. |
 | `REQ-7106` | Accessible exact pins are reused; mismatched or private public-set pins refuse. |
 | `REQ-7107` | Process and transport tests pass; deployed evidence is reported separately. |

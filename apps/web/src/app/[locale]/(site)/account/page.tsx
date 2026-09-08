@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
 import { CopyValue } from "@/components/molecules/copy-value";
+import { GitHubConnectionLink } from "@/components/molecules/github-connection-link";
 import { IdentityList } from "@/components/organisms/identity-list";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { readAccount } from "@/lib/api/account";
@@ -21,7 +22,6 @@ export default async function AccountPage({ params }: PageProps) {
   const t = await getTranslations("account");
   const tc = await getTranslations("common");
   const tn = await getTranslations("nav");
-  const tg = await getTranslations("githubConnector");
   const token = await sessionCookieValue();
   const csrfToken = (await readCsrfToken()) ?? "";
 
@@ -75,9 +75,7 @@ export default async function AccountPage({ params }: PageProps) {
         />
       </section>
 
-      <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto">
-        <Link href="/account/github">{tg("title")}</Link>
-      </Button>
+      <GitHubConnectionLink csrfToken={csrfToken} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button asChild variant="outline" className="min-h-11 w-full shrink-0 sm:w-auto">

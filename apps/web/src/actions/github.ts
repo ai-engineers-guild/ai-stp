@@ -61,7 +61,10 @@ export async function githubPlan(csrf: string, body: GitHubActionPlanRequest) {
   return request<GitHubActionPlanResponse>(csrf, "/v1/connectors/github/actions", body);
 }
 export async function githubActionStatus(csrf: string, planId: string) {
-  return request<GitHubActionPlanResponse>(csrf, `/v1/connectors/github/actions/${encodeURIComponent(planId)}`);
+  return request<GitHubActionPlanResponse>(
+    csrf,
+    `/v1/connectors/github/actions/${encodeURIComponent(planId)}`,
+  );
 }
 export async function githubConfirm(
   csrf: string,

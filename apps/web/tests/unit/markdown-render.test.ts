@@ -155,6 +155,21 @@ describe("renderMarkdownOnServer", () => {
     expect(rendered.html).toContain('<h2 id="native-surface">Native surface</h2>');
   });
 
+  it("omits an inferred cover when the body heading differs from the SEO title", () => {
+    const rendered = renderMarkdownOnServer(
+      "# `agent`\n\n![Component type: agent](/content/illustrations/kind-agent.jpg)\n\nIntro",
+      {
+        article: true,
+        title: "An agent is a named role inside a setup",
+        coverImage: "/content/illustrations/kind-agent.jpg",
+      },
+    );
+
+    expect(rendered.html).toContain('<h1 id="agent">`agent`</h1>');
+    expect(rendered.html).not.toContain("kind-agent.jpg");
+    expect(rendered.html).toContain("<p>Intro</p>");
+  });
+
   it("embeds only supported video hosts and keeps the source link", () => {
     const rendered = renderMarkdownOnServer(
       "@[youtube](https://www.youtube.com/watch?v=dQw4w9WgXcQ)\n\n@[vimeo](https://vimeo.com/12345678)",

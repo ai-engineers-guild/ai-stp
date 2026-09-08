@@ -1,6 +1,6 @@
 ---
-description: "ADR-0170: Separate GitHub App source authority, management consent and immutable provenance bindings."
-last_verified: "2026-09-07"
+description: "ADR-0170: One GitHub App, separate management consent and immutable provenance bindings."
+last_verified: "2026-09-08"
 ---
 
 # ADR-0170: GitHub source authority is separate from login
@@ -17,17 +17,19 @@ passports that may later be distributed publicly.
 
 ## Decision
 
-Use a separately connected reader GitHub App with selected repositories and expiring
-user access tokens. Encrypt token material server-side with a dedicated key and
-account/purpose binding. Recheck the live intersection of installation scope and
-user permissions before source access. Expiration requires reconnection; refresh
-tokens are not retained. Sign-in credentials are never substituted.
+Use one GitHub App with selected repositories, metadata/contents read and
+administration write permissions. Encrypt user access tokens server-side with a
+dedicated key and account/purpose binding. Recheck the live intersection of
+installation scope and user permissions before source access or administration.
+Expiration requires reconnection; refresh tokens are not retained. Sign-in
+credentials are never substituted.
 
-Use a second, optional management App for explicitly consented administration. A
-management action requires both selected repository access and current user admin
-authority. Invitations and repository visibility changes have separate durable,
-digest-bound plans and user confirmations. Unknown external outcomes are reconciled
-before retry. Neither component publication nor ai-stp grants invoke those actions.
+Keep source access and administration as separate consent records even though they
+use the same App registration. A management action requires selected repository
+access, current user admin authority and its own durable plan plus confirmation.
+Invitations and repository visibility changes are reconciled after uncertain external
+outcomes before retry. Neither component publication nor ai-stp grants invoke those
+actions.
 
 Store private source coordinates in an immutable server-only binding to the exact
 publication passport and artifact. The private passport retains `source=null`; a
@@ -39,12 +41,19 @@ acceptance requirements.
 
 ## Consequences
 
-Operators configure separate reader and optional management App registrations and
-callbacks. Ordinary installation never requests administration write. An expired
-connection requires user authorization again instead of long-lived refresh material.
+Operators configure one App registration and callback. Its installation requests the
+broader administration permission, while the product keeps ordinary source work
+read-only by policy and never mutates GitHub without a separate confirmed plan. An
+expired connection requires user authorization again instead of long-lived refresh material.
 Disconnected users retain already granted artifact access but cannot fetch new
 private source snapshots. Missing configuration remains visibly unavailable.
 
 Private source provenance is verifiable by the platform without being public
 passport content. All public eligibility checks still run before exposure; no
 source privacy exception bypasses artifact integrity, safety or ownership.
+
+GitHub's permission model is documented in
+[Choosing permissions for a GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app),
+[Authorizing GitHub Apps](https://docs.github.com/en/apps/using-github-apps/authorizing-github-apps),
+and
+[Approving updated permissions](https://docs.github.com/en/apps/using-github-apps/approving-updated-permissions-for-a-github-app).

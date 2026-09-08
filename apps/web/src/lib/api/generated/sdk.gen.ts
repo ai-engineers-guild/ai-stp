@@ -167,6 +167,9 @@ import type {
   ReadContentRepositoryStateErrors,
   ReadContentRepositoryStateResponses,
   ReadContentResponses,
+  ReadGithubActionData,
+  ReadGithubActionErrors,
+  ReadGithubActionResponses,
   ReadGithubConnectorData,
   ReadGithubConnectorErrors,
   ReadGithubConnectorResponses,
@@ -642,7 +645,7 @@ export const readOAuthCallbackResult = <ThrowOnError extends boolean = false>(
   >({ url: "/v1/auth/{provider}/callback", ...options });
 
 /**
- * List authors with public catalog objects. Anonymous.
+ * List authors with public components or setups. Anonymous.
  */
 export const listCatalogAuthors = <ThrowOnError extends boolean = false>(
   options?: Options<ListCatalogAuthorsData, ThrowOnError>,
@@ -890,6 +893,18 @@ export const planGithubAction = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Read a reviewed action and refresh invitation status without sending it.
+ */
+export const readGithubAction = <ThrowOnError extends boolean = false>(
+  options: Options<ReadGithubActionData, ThrowOnError>,
+): RequestResult<ReadGithubActionResponses, ReadGithubActionErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadGithubActionResponses, ReadGithubActionErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github/actions/{plan_id}",
+    ...options,
   });
 
 /**

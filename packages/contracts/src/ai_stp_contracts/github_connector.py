@@ -103,7 +103,7 @@ class GitHubSourcePrepared(BaseModel):
 class GitHubActionPlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 
-    action: Literal["invite_collaborator", "make_public"]
+    action: Literal["invite_collaborator", "make_public", "make_private"]
     installation_id: RepositoryId
     repository_id: RepositoryId
     recipient: GitHubUsername | None = None
@@ -126,18 +126,21 @@ class GitHubActionPlanResponse(BaseModel):
 
     plan_id: PlanId
     plan_hash: ContentDigest
-    action: Literal["invite_collaborator", "make_public"]
+    action: Literal["invite_collaborator", "make_public", "make_private"]
     actor_id: AccountId
     device_id: DeviceId
     repository: GitHubRepository
     recipient: GitHubUsername | None = None
     permission: Literal["pull", "push"] | None = None
     state: Literal["planned", "applied", "failed", "unknown"]
-    result: Literal["pending", "accepted", "public"] | None = None
+    result: Literal["pending", "accepted", "public", "private"] | None = None
     error_reason: str | None = None
     expires_at: Timestamp
     warning: Literal[
-        "personal_repository_write_access", "repository_and_history_public", "repository_access"
+        "personal_repository_write_access",
+        "repository_and_history_public",
+        "repository_private",
+        "repository_access",
     ]
 
 

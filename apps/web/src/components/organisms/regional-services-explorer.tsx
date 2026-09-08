@@ -372,37 +372,41 @@ function ServiceTile({
 }) {
   const codes = service.country_codes;
   return (
-    <article className="border-border bg-card flex min-h-44 flex-col rounded-lg border p-5">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-lg font-medium">{service.name}</h3>
-          <p className="text-muted-foreground font-mono text-xs">{service.canonical_domain}</p>
+    <article className="border-border bg-card overflow-hidden rounded-lg border">
+      <Link
+        href={`/services/${service.canonical_domain}`}
+        className="group focus-visible:ring-ring flex min-h-44 flex-col p-5 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-lg font-medium group-hover:underline group-hover:underline-offset-4">
+              {service.name}
+            </h3>
+            <p className="text-muted-foreground font-mono text-xs">{service.canonical_domain}</p>
+          </div>
+          <Icon name="chevronRight" size="sm" className="text-primary mt-1 shrink-0" />
         </div>
-        <Icon name="link" size="sm" className="text-primary mt-1 shrink-0" />
-      </div>
-      <div className="text-muted-foreground mb-5 flex flex-wrap items-center gap-2 text-xs">
-        {codes.length ? (
-          codes.map((code) => <CountryFlag key={code} code={code} compact />)
-        ) : (
-          <CountryFlag code={CATALOG_UNSPECIFIED_FILTER} compact />
-        )}
-        <span>
-          {codes.length
-            ? codes.map((code) => names.of(code) ?? code).join(", ")
-            : labels.unspecified}
-        </span>
-      </div>
-      <div className="mt-auto flex flex-wrap gap-3 text-sm">
-        <Link
-          href={`/services/${service.canonical_domain}`}
-          className="font-medium underline underline-offset-4"
-        >
+        <div className="text-muted-foreground mb-5 flex flex-wrap items-center gap-2 text-xs">
+          {codes.length ? (
+            codes.map((code) => <CountryFlag key={code} code={code} compact />)
+          ) : (
+            <CountryFlag code={CATALOG_UNSPECIFIED_FILTER} compact />
+          )}
+          <span>
+            {codes.length
+              ? codes.map((code) => names.of(code) ?? code).join(", ")
+              : labels.unspecified}
+          </span>
+        </div>
+        <span className="text-muted-foreground mt-auto text-sm underline underline-offset-4">
           {labels.details}
-        </Link>
+        </span>
+      </Link>
+      <div className="border-border border-t px-5 py-3">
         <Link
           href={catalogResultsHref([], [service.canonical_domain])}
           prefetch={false}
-          className="text-muted-foreground underline underline-offset-4"
+          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           {labels.automations}
         </Link>

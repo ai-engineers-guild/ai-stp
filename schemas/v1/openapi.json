@@ -1054,7 +1054,7 @@
       },
       "CatalogAuthorListResponse": {
         "additionalProperties": true,
-        "description": "All authors with at least one active public catalog object.",
+        "description": "All authors with at least one active public component or setup.",
         "properties": {
           "items": {
             "items": {
@@ -1079,13 +1079,26 @@
       },
       "CatalogAuthorOption": {
         "additionalProperties": true,
-        "description": "One public author available in the catalog filter.",
+        "description": "One author with an active public component or setup available in the catalog filter.",
         "properties": {
           "account_id": {
             "maxLength": 64,
             "minLength": 1,
             "title": "Account Id",
             "type": "string"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Avatar Url"
           },
           "display_name": {
             "anyOf": [
@@ -1100,11 +1113,42 @@
             ],
             "default": null,
             "title": "Display Name"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Name"
           }
         },
         "required": [
           "account_id",
-          "display_name"
+          "avatar_url",
+          "display_name",
+          "first_name",
+          "last_name"
         ],
         "title": "CatalogAuthorOption",
         "type": "object"
@@ -4665,7 +4709,8 @@
           "action": {
             "enum": [
               "invite_collaborator",
-              "make_public"
+              "make_public",
+              "make_private"
             ],
             "title": "Action",
             "type": "string"
@@ -4726,7 +4771,8 @@
           "action": {
             "enum": [
               "invite_collaborator",
-              "make_public"
+              "make_public",
+              "make_private"
             ],
             "title": "Action",
             "type": "string"
@@ -4794,7 +4840,8 @@
                 "enum": [
                   "pending",
                   "accepted",
-                  "public"
+                  "public",
+                  "private"
                 ],
                 "type": "string"
               },
@@ -4819,6 +4866,7 @@
             "enum": [
               "personal_repository_write_access",
               "repository_and_history_public",
+              "repository_private",
               "repository_access"
             ],
             "title": "Warning",
@@ -13025,6 +13073,27 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readAccessComponentVersion.answer": {
+                    "summary": "An authorized component read returns exact private metadata and its access basis.",
+                    "value": {
+                      "access_basis": "owner",
+                      "kind": "component",
+                      "lifecycle": "active",
+                      "passport": {},
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "published_at": "2026-08-05T00:00:00.000Z",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "trust": {
+                        "author_verified": false,
+                        "component_verified": false,
+                        "trust_lane": "local_owner_or_pinned"
+                      },
+                      "version": "1.2"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AccessVersionResponse"
                 }
@@ -13203,6 +13272,27 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readAccessSetupVersion.answer": {
+                    "summary": "An authorized setup read uses the same exact-version private access contract.",
+                    "value": {
+                      "access_basis": "grant",
+                      "kind": "setup",
+                      "lifecycle": "active",
+                      "passport": {},
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "published_at": "2026-08-05T00:00:00.000Z",
+                      "schema_version": 1,
+                      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "trust": {
+                        "author_verified": false,
+                        "component_verified": false,
+                        "trust_lane": "local_owner_or_pinned"
+                      },
+                      "version": "1.0"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/AccessVersionResponse"
                 }
@@ -13369,6 +13459,20 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "createVisibilityPlan.answer": {
+                  "summary": "Visibility planning exposes the exact immutable object coordinates before approval.",
+                  "value": {
+                    "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "idempotency_key": "idem_visibility_plan_01",
+                    "object_kind": "component",
+                    "schema_version": 1,
+                    "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "version": "1.2",
+                    "visibility": "public"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/VisibilityPlanCreateRequest"
               }
@@ -13380,6 +13484,30 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "createVisibilityPlan.answer": {
+                    "summary": "Visibility planning exposes the exact immutable object coordinates before approval.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "catalog_visibility",
+                        "public_artifact"
+                      ],
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                      "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "planned",
+                      "version": "1.2",
+                      "visibility": "public"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/VisibilityPlanResponse"
                 }
@@ -13555,6 +13683,30 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readVisibilityPlan.answer": {
+                    "summary": "A visibility plan can be read by its opaque identifier before confirmation.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "catalog_visibility",
+                        "public_artifact"
+                      ],
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                      "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "planned",
+                      "version": "1.2",
+                      "visibility": "public"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/VisibilityPlanResponse"
                 }
@@ -13731,6 +13883,16 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "confirmVisibilityPlan.answer": {
+                  "summary": "Visibility confirmation records the applied state after the exact hash is approved.",
+                  "value": {
+                    "confirmed": true,
+                    "idempotency_key": "idem_visibility_confirm_01",
+                    "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/VisibilityConfirmRequest"
               }
@@ -13742,6 +13904,30 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "confirmVisibilityPlan.answer": {
+                    "summary": "Visibility confirmation records the applied state after the exact hash is approved.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "catalog_visibility",
+                        "public_artifact"
+                      ],
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                      "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                      "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "applied",
+                      "version": "1.2",
+                      "visibility": "public"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/VisibilityPlanResponse"
                 }
@@ -16522,7 +16708,7 @@
                 }
               }
             },
-            "description": "List authors with public catalog objects. Anonymous.",
+            "description": "List authors with public components or setups. Anonymous.",
             "headers": {
               "X-Request-Id": {
                 "description": "Correlation id, echoed or minted.",
@@ -16611,7 +16797,7 @@
           }
         },
         "security": [],
-        "summary": "List authors with public catalog objects. Anonymous."
+        "summary": "List authors with public components or setups. Anonymous."
       }
     },
     "/v1/catalog/components": {
@@ -17417,7 +17603,7 @@
                     "summary": "The passport is the description of the version (ADR-0012); its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
                     "value": {
                       "checks": null,
-                      "distribution_visibility": null,
+                      "distribution_visibility": "public",
                       "lifecycle": "active",
                       "passport": {
                         "adaptations": [
@@ -20523,6 +20709,14 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readGithubConnector.answer": {
+                    "summary": "A disconnected account has an empty, non-sensitive repository scope.",
+                    "value": {
+                      "connections": []
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/GitHubConnectorStatus"
                 }
@@ -20689,6 +20883,20 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "planGithubAction.answer": {
+                  "summary": "An action plan records the exact repository and warning before confirmation.",
+                  "value": {
+                    "action": "invite_collaborator",
+                    "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "idempotency_key": "idem_github_action_01",
+                    "installation_id": 1001,
+                    "permission": "push",
+                    "recipient": "alice",
+                    "repository_id": 2002
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/GitHubActionPlanRequest"
               }
@@ -20700,6 +20908,35 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "planGithubAction.answer": {
+                    "summary": "An action plan records the exact repository and warning before confirmation.",
+                    "value": {
+                      "action": "invite_collaborator",
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "error_reason": null,
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "permission": "push",
+                      "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                      "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "recipient": "alice",
+                      "repository": {
+                        "can_administer": true,
+                        "full_name": "example/repository",
+                        "installation_id": 1001,
+                        "owner_id": 3003,
+                        "owner_type": "Organization",
+                        "permission": "administration",
+                        "private": true,
+                        "repository_id": 2002
+                      },
+                      "result": "pending",
+                      "state": "planned",
+                      "warning": "repository_access"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/GitHubActionPlanResponse"
                 }
@@ -20846,6 +21083,203 @@
         "summary": "Plan an explicit repository invitation or whole-repository exposure."
       }
     },
+    "/v1/connectors/github/actions/{plan_id}": {
+      "get": {
+        "operationId": "readGithubAction",
+        "parameters": [
+          {
+            "description": "Exact repository action plan.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._~-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readGithubAction.answer": {
+                    "summary": "Reading an action returns the same reviewed coordinates without applying them.",
+                    "value": {
+                      "action": "invite_collaborator",
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "error_reason": null,
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "permission": "push",
+                      "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                      "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "recipient": "alice",
+                      "repository": {
+                        "can_administer": true,
+                        "full_name": "example/repository",
+                        "installation_id": 1001,
+                        "owner_id": 3003,
+                        "owner_type": "Organization",
+                        "permission": "administration",
+                        "private": true,
+                        "repository_id": 2002
+                      },
+                      "result": "pending",
+                      "state": "planned",
+                      "warning": "repository_access"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubActionPlanResponse"
+                }
+              }
+            },
+            "description": "Read a reviewed action and refresh invitation status without sending it.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read a reviewed action and refresh invitation status without sending it."
+      }
+    },
     "/v1/connectors/github/actions/{plan_id}/confirm": {
       "post": {
         "operationId": "confirmGithubAction",
@@ -20883,6 +21317,17 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "confirmGithubAction.answer": {
+                  "summary": "Confirmation echoes the exact hash and records the pending effect.",
+                  "value": {
+                    "confirmed": true,
+                    "idempotency_key": "idem_github_confirm_01",
+                    "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                    "typed_repository_name": "example/repository"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/GitHubActionConfirmRequest"
               }
@@ -20894,6 +21339,35 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "confirmGithubAction.answer": {
+                    "summary": "Confirmation echoes the exact hash and records the pending effect.",
+                    "value": {
+                      "action": "invite_collaborator",
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "error_reason": null,
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "permission": "push",
+                      "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                      "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "recipient": "alice",
+                      "repository": {
+                        "can_administer": true,
+                        "full_name": "example/repository",
+                        "installation_id": 1001,
+                        "owner_id": 3003,
+                        "owner_type": "Organization",
+                        "permission": "administration",
+                        "private": true,
+                        "repository_id": 2002
+                      },
+                      "result": "accepted",
+                      "state": "applied",
+                      "warning": "repository_access"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/GitHubActionPlanResponse"
                 }
@@ -21264,6 +21738,17 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "connectGithub.answer": {
+                  "summary": "The browser handoff returns a GitHub authorization URL and a bounded expiry.",
+                  "value": {
+                    "confirmed": true,
+                    "locale": "en",
+                    "mode": "install",
+                    "purpose": "source"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/GitHubConnectRequest"
               }
@@ -21275,6 +21760,15 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "connectGithub.answer": {
+                    "summary": "The browser handoff returns a GitHub authorization URL and a bounded expiry.",
+                    "value": {
+                      "authorization_url": "https://github.com/apps/synthetic/installations/new?state=state_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "expires_at": "2026-08-05T00:10:00.000Z"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/GitHubConnectResponse"
                 }
@@ -21432,6 +21926,15 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "disconnectGithub.answer": {
+                  "summary": "Disconnecting one purpose returns the remaining connection view.",
+                  "value": {
+                    "confirmed": true,
+                    "purpose": "source"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/GitHubDisconnectRequest"
               }
@@ -21443,6 +21946,14 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "disconnectGithub.answer": {
+                    "summary": "Disconnecting one purpose returns the remaining connection view.",
+                    "value": {
+                      "connections": []
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/GitHubConnectorStatus"
                 }
@@ -21609,6 +22120,18 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "prepareGithubSource.answer": {
+                  "summary": "A source plan returns only the immutable artifact coordinates and inventory.",
+                  "value": {
+                    "commit": "0123456789abcdef0123456789abcdef01234567",
+                    "idempotency_key": "idem_github_source_01",
+                    "installation_id": 1001,
+                    "repository_id": 2002,
+                    "subpath": "skills/example"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/GitHubSourcePrepareRequest"
               }
@@ -21620,6 +22143,20 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "prepareGithubSource.answer": {
+                    "summary": "A source plan returns only the immutable artifact coordinates and inventory.",
+                    "value": {
+                      "artifact_inventory": [
+                        "skills/example/SKILL.md"
+                      ],
+                      "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                      "size_bytes": 12,
+                      "source_binding_id": "source_binding_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "source_visibility": "private"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/GitHubSourcePrepared"
                 }

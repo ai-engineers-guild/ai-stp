@@ -1,4 +1,4 @@
-"""One-way component exposure over immutable passports and existing object locations."""
+"""Owner-controlled component distribution over immutable stored versions."""
 
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -96,11 +96,15 @@ def _response(plan: DistributionVisibilityPlan, row: CatalogMetadata) -> Visibil
             "version": row.version,
             "passport_digest": plan.passport_digest,
             "previous_visibility": plan.previous_visibility,
-            "visibility": "public",
+            "visibility": plan.visibility,
             "actor_id": plan.account_id,
             "device_id": plan.device_id,
             "expires_at": format_timestamp(utc(plan.expires_at)),
-            "effects": ["expose_component_version"],
+            "effects": [
+                "expose_component_version"
+                if plan.visibility == "public"
+                else "remove_component_version_from_public_catalog"
+            ],
         }
     )
 
@@ -112,10 +116,8 @@ async def create_plan(
     body: VisibilityPlanCreateRequest,
 ) -> VisibilityPlanResponse:
     await _require_active_device(db, ctx=ctx, device_id=body.device_id)
-    if body.object_kind != "component" or body.visibility != "public":
-        raise ApiError(
-            ErrorCategory.VALIDATION, "only component private-to-public promotion is supported"
-        )
+    if body.object_kind != "component":
+        raise ApiError(ErrorCategory.VALIDATION, "only component visibility is supported")
     row = await _owned_version(db, ctx=ctx, stable_id=body.stable_id, version=body.version)
     digest = request_digest(body.model_dump(mode="json", exclude={"idempotency_key"}))
     existing = await db.scalar(
@@ -140,7 +142,7 @@ async def create_plan(
         passport_digest=row.passport_digest,
         ownership_revision_id=identity.ownership_revision_id if identity else None,
         previous_visibility=row.visibility,
-        visibility="public",
+        visibility=body.visibility,
         request_hash=digest,
         idempotency_key=body.idempotency_key,
         expires_at=expiry,
@@ -150,7 +152,8 @@ async def create_plan(
                 "request": digest,
                 "actor": ctx.account_id,
                 "passport": row.passport_digest,
-                "visibility": row.visibility,
+                "previous_visibility": row.visibility,
+                "visibility": body.visibility,
                 "expires_at": format_timestamp(expiry),
                 "ownership": identity.ownership_revision_id if identity else None,
             }
@@ -349,13 +352,18 @@ async def confirm(
         raise ApiError(ErrorCategory.PRECONDITION, "visibility plan is stale")
     if plan.state == "applied":
         return _response(plan, row)
+    if row.visibility != plan.previous_visibility:
+        raise ApiError(ErrorCategory.PRECONDITION, "visibility plan is stale")
     if utc(plan.expires_at) <= datetime.now(UTC):
         raise ApiError(ErrorCategory.PRECONDITION, "visibility plan expired")
-    if row.visibility != "public":
+    if row.visibility != plan.visibility and plan.visibility == "public":
         await _validate_public(db, row=row, store=store, client=client)
         row.visibility = "public"
         # Projection integrity accepts the separate distribution policy, not a rewritten passport.
         verify_passport_integrity(public_version_row(row))
+        await upsert_catalog_search_projection(db, object_kind="component", stable_id=row.stable_id)
+    elif row.visibility != plan.visibility:
+        row.visibility = "private"
         await upsert_catalog_search_projection(db, object_kind="component", stable_id=row.stable_id)
     plan.state = "applied"
     await emit_audit(
@@ -364,6 +372,6 @@ async def confirm(
         action="publication.visibility_changed",
         target_table="distribution_visibility_plan",
         target_id=plan.id,
-        payload={"visibility": "public", "passport_digest": row.passport_digest},
+        payload={"visibility": plan.visibility, "passport_digest": row.passport_digest},
     )
     return _response(plan, row)

@@ -96,6 +96,7 @@ from ai_stp_platform.github_metadata import (
 )
 from ai_stp_platform.logging import get_logger
 from ai_stp_platform.models import (
+    AvatarAsset,
     CatalogExternalProduct,
     CatalogMetadata,
     CatalogReaction,
@@ -295,31 +296,45 @@ async def list_external_products(session: AsyncSession) -> ExternalProductListRe
 
 
 async def list_catalog_authors(session: AsyncSession) -> CatalogAuthorListResponse:
-    """List labels backed only by active public catalog objects and profiles."""
-    account_ids = list(
+    """List public profiles for authors with active public components or setups."""
+    rows = (
         (
             await session.execute(
-                select(CatalogSearchProjection.owner_account_id)
-                .where(CatalogSearchProjection.lifecycle_state == "active")
+                select(
+                    CatalogSearchProjection.owner_account_id,
+                    ProfileRevision.display_name,
+                    AvatarAsset.public_url,
+                )
+                .outerjoin(
+                    PublicProfile,
+                    PublicProfile.account_id == CatalogSearchProjection.owner_account_id,
+                )
+                .outerjoin(
+                    ProfileRevision,
+                    (ProfileRevision.id == PublicProfile.published_revision_id)
+                    & (ProfileRevision.lifecycle == "published"),
+                )
+                .outerjoin(
+                    AvatarAsset,
+                    (AvatarAsset.id == ProfileRevision.avatar_asset_id)
+                    & (AvatarAsset.state == "ready"),
+                )
+                .where(
+                    CatalogSearchProjection.object_kind.in_(("component", "setup")),
+                    CatalogSearchProjection.lifecycle_state == "active",
+                )
                 .distinct()
             )
         )
-        .scalars()
+        .tuples()
         .all()
     )
-    if not account_ids:
+    if not rows:
         return CatalogAuthorListResponse()
-    profile_rows = (
-        await session.execute(
-            select(PublicProfile.account_id, ProfileRevision.display_name)
-            .join(ProfileRevision, ProfileRevision.id == PublicProfile.published_revision_id)
-            .where(PublicProfile.account_id.in_(account_ids))
-        )
-    ).all()
-    names = {account_id: name for account_id, name in profile_rows if name}
 
-    def sort_key(account_id: str) -> tuple[int, str, str]:
-        label = names.get(account_id, account_id)
+    def sort_key(row: tuple[str, str | None, str | None]) -> tuple[int, str, str]:
+        account_id, display_name, _avatar_url = row
+        label = display_name or account_id
         first = label[:1]
         bucket = (
             0 if first.isascii() and first.isalpha() else 1 if "\u0400" <= first <= "\u04ff" else 2
@@ -328,10 +343,23 @@ async def list_catalog_authors(session: AsyncSession) -> CatalogAuthorListRespon
 
     return CatalogAuthorListResponse(
         items=[
-            CatalogAuthorOption(account_id=account_id, display_name=names.get(account_id))
-            for account_id in sorted(account_ids, key=sort_key)
+            CatalogAuthorOption(
+                account_id=account_id,
+                first_name=_author_name_parts(display_name)[0],
+                last_name=_author_name_parts(display_name)[1],
+                display_name=display_name,
+                avatar_url=avatar_url,
+            )
+            for account_id, display_name, avatar_url in sorted(rows, key=sort_key)
         ]
     )
+
+
+def _author_name_parts(display_name: str | None) -> tuple[str | None, str | None]:
+    parts = (display_name or "").split()
+    if not parts:
+        return None, None
+    return parts[0], " ".join(parts[1:]) or None
 
 
 async def read_external_product(session: AsyncSession, domain: str) -> ExternalProductDetail:

@@ -25,7 +25,8 @@
     "action": {
       "enum": [
         "invite_collaborator",
-        "make_public"
+        "make_public",
+        "make_private"
       ],
       "title": "Action",
       "type": "string"

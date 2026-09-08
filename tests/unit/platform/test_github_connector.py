@@ -34,12 +34,9 @@ COMMIT = "a" * 40
 
 def config() -> GitHubConnectorSettings:
     return GitHubConnectorSettings(
-        client_id="synthetic-reader",
+        client_id="synthetic-github",
         client_secret=SecretStr(uuid4().hex),
-        app_slug="synthetic-reader",
-        administration_client_id="synthetic-admin",
-        administration_client_secret=SecretStr(uuid4().hex),
-        administration_app_slug="synthetic-admin",
+        app_slug="synthetic-github",
         encryption_key=SecretStr(base64.urlsafe_b64encode(os.urandom(32)).decode()),
     )
 
@@ -72,7 +69,7 @@ def transport(
                     "installations": [
                         {
                             "id": 3,
-                            "app_slug": "synthetic-admin" if admin else "synthetic-reader",
+                            "app_slug": "synthetic-github",
                             "suspended_at": None,
                             "repository_selection": "selected",
                             "permissions": permissions,
@@ -179,7 +176,7 @@ async def test_mutation_token_is_scoped_by_immutable_id() -> None:
     token, scoped, settings = uuid4().hex, uuid4().hex, config()
 
     def handle(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/applications/synthetic-admin/token/scoped"
+        assert request.url.path == "/applications/synthetic-github/token/scoped"
         assert request.headers["authorization"].startswith("Basic ")
         body = json.loads(request.content)
         assert body["repository_ids"] == [42] and body["target_id"] == 7
@@ -190,8 +187,8 @@ async def test_mutation_token_is_scoped_by_immutable_id() -> None:
     assert (
         await client.scoped_token(
             token=token,
-            client_id=settings.administration_client_id,
-            client_secret=settings.administration_client_secret.get_secret_value(),
+            client_id=settings.client_id,
+            client_secret=settings.client_secret.get_secret_value(),
             owner_id=7,
             repository_id=42,
         )

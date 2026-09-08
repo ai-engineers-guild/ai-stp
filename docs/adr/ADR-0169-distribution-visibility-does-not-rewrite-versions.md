@@ -10,8 +10,9 @@ Status: accepted
 ## Context
 
 Owners upload privately by default and may later expose the same component to
-everyone. Rewriting a sealed passport's visibility changes its digest and breaks
-exact setup pins. Creating another version does not open the selected object.
+everyone or withdraw it from anonymous distribution. Rewriting a sealed passport's
+visibility changes its digest and breaks exact setup pins. Creating another version
+does not change the selected object's distribution.
 
 ## Decision
 
@@ -19,7 +20,8 @@ Server distribution visibility controls access independently of the passport's
 historical visibility declaration. A separate owner plan binds exact version,
 passport digest, prior and requested visibility, actor, device, expiry and effects.
 Confirmation requires the exact hash and rechecks owner authority and prior
-visibility. Passport, artifact, component graph and acquired copies are not rewritten.
+visibility. Opening or withdrawal changes authorization and projections only;
+passport, artifact, component graph and acquired copies are not rewritten.
 
 A public response carrying a historically private passport explicitly declares
 `distribution_visibility=public`. Legacy public passports remain readable without

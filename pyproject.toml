@@ -144,7 +144,7 @@ testpaths = ["tests"]
 # projection generator is one of them and its contract test imports it.
 pythonpath = ["."]
 asyncio_mode = "auto"
-addopts = "-q --cov=packages --cov=apps --cov-report=term-missing:skip-covered"
+addopts = "-q --import-mode=importlib --cov=packages --cov=apps --cov-report=term-missing:skip-covered"
 filterwarnings = [
     # Python 3.13+ reports an unclosed sqlite3 connection from its finalizer.
     # Pytest captures that finalizer as an unraisable warning, so promoting only

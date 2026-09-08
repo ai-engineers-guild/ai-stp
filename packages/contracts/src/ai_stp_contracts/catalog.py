@@ -194,16 +194,19 @@ class ExternalProductListResponse(BaseModel):
 
 
 class CatalogAuthorOption(BaseModel):
-    """One public author available in the catalog filter."""
+    """One author with an active public component or setup available in the catalog filter."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     account_id: Annotated[str, Field(min_length=1, max_length=64)]
+    first_name: Annotated[str, Field(min_length=1, max_length=80)] | None = None
+    last_name: Annotated[str, Field(min_length=1, max_length=160)] | None = None
     display_name: Annotated[str, Field(min_length=1, max_length=80)] | None = None
+    avatar_url: Annotated[str, Field(max_length=2048)] | None = None
 
 
 class CatalogAuthorListResponse(BaseModel):
-    """All authors with at least one active public catalog object."""
+    """All authors with at least one active public component or setup."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

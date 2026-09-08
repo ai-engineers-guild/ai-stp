@@ -427,8 +427,10 @@ def test_verify_passport_integrity_rejects_revision_seal_mismatch() -> None:
 
 
 def test_verify_passport_integrity_rejects_private_passport() -> None:
+    row = _row_with_passport_variant(visibility="private")
+    row.metadata.visibility = "private"
     with pytest.raises(CatalogIntegrityError, match="not public"):
-        verify_passport_integrity(_row_with_passport_variant(visibility="private"))
+        verify_passport_integrity(row)
 
 
 def test_verify_passport_integrity_rejects_identity_mismatch() -> None:

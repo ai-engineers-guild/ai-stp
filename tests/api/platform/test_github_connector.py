@@ -10,7 +10,7 @@ import os
 import tarfile
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
@@ -75,8 +75,7 @@ class GitHub:
                             "permissions": {"metadata": "read", "contents": "read", **permissions},
                         }
                         for index, slug, permissions in (
-                            (3, "synthetic-reader", {}),
-                            (4, "synthetic-admin", {"administration": "write"}),
+                            (3, "synthetic-github", {"administration": "write"}),
                         )
                     ]
                 },
@@ -88,9 +87,9 @@ class GitHub:
             "owner": {"id": 7, "type": self.owner_type},
             "permissions": {"pull": True, "admin": self.admin},
         }
-        if path in {"/user/installations/3/repositories", "/user/installations/4/repositories"}:
+        if path == "/user/installations/3/repositories":
             return httpx.Response(200, json={"repositories": [repo] if self.selected else []})
-        if path == "/applications/synthetic-admin/token/scoped":
+        if path == "/applications/synthetic-github/token/scoped":
             assert json.loads(request.content)["repository_ids"] == [42]
             return httpx.Response(200, json={"token": self.scoped})
         if path == "/repositories/42" or (
@@ -119,8 +118,8 @@ class GitHub:
             if self.refusal:
                 return httpx.Response(self.refusal, json={"message": self.token})
             if request.method == "PATCH":
-                self.private = False
-                repo["private"] = False
+                self.private = json.loads(request.content)["visibility"] == "private"
+                repo["private"] = self.private
             else:
                 self.invitation = True
             if self.lose_response:
@@ -154,7 +153,9 @@ class Harness:
             },
         )
         assert response.status_code == 200, response.text
-        state = parse_qs(urlsplit(response.json()["authorization_url"]).query)["state"][0]
+        authorization_url = cast(str, response.json()["authorization_url"])
+        query: dict[str, list[str]] = parse_qs(str(urlsplit(authorization_url).query))
+        state = query["state"][0]
         return await self.client.get(
             ROOT + "/callback",
             headers=self.headers,
@@ -170,7 +171,7 @@ class Harness:
             headers=self.headers,
             json={
                 "action": action,
-                "installation_id": 4,
+                "installation_id": 3,
                 "repository_id": 42,
                 "device_id": self.device,
                 "idempotency_key": uuid4().hex,
@@ -201,12 +202,9 @@ class Harness:
 @pytest_asyncio.fixture
 async def harness(migrated_database_url: str, settings_factory: Any) -> AsyncIterator[Harness]:
     config = GitHubConnectorSettings(
-        client_id="synthetic-reader",
+        client_id="synthetic-github",
         client_secret=SecretStr(uuid4().hex),
-        app_slug="synthetic-reader",
-        administration_client_id="synthetic-admin",
-        administration_client_secret=SecretStr(uuid4().hex),
-        administration_app_slug="synthetic-admin",
+        app_slug="synthetic-github",
         encryption_key=SecretStr(base64.urlsafe_b64encode(os.urandom(32)).decode()),
     )
     settings = replace(
@@ -309,13 +307,15 @@ async def test_pending_approval_then_selected_installation(
     assert status.json()["connections"][0]["repositories"] == []
 
 
-@pytest.mark.parametrize("action", ["make_public", "invite_collaborator"])
+@pytest.mark.parametrize("action", ["make_public", "make_private", "invite_collaborator"])
 @pytest.mark.parametrize("lose_response", [False, True])
 async def test_confirm_retry_and_concurrency_have_one_effect(
     harness: Harness, action: str, lose_response: bool
 ) -> None:
     h = harness
     assert (await h.connect("administration")).status_code == 303
+    if action == "make_private":
+        h.github.private = False
     plan = await h.plan(action)
     assert h.github.writes == 0
     h.github.lose_response = lose_response
@@ -344,7 +344,7 @@ async def test_confirmation_and_organization_refusal(harness: Harness) -> None:
     h = harness
     await h.connect("administration")
     plan = await h.plan()
-    assert (await h.confirm(plan, confirmed=False)).status_code == 422
+    assert (await h.confirm(plan, confirmed=False)).status_code == 400
     assert (await h.confirm(plan, typed_repository_name="another/repository")).status_code == 400
     assert h.github.writes == 0
     h.github.refusal = 403

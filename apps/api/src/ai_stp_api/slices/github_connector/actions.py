@@ -33,6 +33,8 @@ def response(plan: GitHubActionPlan) -> GitHubActionPlanResponse:
     warning = "repository_access"
     if plan.action == "make_public":
         warning = "repository_and_history_public"
+    elif plan.action == "make_private":
+        warning = "repository_private"
     elif plan.repository_owner_type == "User" and plan.previous_visibility == "private":
         warning = "personal_repository_write_access"
     return GitHubActionPlanResponse.model_validate(
@@ -184,9 +186,13 @@ def _same_repository(plan: GitHubActionPlan, repo: GitHubRepository) -> None:
         or repo.owner_type != plan.repository_owner_type
     ):
         raise GitHubError("repository_identity_changed", status=412)
-    if plan.action != "make_public" and repo.private != (plan.previous_visibility == "private"):
+    if plan.action == "invite_collaborator" and repo.private != (
+        plan.previous_visibility == "private"
+    ):
         raise GitHubError("repository_visibility_changed", status=412)
-    if plan.previous_visibility == "public" and repo.private:
+    if plan.action == "make_public" and plan.previous_visibility == "public" and repo.private:
+        raise GitHubError("repository_visibility_changed", status=412)
+    if plan.action == "make_private" and plan.previous_visibility == "private" and not repo.private:
         raise GitHubError("repository_visibility_changed", status=412)
 
 
@@ -278,7 +284,10 @@ async def confirm(
     await _require_active_device(db, ctx=ctx, device_id=plan.device_id)
     if body.plan_hash != plan.plan_hash:
         raise GitHubError("action_plan_mismatch", status=412)
-    if plan.action == "make_public" and body.typed_repository_name != plan.repository_full_name:
+    if (
+        plan.action in {"make_public", "make_private"}
+        and body.typed_repository_name != plan.repository_full_name
+    ):
         raise GitHubError("exact_repository_name_required", status=400)
     if (
         connector.id != plan.connector_id
@@ -313,9 +322,11 @@ async def confirm(
     # No broad token is used in a name-addressed mutation: a rename cannot target another repo.
     try:
         result = None
-        if plan.action == "make_public":
-            if not repo.private:
-                result = "public"
+        if plan.action in {"make_public", "make_private"}:
+            target_private = plan.action == "make_private"
+            result = "private" if target_private else "public"
+            if repo.private == target_private:
+                pass
             else:
                 if expired:
                     raise GitHubError("action_plan_expired", status=412)
@@ -323,12 +334,14 @@ async def confirm(
                     "PATCH",
                     f"/repos/{repo.full_name}",
                     token=scoped,
-                    body={"visibility": "public"},
+                    body={"visibility": result},
                 )
                 data = object_data(reply.data)
-                if data.get("id") != repo.repository_id or data.get("private") is not False:
+                if (
+                    data.get("id") != repo.repository_id
+                    or data.get("private") is not target_private
+                ):
                     raise GitHubError("github_action_outcome_unknown")
-                result = "public"
         else:
             result = await _invitation_state(client, plan, scoped)
             if result is None:

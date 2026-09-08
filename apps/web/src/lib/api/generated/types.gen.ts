@@ -513,7 +513,7 @@ export type CapabilitySnapshot = {
 /**
  * CatalogAuthorListResponse
  *
- * All authors with at least one active public catalog object.
+ * All authors with at least one active public component or setup.
  */
 export type CatalogAuthorListResponse = {
   /**
@@ -530,7 +530,7 @@ export type CatalogAuthorListResponse = {
 /**
  * CatalogAuthorOption
  *
- * One public author available in the catalog filter.
+ * One author with an active public component or setup available in the catalog filter.
  */
 export type CatalogAuthorOption = {
   /**
@@ -538,9 +538,21 @@ export type CatalogAuthorOption = {
    */
   account_id: string;
   /**
+   * Avatar Url
+   */
+  avatar_url: string | null;
+  /**
    * Display Name
    */
   display_name: string | null;
+  /**
+   * First Name
+   */
+  first_name: string | null;
+  /**
+   * Last Name
+   */
+  last_name: string | null;
   [key: string]: unknown;
 };
 
@@ -2351,7 +2363,7 @@ export type GitHubActionPlanRequest = {
   /**
    * Action
    */
-  action: "invite_collaborator" | "make_public";
+  action: "invite_collaborator" | "make_public" | "make_private";
   device_id: DeviceId;
   idempotency_key: IdempotencyKey;
   installation_id: RepositoryId;
@@ -2370,7 +2382,7 @@ export type GitHubActionPlanResponse = {
   /**
    * Action
    */
-  action: "invite_collaborator" | "make_public";
+  action: "invite_collaborator" | "make_public" | "make_private";
   actor_id: AccountId;
   device_id: DeviceId;
   /**
@@ -2389,7 +2401,7 @@ export type GitHubActionPlanResponse = {
   /**
    * Result
    */
-  result: "pending" | "accepted" | "public" | null;
+  result: "pending" | "accepted" | "public" | "private" | null;
   /**
    * State
    */
@@ -2398,7 +2410,10 @@ export type GitHubActionPlanResponse = {
    * Warning
    */
   warning:
-    "personal_repository_write_access" | "repository_and_history_public" | "repository_access";
+    | "personal_repository_write_access"
+    | "repository_and_history_public"
+    | "repository_private"
+    | "repository_access";
   [key: string]: unknown;
 };
 
@@ -7584,7 +7599,7 @@ export type ListCatalogAuthorsError = ListCatalogAuthorsErrors[keyof ListCatalog
 
 export type ListCatalogAuthorsResponses = {
   /**
-   * List authors with public catalog objects. Anonymous.
+   * List authors with public components or setups. Anonymous.
    */
   200: CatalogAuthorListResponse;
 };
@@ -8716,6 +8731,62 @@ export type PlanGithubActionResponses = {
 };
 
 export type PlanGithubActionResponse = PlanGithubActionResponses[keyof PlanGithubActionResponses];
+
+export type ReadGithubActionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Exact repository action plan.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/connectors/github/actions/{plan_id}";
+};
+
+export type ReadGithubActionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadGithubActionError = ReadGithubActionErrors[keyof ReadGithubActionErrors];
+
+export type ReadGithubActionResponses = {
+  /**
+   * Read a reviewed action and refresh invitation status without sending it.
+   */
+  200: GitHubActionPlanResponse;
+};
+
+export type ReadGithubActionResponse = ReadGithubActionResponses[keyof ReadGithubActionResponses];
 
 export type ConfirmGithubActionData = {
   body: GitHubActionConfirmRequest;

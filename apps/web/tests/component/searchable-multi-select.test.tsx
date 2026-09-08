@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -74,6 +74,40 @@ describe("SearchableMultiSelect", () => {
     expect(onChange).toHaveBeenCalledWith([]);
     await user.click(screen.getByRole("checkbox", { name: "Bea" }));
     expect(onChange).toHaveBeenLastCalledWith(["account_b"]);
+  });
+
+  it("opens author options in a searchable modal and keeps selected ids in the form", async () => {
+    const user = userEvent.setup();
+    render(
+      <SearchableMultiSelect
+        name="authors"
+        label="Authors"
+        searchLabel="Search authors"
+        options={[
+          { value: "account_a", label: "Ada" },
+          { value: "account_b", label: "Борис", avatarUrl: "/avatars/boris.png" },
+        ]}
+        selected={["account_a"]}
+        form="catalog-form"
+        modal
+        closeLabel="Close"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Authors (1)" }));
+    const dialog = screen.getByRole("dialog", { name: "Authors" });
+    expect(within(dialog).getByRole("searchbox", { name: "Search authors" })).toBeInTheDocument();
+    await user.type(within(dialog).getByRole("searchbox", { name: "Search authors" }), "бор");
+    const checkbox = within(dialog).getByRole("checkbox", { name: "Борис" });
+    expect(checkbox).toBeInTheDocument();
+    const row = checkbox.closest("label");
+    if (!(row instanceof HTMLElement)) throw new Error("Author option row was not rendered");
+    const avatar = row.querySelector("img");
+    expect(avatar).not.toBeNull();
+    expect(row.firstElementChild).toBe(checkbox);
+    expect(row.lastElementChild).toBe(avatar);
+    await user.click(checkbox);
+    expect(document.querySelectorAll('input[type="hidden"][name="authors"]')).toHaveLength(2);
   });
 
   it("closes another open filter menu", async () => {

@@ -95,7 +95,8 @@
     "action": {
       "enum": [
         "invite_collaborator",
-        "make_public"
+        "make_public",
+        "make_private"
       ],
       "title": "Action",
       "type": "string"
@@ -163,7 +164,8 @@
           "enum": [
             "pending",
             "accepted",
-            "public"
+            "public",
+            "private"
           ],
           "type": "string"
         },
@@ -188,6 +190,7 @@
       "enum": [
         "personal_repository_write_access",
         "repository_and_history_public",
+        "repository_private",
         "repository_access"
       ],
       "title": "Warning",

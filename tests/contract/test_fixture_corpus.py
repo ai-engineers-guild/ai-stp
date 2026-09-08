@@ -162,6 +162,10 @@ def test_every_passport_in_the_corpus_is_correctly_sealed() -> None:
         passport = cast("dict[str, JsonValue] | None", dict(case.body).get("passport"))
         if passport is None:
             continue
+        # Private access responses carry an opaque passport document rather
+        # than the immutable sealed envelope served by the public catalog.
+        if "revision_id" not in passport:
+            continue
         assert passport["revision_id"] == derive_revision_id(passport), case.case_id
         checked += 1
     assert checked >= 2, "the corpus should exercise at least one sealed passport per outcome"
