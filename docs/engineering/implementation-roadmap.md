@@ -24,7 +24,7 @@ contracts, API/platform/worker/web/deployment and the source setup systems. No
 subagents or new worktrees are used. The installed `ai-stp-cli` is the user's
 entry point for acquisition, installation, updates and recovery.
 
-Current post-broadcast baseline: public main and production `b2e99a5e`,
+Baseline when post-broadcast work resumed: main and production `b2e99a5e`,
 CLI `0.0.21` on PyPI and in the user's PATH, providers `0.0.69`. The release
 candidate and registry readback agreed byte-for-byte; the user's registry was
 preserved. API rate limits remain unchanged by the owner's decision. The
@@ -33,20 +33,24 @@ work or treat the interrupted explicit model run as a passed scenario.
 
 | Stage | Outcome and remaining work | State |
 |---|---|---|
-| R1 | Complete EN/RU Skill packages and usable agent procedure | Released; real agy-driven Codex minimal installation and fresh target verification passed |
-| R2 | Private metadata, visibility and immutable publication | Released; remaining live private/grant journeys belong to R6 |
-| R3 | Deployment progression and recovery | Production ready at current main; broader restore evidence remains open |
-| R4 | Owning-installer update/recovery and managed PyPI provider bootstrap | Released; both GitHub and PyPI plan/apply evidence revalidation passed |
+| R1 | Complete EN/RU Skill packages and usable agent procedure | Installed package released; real agy-driven Codex minimal installation passed. Standalone repository reference closure merged in #194; 49 package/probe tests passed |
+| R2 | Private metadata, visibility and immutable publication | Draft promotion and setup ownership merged in #193. Legacy component identity repair is #195; remaining live private/grant journeys belong to R6 |
+| R3 | Deployment progression and recovery | Green main checks promote production normally; do not infer deployed SHA from a merge. Broader restore evidence remains open |
+| R4 | Owning-installer update/recovery and managed PyPI provider bootstrap | Released; GitHub/PyPI apply revalidation passed. Schema compatibility before binary rollback needs implementation/evidence before the next CLI release |
 | R5 | Seven providers and all four setup variants | Providers released; native program and configuration lifecycle passed on the three required platforms; full variant content/invocation evidence remains open |
-| R6 | Corpus and account journeys | All 106 objects published; snapshot transfer and legacy-reference recovery implemented and proven on isolated copies of the real account history; collision reconciliation, artifact readback, repeatable publication and remaining account/command journeys open |
+| R6 | Corpus and account journeys | All 106 objects published. Snapshot closure/recovery merged in #192; a repeated main-source read on two copied devices reached up_to_date with no pending versions. Collision reconciliation, full artifact readback and remaining live account journeys are open |
 | R7 | Complete 28-setup by 3-platform qualification | Basic 21 provider/configuration cells passed; full 84 setup/platform cells and shared candidate binding remain open |
 | R8 | Final release evidence | CLI 0.0.21 release/PATH/production verified; file-bound estate completeness remains open |
 
-Immediate execution order: self-contained version synchronization and retained
-legacy recovery; immutable collision reconciliation; repeatable account and
-publication journeys; complete variant/native evidence and artifact-bound estate
-qualification. Each change is checked against its canonical contract before a
-subsequent coordinated release.
+Immediate execution order: finish integration of the current fixes; make binary
+rollback check current registry-schema compatibility and prove old/new/rollback
+behaviour on an isolated installed CLI; publish the next verified CLI reader;
+then implement immutable offline-version collision reconciliation, finish live
+account/publication and artifact readback, and qualify the full variant/native
+matrix against one candidate. Bind estate verdicts to retained artifact/evidence
+files before the coordinated full-beta release. A previous CLI cannot read schema
+35 merely because its wheel was restored; rewinding user data is not an implicit
+rollback step.
 
 The post-broadcast publication repair promotes an existing owned draft through
 the validated materialization path and preserves published lifecycle/visibility
@@ -54,6 +58,12 @@ on replay. Setup ownership is checked across versions in the API and worker;
 concurrent first catalog writes establish one owner. The affected PostgreSQL,
 API and publication regression suite passed 78 tests. These repairs do not
 replace the remaining live publication/grant evidence.
+
+The legacy identity follow-up passed 973 platform/API/integration tests with
+one skip. Database doubles were replaced by PostgreSQL commit/rollback and
+idempotency tests. Diagnostics now treats supported automatic migration as
+ready while remaining read-only; 98 CLI/registry tests passed. These source
+fixes are not yet in the user's installed 0.0.21 wheel.
 
 Confirmed repairs include mismatched private wire models, missing visibility
 routes, artifact resealing of an existing X.Y, unchecked projection bind answers,
