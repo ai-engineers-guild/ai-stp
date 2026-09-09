@@ -84,7 +84,12 @@ async def _pages(
 ) -> list[dict[str, object]]:
     items: list[dict[str, object]] = []
     for page in range(1, MAX_SCOPE_PAGES + 1):
-        reply = await client.api("GET", f"{path}?per_page={PAGE_SIZE}&page={page}", token=token)
+        reply = await client.api(
+            "GET",
+            path,
+            token=token,
+            params={"per_page": PAGE_SIZE, "page": page},
+        )
         data = object_data(reply.data)
         raw = data.get(field)
         if not isinstance(raw, list) or len(cast(list[object], raw)) > PAGE_SIZE:

@@ -196,6 +196,14 @@ async def test_safe_upstream_error_matrix(status: int, reason: str) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["/../user", "/user?token=secret", "/user#fragment"])
+async def test_api_rejects_path_data_that_can_change_the_request(path: str) -> None:
+    client = GitHubClient(httpx.MockTransport(lambda _request: httpx.Response(200, json={})))
+    with pytest.raises(GitHubError, match="unsafe_github_url"):
+        await client.api("GET", path, token=None)
+
+
+@pytest.mark.asyncio
 async def test_mutation_token_is_scoped_by_immutable_id() -> None:
     token, scoped, settings = uuid4().hex, uuid4().hex, config()
 

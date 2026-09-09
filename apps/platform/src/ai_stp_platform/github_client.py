@@ -32,7 +32,12 @@ class GitHubReply:
 
 def _api_url(path: str) -> str:
     """Build an API URL without allowing path data to alter its authority."""
-    return f"{API_ROOT}{quote(path, safe='/?=&')}"
+    if not path.startswith("/") or any(part in {".", ".."} for part in path.split("/")[1:]):
+        raise GitHubError("unsafe_github_url", status=400)
+    path_chars = path.replace("/", "").replace("-", "").replace("_", "").replace(".", "")
+    if not path_chars.isalnum():
+        raise GitHubError("unsafe_github_url", status=400)
+    return f"{API_ROOT}{quote(path, safe='/')}"
 
 
 def object_data(value: object) -> dict[str, object]:
@@ -74,6 +79,7 @@ class GitHubClient:
         *,
         headers: Mapping[str, str],
         body: dict[str, object] | None = None,
+        params: Mapping[str, str | int] | None = None,
         max_bytes: int = 2 * 1_048_576,
     ) -> GithubHttpResponse:
         parsed = urlsplit(url)
@@ -98,7 +104,7 @@ class GitHubClient:
                     trust_env=False,
                     transport=self.transport,
                 ) as client,
-                client.stream(method, url, headers=headers, json=body) as response,
+                client.stream(method, url, headers=headers, json=body, params=params) as response,
             ):
                 declared = response.headers.get("content-length")
                 if declared is not None and (not declared.isdigit() or int(declared) > max_bytes):
@@ -124,6 +130,7 @@ class GitHubClient:
         *,
         token: str | None,
         body: dict[str, object] | None = None,
+        params: Mapping[str, str | int] | None = None,
         accepted: frozenset[int] = frozenset({200, 201, 204}),
     ) -> GitHubReply:
         if not path.startswith("/") or path.startswith("//") or "\\" in path:
@@ -135,7 +142,9 @@ class GitHubClient:
         }
         if token:
             headers["Authorization"] = f"Bearer {token}"
-        response = await self._request(method, _api_url(path), headers=headers, body=body)
+        response = await self._request(
+            method, _api_url(path), headers=headers, body=body, params=params
+        )
         if response.status_code not in accepted:
             raise _upstream_error(response.status_code, response.headers)
         if not response.body or response.status_code == 204:

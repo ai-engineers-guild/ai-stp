@@ -163,8 +163,9 @@ async def _invitation_state(client: GitHubClient, plan: GitHubActionPlan, token:
     for page in range(1, 11):
         reply = await client.api(
             "GET",
-            f"{root}/invitations?per_page=100&page={page}",
+            f"{root}/invitations",
             token=token,
+            params={"per_page": 100, "page": page},
         )
         data = reply.data
         if not isinstance(data, list) or len(cast(list[object], data)) > 100:
