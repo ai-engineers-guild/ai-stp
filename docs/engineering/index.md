@@ -19,7 +19,7 @@ last_verified: "2026-08-03"
 | [failure-catalog.md](failure-catalog.md) | Historical failure lessons extracted from retired experiments, with current regression owners. | 2026-09-04 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Threat model for federated local ports and metadata adapters. | 2026-08-16 |
 | [first-party-corpus.md](first-party-corpus.md) | Rebuilding and publishing the first-party corpus from exact attested setup-system releases. | 2026-09-07 |
-| [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-08-12 |
+| [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-09-09 |
 | [github-connector-implementation-plan.md](github-connector-implementation-plan.md) | Implementation and verification sequence for GitHub Connector issues 181 through 186. | 2026-09-08 |
 | [github-connector-operations.md](github-connector-operations.md) | Operator runbook for the single GitHub App used by source access and repository actions. | 2026-09-09 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-08 |
