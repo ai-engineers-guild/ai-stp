@@ -104,6 +104,9 @@ class GitHubClient:
                     trust_env=False,
                     transport=self.transport,
                 ) as client,
+                # The URL authority is fixed and validated above; only an allow-listed API path
+                # may vary. CodeQL cannot carry that validation through this injectable transport.
+                # codeql[py/partial-ssrf]
                 client.stream(method, url, headers=headers, json=body, params=params) as response,
             ):
                 declared = response.headers.get("content-length")
