@@ -280,20 +280,29 @@ export function CatalogResults({
                 </li>
               );
             })}
-            {ownerItems.map((item) => (
-              <li key={`${item.object_kind}:${item.stable_id}`} className="min-w-0">
-                <ObjectCard
-                  kind={item.object_kind}
-                  item={item}
-                  href={`/objects/${item.object_kind}/${item.stable_id}`}
-                  labels={cardLabels}
-                  view={view}
-                  ownerActions={ownerActions[`${item.object_kind}:${item.stable_id}`]}
-                  visibility={item.visibility}
-                  locale={locale}
-                />
-              </li>
-            ))}
+            {ownerItems.map((item) => {
+              const resource = item.object_kind === "component" ? "components" : "setups";
+              const href = hrefFor(resource, item.stable_id, catalogHref(basePath, query));
+              return (
+                <li key={`${item.object_kind}:${item.stable_id}`} className="min-w-0">
+                  <ObjectCard
+                    kind={item.object_kind}
+                    item={item}
+                    href={href}
+                    labels={cardLabels}
+                    view={view}
+                    ownerActions={ownerActions[`${item.object_kind}:${item.stable_id}`]}
+                    visibility={item.visibility}
+                    locale={locale}
+                    {...(item.catalog_item &&
+                    "publisher_id" in item.catalog_item &&
+                    authors[item.catalog_item.publisher_id]
+                      ? { author: authors[item.catalog_item.publisher_id] }
+                      : {})}
+                  />
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

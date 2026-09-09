@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
@@ -73,6 +74,36 @@ describe("CatalogItemMenu", () => {
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Copy CLI command" }));
     expect(writeText).toHaveBeenCalledWith("ai-stp registry show --kind setup --id setup_example");
+  });
+
+  it("prepends owner actions before the shared public actions", async () => {
+    const user = userEvent.setup();
+    render(
+      <CatalogItemMenu
+        kind="component"
+        stableId="cmp_example"
+        version="1.0"
+        href="/objects/component/cmp_example"
+        leadingItems={[
+          <DropdownMenu.Item key="visibility">Make public</DropdownMenu.Item>,
+          <DropdownMenu.Item key="edit">Edit public presentation</DropdownMenu.Item>,
+          <DropdownMenu.Item key="access">Manage access</DropdownMenu.Item>,
+        ]}
+        labels={{ ...labels, report: "Report component" }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Make public",
+      "Edit public presentation",
+      "Manage access",
+      "Copy URL",
+      "Copy ID",
+      "Copy CLI command",
+      "Like",
+      "Report component",
+    ]);
   });
 
   it("names the report action for a component and restores focus on Escape", async () => {

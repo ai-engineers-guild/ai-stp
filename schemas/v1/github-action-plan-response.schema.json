@@ -12,6 +12,55 @@
       "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
     },
+    "GitHubPlatformObject": {
+      "additionalProperties": true,
+      "description": "An ai-stp object published from the connected repository.",
+      "properties": {
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "object_kind": {
+          "enum": [
+            "component",
+            "setup"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "stable_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "visibility": {
+          "enum": [
+            "private",
+            "public"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "object_kind",
+        "stable_id",
+        "version",
+        "visibility"
+      ],
+      "title": "GitHubPlatformObject",
+      "type": "object"
+    },
     "GitHubRepository": {
       "additionalProperties": true,
       "description": "Selected repository metadata visible only to the connected account.",
@@ -24,6 +73,11 @@
           "maxLength": 256,
           "pattern": "^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$",
           "title": "Full Name",
+          "type": "string"
+        },
+        "html_url": {
+          "pattern": "^https://github\\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+$",
+          "title": "Html Url",
           "type": "string"
         },
         "installation_id": {
@@ -48,6 +102,13 @@
           "title": "Permission",
           "type": "string"
         },
+        "platform_objects": {
+          "items": {
+            "$ref": "#/$defs/GitHubPlatformObject"
+          },
+          "title": "Platform Objects",
+          "type": "array"
+        },
         "private": {
           "title": "Private",
           "type": "boolean"
@@ -59,10 +120,12 @@
       "required": [
         "can_administer",
         "full_name",
+        "html_url",
         "installation_id",
         "owner_id",
         "owner_type",
         "permission",
+        "platform_objects",
         "private",
         "repository_id"
       ],

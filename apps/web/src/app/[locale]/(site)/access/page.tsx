@@ -1,11 +1,15 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { AccessWorkspace } from "@/components/organisms/access-workspace";
+import type { AccessUser } from "@/components/organisms/access-workspace";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { ApiError } from "@/lib/api/errors";
 import { listGrants } from "@/lib/api/grants";
+import { listOwnerObjects } from "@/lib/api/owner";
+import { loadPublisherProfiles } from "@/lib/catalog-load";
 import { readCsrfToken } from "@/lib/auth/session";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { Link } from "@/lib/i18n/navigation";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -35,6 +39,35 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
     throw error;
   }
 
+  let objectName: string | null = null;
+  let objectVersion: string | null = null;
+  if (objectKind && stableId) {
+    try {
+      const ownedObjects = await listOwnerObjects(token ?? "", { page_size: 100 });
+      const object = ownedObjects.items.find(
+        (item) => item.object_kind === objectKind && item.stable_id === stableId,
+      );
+      objectName = object?.name ?? null;
+      objectVersion = object?.latest_version ?? null;
+    } catch {
+      // The stable id remains a useful fallback when the owner projection is unavailable.
+    }
+  }
+
+  const scopedGrants = grants.grants.filter(
+    (item) =>
+      item.state === "active" &&
+      (!objectKind || item.object_kind === objectKind) &&
+      (!stableId || item.stable_id === stableId),
+  );
+  const profiles = await loadPublisherProfiles(scopedGrants.map((item) => item.grantee_account_id));
+  const users: AccessUser[] = scopedGrants.map((item) => ({
+    grantId: item.grant_id,
+    accountId: item.grantee_account_id,
+    displayName: profiles[item.grantee_account_id]?.displayName ?? null,
+    avatarUrl: profiles[item.grantee_account_id]?.avatarUrl ?? null,
+  }));
+
   if (!csrf) {
     return <StatePanel kind="error" title={tc("sessionExpired")} description={tc("login")} />;
   }
@@ -46,23 +79,22 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
         <p className="text-muted-foreground max-w-2xl text-sm">{t("subtitle")}</p>
       </div>
       {objectKind && stableId ? (
-        <div className="border-border bg-muted/20 rounded-lg border p-4">
-          <p className="text-sm font-medium">{t("objectContext")}</p>
-          <p className="text-muted-foreground mt-1 font-mono text-xs break-all">{stableId}</p>
-        </div>
+        <Link
+          href={`/objects/${objectKind}/${stableId}`}
+          className="border-border bg-muted/20 hover:bg-muted/40 focus-visible:ring-ring block max-w-xl rounded-lg border p-4 focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <p className="font-medium">{objectName ?? stableId}</p>
+          <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
+            {objectKind} · {stableId}
+          </p>
+        </Link>
       ) : null}
       <AccessWorkspace
-        invitations={grants.invitations}
-        grants={grants.grants}
+        users={users}
         csrfToken={csrf}
         labels={{
-          invitations: t("invitations"),
-          grants: t("grants"),
-          emptyInvitations: t("emptyInvitations"),
-          emptyGrants: t("emptyGrants"),
           create: t("createInvitation"),
           email: t("email"),
-          major: t("major"),
           stableId: t("stableId"),
           kind: t("kind"),
           recipientKind: t("recipientKind"),
@@ -70,18 +102,25 @@ export default async function AccessPage({ params, searchParams }: PageProps) {
           userId: t("userId"),
           kindComponent: t("kindComponent"),
           kindSetup: t("kindSetup"),
+          peopleWithAccess: t("peopleWithAccess"),
+          emptyPeople: t("emptyPeople"),
           revoke: t("revoke"),
+          revokeTitle: t("revokeTitle"),
           revokeWarning: t("revokeWarning"),
-          reason: t("reason"),
-          confirm: tc("confirm"),
-          cancel: tc("cancel"),
+          cancel: t("cancel"),
+          confirm: t("confirm"),
+          revoking: t("revoking"),
+          copyId: t("copyId"),
+          copied: tc("copied"),
+          report: t("reportUser"),
+          more: t("more"),
+          user: t("user"),
           referenceId: tc("referenceId"),
-          objectContext: t("objectContext"),
-          objectContextHint: t("objectContextHint"),
           githubNote: t("githubNote"),
         }}
         initialObjectKind={objectKind}
         initialStableId={stableId}
+        initialMajor={Number.parseInt(objectVersion?.split(".")[0] ?? "", 10) || 1}
       />
     </div>
   );

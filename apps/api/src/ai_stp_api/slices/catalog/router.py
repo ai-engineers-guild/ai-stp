@@ -489,11 +489,14 @@ async def read_component(
     request: Request,
     stable_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     """GET /v1/catalog/components/{stable_id}."""
     stable_id = require_component_id(stable_id)
     try:
-        result = await service.read_component(db, stable_id)
+        result = await service.read_component(
+            db, stable_id, account_id=ctx.account_id if ctx is not None else None
+        )
         await _count_detail_view(request, db, stable_id)
         result = await _publish_usage(request, db, result)
     except service.CatalogNotFound as exc:
@@ -511,12 +514,18 @@ async def read_component_version(
     stable_id: str,
     version: str,
     db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     """GET /v1/catalog/components/{stable_id}/versions/{version}."""
     stable_id = require_component_id(stable_id)
     version = require_version(version)
     try:
-        result = await service.read_component_version(db, stable_id, version)
+        result = await service.read_component_version(
+            db,
+            stable_id,
+            version,
+            account_id=ctx.account_id if ctx is not None else None,
+        )
         result = await _publish_usage(request, db, result)
     except service.CatalogNotFound as exc:
         raise ApiError(ErrorCategory.NOT_FOUND, "catalog object not found") from exc

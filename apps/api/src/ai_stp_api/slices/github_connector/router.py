@@ -54,7 +54,7 @@ async def callback(
     code: Annotated[str | None, Query(max_length=1024)] = None,
     setup_action: Annotated[str | None, Query(max_length=32)] = None,
 ) -> RedirectResponse:
-    locale, _status = await service.finish_connect(
+    locale, _status, authorization_url = await service.finish_connect(
         db,
         ctx=ctx,
         state=state,
@@ -63,6 +63,12 @@ async def callback(
         settings=settings,
         client=client,
     )
+    if authorization_url is not None:
+        return RedirectResponse(
+            authorization_url,
+            status_code=303,
+            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+        )
     return RedirectResponse(
         f"{settings.auth.public_base_url.rstrip('/')}/{locale}/account/github",
         status_code=303,

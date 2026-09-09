@@ -9,6 +9,7 @@ import type { CatalogAuthor } from "@/components/organisms/object-card";
 import { ApiError } from "@/lib/api/errors";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { listCatalogAuthors } from "@/lib/api/catalog";
+import { readAccount } from "@/lib/api/account";
 import { getOptionalSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { listOwnerObjects } from "@/lib/api/owner";
@@ -231,6 +232,24 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
       privateItems = ownerObjects.items.filter((item) => item.visibility === "private");
     } catch {
       privateItems = [];
+    }
+  }
+  if (sessionToken && privateItems.length) {
+    try {
+      const account = await readAccount(sessionToken);
+      const identity = account.identities[0];
+      const ownerAuthor = {
+        displayName: account.display_name || identity?.display_name || null,
+        avatarUrl: identity?.avatar_url ?? null,
+      } satisfies CatalogAuthor;
+      for (const item of privateItems) {
+        const catalogItem = item.catalog_item;
+        if (catalogItem && "publisher_id" in catalogItem) {
+          authorProfiles[catalogItem.publisher_id] ??= ownerAuthor;
+        }
+      }
+    } catch {
+      // The card still renders with the publisher id when profile data is unavailable.
     }
   }
   const csrfToken = sessionToken && privateItems.length ? ((await readCsrfToken()) ?? "") : "";

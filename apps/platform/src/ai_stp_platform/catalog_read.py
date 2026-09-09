@@ -336,6 +336,46 @@ async def get_public_object_versions(
     )
 
 
+async def get_visible_object_versions(
+    session: AsyncSession,
+    *,
+    object_kind: ObjectKind,
+    stable_id: str,
+    account_id: str | None,
+) -> list[PublicVersionRow]:
+    """Return public versions plus private versions visible to one account."""
+    stmt = (
+        select(CatalogMetadata)
+        .where(
+            CatalogMetadata.object_kind == object_kind,
+            CatalogMetadata.stable_id == stable_id,
+            CatalogMetadata.published_at.is_not(None),
+            CatalogMetadata.version.is_not(None),
+            CatalogMetadata.passport_document.is_not(None),
+            CatalogMetadata.passport_digest.is_not(None),
+        )
+        .order_by(CatalogMetadata.version.asc())
+    )
+    candidates = (await session.scalars(stmt)).all()
+    visible: list[PublicVersionRow] = []
+    for metadata in candidates:
+        if metadata.visibility == "public":
+            visible.append(public_version_row(metadata))
+            continue
+        if account_id is None:
+            continue
+        authorized = await get_visible_metadata(
+            session,
+            object_kind=object_kind,
+            stable_id=stable_id,
+            version=metadata.version or "",
+            account_id=account_id,
+        )
+        if authorized is not None:
+            visible.append(public_version_row(authorized))
+    return await current_author_verification(session, visible)
+
+
 async def get_public_version(
     session: AsyncSession,
     *,
