@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "ContentDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:github-action-confirm-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "confirmed": {
+      "const": true,
+      "title": "Confirmed",
+      "type": "boolean"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "plan_hash": {
+      "$ref": "#/$defs/ContentDigest"
+    },
+    "typed_repository_name": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Typed Repository Name"
+    }
+  },
+  "required": [
+    "plan_hash",
+    "confirmed",
+    "idempotency_key"
+  ],
+  "title": "GitHubActionConfirmRequest",
+  "type": "object"
+}

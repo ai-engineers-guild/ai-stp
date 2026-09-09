@@ -1,0 +1,46 @@
+{
+  "$id": "urn:ai-stp:schema:v1:github-callback-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "code": {
+      "anyOf": [
+        {
+          "maxLength": 1024,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code"
+    },
+    "setup_action": {
+      "anyOf": [
+        {
+          "maxLength": 32,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Setup Action"
+    },
+    "state": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "setup_action",
+    "state"
+  ],
+  "title": "GitHubCallbackQuery",
+  "type": "object"
+}

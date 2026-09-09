@@ -1,9 +1,12 @@
 "use client";
 
+/* eslint-disable max-lines -- Filter controls are kept together so reset and URL state share one owner. */
+
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { CatalogAuthorOption, ExternalProduct } from "@/lib/api/catalog";
 import { Button } from "@/components/atoms/button";
+import { AvatarImage } from "@/components/atoms/avatar-image";
 import { CatalogQueryField } from "@/components/molecules/catalog-query-field";
 import { CatalogChoiceMenu } from "@/components/molecules/catalog-choice-menu";
 import {
@@ -92,7 +95,7 @@ function hrefFor(query: ParsedCatalogQuery, basePath = "/catalog") {
   return `${basePath}?${new URLSearchParams(catalogQueryToRecord(query)).toString()}`;
 }
 
-// eslint-disable-next-line complexity
+// eslint-disable-next-line complexity, max-lines-per-function
 export function CatalogFilters({
   query,
   labels,
@@ -107,8 +110,15 @@ export function CatalogFilters({
 }: CatalogFiltersProps) {
   const [searchOpen, setSearchOpen] = useState(!hideSearch && Boolean(query.q));
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [optimisticReset, setOptimisticReset] = useState<{
+    sourceKey: string;
+    query: ParsedCatalogQuery;
+  } | null>(null);
   const router = useRouter();
-  const visibleQuery = fixedAuthors.length > 0 ? { ...query, authors: [] } : query;
+  const queryKey = JSON.stringify(query);
+  const displayedQuery = optimisticReset?.sourceKey === queryKey ? optimisticReset.query : query;
+  const visibleQuery =
+    fixedAuthors.length > 0 ? { ...displayedQuery, authors: [] } : displayedQuery;
   const appliedCount = countAppliedFilters(visibleQuery);
   const chips = appliedFilterChips(visibleQuery);
   const resetHref = hrefFor({ ...defaultCatalogQuery(), authors: fixedAuthors }, basePath);
@@ -125,13 +135,15 @@ export function CatalogFilters({
       className="w-full"
       {...(labels.updatingLabel ? { updatingLabel: labels.updatingLabel } : {})}
     >
-      <input type="hidden" name="page_size" value={String(query.pageSize)} />
-      {Object.entries(catalogQueryToRecord(query))
+      <input type="hidden" name="page_size" value={String(displayedQuery.pageSize)} />
+      {Object.entries(catalogQueryToRecord(displayedQuery))
         .filter(([key]) => !hiddenOmit.has(key))
         .map(([key, value]) => (
           <input key={key} type="hidden" name={key} value={value} />
         ))}
-      {!filtersOpen ? <input type="hidden" name="resource" value={query.resource} /> : null}
+      {!filtersOpen ? (
+        <input type="hidden" name="resource" value={displayedQuery.resource} />
+      ) : null}
       <div className="grid min-w-0 items-start gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
         <p className="text-muted-foreground max-w-3xl min-w-0 text-sm leading-relaxed">{intro}</p>
         <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
@@ -159,7 +171,7 @@ export function CatalogFilters({
           >
             <Icon name="controls" size="sm" />
           </DisclosureButton>
-          <CatalogDisplayControls query={query} labels={labels} basePath={basePath} />
+          <CatalogDisplayControls query={displayedQuery} labels={labels} basePath={basePath} />
         </div>
       </div>
 
@@ -173,7 +185,7 @@ export function CatalogFilters({
               label={labels.search}
               placeholder={labels.searchPlaceholder}
               submitLabel={labels.search}
-              defaultValue={query.q}
+              defaultValue={displayedQuery.q}
               correctionLabel={labels.queryCorrection ?? "Did you mean"}
               fieldsLabel={labels.queryFields ?? "Fields"}
               operatorsLabel={labels.queryOperators ?? "Operators"}
@@ -194,7 +206,8 @@ export function CatalogFilters({
             }}
           >
             <CatalogFilterPanel
-              query={query}
+              key={JSON.stringify(displayedQuery)}
+              query={displayedQuery}
               labels={labels}
               services={services}
               authors={authors}
@@ -206,6 +219,7 @@ export function CatalogFilters({
                 type="button"
                 className="text-muted-foreground inline-flex min-h-11 items-center text-sm underline underline-offset-4"
                 onClick={() => {
+                  setOptimisticReset({ sourceKey: queryKey, query: defaultCatalogQuery() });
                   router.push(resetHref);
                 }}
               >
@@ -229,7 +243,16 @@ export function CatalogFilters({
               prefetch={false}
               className="border-border bg-muted inline-flex min-h-11 max-w-full items-center rounded-md border px-3 py-1 font-mono text-xs break-all"
             >
-              {chipLabel(chip.key, chip.label, labels)} ×
+              {chip.key.startsWith("author:") ? (
+                <AuthorChipContent
+                  accountId={chip.key.slice("author:".length)}
+                  fallback={chipLabel(chip.key, chip.label, labels)}
+                  authors={authors}
+                />
+              ) : (
+                chipLabel(chip.key, chip.label, labels)
+              )}{" "}
+              ×
             </Link>
           ))}
         </div>
@@ -421,6 +444,45 @@ function chipLabel(key: string, label: string, labels: CatalogFiltersProps["labe
   if (key === "updated_from") return `${labels.updatedFrom ?? "Updated from"}: ${label}`;
   if (key === "updated_to") return `${labels.updatedTo ?? "Updated to"}: ${label}`;
   return label;
+}
+
+function AuthorChipContent({
+  accountId,
+  fallback,
+  authors,
+}: {
+  accountId: string;
+  fallback: string;
+  authors: readonly CatalogAuthorOption[];
+}) {
+  const author = authors.find((item) => item.account_id === accountId);
+  const displayName =
+    author?.display_name ||
+    [author?.first_name, author?.last_name].filter(Boolean).join(" ") ||
+    fallback;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <AvatarImage
+        src={author?.avatar_url}
+        width={20}
+        height={20}
+        className="size-5 shrink-0 rounded-full object-cover"
+        fallback={
+          <span className="bg-background text-muted-foreground grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-medium">
+            {displayName
+              .trim()
+              .split(/\s+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((part) => part[0])
+              .join("")
+              .toUpperCase()}
+          </span>
+        }
+      />
+      <span className="truncate">{displayName}</span>
+    </span>
+  );
 }
 
 function DisclosureButton({

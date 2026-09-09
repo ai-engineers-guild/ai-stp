@@ -31,6 +31,9 @@ from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_stp_passports.versions import COMPONENT_TYPES
+from ai_stp_platform import (
+    github_models as _github_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+)
 from ai_stp_platform.db import Base
 
 
@@ -731,6 +734,12 @@ class PublicationPlan(Base):
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_binding_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("github_source_binding.id", ondelete="RESTRICT"),
+        nullable=True,
+        unique=True,
+    )
     actor_account_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="CASCADE"), index=True
     )

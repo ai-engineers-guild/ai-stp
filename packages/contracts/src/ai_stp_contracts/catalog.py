@@ -194,16 +194,19 @@ class ExternalProductListResponse(BaseModel):
 
 
 class CatalogAuthorOption(BaseModel):
-    """One public author available in the catalog filter."""
+    """One author with an active public component or setup available in the catalog filter."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     account_id: Annotated[str, Field(min_length=1, max_length=64)]
+    first_name: Annotated[str, Field(min_length=1, max_length=80)] | None = None
+    last_name: Annotated[str, Field(min_length=1, max_length=160)] | None = None
     display_name: Annotated[str, Field(min_length=1, max_length=80)] | None = None
+    avatar_url: Annotated[str, Field(max_length=2048)] | None = None
 
 
 class CatalogAuthorListResponse(BaseModel):
-    """All authors with at least one active public catalog object."""
+    """All authors with at least one active public component or setup."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -376,6 +379,16 @@ class CatalogTrust(BaseModel):
         return self
 
 
+class PrivateVersionTrust(BaseModel):
+    """Exact local acquisition authority, independent of public trust."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    trust_lane: Literal["local_owner_or_pinned"] = "local_owner_or_pinned"
+    author_verified: bool
+    component_verified: bool
+
+
 class PrivateVersionResponse(BaseModel):
     """Exact private version metadata after owner/grant authorization."""
 
@@ -385,7 +398,7 @@ class PrivateVersionResponse(BaseModel):
     passport: dict[str, JsonValue]
     passport_digest: PassportDigest
     lifecycle: Literal["active", "deprecated"]
-    trust: CatalogTrust
+    trust: PrivateVersionTrust
     published_at: Timestamp
     visibility: Literal["private"] = "private"
 

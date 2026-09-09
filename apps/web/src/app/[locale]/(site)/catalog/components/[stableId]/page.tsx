@@ -174,6 +174,9 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
         source={passport?.source}
         sourceLinks={sourceLinks}
         viewSourceLabel={t("viewSourceOnGithub")}
+        visibility="public"
+        publicVisibilityLabel={t("public")}
+        privateVisibilityLabel={t("private")}
         like={{
           stableId,
           objectKind: "component",
@@ -306,6 +309,9 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               copiedLabel={tCli("copied")}
               errorLabel={tCli("copyError")}
               docsLabel={tCli("docs")}
+              visibility="public"
+              publicLabel={t("public")}
+              privateLabel={t("private")}
             />
             <ObjectVersionHistory
               title={t("versionHistory")}

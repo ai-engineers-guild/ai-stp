@@ -1,20 +1,26 @@
 /* eslint-disable max-lines -- Card, list, and compact metric variants share one fixture. */
+import type { ReactNode } from "react";
+
 import { Badge } from "@/components/atoms/badge";
 import { CatalogEngagement } from "@/components/molecules/catalog-engagement";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CompactChipList } from "@/components/molecules/compact-chip-list";
 import { VerifiedAvatar } from "@/components/molecules/verified-avatar";
 import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
+import { VisibilityLabel } from "@/components/molecules/visibility-label";
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
+import type { OwnerObjectSummary } from "@/lib/api/generated/types.gen";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { cn } from "@/lib/cn";
 import { mandatoryFailed, publicationScore } from "@/lib/safety-checks";
 import { Link } from "@/lib/i18n/navigation";
+import { ownerCatalogItem } from "@/lib/owner-catalog";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme";
 import { ComponentTypeIcon } from "@/theme/component-types";
 
 type CatalogItem = ComponentSummary | SetupSummary;
+type CardItem = CatalogItem | OwnerObjectSummary;
 type Labels = {
   harness: string;
   tags: string;
@@ -70,19 +76,28 @@ type Labels = {
   unlikeMenu?: string | undefined;
   assuranceCounts?: string | undefined;
   familyMemberCount?: string | undefined;
+  publicVisibility?: string | undefined;
+  privateVisibility?: string | undefined;
 };
 export type CatalogAuthor = { displayName: string | null; avatarUrl: string | null };
 const AUTHOR_VERIFIED_FALLBACK = "Author verified";
 type Props = {
   kind: "component" | "setup";
-  item: CatalogItem;
+  item: CardItem;
   href: string;
   labels: Labels;
   view?: "cards" | "list";
   author?: CatalogAuthor;
-  locale?: string;
+  locale?: string | undefined;
   initiallyLiked?: boolean;
+  visibility?: "public" | "private";
+  ownerActions?: ReactNode;
 };
+
+function isOwnerObject(item: CardItem): item is OwnerObjectSummary {
+  return "object_kind" in item;
+}
+
 function AuthorRail({
   item,
   author,
@@ -184,13 +199,13 @@ function TypeMark({
 }: {
   kind: "component" | "setup";
   item: ComponentSummary | SetupSummary;
-  compact?: boolean;
+  compact: boolean;
 }) {
   if (kind === "component")
     return (
       <ComponentTypeIcon
         type={(item as ComponentSummary).latest_component_type}
-        {...(compact === undefined ? {} : { compact })}
+        compact={compact}
       />
     );
   return (
@@ -230,6 +245,7 @@ function menuLabels(kind: "component" | "setup", labels: Labels) {
 }
 
 /** Sparse catalog item: identity, compatibility, tags, author and likes only. */
+// eslint-disable-next-line max-lines-per-function
 export function ObjectCard({
   kind,
   item,
@@ -239,16 +255,33 @@ export function ObjectCard({
   author,
   locale = "en",
   initiallyLiked = false,
+  visibility = "public",
+  ownerActions,
 }: Props) {
+  const owner = isOwnerObject(item) ? item : null;
+  const catalogItem: CatalogItem | null = isOwnerObject(item) ? ownerCatalogItem(item) : item;
+  if (!catalogItem) {
+    if (!owner) return null;
+    return (
+      <OwnerFallbackCard
+        item={owner}
+        href={href}
+        actions={ownerActions}
+        publicLabel={labels.publicVisibility}
+        privateLabel={labels.privateVisibility}
+      />
+    );
+  }
+  const itemVisibility = owner?.visibility ?? visibility;
   const type =
     kind === "component"
-      ? (item as ComponentSummary).latest_component_type
+      ? (catalogItem as ComponentSummary).latest_component_type
       : (labels.setupKind ?? "Setup");
-  const harnesses = namedHarnesses(item);
+  const harnesses = namedHarnesses(catalogItem);
   const actions = menuLabels(kind, labels);
-  const authorBlock = <AuthorRail item={item} author={author} labels={labels} />;
-  const metrics = <CatalogMetrics item={item} labels={labels} locale={locale} />;
-  const reason = whyOpen(item, labels, view);
+  const authorBlock = <AuthorRail item={catalogItem} author={author} labels={labels} />;
+  const metrics = <CatalogMetrics item={catalogItem} labels={labels} locale={locale} />;
+  const reason = whyOpen(catalogItem, labels, view);
   if (view === "list")
     return (
       <article
@@ -264,7 +297,7 @@ export function ObjectCard({
       >
         <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 md:grid-cols-[auto_minmax(0,1fr)_auto_minmax(8rem,11rem)_minmax(8rem,auto)_auto] md:items-center">
           <div className="shrink-0">
-            <TypeMark kind={kind} item={item} compact />
+            <TypeMark kind={kind} item={catalogItem} compact />
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="min-w-0 text-base leading-snug font-medium break-words">
@@ -273,7 +306,7 @@ export function ObjectCard({
                 prefetch={false}
                 className="after:absolute after:inset-0 focus-visible:outline-none"
               >
-                {item.latest_name}
+                {catalogItem.latest_name}
               </Link>
             </h3>
             {reason ? (
@@ -284,31 +317,42 @@ export function ObjectCard({
             <MetadataRows
               type={type}
               harnesses={harnesses}
-              tags={item.latest_tags}
+              tags={catalogItem.latest_tags}
               labels={labels}
             />
-            <CardFacts item={item} kind={kind} labels={labels} />
+            <CardFacts item={catalogItem} kind={kind} labels={labels} />
           </div>
-          <div className="relative z-20 col-start-3 row-start-1 md:col-start-6">
-            <CatalogItemMenu
-              kind={kind}
-              stableId={item.stable_id}
-              version={item.latest_version}
-              href={href}
-              initiallyLiked={initiallyLiked}
-              labels={actions}
-            />
+          <div className="relative z-20 col-start-3 row-start-1 flex items-center gap-2 md:col-start-6">
+            {owner ? ownerActions : null}
+            {!owner ? (
+              <CatalogItemMenu
+                kind={kind}
+                stableId={catalogItem.stable_id}
+                version={catalogItem.latest_version}
+                href={href}
+                initiallyLiked={initiallyLiked}
+                labels={actions}
+              />
+            ) : null}
           </div>
           <div className="col-start-2 row-start-2 min-w-0 md:col-start-3 md:row-start-1 md:justify-self-end">
             {metrics}
           </div>
           <div className="col-start-2 row-start-3 min-w-0 md:col-start-4 md:row-start-1">
-            {kind === "component" ? <SafetyScore item={item} labels={labels} compact /> : null}
+            {kind === "component" ? (
+              <SafetyScore item={catalogItem} labels={labels} compact />
+            ) : null}
           </div>
           <div className="relative z-20 col-span-2 col-start-2 row-start-4 min-w-0 md:col-span-1 md:col-start-5 md:row-start-1 md:justify-self-end">
             {authorBlock}
           </div>
         </div>
+        <VisibilityLabel
+          className="absolute top-0 right-4 z-20"
+          visibility={itemVisibility}
+          publicLabel={labels.publicVisibility}
+          privateLabel={labels.privateVisibility}
+        />
       </article>
     );
   return (
@@ -322,7 +366,7 @@ export function ObjectCard({
       data-view="cards"
     >
       <div className="flex items-start gap-3">
-        <TypeMark kind={kind} item={item} compact />
+        <TypeMark kind={kind} item={catalogItem} compact />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-start gap-2">
             <h3 className="min-w-0 flex-1 text-lg leading-snug font-medium">
@@ -331,22 +375,30 @@ export function ObjectCard({
                 prefetch={false}
                 className="after:absolute after:inset-0 focus-visible:outline-none"
               >
-                {item.latest_name}
+                {catalogItem.latest_name}
               </Link>
             </h3>
-            <div className="relative z-20 shrink-0">
-              <CatalogItemMenu
-                kind={kind}
-                stableId={item.stable_id}
-                version={item.latest_version}
-                href={href}
-                initiallyLiked={initiallyLiked}
-                labels={actions}
-              />
+            <div className="relative z-20 flex shrink-0 items-center gap-2">
+              {owner ? ownerActions : null}
+              {!owner ? (
+                <CatalogItemMenu
+                  kind={kind}
+                  stableId={catalogItem.stable_id}
+                  version={catalogItem.latest_version}
+                  href={href}
+                  initiallyLiked={initiallyLiked}
+                  labels={actions}
+                />
+              ) : null}
             </div>
           </div>
-          <MetadataRows type={type} harnesses={harnesses} tags={item.latest_tags} labels={labels} />
-          <CardFacts item={item} kind={kind} labels={labels} />
+          <MetadataRows
+            type={type}
+            harnesses={harnesses}
+            tags={catalogItem.latest_tags}
+            labels={labels}
+          />
+          <CardFacts item={catalogItem} kind={kind} labels={labels} />
           {reason ? (
             <p className="text-muted-foreground mt-1 line-clamp-1 text-xs" data-why-open="">
               {reason}
@@ -355,16 +407,116 @@ export function ObjectCard({
         </div>
       </div>
       <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">
-        {item.latest_description}
+        {catalogItem.latest_description}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3 py-1">
         {metrics}
-        {kind === "component" ? <SafetyScore item={item} labels={labels} /> : null}
+        {kind === "component" ? <SafetyScore item={catalogItem} labels={labels} /> : null}
       </div>
       <div className="border-border relative z-20 mt-auto flex items-end justify-between gap-3 border-t pt-3">
-        <RequirementCount item={item} labels={labels} />
+        <RequirementCount item={catalogItem} labels={labels} />
         {authorBlock}
       </div>
+      <VisibilityLabel
+        className="absolute top-0 right-4 z-20"
+        visibility={itemVisibility}
+        publicLabel={labels.publicVisibility}
+        privateLabel={labels.privateVisibility}
+      />
+    </article>
+  );
+}
+
+export function OwnerObjectCard({
+  item,
+  href,
+  actions,
+  publicLabel = "public",
+  privateLabel = "private",
+  authorVerifiedLabel,
+  componentVerifiedLabel,
+}: {
+  item: OwnerObjectSummary;
+  href: string;
+  actions: ReactNode;
+  publicLabel?: string | undefined;
+  privateLabel?: string | undefined;
+  authorVerifiedLabel: string;
+  componentVerifiedLabel: string;
+}) {
+  void authorVerifiedLabel;
+  void componentVerifiedLabel;
+  return (
+    <ObjectCard
+      kind={item.object_kind}
+      item={item}
+      href={href}
+      labels={{
+        harness: "",
+        tags: "",
+        publicVisibility: publicLabel,
+        privateVisibility: privateLabel,
+      }}
+      ownerActions={actions}
+    />
+  );
+}
+
+function OwnerFallbackCard({
+  item,
+  href,
+  actions,
+  publicLabel,
+  privateLabel,
+}: {
+  item: OwnerObjectSummary;
+  href: string;
+  actions: ReactNode;
+  publicLabel?: string | undefined;
+  privateLabel?: string | undefined;
+}) {
+  return (
+    <article
+      data-ui={UI.catalog.card}
+      data-kind={item.object_kind}
+      data-view="cards"
+      className="bg-card group border-border hover:bg-muted/30 relative flex h-full min-w-0 flex-col gap-3 overflow-x-hidden rounded-lg border p-4 shadow-sm transition-colors"
+    >
+      <div className="flex min-w-0 items-start gap-3 pr-16">
+        <span
+          className="bg-muted border-border text-foreground inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border"
+          aria-hidden="true"
+        >
+          <Icon name="controls" size="sm" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-muted-foreground font-mono text-xs tracking-wide uppercase">
+            {item.object_kind}
+          </p>
+          <h2 className="mt-1 min-w-0 text-lg leading-snug font-medium">
+            <Link
+              href={href}
+              prefetch={false}
+              className="after:absolute after:inset-0 focus-visible:outline-none"
+            >
+              {item.name}
+            </Link>
+          </h2>
+          <p className="text-muted-foreground mt-1 font-mono text-xs break-all">{item.stable_id}</p>
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        {item.latest_version ? (
+          <span className="font-mono text-xs">{item.latest_version}</span>
+        ) : null}
+      </div>
+      <div className="relative z-20">{actions}</div>
+      <VisibilityLabel
+        className="absolute top-0 right-4 z-20"
+        visibility={item.visibility}
+        publicLabel={publicLabel}
+        privateLabel={privateLabel}
+      />
     </article>
   );
 }

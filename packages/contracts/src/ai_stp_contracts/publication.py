@@ -123,6 +123,7 @@ class PublicationPlanCreateRequest(BaseModel):
     content_digest: ContentDigest
     artifact_inventory: Annotated[list[str], Field(default_factory=list, max_length=1000)]
     visibility: PublicationVisibility = "private"
+    source_binding_id: PlanId | None = None
     policy_version: PolicyVersion = "safety-3"
     passport: dict[str, object]
     attestations: Annotated[list[AuthorAttestation], Field(default_factory=list, max_length=32)]
@@ -173,6 +174,7 @@ class PublicationPlanResponse(BaseModel):
     content_digest: ContentDigest
     artifact_inventory: Annotated[list[str], Field(default_factory=list, max_length=1000)]
     visibility: PublicationVisibility
+    source_binding_id: PlanId | None = None
     policy_version: PolicyVersion
     actor_id: AccountId
     device_id: DeviceId

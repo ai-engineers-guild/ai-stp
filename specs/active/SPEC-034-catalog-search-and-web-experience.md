@@ -138,6 +138,10 @@ Browser editor setups and arbitrary HTML are not included.
   relative total security checks; `warning`, `failed` and `not-run` remain
   visible. If there is risk data, the card adds a short reason
   open the post and does not confuse author attribution with content security.
+  Catalog, publisher-profile, and owner-workspace results reuse this same card
+  projection. Owner-private rows remain in the unified result with a public or
+  private visibility label and owner actions; the owner view omits redundant
+  author/component/lifecycle status badges.
 - `REQ-3427`: `VerifiedAvatar` is the only author tag component: thin
   round outline, small checkmark at the bottom edge, no overlapping photo or
   reserve character, no line height change, no name shift and no
@@ -176,8 +180,9 @@ Browser editor setups and arbitrary HTML are not included.
   `component_type` merge with `harness_ids` and `component_types` using OR.
 - `REQ-3439`: Public catalog authors are loaded as a complete searchable list,
   sorted with Latin labels before Cyrillic labels. Author values are
-  multi-select and filter by stable account id; labels may use the published
-  public profile name.
+  multi-select and filter by stable account id; labels use the published
+  display name and include the author's small avatar where a selection chip is
+  shown.
 - `REQ-3433`: Latest public version selection, structural filters, relationship
   filters, Catalog QL, relevance ranking, `updated_at` and `likes` sorts, page
   totals, and keyset pagination execute as parameterized SQL against one search

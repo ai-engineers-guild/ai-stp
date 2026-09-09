@@ -290,6 +290,12 @@ async def apply_author_verification(
     )
     for version in versions:
         version.author_verified = verified
+        if verified:
+            # Author verification is still stored separately from component
+            # verification, but it is the default for the author's existing
+            # catalog versions. Subsequent safety expiry can revoke the
+            # component axis independently.
+            version.component_verified = True
         if verified and version.component_verified:
             version.trust_lane = "authoritative"
         elif version.trust_lane == "authoritative" and not verified:

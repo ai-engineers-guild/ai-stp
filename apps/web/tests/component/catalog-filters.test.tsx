@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ParsedCatalogQuery } from "@/lib/catalog-query";
 
+const routerPush = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ href, children, ...props }: { href: string; children?: ReactNode }) => (
     <a href={href} {...props}>
@@ -13,7 +15,7 @@ vi.mock("@/lib/i18n/navigation", () => ({
     </a>
   ),
   usePathname: () => "/catalog",
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: routerPush }),
 }));
 
 const { CatalogFilters } = await import("@/components/organisms/catalog-filters");
@@ -175,6 +177,10 @@ describe("CatalogFilters", () => {
     expect(screen.getByRole("link", { name: /codex/i })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Filters (4)" }));
     expect(screen.getByRole("button", { name: "Reset all" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset all" }));
+    expect(routerPush).toHaveBeenCalledWith(expect.stringContaining("include_experimental=1"));
+    expect(screen.getByRole("button", { name: "Filters" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply filters" })).toBeInTheDocument();
   });
 
   it("opens separate sort and view popup controls", async () => {
@@ -353,9 +359,99 @@ describe("CatalogFilters", () => {
     expect(screen.getByRole("checkbox", { name: "codex" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "skill" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /Only verified/ })).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Author (1)" }));
+    expect(screen.getByRole("dialog", { name: "Author" })).toContainElement(
+      screen.getByRole("checkbox", { name: "alice" }),
+    );
     expect(screen.getByRole("checkbox", { name: "alice" })).toBeChecked();
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Author" })).getByRole("button", { name: "Close" }),
+    );
     expect(screen.queryByRole("combobox", { name: "Support tier" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Support state" })).toBeNull();
+  });
+
+  it("orders the author list with Latin names before Cyrillic names", async () => {
+    const user = userEvent.setup();
+    render(
+      <CatalogFilters
+        query={query()}
+        labels={labels}
+        authors={[
+          {
+            account_id: "ru",
+            first_name: "Яна",
+            last_name: null,
+            display_name: "Яна",
+            avatar_url: null,
+          },
+          {
+            account_id: "z",
+            first_name: "Zed",
+            last_name: null,
+            display_name: "Zed",
+            avatar_url: null,
+          },
+          {
+            account_id: "a",
+            first_name: "Ada",
+            last_name: null,
+            display_name: "Ada",
+            avatar_url: null,
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: /^Author$/ }));
+    const authorDialog = screen.getByRole("dialog", { name: "Author" });
+    expect(
+      within(authorDialog)
+        .getAllByRole("checkbox")
+        .map((checkbox) => checkbox.getAttribute("aria-label")),
+    ).toEqual(["Ada", "Zed", "Яна"]);
+  });
+
+  it("shows the selected author chip with display name and avatar", () => {
+    const { container } = render(
+      <CatalogFilters
+        query={query({ authors: ["alice"] })}
+        labels={labels}
+        authors={[
+          {
+            account_id: "alice",
+            first_name: "Alice",
+            last_name: "Example",
+            display_name: "Alice Example",
+            avatar_url: "https://example.test/alice.png",
+          },
+        ]}
+      />,
+    );
+
+    const chip = screen.getByRole("link", { name: /Alice Example/ });
+    expect(chip).toContainElement(container.querySelector("img"));
+  });
+
+  it("falls back to an author's first and last name in the selected chip", () => {
+    render(
+      <CatalogFilters
+        query={query({ authors: ["alice"] })}
+        labels={labels}
+        authors={[
+          {
+            account_id: "alice",
+            first_name: "Alice",
+            last_name: "Example",
+            display_name: null,
+            avatar_url: null,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /Alice Example/ })).toBeInTheDocument();
   });
 
   it("uses an overlay filter surface on a narrow viewport without dropping controls", async () => {
@@ -378,12 +474,16 @@ describe("CatalogFilters", () => {
     expect(within(surface).getByRole("checkbox", { name: "Components" })).toBeInTheDocument();
     expect(within(surface).getByRole("group", { name: /Tag/ })).toBeInTheDocument();
     expect(within(surface).getByRole("group", { name: "Harness" })).toBeInTheDocument();
-    expect(within(surface).getByRole("searchbox", { name: /Author/ })).toBeInTheDocument();
+    await user.click(within(surface).getByRole("button", { name: "Author" }));
+    const authorDialog = screen.getByRole("dialog", { name: "Author" });
+    expect(within(authorDialog).getByRole("searchbox", { name: /Author/ })).toBeInTheDocument();
+    await user.click(within(authorDialog).getByRole("button", { name: "Close" }));
     expect(within(surface).getByRole("button", { name: "Apply filters" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sort results" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Result layout" })).toBeInTheDocument();
     const close = within(surface).getByRole("button", { name: "Close" });
     const apply = within(surface).getByRole("button", { name: "Apply filters" });
+    close.focus();
     expect(close).toHaveFocus();
     await user.keyboard("{Shift>}{Tab}{/Shift}");
     expect(apply).toHaveFocus();

@@ -74,7 +74,9 @@ storage and migrations as such (`SPEC-020`); REST ready surface
   field of the passport, which is confirmed by the test; object fields `name` or `tags` card
   does not carry it, since there is no object passport (`ADR-0012`).
 - `REQ-2104`: Each card carries `CatalogTrust` with independent axes
-  `author_verified` and `component_verified` (`ADR-0016`); line `authoritative`
+  `author_verified` and `component_verified` (`ADR-0016`). Author verification
+  may initialize the component axis for existing versions, but later component
+  decisions remain independent; line `authoritative`
   representable only with both true axes; section `experimental` returns
   only with request-scoped consent of `include_experimental` (`SPEC-006` `REQ-603`,
   `ADR-0029`) and comes in a separate section, not mixed together.

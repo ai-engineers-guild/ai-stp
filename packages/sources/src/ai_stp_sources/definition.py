@@ -164,8 +164,17 @@ def encode_component_ref(ref: ComponentRef) -> dict[str, JsonValue]:
 def pack_component_tree(files: Mapping[str, bytes]) -> bytes:
     """Deterministic component-tree zip; reject secret-like names."""
     ordered = sorted((path.replace("\\", "/"), content) for path, content in files.items())
+    if len({path for path, _content in ordered}) != len(ordered):
+        raise SourceError(INVALID_SOURCE, "embedded artifact contains duplicate paths")
     for path, _content in ordered:
-        if path.startswith("/") or "\\" in path or ":" in path.split("/", 1)[0]:
+        if (
+            not path
+            or path.startswith("/")
+            or "\\" in path
+            or ":" in path.split("/", 1)[0]
+            or any(part in {"", ".", "..", ".git"} for part in path.split("/"))
+            or any(ord(char) < 32 for char in path)
+        ):
             raise SourceError(INVALID_SOURCE, "embedded artifact path is absolute or unsafe")
         reject_secret_name(path)
     if sum(len(content) for _path, content in ordered) > MAX_ARCHIVE_BYTES:

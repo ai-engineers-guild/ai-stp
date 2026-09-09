@@ -254,6 +254,8 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("harness",): "Install, update and remove the harness program itself.",
     ("grant",): "Share a private object with another account.",
     ("grant", "invitation"): "Invitations offered but not yet accepted.",
+    ("github",): "Read selected GitHub repositories through the connected App.",
+    ("github", "source"): "Prepare an exact GitHub snapshot for publication.",
     ("install",): "Plan, apply, resume and recover a setup on a target.",
     ("install", "transaction"): "Coordinate one setup across several provider-owned roots.",
     ("link",): "Open the matching page on the web.",

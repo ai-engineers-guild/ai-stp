@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "DeviceId": {
+      "pattern": "^device_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "GitHubUsername": {
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$",
+      "type": "string"
+    },
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "RepositoryId": {
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "type": "integer"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:github-action-plan-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "invite_collaborator",
+        "make_public",
+        "make_private"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "device_id": {
+      "$ref": "#/$defs/DeviceId"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "installation_id": {
+      "$ref": "#/$defs/RepositoryId"
+    },
+    "permission": {
+      "anyOf": [
+        {
+          "enum": [
+            "pull",
+            "push"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Permission"
+    },
+    "recipient": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GitHubUsername"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "repository_id": {
+      "$ref": "#/$defs/RepositoryId"
+    }
+  },
+  "required": [
+    "action",
+    "installation_id",
+    "repository_id",
+    "device_id",
+    "idempotency_key"
+  ],
+  "title": "GitHubActionPlanRequest",
+  "type": "object"
+}

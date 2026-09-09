@@ -5,12 +5,8 @@ export type ObjectFilterKind = "all" | "component" | "setup";
 export type ScopedObjectFiltersLabels = {
   title: string;
   description: string;
-  activeCount: string;
-  activeFilters: string;
-  noActiveFilters: string;
   clear: string;
   apply: string;
-  objectType: string;
   allTypes: string;
   components: string;
   setups: string;
@@ -51,18 +47,18 @@ export function ScopedObjectFilters({
             className="border-border bg-popover absolute top-[3.25rem] right-0 z-30 w-[min(24rem,calc(100vw-3rem))] space-y-4 rounded-lg border p-4 shadow-md"
             method="get"
           >
-            <label className="block space-y-2 text-sm">
-              <span className="font-medium">{labels.objectType}</span>
+            <div className="block space-y-2 text-sm">
               <select
                 name="kind"
                 defaultValue={kind}
+                aria-label={labels.title}
                 className="border-input bg-background h-11 w-full rounded-sm border px-3 text-base sm:text-sm"
               >
                 <option value="all">{labels.allTypes}</option>
                 <option value="component">{labels.components}</option>
                 <option value="setup">{labels.setups}</option>
               </select>
-            </label>
+            </div>
             {showVerified ? (
               <label className="border-border flex min-h-11 items-center gap-3 rounded-sm border px-3 text-sm">
                 <input type="checkbox" name="verified" value="1" defaultChecked={verifiedOnly} />
@@ -86,7 +82,7 @@ export function ScopedObjectFilters({
         </details>
       </div>
       {active.length ? (
-        <div className="flex flex-wrap gap-2" aria-label={labels.activeFilters}>
+        <div className="flex flex-wrap gap-2" aria-label={labels.title}>
           {active.map((value) => (
             <span
               key={value}

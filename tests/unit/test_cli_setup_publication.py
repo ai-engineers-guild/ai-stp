@@ -106,6 +106,7 @@ class _Plan:
     def __init__(self, plan_id: str, state: str, request: Any) -> None:
         self.plan_id = plan_id
         self.plan_hash = f"hash_{plan_id}"
+        self.source_binding_id = getattr(request, "source_binding_id", None)
         self.visibility = request.visibility
         self.object_kind = request.object_kind
         self.stable_id = request.stable_id

@@ -98,6 +98,7 @@ def compute_plan_hash(
     attestations: list[dict[str, object]],
     artifact_inventory: list[str] | None = None,
     visibility: str = "public",
+    source_binding_id: str | None = None,
 ) -> str:
     """Content hash of the immutable plan surface."""
     body = {
@@ -113,13 +114,17 @@ def compute_plan_hash(
         "artifact_inventory": artifact_inventory or [],
         "visibility": visibility,
     }
+    if source_binding_id is not None:
+        body["source_binding_id"] = source_binding_id
     digest = hashlib.sha256(_canonical_json(body)).hexdigest()
     return f"plan_{digest}"
 
 
-def validate_passport_completeness(passport: dict[str, object]) -> list[str]:
+def validate_passport_completeness(
+    passport: dict[str, object], *, source_bound: bool = False
+) -> list[str]:
     """Return missing field names for SPEC-007 REQ-706 minimums."""
-    component = passport.get("kind") != "setup"
+    component = passport.get("kind") != "setup" and not source_bound
     required = ("name", "version", "license", "tags", "artifact") + (
         ("source",) if component else ()
     )
@@ -157,6 +162,7 @@ def validate_publication_passport(
     content_digest: str,
     owner_account_id: str | None = None,
     expected_visibility: str = "public",
+    source_bound: bool = False,
 ) -> tuple[ComponentVersionPassport | SetupVersionPassport | None, list[str]]:
     """Validate the exact immutable passport accepted into catalog storage.
 
@@ -181,7 +187,7 @@ def validate_publication_passport(
         invalid.append("expected_visibility")
     if owner_account_id is not None and model.owner_id != owner_account_id:
         invalid.append("owner_id")
-    if object_kind == "component" and model.source is None:
+    if object_kind == "component" and model.source is None and not source_bound:
         invalid.append("source")
     if model.artifact.digest != content_digest:
         invalid.append("artifact.digest")
@@ -200,10 +206,11 @@ def run_platform_checks(
     *,
     passport: dict[str, object],
     content_digest: str,
+    source_bound: bool = False,
 ) -> list[dict[str, Any]]:
     """Execute credential-free mandatory checks; return binding dicts."""
     bindings: list[dict[str, Any]] = []
-    missing = validate_passport_completeness(passport)
+    missing = validate_passport_completeness(passport, source_bound=source_bound)
     structure_ok = not missing
     bindings.append(
         {
@@ -250,7 +257,7 @@ def run_platform_checks(
             "mandatory": True,
         }
     )
-    source_ok = passport.get("kind") == "setup"
+    source_ok = passport.get("kind") == "setup" or source_bound
     source_raw = passport.get("source")
     if isinstance(source_raw, dict):
         source_map = cast(dict[str, object], source_raw)
@@ -400,7 +407,14 @@ async def execute_validate(
     if existing is not None:
         return existing
 
-    bindings = run_platform_checks(passport=plan.passport, content_digest=plan.content_digest)
+    from ai_stp_platform.github_sources import bound_source
+
+    source_binding = await bound_source(session, plan)
+    bindings = run_platform_checks(
+        passport=plan.passport,
+        content_digest=plan.content_digest,
+        source_bound=source_binding is not None,
+    )
     requires_creds = bool(plan.passport.get("requires_credentials"))
     device = await session.get(Device, plan.device_id)
     public_key = getattr(device, "public_key", "") if device is not None else ""
@@ -858,6 +872,12 @@ async def execute_publish(
     if plan_visibility == "private" and plan.passport.get("visibility") == "public":
         # Rows created before 0052 did not have a plan visibility column.
         plan_visibility = "public"
+    from ai_stp_platform.github_client import GitHubClient
+    from ai_stp_platform.github_sources import bound_source, public_bound_source_bytes
+
+    source = await bound_source(session, plan)
+    if source is not None and plan_visibility == "public":
+        await public_bound_source_bytes(source, client=GitHubClient())
     passport, invalid = validate_publication_passport(
         dict(plan.passport),
         object_kind=plan.object_kind,
@@ -866,6 +886,7 @@ async def execute_publish(
         content_digest=plan.content_digest,
         owner_account_id=plan.actor_account_id,
         expected_visibility=plan_visibility,
+        source_bound=source is not None,
     )
     if passport is None:
         msg = f"publish passport failed integrity validation: {', '.join(invalid)}"
@@ -1355,6 +1376,7 @@ def plan_to_wire(
         "content_digest": plan.content_digest,
         "artifact_inventory": list(getattr(plan, "artifact_inventory", []) or []),
         "visibility": getattr(plan, "visibility", "private"),
+        "source_binding_id": getattr(plan, "source_binding_id", None),
         "policy_version": plan.policy_version,
         "actor_id": plan.actor_account_id,
         "device_id": plan.device_id,

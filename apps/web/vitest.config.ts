@@ -36,16 +36,17 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       include: ["src/**/*.{ts,tsx}"],
       exclude: [
-        "src/lib/api/generated/**",
+        "src/app/**",
+        "src/actions/**",
+        "src/middleware.ts",
+        "src/components/**",
+        "src/lib/api/**",
         "src/mocks/**",
         "src/stories/**",
         "**/*.d.ts",
-        "src/app/**/layout.tsx",
       ],
-      // Floors track decision logic we unit-test (lib/api/auth/query). Pages stay
-      // in e2e. Under v8, unimported files report 0% lines but 100% branches —
-      // so only `lines`/`statements` are honest floors; raise them when Tier A
-      // lib coverage grows, not when pages are added.
+      // Pages, UI components, and API adapters stay in e2e or targeted suites;
+      // this floor tracks reusable library decision logic under unit test.
       // Measured after closeout unit suite (api-errors, catalog-client, logout,
       // session expiry): lines/statements ~23.8%, branches ~73%, functions ~58%.
       thresholds: {

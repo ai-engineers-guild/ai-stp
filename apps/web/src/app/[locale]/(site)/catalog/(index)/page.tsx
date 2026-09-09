@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
+import { OwnerObjectActions } from "@/components/organisms/owner-object-actions";
 import { CatalogFilters } from "@/components/organisms/catalog-filters";
 import { CatalogResults } from "@/components/organisms/catalog-results";
 import type { CatalogAuthor } from "@/components/organisms/object-card";
 import { ApiError } from "@/lib/api/errors";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { listCatalogAuthors } from "@/lib/api/catalog";
-import { sessionCookieValue } from "@/lib/auth/require-session";
+import { getOptionalSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { readCsrfToken } from "@/lib/auth/session";
+import { listOwnerObjects } from "@/lib/api/owner";
 import { loadPublisherProfiles, startCatalogResourceReads } from "@/lib/catalog-load";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
 
@@ -166,6 +169,8 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
     artifactDownloads: t("artifactDownloads"),
     componentKind: t("componentKind"),
     setupKind: t("setupKind"),
+    publicVisibility: t("public"),
+    privateVisibility: t("private"),
     supportTier: t("supportTier"),
     supportState: t("supportState"),
     supportEvidence: t("supportEvidence"),
@@ -213,6 +218,37 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
 
   let likedIds: string[] = [];
   const sessionToken = await sessionCookieValue();
+  const session = sessionToken ? await getOptionalSession() : null;
+  let privateItems = [] as Awaited<ReturnType<typeof listOwnerObjects>>["items"];
+  if (sessionToken) {
+    try {
+      const ownerObjects = await listOwnerObjects(sessionToken, {
+        ...(resource === "components" || resource === "setups"
+          ? { object_kind: resource === "components" ? "component" : "setup" }
+          : {}),
+        page_size: 100,
+      });
+      privateItems = ownerObjects.items.filter((item) => item.visibility === "private");
+    } catch {
+      privateItems = [];
+    }
+  }
+  const csrfToken = sessionToken && privateItems.length ? ((await readCsrfToken()) ?? "") : "";
+  const ownerActions = Object.fromEntries(
+    privateItems.map((item) => [
+      `${item.object_kind}:${item.stable_id}`,
+      <OwnerObjectActions
+        key={`${item.object_kind}:${item.stable_id}`}
+        csrfToken={csrfToken}
+        deviceId={session?.deviceId ?? null}
+        kind={item.object_kind}
+        stableId={item.stable_id}
+        name={item.name}
+        version={item.latest_version}
+        visibility={item.visibility}
+      />,
+    ]),
+  );
   if (sessionToken) {
     try {
       const reactions = await listCatalogReactions(sessionToken);
@@ -271,6 +307,9 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
             updatedRangeHelp: t("updatedRangeHelp"),
             searchOptions: t("searchOptions"),
             authorFilter: t("authorFilter"),
+            authorSearch: t("authorSearch"),
+            authorSelectionSuffix: t("authorSelected"),
+            authorSelectionHint: t("authorSelectionHint"),
             verificationFilter: t("verificationFilter"),
             verifiedOption: t("verifiedOption"),
             notVerifiedOption: t("notVerifiedOption"),
@@ -322,8 +361,11 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
           totalItems={
             resource === "all"
               ? (setupTotalItems ?? setupItems.length) +
-                (componentTotalItems ?? componentItems.length)
-              : totalItems
+                (componentTotalItems ?? componentItems.length) +
+                privateItems.length
+              : totalItems === null
+                ? null
+                : totalItems + privateItems.length
           }
           totalPages={resource === "all" ? null : totalPages}
           pageNumber={pageNumber}
@@ -341,6 +383,8 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
           locale={locale}
           authors={authorProfiles}
           likedIds={likedIds}
+          ownerItems={privateItems}
+          ownerActions={ownerActions}
         />
       )}
     </div>

@@ -480,7 +480,7 @@ export type CapabilitySnapshot = {
 /**
  * CatalogAuthorListResponse
  *
- * All authors with at least one active public catalog object.
+ * All authors with at least one active public component or setup.
  */
 export type CatalogAuthorListResponse = {
   /**
@@ -497,7 +497,7 @@ export type CatalogAuthorListResponse = {
 /**
  * CatalogAuthorOption
  *
- * One public author available in the catalog filter.
+ * One author with an active public component or setup available in the catalog filter.
  */
 export type CatalogAuthorOption = {
   /**
@@ -505,9 +505,21 @@ export type CatalogAuthorOption = {
    */
   account_id: string;
   /**
+   * Avatar Url
+   */
+  avatar_url: string | null;
+  /**
    * Display Name
    */
   display_name: string | null;
+  /**
+   * First Name
+   */
+  first_name: string | null;
+  /**
+   * Last Name
+   */
+  last_name: string | null;
   [key: string]: unknown;
 };
 
@@ -1373,6 +1385,10 @@ export type Conflicts = {
    */
   plugins?: Array<string>;
 };
+
+export const ConnectorPurpose = { SOURCE: "source", ADMINISTRATION: "administration" } as const;
+
+export type ConnectorPurpose = (typeof ConnectorPurpose)[keyof typeof ConnectorPurpose];
 
 export type ContentBody = string;
 
@@ -2292,6 +2308,180 @@ export const FindingSeverity = {
 export type FindingSeverity = (typeof FindingSeverity)[keyof typeof FindingSeverity];
 
 /**
+ * GitHubActionConfirmRequest
+ */
+export type GitHubActionConfirmRequest = {
+  /**
+   * Confirmed
+   */
+  confirmed: true;
+  idempotency_key: IdempotencyKey;
+  plan_hash: ContentDigest;
+  /**
+   * Typed Repository Name
+   */
+  typed_repository_name?: string | null;
+};
+
+/**
+ * GitHubActionPlanRequest
+ */
+export type GitHubActionPlanRequest = {
+  /**
+   * Action
+   */
+  action: "invite_collaborator" | "make_public" | "make_private";
+  device_id: DeviceId;
+  idempotency_key: IdempotencyKey;
+  installation_id: RepositoryId;
+  /**
+   * Permission
+   */
+  permission?: "pull" | "push" | null;
+  recipient?: GitHubUsername | null;
+  repository_id: RepositoryId;
+};
+
+/**
+ * GitHubActionPlanResponse
+ */
+export type GitHubActionPlanResponse = {
+  /**
+   * Action
+   */
+  action: "invite_collaborator" | "make_public" | "make_private";
+  actor_id: AccountId;
+  device_id: DeviceId;
+  /**
+   * Error Reason
+   */
+  error_reason: string | null;
+  expires_at: Timestamp;
+  /**
+   * Permission
+   */
+  permission: "pull" | "push" | null;
+  plan_hash: ContentDigest;
+  plan_id: PlanId;
+  recipient: GitHubUsername | null;
+  repository: GitHubRepository;
+  /**
+   * Result
+   */
+  result: "pending" | "accepted" | "public" | "private" | null;
+  /**
+   * State
+   */
+  state: "planned" | "applied" | "failed" | "unknown";
+  /**
+   * Warning
+   */
+  warning:
+    | "personal_repository_write_access"
+    | "repository_and_history_public"
+    | "repository_private"
+    | "repository_access";
+  [key: string]: unknown;
+};
+
+/**
+ * GitHubCallbackQuery
+ */
+export type GitHubCallbackQuery = {
+  /**
+   * Code
+   */
+  code: string | null;
+  /**
+   * Setup Action
+   */
+  setup_action: string | null;
+  /**
+   * State
+   */
+  state: string;
+  [key: string]: unknown;
+};
+
+/**
+ * GitHubConnectRequest
+ */
+export type GitHubConnectRequest = {
+  /**
+   * Confirmed
+   */
+  confirmed: true;
+  /**
+   * Locale
+   */
+  locale?: "en" | "ru";
+  /**
+   * Mode
+   */
+  mode?: "install" | "authorize";
+  purpose?: ConnectorPurpose;
+};
+
+/**
+ * GitHubConnectResponse
+ */
+export type GitHubConnectResponse = {
+  /**
+   * Authorization Url
+   */
+  authorization_url: string;
+  expires_at: Timestamp;
+  [key: string]: unknown;
+};
+
+/**
+ * GitHubConnectionStatus
+ */
+export type GitHubConnectionStatus = {
+  /**
+   * Configured
+   */
+  configured: boolean;
+  expires_at: Timestamp | null;
+  purpose: ConnectorPurpose;
+  /**
+   * Reason
+   */
+  reason: string | null;
+  /**
+   * Repositories
+   */
+  repositories: Array<GitHubRepository>;
+  /**
+   * State
+   */
+  state: "disconnected" | "pending_approval" | "connected" | "reauthorization_required";
+  [key: string]: unknown;
+};
+
+/**
+ * GitHubConnectorStatus
+ */
+export type GitHubConnectorStatus = {
+  /**
+   * Connections
+   */
+  connections: Array<GitHubConnectionStatus>;
+  [key: string]: unknown;
+};
+
+/**
+ * GitHubDisconnectRequest
+ */
+export type GitHubDisconnectRequest = {
+  /**
+   * Confirmed
+   */
+  confirmed: true;
+  purpose?: ConnectorPurpose;
+};
+
+/**
  * GitHubMetadata
  *
  * Best-effort on-demand stars and archive state (SPEC-049).
@@ -2311,6 +2501,80 @@ export type GitHubMetadata = {
   stars: number | null;
   [key: string]: unknown;
 };
+
+/**
+ * GitHubRepository
+ *
+ * Selected repository metadata visible only to the connected account.
+ */
+export type GitHubRepository = {
+  /**
+   * Can Administer
+   */
+  can_administer: boolean;
+  /**
+   * Full Name
+   */
+  full_name: string;
+  installation_id: RepositoryId;
+  owner_id: RepositoryId;
+  /**
+   * Owner Type
+   */
+  owner_type: "User" | "Organization";
+  /**
+   * Permission
+   */
+  permission: "read" | "administration";
+  /**
+   * Private
+   */
+  private: boolean;
+  repository_id: RepositoryId;
+  [key: string]: unknown;
+};
+
+/**
+ * GitHubSourcePrepareRequest
+ */
+export type GitHubSourcePrepareRequest = {
+  /**
+   * Commit
+   */
+  commit: string;
+  idempotency_key: IdempotencyKey;
+  installation_id: RepositoryId;
+  repository_id: RepositoryId;
+  /**
+   * Subpath
+   */
+  subpath: string;
+};
+
+/**
+ * GitHubSourcePrepared
+ *
+ * Opaque provenance and inventory; no private repository coordinate.
+ */
+export type GitHubSourcePrepared = {
+  /**
+   * Artifact Inventory
+   */
+  artifact_inventory: Array<string>;
+  content_digest: ContentDigest;
+  /**
+   * Size Bytes
+   */
+  size_bytes: number;
+  source_binding_id: PlanId;
+  /**
+   * Source Visibility
+   */
+  source_visibility: "private" | "public";
+  [key: string]: unknown;
+};
+
+export type GitHubUsername = string;
 
 /**
  * GitSource
@@ -2887,6 +3151,10 @@ export type OwnerObjectSummary = {
    */
   author_verified: boolean;
   /**
+   * Catalog Item
+   */
+  catalog_item: ComponentSummary | SetupSummary | null;
+  /**
    * Component Verified
    */
   component_verified: boolean;
@@ -3410,11 +3678,32 @@ export type PrivateVersionResponse = {
    * Schema Version
    */
   schema_version: 1;
-  trust: CatalogTrust;
+  trust: PrivateVersionTrust;
   /**
    * Visibility
    */
   visibility: "private";
+  [key: string]: unknown;
+};
+
+/**
+ * PrivateVersionTrust
+ *
+ * Exact local acquisition authority, independent of public trust.
+ */
+export type PrivateVersionTrust = {
+  /**
+   * Author Verified
+   */
+  author_verified: boolean;
+  /**
+   * Component Verified
+   */
+  component_verified: boolean;
+  /**
+   * Trust Lane
+   */
+  trust_lane: "local_owner_or_pinned";
   [key: string]: unknown;
 };
 
@@ -3564,6 +3853,7 @@ export type PublicationPlanCreateRequest = {
    * Schema Version
    */
   schema_version?: 1;
+  source_binding_id?: PlanId | null;
   /**
    * Stable Id
    */
@@ -3609,6 +3899,7 @@ export type PublicationPlanResponse = {
    * Schema Version
    */
   schema_version: 1;
+  source_binding_id: PlanId | null;
   /**
    * Stable Id
    */
@@ -3812,6 +4103,8 @@ export const ReportState = {
 } as const;
 
 export type ReportState = (typeof ReportState)[keyof typeof ReportState];
+
+export type RepositoryId = number;
 
 export type RequestId = string;
 
@@ -6173,6 +6466,130 @@ export type AiStpFoundationRefsVersion = string;
 
 export type PydanticTypesJsonValue = unknown;
 
+export type ReadAccessComponentVersionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+    /**
+     * Exact two-integer version. A range or `latest` is not a reference.
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/v1/access/components/{stable_id}/versions/{version}";
+};
+
+export type ReadAccessComponentVersionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadAccessComponentVersionError =
+  ReadAccessComponentVersionErrors[keyof ReadAccessComponentVersionErrors];
+
+export type ReadAccessComponentVersionResponses = {
+  /**
+   * Read an exact owned or granted component.
+   */
+  200: PrivateVersionResponse;
+};
+
+export type ReadAccessComponentVersionResponse =
+  ReadAccessComponentVersionResponses[keyof ReadAccessComponentVersionResponses];
+
+export type ReadAccessSetupVersionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Typed stable identifier of the catalog object.
+     */
+    stable_id: string;
+    /**
+     * Exact two-integer version. A range or `latest` is not a reference.
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/v1/access/setups/{stable_id}/versions/{version}";
+};
+
+export type ReadAccessSetupVersionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadAccessSetupVersionError =
+  ReadAccessSetupVersionErrors[keyof ReadAccessSetupVersionErrors];
+
+export type ReadAccessSetupVersionResponses = {
+  /**
+   * Read an exact owned or granted setup.
+   */
+  200: PrivateVersionResponse;
+};
+
+export type ReadAccessSetupVersionResponse =
+  ReadAccessSetupVersionResponses[keyof ReadAccessSetupVersionResponses];
+
 export type CreateVisibilityPlanData = {
   body: VisibilityPlanCreateRequest;
   headers: {
@@ -7165,7 +7582,7 @@ export type ListCatalogAuthorsError = ListCatalogAuthorsErrors[keyof ListCatalog
 
 export type ListCatalogAuthorsResponses = {
   /**
-   * List authors with public catalog objects. Anonymous.
+   * List authors with public components or setups. Anonymous.
    */
   200: CatalogAuthorListResponse;
 };
@@ -8190,6 +8607,448 @@ export type CreateComplaintResponses = {
 };
 
 export type CreateComplaintResponse = CreateComplaintResponses[keyof CreateComplaintResponses];
+
+export type ReadGithubConnectorData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/connectors/github";
+};
+
+export type ReadGithubConnectorErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadGithubConnectorError = ReadGithubConnectorErrors[keyof ReadGithubConnectorErrors];
+
+export type ReadGithubConnectorResponses = {
+  /**
+   * Read current connection and live selected repository scope.
+   */
+  200: GitHubConnectorStatus;
+};
+
+export type ReadGithubConnectorResponse =
+  ReadGithubConnectorResponses[keyof ReadGithubConnectorResponses];
+
+export type PlanGithubActionData = {
+  body: GitHubActionPlanRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/connectors/github/actions";
+};
+
+export type PlanGithubActionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PlanGithubActionError = PlanGithubActionErrors[keyof PlanGithubActionErrors];
+
+export type PlanGithubActionResponses = {
+  /**
+   * Plan an explicit repository invitation or whole-repository exposure.
+   */
+  200: GitHubActionPlanResponse;
+};
+
+export type PlanGithubActionResponse = PlanGithubActionResponses[keyof PlanGithubActionResponses];
+
+export type ReadGithubActionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Exact repository action plan.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/connectors/github/actions/{plan_id}";
+};
+
+export type ReadGithubActionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadGithubActionError = ReadGithubActionErrors[keyof ReadGithubActionErrors];
+
+export type ReadGithubActionResponses = {
+  /**
+   * Read a reviewed action and refresh invitation status without sending it.
+   */
+  200: GitHubActionPlanResponse;
+};
+
+export type ReadGithubActionResponse = ReadGithubActionResponses[keyof ReadGithubActionResponses];
+
+export type ConfirmGithubActionData = {
+  body: GitHubActionConfirmRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Exact repository action plan.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/connectors/github/actions/{plan_id}/confirm";
+};
+
+export type ConfirmGithubActionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ConfirmGithubActionError = ConfirmGithubActionErrors[keyof ConfirmGithubActionErrors];
+
+export type ConfirmGithubActionResponses = {
+  /**
+   * Recheck exact repository authority and confirm the reviewed effect.
+   */
+  200: GitHubActionPlanResponse;
+};
+
+export type ConfirmGithubActionResponse =
+  ConfirmGithubActionResponses[keyof ConfirmGithubActionResponses];
+
+export type CompleteGithubConnectionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query: {
+    /**
+     * Code
+     */
+    code: string | null;
+    /**
+     * Setup Action
+     */
+    setup_action: string | null;
+    /**
+     * State
+     */
+    state: string;
+  };
+  url: "/v1/connectors/github/callback";
+};
+
+export type CompleteGithubConnectionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CompleteGithubConnectionError =
+  CompleteGithubConnectionErrors[keyof CompleteGithubConnectionErrors];
+
+export type ConnectGithubData = {
+  body: GitHubConnectRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/connectors/github/connect";
+};
+
+export type ConnectGithubErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ConnectGithubError = ConnectGithubErrors[keyof ConnectGithubErrors];
+
+export type ConnectGithubResponses = {
+  /**
+   * Begin separately confirmed selected-repository GitHub App authorization.
+   */
+  200: GitHubConnectResponse;
+};
+
+export type ConnectGithubResponse = ConnectGithubResponses[keyof ConnectGithubResponses];
+
+export type DisconnectGithubData = {
+  body: GitHubDisconnectRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/connectors/github/disconnect";
+};
+
+export type DisconnectGithubErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DisconnectGithubError = DisconnectGithubErrors[keyof DisconnectGithubErrors];
+
+export type DisconnectGithubResponses = {
+  /**
+   * Remove local GitHub source or administration authority.
+   */
+  200: GitHubConnectorStatus;
+};
+
+export type DisconnectGithubResponse = DisconnectGithubResponses[keyof DisconnectGithubResponses];
+
+export type PrepareGithubSourceData = {
+  body: GitHubSourcePrepareRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/connectors/github/sources";
+};
+
+export type PrepareGithubSourceErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_CONFLICT.
+   */
+  409: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PrepareGithubSourceError = PrepareGithubSourceErrors[keyof PrepareGithubSourceErrors];
+
+export type PrepareGithubSourceResponses = {
+  /**
+   * Prepare canonical component bytes from a selected exact GitHub snapshot.
+   */
+  200: GitHubSourcePrepared;
+};
+
+export type PrepareGithubSourceResponse =
+  PrepareGithubSourceResponses[keyof PrepareGithubSourceResponses];
 
 export type ListContentData = {
   body?: never;

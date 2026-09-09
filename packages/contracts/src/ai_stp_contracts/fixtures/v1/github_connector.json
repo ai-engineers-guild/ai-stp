@@ -1,0 +1,349 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "connectGithub.answer",
+      "operation_id": "connectGithub",
+      "kind": "positive",
+      "why": "The browser handoff returns a GitHub authorization URL and a bounded expiry.",
+      "request": {
+        "body": {
+          "purpose": "source",
+          "locale": "en",
+          "mode": "install",
+          "confirmed": true
+        }
+      },
+      "status": 200,
+      "body": {
+        "authorization_url": "https://github.com/apps/synthetic/installations/new?state=state_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-05T00:10:00.000Z"
+      }
+    },
+    {
+      "case_id": "disconnectGithub.answer",
+      "operation_id": "disconnectGithub",
+      "kind": "positive",
+      "why": "Disconnecting one purpose returns the remaining connection view.",
+      "request": {
+        "body": {
+          "purpose": "source",
+          "confirmed": true
+        }
+      },
+      "status": 200,
+      "body": {
+        "connections": []
+      }
+    },
+    {
+      "case_id": "readGithubConnector.answer",
+      "operation_id": "readGithubConnector",
+      "kind": "positive",
+      "why": "A disconnected account has an empty, non-sensitive repository scope.",
+      "request": {},
+      "status": 200,
+      "body": {
+        "connections": []
+      }
+    },
+    {
+      "case_id": "prepareGithubSource.answer",
+      "operation_id": "prepareGithubSource",
+      "kind": "positive",
+      "why": "A source plan returns only the immutable artifact coordinates and inventory.",
+      "request": {
+        "body": {
+          "installation_id": 1001,
+          "repository_id": 2002,
+          "commit": "0123456789abcdef0123456789abcdef01234567",
+          "subpath": "skills/example",
+          "idempotency_key": "idem_github_source_01"
+        }
+      },
+      "status": 200,
+      "body": {
+        "source_binding_id": "source_binding_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "size_bytes": 12,
+        "artifact_inventory": ["skills/example/SKILL.md"],
+        "source_visibility": "private"
+      }
+    },
+    {
+      "case_id": "planGithubAction.answer",
+      "operation_id": "planGithubAction",
+      "kind": "positive",
+      "why": "An action plan records the exact repository and warning before confirmation.",
+      "request": {
+        "body": {
+          "action": "invite_collaborator",
+          "installation_id": 1001,
+          "repository_id": 2002,
+          "recipient": "alice",
+          "permission": "push",
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "idempotency_key": "idem_github_action_01"
+        }
+      },
+      "status": 200,
+      "body": {
+        "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "action": "invite_collaborator",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository": {
+          "installation_id": 1001,
+          "repository_id": 2002,
+          "owner_id": 3003,
+          "full_name": "example/repository",
+          "owner_type": "Organization",
+          "private": true,
+          "can_administer": true,
+          "permission": "administration"
+        },
+        "recipient": "alice",
+        "permission": "push",
+        "state": "planned",
+        "result": "pending",
+        "error_reason": null,
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "warning": "repository_access"
+      }
+    },
+    {
+      "case_id": "readGithubAction.answer",
+      "operation_id": "readGithubAction",
+      "kind": "positive",
+      "why": "Reading an action returns the same reviewed coordinates without applying them.",
+      "request": {
+        "path_params": {
+          "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "action": "invite_collaborator",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository": {
+          "installation_id": 1001,
+          "repository_id": 2002,
+          "owner_id": 3003,
+          "full_name": "example/repository",
+          "owner_type": "Organization",
+          "private": true,
+          "can_administer": true,
+          "permission": "administration"
+        },
+        "recipient": "alice",
+        "permission": "push",
+        "state": "planned",
+        "result": "pending",
+        "error_reason": null,
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "warning": "repository_access"
+      }
+    },
+    {
+      "case_id": "confirmGithubAction.answer",
+      "operation_id": "confirmGithubAction",
+      "kind": "positive",
+      "why": "Confirmation echoes the exact hash and records the pending effect.",
+      "request": {
+        "path_params": {
+          "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "confirmed": true,
+          "typed_repository_name": "example/repository",
+          "idempotency_key": "idem_github_confirm_01"
+        }
+      },
+      "status": 200,
+      "body": {
+        "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "action": "invite_collaborator",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository": {
+          "installation_id": 1001,
+          "repository_id": 2002,
+          "owner_id": 3003,
+          "full_name": "example/repository",
+          "owner_type": "Organization",
+          "private": true,
+          "can_administer": true,
+          "permission": "administration"
+        },
+        "recipient": "alice",
+        "permission": "push",
+        "state": "applied",
+        "result": "accepted",
+        "error_reason": null,
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "warning": "repository_access"
+      }
+    },
+    {
+      "case_id": "createVisibilityPlan.answer",
+      "operation_id": "createVisibilityPlan",
+      "kind": "positive",
+      "why": "Visibility planning exposes the exact immutable object coordinates before approval.",
+      "request": {
+        "body": {
+          "schema_version": 1,
+          "object_kind": "component",
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2",
+          "visibility": "public",
+          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "idempotency_key": "idem_visibility_plan_01"
+        }
+      },
+      "status": 201,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "state": "planned",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.2",
+        "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+        "previous_visibility": "private",
+        "visibility": "public",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "effects": ["catalog_visibility", "public_artifact"]
+      }
+    },
+    {
+      "case_id": "readVisibilityPlan.answer",
+      "operation_id": "readVisibilityPlan",
+      "kind": "positive",
+      "why": "A visibility plan can be read by its opaque identifier before confirmation.",
+      "request": {
+        "path_params": {
+          "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "state": "planned",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.2",
+        "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+        "previous_visibility": "private",
+        "visibility": "public",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "effects": ["catalog_visibility", "public_artifact"]
+      }
+    },
+    {
+      "case_id": "confirmVisibilityPlan.answer",
+      "operation_id": "confirmVisibilityPlan",
+      "kind": "positive",
+      "why": "Visibility confirmation records the applied state after the exact hash is approved.",
+      "request": {
+        "path_params": {
+          "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "confirmed": true,
+          "idempotency_key": "idem_visibility_confirm_01"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "state": "applied",
+        "object_kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.2",
+        "passport_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "previous_visibility": "private",
+        "visibility": "public",
+        "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "expires_at": "2026-08-05T00:10:00.000Z",
+        "effects": ["catalog_visibility", "public_artifact"]
+      }
+    },
+    {
+      "case_id": "readAccessComponentVersion.answer",
+      "operation_id": "readAccessComponentVersion",
+      "kind": "positive",
+      "why": "An authorized component read returns exact private metadata and its access basis.",
+      "request": {
+        "path_params": {
+          "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.2"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "kind": "component",
+        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.2",
+        "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+        "passport": {},
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "local_owner_or_pinned",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "visibility": "private",
+        "access_basis": "owner"
+      }
+    },
+    {
+      "case_id": "readAccessSetupVersion.answer",
+      "operation_id": "readAccessSetupVersion",
+      "kind": "positive",
+      "why": "An authorized setup read uses the same exact-version private access contract.",
+      "request": {
+        "path_params": {
+          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "1.0"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "kind": "setup",
+        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "1.0",
+        "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+        "passport": {},
+        "lifecycle": "active",
+        "trust": {
+          "trust_lane": "local_owner_or_pinned",
+          "author_verified": false,
+          "component_verified": false
+        },
+        "published_at": "2026-08-05T00:00:00.000Z",
+        "visibility": "private",
+        "access_basis": "grant"
+      }
+    }
+  ]
+}

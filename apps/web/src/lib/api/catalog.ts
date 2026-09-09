@@ -82,14 +82,17 @@ export async function listExternalProducts(): Promise<{
 
 export type CatalogAuthorOption = {
   account_id: string;
+  first_name: string | null;
+  last_name: string | null;
   display_name: string | null;
+  avatar_url: string | null;
 };
 
 export async function listCatalogAuthors(): Promise<{
   schema_version: 1;
   items: CatalogAuthorOption[];
 }> {
-  return publicApiGet("/v1/catalog/authors");
+  return publicApiGetLive("/v1/catalog/authors");
 }
 
 export async function readExternalProduct(domain: string): Promise<ExternalProduct> {

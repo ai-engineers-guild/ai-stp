@@ -133,6 +133,9 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
             details={"stable_id": stable_id, "version": version},
         )
     visibility = str(parameters.get("visibility") or "private")
+    source_binding_id = (
+        str(parameters["source-binding-id"]) if parameters.get("source-binding-id") else None
+    )
     if visibility not in {"public", "private"}:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
@@ -151,6 +154,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[PublicationPlanView]:
     request = PublicationPlanCreateRequest(
         object_kind="component",
         visibility=cast(Literal["public", "private"], visibility),
+        source_binding_id=source_binding_id,
         stable_id=stable_id,
         version=version,
         content_digest=artifact.digest,

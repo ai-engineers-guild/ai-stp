@@ -7,6 +7,7 @@ from typing import Annotated, Final, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ai_stp_contracts.assurance import OwnerTargetGap
+from ai_stp_contracts.catalog import ComponentSummary, SetupSummary
 from ai_stp_contracts.families import SetupFamilyOwner
 from ai_stp_contracts.http import (
     Cursor,
@@ -87,6 +88,9 @@ class OwnerObjectSummary(BaseModel):
     author_verified: bool = False
     component_verified: bool = False
     updated_at: Timestamp
+    #: The same presentation projection used by the public catalog card. It is
+    #: present for owner-readable passports, including private versions.
+    catalog_item: ComponentSummary | SetupSummary | None = None
 
 
 class OwnerObjectListResponse(BaseModel):

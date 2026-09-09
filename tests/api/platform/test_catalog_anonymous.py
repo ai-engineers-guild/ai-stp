@@ -15,6 +15,9 @@ from tests.api.platform.conftest import make_settings
 from tests.support.catalog_seed import (
     FIXTURE_COMPONENT_ID,
     FIXTURE_SETUP_ID,
+    SEED_AUTHOR_NORTHWIND_ID,
+    SEED_AUTHOR_RIVER_ID,
+    SEED_OWNER_ACCOUNT_ID,
     load_fixture_seed,
 )
 
@@ -59,6 +62,22 @@ async def test_six_anonymous_routes_succeed(seeded_client: AsyncClient) -> None:
         assert response.status_code == 200, path
         assert "X-Request-Id" in response.headers
         assert "ok" not in response.json() or "schema_version" in response.json()
+
+
+async def test_author_filter_lists_public_object_publishers(seeded_client: AsyncClient) -> None:
+    response = await seeded_client.get("/v1/catalog/authors")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert {item["account_id"] for item in body["items"]} == {
+        SEED_OWNER_ACCOUNT_ID,
+        SEED_AUTHOR_NORTHWIND_ID,
+        SEED_AUTHOR_RIVER_ID,
+    }
+    assert all(
+        all(field in item for field in ("first_name", "last_name", "display_name", "avatar_url"))
+        for item in body["items"]
+    )
 
 
 async def test_experimental_section_requires_consent(seeded_client: AsyncClient) -> None:

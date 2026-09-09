@@ -74,8 +74,10 @@ granting access through a profile link.
   arbitrary remote URL as an upload source.
 - `REQ-2809`: The public-profile route returns only the account id, published
   profile fields, a safe address for the processed avatar, and published
-  objects. It does not disclose a linked identity, email, source URL, object
-  key, draft, asset original, or validation state.
+  objects. Its author-scoped object result uses the same public catalog query
+  and total as the catalog author filter, including all published trust lanes.
+  It does not disclose a linked identity, email, source URL, object key, draft,
+  asset original, or validation state.
 - `REQ-2810`: The form shows field-level validation before submit and canonical
   API errors after submit; links are normalized by the server, and duplicates
   and non-HTTPS URLs are rejected. Removing the avatar and all fields is an

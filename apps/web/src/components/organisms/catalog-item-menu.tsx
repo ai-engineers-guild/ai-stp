@@ -72,7 +72,7 @@ export function CatalogItemMenu({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-11 w-11"
+            className="border-border bg-card/80 hover:bg-muted h-11 w-11 border shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2"
             aria-label={labels.more}
           >
             <Icon name="more" size="sm" />

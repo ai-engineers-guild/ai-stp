@@ -42,6 +42,9 @@ export type CatalogFilterPanelLabels = {
   updatedRangeHelp?: string;
   searchOptions: string;
   authorFilter: string;
+  authorSearch?: string;
+  authorSelectionSuffix?: string;
+  authorSelectionHint?: string;
   verifiedOnly: string;
   verificationFilter?: string;
   verifiedOption?: string;
@@ -229,9 +232,13 @@ export function CatalogFilterPanel({
             <SearchableMultiSelect
               name="authors"
               label={labels.authorFilter}
-              searchLabel={labels.authorFilter}
+              searchLabel={labels.authorSearch ?? labels.authorFilter}
               options={authorOptions}
               selected={query.authors}
+              modal
+              closeLabel={labels.closeFilters}
+              selectionSuffix={labels.authorSelectionSuffix}
+              emptyHint={labels.authorSelectionHint}
             />
           </label>
         )}
@@ -249,29 +256,43 @@ export function CatalogFilterPanel({
 function sortAuthorOptions(
   authors: readonly CatalogAuthorOption[],
   selected: readonly string[],
-): Array<{ value: string; label: string }> {
+): Array<{ value: string; label: string; avatarUrl: string | null }> {
   const byId = new Map(authors.map((author) => [author.account_id, author]));
   for (const accountId of selected) {
-    if (!byId.has(accountId)) byId.set(accountId, { account_id: accountId, display_name: null });
+    if (!byId.has(accountId)) {
+      byId.set(accountId, {
+        account_id: accountId,
+        first_name: null,
+        last_name: null,
+        display_name: null,
+        avatar_url: null,
+      });
+    }
   }
   return [...byId.values()]
     .map((author) => ({
       value: author.account_id,
-      label: author.display_name || author.account_id,
+      label:
+        author.display_name ||
+        [author.first_name, author.last_name].filter(Boolean).join(" ") ||
+        author.account_id,
+      avatarUrl: author.avatar_url,
     }))
     .sort((left, right) => {
       const leftBucket = authorScriptBucket(left.label);
       const rightBucket = authorScriptBucket(right.label);
       return (
         leftBucket - rightBucket ||
-        left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
+        AUTHOR_COLLATOR.compare(left.label, right.label) ||
         left.value.localeCompare(right.value)
       );
     });
 }
 
+const AUTHOR_COLLATOR = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+
 function authorScriptBucket(value: string): number {
-  const first = value.slice(0, 1);
+  const first = value.trimStart().slice(0, 1);
   if (first && /[A-Za-z]/.test(first)) return 0;
   if (first && /[А-Яа-яЁё]/.test(first)) return 1;
   return 2;

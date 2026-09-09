@@ -119,7 +119,7 @@ def exclusive_lock(timeout: float | None = None) -> Generator[None]:
             deadline = time.monotonic() + budget
             while True:
                 try:
-                    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
                     break
                 except OSError:
                     if time.monotonic() >= deadline:
@@ -130,7 +130,7 @@ def exclusive_lock(timeout: float | None = None) -> Generator[None]:
                 yield
             finally:
                 _reentry.depth = 0
-                fcntl.flock(handle, fcntl.LOCK_UN)
+                fcntl.flock(handle, fcntl.LOCK_UN)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
         finally:
             os.close(handle)
     finally:

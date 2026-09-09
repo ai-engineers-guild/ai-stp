@@ -26,6 +26,7 @@ import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { versionPageMetadata } from "@/lib/seo/metadata";
 import { publicOrigin } from "@/lib/site";
 import { Link } from "@/lib/i18n/navigation";
+import { VisibilityLabel } from "@/components/molecules/visibility-label";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string; version: string }>;
@@ -84,7 +85,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
   );
 
   return (
-    <article className="min-w-0 space-y-6 overflow-x-clip">
+    <article className="relative min-w-0 space-y-6 overflow-x-clip">
       <p className="text-sm">
         <Link href={`/catalog/setups/${stableId}`} className="underline">
           {t("backToObject")}
@@ -93,6 +94,12 @@ export default async function SetupVersionPage({ params }: PageProps) {
       <h1 className="text-2xl font-medium tracking-tight break-words sm:text-3xl">
         {passport.name}@{passport.version}
       </h1>
+      <VisibilityLabel
+        className="absolute top-0 right-4"
+        visibility="public"
+        publicLabel={t("public")}
+        privateLabel={t("private")}
+      />
       <p className="text-muted-foreground break-words">{passport.description}</p>
       <div className="flex flex-wrap gap-2">
         <Badge>{response.trust.trust_lane}</Badge>
@@ -182,6 +189,9 @@ export default async function SetupVersionPage({ params }: PageProps) {
         copiedLabel={tCli("copied")}
         errorLabel={tCli("copyError")}
         docsLabel={tCli("docs")}
+        visibility="public"
+        publicLabel={t("public")}
+        privateLabel={t("private")}
       />
       <section id="report" className="border-border space-y-2 rounded-lg border p-3">
         <h2 className="text-lg font-medium tracking-tight">{t("reportSection")}</h2>

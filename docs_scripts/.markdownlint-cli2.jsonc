@@ -57,6 +57,9 @@
     "research_sources/**",
     // Malicious Markdown fixtures intentionally violate ordinary-document rules.
     "tests/fixtures/safety-corpus/**",
+    // Git internals can contain agent checkpoints and worktree metadata. They are
+    // local state, not repository documentation.
+    ".git/**",
     ".work/**",
     ".tmp/**",
     ".serena/**",

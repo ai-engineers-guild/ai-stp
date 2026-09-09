@@ -178,71 +178,71 @@ function ProjectionDetails({
         />
         <span className="sr-only">{labels.projectionDetails}</span>
       </summary>
-      <dl className="border-border text-muted-foreground grid gap-3 border-t px-3 py-3 text-xs sm:grid-cols-2">
+      <div className="border-border text-muted-foreground grid gap-3 border-t px-3 py-3 text-xs sm:grid-cols-2">
         <div>
-          <dt className="text-foreground font-medium">{labels.safetyCheck}</dt>
-          <dd>{assessmentLabel(row.assessment_state, labels)}</dd>
+          <span className="text-foreground font-medium">{labels.safetyCheck}</span>
+          <div>{assessmentLabel(row.assessment_state, labels)}</div>
         </div>
         <div>
-          <dt className="text-foreground font-medium">{labels.recommendation}</dt>
-          <dd>{recommendationLabel(row.recommendation, labels)}</dd>
+          <span className="text-foreground font-medium">{labels.recommendation}</span>
+          <div>{recommendationLabel(row.recommendation, labels)}</div>
         </div>
         <div>
-          <dt className="text-foreground font-medium">{labels.scope}</dt>
-          <dd>{row.scope}</dd>
+          <span className="text-foreground font-medium">{labels.scope}</span>
+          <div>{row.scope}</div>
         </div>
         <div>
-          <dt className="text-foreground font-medium">{labels.projectionKind}</dt>
-          <dd>{row.projection_kind}</dd>
+          <span className="text-foreground font-medium">{labels.projectionKind}</span>
+          <div>{row.projection_kind}</div>
         </div>
         <div>
-          <dt className="text-foreground font-medium">{labels.technicalSupport}</dt>
-          <dd>{supportLabel(row.technical_support, labels)}</dd>
+          <span className="text-foreground font-medium">{labels.technicalSupport}</span>
+          <div>{supportLabel(row.technical_support, labels)}</div>
         </div>
         <div>
-          <dt className="text-foreground font-medium">{labels.implementation}</dt>
-          <dd>{row.implementation_mode}</dd>
+          <span className="text-foreground font-medium">{labels.implementation}</span>
+          <div>{row.implementation_mode}</div>
         </div>
         {row.technical_support_reason ? (
           <div className="sm:col-span-2">
-            <dt className="text-foreground font-medium">{labels.supportReason}</dt>
-            <dd>{row.technical_support_reason}</dd>
+            <span className="text-foreground font-medium">{labels.supportReason}</span>
+            <div>{row.technical_support_reason}</div>
           </div>
         ) : null}
         {row.freshness ? (
           <div>
-            <dt className="text-foreground font-medium">{labels.freshness}</dt>
-            <dd>{row.freshness}</dd>
+            <span className="text-foreground font-medium">{labels.freshness}</span>
+            <div>{row.freshness}</div>
           </div>
         ) : null}
         {row.supported_os.length ? (
           <div>
-            <dt className="text-foreground font-medium">{labels.operatingSystems}</dt>
-            <dd>{row.supported_os.join(", ")}</dd>
+            <span className="text-foreground font-medium">{labels.operatingSystems}</span>
+            <div>{row.supported_os.join(", ")}</div>
           </div>
         ) : null}
         {row.supported_arch.length ? (
           <div>
-            <dt className="text-foreground font-medium">{labels.architectures}</dt>
-            <dd>{row.supported_arch.join(", ")}</dd>
+            <span className="text-foreground font-medium">{labels.architectures}</span>
+            <div>{row.supported_arch.join(", ")}</div>
           </div>
         ) : null}
         {row.permissions_summary.length ? (
           <div className="sm:col-span-2">
-            <dt className="text-foreground font-medium">{labels.permissions}</dt>
-            <dd>{row.permissions_summary.join(", ")}</dd>
+            <span className="text-foreground font-medium">{labels.permissions}</span>
+            <div>{row.permissions_summary.join(", ")}</div>
           </div>
         ) : null}
         {row.semantic_losses.length ? (
           <div className="sm:col-span-2">
-            <dt className="text-foreground font-medium">{labels.semanticLosses}</dt>
-            <dd>{row.semantic_losses.join(", ")}</dd>
+            <span className="text-foreground font-medium">{labels.semanticLosses}</span>
+            <div>{row.semantic_losses.join(", ")}</div>
           </div>
         ) : null}
         <div className="sm:col-span-2">
-          <dt className="text-foreground font-medium">{labels.safetyCheck}</dt>
+          <span className="text-foreground font-medium">{labels.safetyCheck}</span>
           {safetyChecks.length ? (
-            <dd>
+            <div>
               <ul className="mt-1 space-y-1" aria-label={labels.safetyCheck}>
                 {safetyChecks.map((check) => (
                   <li
@@ -270,15 +270,15 @@ function ProjectionDetails({
                   </li>
                 ))}
               </ul>
-            </dd>
+            </div>
           ) : (
-            <dd>{labels.checksNotRecorded}</dd>
+            <div>{labels.checksNotRecorded}</div>
           )}
         </div>
         {row.evidence_refs.length ? (
           <div className="sm:col-span-2">
-            <dt className="text-foreground font-medium">{labels.evidence}</dt>
-            <dd>
+            <span className="text-foreground font-medium">{labels.evidence}</span>
+            <div>
               <ul className="mt-1 space-y-1">
                 {row.evidence_refs.map((ref) => (
                   <li key={`${ref.kind}:${ref.value}`} className="break-words">
@@ -299,10 +299,10 @@ function ProjectionDetails({
                   </li>
                 ))}
               </ul>
-            </dd>
+            </div>
           </div>
         ) : null}
-      </dl>
+      </div>
     </details>
   );
 }

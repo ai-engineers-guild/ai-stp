@@ -113,9 +113,13 @@ events, the public catalog, or a client store.
   remotely disable an installed target. Only a server-side staff action may
   change `blocked` / `hidden` / restore; the publication button is not such an
   action.
-- `REQ-2711`: Public and owner cards use one generated typed client and server
-  read models. A page does not add separate visibility, trust, or eligibility
-  policy and does not read an object-store key.
+- `REQ-2711`: Public catalog, publisher-profile, and owner-workspace cards use
+  one generated typed client, server read models, and the same card projection.
+  The owner workspace uses the catalog's filters, sort, and list/card views;
+  private rows are shown in the same unified result with a visibility label and
+  owner actions, without redundant author/component/lifecycle status badges. A
+  page does not add separate visibility, trust, or eligibility policy and does
+  not read an object-store key.
 
 ### Invitations and rights
 

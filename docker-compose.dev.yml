@@ -156,6 +156,10 @@ services:
     environment:
       <<: *app-env
       AI_STP_API_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-}
+      # Keep OAuth on the local browser/API origins even when .env.dev contains
+      # deployment settings copied from another environment.
+      AI_STP_AUTH_PUBLIC_BASE_URL: http://localhost:3000
+      AI_STP_AUTH_OAUTH_REDIRECT_BASE_URL: http://localhost:8000
     env_file:
       - path: .env.dev
         required: false

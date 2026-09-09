@@ -18,6 +18,7 @@ import {
   Download,
   Filter,
   Flag,
+  Globe2,
   Eye,
   Github,
   Heart,
@@ -29,6 +30,7 @@ import {
   LogOut,
   Mail,
   Link2,
+  LockKeyhole,
   Monitor,
   MoreHorizontal,
   MoreVertical,
@@ -78,10 +80,12 @@ export type IconName =
   | "mail"
   | "arrowLeft"
   | "flag"
+  | "globe"
   | "github"
   | "google"
   | "heart"
   | "link"
+  | "lock"
   | "more"
   | "moreVertical"
   | "clock"
@@ -125,6 +129,7 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   mail: Mail,
   arrowLeft: ArrowLeft,
   flag: Flag,
+  globe: Globe2,
   github: Github,
   google: ((props: LucideProps) => (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -136,6 +141,7 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   )) as LucideIcon,
   heart: Heart,
   link: Link2,
+  lock: LockKeyhole,
   more: MoreHorizontal,
   moreVertical: MoreVertical,
   clock: Clock3,

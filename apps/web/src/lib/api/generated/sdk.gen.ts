@@ -12,15 +12,23 @@ import type {
   BindPublicationProjectionArtifactData,
   BindPublicationProjectionArtifactErrors,
   BindPublicationProjectionArtifactResponses,
+  CompleteGithubConnectionData,
+  CompleteGithubConnectionErrors,
   CompleteLegalOnboardingData,
   CompleteLegalOnboardingErrors,
   CompleteLegalOnboardingResponses,
+  ConfirmGithubActionData,
+  ConfirmGithubActionErrors,
+  ConfirmGithubActionResponses,
   ConfirmPublicationPlanData,
   ConfirmPublicationPlanErrors,
   ConfirmPublicationPlanResponses,
   ConfirmVisibilityPlanData,
   ConfirmVisibilityPlanErrors,
   ConfirmVisibilityPlanResponses,
+  ConnectGithubData,
+  ConnectGithubErrors,
+  ConnectGithubResponses,
   CreateComplaintData,
   CreateComplaintErrors,
   CreateComplaintResponses,
@@ -54,6 +62,9 @@ import type {
   DeleteStaffContentData,
   DeleteStaffContentErrors,
   DeleteStaffContentResponses,
+  DisconnectGithubData,
+  DisconnectGithubErrors,
+  DisconnectGithubResponses,
   ExchangeDeviceCodeData,
   ExchangeDeviceCodeErrors,
   ExchangeDeviceCodeResponses,
@@ -108,6 +119,12 @@ import type {
   PatchOwnerSetupFamilyData,
   PatchOwnerSetupFamilyErrors,
   PatchOwnerSetupFamilyResponses,
+  PlanGithubActionData,
+  PlanGithubActionErrors,
+  PlanGithubActionResponses,
+  PrepareGithubSourceData,
+  PrepareGithubSourceErrors,
+  PrepareGithubSourceResponses,
   PullSyncEventsData,
   PullSyncEventsErrors,
   PullSyncEventsResponses,
@@ -117,6 +134,12 @@ import type {
   PutStaffContentData,
   PutStaffContentErrors,
   PutStaffContentResponses,
+  ReadAccessComponentVersionData,
+  ReadAccessComponentVersionErrors,
+  ReadAccessComponentVersionResponses,
+  ReadAccessSetupVersionData,
+  ReadAccessSetupVersionErrors,
+  ReadAccessSetupVersionResponses,
   ReadAccountData,
   ReadAccountErrors,
   ReadAccountResponses,
@@ -144,6 +167,12 @@ import type {
   ReadContentRepositoryStateErrors,
   ReadContentRepositoryStateResponses,
   ReadContentResponses,
+  ReadGithubActionData,
+  ReadGithubActionErrors,
+  ReadGithubActionResponses,
+  ReadGithubConnectorData,
+  ReadGithubConnectorErrors,
+  ReadGithubConnectorResponses,
   ReadLegalOnboardingData,
   ReadLegalOnboardingErrors,
   ReadLegalOnboardingResponses,
@@ -298,6 +327,42 @@ export type Options<
    */
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Read an exact owned or granted component.
+ */
+export const readAccessComponentVersion = <ThrowOnError extends boolean = false>(
+  options: Options<ReadAccessComponentVersionData, ThrowOnError>,
+): RequestResult<
+  ReadAccessComponentVersionResponses,
+  ReadAccessComponentVersionErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadAccessComponentVersionResponses,
+    ReadAccessComponentVersionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/access/components/{stable_id}/versions/{version}",
+    ...options,
+  });
+
+/**
+ * Read an exact owned or granted setup.
+ */
+export const readAccessSetupVersion = <ThrowOnError extends boolean = false>(
+  options: Options<ReadAccessSetupVersionData, ThrowOnError>,
+): RequestResult<ReadAccessSetupVersionResponses, ReadAccessSetupVersionErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadAccessSetupVersionResponses,
+    ReadAccessSetupVersionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/access/setups/{stable_id}/versions/{version}",
+    ...options,
+  });
 
 /**
  * createVisibilityPlan for the exact owner distribution effect.
@@ -580,7 +645,7 @@ export const readOAuthCallbackResult = <ThrowOnError extends boolean = false>(
   >({ url: "/v1/auth/{provider}/callback", ...options });
 
 /**
- * List authors with public catalog objects. Anonymous.
+ * List authors with public components or setups. Anonymous.
  */
 export const listCatalogAuthors = <ThrowOnError extends boolean = false>(
   options?: Options<ListCatalogAuthorsData, ThrowOnError>,
@@ -791,6 +856,134 @@ export const createComplaint = <ThrowOnError extends boolean = false>(
 ): RequestResult<CreateComplaintResponses, CreateComplaintErrors, ThrowOnError> =>
   (options.client ?? client).post<CreateComplaintResponses, CreateComplaintErrors, ThrowOnError>({
     url: "/v1/complaints",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read current connection and live selected repository scope.
+ */
+export const readGithubConnector = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadGithubConnectorData, ThrowOnError>,
+): RequestResult<ReadGithubConnectorResponses, ReadGithubConnectorErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ReadGithubConnectorResponses,
+    ReadGithubConnectorErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github",
+    ...options,
+  });
+
+/**
+ * Plan an explicit repository invitation or whole-repository exposure.
+ */
+export const planGithubAction = <ThrowOnError extends boolean = false>(
+  options: Options<PlanGithubActionData, ThrowOnError>,
+): RequestResult<PlanGithubActionResponses, PlanGithubActionErrors, ThrowOnError> =>
+  (options.client ?? client).post<PlanGithubActionResponses, PlanGithubActionErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github/actions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read a reviewed action and refresh invitation status without sending it.
+ */
+export const readGithubAction = <ThrowOnError extends boolean = false>(
+  options: Options<ReadGithubActionData, ThrowOnError>,
+): RequestResult<ReadGithubActionResponses, ReadGithubActionErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadGithubActionResponses, ReadGithubActionErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github/actions/{plan_id}",
+    ...options,
+  });
+
+/**
+ * Recheck exact repository authority and confirm the reviewed effect.
+ */
+export const confirmGithubAction = <ThrowOnError extends boolean = false>(
+  options: Options<ConfirmGithubActionData, ThrowOnError>,
+): RequestResult<ConfirmGithubActionResponses, ConfirmGithubActionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ConfirmGithubActionResponses,
+    ConfirmGithubActionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github/actions/{plan_id}/confirm",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Consume session-bound authorization state and redirect to connection status.
+ */
+export const completeGithubConnection = <ThrowOnError extends boolean = false>(
+  options: Options<CompleteGithubConnectionData, ThrowOnError>,
+): RequestResult<unknown, CompleteGithubConnectionErrors, ThrowOnError> =>
+  (options.client ?? client).get<unknown, CompleteGithubConnectionErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github/callback",
+    ...options,
+  });
+
+/**
+ * Begin separately confirmed selected-repository GitHub App authorization.
+ */
+export const connectGithub = <ThrowOnError extends boolean = false>(
+  options: Options<ConnectGithubData, ThrowOnError>,
+): RequestResult<ConnectGithubResponses, ConnectGithubErrors, ThrowOnError> =>
+  (options.client ?? client).post<ConnectGithubResponses, ConnectGithubErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github/connect",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Remove local GitHub source or administration authority.
+ */
+export const disconnectGithub = <ThrowOnError extends boolean = false>(
+  options: Options<DisconnectGithubData, ThrowOnError>,
+): RequestResult<DisconnectGithubResponses, DisconnectGithubErrors, ThrowOnError> =>
+  (options.client ?? client).post<DisconnectGithubResponses, DisconnectGithubErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github/disconnect",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Prepare canonical component bytes from a selected exact GitHub snapshot.
+ */
+export const prepareGithubSource = <ThrowOnError extends boolean = false>(
+  options: Options<PrepareGithubSourceData, ThrowOnError>,
+): RequestResult<PrepareGithubSourceResponses, PrepareGithubSourceErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    PrepareGithubSourceResponses,
+    PrepareGithubSourceErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/connectors/github/sources",
     ...options,
     headers: {
       "Content-Type": "application/json",

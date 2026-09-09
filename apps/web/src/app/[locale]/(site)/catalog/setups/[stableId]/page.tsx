@@ -200,6 +200,9 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
         archivedLabel={t("githubArchived")}
         source={passport?.source}
         viewSourceLabel={t("viewSourceOnGithub")}
+        visibility="public"
+        publicVisibilityLabel={t("public")}
+        privateVisibilityLabel={t("private")}
         like={{
           stableId,
           objectKind: "setup",
@@ -331,6 +334,9 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
               copiedLabel={tCli("copied")}
               errorLabel={tCli("copyError")}
               docsLabel={tCli("docs")}
+              visibility="public"
+              publicLabel={t("public")}
+              privateLabel={t("private")}
             />
             <ObjectVersionHistory
               title={t("versionHistory")}

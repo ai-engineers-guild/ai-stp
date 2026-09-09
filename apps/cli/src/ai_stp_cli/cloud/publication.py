@@ -41,6 +41,7 @@ def create(
         )
     if (
         response.visibility != request.visibility
+        or response.source_binding_id != request.source_binding_id
         or response.object_kind != request.object_kind
         or response.stable_id != request.stable_id
         or response.version != request.version
@@ -57,6 +58,7 @@ def create(
 def require_same_plan(expected: PublicationPlanResponse, observed: PublicationPlanResponse) -> None:
     """State may progress, but approval coordinates and exposure cannot change."""
     fields = (
+        "source_binding_id",
         "plan_id",
         "plan_hash",
         "visibility",

@@ -11,6 +11,7 @@ import {
   FIXTURE_TIMESTAMP,
   ALL_COMPONENT_SUMMARIES,
   ALL_SETUP_SUMMARIES,
+  seedPublicProfiles,
 } from "./fixtures";
 import { componentVersionResponse, setupVersionResponse } from "./passport-fixtures";
 
@@ -158,7 +159,18 @@ export const handlers = [
         ),
       ]
         .sort()
-        .map((account_id) => ({ account_id, display_name: null })),
+        .map((account_id) => {
+          const profile = Object.values(seedPublicProfiles).find(
+            (candidate) => candidate.account_id === account_id,
+          );
+          return {
+            account_id,
+            first_name: profile?.first_name ?? null,
+            last_name: profile?.last_name ?? null,
+            display_name: profile?.display_name ?? null,
+            avatar_url: profile?.avatar_url ?? null,
+          };
+        }),
     }),
   ),
 

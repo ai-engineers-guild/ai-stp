@@ -12,6 +12,7 @@ from ai_stp_api.deps import get_db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
+from ai_stp_api.slices.github_connector.router import Client
 from ai_stp_api.slices.publish import service
 from ai_stp_contracts.publication import PublicationConfirmRequest, PublicationPlanCreateRequest
 from ai_stp_platform.safety.workdir import MAX_ARTIFACT_BYTES
@@ -55,8 +56,12 @@ async def create_publication_plan(
     body: PublicationPlanCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    client: Client,
 ) -> JSONResponse:
-    result = await service.create_plan(db, ctx=ctx, body=body)
+    result = await service.create_plan(
+        db, ctx=ctx, body=body, settings=settings, github_client=client
+    )
     return _resource(result, status_code=201)
 
 
@@ -114,7 +119,16 @@ async def confirm_publication_plan(
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
     settings: Annotated[Settings, Depends(get_settings)],
+    client: Client,
 ) -> JSONResponse:
     store = ImmutableObjectStore(settings=settings.storage, client=request.app.state.object_client)
-    result = await service.confirm_plan(db, ctx=ctx, plan_id=plan_id, body=body, store=store)
+    result = await service.confirm_plan(
+        db,
+        ctx=ctx,
+        plan_id=plan_id,
+        body=body,
+        store=store,
+        settings=settings,
+        github_client=client,
+    )
     return _resource(result)

@@ -231,7 +231,7 @@ function isBlockStart(line: string): boolean {
 }
 
 function stripArticleChrome(source: string, options: RenderOptions): string {
-  if (!options.article || !options.title) return source;
+  if (!options.article) return source;
 
   const normalize = (value: string) =>
     value
@@ -243,16 +243,26 @@ function stripArticleChrome(source: string, options: RenderOptions): string {
   while (index < lines.length && !lines[index]?.trim()) index += 1;
 
   const heading = lines[index]?.trim().match(/^#\s+(.+?)(?:\s+\{#[^\s}]+\})?\s*$/u);
-  if (!heading || normalize(heading[1] ?? "") !== normalize(options.title)) return source;
-  index += 1;
-  while (index < lines.length && !lines[index]?.trim()) index += 1;
+  const headingMatches =
+    heading && options.title ? normalize(heading[1] ?? "") === normalize(options.title) : false;
+  const imageIndex = heading
+    ? (() => {
+        let next = index + 1;
+        while (next < lines.length && !lines[next]?.trim()) next += 1;
+        return next;
+      })()
+    : index;
+  const image = lines[imageIndex]?.trim().match(/^!\[[^\]]*\]\(([^)\s]+)\)$/u);
 
-  const image = lines[index]?.trim().match(/^!\[[^\]]*\]\(([^)\s]+)\)$/u);
   if (options.coverImage && image?.[1] === options.coverImage) {
-    index += 1;
+    index = imageIndex + 1;
     while (index < lines.length && !lines[index]?.trim()) index += 1;
+    if (!headingMatches && heading) {
+      return [...lines.slice(0, imageIndex), ...lines.slice(index)].join("\n");
+    }
+    return lines.slice(index).join("\n");
   }
-  return lines.slice(index).join("\n");
+  return headingMatches ? lines.slice(imageIndex).join("\n") : source;
 }
 
 // eslint-disable-next-line complexity -- block grammar is intentionally kept in one safe parser.

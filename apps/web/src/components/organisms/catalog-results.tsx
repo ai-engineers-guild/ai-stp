@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import { ObjectCard, type CatalogAuthor } from "@/components/organisms/object-card";
 import { StatePanel } from "@/components/molecules/state-panel";
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
+import type { OwnerObjectSummary } from "@/lib/api/generated/types.gen";
 import { PageNav, SingleResourcePager } from "@/components/organisms/catalog-page-nav";
 import { catalogHref } from "@/lib/catalog-query";
 import { UI } from "@/lib/ui-selectors";
@@ -75,6 +77,8 @@ type CatalogLabels = {
   unlikeMenu?: string;
   assuranceCounts?: string;
   familyMemberCount?: string;
+  publicVisibility?: string;
+  privateVisibility?: string;
 };
 
 type CatalogResultsProps = {
@@ -99,6 +103,8 @@ type CatalogResultsProps = {
   locale?: string;
   authors?: Record<string, CatalogAuthor>;
   likedIds?: ReadonlyArray<string>;
+  ownerItems?: OwnerObjectSummary[];
+  ownerActions?: Record<string, ReactNode>;
 };
 
 function hrefFor(kind: "components" | "setups", stableId: string, returnTo: string): string {
@@ -160,6 +166,8 @@ function objectCardLabels(labels: CatalogLabels): Parameters<typeof ObjectCard>[
     unlikeMenu: labels.unlikeMenu,
     assuranceCounts: labels.assuranceCounts,
     familyMemberCount: labels.familyMemberCount,
+    publicVisibility: labels.publicVisibility,
+    privateVisibility: labels.privateVisibility,
   };
 }
 
@@ -205,6 +213,8 @@ export function CatalogResults({
   locale,
   authors = {},
   likedIds = [],
+  ownerItems = [],
+  ownerActions = {},
 }: CatalogResultsProps) {
   const cardLabels = objectCardLabels(labels);
   const visible = showExperimental ? [...items, ...experimental] : [...items];
@@ -217,34 +227,11 @@ export function CatalogResults({
           componentsTotalPages,
         })
       : visible;
+  const rows = [...merged, ...ownerItems];
   const gridClass =
     view === "list"
       ? "border-border divide-border grid min-w-0 overflow-hidden rounded-lg border divide-y"
       : "grid min-w-0 gap-3 md:grid-cols-2";
-
-  function renderCards(rows: Array<ComponentSummary | SetupSummary>) {
-    return (
-      <ul className={gridClass}>
-        {rows.map((item) => {
-          const resource = isComponentSummary(item) ? "components" : "setups";
-          return (
-            <li key={`${resource}:${item.stable_id}`} className="min-w-0">
-              <ObjectCard
-                kind={resource === "components" ? "component" : "setup"}
-                item={item}
-                href={hrefFor(resource, item.stable_id, catalogHref(basePath, query))}
-                labels={cardLabels}
-                view={view}
-                initiallyLiked={likedIds.includes(item.stable_id)}
-                {...(authors[item.publisher_id] ? { author: authors[item.publisher_id] } : {})}
-                {...(locale ? { locale } : {})}
-              />
-            </li>
-          );
-        })}
-      </ul>
-    );
-  }
 
   return (
     <div data-ui={UI.catalog.results} className="flex min-w-0 flex-col gap-8">
@@ -264,17 +251,50 @@ export function CatalogResults({
             ) : null}
           </div>
           <p className="text-muted-foreground font-mono text-sm" aria-live="polite">
-            {totalItems ?? merged.length}
+            {totalItems ?? rows.length}
           </p>
         </div>
 
-        {merged.length === 0 ? (
+        {rows.length === 0 ? (
           <StatePanel
             kind="empty"
             title={showExperimental ? labels.emptyAll : labels.emptyAuthoritative}
           />
         ) : (
-          renderCards(merged)
+          <ul className={gridClass}>
+            {merged.map((item) => {
+              const resource = isComponentSummary(item) ? "components" : "setups";
+              return (
+                <li key={`${resource}:${item.stable_id}`} className="min-w-0">
+                  <ObjectCard
+                    kind={resource === "components" ? "component" : "setup"}
+                    item={item}
+                    href={hrefFor(resource, item.stable_id, catalogHref(basePath, query))}
+                    labels={cardLabels}
+                    view={view}
+                    initiallyLiked={likedIds.includes(item.stable_id)}
+                    {...(authors[item.publisher_id] ? { author: authors[item.publisher_id] } : {})}
+                    locale={locale}
+                    visibility="public"
+                  />
+                </li>
+              );
+            })}
+            {ownerItems.map((item) => (
+              <li key={`${item.object_kind}:${item.stable_id}`} className="min-w-0">
+                <ObjectCard
+                  kind={item.object_kind}
+                  item={item}
+                  href={`/objects/${item.object_kind}/${item.stable_id}`}
+                  labels={cardLabels}
+                  view={view}
+                  ownerActions={ownerActions[`${item.object_kind}:${item.stable_id}`]}
+                  visibility={item.visibility}
+                  locale={locale}
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </section>
       {kind === "mixed" ? null : (
@@ -309,10 +329,13 @@ function MixedPager({
   componentsTotalPages,
   basePath,
   query,
-}: Pick<
-  CatalogResultsProps,
-  "labels" | "pageNumber" | "setupsTotalPages" | "componentsTotalPages" | "basePath" | "query"
->) {
+}: Omit<
+  Pick<
+    CatalogResultsProps,
+    "labels" | "pageNumber" | "setupsTotalPages" | "componentsTotalPages" | "basePath" | "query"
+  >,
+  "pageNumber"
+> & { pageNumber: number }) {
   const setupPages = setupsTotalPages ?? 0;
   const componentPages = componentsTotalPages ?? 0;
   const totalPages = setupPages === 1 && componentPages === 1 ? 1 : setupPages + componentPages;
@@ -320,7 +343,7 @@ function MixedPager({
   return (
     <PageNav
       label={labels.pagination ?? "Pagination"}
-      pageNumber={pageNumber ?? 1}
+      pageNumber={pageNumber}
       totalPages={totalPages}
       hrefFor={(page) =>
         catalogHref(basePath, {

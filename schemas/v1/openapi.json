@@ -988,7 +988,7 @@
       },
       "CatalogAuthorListResponse": {
         "additionalProperties": true,
-        "description": "All authors with at least one active public catalog object.",
+        "description": "All authors with at least one active public component or setup.",
         "properties": {
           "items": {
             "items": {
@@ -1013,13 +1013,26 @@
       },
       "CatalogAuthorOption": {
         "additionalProperties": true,
-        "description": "One public author available in the catalog filter.",
+        "description": "One author with an active public component or setup available in the catalog filter.",
         "properties": {
           "account_id": {
             "maxLength": 64,
             "minLength": 1,
             "title": "Account Id",
             "type": "string"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Avatar Url"
           },
           "display_name": {
             "anyOf": [
@@ -1034,11 +1047,42 @@
             ],
             "default": null,
             "title": "Display Name"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Name"
           }
         },
         "required": [
           "account_id",
-          "display_name"
+          "avatar_url",
+          "display_name",
+          "first_name",
+          "last_name"
         ],
         "title": "CatalogAuthorOption",
         "type": "object"
@@ -2824,6 +2868,13 @@
         "title": "Conflicts",
         "type": "object"
       },
+      "ConnectorPurpose": {
+        "enum": [
+          "source",
+          "administration"
+        ],
+        "type": "string"
+      },
       "ContentBody": {
         "maxLength": 200000,
         "minLength": 1,
@@ -4550,6 +4601,428 @@
         ],
         "type": "string"
       },
+      "GitHubActionConfirmRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "plan_hash": {
+            "$ref": "#/components/schemas/ContentDigest"
+          },
+          "typed_repository_name": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Typed Repository Name"
+          }
+        },
+        "required": [
+          "plan_hash",
+          "confirmed",
+          "idempotency_key"
+        ],
+        "title": "GitHubActionConfirmRequest",
+        "type": "object"
+      },
+      "GitHubActionPlanRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "invite_collaborator",
+              "make_public",
+              "make_private"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "installation_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          },
+          "permission": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pull",
+                  "push"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Permission"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GitHubUsername"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "repository_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          }
+        },
+        "required": [
+          "action",
+          "installation_id",
+          "repository_id",
+          "device_id",
+          "idempotency_key"
+        ],
+        "title": "GitHubActionPlanRequest",
+        "type": "object"
+      },
+      "GitHubActionPlanResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "action": {
+            "enum": [
+              "invite_collaborator",
+              "make_public",
+              "make_private"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_id": {
+            "$ref": "#/components/schemas/AccountId"
+          },
+          "device_id": {
+            "$ref": "#/components/schemas/DeviceId"
+          },
+          "error_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error Reason"
+          },
+          "expires_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "permission": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pull",
+                  "push"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Permission"
+          },
+          "plan_hash": {
+            "$ref": "#/components/schemas/ContentDigest"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GitHubUsername"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "repository": {
+            "$ref": "#/components/schemas/GitHubRepository"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "accepted",
+                  "public",
+                  "private"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Result"
+          },
+          "state": {
+            "enum": [
+              "planned",
+              "applied",
+              "failed",
+              "unknown"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "warning": {
+            "enum": [
+              "personal_repository_write_access",
+              "repository_and_history_public",
+              "repository_private",
+              "repository_access"
+            ],
+            "title": "Warning",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "actor_id",
+          "device_id",
+          "error_reason",
+          "expires_at",
+          "permission",
+          "plan_hash",
+          "plan_id",
+          "recipient",
+          "repository",
+          "result",
+          "state",
+          "warning"
+        ],
+        "title": "GitHubActionPlanResponse",
+        "type": "object"
+      },
+      "GitHubCallbackQuery": {
+        "additionalProperties": true,
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Code"
+          },
+          "setup_action": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Setup Action"
+          },
+          "state": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "setup_action",
+          "state"
+        ],
+        "title": "GitHubCallbackQuery",
+        "type": "object"
+      },
+      "GitHubConnectRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "locale": {
+            "default": "en",
+            "enum": [
+              "en",
+              "ru"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "mode": {
+            "default": "install",
+            "enum": [
+              "install",
+              "authorize"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ConnectorPurpose",
+            "default": "source"
+          }
+        },
+        "required": [
+          "confirmed"
+        ],
+        "title": "GitHubConnectRequest",
+        "type": "object"
+      },
+      "GitHubConnectResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "authorization_url": {
+            "pattern": "^https://github\\.com/",
+            "title": "Authorization Url",
+            "type": "string"
+          },
+          "expires_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        },
+        "required": [
+          "authorization_url",
+          "expires_at"
+        ],
+        "title": "GitHubConnectResponse",
+        "type": "object"
+      },
+      "GitHubConnectionStatus": {
+        "additionalProperties": true,
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ConnectorPurpose"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/GitHubRepository"
+            },
+            "title": "Repositories",
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "disconnected",
+              "pending_approval",
+              "connected",
+              "reauthorization_required"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "expires_at",
+          "purpose",
+          "reason",
+          "repositories",
+          "state"
+        ],
+        "title": "GitHubConnectionStatus",
+        "type": "object"
+      },
+      "GitHubConnectorStatus": {
+        "additionalProperties": true,
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/GitHubConnectionStatus"
+            },
+            "title": "Connections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connections"
+        ],
+        "title": "GitHubConnectorStatus",
+        "type": "object"
+      },
+      "GitHubDisconnectRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ConnectorPurpose",
+            "default": "source"
+          }
+        },
+        "required": [
+          "confirmed"
+        ],
+        "title": "GitHubDisconnectRequest",
+        "type": "object"
+      },
       "GitHubMetadata": {
         "additionalProperties": true,
         "description": "Best-effort on-demand stars and archive state (SPEC-049).",
@@ -4593,6 +5066,144 @@
         ],
         "title": "GitHubMetadata",
         "type": "object"
+      },
+      "GitHubRepository": {
+        "additionalProperties": true,
+        "description": "Selected repository metadata visible only to the connected account.",
+        "properties": {
+          "can_administer": {
+            "title": "Can Administer",
+            "type": "boolean"
+          },
+          "full_name": {
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$",
+            "title": "Full Name",
+            "type": "string"
+          },
+          "installation_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          },
+          "owner_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          },
+          "owner_type": {
+            "enum": [
+              "User",
+              "Organization"
+            ],
+            "title": "Owner Type",
+            "type": "string"
+          },
+          "permission": {
+            "enum": [
+              "read",
+              "administration"
+            ],
+            "title": "Permission",
+            "type": "string"
+          },
+          "private": {
+            "title": "Private",
+            "type": "boolean"
+          },
+          "repository_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          }
+        },
+        "required": [
+          "can_administer",
+          "full_name",
+          "installation_id",
+          "owner_id",
+          "owner_type",
+          "permission",
+          "private",
+          "repository_id"
+        ],
+        "title": "GitHubRepository",
+        "type": "object"
+      },
+      "GitHubSourcePrepareRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "commit": {
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "Commit",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "installation_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          },
+          "repository_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          },
+          "subpath": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Subpath",
+            "type": "string"
+          }
+        },
+        "required": [
+          "installation_id",
+          "repository_id",
+          "commit",
+          "subpath",
+          "idempotency_key"
+        ],
+        "title": "GitHubSourcePrepareRequest",
+        "type": "object"
+      },
+      "GitHubSourcePrepared": {
+        "additionalProperties": true,
+        "description": "Opaque provenance and inventory; no private repository coordinate.",
+        "properties": {
+          "artifact_inventory": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Artifact Inventory",
+            "type": "array"
+          },
+          "content_digest": {
+            "$ref": "#/components/schemas/ContentDigest"
+          },
+          "size_bytes": {
+            "exclusiveMinimum": 0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "source_binding_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "source_visibility": {
+            "enum": [
+              "private",
+              "public"
+            ],
+            "title": "Source Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_inventory",
+          "content_digest",
+          "size_bytes",
+          "source_binding_id",
+          "source_visibility"
+        ],
+        "title": "GitHubSourcePrepared",
+        "type": "object"
+      },
+      "GitHubUsername": {
+        "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$",
+        "type": "string"
       },
       "GitSource": {
         "additionalProperties": false,
@@ -5492,6 +6103,21 @@
             "title": "Author Verified",
             "type": "boolean"
           },
+          "catalog_item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentSummary"
+              },
+              {
+                "$ref": "#/components/schemas/SetupSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Catalog Item"
+          },
           "component_verified": {
             "default": false,
             "title": "Component Verified",
@@ -5557,6 +6183,7 @@
         },
         "required": [
           "author_verified",
+          "catalog_item",
           "component_verified",
           "latest_version",
           "lifecycle_state",
@@ -6496,7 +7123,7 @@
             "type": "integer"
           },
           "trust": {
-            "$ref": "#/components/schemas/CatalogTrust"
+            "$ref": "#/components/schemas/PrivateVersionTrust"
           },
           "visibility": {
             "const": "private",
@@ -6515,6 +7142,33 @@
           "visibility"
         ],
         "title": "PrivateVersionResponse",
+        "type": "object"
+      },
+      "PrivateVersionTrust": {
+        "additionalProperties": true,
+        "description": "Exact local acquisition authority, independent of public trust.",
+        "properties": {
+          "author_verified": {
+            "title": "Author Verified",
+            "type": "boolean"
+          },
+          "component_verified": {
+            "title": "Component Verified",
+            "type": "boolean"
+          },
+          "trust_lane": {
+            "const": "local_owner_or_pinned",
+            "default": "local_owner_or_pinned",
+            "title": "Trust Lane",
+            "type": "string"
+          }
+        },
+        "required": [
+          "author_verified",
+          "component_verified",
+          "trust_lane"
+        ],
+        "title": "PrivateVersionTrust",
         "type": "object"
       },
       "ProjectedMember": {
@@ -6824,6 +7478,17 @@
             "title": "Schema Version",
             "type": "integer"
           },
+          "source_binding_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "stable_id": {
             "maxLength": 64,
             "minLength": 8,
@@ -6914,6 +7579,17 @@
             "title": "Schema Version",
             "type": "integer"
           },
+          "source_binding_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "stable_id": {
             "title": "Stable Id",
             "type": "string"
@@ -6942,6 +7618,7 @@
           "plan_id",
           "policy_version",
           "schema_version",
+          "source_binding_id",
           "stable_id",
           "state",
           "version",
@@ -7339,6 +8016,11 @@
           "dismissed"
         ],
         "type": "string"
+      },
+      "RepositoryId": {
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991,
+        "type": "integer"
       },
       "RequestId": {
         "pattern": "^request_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -12279,6 +12961,406 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/access/components/{stable_id}/versions/{version}": {
+      "get": {
+        "operationId": "readAccessComponentVersion",
+        "parameters": [
+          {
+            "description": "Typed stable identifier of the catalog object.",
+            "in": "path",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact two-integer version. A range or `latest` is not a reference.",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readAccessComponentVersion.answer": {
+                    "summary": "An authorized component read returns exact private metadata and its access basis.",
+                    "value": {
+                      "access_basis": "owner",
+                      "kind": "component",
+                      "lifecycle": "active",
+                      "passport": {},
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "published_at": "2026-08-05T00:00:00.000Z",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "trust": {
+                        "author_verified": false,
+                        "component_verified": false,
+                        "trust_lane": "local_owner_or_pinned"
+                      },
+                      "version": "1.2",
+                      "visibility": "private"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateVersionResponse"
+                }
+              }
+            },
+            "description": "Read an exact owned or granted component.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read an exact owned or granted component."
+      }
+    },
+    "/v1/access/setups/{stable_id}/versions/{version}": {
+      "get": {
+        "operationId": "readAccessSetupVersion",
+        "parameters": [
+          {
+            "description": "Typed stable identifier of the catalog object.",
+            "in": "path",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact two-integer version. A range or `latest` is not a reference.",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readAccessSetupVersion.answer": {
+                    "summary": "An authorized setup read uses the same exact-version private access contract.",
+                    "value": {
+                      "access_basis": "grant",
+                      "kind": "setup",
+                      "lifecycle": "active",
+                      "passport": {},
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "published_at": "2026-08-05T00:00:00.000Z",
+                      "schema_version": 1,
+                      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "trust": {
+                        "author_verified": false,
+                        "component_verified": false,
+                        "trust_lane": "local_owner_or_pinned"
+                      },
+                      "version": "1.0",
+                      "visibility": "private"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateVersionResponse"
+                }
+              }
+            },
+            "description": "Read an exact owned or granted setup.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read an exact owned or granted setup."
+      }
+    },
     "/v1/access/visibility/plans": {
       "post": {
         "operationId": "createVisibilityPlan",
@@ -12307,6 +13389,18 @@
           "content": {
             "application/json": {
               "examples": {
+                "createVisibilityPlan.answer": {
+                  "summary": "Visibility planning exposes the exact immutable object coordinates before approval.",
+                  "value": {
+                    "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "idempotency_key": "idem_visibility_plan_01",
+                    "object_kind": "component",
+                    "schema_version": 1,
+                    "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "version": "1.2",
+                    "visibility": "public"
+                  }
+                },
                 "createVisibilityPlan.owner": {
                   "summary": "Owner visibility preserves the exact published passport identity.",
                   "value": {
@@ -12331,6 +13425,28 @@
             "content": {
               "application/json": {
                 "examples": {
+                  "createVisibilityPlan.answer": {
+                    "summary": "Visibility planning exposes the exact immutable object coordinates before approval.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "catalog_visibility",
+                        "public_artifact"
+                      ],
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                      "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "planned",
+                      "version": "1.2",
+                      "visibility": "public"
+                    }
+                  },
                   "createVisibilityPlan.owner": {
                     "summary": "Owner visibility preserves the exact published passport identity.",
                     "value": {
@@ -12567,6 +13683,28 @@
             "content": {
               "application/json": {
                 "examples": {
+                  "readVisibilityPlan.answer": {
+                    "summary": "A visibility plan can be read by its opaque identifier before confirmation.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "catalog_visibility",
+                        "public_artifact"
+                      ],
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:43a95dcd6dae5a1f9805033926abf63226ec93a59c238efcb7d16941336244af",
+                      "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                      "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "planned",
+                      "version": "1.2",
+                      "visibility": "public"
+                    }
+                  },
                   "readVisibilityPlan.owner": {
                     "summary": "Owner visibility preserves the exact published passport identity.",
                     "value": {
@@ -12804,6 +13942,14 @@
           "content": {
             "application/json": {
               "examples": {
+                "confirmVisibilityPlan.answer": {
+                  "summary": "Visibility confirmation records the applied state after the exact hash is approved.",
+                  "value": {
+                    "confirmed": true,
+                    "idempotency_key": "idem_visibility_confirm_01",
+                    "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                  }
+                },
                 "confirmVisibilityPlan.owner": {
                   "summary": "Owner visibility preserves the exact published passport identity.",
                   "value": {
@@ -12825,6 +13971,28 @@
             "content": {
               "application/json": {
                 "examples": {
+                  "confirmVisibilityPlan.answer": {
+                    "summary": "Visibility confirmation records the applied state after the exact hash is approved.",
+                    "value": {
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "effects": [
+                        "catalog_visibility",
+                        "public_artifact"
+                      ],
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "object_kind": "component",
+                      "passport_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                      "plan_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                      "plan_id": "visibility_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "previous_visibility": "private",
+                      "schema_version": 1,
+                      "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "applied",
+                      "version": "1.2",
+                      "visibility": "public"
+                    }
+                  },
                   "confirmVisibilityPlan.owner": {
                     "summary": "Owner visibility preserves the exact published passport identity.",
                     "value": {
@@ -15665,7 +16833,7 @@
                 }
               }
             },
-            "description": "List authors with public catalog objects. Anonymous.",
+            "description": "List authors with public components or setups. Anonymous.",
             "headers": {
               "X-Request-Id": {
                 "description": "Correlation id, echoed or minted.",
@@ -15754,7 +16922,7 @@
           }
         },
         "security": [],
-        "summary": "List authors with public catalog objects. Anonymous."
+        "summary": "List authors with public components or setups. Anonymous."
       }
     },
     "/v1/catalog/components": {
@@ -17404,7 +18572,7 @@
                       "trust": {
                         "author_verified": false,
                         "component_verified": false,
-                        "trust_lane": "experimental"
+                        "trust_lane": "local_owner_or_pinned"
                       },
                       "visibility": "private"
                     }
@@ -19332,7 +20500,7 @@
                       "trust": {
                         "author_verified": false,
                         "component_verified": false,
-                        "trust_lane": "experimental"
+                        "trust_lane": "local_owner_or_pinned"
                       },
                       "visibility": "private"
                     }
@@ -19645,6 +20813,1638 @@
         },
         "security": [],
         "summary": "Accept a complaint about an author, catalog object, or other target."
+      }
+    },
+    "/v1/connectors/github": {
+      "get": {
+        "operationId": "readGithubConnector",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readGithubConnector.answer": {
+                    "summary": "A disconnected account has an empty, non-sensitive repository scope.",
+                    "value": {
+                      "connections": []
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubConnectorStatus"
+                }
+              }
+            },
+            "description": "Read current connection and live selected repository scope.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read current connection and live selected repository scope."
+      }
+    },
+    "/v1/connectors/github/actions": {
+      "post": {
+        "operationId": "planGithubAction",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "planGithubAction.answer": {
+                  "summary": "An action plan records the exact repository and warning before confirmation.",
+                  "value": {
+                    "action": "invite_collaborator",
+                    "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "idempotency_key": "idem_github_action_01",
+                    "installation_id": 1001,
+                    "permission": "push",
+                    "recipient": "alice",
+                    "repository_id": 2002
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GitHubActionPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "planGithubAction.answer": {
+                    "summary": "An action plan records the exact repository and warning before confirmation.",
+                    "value": {
+                      "action": "invite_collaborator",
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "error_reason": null,
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "permission": "push",
+                      "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                      "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "recipient": "alice",
+                      "repository": {
+                        "can_administer": true,
+                        "full_name": "example/repository",
+                        "installation_id": 1001,
+                        "owner_id": 3003,
+                        "owner_type": "Organization",
+                        "permission": "administration",
+                        "private": true,
+                        "repository_id": 2002
+                      },
+                      "result": "pending",
+                      "state": "planned",
+                      "warning": "repository_access"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubActionPlanResponse"
+                }
+              }
+            },
+            "description": "Plan an explicit repository invitation or whole-repository exposure.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Plan an explicit repository invitation or whole-repository exposure."
+      }
+    },
+    "/v1/connectors/github/actions/{plan_id}": {
+      "get": {
+        "operationId": "readGithubAction",
+        "parameters": [
+          {
+            "description": "Exact repository action plan.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._~-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readGithubAction.answer": {
+                    "summary": "Reading an action returns the same reviewed coordinates without applying them.",
+                    "value": {
+                      "action": "invite_collaborator",
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "error_reason": null,
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "permission": "push",
+                      "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                      "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "recipient": "alice",
+                      "repository": {
+                        "can_administer": true,
+                        "full_name": "example/repository",
+                        "installation_id": 1001,
+                        "owner_id": 3003,
+                        "owner_type": "Organization",
+                        "permission": "administration",
+                        "private": true,
+                        "repository_id": 2002
+                      },
+                      "result": "pending",
+                      "state": "planned",
+                      "warning": "repository_access"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubActionPlanResponse"
+                }
+              }
+            },
+            "description": "Read a reviewed action and refresh invitation status without sending it.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read a reviewed action and refresh invitation status without sending it."
+      }
+    },
+    "/v1/connectors/github/actions/{plan_id}/confirm": {
+      "post": {
+        "operationId": "confirmGithubAction",
+        "parameters": [
+          {
+            "description": "Exact repository action plan.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._~-]{8,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "confirmGithubAction.answer": {
+                  "summary": "Confirmation echoes the exact hash and records the pending effect.",
+                  "value": {
+                    "confirmed": true,
+                    "idempotency_key": "idem_github_confirm_01",
+                    "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                    "typed_repository_name": "example/repository"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GitHubActionConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "confirmGithubAction.answer": {
+                    "summary": "Confirmation echoes the exact hash and records the pending effect.",
+                    "value": {
+                      "action": "invite_collaborator",
+                      "actor_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "error_reason": null,
+                      "expires_at": "2026-08-05T00:10:00.000Z",
+                      "permission": "push",
+                      "plan_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                      "plan_id": "github_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "recipient": "alice",
+                      "repository": {
+                        "can_administer": true,
+                        "full_name": "example/repository",
+                        "installation_id": 1001,
+                        "owner_id": 3003,
+                        "owner_type": "Organization",
+                        "permission": "administration",
+                        "private": true,
+                        "repository_id": 2002
+                      },
+                      "result": "accepted",
+                      "state": "applied",
+                      "warning": "repository_access"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubActionPlanResponse"
+                }
+              }
+            },
+            "description": "Recheck exact repository authority and confirm the reviewed effect.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Recheck exact repository authority and confirm the reviewed effect."
+      }
+    },
+    "/v1/connectors/github/callback": {
+      "get": {
+        "operationId": "completeGithubConnection",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 1024,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "setup_action",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Setup Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Consume session-bound authorization state and redirect to connection status.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Consume session-bound authorization state and redirect to connection status."
+      }
+    },
+    "/v1/connectors/github/connect": {
+      "post": {
+        "operationId": "connectGithub",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "connectGithub.answer": {
+                  "summary": "The browser handoff returns a GitHub authorization URL and a bounded expiry.",
+                  "value": {
+                    "confirmed": true,
+                    "locale": "en",
+                    "mode": "install",
+                    "purpose": "source"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GitHubConnectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "connectGithub.answer": {
+                    "summary": "The browser handoff returns a GitHub authorization URL and a bounded expiry.",
+                    "value": {
+                      "authorization_url": "https://github.com/apps/synthetic/installations/new?state=state_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "expires_at": "2026-08-05T00:10:00.000Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubConnectResponse"
+                }
+              }
+            },
+            "description": "Begin separately confirmed selected-repository GitHub App authorization.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Begin separately confirmed selected-repository GitHub App authorization."
+      }
+    },
+    "/v1/connectors/github/disconnect": {
+      "post": {
+        "operationId": "disconnectGithub",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "disconnectGithub.answer": {
+                  "summary": "Disconnecting one purpose returns the remaining connection view.",
+                  "value": {
+                    "confirmed": true,
+                    "purpose": "source"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GitHubDisconnectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "disconnectGithub.answer": {
+                    "summary": "Disconnecting one purpose returns the remaining connection view.",
+                    "value": {
+                      "connections": []
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubConnectorStatus"
+                }
+              }
+            },
+            "description": "Remove local GitHub source or administration authority.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Remove local GitHub source or administration authority."
+      }
+    },
+    "/v1/connectors/github/sources": {
+      "post": {
+        "operationId": "prepareGithubSource",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "prepareGithubSource.answer": {
+                  "summary": "A source plan returns only the immutable artifact coordinates and inventory.",
+                  "value": {
+                    "commit": "0123456789abcdef0123456789abcdef01234567",
+                    "idempotency_key": "idem_github_source_01",
+                    "installation_id": 1001,
+                    "repository_id": 2002,
+                    "subpath": "skills/example"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GitHubSourcePrepareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "prepareGithubSource.answer": {
+                    "summary": "A source plan returns only the immutable artifact coordinates and inventory.",
+                    "value": {
+                      "artifact_inventory": [
+                        "skills/example/SKILL.md"
+                      ],
+                      "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                      "size_bytes": 12,
+                      "source_binding_id": "source_binding_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "source_visibility": "private"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubSourcePrepared"
+                }
+              }
+            },
+            "description": "Prepare canonical component bytes from a selected exact GitHub snapshot.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_CONFLICT.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Prepare canonical component bytes from a selected exact GitHub snapshot."
       }
     },
     "/v1/content": {
@@ -22938,6 +25738,7 @@
                       "items": [
                         {
                           "author_verified": false,
+                          "catalog_item": null,
                           "component_verified": false,
                           "latest_version": "1.0",
                           "lifecycle_state": "draft",
@@ -24801,6 +27602,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -26397,6 +29199,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -26620,6 +29423,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -26856,6 +29660,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -27128,6 +29933,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "ready",
                       "version": "1.0",
@@ -27400,6 +30206,7 @@
                       "plan_id": "plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "policy_version": "1",
                       "schema_version": 1,
+                      "source_binding_id": null,
                       "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "validating",
                       "version": "1.0",

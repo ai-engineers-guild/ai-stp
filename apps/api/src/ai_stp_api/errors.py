@@ -223,8 +223,20 @@ async def _unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
     return _build(request, ErrorCategory.INTERNAL, "internal error", {})
 
 
+async def _github_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    from ai_stp_api.slices.github_connector.service import api_error
+    from ai_stp_platform.github_client import GitHubError
+
+    if not isinstance(exc, GitHubError):
+        return await _unhandled_handler(request, exc)
+    return await _api_error_handler(request, api_error(exc))
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register the envelope-producing exception handlers on the app."""
+    from ai_stp_platform.github_client import GitHubError
+
+    app.add_exception_handler(GitHubError, _github_error_handler)
     app.add_exception_handler(ApiError, _api_error_handler)
     app.add_exception_handler(RequestValidationError, _validation_handler)
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)

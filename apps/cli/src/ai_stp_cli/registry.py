@@ -413,6 +413,26 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
     ),
     Declaration(
+        path=["github", "status"],
+        summary="Read live selected GitHub Connector repositories.",
+        result_schema="urn:ai-stp:schema:v1:github-connector-status",
+        handler="github:status",
+    ),
+    Declaration(
+        path=["github", "source", "prepare"],
+        summary="Prepare an exact selected GitHub snapshot for component publication.",
+        result_schema="urn:ai-stp:schema:v1:github-source-prepared",
+        handler="github:prepare",
+        mutability="plan",
+        parameters=(
+            option("installation-id", "integer", "Selected GitHub installation ID.", required=True),
+            option("repository-id", "integer", "Selected immutable repository ID.", required=True),
+            option("commit", "string", "Exact full commit SHA.", required=True),
+            option("subpath", "string", "Component directory within the snapshot.", required=True),
+        ),
+        next_actions=("publication plan",),
+    ),
+    Declaration(
         path=["publication", "plan"],
         summary="Create an immutable server plan for one exact released component version.",
         result_schema="urn:ai-stp:schema:v1:cli-publication-plan",
@@ -421,6 +441,9 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("id", "string", "Stable identifier of the released component.", required=True),
             option("version", "string", "Exact local X.Y version to publish.", required=True),
+            option(
+                "source-binding-id", "string", "Opaque source binding from github source prepare."
+            ),
             option(
                 "component-root",
                 "string",
@@ -431,12 +454,6 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "string",
                 "Full locally signed attestation bound to this exact version.",
                 repeatable=True,
-            ),
-            option(
-                "visibility",
-                "string",
-                "Catalog visibility; private by default, use public explicitly.",
-                choices=("private", "public"),
             ),
         ),
         next_actions=("publication confirm", "publication status"),

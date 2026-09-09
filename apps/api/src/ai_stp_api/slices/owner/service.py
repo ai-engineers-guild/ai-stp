@@ -16,7 +16,12 @@ from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.owner.media_processing import MediaProcessingError, normalize_upload
 from ai_stp_api.slices.publish import service as publish_service
-from ai_stp_contracts.catalog import ExternalProductListResponse, ExternalProductSummary
+from ai_stp_contracts.catalog import (
+    ComponentSummary,
+    ExternalProductListResponse,
+    ExternalProductSummary,
+    SetupSummary,
+)
 from ai_stp_contracts.families import (
     SetupFamilyCreateRequest,
     SetupFamilyOwner,
@@ -47,7 +52,8 @@ from ai_stp_contracts.publication import (
     PublicationPlanResponse,
 )
 from ai_stp_passports.versions import SetupVersionPassport
-from ai_stp_platform.catalog_read import PUBLIC_LIFECYCLES
+from ai_stp_platform.catalog_projection import component_summary, setup_summary
+from ai_stp_platform.catalog_read import PUBLIC_LIFECYCLES, CatalogIntegrityError, PublicVersionRow
 from ai_stp_platform.external_catalog import COUNTRY_CODES, canonical_external_url
 from ai_stp_platform.models import (
     AccessGrant,
@@ -628,8 +634,12 @@ def _ts(value: datetime | None) -> str | None:
     return moment.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
-def _install_eligible(*, component_verified: bool, lifecycle: str) -> bool:
-    return component_verified and lifecycle not in {"blocked", "hidden", "failed", "draft"}
+def _install_eligible(*, component_verified: bool, lifecycle: str, visibility: str) -> bool:
+    return (
+        visibility == "public"
+        and component_verified
+        and lifecycle not in {"blocked", "hidden", "failed", "draft"}
+    )
 
 
 def can_start_publication(*, lifecycle: str, published_at: datetime | None) -> bool:
@@ -679,6 +689,7 @@ async def list_owner_objects(
                 author_verified=bool(latest.author_verified),
                 component_verified=bool(latest.component_verified),
                 updated_at=updated,
+                catalog_item=_owner_catalog_item(latest),
             )
         )
         if len(items) >= page_size:
@@ -689,6 +700,41 @@ async def list_owner_objects(
         items=items,
         page=PageInfo(schema_version=1, next_cursor=None, page_size=max(page_size, 1)),
     )
+
+
+def _owner_catalog_item(metadata: CatalogMetadata) -> ComponentSummary | SetupSummary | None:
+    """Project owner-readable bytes through the public card projector."""
+    version = getattr(metadata, "version", None)
+    passport_digest = getattr(metadata, "passport_digest", None)
+    passport_document = getattr(metadata, "passport_document", None)
+    if version is None or passport_digest is None or not isinstance(passport_document, dict):
+        return None
+    updated_at = getattr(metadata, "updated_at", None)
+    published_at = (
+        getattr(metadata, "published_at", None) or updated_at or datetime(1970, 1, 1, tzinfo=UTC)
+    )
+    row = PublicVersionRow(
+        metadata=metadata,
+        passport=cast(dict[str, Any], passport_document),
+        passport_digest=passport_digest,
+        published_at=published_at,
+        trust_lane=metadata.trust_lane or "experimental",
+        author_verified=bool(metadata.author_verified),
+        component_verified=bool(metadata.component_verified),
+        lifecycle=metadata.lifecycle_state,
+        stable_id=metadata.stable_id,
+        version=version,
+        object_kind=metadata.object_kind,
+        support_evidence=list(getattr(metadata, "support_evidence", None) or []),
+    )
+    try:
+        if metadata.object_kind == "component":
+            return component_summary(row, allow_private=True)
+        if metadata.object_kind == "setup":
+            return setup_summary(row, allow_private=True)
+    except (CatalogIntegrityError, ValueError):
+        return None
+    return None
 
 
 async def read_owner_object(
@@ -733,6 +779,7 @@ async def read_owner_object(
                 install_eligible=_install_eligible(
                     component_verified=bool(row.component_verified),
                     lifecycle=row.lifecycle_state,
+                    visibility=row.visibility,
                 ),
                 published_at=_ts(row.published_at),
                 can_start_publication=can_start_publication(
@@ -878,6 +925,7 @@ async def read_owner_version(
         install_eligible=_install_eligible(
             component_verified=bool(row.component_verified),
             lifecycle=row.lifecycle_state,
+            visibility=row.visibility,
         ),
         published_at=_ts(row.published_at),
         can_start_publication=can_start_publication(
