@@ -21174,10 +21174,12 @@
                       "repository": {
                         "can_administer": true,
                         "full_name": "example/repository",
+                        "html_url": "https://github.com/example/repository",
                         "installation_id": 1001,
                         "owner_id": 3003,
                         "owner_type": "Organization",
                         "permission": "administration",
+                        "platform_objects": [],
                         "private": true,
                         "repository_id": 2002
                       },
@@ -21378,10 +21380,12 @@
                       "repository": {
                         "can_administer": true,
                         "full_name": "example/repository",
+                        "html_url": "https://github.com/example/repository",
                         "installation_id": 1001,
                         "owner_id": 3003,
                         "owner_type": "Organization",
                         "permission": "administration",
+                        "platform_objects": [],
                         "private": true,
                         "repository_id": 2002
                       },
@@ -21605,10 +21609,12 @@
                       "repository": {
                         "can_administer": true,
                         "full_name": "example/repository",
+                        "html_url": "https://github.com/example/repository",
                         "installation_id": 1001,
                         "owner_id": 3003,
                         "owner_type": "Organization",
                         "permission": "administration",
+                        "platform_objects": [],
                         "private": true,
                         "repository_id": 2002
                       },
