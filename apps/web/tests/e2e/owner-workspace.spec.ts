@@ -20,7 +20,7 @@ test.describe("owner workspace smoke (SPEC-027)", () => {
 
     await page.goto("/en/access");
     await expect(
-      page.getByRole("heading", { name: /Access|\u0414\u043e\u0441\u0442\u0443\u043f/i }),
+      page.getByRole("heading", { name: /^(Access|\u0414\u043e\u0441\u0442\u0443\u043f)$/i }),
     ).toBeVisible();
 
     await page.goto("/en/reports");
