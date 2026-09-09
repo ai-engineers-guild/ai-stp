@@ -98,10 +98,12 @@
           "repository_id": 2002,
           "owner_id": 3003,
           "full_name": "example/repository",
+          "html_url": "https://github.com/example/repository",
           "owner_type": "Organization",
           "private": true,
           "can_administer": true,
-          "permission": "administration"
+          "permission": "administration",
+          "platform_objects": []
         },
         "recipient": "alice",
         "permission": "push",
@@ -134,10 +136,12 @@
           "repository_id": 2002,
           "owner_id": 3003,
           "full_name": "example/repository",
+          "html_url": "https://github.com/example/repository",
           "owner_type": "Organization",
           "private": true,
           "can_administer": true,
-          "permission": "administration"
+          "permission": "administration",
+          "platform_objects": []
         },
         "recipient": "alice",
         "permission": "push",
@@ -176,10 +180,12 @@
           "repository_id": 2002,
           "owner_id": 3003,
           "full_name": "example/repository",
+          "html_url": "https://github.com/example/repository",
           "owner_type": "Organization",
           "private": true,
           "can_administer": true,
-          "permission": "administration"
+          "permission": "administration",
+          "platform_objects": []
         },
         "recipient": "alice",
         "permission": "push",

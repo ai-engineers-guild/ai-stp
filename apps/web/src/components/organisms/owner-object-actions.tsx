@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { visibilityConfirm, visibilityPlan } from "@/actions/github";
 import { Button } from "@/components/atoms/button";
+import { CatalogItemMenu } from "@/components/organisms/catalog-item-menu";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,6 @@ import {
 } from "@/components/atoms/dialog";
 import { Input } from "@/components/atoms/input";
 import { Link } from "@/lib/i18n/navigation";
-import { Icon } from "@/theme";
 
 type Props = {
   csrfToken: string;
@@ -33,6 +33,7 @@ const menuItemClassName =
 
 export function OwnerObjectActions(props: Props) {
   const t = useTranslations("objects");
+  const tc = useTranslations("catalog");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [typedName, setTypedName] = useState("");
@@ -40,6 +41,7 @@ export function OwnerObjectActions(props: Props) {
   const [busy, start] = useTransition();
   const target = props.visibility === "public" ? "private" : "public";
   const canChange = props.kind === "component" && Boolean(props.version && props.deviceId);
+  const publicHref = `/catalog/${props.kind === "component" ? "components" : "setups"}/${props.stableId}`;
 
   function confirm() {
     if (!props.version || !props.deviceId) return;
@@ -76,55 +78,64 @@ export function OwnerObjectActions(props: Props) {
 
   return (
     <>
-      <DropdownMenu.Root modal={false}>
-        <DropdownMenu.Trigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="border-border bg-card/80 hover:bg-muted h-11 w-11 border shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2"
-            aria-label={t("manageObject")}
-          >
-            <Icon name="more" size="sm" />
-          </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            side="bottom"
-            align="end"
-            sideOffset={4}
-            collisionPadding={12}
-            className="border-border bg-popover text-popover-foreground z-[80] grid max-w-[calc(100vw-1.5rem)] min-w-72 rounded-lg border p-1 shadow-md"
-          >
-            {canChange ? (
-              <DropdownMenu.Item asChild>
-                <button
-                  className={menuItemClassName}
-                  type="button"
-                  onClick={() => {
-                    setOpen(true);
-                  }}
-                >
-                  {target === "public" ? t("makePublic") : t("makePrivate")}
-                </button>
-              </DropdownMenu.Item>
-            ) : null}
-            <DropdownMenu.Item asChild>
-              <Link
-                className={menuItemClassName}
-                href={`/objects/${props.kind}/${props.stableId}/edit`}
-              >
-                {t("editPresentation")}
-              </Link>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item asChild>
-              <Link className={menuItemClassName} href={`/objects/${props.kind}/${props.stableId}`}>
-                {t("manageAccess")}
-              </Link>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+      <CatalogItemMenu
+        kind={props.kind}
+        stableId={props.stableId}
+        version={props.version}
+        href={publicHref}
+        labels={{
+          more: t("manageObject"),
+          copyUrl: tc("copyUrl"),
+          copyCli: tc("copyCli"),
+          copyId: tc("copyId"),
+          copied: tc("copied"),
+          report: props.kind === "setup" ? tc("reportSetup") : tc("report"),
+          like: tc("likeMenu"),
+          unlike: tc("unlikeMenu"),
+        }}
+        leadingItems={[
+          ...(props.visibility === "public"
+            ? [
+                <DropdownMenu.Item key="view" asChild>
+                  <Link className={menuItemClassName} href={publicHref} prefetch={false}>
+                    {t("viewPublic")}
+                  </Link>
+                </DropdownMenu.Item>,
+              ]
+            : []),
+          ...(canChange
+            ? [
+                <DropdownMenu.Item key="visibility" asChild>
+                  <button
+                    className={menuItemClassName}
+                    type="button"
+                    onClick={() => {
+                      setOpen(true);
+                    }}
+                  >
+                    {target === "public" ? t("makePublic") : t("makePrivate")}
+                  </button>
+                </DropdownMenu.Item>,
+              ]
+            : []),
+          <DropdownMenu.Item key="edit" asChild>
+            <Link
+              className={menuItemClassName}
+              href={`/objects/${props.kind}/${props.stableId}/edit`}
+            >
+              {t("editPresentation")}
+            </Link>
+          </DropdownMenu.Item>,
+          <DropdownMenu.Item key="access" asChild>
+            <Link
+              className={menuItemClassName}
+              href={`/access?object_kind=${props.kind}&stable_id=${encodeURIComponent(props.stableId)}`}
+            >
+              {t("manageAccess")}
+            </Link>
+          </DropdownMenu.Item>,
+        ]}
+      />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent closeLabel={t("cancel")}>
           <DialogHeader>

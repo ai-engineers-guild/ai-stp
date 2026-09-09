@@ -21,6 +21,8 @@ from ai_stp_contracts.github_connector import (
     GitHubConnectorStatus,
     GitHubConnectRequest,
     GitHubConnectResponse,
+    GitHubInstallation,
+    GitHubPlatformObject,
     GitHubRepository,
     GitHubSourcePrepared,
     GitHubSourcePrepareRequest,
@@ -43,7 +45,7 @@ from ai_stp_platform.github_models import (
 )
 from ai_stp_platform.github_settings import ConnectorPurpose
 from ai_stp_platform.github_sources import request_digest
-from ai_stp_platform.models import Account, OAuthIdentity
+from ai_stp_platform.models import Account, OAuthIdentity, PublicationPlan
 from ai_stp_platform.storage.object_store import ImmutableObjectStore
 from ai_stp_sources.coordinates import canonical_subpath
 from ai_stp_sources.definition import pack_component_tree
@@ -70,6 +72,16 @@ def api_error(error: GitHubError) -> ApiError:
     )
 
 
+def _user_authorization_url(*, client_id: str, callback: str, state: str) -> str:
+    return "https://github.com/login/oauth/authorize?" + urlencode(
+        {
+            "client_id": client_id,
+            "redirect_uri": callback,
+            "state": state,
+        }
+    )
+
+
 async def _linked_subject(db: AsyncSession, account_id: str) -> str:
     subject = await db.scalar(
         select(OAuthIdentity.provider_subject).where(
@@ -93,35 +105,40 @@ async def start_connect(
     config = settings.github_connector
     if not config.enabled(body.purpose):
         raise GitHubError("connector_not_configured")
-    # App installation is the first step for a new account. The identity is
-    # only required when the user starts the OAuth re-authorization branch.
-    if body.mode == "authorize":
-        await _linked_subject(db, ctx.account_id)
-    state = secrets.token_urlsafe(32)
     expiry = datetime.now(UTC) + timedelta(minutes=10)
-    callback = f"{settings.auth.oauth_callback_base()}/v1/connectors/github/callback"
-    db.add(
-        GitHubAuthorizationFlow(
-            state_hash=hashlib.sha256(state.encode()).hexdigest(),
-            account_id=ctx.account_id,
-            session_id=ctx.session_id,
-            purpose=body.purpose,
-            locale=body.locale,
-            callback_uri=callback,
-            expires_at=expiry,
-        )
-    )
     client_id, _secret, slug = config.credentials(body.purpose)
+    state = secrets.token_urlsafe(32)
+    callback = f"{settings.auth.oauth_callback_base()}/v1/connectors/github/callback"
     if body.mode == "install":
+        # GitHub returns this state from the installation callback. Persist it
+        # before opening the external page so the callback is bound to the
+        # current account and browser session just like explicit OAuth.
+        db.add(
+            GitHubAuthorizationFlow(
+                state_hash=hashlib.sha256(state.encode()).hexdigest(),
+                account_id=ctx.account_id,
+                session_id=ctx.session_id,
+                purpose=body.purpose,
+                locale=body.locale,
+                callback_uri=callback,
+                expires_at=expiry,
+            )
+        )
         url = f"https://github.com/apps/{slug}/installations/new?{urlencode({'state': state})}"
     else:
-        url = "https://github.com/login/oauth/authorize?" + urlencode(
-            {
-                "client_id": client_id,
-                "redirect_uri": callback,
-                "state": state,
-            }
+        await _linked_subject(db, ctx.account_id)
+        db.add(
+            GitHubAuthorizationFlow(
+                state_hash=hashlib.sha256(state.encode()).hexdigest(),
+                account_id=ctx.account_id,
+                session_id=ctx.session_id,
+                purpose=body.purpose,
+                locale=body.locale,
+                callback_uri=callback,
+                expires_at=expiry,
+            )
         )
+        url = _user_authorization_url(client_id=client_id, callback=callback, state=state)
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,
@@ -141,7 +158,7 @@ async def finish_connect(
     setup_action: str | None,
     settings: Settings,
     client: GitHubClient,
-) -> tuple[str, str]:
+) -> tuple[str, str, str | None]:
     flow = await db.scalar(
         select(GitHubAuthorizationFlow)
         .where(GitHubAuthorizationFlow.state_hash == hashlib.sha256(state.encode()).hexdigest())
@@ -157,6 +174,13 @@ async def finish_connect(
         raise GitHubError("invalid_connection_state", status=403)
     purpose = cast(ConnectorPurpose, flow.purpose)
     locale, callback_uri = flow.locale, flow.callback_uri
+    if setup_action in {"install", "update"} and code is None:
+        client_id, _secret, _slug = settings.github_connector.credentials(purpose)
+        return (
+            locale,
+            "pending_approval",
+            _user_authorization_url(client_id=client_id, callback=callback_uri, state=state),
+        )
     flow.consumed_at = datetime.now(UTC)
     # A code exchange must never run twice after a lost callback response.
     await db.commit()
@@ -240,7 +264,7 @@ async def finish_connect(
         reason=reason,
         payload={"outcome": row.state, "purpose": purpose},
     )
-    return locale, row.state
+    return locale, row.state, None
 
 
 def _scope_record(
@@ -295,7 +319,15 @@ async def read_status(
                 if not installations:
                     raise GitHubError("selected_installation_required", status=403)
                 row.installations = _scope_record(repositories, installations)
-                status = status.model_copy(update={"repositories": repositories})
+                repositories = await _attach_platform_objects(
+                    db, account_id=ctx.account_id, repositories=repositories
+                )
+                status = status.model_copy(
+                    update={
+                        "repositories": repositories,
+                        "installations": _installation_views(repositories, installations),
+                    }
+                )
             except GitHubError as error:
                 if error.status in {401, 403}:
                     row.state = "reauthorization_required"
@@ -320,6 +352,78 @@ async def read_status(
             )
         statuses.append(status)
     return GitHubConnectorStatus(connections=statuses)
+
+
+async def _attach_platform_objects(
+    db: AsyncSession, *, account_id: str, repositories: list[GitHubRepository]
+) -> list[GitHubRepository]:
+    repository_ids = {repository.repository_id for repository in repositories}
+    if not repository_ids:
+        return repositories
+    rows = (
+        await db.execute(
+            select(GitHubSourceBinding, PublicationPlan)
+            .join(PublicationPlan, PublicationPlan.source_binding_id == GitHubSourceBinding.id)
+            .where(
+                GitHubSourceBinding.account_id == account_id,
+                GitHubSourceBinding.repository_id.in_(repository_ids),
+                PublicationPlan.state == "published",
+            )
+        )
+    ).all()
+    by_repository: dict[int, list[GitHubPlatformObject]] = {}
+    for binding, plan in rows:
+        name = plan.passport.get("name")
+        by_repository.setdefault(binding.repository_id, []).append(
+            GitHubPlatformObject(
+                object_kind=plan.object_kind,  # type: ignore[arg-type]
+                stable_id=plan.stable_id,
+                version=plan.version,
+                name=name if isinstance(name, str) and name else plan.stable_id,
+                visibility=plan.visibility,  # type: ignore[arg-type]
+            )
+        )
+    return [
+        repository.model_copy(
+            update={"platform_objects": by_repository.get(repository.repository_id, [])}
+        )
+        for repository in repositories
+    ]
+
+
+def _installation_views(
+    repositories: list[GitHubRepository], installations: list[dict[str, object]]
+) -> list[GitHubInstallation]:
+    views: list[GitHubInstallation] = []
+    for item in installations:
+        account = object_data(item.get("account"))
+        account_id = positive_id(account.get("id"))
+        login = account.get("login")
+        account_type = account.get("type")
+        selection = item.get("repository_selection")
+        if (
+            not isinstance(login, str)
+            or account_type not in {"User", "Organization"}
+            or selection not in {"all", "selected"}
+        ):
+            raise GitHubError("invalid_upstream_response")
+        installation_id = positive_id(item.get("id"))
+        views.append(
+            GitHubInstallation(
+                installation_id=installation_id,
+                account_id=account_id,
+                account_login=login,
+                account_type=account_type,  # type: ignore[arg-type]
+                account_html_url=f"https://github.com/{login}",
+                repository_selection=selection,  # type: ignore[arg-type]
+                repositories=[
+                    repository
+                    for repository in repositories
+                    if repository.installation_id == installation_id
+                ],
+            )
+        )
+    return views
 
 
 async def disconnect(db: AsyncSession, *, ctx: AuthContext, purpose: ConnectorPurpose) -> None:

@@ -109,11 +109,15 @@ async def selected_installations(
 ) -> list[dict[str, object]]:
     installations = await _pages(client, "/user/installations", token=token, field="installations")
     expected_slug = settings.credentials(purpose)[2]
-    allowed: list[dict[str, object]] = []
+    selected: list[dict[str, object]] = []
     for item in installations:
         if item.get("app_slug") != expected_slug or item.get("suspended_at") is not None:
             continue
-        if item.get("repository_selection") != "selected":
+        account = object_data(item.get("account"))
+        repository_selection = item.get("repository_selection")
+        if account.get("type") not in {"User", "Organization"}:
+            continue
+        if repository_selection not in {"all", "selected"}:
             continue
         permissions = object_data(item.get("permissions"))
         if permissions.get("metadata") != "read" or permissions.get("contents") != "read":
@@ -122,8 +126,8 @@ async def selected_installations(
         if purpose == "administration" and administration != "write":
             continue
         positive_id(item.get("id"))
-        allowed.append(item)
-    return allowed
+        selected.append(item)
+    return selected
 
 
 def repository_view(
@@ -148,6 +152,7 @@ def repository_view(
         repository_id=positive_id(raw.get("id")),
         owner_id=positive_id(owner.get("id")),
         full_name=name,
+        html_url=f"https://github.com/{name}",
         owner_type=owner_type,  # type: ignore[arg-type]
         private=private,
         can_administer=purpose == "administration" and permissions.get("admin") is True,

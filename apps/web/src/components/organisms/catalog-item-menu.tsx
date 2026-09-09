@@ -1,7 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/atoms/button";
@@ -14,9 +14,10 @@ import { Icon } from "@/theme";
 type CatalogItemMenuProps = {
   kind: "component" | "setup";
   stableId: string;
-  version: string;
+  version?: string | null;
   href: string;
   initiallyLiked?: boolean;
+  leadingItems?: ReactNode[];
   labels: {
     more: string;
     copyUrl: string;
@@ -38,6 +39,7 @@ export function CatalogItemMenu({
   version,
   href,
   initiallyLiked = false,
+  leadingItems,
   labels,
 }: CatalogItemMenuProps) {
   const [reportOpen, setReportOpen] = useState(false);
@@ -56,7 +58,7 @@ export function CatalogItemMenu({
     try {
       return buildDeepLink(
         window.location.origin,
-        normalizeTarget({ kind, stable_id: stableId, version, locale }),
+        normalizeTarget({ kind, stable_id: stableId, version: version ?? "", locale }),
       ).web_url;
     } catch {
       const prefix = localeMatch?.[0] ?? "";
@@ -86,6 +88,10 @@ export function CatalogItemMenu({
             collisionPadding={12}
             className="border-border bg-popover text-popover-foreground z-[80] max-w-[calc(100vw-1.5rem)] min-w-56 rounded-lg border p-1 shadow-md"
           >
+            {leadingItems}
+            {leadingItems?.length ? (
+              <DropdownMenu.Separator className="border-border my-1 border-t" />
+            ) : null}
             <DropdownMenu.Item
               className={itemClassName}
               onSelect={() => {
@@ -146,7 +152,7 @@ export function CatalogItemMenu({
       </DropdownMenu.Root>
       <ContactReportDialog
         kind={kind}
-        target={`${stableId}@${version}`}
+        target={`${stableId}${version ? `@${version}` : ""}`}
         label={labels.report}
         hideTrigger
         open={reportOpen}

@@ -1,4 +1,4 @@
-/** Accept only a catalog return path in the current locale. */
+/** Accept only a local catalog or owner-workspace return path. */
 export function catalogReturnHref(
   value: string | string[] | undefined,
   locale: string,
@@ -8,10 +8,12 @@ export function catalogReturnHref(
   try {
     const base = "https://catalog.invalid";
     const url = new URL(value, base);
-    if (url.origin !== base || !["/catalog", `/${locale}/catalog`].includes(url.pathname)) {
+    const allowed = ["/catalog", `/${locale}/catalog`, "/objects", `/${locale}/objects`];
+    if (url.origin !== base || !allowed.includes(url.pathname)) {
       return fallback;
     }
-    return `/catalog${url.search}${url.hash}`;
+    const pathname = url.pathname.endsWith("/objects") ? "/objects" : "/catalog";
+    return `${pathname}${url.search}${url.hash}`;
   } catch {
     return fallback;
   }

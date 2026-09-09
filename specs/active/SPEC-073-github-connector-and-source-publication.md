@@ -1,13 +1,13 @@
 ---
 description: "SPEC-073: Selected GitHub App source access and separately confirmed repository management."
-last_verified: "2026-09-08"
+last_verified: "2026-09-09"
 ---
 
 # SPEC-073: GitHub Connector and source publication
 
 ## Purpose
 
-An authenticated owner connects selected GitHub repositories, publishes a component
+An authenticated owner connects authorized GitHub repositories, publishes a component
 from an exact snapshot and separately decides whether to invite a collaborator or
 expose a repository. GitHub sign-in continues to establish identity only.
 
@@ -25,9 +25,13 @@ encryption and general RBAC are separate work.
 ## Terms
 
 A connector is one account's explicit GitHub App user authorization. An installation
-scope is the live intersection of that user's access and the App's selected
-repositories. A source binding is a server-only immutable association of repository
-identity, exact commit, subpath and canonical artifact with a publication.
+scope is the live intersection of that user's access and the App's repositories. The
+scope may contain multiple personal and organization installations, each retaining its
+GitHub account identity and repository-selection mode. A source binding is a
+server-only immutable association of repository identity, exact commit, subpath and
+canonical artifact with a publication. Installation scopes are displayed separately and
+are never collapsed into one account or silently discarded when another installation
+grants all repositories.
 An administrative connector is separately consented authority for repository
 administration; a component grant never confers that authority.
 
@@ -35,21 +39,25 @@ administration; a component grant never confers that authority.
 
 - `REQ-7301`: Normal GitHub sign-in never authorizes private source access. A
   separate authenticated, CSRF-protected connect action starts an account/session-
-  bound, expiring, one-use OAuth flow. Callback replay, another account, a missing
-  session and a mismatched GitHub identity refuse.
+  bound, expiring, one-use OAuth flow. Installation links carry the same one-use
+  state before the external page opens, so an installation callback can continue
+  the flow without accepting an unbound GitHub redirect. Callback replay, another
+  account, a missing session and a mismatched GitHub identity refuse.
 - `REQ-7302`: Ordinary connection uses a public GitHub App with metadata and
-  contents read and repository administration write. Personal and organization
-  installations support selected repositories. The same App is used for source and
-  administration, but administration is a separate explicit consent and every
-  mutation has its own plan and confirmation. Ordinary source operations never
-  mutate GitHub.
+  contents read and repository administration write. It includes every active personal
+  or organization installation returned for the connected GitHub identity, whether the
+  installation grants all repositories or only selected repositories. The API and UI
+  preserve installation account identity and show each installation separately. The
+  same App is used for source and administration, but administration is a separate
+  explicit consent and every mutation has its own plan and confirmation. Ordinary
+  source operations never mutate GitHub.
 - `REQ-7303`: Expiring user tokens are stored encrypted on the server with a
   dedicated deployment key and account/purpose binding. Tokens, refresh material
   and App credentials never enter browser storage, passports, audit payloads,
   public responses or logs. Expired authorization requires reconnection.
-- `REQ-7304`: Repository reads recheck live user installation membership, selected
-  repository identity and effective contents permission. Missing, expired,
-  revoked, suspended, unselected or insufficient access fails closed; cached
+- `REQ-7304`: Repository reads recheck live user installation membership, authorized
+  repository identity and effective contents permission. Missing, expired, revoked,
+  suspended, unselected or insufficient access fails closed; cached
   metadata is not authority. Organization approval remains an explicit pending
   result, not a successful connection.
 - `REQ-7305`: Disconnect removes usable local token material and makes subsequent
@@ -119,8 +127,10 @@ administration; a component grant never confers that authority.
 - `REQ-7317`: Account and owner interfaces expose one connector status, selected
   repositories and disconnect. Component visibility belongs to the owned-object
   action menu; repository visibility belongs to the connector repository list.
-  A disconnected account can start the GitHub App installation before a GitHub
-  identity is linked; the authorize branch still requires the linked identity.
+  Installation and user authorization are separate steps. The connector links the
+  GitHub identity first, installs/selects repositories second, and starts the OAuth
+  web flow with an explicit environment callback last. OAuth during installation is
+  disabled because GitHub otherwise always selects the App's first callback URL.
   Both use separately confirmed plans in English and Russian. Keyboard,
   narrow-screen, busy, failure and retry states remain usable and failed status
   or connect requests are visible to the user. The CLI uses the same
@@ -141,7 +151,7 @@ requires reauthorization. Repository plans are `planned`, `applied`, `failed` or
 ```mermaid
 stateDiagram-v2
     [*] --> disconnected
-    disconnected --> pending_approval: installation requested
+    disconnected --> pending_approval: organization approval requested
     disconnected --> connected: authorized selected installation
     pending_approval --> connected: approval and authorization
     connected --> reauthorization_required: expiry or revocation

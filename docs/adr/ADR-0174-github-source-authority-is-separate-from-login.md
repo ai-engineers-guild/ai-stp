@@ -24,6 +24,11 @@ installation scope and user permissions before source access or administration.
 Expiration requires reconnection; refresh tokens are not retained. Sign-in
 credentials are never substituted.
 
+Keep App installation separate from user authorization and disable OAuth during
+installation. The explicit web authorization request carries the environment's
+registered `redirect_uri`; GitHub otherwise selects the first callback configured on
+the App, which cannot support production and localhost with one registration.
+
 Keep source access and administration as separate consent records even though they
 use the same App registration. A management action requires selected repository
 access, current user admin authority and its own durable plan plus confirmation.

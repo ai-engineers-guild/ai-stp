@@ -81,6 +81,6 @@ last_verified: "2026-08-03"
 | [SPEC-070-environment-prerequisite-inspection.md](SPEC-070-environment-prerequisite-inspection.md) | SPEC-070: Inspect exact setup prerequisites and expose executable preparation steps. | 2026-09-07 |
 | [SPEC-071-private-first-agent-distribution.md](SPEC-071-private-first-agent-distribution.md) | SPEC-071: Private-first CLI distribution with explicit owner-controlled public exposure. | 2026-09-07 |
 | [SPEC-072-cli-self-update.md](SPEC-072-cli-self-update.md) | SPEC-072: Self-update of the installed ai-stp-cli distribution via PyPI. | 2026-09-08 |
-| [SPEC-073-github-connector-and-source-publication.md](SPEC-073-github-connector-and-source-publication.md) | SPEC-073: Selected GitHub App source access and separately confirmed repository management. | 2026-09-08 |
+| [SPEC-073-github-connector-and-source-publication.md](SPEC-073-github-connector-and-source-publication.md) | SPEC-073: Selected GitHub App source access and separately confirmed repository management. | 2026-09-09 |
 
 <!-- END CONTENTS -->

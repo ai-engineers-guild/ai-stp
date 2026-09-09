@@ -1,8 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
-import { Button } from "@/components/atoms/button";
 import { VisibilityLabel } from "@/components/molecules/visibility-label";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -13,7 +12,6 @@ import { readOwnerExternalProducts, readOwnerObject } from "@/lib/api/owner";
 import { readCsrfToken } from "@/lib/auth/session";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
-import { Icon } from "@/theme";
 
 type PageProps = {
   params: Promise<{ locale: string; kind: string; stableId: string }>;
@@ -24,6 +22,9 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
   setRequestLocale(locale);
   if (kind !== "component" && kind !== "setup") {
     notFound();
+  }
+  if (kind === "component") {
+    redirect(`/${locale}/catalog/components/${stableId}?return_to=%2Fobjects`);
   }
   await requireSession(locale, `/${locale}/objects/${kind}/${stableId}`);
   const t = await getTranslations("objects");
@@ -58,6 +59,10 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
     throw error;
   }
 
+  if (detail.versions[0]?.visibility === "public") {
+    redirect(`/catalog/setups/${stableId}`);
+  }
+
   return (
     <div className="space-y-6">
       <HistoryBackButton label={t("backToObjects")} fallback="/objects" />
@@ -73,31 +78,6 @@ export default async function OwnerObjectDetailPage({ params }: PageProps) {
         </p>
         <h1 className="text-3xl font-medium tracking-tight">{detail.name}</h1>
         <p className="text-muted-foreground font-mono text-xs">{detail.stable_id}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {detail.versions.some((version) => version.visibility === "public") ? (
-            <Button asChild variant="outline">
-              <Link
-                href={`/catalog/${kind === "component" ? "components" : "setups"}/${stableId}`}
-                prefetch={false}
-              >
-                <Icon name="eye" size="sm" /> {t("viewPublic")}
-              </Link>
-            </Button>
-          ) : null}
-          <Button asChild>
-            <Link href={`/objects/${kind}/${stableId}/edit`} prefetch={false}>
-              <Icon name="edit" size="sm" /> {t("editPresentation")}
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link
-              href={`/access?object_kind=${kind}&stable_id=${encodeURIComponent(stableId)}`}
-              prefetch={false}
-            >
-              {t("manageAccess")}
-            </Link>
-          </Button>
-        </div>
       </div>
 
       {process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED !== "false" ? (

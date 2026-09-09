@@ -25,6 +25,13 @@
           ],
           "default": null
         },
+        "installations": {
+          "items": {
+            "$ref": "#/$defs/GitHubInstallation"
+          },
+          "title": "Installations",
+          "type": "array"
+        },
         "purpose": {
           "$ref": "#/$defs/ConnectorPurpose"
         },
@@ -61,12 +68,116 @@
       "required": [
         "configured",
         "expires_at",
+        "installations",
         "purpose",
         "reason",
         "repositories",
         "state"
       ],
       "title": "GitHubConnectionStatus",
+      "type": "object"
+    },
+    "GitHubInstallation": {
+      "additionalProperties": true,
+      "description": "One connected personal or organization GitHub App installation.",
+      "properties": {
+        "account_html_url": {
+          "pattern": "^https://github\\.com/[A-Za-z0-9-]+$",
+          "title": "Account Html Url",
+          "type": "string"
+        },
+        "account_id": {
+          "$ref": "#/$defs/RepositoryId"
+        },
+        "account_login": {
+          "$ref": "#/$defs/GitHubUsername"
+        },
+        "account_type": {
+          "enum": [
+            "User",
+            "Organization"
+          ],
+          "title": "Account Type",
+          "type": "string"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/RepositoryId"
+        },
+        "repositories": {
+          "items": {
+            "$ref": "#/$defs/GitHubRepository"
+          },
+          "title": "Repositories",
+          "type": "array"
+        },
+        "repository_selection": {
+          "enum": [
+            "all",
+            "selected"
+          ],
+          "title": "Repository Selection",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_html_url",
+        "account_id",
+        "account_login",
+        "account_type",
+        "installation_id",
+        "repositories",
+        "repository_selection"
+      ],
+      "title": "GitHubInstallation",
+      "type": "object"
+    },
+    "GitHubPlatformObject": {
+      "additionalProperties": true,
+      "description": "An ai-stp object published from the connected repository.",
+      "properties": {
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "object_kind": {
+          "enum": [
+            "component",
+            "setup"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "stable_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "visibility": {
+          "enum": [
+            "private",
+            "public"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "object_kind",
+        "stable_id",
+        "version",
+        "visibility"
+      ],
+      "title": "GitHubPlatformObject",
       "type": "object"
     },
     "GitHubRepository": {
@@ -81,6 +192,11 @@
           "maxLength": 256,
           "pattern": "^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$",
           "title": "Full Name",
+          "type": "string"
+        },
+        "html_url": {
+          "pattern": "^https://github\\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+$",
+          "title": "Html Url",
           "type": "string"
         },
         "installation_id": {
@@ -105,6 +221,13 @@
           "title": "Permission",
           "type": "string"
         },
+        "platform_objects": {
+          "items": {
+            "$ref": "#/$defs/GitHubPlatformObject"
+          },
+          "title": "Platform Objects",
+          "type": "array"
+        },
         "private": {
           "title": "Private",
           "type": "boolean"
@@ -116,15 +239,21 @@
       "required": [
         "can_administer",
         "full_name",
+        "html_url",
         "installation_id",
         "owner_id",
         "owner_type",
         "permission",
+        "platform_objects",
         "private",
         "repository_id"
       ],
       "title": "GitHubRepository",
       "type": "object"
+    },
+    "GitHubUsername": {
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$",
+      "type": "string"
     },
     "RepositoryId": {
       "exclusiveMinimum": 0,

@@ -4943,6 +4943,13 @@
             ],
             "default": null
           },
+          "installations": {
+            "items": {
+              "$ref": "#/components/schemas/GitHubInstallation"
+            },
+            "title": "Installations",
+            "type": "array"
+          },
           "purpose": {
             "$ref": "#/components/schemas/ConnectorPurpose"
           },
@@ -4979,6 +4986,7 @@
         "required": [
           "configured",
           "expires_at",
+          "installations",
           "purpose",
           "reason",
           "repositories",
@@ -5021,6 +5029,60 @@
           "confirmed"
         ],
         "title": "GitHubDisconnectRequest",
+        "type": "object"
+      },
+      "GitHubInstallation": {
+        "additionalProperties": true,
+        "description": "One connected personal or organization GitHub App installation.",
+        "properties": {
+          "account_html_url": {
+            "pattern": "^https://github\\.com/[A-Za-z0-9-]+$",
+            "title": "Account Html Url",
+            "type": "string"
+          },
+          "account_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          },
+          "account_login": {
+            "$ref": "#/components/schemas/GitHubUsername"
+          },
+          "account_type": {
+            "enum": [
+              "User",
+              "Organization"
+            ],
+            "title": "Account Type",
+            "type": "string"
+          },
+          "installation_id": {
+            "$ref": "#/components/schemas/RepositoryId"
+          },
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/GitHubRepository"
+            },
+            "title": "Repositories",
+            "type": "array"
+          },
+          "repository_selection": {
+            "enum": [
+              "all",
+              "selected"
+            ],
+            "title": "Repository Selection",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_html_url",
+          "account_id",
+          "account_login",
+          "account_type",
+          "installation_id",
+          "repositories",
+          "repository_selection"
+        ],
+        "title": "GitHubInstallation",
         "type": "object"
       },
       "GitHubMetadata": {
@@ -5067,6 +5129,55 @@
         "title": "GitHubMetadata",
         "type": "object"
       },
+      "GitHubPlatformObject": {
+        "additionalProperties": true,
+        "description": "An ai-stp object published from the connected repository.",
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "object_kind": {
+            "enum": [
+              "component",
+              "setup"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          },
+          "visibility": {
+            "enum": [
+              "private",
+              "public"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "object_kind",
+          "stable_id",
+          "version",
+          "visibility"
+        ],
+        "title": "GitHubPlatformObject",
+        "type": "object"
+      },
       "GitHubRepository": {
         "additionalProperties": true,
         "description": "Selected repository metadata visible only to the connected account.",
@@ -5079,6 +5190,11 @@
             "maxLength": 256,
             "pattern": "^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$",
             "title": "Full Name",
+            "type": "string"
+          },
+          "html_url": {
+            "pattern": "^https://github\\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+$",
+            "title": "Html Url",
             "type": "string"
           },
           "installation_id": {
@@ -5103,6 +5219,13 @@
             "title": "Permission",
             "type": "string"
           },
+          "platform_objects": {
+            "items": {
+              "$ref": "#/components/schemas/GitHubPlatformObject"
+            },
+            "title": "Platform Objects",
+            "type": "array"
+          },
           "private": {
             "title": "Private",
             "type": "boolean"
@@ -5114,10 +5237,12 @@
         "required": [
           "can_administer",
           "full_name",
+          "html_url",
           "installation_id",
           "owner_id",
           "owner_type",
           "permission",
+          "platform_objects",
           "private",
           "repository_id"
         ],
@@ -21049,10 +21174,12 @@
                       "repository": {
                         "can_administer": true,
                         "full_name": "example/repository",
+                        "html_url": "https://github.com/example/repository",
                         "installation_id": 1001,
                         "owner_id": 3003,
                         "owner_type": "Organization",
                         "permission": "administration",
+                        "platform_objects": [],
                         "private": true,
                         "repository_id": 2002
                       },
@@ -21253,10 +21380,12 @@
                       "repository": {
                         "can_administer": true,
                         "full_name": "example/repository",
+                        "html_url": "https://github.com/example/repository",
                         "installation_id": 1001,
                         "owner_id": 3003,
                         "owner_type": "Organization",
                         "permission": "administration",
+                        "platform_objects": [],
                         "private": true,
                         "repository_id": 2002
                       },
@@ -21480,10 +21609,12 @@
                       "repository": {
                         "can_administer": true,
                         "full_name": "example/repository",
+                        "html_url": "https://github.com/example/repository",
                         "installation_id": 1001,
                         "owner_id": 3003,
                         "owner_type": "Organization",
                         "permission": "administration",
+                        "platform_objects": [],
                         "private": true,
                         "repository_id": 2002
                       },

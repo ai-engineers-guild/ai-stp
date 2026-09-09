@@ -31,6 +31,7 @@ import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
 import {
   catalogRelations,
+  isAuthorizedPrivateComponentVersion,
   readComponent,
   readComponentContextBudget,
   readComponentGithubMetadata,
@@ -78,10 +79,11 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   setRequestLocale(locale);
   const componentId = tryAsComponentId(stableId);
   if (!componentId) notFound();
+  const token = await sessionCookieValue();
 
   let detail;
   try {
-    detail = await readComponent(componentId);
+    detail = await readComponent(componentId, token);
   } catch (error) {
     if (error instanceof ApiError && error.code === "AI_STP_NOT_FOUND") notFound();
     const tc = await getTranslations("common");
@@ -98,7 +100,12 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
 
   const seo = await readSeoProfile("component", stableId, locale);
   const summary = detail.summary;
-  const latest = await readLatestComponentVersion(stableId, summary.latest_version);
+  const latest = await readLatestComponentVersion(stableId, summary.latest_version, token);
+  const isPrivate = await isAuthorizedPrivateComponentVersion(
+    componentId,
+    asVersionId(summary.latest_version),
+    token,
+  );
   const passport = latest?.passport;
   const sourceLinks = sourceLinksFor(passport?.source, passport?.facts).map((item) => ({
     ...item,
@@ -108,15 +115,15 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   const targetMatrix = (detail as unknown as { target_matrix?: typeof detail.target_matrix })
     .target_matrix;
   const author = await readAuthor(ownerId);
-  const token = await sessionCookieValue();
   const isOwner = token ? await canEditComponent(token, stableId) : false;
   const initiallyLiked = token ? await isLiked(token, "component", stableId) : false;
   const metadata = await readComponentGithubMetadata(
     componentId,
     asVersionId(summary.latest_version),
+    token,
   ).catch(() => ({ schema_version: 1 as const, stars: null, archived: null }));
   const { budget, failure: budgetFailure } = await loadContextBudget(
-    readComponentContextBudget(componentId, asVersionId(summary.latest_version)),
+    readComponentContextBudget(componentId, asVersionId(summary.latest_version), token),
   );
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=component&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
@@ -174,7 +181,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
         source={passport?.source}
         sourceLinks={sourceLinks}
         viewSourceLabel={t("viewSourceOnGithub")}
-        visibility="public"
+        visibility={isPrivate ? "private" : "public"}
         publicVisibilityLabel={t("public")}
         privateVisibilityLabel={t("private")}
         like={{
@@ -309,7 +316,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               copiedLabel={tCli("copied")}
               errorLabel={tCli("copyError")}
               docsLabel={tCli("docs")}
-              visibility="public"
+              visibility={passport?.visibility === "private" ? "private" : "public"}
               publicLabel={t("public")}
               privateLabel={t("private")}
             />
@@ -344,11 +351,15 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   );
 }
 
-async function readLatestComponentVersion(stableId: string, version: string) {
+async function readLatestComponentVersion(
+  stableId: string,
+  version: string,
+  sessionToken?: string | null,
+) {
   const componentId = tryAsComponentId(stableId);
   if (!componentId) return null;
   try {
-    return await readComponentVersion(componentId, asVersionId(version));
+    return await readComponentVersion(componentId, asVersionId(version), sessionToken);
   } catch {
     return null;
   }

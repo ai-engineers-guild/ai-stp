@@ -49,6 +49,7 @@ def response(plan: GitHubActionPlan) -> GitHubActionPlanResponse:
                 "repository_id": plan.repository_id,
                 "owner_id": plan.repository_owner_id,
                 "full_name": plan.repository_full_name,
+                "html_url": f"https://github.com/{plan.repository_full_name}",
                 "owner_type": plan.repository_owner_type,
                 "private": plan.previous_visibility == "private",
                 "can_administer": True,
