@@ -17728,7 +17728,7 @@
                     "summary": "The passport is the description of the version (ADR-0012); its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
                     "value": {
                       "checks": null,
-                      "distribution_visibility": "public",
+                      "distribution_visibility": null,
                       "lifecycle": "active",
                       "passport": {
                         "adaptations": [
