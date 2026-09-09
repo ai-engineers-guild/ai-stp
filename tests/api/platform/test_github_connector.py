@@ -70,6 +70,7 @@ class GitHub:
                         {
                             "id": index,
                             "app_slug": slug,
+                            "account": {"id": 7, "login": "example", "type": "User"},
                             "repository_selection": "selected",
                             "suspended_at": "2026-09-07T00:00:00Z" if self.suspended else None,
                             "permissions": {"metadata": "read", "contents": "read", **permissions},
@@ -83,6 +84,7 @@ class GitHub:
         repo = {
             "id": 42,
             "full_name": self.full_name,
+            "html_url": f"https://github.com/{self.full_name}",
             "private": self.private,
             "owner": {"id": 7, "type": self.owner_type},
             "permissions": {"pull": True, "admin": self.admin},

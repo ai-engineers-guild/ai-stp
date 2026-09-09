@@ -1,9 +1,9 @@
 import type { ComponentId, CursorToken, SetupId, VersionId } from "@/lib/brands";
 import { CATALOG_DEFAULT_PAGE_SIZE } from "@/lib/catalog-query";
 import { ApiError } from "@/lib/api/errors";
-import { apiRequest } from "@/lib/api/http";
 import { publicApiGet, publicApiGetLive } from "@/lib/api/public-http";
 
+import { catalogPrivateGet } from "./catalog-private";
 import type {
   ComponentContextBudget,
   SetupContextBudget,
@@ -214,7 +214,7 @@ export async function readComponent(
 ): Promise<ComponentDetail> {
   const path = `/v1/catalog/components/${stableId}`;
   return sessionToken
-    ? apiRequest<ComponentDetail>(path, { sessionToken })
+    ? catalogPrivateGet<ComponentDetail>(path, sessionToken)
     : publicApiGet<ComponentDetail>(path);
 }
 
@@ -232,7 +232,7 @@ export async function readComponentVersion(
 ): Promise<ComponentVersionResponse> {
   const path = `/v1/catalog/components/${stableId}/versions/${version}`;
   return sessionToken
-    ? apiRequest<ComponentVersionResponse>(path, { sessionToken })
+    ? catalogPrivateGet<ComponentVersionResponse>(path, sessionToken)
     : publicApiGet<ComponentVersionResponse>(path);
 }
 
@@ -243,9 +243,10 @@ export async function isAuthorizedPrivateComponentVersion(
 ): Promise<boolean> {
   if (!sessionToken) return false;
   try {
-    await apiRequest(`/v1/catalog/components/${stableId}/versions/${version}/private`, {
+    await catalogPrivateGet(
+      `/v1/catalog/components/${stableId}/versions/${version}/private`,
       sessionToken,
-    });
+    );
     return true;
   } catch (error) {
     if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
@@ -269,7 +270,7 @@ export async function readComponentGithubMetadata(
 ): Promise<GitHubMetadata> {
   const path = `/v1/catalog/components/${stableId}/versions/${version}/github-metadata`;
   return sessionToken
-    ? apiRequest<GitHubMetadata>(path, { sessionToken })
+    ? catalogPrivateGet<GitHubMetadata>(path, sessionToken)
     : publicApiGetLive<GitHubMetadata>(path);
 }
 
@@ -298,6 +299,6 @@ export async function readComponentContextBudget(
 ): Promise<ComponentContextBudget> {
   const path = `/v1/catalog/components/${stableId}/versions/${version}/context-budget`;
   return sessionToken
-    ? apiRequest<ComponentContextBudget>(path, { sessionToken })
+    ? catalogPrivateGet<ComponentContextBudget>(path, sessionToken)
     : publicApiGetLive<ComponentContextBudget>(path);
 }
