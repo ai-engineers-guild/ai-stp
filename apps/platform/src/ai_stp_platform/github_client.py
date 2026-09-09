@@ -30,6 +30,11 @@ class GitHubReply:
     data: object = field(repr=False)
 
 
+def _api_url(path: str) -> str:
+    """Build an API URL without allowing path data to alter its authority."""
+    return f"{API_ROOT}{quote(path, safe='/?=&')}"
+
+
 def object_data(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or any(
         not isinstance(key, str) for key in cast(dict[object, object], value)
@@ -130,7 +135,7 @@ class GitHubClient:
         }
         if token:
             headers["Authorization"] = f"Bearer {token}"
-        response = await self._request(method, f"{API_ROOT}{path}", headers=headers, body=body)
+        response = await self._request(method, _api_url(path), headers=headers, body=body)
         if response.status_code not in accepted:
             raise _upstream_error(response.status_code, response.headers)
         if not response.body or response.status_code == 204:
