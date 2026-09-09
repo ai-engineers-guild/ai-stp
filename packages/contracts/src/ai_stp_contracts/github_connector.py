@@ -46,6 +46,18 @@ class GitHubDisconnectRequest(BaseModel):
     confirmed: Literal[True]
 
 
+class GitHubPlatformObject(BaseModel):
+    """An ai-stp object published from the connected repository."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    object_kind: Literal["component", "setup"]
+    stable_id: Annotated[str, Field(min_length=1, max_length=64)]
+    version: Annotated[str, Field(min_length=1, max_length=32)]
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+    visibility: Literal["private", "public"]
+
+
 class GitHubRepository(BaseModel):
     """Selected repository metadata visible only to the connected account."""
 
@@ -55,10 +67,26 @@ class GitHubRepository(BaseModel):
     repository_id: RepositoryId
     owner_id: RepositoryId
     full_name: Annotated[str, Field(pattern=r"^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$", max_length=256)]
+    html_url: Annotated[str, Field(pattern=r"^https://github\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+$")]
     owner_type: Literal["User", "Organization"]
     private: bool
     can_administer: bool
     permission: Literal["read", "administration"]
+    platform_objects: list[GitHubPlatformObject] = Field(default_factory=list[GitHubPlatformObject])
+
+
+class GitHubInstallation(BaseModel):
+    """One connected personal or organization GitHub App installation."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    installation_id: RepositoryId
+    account_id: RepositoryId
+    account_login: GitHubUsername
+    account_type: Literal["User", "Organization"]
+    account_html_url: Annotated[str, Field(pattern=r"^https://github\.com/[A-Za-z0-9-]+$")]
+    repository_selection: Literal["all", "selected"]
+    repositories: list[GitHubRepository] = Field(default_factory=list[GitHubRepository])
 
 
 class GitHubConnectionStatus(BaseModel):
@@ -69,6 +97,7 @@ class GitHubConnectionStatus(BaseModel):
     state: Literal["disconnected", "pending_approval", "connected", "reauthorization_required"]
     expires_at: Timestamp | None = None
     repositories: list[GitHubRepository] = Field(default_factory=list[GitHubRepository])
+    installations: list[GitHubInstallation] = Field(default_factory=list[GitHubInstallation])
     reason: str | None = None
 
 

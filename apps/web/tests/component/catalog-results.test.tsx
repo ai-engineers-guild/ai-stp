@@ -297,6 +297,20 @@ describe("CatalogResults", () => {
     expect(screen.queryByText("Author verified")).not.toBeInTheDocument();
     expect(screen.queryByText("active")).not.toBeInTheDocument();
 
+    const publicOwner = { ...owner, visibility: "public" as const };
+    renderResults({
+      items: [],
+      experimental: [],
+      ownerItems: [publicOwner],
+      ownerActions: { "component:component_owner_01": <button type="button">Manage</button> },
+      labels: { ...labels, publicVisibility: "public", privateVisibility: "private" },
+      view: "cards",
+    });
+    expect(screen.getAllByRole("link", { name: "Private owner row" }).at(-1)).toHaveAttribute(
+      "href",
+      "/catalog/components/component_owner_01?return_to=%2Fcatalog%3Fresource%3Dcomponents",
+    );
+
     renderResults({
       items: [],
       experimental: [],
@@ -305,7 +319,7 @@ describe("CatalogResults", () => {
       labels: { ...labels, publicVisibility: "public", privateVisibility: "private" },
       view: "list",
     });
-    expect(screen.getAllByRole("heading", { name: "Private owner row" })).toHaveLength(2);
+    expect(screen.getAllByRole("heading", { name: "Private owner row" })).toHaveLength(3);
   });
 
   it("shows one mixed page when all results fit within the requested page size", () => {

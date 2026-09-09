@@ -1,5 +1,7 @@
 import type { ComponentId, CursorToken, SetupId, VersionId } from "@/lib/brands";
 import { CATALOG_DEFAULT_PAGE_SIZE } from "@/lib/catalog-query";
+import { ApiError } from "@/lib/api/errors";
+import { apiRequest } from "@/lib/api/http";
 import { publicApiGet, publicApiGetLive } from "@/lib/api/public-http";
 
 import type {
@@ -206,8 +208,14 @@ export function catalogRelations(detail: { country_codes?: unknown; services?: u
   return { country_codes, services };
 }
 
-export async function readComponent(stableId: ComponentId): Promise<ComponentDetail> {
-  return publicApiGet<ComponentDetail>(`/v1/catalog/components/${stableId}`);
+export async function readComponent(
+  stableId: ComponentId,
+  sessionToken?: string | null,
+): Promise<ComponentDetail> {
+  const path = `/v1/catalog/components/${stableId}`;
+  return sessionToken
+    ? apiRequest<ComponentDetail>(path, { sessionToken })
+    : publicApiGet<ComponentDetail>(path);
 }
 
 export async function readSetup(stableId: SetupId): Promise<SetupDetail> {
@@ -220,10 +228,31 @@ export async function readSetup(stableId: SetupId): Promise<SetupDetail> {
 export async function readComponentVersion(
   stableId: ComponentId,
   version: VersionId,
+  sessionToken?: string | null,
 ): Promise<ComponentVersionResponse> {
-  return publicApiGet<ComponentVersionResponse>(
-    `/v1/catalog/components/${stableId}/versions/${version}`,
-  );
+  const path = `/v1/catalog/components/${stableId}/versions/${version}`;
+  return sessionToken
+    ? apiRequest<ComponentVersionResponse>(path, { sessionToken })
+    : publicApiGet<ComponentVersionResponse>(path);
+}
+
+export async function isAuthorizedPrivateComponentVersion(
+  stableId: ComponentId,
+  version: VersionId,
+  sessionToken?: string | null,
+): Promise<boolean> {
+  if (!sessionToken) return false;
+  try {
+    await apiRequest(`/v1/catalog/components/${stableId}/versions/${version}/private`, {
+      sessionToken,
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 export async function readSetupVersion(
@@ -236,10 +265,12 @@ export async function readSetupVersion(
 export async function readComponentGithubMetadata(
   stableId: ComponentId,
   version: VersionId,
+  sessionToken?: string | null,
 ): Promise<GitHubMetadata> {
-  return publicApiGetLive<GitHubMetadata>(
-    `/v1/catalog/components/${stableId}/versions/${version}/github-metadata`,
-  );
+  const path = `/v1/catalog/components/${stableId}/versions/${version}/github-metadata`;
+  return sessionToken
+    ? apiRequest<GitHubMetadata>(path, { sessionToken })
+    : publicApiGetLive<GitHubMetadata>(path);
 }
 
 export async function readSetupGithubMetadata(
@@ -263,8 +294,10 @@ export async function readSetupContextBudget(
 export async function readComponentContextBudget(
   stableId: ComponentId,
   version: VersionId,
+  sessionToken?: string | null,
 ): Promise<ComponentContextBudget> {
-  return publicApiGetLive<ComponentContextBudget>(
-    `/v1/catalog/components/${stableId}/versions/${version}/context-budget`,
-  );
+  const path = `/v1/catalog/components/${stableId}/versions/${version}/context-budget`;
+  return sessionToken
+    ? apiRequest<ComponentContextBudget>(path, { sessionToken })
+    : publicApiGetLive<ComponentContextBudget>(path);
 }

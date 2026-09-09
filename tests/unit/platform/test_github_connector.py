@@ -1,6 +1,7 @@
 """Synthetic GitHub transport and authority checks; no live credentials or repositories."""
 
 import base64
+import hashlib
 import io
 import json
 import os
@@ -9,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import httpx
@@ -18,7 +20,12 @@ from pydantic import SecretStr, ValidationError
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.github_connector import actions, service
 from ai_stp_contracts.github_connector import GitHubActionConfirmRequest, GitHubConnectRequest
-from ai_stp_platform.github_authority import decrypt_token, encrypt_token, require_repository
+from ai_stp_platform.github_authority import (
+    decrypt_token,
+    encrypt_token,
+    require_repository,
+    selected_installations,
+)
 from ai_stp_platform.github_client import GitHubClient, GitHubError
 from ai_stp_platform.github_models import GitHubActionPlan, GitHubAuthorizationFlow, GitHubConnector
 from ai_stp_platform.github_settings import GitHubConnectorSettings
@@ -71,6 +78,7 @@ def transport(
                         {
                             "id": 3,
                             "app_slug": "synthetic-github",
+                            "account": {"id": 7, "login": "example", "type": "User"},
                             "suspended_at": None,
                             "repository_selection": "selected",
                             "permissions": permissions,
@@ -88,6 +96,45 @@ def transport(
         raise AssertionError(f"unexpected synthetic route: {request.url.path}")
 
     return httpx.MockTransport(handle)
+
+
+@pytest.mark.asyncio
+async def test_personal_and_organization_installations_are_preserved() -> None:
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path != "/user/installations":
+            raise AssertionError(f"unexpected synthetic route: {request.url.path}")
+        return httpx.Response(
+            200,
+            json={
+                "installations": [
+                    {
+                        "id": 7,
+                        "app_slug": "synthetic-github",
+                        "account": {"id": 7, "login": "letya999", "type": "User"},
+                        "suspended_at": None,
+                        "repository_selection": "all",
+                        "permissions": {"metadata": "read", "contents": "read"},
+                    },
+                    {
+                        "id": 8,
+                        "app_slug": "synthetic-github",
+                        "account": {"id": 8, "login": "ai-engineers-guild", "type": "Organization"},
+                        "suspended_at": None,
+                        "repository_selection": "selected",
+                        "permissions": {"metadata": "read", "contents": "read"},
+                    },
+                ]
+            },
+        )
+
+    installations = await selected_installations(
+        GitHubClient(httpx.MockTransport(handle)),
+        token=uuid4().hex,
+        purpose="source",
+        settings=config(),
+    )
+
+    assert [item["id"] for item in installations] == [7, 8]
 
 
 def test_encrypted_tokens_bind_account_purpose_and_expiry() -> None:
@@ -155,22 +202,66 @@ async def test_app_install_does_not_require_linked_github_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class Database:
+        values: list[object]
+
+        def __init__(self) -> None:
+            self.values = []
+
         def add(self, _value: object) -> None:
-            return None
+            self.values.append(_value)
 
     monkeypatch.setattr(service, "emit_audit", AsyncMock())
     settings = SimpleNamespace(
         github_connector=config(),
         auth=SimpleNamespace(oauth_callback_base=lambda: "https://ai-stp.test"),
     )
+    database = Database()
     response = await service.start_connect(
-        cast(Any, Database()),
+        cast(Any, database),
         ctx=context(),
         body=GitHubConnectRequest(mode="install", confirmed=True),
         settings=cast(Any, settings),
     )
 
+    query = parse_qs(urlsplit(response.authorization_url).query)
     assert "/apps/synthetic-github/installations/new" in response.authorization_url
+    assert len(database.values) == 1
+    flow = cast(GitHubAuthorizationFlow, database.values[0])
+    assert query["state"]
+    assert flow.state_hash == hashlib.sha256(query["state"][0].encode()).hexdigest()
+    assert flow.callback_uri == "https://ai-stp.test/v1/connectors/github/callback"
+
+
+@pytest.mark.asyncio
+async def test_explicit_authorization_selects_the_configured_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Database:
+        values: list[object]
+
+        def __init__(self) -> None:
+            self.values = []
+
+        def add(self, value: object) -> None:
+            self.values.append(value)
+
+    monkeypatch.setattr(service, "emit_audit", AsyncMock())
+    monkeypatch.setattr(service, "_linked_subject", AsyncMock(return_value="7"))
+    settings = SimpleNamespace(
+        github_connector=config(),
+        auth=SimpleNamespace(oauth_callback_base=lambda: "https://ai-stp.test"),
+    )
+    database = Database()
+    response = await service.start_connect(
+        cast(Any, database),
+        ctx=context(),
+        body=GitHubConnectRequest(mode="authorize", confirmed=True),
+        settings=cast(Any, settings),
+    )
+
+    query = parse_qs(urlsplit(response.authorization_url).query)
+    assert query["redirect_uri"] == ["https://ai-stp.test/v1/connectors/github/callback"]
+    assert cast(Any, database.values[0]).callback_uri == query["redirect_uri"][0]
 
 
 @pytest.mark.asyncio

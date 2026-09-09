@@ -77,6 +77,7 @@ from ai_stp_platform.catalog_read import (
     get_public_object_versions,
     get_public_version,
     get_visible_metadata,
+    get_visible_object_versions,
 )
 from ai_stp_platform.catalog_search import (
     relation_filter_signature,
@@ -841,9 +842,15 @@ async def _object_media(session: AsyncSession, stable_id: str) -> list[Component
     return media
 
 
-async def read_component(session: AsyncSession, stable_id: str) -> ComponentDetail:
-    versions = await get_public_object_versions(
-        session, object_kind="component", stable_id=stable_id
+async def read_component(
+    session: AsyncSession, stable_id: str, *, account_id: str | None = None
+) -> ComponentDetail:
+    versions = (
+        await get_public_object_versions(session, object_kind="component", stable_id=stable_id)
+        if account_id is None
+        else await get_visible_object_versions(
+            session, object_kind="component", stable_id=stable_id, account_id=account_id
+        )
     )
     if not versions:
         raise CatalogNotFound
@@ -852,7 +859,12 @@ async def read_component(session: AsyncSession, stable_id: str) -> ComponentDeta
         assessments = await load_effective_assessments(
             session, component_stable_id=stable_id, version=latest.version
         )
-        detail = component_detail(versions, now=datetime.now(UTC), assessments=assessments)
+        detail = component_detail(
+            versions,
+            now=datetime.now(UTC),
+            assessments=assessments,
+            allow_private=account_id is not None,
+        )
         media = await _object_media(session, stable_id)
         country_codes, services = await read_object_relations(
             session, object_kind="component", stable_id=stable_id
@@ -899,18 +911,52 @@ async def read_setup(session: AsyncSession, stable_id: str) -> SetupDetail:
 
 
 async def read_component_version(
-    session: AsyncSession, stable_id: str, version: str
+    session: AsyncSession,
+    stable_id: str,
+    version: str,
+    *,
+    account_id: str | None = None,
 ) -> ComponentVersionResponse:
-    row = await get_public_version(
-        session, object_kind="component", stable_id=stable_id, version=version
-    )
-    if row is None:
-        raise CatalogNotFound
+    if account_id is None:
+        row = await get_public_version(
+            session, object_kind="component", stable_id=stable_id, version=version
+        )
+        if row is None:
+            raise CatalogNotFound
+    else:
+        metadata = await get_visible_metadata(
+            session,
+            object_kind="component",
+            stable_id=stable_id,
+            version=version,
+            account_id=account_id,
+        )
+        if metadata is None:
+            raise CatalogNotFound
+        row = PublicVersionRow(
+            metadata=metadata,
+            passport=dict(metadata.passport_document or {}),
+            passport_digest=metadata.passport_digest or "",
+            published_at=metadata.published_at,  # type: ignore[arg-type]
+            trust_lane=metadata.trust_lane or "experimental",
+            author_verified=bool(metadata.author_verified),
+            component_verified=bool(metadata.component_verified),
+            lifecycle=metadata.lifecycle_state,
+            stable_id=stable_id,
+            version=version,
+            object_kind="component",
+            support_evidence=list(metadata.support_evidence or []),
+        )
     try:
         assessments = await load_effective_assessments(
             session, component_stable_id=stable_id, version=version
         )
-        return component_version_response(row, now=datetime.now(UTC), assessments=assessments)
+        return component_version_response(
+            row,
+            now=datetime.now(UTC),
+            assessments=assessments,
+            allow_private=account_id is not None,
+        )
     except CatalogIntegrityError as exc:
         raise _corrupt(exc, object_kind="component", stable_id=stable_id, version=version) from exc
 

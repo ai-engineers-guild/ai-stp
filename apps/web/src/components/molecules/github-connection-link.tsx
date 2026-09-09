@@ -1,64 +1,55 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { githubConnect, githubStatus } from "@/actions/github";
+import { githubStatus } from "@/actions/github";
 import { Button } from "@/components/atoms/button";
+import { Skeleton } from "@/components/atoms/skeleton";
 import { Link } from "@/lib/i18n/navigation";
+import type { GitHubConnectionStatus } from "@/lib/api/generated/types.gen";
 import { Icon } from "@/theme";
 
 export function GitHubConnectionLink({
   csrfToken,
-  locale,
   compact = false,
 }: {
   csrfToken: string;
-  locale: "en" | "ru";
   compact?: boolean;
 }) {
   const t = useTranslations("githubConnector");
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [connectionState, setConnectionState] = useState<GitHubConnectionStatus["state"] | null>(
+    null,
+  );
   const [error, setError] = useState(false);
-  const [busy, start] = useTransition();
 
   useEffect(() => {
     void githubStatus(csrfToken).then((result) => {
-      setConnected(result.ok && result.data.connections.some((item) => item.state === "connected"));
+      const source = result.ok
+        ? result.data.connections.find((item) => item.purpose === "source")
+        : undefined;
+      setConnectionState(source?.state ?? (result.ok ? "disconnected" : null));
+      setConnected(source?.state === "connected");
       setError(!result.ok);
     });
   }, [csrfToken]);
 
-  function connect() {
-    setError(false);
-    start(async () => {
-      const result = await githubConnect(csrfToken, {
-        purpose: "source",
-        locale,
-        mode: "install",
-        confirmed: true,
-      });
-      if (result.ok) window.location.assign(result.data.authorization_url);
-      else setError(true);
-    });
-  }
-
   const statusLabel =
-    connected === null ? t("loading") : connected ? t("connected") : t("disconnected");
+    connectionState === null
+      ? t("loading")
+      : connectionState === "connected"
+        ? t("connected")
+        : connectionState === "reauthorization_required"
+          ? t("authorizationRequired")
+          : t("disconnected");
+  const checking = connectionState === null && !error;
   const action = connected ? (
     <Button asChild variant="outline" className="min-h-11 shrink-0">
       <Link href="/account/github">{t("manageShort")}</Link>
     </Button>
   ) : (
-    <Button
-      type="button"
-      variant="outline"
-      className="min-h-11 shrink-0"
-      disabled={busy || connected === null}
-      aria-busy={busy}
-      title={error ? t("error") : undefined}
-      onClick={connect}
-    >
-      {t("connectShort")}
+    <Button asChild variant="outline" className="min-h-11 shrink-0">
+      <Link href="/account/github">{t("connectShort")}</Link>
     </Button>
   );
 
@@ -79,13 +70,17 @@ export function GitHubConnectionLink({
               connected ? "text-success" : "text-muted-foreground"
             }`}
           >
-            <span
-              aria-hidden="true"
-              className={`size-2 rounded-full ${connected ? "bg-success" : "bg-muted-foreground"}`}
-            />
+            {checking ? (
+              <Icon name="loader" size="sm" className="animate-spin" />
+            ) : (
+              <span
+                aria-hidden="true"
+                className={`size-2 rounded-full ${connected ? "bg-success" : "bg-muted-foreground"}`}
+              />
+            )}
             <span>{statusLabel}</span>
           </span>
-          {action}
+          {checking ? <Skeleton className="h-11 w-24 shrink-0" /> : action}
           {error ? (
             <span role="alert" className="text-destructive text-xs">
               {t("error")}
@@ -109,15 +104,9 @@ export function GitHubConnectionLink({
     );
   }
   return (
-    <button
-      type="button"
-      className={className}
-      disabled={busy || connected === null}
-      aria-busy={busy}
-      title={error ? t("error") : undefined}
-      onClick={connect}
-    >
-      {t("title")} · {t("disconnected")}
-    </button>
+    <Link href="/account/github" className={className}>
+      {checking ? <Icon name="loader" size="sm" className="mr-2 animate-spin" /> : null}
+      {t("title")} · {statusLabel}
+    </Link>
   );
 }

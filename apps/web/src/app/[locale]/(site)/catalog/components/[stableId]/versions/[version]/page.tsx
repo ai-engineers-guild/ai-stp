@@ -23,6 +23,7 @@ import {
   readComponentContextBudget,
   readComponentGithubMetadata,
   readComponentVersion,
+  isAuthorizedPrivateComponentVersion,
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsComponentId } from "@/lib/brands";
@@ -38,6 +39,7 @@ import { versionPageMetadata } from "@/lib/seo/metadata";
 import { Link } from "@/lib/i18n/navigation";
 import { sourceLinksFor } from "@/lib/source-url";
 import { VisibilityLabel } from "@/components/molecules/visibility-label";
+import { sessionCookieValue } from "@/lib/auth/require-session";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string; version: string }>;
@@ -55,10 +57,11 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   setRequestLocale(locale);
   const componentId = tryAsComponentId(stableId);
   if (!componentId) notFound();
+  const token = await sessionCookieValue();
 
   let response;
   try {
-    response = await readComponentVersion(componentId, asVersionId(version));
+    response = await readComponentVersion(componentId, asVersionId(version), token);
   } catch (error) {
     if (error instanceof ApiError && error.code === "AI_STP_NOT_FOUND") {
       notFound();
@@ -73,12 +76,17 @@ export default async function ComponentVersionPage({ params }: PageProps) {
   const t = await getTranslations("catalog");
   const tc = await getTranslations("common");
   const tCli = await getTranslations("cli");
+  const isPrivate = await isAuthorizedPrivateComponentVersion(
+    componentId,
+    asVersionId(version),
+    token,
+  );
 
   const { budget, failure } = await loadContextBudget(
-    readComponentContextBudget(componentId, asVersionId(version)),
+    readComponentContextBudget(componentId, asVersionId(version), token),
   );
   const passport = response.passport;
-  const catalogDetail = await readComponent(componentId).catch(() => null);
+  const catalogDetail = await readComponent(componentId, token).catch(() => null);
   const publisherId = catalogDetail?.summary.publisher_id || passport.owner_id;
   const harnesses = namedPassportHarnesses(passport);
   const supportedOperatingSystems = namedOperatingSystems(passport);
@@ -87,9 +95,11 @@ export default async function ComponentVersionPage({ params }: PageProps) {
     ...item,
     label: item.provider === "Source" ? t("viewSource") : `${t("viewSourceOn")} ${item.provider}`,
   }));
-  const metadata = await readComponentGithubMetadata(componentId, asVersionId(version)).catch(
-    () => ({ schema_version: 1 as const, stars: null, archived: null }),
-  );
+  const metadata = await readComponentGithubMetadata(
+    componentId,
+    asVersionId(version),
+    token,
+  ).catch(() => ({ schema_version: 1 as const, stars: null, archived: null }));
   const canonical = buildDeepLink(
     publicOrigin().origin,
     normalizeTarget({
@@ -113,7 +123,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
       </h1>
       <VisibilityLabel
         className="absolute top-0 right-4"
-        visibility="public"
+        visibility={isPrivate ? "private" : "public"}
         publicLabel={t("public")}
         privateLabel={t("private")}
       />
@@ -234,7 +244,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         copiedLabel={tCli("copied")}
         errorLabel={tCli("copyError")}
         docsLabel={tCli("docs")}
-        visibility="public"
+        visibility={isPrivate ? "private" : "public"}
         publicLabel={t("public")}
         privateLabel={t("private")}
       />

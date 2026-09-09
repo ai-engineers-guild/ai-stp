@@ -2443,6 +2443,10 @@ export type GitHubConnectionStatus = {
    */
   configured: boolean;
   expires_at: Timestamp | null;
+  /**
+   * Installations
+   */
+  installations: Array<GitHubInstallation>;
   purpose: ConnectorPurpose;
   /**
    * Reason
@@ -2482,6 +2486,34 @@ export type GitHubDisconnectRequest = {
 };
 
 /**
+ * GitHubInstallation
+ *
+ * One connected personal or organization GitHub App installation.
+ */
+export type GitHubInstallation = {
+  /**
+   * Account Html Url
+   */
+  account_html_url: string;
+  account_id: RepositoryId;
+  account_login: GitHubUsername;
+  /**
+   * Account Type
+   */
+  account_type: "User" | "Organization";
+  installation_id: RepositoryId;
+  /**
+   * Repositories
+   */
+  repositories: Array<GitHubRepository>;
+  /**
+   * Repository Selection
+   */
+  repository_selection: "all" | "selected";
+  [key: string]: unknown;
+};
+
+/**
  * GitHubMetadata
  *
  * Best-effort on-demand stars and archive state (SPEC-049).
@@ -2503,6 +2535,35 @@ export type GitHubMetadata = {
 };
 
 /**
+ * GitHubPlatformObject
+ *
+ * An ai-stp object published from the connected repository.
+ */
+export type GitHubPlatformObject = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Object Kind
+   */
+  object_kind: "component" | "setup";
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+  /**
+   * Visibility
+   */
+  visibility: "private" | "public";
+  [key: string]: unknown;
+};
+
+/**
  * GitHubRepository
  *
  * Selected repository metadata visible only to the connected account.
@@ -2516,6 +2577,10 @@ export type GitHubRepository = {
    * Full Name
    */
   full_name: string;
+  /**
+   * Html Url
+   */
+  html_url: string;
   installation_id: RepositoryId;
   owner_id: RepositoryId;
   /**
@@ -2526,6 +2591,10 @@ export type GitHubRepository = {
    * Permission
    */
   permission: "read" | "administration";
+  /**
+   * Platform Objects
+   */
+  platform_objects: Array<GitHubPlatformObject>;
   /**
    * Private
    */

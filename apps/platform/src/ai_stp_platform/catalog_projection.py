@@ -90,7 +90,7 @@ class _WiredSetupVersionResponse(SetupVersionResponse):
 
 def project_trust(row: PublicVersionRow) -> CatalogTrust:
     """Build CatalogTrust; authoritative only when both axes are true (REQ-2104)."""
-    lane = row.trust_lane
+    lane = row.trust_lane if row.trust_lane in {"authoritative", "experimental"} else "experimental"
     if lane == "authoritative" and not (row.author_verified and row.component_verified):
         # Never emit an invalid authoritative claim; fall back to experimental
         # only if the stored state is inconsistent. Honesty over labels (REQ-2111).
@@ -584,8 +584,10 @@ def _requirements_count(passport: ComponentVersionPassport | SetupVersionPasspor
     return count
 
 
-def version_list_entry(row: PublicVersionRow, *, now: datetime | None = None) -> VersionListEntry:
-    verify_passport_integrity(row)
+def version_list_entry(
+    row: PublicVersionRow, *, now: datetime | None = None, allow_private: bool = False
+) -> VersionListEntry:
+    verify_passport_integrity(row, allow_private=allow_private)
     passport_model = (
         ComponentVersionPassport if row.object_kind == "component" else SetupVersionPassport
     )
@@ -613,6 +615,7 @@ def component_detail(
     *,
     now: datetime | None = None,
     assessments: dict[tuple[str, str, str], EffectiveAssessment] | None = None,
+    allow_private: bool = False,
 ) -> ComponentDetail:
     if not versions:
         raise CatalogIntegrityError("no public versions")
@@ -629,8 +632,10 @@ def component_detail(
     )
     return ComponentDetail(
         presentation_bio=latest.metadata.presentation_bio,
-        summary=component_summary(latest, now=now, assessments=assessments),
-        versions=[version_list_entry(v, now=now) for v in versions],
+        summary=component_summary(
+            latest, now=now, assessments=assessments, allow_private=allow_private
+        ),
+        versions=[version_list_entry(v, now=now, allow_private=allow_private) for v in versions],
         target_matrix=project_target_matrix(
             passport,
             assessments=assessments,
@@ -661,8 +666,9 @@ def component_version_response(
     *,
     now: datetime | None = None,
     assessments: dict[tuple[str, str, str], EffectiveAssessment] | None = None,
+    allow_private: bool = False,
 ) -> ComponentVersionResponse:
-    verify_passport_integrity(row)
+    verify_passport_integrity(row, allow_private=allow_private)
     passport = component_passport(row.passport)
     support = project_support(
         passport.model_dump(mode="json"), row.support_evidence, now=now or datetime.now(UTC)

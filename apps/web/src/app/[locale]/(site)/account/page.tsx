@@ -132,11 +132,7 @@ export default async function AccountPage({ params }: PageProps) {
                 <h3 className="font-medium">{tg("title")}</h3>
                 <p className="text-muted-foreground text-xs">{tg("accountHint")}</p>
               </div>
-              <GitHubConnectionLink
-                csrfToken={csrfToken}
-                locale={locale === "ru" ? "ru" : "en"}
-                compact
-              />
+              <GitHubConnectionLink csrfToken={csrfToken} compact />
             </div>
           </section>
 

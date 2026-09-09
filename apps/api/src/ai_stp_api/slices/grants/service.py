@@ -136,6 +136,18 @@ async def create_direct_grant(
         )
     )
     if existing is not None:
+        if existing.state == "revoked":
+            existing.state = "active"
+            existing.revoked_at = None
+            await emit_audit(
+                db,
+                actor_account_id=ctx.account_id,
+                action="grant.reactivated",
+                target_table="access_grant",
+                target_id=existing.id,
+                payload={"recipient_kind": body.recipient_kind},
+            )
+            await db.flush()
         reference = await db.get(GrantRecipientReference, existing.id)
         return grant_to_wire(existing, reference)
     grant = AccessGrant(

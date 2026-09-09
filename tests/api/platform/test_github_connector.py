@@ -290,6 +290,38 @@ async def test_connect_scope_snapshot_disconnect_and_callback_replay(harness: Ha
     assert denied.status_code == 401
 
 
+async def test_install_callback_continues_to_user_authorization(harness: Harness) -> None:
+    h = harness
+    response = await h.client.post(
+        ROOT + "/connect",
+        headers=h.headers,
+        json={"confirmed": True, "mode": "install"},
+    )
+    assert response.status_code == 200, response.text
+    authorization_url = cast(str, response.json()["authorization_url"])
+    state = parse_qs(str(urlsplit(authorization_url).query))["state"][0]
+
+    installation = await h.client.get(
+        ROOT + "/callback",
+        headers=h.headers,
+        params={"state": state, "setup_action": "install", "installation_id": 3},
+    )
+    assert installation.status_code == 303
+    next_url = str(installation.headers["location"])
+    next_query = parse_qs(str(urlsplit(next_url).query))
+    assert urlsplit(next_url).path == "/login/oauth/authorize"
+    assert next_query["state"] == [state]
+
+    completed = await h.client.get(
+        ROOT + "/callback",
+        headers=h.headers,
+        params={"state": state, "code": uuid4().hex},
+    )
+    assert completed.status_code == 303
+    status = await h.client.get(ROOT, headers=h.headers)
+    assert status.json()["connections"][0]["state"] == "connected"
+
+
 @pytest.mark.parametrize("owner_type", ["User", "Organization"])
 async def test_pending_approval_then_selected_installation(
     harness: Harness, owner_type: str
