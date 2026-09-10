@@ -4792,6 +4792,15 @@
       "confirmation": "none",
       "parameters": [
         {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
           "name": "link-id",
           "kind": "option",
           "value_type": "string",
@@ -4868,6 +4877,15 @@
       "mutability": "apply",
       "confirmation": "plan_digest",
       "parameters": [
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
         {
           "name": "link-id",
           "kind": "option",
@@ -4959,6 +4977,15 @@
       "confirmation": "none",
       "parameters": [
         {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
           "name": "link-id",
           "kind": "option",
           "value_type": "string",
@@ -5048,6 +5075,15 @@
       "mutability": "destructive",
       "confirmation": "explicit_flag",
       "parameters": [
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
         {
           "name": "link-id",
           "kind": "option",
