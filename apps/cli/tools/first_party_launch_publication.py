@@ -29,6 +29,9 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_contracts.first_party import OWNER_ID, FirstPartyVersion
 from ai_stp_contracts.first_party import versions as first_party_versions
 from ai_stp_contracts.publication import (
+    PLAN_STATE_PUBLISHED,
+    PLAN_STATES_IN_PROGRESS,
+    PLAN_STATES_REFUSED,
     PublicationConfirmRequest,
     PublicationPlanCreateRequest,
     PublicationPlanResponse,
@@ -36,11 +39,8 @@ from ai_stp_contracts.publication import (
 from ai_stp_foundation.canonical import JsonValue, canonize
 from ai_stp_passports.versions import SetupVersionPassport
 
-IN_PROGRESS_STATES = frozenset({"draft", "ready", "validating", "publish_planned"})
-PUBLISHED = "published"
 BLOCKED = "blocked"
 PENDING = "pending"
-TERMINAL_FAILURES = frozenset({"failed", "cancelled", "stale"})
 DEFAULT_POLLS = 180
 
 
@@ -227,7 +227,7 @@ def _pins_published(state: BatchState, pins: Sequence[PinRecord]) -> bool:
     published = {
         (item.stable_id, item.version, item.passport_digest)
         for item in state.objects
-        if item.state == PUBLISHED
+        if item.state == PLAN_STATE_PUBLISHED
     }
     return all((pin.stable_id, pin.version, pin.passport_digest) in published for pin in pins)
 
@@ -297,7 +297,7 @@ def _apply_plan(record: ObjectRecord, plan: PublicationPlanResponse) -> None:
     record.plan_hash = plan.plan_hash
     record.state = plan.state
     record.refused_by = _refusals(plan)
-    if plan.state == PUBLISHED:
+    if plan.state == PLAN_STATE_PUBLISHED:
         record.blocker = None
 
 
@@ -335,13 +335,13 @@ def _replan_terminal(state: BatchState) -> list[str]:
 
     So the recovery is a new attempt, not a retry: a fresh key, no plan, back to
     pending. It is an explicit flag rather than automatic because
-    `TERMINAL_FAILURES` also covers plans that failed on their merits, and
+    `PLAN_STATES_REFUSED` also covers plans that failed on their merits, and
     re-planning those blindly would turn a refusal into a loop. The operator
     says which situation this is; the tool does not guess.
     """
     reset: list[str] = []
     for record in state.objects:
-        if record.state not in TERMINAL_FAILURES:
+        if record.state not in PLAN_STATES_REFUSED:
             continue
         record.create_idempotency_key = login.new_idempotency_key()
         record.confirm_idempotency_key = login.new_idempotency_key()
@@ -419,7 +419,7 @@ def review(
             record.blocker = None
         except CliFailure as error:
             record.blocker = error.message
-            if record.state not in TERMINAL_FAILURES and record.state != PUBLISHED:
+            if record.state not in PLAN_STATES_REFUSED and record.state != PLAN_STATE_PUBLISHED:
                 record.state = BLOCKED
         _save_state(state_path, state)
     return state
@@ -481,9 +481,9 @@ def _wait_terminal(
             pause=pause,
         )
         _apply_plan(record, plan)
-        if plan.state == PUBLISHED or plan.state in TERMINAL_FAILURES:
+        if plan.state == PLAN_STATE_PUBLISHED or plan.state in PLAN_STATES_REFUSED:
             return plan
-        if plan.state not in IN_PROGRESS_STATES:
+        if plan.state not in PLAN_STATES_IN_PROGRESS:
             record.blocker = f"publication plan entered unexpected state {plan.state}"
             record.state = BLOCKED
             return plan
@@ -551,7 +551,7 @@ def apply(
 
     for item in ordered:
         record = _record_for(state, item)
-        if record.state == PUBLISHED:
+        if record.state == PLAN_STATE_PUBLISHED:
             continue
         try:
             live_digest = _retrying(
@@ -559,13 +559,13 @@ def apply(
             )
         except CliFailure as error:
             record.blocker = error.message
-            if record.state not in TERMINAL_FAILURES:
+            if record.state not in PLAN_STATES_REFUSED:
                 record.state = BLOCKED
             _save_state(state_path, state)
             continue
         if live_digest is not None:
             if live_digest == item.passport_digest:
-                record.state = PUBLISHED
+                record.state = PLAN_STATE_PUBLISHED
                 record.blocker = None
             else:
                 record.blocker = "version already published with different digest"
@@ -585,11 +585,11 @@ def apply(
                 pause=pause,
             )
             _apply_plan(record, current)
-            if current.state == PUBLISHED:
+            if current.state == PLAN_STATE_PUBLISHED:
                 record.blocker = None
                 _save_state(state_path, state)
                 continue
-            if current.state in TERMINAL_FAILURES:
+            if current.state in PLAN_STATES_REFUSED:
                 record.blocker = f"publication plan is {current.state}"
                 _save_state(state_path, state)
                 continue
@@ -627,13 +627,13 @@ def apply(
                 )
                 _apply_plan(record, confirmed)
             finished = _wait_terminal(endpoint, held, record, pause=pause, max_polls=max_polls)
-            if finished.state != PUBLISHED:
+            if finished.state != PLAN_STATE_PUBLISHED:
                 record.blocker = record.blocker or f"publication plan is {finished.state}"
-                if finished.state in TERMINAL_FAILURES:
+                if finished.state in PLAN_STATES_REFUSED:
                     record.state = finished.state
         except CliFailure as error:
             record.blocker = error.message
-            if record.state not in TERMINAL_FAILURES and record.state != PUBLISHED:
+            if record.state not in PLAN_STATES_REFUSED and record.state != PLAN_STATE_PUBLISHED:
                 record.state = BLOCKED
         _save_state(state_path, state)
     return state
@@ -667,7 +667,7 @@ def refresh_status(
 
 
 def report(state: BatchState) -> dict[str, object]:
-    published = sum(1 for item in state.objects if item.state == PUBLISHED)
+    published = sum(1 for item in state.objects if item.state == PLAN_STATE_PUBLISHED)
     blocked = [item for item in state.objects if item.blocker]
     return {
         "corpus_digest": state.corpus_digest,
