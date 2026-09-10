@@ -431,6 +431,11 @@ jobs:
       - name: Install pinned uv for the real local API fixture
         run: |
           set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-web-unit-${{ matrix.os }}" \
+            >> "${GITHUB_ENV}"
           bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
           echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
       - name: Prepare the local API runtime

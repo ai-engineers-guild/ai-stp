@@ -22,12 +22,18 @@ describe("real on-demand local API from Web", () => {
   });
 
   it("uses a disposable loopback process offline and requires mutation CSRF", async () => {
+    const pythonEnvironment = process.env["UV_PROJECT_ENVIRONMENT"];
     vi.stubEnv(
       "AI_STP_LOCAL_PYTHON",
-      path.resolve(
-        "../..",
-        process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python",
-      ),
+      pythonEnvironment
+        ? path.join(
+            pythonEnvironment,
+            process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
+          )
+        : path.resolve(
+            "../..",
+            process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python",
+          ),
     );
     vi.stubEnv("AI_STP_USE_MOCKS", "false");
     vi.stubEnv("AI_STP_MOCK_AUTH", "false");
