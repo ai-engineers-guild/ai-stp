@@ -41,6 +41,8 @@ from release_scripts._evidence import (
 )
 from release_scripts._evidence import origin as bare_origin
 
+from ai_stp_cli.paths import write_private
+
 # Read-only commands, each named with the surface it proves. A command that
 # changes nothing can run against production without a decision.
 READS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -502,6 +504,13 @@ def _reachability(home: Path, *, python: str) -> dict[str, dict[str, Any]]:
 #: skill projection carries all of that truthfully.
 _SUBJECT_PATH: Final[str] = "skills/projections/claude-code"
 _SUBJECT_MARKER: Final[str] = "publishable-subject.json"
+_PUBLICATION_PENDING: Final[frozenset[str]] = frozenset(
+    {"", "draft", "ready", "validating", "publish_planned"}
+)
+_RESTARTABLE_PUBLICATION: Final[frozenset[str]] = frozenset({"failed", "cancelled", "stale"})
+_UNCERTAIN_CONFIRMATION: Final[frozenset[str]] = frozenset(
+    {"AI_STP_TIMEOUT_UNCONFIRMED", "AI_STP_DEPENDENCY_UNAVAILABLE", "AI_STP_RATE_LIMITED"}
+)
 
 
 def _seed_publishable(home: Path, *, python: str) -> tuple[str, str]:
@@ -586,13 +595,11 @@ def _seed_publishable(home: Path, *, python: str) -> tuple[str, str]:
     numbers = [str(item["version"]) for item in released.get("versions", [])]
     if not numbers:
         raise EvidenceError("component version release answered without a version")
-    marker.write_text(
-        json.dumps({"stable_id": stable_id, "version": numbers[-1]}), encoding="utf-8"
-    )
+    write_private(marker, json.dumps({"stable_id": stable_id, "version": numbers[-1]}))
     return stable_id, numbers[-1]
 
 
-def _publication_state(home: Path, plan_id: str, *, python: str) -> str:
+def _publication_status(home: Path, plan_id: str, *, python: str) -> dict[str, Any]:
     status = cli(
         ["publication", "status", "--plan-id", plan_id],
         home=home,
@@ -600,8 +607,8 @@ def _publication_state(home: Path, plan_id: str, *, python: str) -> str:
         allow_failure=True,
     )
     if status.get("ok") is not True:
-        return ""
-    return str(data(status, "publication status").get("state", ""))
+        return {"state": "", "error_code": error_code(status)}
+    return dict(data(status, "publication status"))
 
 
 def _driven_writes(
@@ -635,7 +642,13 @@ def _driven_writes(
     marker = home / _SUBJECT_MARKER
     held = cast(dict[str, Any], json.loads(marker.read_text(encoding="utf-8")))
     plan_id = str(held.get("plan_id", ""))
-    if not (plan_id and _publication_state(home, plan_id, python=python) == "published"):
+    first_status = _publication_status(home, plan_id, python=python) if plan_id else None
+    if first_status and first_status.get("state") in _RESTARTABLE_PUBLICATION:
+        # A new operator invocation may retry a terminal attempt. An active
+        # or unobservable attempt is always resumed under its existing id.
+        plan_id = ""
+        first_status = None
+    if not plan_id:
         planned = cli(
             ["publication", "plan", "--id", stable_id, "--version", version],
             home=home,
@@ -648,55 +661,100 @@ def _driven_writes(
         else:
             plan_view = data(planned, "publication plan")
             plan_id = str(plan_view.get("plan_id", ""))
-            confirmed = cli(
-                [
-                    "publication",
-                    "confirm",
-                    "--plan-id",
-                    plan_id,
-                    "--plan-hash",
-                    str(plan_view.get("plan_hash", "")),
-                    "--confirm",
-                ],
-                home=home,
-                python=python,
-                allow_failure=True,
-            )
-            if confirmed.get("ok") is not True:
-                publication.update(
-                    state="failed",
-                    step="confirm",
-                    plan_id=plan_id,
-                    error_code=error_code(confirmed),
-                )
-                plan_id = ""
+            held.update(plan_id=plan_id, plan_hash=str(plan_view.get("plan_hash", "")))
+            # Retain exact coordinates before the first effect. A lost confirm
+            # response must resume this plan, not create a second attempt.
+            write_private(marker, json.dumps(held))
     if plan_id:
         # Validation runs server-side (structure, scanning, catalogue write);
         # `published` is the terminal success and anything else terminal is a
         # refusal worth reading. A run that never reaches a terminal state is
         # reported as exactly that rather than guessed either way.
         server_state = ""
+        confirm_sent = False
         for _ in range(24):
-            server_state = _publication_state(home, plan_id, python=python)
-            if server_state not in {"", "ready", "validating", "confirmed"}:
+            status = (
+                first_status
+                if first_status is not None
+                else _publication_status(home, plan_id, python=python)
+            )
+            first_status = None
+            server_state = str(status.get("state", ""))
+            if status.get("error_code"):
+                publication.update(
+                    state="not_verified",
+                    step="status",
+                    plan_id=plan_id,
+                    error_code=status["error_code"],
+                    reason="the retained plan could not be read; "
+                    "resume it when the condition clears",
+                )
+                break
+            observed_hash = str(status.get("plan_hash", ""))
+            bound_hash = str(held.get("plan_hash", ""))
+            if observed_hash and bound_hash and observed_hash != bound_hash:
+                publication.update(
+                    state="failed",
+                    step="status",
+                    plan_id=plan_id,
+                    reason="the retained publication plan hash changed",
+                )
+                break
+            if observed_hash and not bound_hash:
+                held["plan_hash"] = observed_hash
+                write_private(marker, json.dumps(held))
+            if server_state == "ready" and not confirm_sent:
+                if not held.get("plan_hash"):
+                    publication.update(
+                        state="failed",
+                        step="confirm",
+                        plan_id=plan_id,
+                        reason="the retained plan has no exact confirmation hash",
+                    )
+                    break
+                confirm_sent = True
+                confirmed = cli(
+                    [
+                        "publication",
+                        "confirm",
+                        "--plan-id",
+                        plan_id,
+                        "--plan-hash",
+                        str(held["plan_hash"]),
+                        "--confirm",
+                    ],
+                    home=home,
+                    python=python,
+                    allow_failure=True,
+                )
+                if confirmed.get("ok") is not True:
+                    code = error_code(confirmed)
+                    publication.update(
+                        state="not_verified" if code in _UNCERTAIN_CONFIRMATION else "failed",
+                        step="confirm",
+                        plan_id=plan_id,
+                        error_code=code,
+                    )
+                    break
+                continue
+            if server_state not in _PUBLICATION_PENDING:
                 break
             time.sleep(5)
-        if server_state == "published":
-            held.update(plan_id=plan_id)
-            marker.write_text(json.dumps(held), encoding="utf-8")
+        if publication.get("state") in {"failed", "not_verified"}:
+            pass
+        elif server_state == "published":
             publication.update(
                 state="verified",
                 plan_id=plan_id,
                 server_state=server_state,
                 note="an immutable X.Y with a true repository source is in the deployed catalogue",
             )
-        elif server_state in {"", "ready", "validating", "confirmed"}:
+        elif server_state in _PUBLICATION_PENDING:
             publication.update(
                 state="not_verified",
                 plan_id=plan_id,
                 server_state=server_state,
-                reason="confirm was accepted and validation did not reach a terminal "
-                "state within two minutes",
+                reason="the retained plan did not reach a terminal state in the polling window",
             )
         else:
             publication.update(
@@ -866,6 +924,12 @@ def refused(report: Mapping[str, Any]) -> bool:
     for name, held in scenarios.items():
         if name in writes:
             if held.get("state") == "failed":
+                return True
+            if (
+                name == "publication"
+                and report.get("writes_allowed") is True
+                and held.get("state") != "verified"
+            ):
                 return True
             continue
         if held.get("state") in {"failed", "not_verified"}:

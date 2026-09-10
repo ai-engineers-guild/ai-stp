@@ -9,13 +9,162 @@ is not the script's decision to take.
 
 import json
 import sys
+from collections import deque
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
 from release_scripts import verify_publication_slice
 
+from ai_stp_foundation.ids import new_id
 
-def test_a_write_scenario_never_decides_the_exit_code() -> None:
+
+def _no_wait(_seconds: float) -> None:
+    pass
+
+
+@pytest.mark.parametrize("uncertain_confirm", [False, True])
+def test_publication_probe_retains_its_exact_plan_before_confirmation_and_reuses_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, uncertain_confirm: bool
+) -> None:
+    subject = {"stable_id": new_id("component"), "version": "1.0"}
+    marker = tmp_path / "publishable-subject.json"
+    marker.write_text(json.dumps(subject))
+    plan_id = new_id("plan")
+    plan_hash = "sha256:" + sha256(b"planned publication").hexdigest()
+    states = deque(["ready", "validating", "publish_planned", "published"])
+    calls: list[tuple[str, str]] = []
+
+    def answered(arguments: list[str], **_kwargs: object) -> dict[str, object]:
+        action = (arguments[0], arguments[1])
+        calls.append(action)
+        if action == ("publication", "plan"):
+            return {
+                "ok": True,
+                "data": {"plan_id": plan_id, "plan_hash": plan_hash, "state": "ready"},
+            }
+        if action == ("publication", "confirm"):
+            held = json.loads(marker.read_text())
+            assert held["plan_id"] == plan_id and held["plan_hash"] == plan_hash
+            if uncertain_confirm:
+                return {"ok": False, "error": {"code": "AI_STP_TIMEOUT_UNCONFIRMED"}}
+            return {"ok": True, "data": {"state": "validating"}}
+        assert action == ("publication", "status"), action
+        return {
+            "ok": True,
+            "data": {"state": states.popleft() if states else "published", "plan_hash": plan_hash},
+        }
+
+    monkeypatch.setattr(verify_publication_slice, "cli", answered)
+    monkeypatch.setattr(verify_publication_slice.time, "sleep", _no_wait)
+    first = verify_publication_slice._driven_writes(tmp_path, "", python=sys.executable)  # pyright: ignore[reportPrivateUsage]
+    assert first["publication"]["state"] == ("not_verified" if uncertain_confirm else "verified")
+    states.clear()
+    repeated = verify_publication_slice._driven_writes(tmp_path, "", python=sys.executable)  # pyright: ignore[reportPrivateUsage]
+    assert repeated["publication"]["state"] == "verified"
+    assert calls.count(("publication", "plan")) == 1
+    assert calls.count(("publication", "confirm")) == 1
+    assert repeated["grants"]["state"] == "not_verified"
+
+
+def test_publication_probe_waits_for_the_existing_publish_job_without_replanning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    marker = tmp_path / "publishable-subject.json"
+    marker.write_text(
+        json.dumps(
+            {
+                "stable_id": new_id("component"),
+                "version": "1.0",
+                "plan_id": new_id("plan"),
+                "plan_hash": "sha256:" + sha256(b"existing plan").hexdigest(),
+            }
+        )
+    )
+    states = deque(["publish_planned", "published"])
+
+    def answered(arguments: list[str], **_kwargs: object) -> dict[str, object]:
+        assert arguments[:2] == ["publication", "status"], arguments
+        return {"ok": True, "data": {"state": states.popleft()}}
+
+    monkeypatch.setattr(verify_publication_slice, "cli", answered)
+    monkeypatch.setattr(verify_publication_slice.time, "sleep", _no_wait)
+    result = verify_publication_slice._driven_writes(tmp_path, "", python=sys.executable)  # pyright: ignore[reportPrivateUsage]
+    assert result["publication"]["state"] == "verified"
+    assert not states
+
+
+@pytest.mark.parametrize("terminal", ["failed", "cancelled", "stale"])
+def test_publication_probe_can_start_a_new_attempt_after_a_terminal_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, terminal: str
+) -> None:
+    old_id, new_plan = new_id("plan"), new_id("plan")
+    digest = "sha256:" + sha256(b"new attempt").hexdigest()
+    marker = tmp_path / "publishable-subject.json"
+    marker.write_text(
+        json.dumps({"stable_id": new_id("component"), "version": "1.0", "plan_id": old_id})
+    )
+    new_states = deque(["ready", "published"])
+    plans: list[str] = []
+
+    def answered(arguments: list[str], **_kwargs: object) -> dict[str, object]:
+        if arguments[:2] == ["publication", "plan"]:
+            plans.append(new_plan)
+            return {"ok": True, "data": {"plan_id": new_plan, "plan_hash": digest}}
+        if arguments[:2] == ["publication", "confirm"]:
+            assert arguments[3] == new_plan
+            assert json.loads(marker.read_text())["plan_hash"] == digest
+            return {"ok": True, "data": {"state": "validating"}}
+        assert arguments[:2] == ["publication", "status"]
+        state = terminal if arguments[3] == old_id else new_states.popleft()
+        return {"ok": True, "data": {"state": state, "plan_hash": digest}}
+
+    monkeypatch.setattr(verify_publication_slice, "cli", answered)
+    result = verify_publication_slice._driven_writes(tmp_path, "", python=sys.executable)  # pyright: ignore[reportPrivateUsage]
+    assert result["publication"]["state"] == "verified"
+    assert plans == [new_plan]
+
+
+@pytest.mark.parametrize("failure", ["changed_hash", "rate_limit"])
+def test_publication_probe_preserves_binding_when_status_cannot_authorize_confirmation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    marker = tmp_path / "publishable-subject.json"
+    marker.write_text(
+        json.dumps(
+            {
+                "stable_id": new_id("component"),
+                "version": "1.0",
+                "plan_id": new_id("plan"),
+                "plan_hash": "sha256:" + sha256(b"original plan").hexdigest(),
+            }
+        )
+    )
+    before = marker.read_bytes()
+    calls: list[list[str]] = []
+
+    def answered(arguments: list[str], **_kwargs: object) -> dict[str, object]:
+        calls.append(arguments)
+        assert arguments[:2] == ["publication", "status"]
+        if failure == "rate_limit":
+            return {"ok": False, "error": {"code": "AI_STP_RATE_LIMITED"}}
+        return {
+            "ok": True,
+            "data": {
+                "state": "ready",
+                "plan_hash": "sha256:" + sha256(b"changed plan").hexdigest(),
+            },
+        }
+
+    monkeypatch.setattr(verify_publication_slice, "cli", answered)
+    result = verify_publication_slice._driven_writes(tmp_path, "", python=sys.executable)  # pyright: ignore[reportPrivateUsage]
+    assert result["publication"]["state"] == (
+        "failed" if failure == "changed_hash" else "not_verified"
+    )
+    assert len(calls) == 1 and marker.read_bytes() == before
+
+
+def test_undriven_writes_do_not_fail_read_only_evidence() -> None:
     """They are `not_verified` by design, so a red code every run teaches nothing."""
     read_only = {
         "scenarios": {
@@ -42,6 +191,19 @@ def test_a_write_scenario_never_decides_the_exit_code() -> None:
 
     broken = {"scenarios": {"grant_list": {"state": "failed", "error_code": "AI_STP_FORBIDDEN"}}}
     assert verify_publication_slice.refused(broken) is True
+
+
+@pytest.mark.parametrize("writes_allowed", [False, True])
+def test_requested_publication_needs_a_conclusive_result(writes_allowed: bool) -> None:
+    report = {
+        "writes_allowed": writes_allowed,
+        "scenarios": {
+            "owner_objects": {"state": "verified"},
+            "publication": {"state": "not_verified", "reason": "confirmation unconfirmed"},
+            "grants": {"state": "not_verified", "reason": "no recipient requested"},
+        },
+    }
+    assert verify_publication_slice.refused(report) is writes_allowed
 
 
 def test_nothing_is_written_without_an_explicit_decision(tmp_path: Path) -> None:

@@ -5,6 +5,12 @@ User intents: find a skill or setup, show this version, fetch bytes.
 Resolve from machine help: `ai-stp registry search`, `ai-stp registry show`,
 `ai-stp registry version`, `ai-stp registry fetch`, `ai-stp registry acquire`.
 
+| Needed result | Command |
+|---|---|
+| One exact version's passport | `ai-stp registry version` |
+| Bytes of one component or setup version | `ai-stp registry fetch` |
+| A setup and its complete component graph, ready for local compilation | `ai-stp registry acquire` |
+
 Pin an exact `id` and `X.Y`. Default to the `authoritative` line. Use
 `experimental` within the user's existing task authority and keep it in a
 separate labeled section. An object key
