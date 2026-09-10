@@ -166,11 +166,7 @@ export async function apiRequestBinary<T>(
     const mockOptions: PrivateRequestOptions = {};
     if (options.sessionToken) mockOptions.sessionToken = options.sessionToken;
     if (options.headers) mockOptions.headers = options.headers;
-    const mockHeaders = await buildHeaders(
-      method,
-      mockOptions,
-      true,
-    );
+    const mockHeaders = await buildHeaders(method, mockOptions, true);
     mockHeaders["Content-Type"] = options.contentType;
     const mockInit: { headers: Record<string, string>; body?: string } = {
       headers: mockHeaders,
