@@ -12,10 +12,11 @@ from sqlalchemy import JSON, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_stp_platform.db import Base
+from ai_stp_platform.organization_scope import OrganizationScopedMixin
 from ai_stp_platform.queue.states import JobState
 
 
-class Job(Base):
+class Job(OrganizationScopedMixin, Base):
     """A single unit of background work with its own state and retry accounting."""
 
     __tablename__ = "job"

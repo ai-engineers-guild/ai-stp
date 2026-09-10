@@ -66,7 +66,7 @@ The entire `justfile` uses two verbs: `gen` writes and `check` reads. `just gen`
 
 The verbs are identical within each group, so there is no command list to memorize: `<group>-static` reads source, `<group>-test` runs tests, `<group>-build` builds an artifact, and `<group>-regress` runs the built artifact in the real engine. The complete table is in `docs/engineering/quality-gates.md`.
 
-`pre-commit` maintains the fast path (`docs-check` + `back-check` without the web); the complete set including `web-check` runs on push and in CI. There are no separate `ci` / `pre-push` recipes because they would only be aliases for `just check`.
+`pre-commit` maintains the fast path (`docs-static` + `docs-test` + `back-static`); full documentation, backend/BT regression, package/install, web, E2E, profile, and security suites are CI-only and run for pull requests and pushes to `main`. There are no separate `ci` / `pre-push` recipes because they would only be aliases for the CI gate.
 
 ### PostgreSQL for platform tests
 

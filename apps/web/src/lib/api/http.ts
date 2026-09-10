@@ -2,6 +2,14 @@ import { cookies } from "next/headers";
 
 import { CSRF_COOKIE, SESSION_COOKIE } from "@/lib/auth/cookies";
 import { getEnv } from "@/lib/env";
+import { localSessionFor } from "@/lib/local-api-state";
+import {
+  LOCAL_CSRF_COOKIE,
+  CONTEXT_FIXTURE_COOKIE,
+  LOCAL_SESSION_COOKIE,
+  ORGANIZATION_COOKIE,
+  PRODUCT_MODE_COOKIE,
+} from "@/lib/context-cookies";
 
 import { ApiError, mapHttpError } from "./errors";
 import { executeJsonRequest, usesMock, type QueryValue } from "./http-shared";
@@ -13,6 +21,7 @@ export type PrivateRequestOptions = {
   headers?: Record<string, string>;
   body?: unknown;
   sessionToken?: string;
+  baseUrl?: string;
 };
 
 /**
@@ -35,28 +44,76 @@ async function buildHeaders(
     headers["Content-Type"] = "application/json";
   }
 
-  if (mock) {
-    if (options.sessionToken) {
-      headers["Authorization"] = "Bearer mock-session";
-      headers["Cookie"] = `${SESSION_COOKIE}=${options.sessionToken}`;
-    }
-    return headers;
-  }
-
   const jar = await cookies();
-  const session = options.sessionToken ?? jar.get(SESSION_COOKIE)?.value;
-  const csrf = jar.get(CSRF_COOKIE)?.value;
-  if (session) {
-    const parts = [`${SESSION_COOKIE}=${session}`];
-    if (csrf) {
-      parts.push(`${CSRF_COOKIE}=${csrf}`);
-    }
-    headers["Cookie"] = parts.join("; ");
+  addContextHeaders(headers, jar);
+  return mock
+    ? buildMockHeaders(headers, options, jar)
+    : buildRealHeaders(headers, method, options, jar);
+}
+
+type CookieStore = Awaited<ReturnType<typeof cookies>>;
+
+function addContextHeaders(headers: Record<string, string>, jar: CookieStore): void {
+  if (headers["X-AI-STP-Product-Mode"] || headers["X-AI-STP-Organization-Id"]) return;
+  if (jar.get(PRODUCT_MODE_COOKIE)?.value === "local") {
+    headers["X-AI-STP-Product-Mode"] = "local";
+    return;
   }
-  if (method !== "GET" && csrf) {
-    headers["X-CSRF-Token"] = csrf;
+  const organization = jar.get(ORGANIZATION_COOKIE)?.value;
+  if (organization) headers["X-AI-STP-Organization-Id"] = organization;
+}
+
+function buildMockHeaders(
+  headers: Record<string, string>,
+  options: PrivateRequestOptions,
+  jar: CookieStore,
+): Record<string, string> {
+  const fixture = jar.get(CONTEXT_FIXTURE_COOKIE)?.value;
+  if (fixture) headers["X-AI-STP-Context-Fixture"] = fixture;
+  const token = options.sessionToken ?? jar.get(SESSION_COOKIE)?.value;
+  if (token) {
+    headers["Authorization"] = "Bearer mock-session";
+    headers["Cookie"] = `${SESSION_COOKIE}=${token}`;
   }
   return headers;
+}
+
+function buildRealHeaders(
+  headers: Record<string, string>,
+  method: string,
+  options: PrivateRequestOptions,
+  jar: CookieStore,
+): Record<string, string> {
+  const session = options.sessionToken ?? jar.get(SESSION_COOKIE)?.value;
+  const csrf = jar.get(CSRF_COOKIE)?.value;
+  if (headers["X-AI-STP-Product-Mode"] === "local" && !options.baseUrl) {
+    const localSession = jar.get(LOCAL_SESSION_COOKIE)?.value;
+    const localCsrf = jar.get(LOCAL_CSRF_COOKIE)?.value;
+    if (localSession) headers["X-AI-STP-Local-Session"] = localSession;
+    if (method !== "GET" && localCsrf) headers["X-AI-STP-Local-CSRF"] = localCsrf;
+    return headers;
+  }
+  if (session) {
+    headers["Cookie"] = csrf
+      ? `${SESSION_COOKIE}=${session}; ${CSRF_COOKIE}=${csrf}`
+      : `${SESSION_COOKIE}=${session}`;
+  }
+  if (method !== "GET" && csrf) headers["X-CSRF-Token"] = csrf;
+  return headers;
+}
+
+async function selectedApiBaseUrl(): Promise<string | undefined> {
+  const jar = await cookies();
+  if (jar.get(PRODUCT_MODE_COOKIE)?.value !== "local" || getEnv().AI_STP_USE_MOCKS)
+    return undefined;
+  const local = localSessionFor(jar.get(LOCAL_SESSION_COOKIE)?.value ?? "");
+  if (!local)
+    throw new ApiError({
+      code: "AI_STP_UNAVAILABLE",
+      status: 0,
+      message: "Local session unavailable",
+    });
+  return local.api_base_url;
 }
 
 /**
@@ -76,6 +133,8 @@ export async function privateApiRequest<T>(
     headers,
     cache: "no-store",
   };
+  const baseUrl = options.baseUrl ?? (await selectedApiBaseUrl());
+  if (baseUrl) request.baseUrl = baseUrl;
   if (options.query) {
     request.query = options.query;
   }
@@ -97,20 +156,22 @@ export async function apiRequestBinary<T>(
     contentType: string;
     body: BodyInit;
     headers?: Record<string, string>;
+    baseUrl?: string;
   },
 ): Promise<T> {
   const method = options.method ?? "POST";
   const env = getEnv();
   const mock = usesMock(path, env);
   if (mock) {
-    const mockHeaders: Record<string, string> = {
-      "Content-Type": options.contentType,
-      ...(options.headers ?? {}),
-    };
-    if (options.sessionToken) {
-      mockHeaders["Authorization"] = "Bearer mock-session";
-      mockHeaders["Cookie"] = `${SESSION_COOKIE}=${options.sessionToken}`;
-    }
+    const mockOptions: PrivateRequestOptions = {};
+    if (options.sessionToken) mockOptions.sessionToken = options.sessionToken;
+    if (options.headers) mockOptions.headers = options.headers;
+    const mockHeaders = await buildHeaders(
+      method,
+      mockOptions,
+      true,
+    );
+    mockHeaders["Content-Type"] = options.contentType;
     const mockInit: { headers: Record<string, string>; body?: string } = {
       headers: mockHeaders,
     };
@@ -122,6 +183,7 @@ export async function apiRequestBinary<T>(
   }
 
   const requestOptions: PrivateRequestOptions = {};
+  if (options.baseUrl) requestOptions.baseUrl = options.baseUrl;
   if (options.sessionToken) {
     requestOptions.sessionToken = options.sessionToken;
   }
@@ -132,7 +194,10 @@ export async function apiRequestBinary<T>(
   headers["Content-Type"] = options.contentType;
   headers["Accept"] = "application/json";
 
-  const base = env.AI_STP_API_BASE_URL.replace(/\/$/, "");
+  const base = (options.baseUrl ?? (await selectedApiBaseUrl()) ?? env.AI_STP_API_BASE_URL).replace(
+    /\/$/,
+    "",
+  );
   let response: Response;
   try {
     response = await fetch(`${base}${path}`, {
@@ -177,7 +242,10 @@ export async function apiRequestWithMeta<T>(
     };
   }
 
-  const base = env.AI_STP_API_BASE_URL.replace(/\/$/, "");
+  const base = (options.baseUrl ?? (await selectedApiBaseUrl()) ?? env.AI_STP_API_BASE_URL).replace(
+    /\/$/,
+    "",
+  );
   const init: RequestInit = {
     method,
     headers,

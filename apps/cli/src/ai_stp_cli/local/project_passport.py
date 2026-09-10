@@ -52,6 +52,20 @@ CONFIGURATION_DOMAIN: Final[str] = "ai-stp:project-configuration:v1"
 CONFIGURATION_KINDS: Final[frozenset[str]] = frozenset(
     {"manifest", "lock", "config", "agent_surface"}
 )
+PROJECT_MARKER_DIR: Final[str] = ".ai-stp"
+PROJECT_MARKER_FILE: Final[str] = "project-id"
+
+
+def _marker_path(root: Path) -> Path:
+    return root / PROJECT_MARKER_DIR / PROJECT_MARKER_FILE
+
+
+def _marker_id(root: Path) -> str | None:
+    try:
+        value = _marker_path(root).read_text(encoding="ascii").strip()
+    except OSError:
+        return None
+    return value if value.startswith("project_") else None
 
 
 @dataclass(frozen=True)
@@ -72,7 +86,24 @@ def stable_id_for(connection: sqlite3.Connection, root: Path) -> str | None:
     row = connection.execute(
         "SELECT stable_id FROM project_root WHERE root = ?", (str(root),)
     ).fetchone()
-    return None if row is None else str(row["stable_id"])
+    if row is not None:
+        return str(row["stable_id"])
+    marked = _marker_id(root)
+    if marked is None:
+        return None
+    other = connection.execute(
+        "SELECT root FROM project_root WHERE stable_id = ? AND root <> ? LIMIT 1",
+        (marked, str(root)),
+    ).fetchone()
+    # A copied directory carries its marker, but the original still exists.
+    # Treat that as a new adoption; a moved directory leaves an obsolete path
+    # behind and may safely reclaim the existing identity.
+    if other is not None and Path(str(other["root"])).exists():
+        return None
+    known = connection.execute(
+        "SELECT stable_id FROM entity WHERE stable_id = ? AND kind = 'project'", (marked,)
+    ).fetchone()
+    return marked if known is not None else None
 
 
 def scan(connection: sqlite3.Connection, root: Path) -> Scan:
@@ -108,6 +139,18 @@ def scan(connection: sqlite3.Connection, root: Path) -> Scan:
                 "INSERT INTO project_root (root, stable_id) VALUES (?, ?)",
                 (str(index.root), known),
             )
+        else:
+            # The marker travels with a directory through a move or rename.
+            # Keep the registry's address current without making path a part of
+            # the identity or deriving an ID from Git/content/name.
+            connection.execute("DELETE FROM project_root WHERE stable_id = ?", (known,))
+            connection.execute(
+                "INSERT OR IGNORE INTO project_root (root, stable_id) VALUES (?, ?)",
+                (str(index.root), known),
+            )
+        marker = _marker_path(index.root)
+        marker.parent.mkdir(exist_ok=True)
+        marker.write_text(known + "\n", encoding="ascii")
 
     return Scan(
         root=index.root,

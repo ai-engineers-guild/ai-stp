@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-unlink-plan-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Request a no-side-effect plan for unlinking one exact link revision.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "expected_link_revision": {
+      "minimum": 1,
+      "title": "Expected Link Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "link_id": {
+      "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Link Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "link_id",
+    "expected_link_revision",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "ProjectUnlinkPlanRequest",
+  "type": "object"
+}

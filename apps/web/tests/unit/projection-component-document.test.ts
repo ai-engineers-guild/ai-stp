@@ -221,14 +221,18 @@ describe("component projection switch pairing (REQ-3604, REQ-3624)", () => {
       path.resolve(here, "../../src/components/molecules/projection-dock.tsx"),
       "utf8",
     );
+    const enhancer = readFileSync(
+      path.resolve(here, "../../src/components/molecules/projection-dock-enhancer.tsx"),
+      "utf8",
+    );
     const registry = readFileSync(
       path.resolve(here, "../../src/lib/projection/registry.ts"),
       "utf8",
     );
-    expect(dock).toContain("use client");
-    expect(dock).toContain("usePathname");
-    expect(dock).toContain("projectionSwitchHrefs");
-    expect(dock).not.toContain("readCanonicalPathname");
+    expect(enhancer).toContain("use client");
+    expect(enhancer).toContain("usePathname");
+    expect(enhancer).toContain("projectionSwitchHrefs");
+    expect(dock).toContain("readCanonicalPathname");
     expect(registry).toContain("componentFactsFromLoaders");
     expect(registry).toContain("readComponentVersion");
   });

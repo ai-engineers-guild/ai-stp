@@ -17,7 +17,14 @@ for (const scenario of scenarios) {
   // the one binary and no `bunx` alongside it.
   run(
     "bun",
-    ["x", "playwright", "test", "tests/e2e/feature-profile.spec.ts", "--project=chromium"],
+    [
+      "x",
+      "playwright",
+      "test",
+      "tests/e2e/feature-profile.spec.ts",
+      "tests/e2e/context-matrix.spec.ts",
+      "--project=chromium",
+    ],
     env,
   );
 }

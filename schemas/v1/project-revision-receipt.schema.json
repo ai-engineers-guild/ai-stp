@@ -1,0 +1,100 @@
+{
+  "$id": "urn:ai-stp:schema:v1:project-revision-receipt",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Durable result of one project revision push.",
+  "properties": {
+    "client_head_revision_id": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Client Head Revision Id"
+    },
+    "common_ancestor_revision_id": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Common Ancestor Revision Id"
+    },
+    "error_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Error Code"
+    },
+    "event_id": {
+      "pattern": "^[A-Za-z0-9._~-]{8,128}$",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "revision_id": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Revision Id"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "server_head_revision_id": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Server Head Revision Id"
+    },
+    "state": {
+      "enum": [
+        "accepted",
+        "conflict",
+        "rejected",
+        "superseded"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_head_revision_id",
+    "common_ancestor_revision_id",
+    "error_code",
+    "event_id",
+    "revision_id",
+    "schema_version",
+    "server_head_revision_id",
+    "state"
+  ],
+  "title": "ProjectRevisionReceipt",
+  "type": "object"
+}

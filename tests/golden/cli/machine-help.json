@@ -4576,6 +4576,241 @@
     {
       "path": [
         "project",
+        "link",
+        "create"
+      ],
+      "summary": "Confirm one exact server-authored project link plan.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact project link plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by the link plan.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact confirmation.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm creating this link.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-link-response",
+      "next_actions": [
+        "project link show",
+        "project sync plan"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "link",
+        "plan",
+        "create"
+      ],
+      "summary": "Create an exact no-side-effect project link plan.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "local-project-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "remote-project-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable remote project identifier.",
+          "choices": []
+        },
+        {
+          "name": "provider-project-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Optional provider project identifier.",
+          "choices": []
+        },
+        {
+          "name": "local-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Observed local revision.",
+          "choices": []
+        },
+        {
+          "name": "remote-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Observed remote revision.",
+          "choices": []
+        },
+        {
+          "name": "provider-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Observed provider revision.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-link-plan-response",
+      "next_actions": [
+        "project link plan show",
+        "project link create"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "link",
+        "plan",
+        "show"
+      ],
+      "summary": "Read one authoritative project link plan.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact project link plan identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-link-plan-response",
+      "next_actions": [
+        "project link create"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "link",
+        "show"
+      ],
+      "summary": "Read one authoritative project link.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "link-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit project link identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-link-response",
+      "next_actions": [
+        "project unlink",
+        "project sync plan"
+      ]
+    },
+    {
+      "path": [
+        "project",
         "passport"
       ],
       "summary": "Record a project passport revision pinning the index, toolchain and config.",
@@ -4621,6 +4856,356 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-project-symbols",
       "next_actions": [
         "project index"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "sync",
+        "apply"
+      ],
+      "summary": "Apply one exact non-conflicting project sync plan.",
+      "mutability": "apply",
+      "confirmation": "plan_digest",
+      "parameters": [
+        {
+          "name": "link-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit project link identifier.",
+          "choices": []
+        },
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact sync plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "local-project-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by sync plan.",
+          "choices": []
+        },
+        {
+          "name": "expected-link-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Expected current link revision.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact apply.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm applying this plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-sync-plan-response",
+      "next_actions": [
+        "project sync plan",
+        "project link show"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "sync",
+        "plan"
+      ],
+      "summary": "Create a deterministic no-side-effect project sync plan.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "link-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit project link identifier.",
+          "choices": []
+        },
+        {
+          "name": "local-project-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "expected-link-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Expected current link revision.",
+          "choices": []
+        },
+        {
+          "name": "local-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Currently observed local revision.",
+          "choices": []
+        },
+        {
+          "name": "remote-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Currently observed remote revision.",
+          "choices": []
+        },
+        {
+          "name": "provider-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Currently observed provider revision.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-sync-plan-response",
+      "next_actions": [
+        "project sync apply",
+        "project link show",
+        "project unlink"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "unlink"
+      ],
+      "summary": "Confirm one exact server-authored project unlink plan.",
+      "mutability": "destructive",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "link-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit project link identifier.",
+          "choices": []
+        },
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact project unlink plan identifier.",
+          "choices": []
+        },
+        {
+          "name": "plan-digest",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact digest returned by the unlink plan.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact unlink.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm unlinking this pair.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-link-response",
+      "next_actions": [
+        "project link create",
+        "project link show"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "unlink-plan",
+        "create"
+      ],
+      "summary": "Create an exact no-side-effect project unlink plan.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "link-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit project link identifier.",
+          "choices": []
+        },
+        {
+          "name": "expected-link-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Expected current link revision.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact plan.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-unlink-plan-response",
+      "next_actions": [
+        "project unlink-plan show",
+        "project unlink"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "unlink-plan",
+        "show"
+      ],
+      "summary": "Read one authoritative project unlink plan.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "plan-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Exact project unlink plan identifier.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-unlink-plan-response",
+      "next_actions": [
+        "project unlink"
       ]
     },
     {

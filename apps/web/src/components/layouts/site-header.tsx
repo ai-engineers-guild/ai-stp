@@ -92,6 +92,7 @@ export function SiteHeader({ docsHref }: SiteHeaderProps) {
           <Link
             data-ui={UI.navigation.home}
             href="/"
+            aria-label={SITE_NAME}
             className="flex min-w-0 items-center gap-2 text-sm font-medium tracking-tight transition-colors"
             prefetch={isShellPrefetchHref("/")}
           >

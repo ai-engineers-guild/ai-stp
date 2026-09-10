@@ -98,6 +98,14 @@ function readAuth(headers?: HeadersInit): string | null {
   return null;
 }
 
+function readHeader(headers: HeadersInit | undefined, name: string): string | null {
+  if (headers instanceof Headers) return headers.get(name);
+  if (headers && typeof headers === "object" && !Array.isArray(headers)) {
+    return headers[name] ?? headers[name.toLowerCase()] ?? null;
+  }
+  return null;
+}
+
 function rejectUnknown(query: URLSearchParams | undefined, allowed: Set<string>): string[] {
   if (!query) {
     return [];
@@ -630,6 +638,176 @@ function legalDocumentHandler(
   };
 }
 
+const CORPORATE_ORGANIZATION_ID = "organization_01JQZK7B8N4M6P2R9T5V0X3Y70";
+const PERSONAL_ORGANIZATION_ID = "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
+const CORPORATE_ONLY_UNAVAILABLE = {
+  "assignment.assign": "unsupported",
+  "team.manage": "unsupported",
+  "saml.manage": "unsupported",
+  "audit.read": "unsupported",
+  "member.manage": "unsupported",
+  "telemetry.read": "unsupported",
+  "invitation.manage": "unsupported",
+  "deployment.operate": "unsupported",
+  "organization.manage": "unsupported",
+} as const;
+
+function contextFixtureError(fixture: string | null): MockResult | null {
+  const errors: Record<string, [number, Parameters<typeof errorBody>[0], string]> = {
+    unavailable: [503, "AI_STP_UNAVAILABLE", "context.unavailable"],
+    failed: [500, "AI_STP_INTERNAL", "context.failed"],
+    forbidden: [403, "AI_STP_FORBIDDEN", "context.forbidden"],
+    stale: [412, "AI_STP_PRECONDITION_FAILED", "context.stale"],
+    unauthenticated: [401, "AI_STP_UNAUTHORIZED", "context.unauthenticated"],
+  };
+  const value = fixture ? errors[fixture] : undefined;
+  return value ? { status: value[0], body: errorBody(value[1], value[2]) } : null;
+}
+
+function localSessionHandler(method: string, path: string): MockResult | null {
+  if (path !== "/v1/local/session") return null;
+  if (method === "DELETE") return { status: 200, body: { ok: true } };
+  if (method !== "POST") return null;
+  return {
+    status: 200,
+    body: {
+      session: "local-session-fixture",
+      csrf: "local-csrf-fixture",
+      expires_at: "2099-01-01T00:00:00Z",
+    },
+  };
+}
+
+function contextMode(
+  fixture: string | null,
+  auth: string | null,
+  headers?: HeadersInit,
+): "local" | "personal" | "corporate" {
+  const productMode = readHeader(headers, "X-AI-STP-Product-Mode");
+  if (productMode === "local") return "local";
+  if (
+    fixture?.startsWith("corporate") ||
+    readHeader(headers, "X-AI-STP-Organization-Id") === CORPORATE_ORGANIZATION_ID
+  )
+    return "corporate";
+  if (fixture === "personal" || fixture === "partial" || fixture === "empty") return "personal";
+  return auth ? "personal" : "local";
+}
+
+function contextCapabilities(fixture: string | null, mode: "local" | "personal" | "corporate") {
+  const remote = [
+    "catalog_object.list",
+    "catalog_object.read",
+    "organization.read",
+    "project.create",
+    "project.link",
+    "project.list",
+    "project.read",
+    "project.unlink",
+    "project.update",
+    "technology.list",
+    "technology.read",
+  ];
+  const local = [
+    "catalog_object.list",
+    "catalog_object.read",
+    "landscape.list",
+    "landscape.read",
+    "project.list",
+    "project.read",
+    "technology.list",
+    "technology.read",
+  ];
+  return {
+    capabilities: fixture === "corporate-denied" ? [] : mode === "local" ? local : remote,
+    unavailable: CORPORATE_ONLY_UNAVAILABLE,
+  };
+}
+
+function contextResponse(
+  fixture: string | null,
+  auth: string | null,
+  headers?: HeadersInit,
+): MockResult {
+  const mode = contextMode(fixture, auth, headers);
+  if (mode !== "local" && !auth)
+    return { status: 401, body: errorBody("AI_STP_UNAUTHORIZED", "context.authentication") };
+  const organizationId =
+    mode === "local"
+      ? null
+      : mode === "corporate"
+        ? CORPORATE_ORGANIZATION_ID
+        : PERSONAL_ORGANIZATION_ID;
+  const capability = contextCapabilities(fixture, mode);
+  return {
+    status: 200,
+    body: {
+      schema_version: 1,
+      mode,
+      organization_id: organizationId,
+      capabilities: {
+        schema_version: 1,
+        mode,
+        organization_id: organizationId,
+        context_kind: mode,
+        authorization_revision: `${mode}:${organizationId ?? "local"}:1`,
+        issued_at: "2026-09-10T00:00:00Z",
+        generated_at: "2026-09-10T00:00:00Z",
+        expires_at:
+          fixture === "corporate-expired" ? "2000-01-01T00:00:00Z" : "2099-01-01T00:00:00Z",
+        ...capability,
+      },
+    },
+  };
+}
+
+function organizationsResponse(fixture: string | null, auth: string | null): MockResult {
+  if (!auth)
+    return { status: 401, body: errorBody("AI_STP_UNAUTHORIZED", "context.organizations") };
+  if (fixture === "partial")
+    return { status: 503, body: errorBody("AI_STP_UNAVAILABLE", "context.organizations") };
+  if (fixture === "empty") return { status: 200, body: { schema_version: 1, items: [] } };
+  const items = [
+    {
+      schema_version: 1,
+      organization_id: PERSONAL_ORGANIZATION_ID,
+      kind: "personal",
+      display_name: "Personal",
+      membership_revision: 1,
+    },
+    ...(fixture?.startsWith("corporate")
+      ? [
+          {
+            schema_version: 1,
+            organization_id: CORPORATE_ORGANIZATION_ID,
+            kind: "corporate",
+            display_name: "Acme Corp",
+            membership_revision: 1,
+          },
+        ]
+      : []),
+  ];
+  return { status: 200, body: { schema_version: 1, items } };
+}
+
+function contextHandler(
+  method: string,
+  path: string,
+  auth: string | null,
+  headers?: HeadersInit,
+): MockResult | null {
+  if (!["/v1/context", "/v1/organizations", "/v1/local/session"].includes(path)) return null;
+  const fixture = readHeader(headers, "X-AI-STP-Context-Fixture");
+  const fixtureError = contextFixtureError(fixture);
+  if (fixtureError) return fixtureError;
+  const localSession = localSessionHandler(method, path);
+  if (localSession) return localSession;
+  if (method !== "GET") return null;
+  if (path === "/v1/context") return contextResponse(fixture, auth, headers);
+  if (path === "/v1/organizations") return organizationsResponse(fixture, auth);
+  return null;
+}
+
 function parseMockBody(raw: string | undefined): unknown {
   if (!raw) {
     return undefined;
@@ -656,6 +834,8 @@ export function mockFetch(
   if (complaint) return complaint;
   const legal = legalDocumentHandler(method, path, init?.query);
   if (legal) return legal;
+  const context = contextHandler(method, path, auth, init?.headers);
+  if (context) return context;
   const reaction = reactionHandler(method, path);
   if (reaction) return reaction;
   const content = contentHandlers(method, path, init?.query);

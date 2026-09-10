@@ -60,6 +60,7 @@ SKIPPED_DIRECTORIES: Final[frozenset[str]] = frozenset(
         ".pytest_cache",
         ".idea",
         ".vscode",
+        ".ai-stp",
     }
 )
 

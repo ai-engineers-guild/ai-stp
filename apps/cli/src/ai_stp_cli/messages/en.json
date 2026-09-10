@@ -111,6 +111,7 @@
   "a required option must be an integer": "a required option must be an integer",
   "a required option must be repeatable text": "a required option must be repeatable text",
   "a required option was not supplied": "a required option was not supplied",
+  "--local-project-id must be a project id": "--local-project-id must be a project id",
   "a resolved component carries no artifact digest to bundle": "a resolved component carries no artifact digest to bundle",
   "a second adaptation requires one concrete harness": "a second adaptation requires one concrete harness",
   "a secret exists in both the credential store and a file, and they do not agree": "a secret exists in both the credential store and a file, and they do not agree",

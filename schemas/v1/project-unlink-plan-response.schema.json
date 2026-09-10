@@ -1,0 +1,119 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-unlink-plan-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The exact server-authored unlink decision awaiting confirmation.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "expected_link_revision": {
+      "minimum": 1,
+      "title": "Expected Link Revision",
+      "type": "integer"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "link_id": {
+      "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Link Id",
+      "type": "string"
+    },
+    "local_project_id": {
+      "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Local Project Id",
+      "type": "string"
+    },
+    "local_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Local Revision",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "plan_digest": {
+      "maxLength": 71,
+      "minLength": 71,
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "pattern": "^unlink_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "provider_project_id": {
+      "anyOf": [
+        {
+          "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Provider Project Id"
+    },
+    "provider_revision": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Provider Revision"
+    },
+    "remote_project_id": {
+      "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Remote Project Id",
+      "type": "string"
+    },
+    "remote_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Remote Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "expected_link_revision",
+    "expires_at",
+    "link_id",
+    "local_project_id",
+    "local_revision",
+    "organization_id",
+    "plan_digest",
+    "plan_id",
+    "provider_project_id",
+    "provider_revision",
+    "remote_project_id",
+    "remote_revision",
+    "schema_version"
+  ],
+  "title": "ProjectUnlinkPlanResponse",
+  "type": "object"
+}

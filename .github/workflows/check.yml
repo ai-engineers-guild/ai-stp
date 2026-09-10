@@ -1,4 +1,6 @@
-# Every check this repository has, on GitHub-hosted runners.
+# Every expensive repository check runs on GitHub-hosted runners.
+# The local commit hook is intentionally fast; this workflow is the required
+# oracle for full docs, backend/BT regression, web, browser, and matrix suites.
 #
 # Split by what each job needs rather than by taste: only the test jobs need a
 # database, only the web jobs need a browser, and the rest need neither. No job

@@ -52,6 +52,12 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
     "/v1/auth/device/approve": "browser half of the device flow; the CLI drives the other",
     "/v1/auth/link/{provider}": "step-up identity linking, browser-only",
     "/v1/auth/{provider}/login": "browser redirect entry point; the CLI uses the device flow",
+    "/v1/organizations/{organization_id}/provider-project-observations": (
+        "provider identity observation; it never creates a project link"
+    ),
+    "/v1/organizations/{organization_id}/project-link-proposals": (
+        "non-authoritative link evidence; explicit linking remains separate"
+    ),
     "/v1/catalog/components/{stable_id}/versions/{version}/checks": "catalog support evidence",
     "/v1/catalog/countries": "external product catalogue metadata (ADR-0088)",
     "/v1/catalog/countries/{code}": "external product catalogue metadata (ADR-0088)",
@@ -61,6 +67,7 @@ BEYOND_THE_CONTRACT: Final[dict[str, str]] = {
     "/v1/documents/{slug}": "web content documents",
     "/v1/media/avatars/{asset_id}": "media read path",
     "/v1/media/component/{media_id}": "media read path",
+    "/v1/local/session": "loopback-only session lifecycle for the local Web boundary",
     "/v1/owner/objects/{object_kind}/{stable_id}/external-products": (
         "external product ownership (ADR-0088)"
     ),

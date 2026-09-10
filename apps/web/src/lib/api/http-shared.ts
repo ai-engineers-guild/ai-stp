@@ -56,6 +56,7 @@ export async function executeJsonRequest<T>(
     query?: Record<string, QueryValue>;
     headers: Record<string, string>;
     body?: unknown;
+    baseUrl?: string;
   } & JsonRequestCache,
 ): Promise<T> {
   const env = getEnv();
@@ -72,7 +73,7 @@ export async function executeJsonRequest<T>(
     return mockResultToData<T>(mockFetch(options.method, path, mockInit));
   }
 
-  const base = env.AI_STP_API_BASE_URL.replace(/\/$/, "");
+  const base = (options.baseUrl ?? env.AI_STP_API_BASE_URL).replace(/\/$/, "");
   const url = new URL(`${base}${path}`);
   for (const [key, value] of buildQuery(options.query).entries()) {
     url.searchParams.append(key, value);

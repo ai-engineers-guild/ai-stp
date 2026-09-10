@@ -1,0 +1,56 @@
+{
+  "$id": "urn:ai-stp:schema:v1:project-link-proposal-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Non-authoritative link evidence awaiting an explicit link plan.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "evidence": {
+      "additionalProperties": true,
+      "title": "Evidence",
+      "type": "object"
+    },
+    "local_project_id": {
+      "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Local Project Id",
+      "type": "string"
+    },
+    "provider_project_id": {
+      "anyOf": [
+        {
+          "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Project Id"
+    },
+    "remote_project_id": {
+      "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Remote Project Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "local_project_id",
+    "remote_project_id",
+    "evidence",
+    "authorization_revision"
+  ],
+  "title": "ProjectLinkProposalRequest",
+  "type": "object"
+}
