@@ -2,6 +2,10 @@ import type * as AuthSession from "@/lib/auth/session";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(() => Promise.resolve({ get: () => undefined })),
+}));
+
 vi.mock("@/lib/auth/require-session", () => ({
   sessionCookieValue: vi.fn(() => Promise.resolve("mock-session")),
 }));
