@@ -67,6 +67,15 @@ release network or on a deployed environment being reachable.
 | `just evidence-sync <home_a> <home_b>` | two devices, rewind, conflict and merge — needs a real browser login |
 | `just evidence-publication <home>` | publication, grants, reports and owner reads — needs a real browser login |
 
+The publication slice retains its exact plan and confirmation hash before
+confirming. Repeating an interrupted run resumes that plan, including while its
+publication job is queued; an uncertain confirmation or a rate-limited status
+read does not create another attempt. A later operator invocation can retry a
+terminal failed, cancelled or stale attempt. A successful repeat needs only a
+fresh status read. Grant invitations require an explicitly named recipient.
+A requested publication that remains unverified returns a nonzero result;
+undriven grant and report scenarios remain explicit without failing read-only evidence.
+
 `software-evidence` and `config-evidence` are the two workflows that run their
 slice on the three required native legs (`ubuntu-24.04`, `macos-15`,
 `windows-2025`). Linux arm64, macOS x86_64 and Windows arm64 are not_verified
