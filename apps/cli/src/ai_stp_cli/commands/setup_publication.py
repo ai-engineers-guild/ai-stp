@@ -34,20 +34,17 @@ from ai_stp_cli.local import content, publication_sets, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_cli.local.passports import moment
 from ai_stp_contracts.machine_help import PublicationSetMemberView, PublicationSetView
-from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
 from ai_stp_contracts.publication import (
+    PLAN_STATE_PUBLISHED,
+    PLAN_STATES_REFUSED,
     PublicationConfirmRequest,
     PublicationPlanCreateRequest,
     PublicationPlanResponse,
 )
+from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_passports import SetupVersionPassport
-
-#: Terminal, and not published. Confirming further members after one of these
-#: would publish a graph the refused member is part of.
-_TERMINAL_FAILURES: Final[frozenset[str]] = frozenset({"failed", "rejected", "expired"})
-_PUBLISHED: Final[str] = "published"
 
 #: How many times a member's state is re-read before the set is reported as
 #: `partial`. Validation is asynchronous, and a set that gave up after one look
@@ -204,7 +201,7 @@ def _confirm_members(
             stop = True
             continue
         settled.append(member.model_copy(update={"state": final.state}))
-        if final.state != _PUBLISHED:
+        if final.state != PLAN_STATE_PUBLISHED:
             stop = True
     return tuple(settled)
 
@@ -226,7 +223,7 @@ def _confirm_one(
         or current.version != member.version
     ):
         raise CliFailure("AI_STP_PRECONDITION_FAILED", "the distribution plan changed after review")
-    if current.state == _PUBLISHED or current.state in _TERMINAL_FAILURES:
+    if current.state == PLAN_STATE_PUBLISHED or current.state in PLAN_STATES_REFUSED:
         return current
     if current.state in {"ready", "draft"}:
         bound = publication.bind(where, held.access_token, member.plan_id, artifact, pause=pause)
@@ -254,7 +251,7 @@ def _wait_terminal(
 ) -> PublicationPlanResponse:
     """Read until the platform has decided, or until waiting stops being useful."""
     for _ in range(_MAX_POLLS):
-        if current.state == _PUBLISHED or current.state in _TERMINAL_FAILURES:
+        if current.state == PLAN_STATE_PUBLISHED or current.state in PLAN_STATES_REFUSED:
             return current
         pause(_POLL_SECONDS)
         observed = publication.status(where, held.access_token, current.plan_id)
@@ -291,7 +288,7 @@ def _member(
             stable_id=stable_id,
             version=version,
             already_published=True,
-            state=_PUBLISHED,
+            state=PLAN_STATE_PUBLISHED,
             visibility=available,
         )
     created = publication.create(
@@ -366,9 +363,9 @@ def _view(stored: publication_sets.StoredSet) -> PublicationSetView:
 
 
 def _set_state(members: Sequence[PublicationSetMemberView]) -> str:
-    if all(member.already_published or member.state == _PUBLISHED for member in members):
+    if all(member.already_published or member.state == PLAN_STATE_PUBLISHED for member in members):
         return publication_sets.STATE_PUBLISHED
-    if any(member.state == _PUBLISHED or member.already_published for member in members):
+    if any(member.state == PLAN_STATE_PUBLISHED or member.already_published for member in members):
         return publication_sets.STATE_PARTIAL
     return publication_sets.STATE_PLANNED
 

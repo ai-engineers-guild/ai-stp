@@ -42,6 +42,7 @@ from release_scripts._evidence import (
 from release_scripts._evidence import origin as bare_origin
 
 from ai_stp_cli.paths import write_private
+from ai_stp_contracts.publication import PLAN_STATES_IN_PROGRESS, PLAN_STATES_REFUSED
 
 # Read-only commands, each named with the surface it proves. A command that
 # changes nothing can run against production without a decision.
@@ -504,13 +505,19 @@ def _reachability(home: Path, *, python: str) -> dict[str, dict[str, Any]]:
 #: skill projection carries all of that truthfully.
 _SUBJECT_PATH: Final[str] = "skills/projections/claude-code"
 _SUBJECT_MARKER: Final[str] = "publishable-subject.json"
-_PUBLICATION_PENDING: Final[frozenset[str]] = frozenset(
-    {"", "draft", "ready", "validating", "publish_planned"}
-)
-_RESTARTABLE_PUBLICATION: Final[frozenset[str]] = frozenset({"failed", "cancelled", "stale"})
 _UNCERTAIN_CONFIRMATION: Final[frozenset[str]] = frozenset(
     {"AI_STP_TIMEOUT_UNCONFIRMED", "AI_STP_DEPENDENCY_UNAVAILABLE", "AI_STP_RATE_LIMITED"}
 )
+
+
+def _still_moving(state: str) -> bool:
+    """Whether the plan may still change on its own.
+
+    An unreadable status reads as `""`, which is not a `PlanState` at all. It
+    and the in-progress states share one consequence — keep waiting — so they
+    are answered together here rather than folded into the contract's set.
+    """
+    return not state or state in PLAN_STATES_IN_PROGRESS
 
 
 def _seed_publishable(home: Path, *, python: str) -> tuple[str, str]:
@@ -599,7 +606,14 @@ def _seed_publishable(home: Path, *, python: str) -> tuple[str, str]:
     return stable_id, numbers[-1]
 
 
-def _publication_status(home: Path, plan_id: str, *, python: str) -> dict[str, Any]:
+def _publication_status(home: Path, plan_id: str, *, python: str) -> tuple[dict[str, Any], str]:
+    """Read one plan's status as `(payload, transport_error)`.
+
+    The two are returned separately because they mean opposite things: a
+    payload describes a plan that answered, while a transport error means the
+    plan said nothing at all. Folding the error into the payload would let a
+    response field named `error_code` be mistaken for an unreachable platform.
+    """
     status = cli(
         ["publication", "status", "--plan-id", plan_id],
         home=home,
@@ -607,8 +621,8 @@ def _publication_status(home: Path, plan_id: str, *, python: str) -> dict[str, A
         allow_failure=True,
     )
     if status.get("ok") is not True:
-        return {"state": "", "error_code": error_code(status)}
-    return dict(data(status, "publication status"))
+        return {}, error_code(status)
+    return dict(data(status, "publication status")), ""
 
 
 def _driven_writes(
@@ -643,7 +657,7 @@ def _driven_writes(
     held = cast(dict[str, Any], json.loads(marker.read_text(encoding="utf-8")))
     plan_id = str(held.get("plan_id", ""))
     first_status = _publication_status(home, plan_id, python=python) if plan_id else None
-    if first_status and first_status.get("state") in _RESTARTABLE_PUBLICATION:
+    if first_status and first_status[0].get("state") in PLAN_STATES_REFUSED:
         # A new operator invocation may retry a terminal attempt. An active
         # or unobservable attempt is always resumed under its existing id.
         plan_id = ""
@@ -673,24 +687,24 @@ def _driven_writes(
         server_state = ""
         confirm_sent = False
         for _ in range(24):
-            status = (
+            observed, transport_error = (
                 first_status
                 if first_status is not None
                 else _publication_status(home, plan_id, python=python)
             )
             first_status = None
-            server_state = str(status.get("state", ""))
-            if status.get("error_code"):
+            server_state = str(observed.get("state", ""))
+            if transport_error:
                 publication.update(
                     state="not_verified",
                     step="status",
                     plan_id=plan_id,
-                    error_code=status["error_code"],
+                    error_code=transport_error,
                     reason="the retained plan could not be read; "
                     "resume it when the condition clears",
                 )
                 break
-            observed_hash = str(status.get("plan_hash", ""))
+            observed_hash = str(observed.get("plan_hash", ""))
             bound_hash = str(held.get("plan_hash", ""))
             if observed_hash and bound_hash and observed_hash != bound_hash:
                 publication.update(
@@ -737,29 +751,32 @@ def _driven_writes(
                     )
                     break
                 continue
-            if server_state not in _PUBLICATION_PENDING:
+            if not _still_moving(server_state):
                 break
             time.sleep(5)
-        if publication.get("state") in {"failed", "not_verified"}:
-            pass
-        elif server_state == "published":
-            publication.update(
-                state="verified",
-                plan_id=plan_id,
-                server_state=server_state,
-                note="an immutable X.Y with a true repository source is in the deployed catalogue",
-            )
-        elif server_state in _PUBLICATION_PENDING:
-            publication.update(
-                state="not_verified",
-                plan_id=plan_id,
-                server_state=server_state,
-                reason="the retained plan did not reach a terminal state in the polling window",
-            )
-        else:
-            publication.update(
-                state="failed", step="validate", plan_id=plan_id, server_state=server_state
-            )
+        # The polling loop already reported why it stopped when it stopped on a
+        # refusal or an unreadable status. Only a run that fell out of the loop
+        # without a verdict is decided here, by the state it settled on.
+        if publication.get("state") not in {"failed", "not_verified"}:
+            if server_state == "published":
+                publication.update(
+                    state="verified",
+                    plan_id=plan_id,
+                    server_state=server_state,
+                    note="an immutable X.Y with a true repository source is in the "
+                    "deployed catalogue",
+                )
+            elif _still_moving(server_state):
+                publication.update(
+                    state="not_verified",
+                    plan_id=plan_id,
+                    server_state=server_state,
+                    reason="the retained plan did not reach a terminal state in the polling window",
+                )
+            else:
+                publication.update(
+                    state="failed", step="validate", plan_id=plan_id, server_state=server_state
+                )
 
     grants: dict[str, Any] = {"stable_id": stable_id}
     if not invite_email:
@@ -918,6 +935,12 @@ def refused(report: Mapping[str, Any]) -> bool:
     code nobody reads. A *driven* write that failed is a different animal — the
     operator allowed it, the slice ran it, and a quiet zero over that failure
     would be the exact defect this script exists to rule out.
+
+    Publication carries one further rule, and only publication: once writes are
+    allowed the operator has asked for a version to exist, so anything short of
+    `verified` — including a plan left mid-flight — is refused. Grants and
+    reports keep the general treatment, because they stay `not_verified` for
+    reasons the operator chose, such as naming no recipient.
     """
     writes = {name for name, _reason in WRITES}
     scenarios = cast(Mapping[str, Mapping[str, Any]], report["scenarios"])

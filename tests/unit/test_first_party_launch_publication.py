@@ -718,7 +718,7 @@ def test_a_plan_lost_to_a_restart_can_be_given_a_fresh_attempt() -> None:
     often it ran.
 
     So recovery is a new attempt rather than a retry, and it is a flag because
-    `TERMINAL_FAILURES` also covers plans the platform refused on their merits —
+    `PLAN_STATES_REFUSED` also covers plans the platform refused on their merits —
     re-planning those blindly turns a refusal into a loop.
     """
     state = tool.BatchState(
@@ -751,7 +751,7 @@ def test_a_plan_lost_to_a_restart_can_be_given_a_fresh_attempt() -> None:
                 create_idempotency_key="key-three",
                 confirm_idempotency_key="key-four",
                 plan_id="plan_done",
-                state=tool.PUBLISHED,
+                state=tool.PLAN_STATE_PUBLISHED,
             ),
         ],
     )
@@ -769,6 +769,6 @@ def test_a_plan_lost_to_a_restart_can_be_given_a_fresh_attempt() -> None:
     assert failed.blocker is None
     assert failed.refused_by == []
     # Published work is never touched: republishing it is what immutability forbids.
-    assert published.state == tool.PUBLISHED
+    assert published.state == tool.PLAN_STATE_PUBLISHED
     assert published.create_idempotency_key == "key-three"
     assert published.plan_id == "plan_done"

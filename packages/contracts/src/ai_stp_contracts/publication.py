@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import PurePosixPath
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -39,6 +39,21 @@ type PlanState = Literal[
     "cancelled",
     "stale",
 ]
+#: `PlanState` partitioned by what a caller must do next: keep waiting, treat
+#: the attempt as refused, or read the published result. It lives beside the
+#: type because three call sites had each answered this separately and drifted —
+#: one of them was still testing for `rejected` and `expired`, which are not
+#: plan states, while missing `cancelled` and `stale`, which are. The partition
+#: covers `PlanState` exactly, and `tests/unit/test_publication_contract.py`
+#: fails if a new state lands outside it.
+PLAN_STATES_IN_PROGRESS: Final[frozenset[str]] = frozenset(
+    {"draft", "ready", "validating", "publish_planned"}
+)
+#: Terminal and not published. A caller holding one of these may plan again;
+#: continuing a set whose member is refused would publish the graph it belongs to.
+PLAN_STATES_REFUSED: Final[frozenset[str]] = frozenset({"failed", "cancelled", "stale"})
+PLAN_STATE_PUBLISHED: Final[str] = "published"
+
 type EvidenceSource = Literal[
     "author_attested",
     "platform_digest_verified",
