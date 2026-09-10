@@ -1,0 +1,40 @@
+schema_version: 1
+repository:
+  id: repo_01M26AB5EBY96YWHQXXYV4FPTB
+  display_name: ai-stp
+  roles:
+  - project
+  lifecycle: active
+provider:
+  type: github
+  installation: installation:github-guild
+  owner: ai-engineers-guild
+  repository_id: 1340858110
+  name: ai-stp
+classification:
+  portfolios:
+  - portfolio:guild-projects
+  visibility_contract: public
+  data_classification: public
+product:
+  purpose: >-
+    Select, verify and install a complete development setup through an agent.
+policy:
+  profiles:
+  - repository-default
+  - organization-default
+  rollout_ring: standard
+git:
+  default_branch: main
+  integration: pull-request
+  branch_model: task-branches
+  handoff_pr: preferred
+  cleanup: merged-only
+agent:
+  context_profile: project-default
+  generated_agents: false
+  serena:
+    enabled: true
+    provenance_required: true
+release:
+  mode: none
