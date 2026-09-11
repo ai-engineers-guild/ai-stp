@@ -449,6 +449,97 @@ async def test_provider_identity_and_link_proposal_never_auto_link(
         assert stored is not None
 
 
+async def test_link_confirmation_rejects_provider_evidence_changed_after_plan(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization_id, _link_id, remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    authorization_revision = f"personal:{organization_id}:1:1"
+    provider_project_id = new_id("provider_project")
+    observation = {
+        "schema_version": 1,
+        "provider_project_id": provider_project_id,
+        "provider_kind": "github",
+        "installation_id": "installation-1",
+        "namespace_id": "owner/repository",
+        "immutable_repository_id": "github:67890",
+        "current_url": "https://github.com/owner/repository",
+        "observed_name": "repository",
+        "authorization_revision": authorization_revision,
+    }
+    observed = await client.post(
+        f"/v1/organizations/{organization_id}/provider-project-observations",
+        headers=headers,
+        json=observation,
+    )
+    assert observed.status_code == 201, observed.text
+
+    plan_payload = {
+        "schema_version": 1,
+        "local_project_id": new_id("project"),
+        "remote_project_id": remote_project_id,
+        "provider_project_id": provider_project_id,
+        "local_revision": "local-1",
+        "remote_revision": "initial",
+        "provider_revision": str(observed.json()["revision"]),
+        "authorization_revision": authorization_revision,
+        "idempotency_key": "link-plan-provider-stale",
+    }
+    stale_remote = await client.post(
+        f"/v1/organizations/{organization_id}/project-link-plans",
+        headers=headers,
+        json={
+            **plan_payload,
+            "remote_revision": "stale",
+            "idempotency_key": "link-plan-stale-remote",
+        },
+    )
+    assert stale_remote.status_code == 412
+
+    plan = await client.post(
+        f"/v1/organizations/{organization_id}/project-link-plans",
+        headers=headers,
+        json=plan_payload,
+    )
+    assert plan.status_code == 201, plan.text
+
+    renamed = await client.post(
+        f"/v1/organizations/{organization_id}/provider-project-observations",
+        headers=headers,
+        json={
+            **observation,
+            "current_url": "https://github.com/owner/renamed",
+            "observed_name": "renamed",
+        },
+    )
+    assert renamed.status_code == 201
+
+    confirmed = await client.post(
+        "/v1/projects/links",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "plan_id": plan.json()["plan_id"],
+            "plan_digest": plan.json()["plan_digest"],
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "link-confirm-provider-stale",
+        },
+    )
+    assert confirmed.status_code == 412
+    async with sessionmaker() as db:
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(ProjectLink)
+                .where(ProjectLink.plan_id == plan.json()["plan_id"])
+            )
+            == 0
+        )
+
+
 async def test_local_session_is_loopback_scoped_and_csrf_bound(
     project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
 ) -> None:

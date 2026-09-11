@@ -487,7 +487,7 @@ async def create_project_link_plan(
             raise ApiError(ErrorCategory.CONFLICT, "idempotency key belongs to another link plan")
         return link_plan_body(replay)
 
-    await _validate_link_targets(db, organization_id=organization_id, payload=payload)
+    await _validate_link_target_revisions(db, organization_id=organization_id, payload=payload)
     active_link = await db.scalar(
         select(ProjectLink).where(
             ProjectLink.organization_id == organization_id,
@@ -662,6 +662,35 @@ async def _validate_link_targets(
             raise ApiError(ErrorCategory.NOT_FOUND, "provider project not found")
 
 
+async def _validate_link_target_revisions(
+    db: AsyncSession, *, organization_id: str, payload: ProjectLinkPlanRequest
+) -> None:
+    """Refuse a plan or confirmation based on stale remote/provider evidence."""
+    await _validate_link_targets(db, organization_id=organization_id, payload=payload)
+    head = await db.scalar(
+        select(ProjectRevisionHead).where(
+            ProjectRevisionHead.organization_id == organization_id,
+            ProjectRevisionHead.remote_project_id == payload.remote_project_id,
+        )
+    )
+    if payload.remote_revision != (head.revision_id if head is not None else "initial"):
+        raise ApiError(ErrorCategory.PRECONDITION, "remote project revision is stale")
+    if payload.provider_project_id is None:
+        if payload.provider_revision is not None:
+            raise ApiError(ErrorCategory.PRECONDITION, "provider project revision is stale")
+        return
+    provider = await db.scalar(
+        select(ProjectIdentity).where(
+            ProjectIdentity.id == payload.provider_project_id,
+            ProjectIdentity.organization_id == organization_id,
+            ProjectIdentity.namespace == "provider",
+            ProjectIdentity.state == "active",
+        )
+    )
+    if provider is None or payload.provider_revision != str(provider.revision):
+        raise ApiError(ErrorCategory.PRECONDITION, "provider project revision is stale")
+
+
 async def read_project_link_plan(
     db: AsyncSession, *, ctx: AuthContext, organization_id: str, plan_id: str
 ) -> ProjectLinkPlanResponse:
@@ -832,6 +861,21 @@ async def create_project_link(
         expires_at = expires_at.replace(tzinfo=UTC)
     if plan.state != "ready" or expires_at <= datetime.now(UTC):
         raise ApiError(ErrorCategory.PRECONDITION, "project link plan is no longer active")
+
+    await _validate_link_target_revisions(
+        db,
+        organization_id=organization_id,
+        payload=ProjectLinkPlanRequest(
+            local_project_id=plan.local_project_id,
+            remote_project_id=plan.remote_project_id,
+            provider_project_id=plan.provider_project_id,
+            local_revision=plan.local_revision,
+            remote_revision=plan.remote_revision,
+            provider_revision=plan.provider_revision,
+            authorization_revision=plan.authorization_revision,
+            idempotency_key=plan.idempotency_key,
+        ),
+    )
 
     existing = await db.scalar(
         select(ProjectLink).where(
