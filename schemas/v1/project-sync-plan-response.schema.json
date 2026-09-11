@@ -1,0 +1,157 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-sync-plan-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "A no-side-effect sync decision, or a conflict requiring user choice.",
+  "properties": {
+    "action": {
+      "enum": [
+        "noop",
+        "local_to_remote",
+        "remote_to_local",
+        "merge_required"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "common_ancestor_revision": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Common Ancestor Revision"
+    },
+    "conflict_code": {
+      "anyOf": [
+        {
+          "enum": [
+            "local_changed",
+            "remote_changed",
+            "both_changed",
+            "provider_mismatch",
+            "remote_missing",
+            "stale_revision"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Conflict Code"
+    },
+    "expected_link_revision": {
+      "minimum": 1,
+      "title": "Expected Link Revision",
+      "type": "integer"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "link_id": {
+      "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Link Id",
+      "type": "string"
+    },
+    "local_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Local Revision",
+      "type": "string"
+    },
+    "plan_digest": {
+      "maxLength": 71,
+      "minLength": 71,
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "plan_id": {
+      "pattern": "^sync_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "provider_identity_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Provider Identity Revision"
+    },
+    "provider_revision": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Provider Revision"
+    },
+    "remote_identity_revision": {
+      "minimum": 1,
+      "title": "Remote Identity Revision",
+      "type": "integer"
+    },
+    "remote_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Remote Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "ready",
+        "conflict",
+        "applied",
+        "failed",
+        "unknown"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "common_ancestor_revision",
+    "conflict_code",
+    "expected_link_revision",
+    "expires_at",
+    "link_id",
+    "local_revision",
+    "plan_digest",
+    "plan_id",
+    "provider_identity_revision",
+    "provider_revision",
+    "remote_identity_revision",
+    "remote_revision",
+    "schema_version",
+    "state"
+  ],
+  "title": "ProjectSyncPlanResponse",
+  "type": "object"
+}

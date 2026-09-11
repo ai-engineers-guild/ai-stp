@@ -35,6 +35,7 @@ from ai_stp_platform import (
     github_models as _github_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
 )
 from ai_stp_platform.db import Base
+from ai_stp_platform.organization_scope import OrganizationScopedMixin
 
 
 class Account(Base):
@@ -180,7 +181,7 @@ class DeviceAuthorization(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class CatalogMetadata(Base):
+class CatalogMetadata(OrganizationScopedMixin, Base):
     """Server metadata for a private draft or published catalog version.
 
     One row is one (object_kind, stable_id, version) identity. Publication and
@@ -236,7 +237,7 @@ class CatalogMetadata(Base):
     owner: Mapped[Account] = relationship()
 
 
-class CatalogIdentity(Base):
+class CatalogIdentity(OrganizationScopedMixin, Base):
     """One owned catalog line per component stable ID (SPEC-059)."""
 
     __tablename__ = "catalog_identity"
@@ -281,7 +282,7 @@ class CatalogIdentityLocale(Base):
 CATALOG_SEARCH_VECTOR_SQL = "to_tsvector('simple', coalesce(search_text, ''))"
 
 
-class CatalogSearchProjection(Base):
+class CatalogSearchProjection(OrganizationScopedMixin, Base):
     """One latest public catalog object for SQL search (ADR-0151)."""
 
     __tablename__ = "catalog_search_projection"
@@ -480,7 +481,7 @@ class CatalogExternalProduct(Base):
     )
 
 
-class ComponentMedia(Base):
+class ComponentMedia(OrganizationScopedMixin, Base):
     """Ordered, normalized presentation media for one component (SPEC-035)."""
 
     __tablename__ = "component_media"
@@ -538,7 +539,7 @@ class CatalogReaction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class ObjectLocation(Base):
+class ObjectLocation(OrganizationScopedMixin, Base):
     """Pointer from one catalog version to immutable content-addressed bytes.
 
     The object store still refuses different bytes under the same key. This
@@ -574,7 +575,7 @@ class ObjectLocation(Base):
     catalog_metadata: Mapped[CatalogMetadata] = relationship()
 
 
-class AuditEvent(Base):
+class AuditEvent(OrganizationScopedMixin, Base):
     """Append-only audit row for sensitive server actions."""
 
     __tablename__ = "audit_event"
@@ -593,7 +594,7 @@ class AuditEvent(Base):
     actor: Mapped[Account | None] = relationship()
 
 
-class SyncRevision(Base):
+class SyncRevision(OrganizationScopedMixin, Base):
     """Immutable account-scoped accepted revision (SPEC-025, ADR-0045)."""
 
     __tablename__ = "sync_revision"
@@ -631,7 +632,7 @@ class SyncRevision(Base):
     )
 
 
-class SyncEntityHead(Base):
+class SyncEntityHead(OrganizationScopedMixin, Base):
     """One server head per (account, entity)."""
 
     __tablename__ = "sync_entity_head"
@@ -646,7 +647,7 @@ class SyncEntityHead(Base):
     )
 
 
-class SyncEventReceipt(Base):
+class SyncEventReceipt(OrganizationScopedMixin, Base):
     """Durable idempotent outcome of one push event."""
 
     __tablename__ = "sync_event_receipt"
@@ -677,7 +678,7 @@ class SyncEventReceipt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class SyncOutbox(Base):
+class SyncOutbox(OrganizationScopedMixin, Base):
     """Ordered durable stream of accepted events for account pull."""
 
     __tablename__ = "sync_outbox"
@@ -707,7 +708,7 @@ class SyncOutbox(Base):
     )
 
 
-class PublicationPlan(Base):
+class PublicationPlan(OrganizationScopedMixin, Base):
     """Immutable publication plan / operation (SPEC-026)."""
 
     __tablename__ = "publication_plan"
@@ -767,7 +768,7 @@ class PublicationPlan(Base):
     )
 
 
-class VisibilityPlan(Base):
+class VisibilityPlan(OrganizationScopedMixin, Base):
     """Durable owner decision changing access without replacing immutable bytes."""
 
     __tablename__ = "visibility_plan"
@@ -896,7 +897,7 @@ class SafetyFinding(Base):
     fingerprint: Mapped[str] = mapped_column(String(32), default="")
 
 
-class AccessGrant(Base):
+class AccessGrant(OrganizationScopedMixin, Base):
     """Major-line access grant (SPEC-002, ADR-0030)."""
 
     __tablename__ = "access_grant"
@@ -930,7 +931,7 @@ class AccessGrant(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class GrantInvitation(Base):
+class GrantInvitation(OrganizationScopedMixin, Base):
     """Email invitation that becomes a grant after verified accept."""
 
     __tablename__ = "grant_invitation"
@@ -967,7 +968,7 @@ class GrantInvitation(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class ReportCase(Base):
+class ReportCase(OrganizationScopedMixin, Base):
     """Private request case routed by topic (SPEC-016)."""
 
     __tablename__ = "report_case"
@@ -1024,7 +1025,7 @@ class ReportCase(Base):
     )
 
 
-class AccountAuthorVerification(Base):
+class AccountAuthorVerification(OrganizationScopedMixin, Base):
     """Manual author_verified flag for an account (SPEC-007 REQ-715)."""
 
     __tablename__ = "account_author_verification"
@@ -1083,7 +1084,7 @@ class PublicProfile(Base):
     )
 
 
-class ProfileRevision(Base):
+class ProfileRevision(OrganizationScopedMixin, Base):
     """Immutable profile snapshot (draft or published)."""
 
     __tablename__ = "profile_revision"
@@ -1107,7 +1108,7 @@ class ProfileRevision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class AvatarAsset(Base):
+class AvatarAsset(OrganizationScopedMixin, Base):
     """Processed avatar asset; originals stay private."""
 
     __tablename__ = "avatar_asset"
@@ -1187,7 +1188,7 @@ class DocumentRevision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class AccountPolicyAcceptance(Base):
+class AccountPolicyAcceptance(OrganizationScopedMixin, Base):
     """One immutable acceptance of an exact published legal revision."""
 
     __tablename__ = "account_policy_acceptance"
@@ -1313,7 +1314,7 @@ class CatalogUsageDedup(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class OfficialUpstreamSource(Base):
+class OfficialUpstreamSource(OrganizationScopedMixin, Base):
     """Operator-managed Git or package component source (SPEC-056 REQ-5608)."""
 
     __tablename__ = "official_upstream_source"
@@ -1599,7 +1600,7 @@ class TargetAssessmentLatest(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class SetupFamily(Base):
+class SetupFamily(OrganizationScopedMixin, Base):
     """Mutable navigational grouping of single-harness setups (SPEC-065)."""
 
     __tablename__ = "setup_family"

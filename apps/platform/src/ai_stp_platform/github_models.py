@@ -8,9 +8,10 @@ from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, String, Text, Uni
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_stp_platform.db import Base
+from ai_stp_platform.organization_scope import OrganizationScopedMixin
 
 
-class GitHubConnector(Base):
+class GitHubConnector(OrganizationScopedMixin, Base):
     """An account's expiring user authorization; never an ordinary login token."""
 
     __tablename__ = "github_connector"
@@ -28,7 +29,7 @@ class GitHubConnector(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class GitHubAuthorizationFlow(Base):
+class GitHubAuthorizationFlow(OrganizationScopedMixin, Base):
     """One-use OAuth state bound to the same authenticated platform session."""
 
     __tablename__ = "github_authorization_flow"
@@ -43,7 +44,7 @@ class GitHubAuthorizationFlow(Base):
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class GitHubSourceBinding(Base):
+class GitHubSourceBinding(OrganizationScopedMixin, Base):
     """Immutable private coordinates associated with exact canonical bytes."""
 
     __tablename__ = "github_source_binding"
@@ -72,7 +73,7 @@ class GitHubSourceBinding(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class GitHubActionPlan(Base):
+class GitHubActionPlan(OrganizationScopedMixin, Base):
     """Durable exact intent and reconciliation state for one external effect."""
 
     __tablename__ = "github_action_plan"
@@ -106,7 +107,7 @@ class GitHubActionPlan(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class DistributionVisibilityPlan(Base):
+class DistributionVisibilityPlan(OrganizationScopedMixin, Base):
     """Owner exposure intent without rewriting a version or artifact."""
 
     __tablename__ = "distribution_visibility_plan"

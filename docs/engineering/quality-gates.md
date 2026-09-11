@@ -1,6 +1,6 @@
 ---
 description: "Required checks and release evidence."
-last_verified: "2026-09-04"
+last_verified: "2026-09-10"
 ---
 
 # Quality gates
@@ -39,6 +39,23 @@ must be able to describe what it replaced.
 - security;
 - package/install;
 - E2E.
+
+## Local versus CI execution boundary
+
+The local commit hook is intentionally a fast feedback path. Before a commit,
+run `just pre-commit` and any focused unit, contract, or PostgreSQL tests needed
+to diagnose the change. The hook does not run the repository's expensive
+artifacts or full suites.
+
+The following checks are CI-only: full `docs-check` (including strict MkDocs
+builds and Mermaid rendering), full `back-check` (including the PostgreSQL
+regression set, coverage, wheel builds, and clean-install regression), full
+`web-check` (including production build, Storybook, coverage, browser E2E, and
+feature profiles), cross-platform matrices, and repository-wide security scans.
+They are not run by the local pre-commit or pre-push path. A draft or ordinary
+pull request runs them in GitHub Actions; a push to `main` runs them again on
+the landing line. A focused local test is diagnostic evidence, not a
+substitute for the CI result, and a skipped CI lane is not a pass.
 
 Since Phase 1, `just check` has included Ruff format/check and Pyright in one
 `back-static` run (strict for `packages/`, `apps/`, and `tests/`, basic for
@@ -149,8 +166,9 @@ table (`cli-json.md`), and the closed device summary (`device-passport.md`). Eac
 check has been tested to fail: two lists that match and are never checked are two
 lists that will diverge, and the document is read before the code exists.
 
-Hooks are separated by cost. `pre-commit` runs `docs-check` and `back-static`, but
-not thousands of backend tests, wheel builds, or install regression. Full
+Hooks are separated by cost. `pre-commit` runs `docs-static`, `docs-test`, and
+`back-static`, but not full documentation builds, thousands of backend tests,
+wheel builds, or install regression. Full
 `back-check` and `just check` run on push and in CI. The practical reason is simple:
 a hook taking more than a minute is bypassed with `--no-verify`, and a bypassed hook
 protects nothing.
@@ -241,8 +259,9 @@ groups.
 
 Outside the groups are `setup`, `hooks`, `gen`, `check`, `pre-commit`, and
 `security`. No aliases are added: `ci` and `pre-push` were second names for `check`
-and were removed. The Git pre-commit hook calls fast `just pre-commit`; full
-`just check` remains the push/CI gate.
+and were removed. The Git pre-commit hook calls fast `just pre-commit`; there is
+no pre-push hook for the expensive suites, and full `just check` remains the CI
+gate.
 
 `security` is repository-wide, not group-specific: the dependency scanner is
 currently one tool (`bun audit`). A Python scanner is added to the same recipe when

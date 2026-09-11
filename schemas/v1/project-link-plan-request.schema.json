@@ -1,0 +1,87 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-link-plan-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Request a server-authored exact link plan without changing state.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "local_project_id": {
+      "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Local Project Id",
+      "type": "string"
+    },
+    "local_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Local Revision",
+      "type": "string"
+    },
+    "provider_project_id": {
+      "anyOf": [
+        {
+          "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Project Id"
+    },
+    "provider_revision": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Revision"
+    },
+    "remote_project_id": {
+      "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Remote Project Id",
+      "type": "string"
+    },
+    "remote_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Remote Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "local_project_id",
+    "remote_project_id",
+    "local_revision",
+    "remote_revision",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "ProjectLinkPlanRequest",
+  "type": "object"
+}

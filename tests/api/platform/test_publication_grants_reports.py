@@ -221,6 +221,7 @@ async def _seed_account_device(
         )
         db.add(account)
         db.add(device)
+        await db.flush()
         if publish_profile:
             profile_revision = ProfileRevision(
                 id=new_id("prevision"),
@@ -245,7 +246,6 @@ async def _seed_account_device(
                     state="linked",
                 )
             )
-        await db.flush()
         issued = await issue_session(
             db, account_id=account.id, device_id=device.id, ttl_seconds=3600
         )

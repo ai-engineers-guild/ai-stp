@@ -1,0 +1,103 @@
+{
+  "$defs": {
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:capability-projection",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Bounded server projection used by one shared UI.\n\n``capabilities`` is an allowlist, not an authorization token. Every mutation\nstill rechecks the current membership and policy revision on the server.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "capabilities": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{1,31}\\.[a-z][a-z0-9_]{1,31}$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "context_kind": {
+      "enum": [
+        "local",
+        "personal",
+        "corporate"
+      ],
+      "title": "Context Kind",
+      "type": "string"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "generated_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "issued_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "mode": {
+      "enum": [
+        "local",
+        "personal",
+        "corporate"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "organization_id": {
+      "anyOf": [
+        {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Organization Id"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "unavailable": {
+      "maxProperties": 256,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{1,31}\\.[a-z][a-z0-9_]{1,31}$": {
+          "enum": [
+            "unsupported",
+            "dependency",
+            "forbidden"
+          ],
+          "type": "string"
+        }
+      },
+      "title": "Unavailable",
+      "type": "object"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "capabilities",
+    "context_kind",
+    "expires_at",
+    "generated_at",
+    "issued_at",
+    "mode",
+    "organization_id",
+    "schema_version",
+    "unavailable"
+  ],
+  "title": "CapabilityProjection",
+  "type": "object"
+}

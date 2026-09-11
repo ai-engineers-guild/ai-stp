@@ -2,6 +2,10 @@ import type * as AuthSession from "@/lib/auth/session";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(() => Promise.resolve({ get: () => undefined })),
+}));
+
 import { COMPONENT_MEDIA_MAX_BYTES } from "@/lib/component-media";
 
 async function jsonBody(response: Response): Promise<unknown> {

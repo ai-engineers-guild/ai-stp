@@ -1,0 +1,73 @@
+{
+  "$id": "urn:ai-stp:schema:v1:provider-project-observation-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Provider identity evidence; it never creates a project link.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "current_url": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Current Url",
+      "type": "string"
+    },
+    "immutable_repository_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Immutable Repository Id",
+      "type": "string"
+    },
+    "installation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Installation Id",
+      "type": "string"
+    },
+    "namespace_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Namespace Id",
+      "type": "string"
+    },
+    "observed_name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Observed Name",
+      "type": "string"
+    },
+    "provider_kind": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Provider Kind",
+      "type": "string"
+    },
+    "provider_project_id": {
+      "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Provider Project Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "provider_project_id",
+    "provider_kind",
+    "installation_id",
+    "namespace_id",
+    "immutable_repository_id",
+    "current_url",
+    "observed_name",
+    "authorization_revision"
+  ],
+  "title": "ProviderProjectObservationRequest",
+  "type": "object"
+}

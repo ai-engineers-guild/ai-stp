@@ -8,18 +8,34 @@ from typing import cast
 
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
+from ai_stp_cli.cloud import context as cloud_context
+from ai_stp_cli.commands import cloud_auth
+from ai_stp_cli.commands.auth import endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     harnesses,
     importing,
     project_index,
+    project_links,
     project_passport,
     projects,
     symbols,
 )
-from ai_stp_cli.local.database import configured_path, open_registry
+from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment, owner
 from ai_stp_cli.paths import redact_home
+from ai_stp_contracts.context import (
+    ProjectLinkPlanRequest,
+    ProjectLinkPlanResponse,
+    ProjectLinkRequest,
+    ProjectLinkResponse,
+    ProjectSyncApplyRequest,
+    ProjectSyncPlanRequest,
+    ProjectSyncPlanResponse,
+    ProjectUnlinkPlanRequest,
+    ProjectUnlinkPlanResponse,
+    ProjectUnlinkRequest,
+)
 from ai_stp_contracts.machine_help import (
     DiscoveryDiagnostic,
     ExcludedPath,
@@ -38,6 +54,232 @@ from ai_stp_contracts.machine_help import (
 )
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.harnesses import HARNESS_IDS
+from ai_stp_foundation.ids import is_valid_id
+
+
+def link(parameters: Mapping[str, object]) -> Answer[ProjectLinkResponse]:
+    """Confirm one exact server-authored link plan and cache the response."""
+    _confirmed(parameters, "link create")
+    request = ProjectLinkRequest(
+        plan_id=_required(parameters, "plan-id"),
+        plan_digest=_required(parameters, "plan-digest"),
+        authorization_revision=_required(parameters, "authorization-revision"),
+        idempotency_key=_required(parameters, "idempotency-key"),
+    )
+    held = cloud_auth.required("project link")
+    response = cloud_context.link(
+        endpoint(), held.access_token, _required(parameters, "organization-id"), request
+    )
+    with closing(open_registry(configured_path())) as connection, transaction(connection):
+        project_links.cache_link(connection, response)
+    return Answer(response)
+
+
+def link_plan(parameters: Mapping[str, object]) -> Answer[ProjectLinkPlanResponse]:
+    """Create one no-side-effect server-authored link plan."""
+    local_project_id = _required(parameters, "local-project-id")
+    if not is_valid_id(local_project_id, "project"):
+        raise CliFailure("AI_STP_VALIDATION_ERROR", "--local-project-id must be a project id")
+    request = ProjectLinkPlanRequest(
+        local_project_id=local_project_id,
+        remote_project_id=_required(parameters, "remote-project-id"),
+        provider_project_id=_optional(parameters, "provider-project-id"),
+        local_revision=_required(parameters, "local-revision"),
+        remote_revision=_required(parameters, "remote-revision"),
+        provider_revision=_optional(parameters, "provider-revision"),
+        authorization_revision=_required(parameters, "authorization-revision"),
+        idempotency_key=_required(parameters, "idempotency-key"),
+    )
+    held = cloud_auth.required("project link plan")
+    return Answer(
+        cloud_context.link_plan(
+            endpoint(), held.access_token, _required(parameters, "organization-id"), request
+        )
+    )
+
+
+def link_plan_show(parameters: Mapping[str, object]) -> Answer[ProjectLinkPlanResponse]:
+    """Read one authoritative link plan."""
+    held = cloud_auth.required("project link plan show")
+    return Answer(
+        cloud_context.link_plan_show(
+            endpoint(),
+            held.access_token,
+            _required(parameters, "organization-id"),
+            _required(parameters, "plan-id"),
+        )
+    )
+
+
+def link_show(parameters: Mapping[str, object]) -> Answer[ProjectLinkResponse]:
+    """Read one authoritative link; the local cache is never used for this view."""
+    held = cloud_auth.required("project link show")
+    return Answer(
+        cloud_context.show(
+            endpoint(),
+            held.access_token,
+            _required(parameters, "organization-id"),
+            _required(parameters, "link-id"),
+        )
+    )
+
+
+def unlink(parameters: Mapping[str, object]) -> Answer[ProjectLinkResponse]:
+    """Confirm one exact unlink plan without deleting either endpoint."""
+    _confirmed(parameters, "unlink")
+    link_id = _required(parameters, "link-id")
+    request = ProjectUnlinkRequest(
+        plan_id=_required(parameters, "plan-id"),
+        plan_digest=_required(parameters, "plan-digest"),
+        authorization_revision=_required(parameters, "authorization-revision"),
+        idempotency_key=_required(parameters, "idempotency-key"),
+    )
+    held = cloud_auth.required("project unlink")
+    response = cloud_context.unlink(
+        endpoint(),
+        held.access_token,
+        _required(parameters, "organization-id"),
+        link_id,
+        request,
+    )
+    with closing(open_registry(configured_path())) as connection, transaction(connection):
+        project_links.cache_link(connection, response)
+    return Answer(response)
+
+
+def unlink_plan(parameters: Mapping[str, object]) -> Answer[ProjectUnlinkPlanResponse]:
+    """Create one no-side-effect server-authored unlink plan."""
+    request = ProjectUnlinkPlanRequest(
+        link_id=_required(parameters, "link-id"),
+        expected_link_revision=_integer(parameters, "expected-link-revision"),
+        authorization_revision=_required(parameters, "authorization-revision"),
+        idempotency_key=_required(parameters, "idempotency-key"),
+    )
+    held = cloud_auth.required("project unlink plan")
+    return Answer(
+        cloud_context.unlink_plan(
+            endpoint(), held.access_token, _required(parameters, "organization-id"), request
+        )
+    )
+
+
+def unlink_plan_show(parameters: Mapping[str, object]) -> Answer[ProjectUnlinkPlanResponse]:
+    """Read one authoritative unlink plan."""
+    held = cloud_auth.required("project unlink plan show")
+    return Answer(
+        cloud_context.unlink_plan_show(
+            endpoint(),
+            held.access_token,
+            _required(parameters, "organization-id"),
+            _required(parameters, "plan-id"),
+        )
+    )
+
+
+def sync_plan(parameters: Mapping[str, object]) -> Answer[ProjectSyncPlanResponse]:
+    """Ask the server for a deterministic, no-side-effect sync decision."""
+    link_id = _required(parameters, "link-id")
+    request = ProjectSyncPlanRequest(
+        link_id=link_id,
+        expected_link_revision=_integer(parameters, "expected-link-revision"),
+        local_revision=_required(parameters, "local-revision"),
+        remote_revision=_required(parameters, "remote-revision"),
+        provider_revision=_optional(parameters, "provider-revision"),
+        authorization_revision=_required(parameters, "authorization-revision"),
+        idempotency_key=_required(parameters, "idempotency-key"),
+    )
+    held = cloud_auth.required("project sync plan")
+    response = cloud_context.sync_plan(
+        endpoint(),
+        held.access_token,
+        _required(parameters, "organization-id"),
+        link_id,
+        request,
+    )
+    with closing(open_registry(configured_path())) as connection, transaction(connection):
+        project_links.cache_sync_plan(
+            connection,
+            local_project_id=_required(parameters, "local-project-id"),
+            plan=response,
+            idempotency_key=request.idempotency_key,
+            created_at=moment(),
+        )
+    return Answer(response)
+
+
+def sync_apply(parameters: Mapping[str, object]) -> Answer[ProjectSyncPlanResponse]:
+    """Apply one exact ready sync plan and cache its idempotent receipt."""
+    _confirmed(parameters, "sync apply")
+    link_id = _required(parameters, "link-id")
+    request = ProjectSyncApplyRequest(
+        plan_digest=_required(parameters, "plan-digest"),
+        expected_link_revision=_integer(parameters, "expected-link-revision"),
+        authorization_revision=_required(parameters, "authorization-revision"),
+        idempotency_key=_required(parameters, "idempotency-key"),
+    )
+    held = cloud_auth.required("project sync apply")
+    response = cloud_context.sync_apply(
+        endpoint(),
+        held.access_token,
+        _required(parameters, "organization-id"),
+        link_id,
+        _required(parameters, "plan-id"),
+        request,
+    )
+    with closing(open_registry(configured_path())) as connection, transaction(connection):
+        project_links.cache_sync_plan(
+            connection,
+            local_project_id=_required(parameters, "local-project-id"),
+            plan=response,
+            idempotency_key=request.idempotency_key,
+            created_at=moment(),
+        )
+        project_links.cache_link(
+            connection,
+            cloud_context.show(
+                endpoint(),
+                held.access_token,
+                _required(parameters, "organization-id"),
+                link_id,
+            ),
+        )
+    return Answer(response)
+
+
+def _required(parameters: Mapping[str, object], name: str) -> str:
+    value = str(parameters.get(name) or "")
+    if not value:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option was not supplied",
+            details={"option": f"--{name}"},
+        )
+    return value
+
+
+def _optional(parameters: Mapping[str, object], name: str) -> str | None:
+    value = parameters.get(name)
+    return None if value is None or str(value) == "" else str(value)
+
+
+def _integer(parameters: Mapping[str, object], name: str) -> int:
+    try:
+        return int(_required(parameters, name))
+    except ValueError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a required option must be an integer",
+            details={"option": f"--{name}"},
+        ) from error
+
+
+def _confirmed(parameters: Mapping[str, object], action: str) -> None:
+    if parameters.get("confirm") is not True:
+        raise CliFailure(
+            "AI_STP_USER_DECISION_REQUIRED",
+            "this action requires explicit confirmation",
+            next_actions=[f"project {action} --confirm --json"],
+        )
 
 
 def discover(parameters: Mapping[str, object]) -> Answer[ProjectCandidates]:

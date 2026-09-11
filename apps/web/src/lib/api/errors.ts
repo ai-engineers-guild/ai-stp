@@ -3,6 +3,7 @@
  */
 
 export type ApiErrorCode =
+  | "AI_STP_INTERNAL"
   | "AI_STP_NOT_FOUND"
   | "AI_STP_UNAUTHORIZED"
   | "AI_STP_FORBIDDEN"
@@ -46,6 +47,7 @@ export type ReadState<T> =
   | { status: "data"; data: T };
 
 const KNOWN_CODES: readonly ApiErrorCode[] = [
+  "AI_STP_INTERNAL",
   "AI_STP_NOT_FOUND",
   "AI_STP_UNAUTHORIZED",
   "AI_STP_FORBIDDEN",

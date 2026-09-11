@@ -172,6 +172,10 @@ last_verified: "2026-08-03"
 | [ADR-0172-beta-qualification-on-three-primary-platforms.md](ADR-0172-beta-qualification-on-three-primary-platforms.md) | Beta qualification requires Linux x86_64, Windows x86_64 and macOS arm64; other pairs remain not_verified. | 2026-09-08 |
 | [ADR-0173-self-contained-version-synchronization.md](ADR-0173-self-contained-version-synchronization.md) | Sync carries immutable version snapshots and journals incomplete legacy references without blocking unrelated history. | 2026-09-08 |
 | [ADR-0174-github-source-authority-is-separate-from-login.md](ADR-0174-github-source-authority-is-separate-from-login.md) | ADR-0174: One GitHub App, separate management consent and immutable provenance bindings. | 2026-09-08 |
+| [ADR-0175-product-mode-follows-authority-context.md](ADR-0175-product-mode-follows-authority-context.md) | Product mode is derived from server authority and remains separate from access state and deployment profile. | 2026-09-09 |
+| [ADR-0176-organization-is-the-remote-ownership-aggregate.md](ADR-0176-organization-is-the-remote-ownership-aggregate.md) | Personal and corporate organizations are the remote ownership aggregates; workspace is not a context identity. | 2026-09-09 |
+| [ADR-0177-server-capabilities-drive-one-shared-ui.md](ADR-0177-server-capabilities-drive-one-shared-ui.md) | A versioned capability projection drives one shared web UI while API authorization remains authoritative. | 2026-09-09 |
+| [ADR-0178-project-identities-link-explicitly.md](ADR-0178-project-identities-link-explicitly.md) | Local, remote, and provider project identities remain distinct and are linked only by an explicit revisioned binding. | 2026-09-09 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

@@ -1,6 +1,6 @@
 ---
 description: "Test strategy for passports, builds, sync, providers, and platform."
-last_verified: "2026-09-05"
+last_verified: "2026-09-10"
 ---
 
 # Testing
@@ -20,6 +20,19 @@ last_verified: "2026-09-05"
 | Fault | Crash, timeout, stale plan, partial apply, retry. |
 | Phase | Selection of evidence by roadmap phase through the phase marker. |
 | Golden | Passports, plans, bundles, conversion reports. |
+
+## Local and CI execution policy
+
+Local commits use the fast `just pre-commit` path plus focused tests selected
+for the change. Full regression is deliberately not a workstation or
+pre-commit/pre-push activity. CI owns full `docs-check`, the PostgreSQL-backed
+backend and BT regression suites, package/install regression, the complete web
+static/unit/build suite, browser E2E, feature-profile matrices, cross-platform
+legs, and repository-wide security checks.
+
+The pull-request workflow is the required oracle for a branch, and the push
+workflow revalidates `main`. A local focused run may explain a failure but cannot
+replace a CI result; a skipped required lane remains unverified.
 
 ## Mandatory Scenarios
 

@@ -68,6 +68,7 @@ async def emit_audit(
     db: AsyncSession,
     *,
     actor_account_id: str | None,
+    organization_id: str | None = None,
     action: str,
     target_table: str,
     target_id: str,
@@ -77,6 +78,7 @@ async def emit_audit(
     """Persist one audit row. Payload is redacted before storage."""
     event = AuditEvent(
         actor_account_id=actor_account_id,
+        organization_id=organization_id,
         action=action,
         target_table=target_table,
         target_id=target_id,

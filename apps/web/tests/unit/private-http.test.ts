@@ -4,6 +4,9 @@ const jar = {
   get: vi.fn((name: string) => {
     if (name === "ai_stp_session") return { value: "session-fixture" };
     if (name === "ai_stp_csrf") return { value: "csrf-fixture" };
+    if (name === "ai_stp_product_mode") return { value: "local" };
+    if (name === "ai_stp_local_session") return { value: "stale-local-session" };
+    if (name === "ai_stp_organization_id") return { value: "stale-organization" };
     return undefined;
   }),
 };
@@ -70,6 +73,12 @@ describe("private request helpers", () => {
       }
       expect(init.cache).toBe("no-store");
       expect(init).not.toHaveProperty("next");
+      expect(init.headers).not.toHaveProperty("X-AI-STP-Product-Mode");
+      expect(init.headers).not.toHaveProperty("X-AI-STP-Organization-Id");
     }
+    const firstRequest = fetchMock.mock.calls[0]?.[0];
+    expect(firstRequest).toBeInstanceOf(URL);
+    if (!(firstRequest instanceof URL)) throw new Error("missing first request URL");
+    expect(firstRequest.origin).toBe("http://api.test:8000");
   });
 });

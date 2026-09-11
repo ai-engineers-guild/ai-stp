@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from docs_scripts.contract_lint import (
     COMPONENT_TYPES,
@@ -128,6 +130,18 @@ class ContractLintTests(unittest.TestCase):
 
     def test_clean_tree_passes(self) -> None:
         self.assertEqual(self.codes(), set())
+
+    def test_disallowed_branch_prefix_fails(self) -> None:
+        for branch in ("claude/example", "codex/example", "bugfix/example"):
+            with (
+                self.subTest(branch=branch),
+                patch.dict(os.environ, {"GITHUB_HEAD_REF": branch}, clear=False),
+            ):
+                self.assertIn("CT014", self.codes())
+
+    def test_allowed_branch_prefix_passes(self) -> None:
+        with patch.dict(os.environ, {"GITHUB_HEAD_REF": "refactor/git-workflow"}, clear=False):
+            self.assertNotIn("CT014", self.codes())
 
     def test_manifest_digest_fails(self) -> None:
         self.write("docs/contracts/x.md", self.doc("The version link contains `manifest_digest`."))

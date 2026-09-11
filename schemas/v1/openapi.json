@@ -459,6 +459,50 @@
         "title": "AccountSelectionImpactReport",
         "type": "object"
       },
+      "ActiveContext": {
+        "additionalProperties": true,
+        "description": "The context that owns the current request or UI state.",
+        "properties": {
+          "capabilities": {
+            "$ref": "#/components/schemas/CapabilityProjection"
+          },
+          "mode": {
+            "enum": [
+              "local",
+              "personal",
+              "corporate"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "capabilities",
+          "mode",
+          "organization_id",
+          "schema_version"
+        ],
+        "title": "ActiveContext",
+        "type": "object"
+      },
       "AdaptationId": {
         "pattern": "^adaptation_[0-9a-f]{64}$",
         "type": "string"
@@ -912,6 +956,101 @@
       "CapabilityId": {
         "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
         "type": "string"
+      },
+      "CapabilityProjection": {
+        "additionalProperties": true,
+        "description": "Bounded server projection used by one shared UI.\n\n``capabilities`` is an allowlist, not an authorization token. Every mutation\nstill rechecks the current membership and policy revision on the server.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "capabilities": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]{1,31}\\.[a-z][a-z0-9_]{1,31}$",
+              "type": "string"
+            },
+            "maxItems": 256,
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "context_kind": {
+            "enum": [
+              "local",
+              "personal",
+              "corporate"
+            ],
+            "title": "Context Kind",
+            "type": "string"
+          },
+          "expires_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "generated_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "issued_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "mode": {
+            "enum": [
+              "local",
+              "personal",
+              "corporate"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "unavailable": {
+            "maxProperties": 256,
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{1,31}\\.[a-z][a-z0-9_]{1,31}$": {
+                "enum": [
+                  "unsupported",
+                  "dependency",
+                  "forbidden"
+                ],
+                "type": "string"
+              }
+            },
+            "title": "Unavailable",
+            "type": "object"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "capabilities",
+          "context_kind",
+          "expires_at",
+          "generated_at",
+          "issued_at",
+          "mode",
+          "organization_id",
+          "schema_version",
+          "unavailable"
+        ],
+        "title": "CapabilityProjection",
+        "type": "object"
       },
       "CapabilitySnapshot": {
         "additionalProperties": false,
@@ -5918,6 +6057,77 @@
         "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
         "type": "string"
       },
+      "OrganizationListResponse": {
+        "additionalProperties": true,
+        "description": "Organizations the current account may explicitly select.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrganizationSummary"
+            },
+            "maxItems": 256,
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "schema_version"
+        ],
+        "title": "OrganizationListResponse",
+        "type": "object"
+      },
+      "OrganizationSummary": {
+        "additionalProperties": true,
+        "description": "A remote organization available to the authenticated account.",
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "personal",
+              "corporate"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "membership_revision": {
+            "minimum": 1,
+            "title": "Membership Revision",
+            "type": "integer"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "display_name",
+          "kind",
+          "membership_revision",
+          "organization_id",
+          "schema_version"
+        ],
+        "title": "OrganizationSummary",
+        "type": "object"
+      },
       "OwnerEvidenceRow": {
         "additionalProperties": true,
         "description": "One evidence binding for owner version view.",
@@ -7296,6 +7506,1275 @@
         "title": "PrivateVersionTrust",
         "type": "object"
       },
+      "ProjectConflictResolutionRequest": {
+        "additionalProperties": false,
+        "description": "Explicit two-parent merge; it never happens during ordinary push.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "content_digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "event_id": {
+            "pattern": "^[A-Za-z0-9._~-]{8,128}$",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "expected_head_revision_id": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Head Revision Id"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "operation": {
+            "enum": [
+              "upsert",
+              "tombstone"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "parent_revision_ids": {
+            "items": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Parent Revision Ids",
+            "type": "array"
+          },
+          "projection": {
+            "additionalProperties": true,
+            "title": "Projection",
+            "type": "object"
+          },
+          "revision_id": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_id",
+          "revision_id",
+          "parent_revision_ids",
+          "operation",
+          "content_digest",
+          "projection",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "ProjectConflictResolutionRequest",
+        "type": "object"
+      },
+      "ProjectLinkPlanRequest": {
+        "additionalProperties": false,
+        "description": "Request a server-authored exact link plan without changing state.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "local_project_id": {
+            "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Local Project Id",
+            "type": "string"
+          },
+          "local_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Local Revision",
+            "type": "string"
+          },
+          "provider_project_id": {
+            "anyOf": [
+              {
+                "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider Project Id"
+          },
+          "provider_revision": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider Revision"
+          },
+          "remote_project_id": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Remote Project Id",
+            "type": "string"
+          },
+          "remote_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Remote Revision",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "local_project_id",
+          "remote_project_id",
+          "local_revision",
+          "remote_revision",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "ProjectLinkPlanRequest",
+        "type": "object"
+      },
+      "ProjectLinkPlanResponse": {
+        "additionalProperties": true,
+        "description": "The exact server-authored link decision awaiting confirmation.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "expires_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "local_project_id": {
+            "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Local Project Id",
+            "type": "string"
+          },
+          "local_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Local Revision",
+            "type": "string"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "plan_digest": {
+            "maxLength": 71,
+            "minLength": 71,
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "plan_id": {
+            "pattern": "^link_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "provider_project_id": {
+            "anyOf": [
+              {
+                "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Project Id"
+          },
+          "provider_revision": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Revision"
+          },
+          "remote_project_id": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Remote Project Id",
+            "type": "string"
+          },
+          "remote_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Remote Revision",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "expires_at",
+          "local_project_id",
+          "local_revision",
+          "organization_id",
+          "plan_digest",
+          "plan_id",
+          "provider_project_id",
+          "provider_revision",
+          "remote_project_id",
+          "remote_revision",
+          "schema_version"
+        ],
+        "title": "ProjectLinkPlanResponse",
+        "type": "object"
+      },
+      "ProjectLinkProposalRequest": {
+        "additionalProperties": false,
+        "description": "Non-authoritative link evidence awaiting an explicit link plan.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "title": "Evidence",
+            "type": "object"
+          },
+          "local_project_id": {
+            "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Local Project Id",
+            "type": "string"
+          },
+          "provider_project_id": {
+            "anyOf": [
+              {
+                "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider Project Id"
+          },
+          "remote_project_id": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Remote Project Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "local_project_id",
+          "remote_project_id",
+          "evidence",
+          "authorization_revision"
+        ],
+        "title": "ProjectLinkProposalRequest",
+        "type": "object"
+      },
+      "ProjectLinkRequest": {
+        "additionalProperties": false,
+        "description": "Confirm one exact server-authored link plan.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "plan_digest": {
+            "maxLength": 71,
+            "minLength": 71,
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "plan_id": {
+            "pattern": "^link_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "ProjectLinkRequest",
+        "type": "object"
+      },
+      "ProjectLinkResponse": {
+        "additionalProperties": true,
+        "description": "The durable link and its last observed endpoint revisions.",
+        "properties": {
+          "conflict_client_revision": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Conflict Client Revision"
+          },
+          "conflict_common_ancestor": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Conflict Common Ancestor"
+          },
+          "conflict_server_revision": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Conflict Server Revision"
+          },
+          "link_id": {
+            "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Link Id",
+            "type": "string"
+          },
+          "local_project_id": {
+            "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Local Project Id",
+            "type": "string"
+          },
+          "local_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Local Revision",
+            "type": "string"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "plan_digest": {
+            "maxLength": 71,
+            "minLength": 71,
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "plan_id": {
+            "pattern": "^link_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "provider_project_id": {
+            "anyOf": [
+              {
+                "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Project Id"
+          },
+          "provider_revision": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Revision"
+          },
+          "remote_project_id": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Remote Project Id",
+            "type": "string"
+          },
+          "remote_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Remote Revision",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "linked",
+              "unlinked",
+              "conflict"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        },
+        "required": [
+          "conflict_client_revision",
+          "conflict_common_ancestor",
+          "conflict_server_revision",
+          "link_id",
+          "local_project_id",
+          "local_revision",
+          "organization_id",
+          "plan_digest",
+          "plan_id",
+          "provider_project_id",
+          "provider_revision",
+          "remote_project_id",
+          "remote_revision",
+          "revision",
+          "schema_version",
+          "state",
+          "updated_at"
+        ],
+        "title": "ProjectLinkResponse",
+        "type": "object"
+      },
+      "ProjectRevisionPullResponse": {
+        "additionalProperties": true,
+        "description": "Bounded pull of the tenant-scoped project ledger.",
+        "properties": {
+          "head_revision_id": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Revision Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectRevisionView"
+            },
+            "maxItems": 256,
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "head_revision_id",
+          "items",
+          "schema_version"
+        ],
+        "title": "ProjectRevisionPullResponse",
+        "type": "object"
+      },
+      "ProjectRevisionPushRequest": {
+        "additionalProperties": false,
+        "description": "One explicit content-addressed project revision push.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "content_digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "event_id": {
+            "pattern": "^[A-Za-z0-9._~-]{8,128}$",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "expected_head_revision_id": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Head Revision Id"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "operation": {
+            "enum": [
+              "upsert",
+              "tombstone"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "parent_revision_ids": {
+            "items": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Parent Revision Ids",
+            "type": "array"
+          },
+          "projection": {
+            "additionalProperties": true,
+            "title": "Projection",
+            "type": "object"
+          },
+          "revision_id": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_id",
+          "revision_id",
+          "parent_revision_ids",
+          "operation",
+          "content_digest",
+          "projection",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "ProjectRevisionPushRequest",
+        "type": "object"
+      },
+      "ProjectRevisionPushResponse": {
+        "additionalProperties": true,
+        "description": "Result of a project revision push.",
+        "properties": {
+          "receipt": {
+            "$ref": "#/components/schemas/ProjectRevisionReceipt"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "receipt",
+          "schema_version"
+        ],
+        "title": "ProjectRevisionPushResponse",
+        "type": "object"
+      },
+      "ProjectRevisionReceipt": {
+        "additionalProperties": true,
+        "description": "Durable result of one project revision push.",
+        "properties": {
+          "client_head_revision_id": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Head Revision Id"
+          },
+          "common_ancestor_revision_id": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Common Ancestor Revision Id"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "event_id": {
+            "pattern": "^[A-Za-z0-9._~-]{8,128}$",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Id"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "server_head_revision_id": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Head Revision Id"
+          },
+          "state": {
+            "enum": [
+              "accepted",
+              "conflict",
+              "rejected",
+              "superseded"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_head_revision_id",
+          "common_ancestor_revision_id",
+          "error_code",
+          "event_id",
+          "revision_id",
+          "schema_version",
+          "server_head_revision_id",
+          "state"
+        ],
+        "title": "ProjectRevisionReceipt",
+        "type": "object"
+      },
+      "ProjectRevisionView": {
+        "additionalProperties": true,
+        "description": "Redacted project revision returned by pull.",
+        "properties": {
+          "actor_account_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Actor Account Id",
+            "type": "string"
+          },
+          "content_digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "device_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "upsert",
+              "tombstone"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "parent_revision_ids": {
+            "items": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Parent Revision Ids",
+            "type": "array"
+          },
+          "projection": {
+            "additionalProperties": true,
+            "title": "Projection",
+            "type": "object"
+          },
+          "revision_id": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "actor_account_id",
+          "content_digest",
+          "created_at",
+          "device_id",
+          "operation",
+          "parent_revision_ids",
+          "projection",
+          "revision_id",
+          "schema_version"
+        ],
+        "title": "ProjectRevisionView",
+        "type": "object"
+      },
+      "ProjectSyncApplyRequest": {
+        "additionalProperties": false,
+        "description": "Apply one exact, previously-created non-conflicting sync plan.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "expected_link_revision": {
+            "minimum": 1,
+            "title": "Expected Link Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "plan_digest": {
+            "maxLength": 71,
+            "minLength": 71,
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_digest",
+          "expected_link_revision",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "ProjectSyncApplyRequest",
+        "type": "object"
+      },
+      "ProjectSyncPlanRequest": {
+        "additionalProperties": false,
+        "description": "Request a deterministic sync plan for an existing explicit link.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "expected_link_revision": {
+            "minimum": 1,
+            "title": "Expected Link Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "link_id": {
+            "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Link Id",
+            "type": "string"
+          },
+          "local_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Local Revision",
+            "type": "string"
+          },
+          "provider_revision": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider Revision"
+          },
+          "remote_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Remote Revision",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "link_id",
+          "expected_link_revision",
+          "local_revision",
+          "remote_revision",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "ProjectSyncPlanRequest",
+        "type": "object"
+      },
+      "ProjectSyncPlanResponse": {
+        "additionalProperties": true,
+        "description": "A no-side-effect sync decision, or a conflict requiring user choice.",
+        "properties": {
+          "action": {
+            "enum": [
+              "noop",
+              "local_to_remote",
+              "remote_to_local",
+              "merge_required"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "common_ancestor_revision": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Common Ancestor Revision"
+          },
+          "conflict_code": {
+            "anyOf": [
+              {
+                "enum": [
+                  "local_changed",
+                  "remote_changed",
+                  "both_changed",
+                  "provider_mismatch",
+                  "remote_missing",
+                  "stale_revision"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict Code"
+          },
+          "expected_link_revision": {
+            "minimum": 1,
+            "title": "Expected Link Revision",
+            "type": "integer"
+          },
+          "expires_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "link_id": {
+            "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Link Id",
+            "type": "string"
+          },
+          "local_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Local Revision",
+            "type": "string"
+          },
+          "plan_digest": {
+            "maxLength": 71,
+            "minLength": 71,
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "plan_id": {
+            "pattern": "^sync_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "provider_identity_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Identity Revision"
+          },
+          "provider_revision": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Revision"
+          },
+          "remote_identity_revision": {
+            "minimum": 1,
+            "title": "Remote Identity Revision",
+            "type": "integer"
+          },
+          "remote_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Remote Revision",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "conflict",
+              "applied",
+              "failed",
+              "unknown"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "common_ancestor_revision",
+          "conflict_code",
+          "expected_link_revision",
+          "expires_at",
+          "link_id",
+          "local_revision",
+          "plan_digest",
+          "plan_id",
+          "provider_identity_revision",
+          "provider_revision",
+          "remote_identity_revision",
+          "remote_revision",
+          "schema_version",
+          "state"
+        ],
+        "title": "ProjectSyncPlanResponse",
+        "type": "object"
+      },
+      "ProjectUnlinkPlanRequest": {
+        "additionalProperties": false,
+        "description": "Request a no-side-effect plan for unlinking one exact link revision.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "expected_link_revision": {
+            "minimum": 1,
+            "title": "Expected Link Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "link_id": {
+            "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Link Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "link_id",
+          "expected_link_revision",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "ProjectUnlinkPlanRequest",
+        "type": "object"
+      },
+      "ProjectUnlinkPlanResponse": {
+        "additionalProperties": true,
+        "description": "The exact server-authored unlink decision awaiting confirmation.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "expected_link_revision": {
+            "minimum": 1,
+            "title": "Expected Link Revision",
+            "type": "integer"
+          },
+          "expires_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "link_id": {
+            "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Link Id",
+            "type": "string"
+          },
+          "local_project_id": {
+            "pattern": "^project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Local Project Id",
+            "type": "string"
+          },
+          "local_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Local Revision",
+            "type": "string"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "plan_digest": {
+            "maxLength": 71,
+            "minLength": 71,
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "plan_id": {
+            "pattern": "^unlink_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "provider_project_id": {
+            "anyOf": [
+              {
+                "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Project Id"
+          },
+          "provider_revision": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Revision"
+          },
+          "remote_project_id": {
+            "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Remote Project Id",
+            "type": "string"
+          },
+          "remote_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Remote Revision",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "expected_link_revision",
+          "expires_at",
+          "link_id",
+          "local_project_id",
+          "local_revision",
+          "organization_id",
+          "plan_digest",
+          "plan_id",
+          "provider_project_id",
+          "provider_revision",
+          "remote_project_id",
+          "remote_revision",
+          "schema_version"
+        ],
+        "title": "ProjectUnlinkPlanResponse",
+        "type": "object"
+      },
+      "ProjectUnlinkRequest": {
+        "additionalProperties": false,
+        "description": "Confirm one exact server-authored unlink plan.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "plan_digest": {
+            "maxLength": 71,
+            "minLength": 71,
+            "title": "Plan Digest",
+            "type": "string"
+          },
+          "plan_id": {
+            "pattern": "^unlink_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Plan Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "ProjectUnlinkRequest",
+        "type": "object"
+      },
       "ProjectedMember": {
         "additionalProperties": false,
         "allOf": [
@@ -7430,6 +8909,77 @@
           "package"
         ],
         "type": "string"
+      },
+      "ProviderProjectObservationRequest": {
+        "additionalProperties": false,
+        "description": "Provider identity evidence; it never creates a project link.",
+        "properties": {
+          "authorization_revision": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Authorization Revision",
+            "type": "string"
+          },
+          "current_url": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Current Url",
+            "type": "string"
+          },
+          "immutable_repository_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Immutable Repository Id",
+            "type": "string"
+          },
+          "installation_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "namespace_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Namespace Id",
+            "type": "string"
+          },
+          "observed_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Observed Name",
+            "type": "string"
+          },
+          "provider_kind": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Provider Kind",
+            "type": "string"
+          },
+          "provider_project_id": {
+            "pattern": "^provider_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Provider Project Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider_project_id",
+          "provider_kind",
+          "installation_id",
+          "namespace_id",
+          "immutable_repository_id",
+          "current_url",
+          "observed_name",
+          "authorization_revision"
+        ],
+        "title": "ProviderProjectObservationRequest",
+        "type": "object"
       },
       "ProviderSurfaceRef": {
         "additionalProperties": false,
@@ -23306,6 +24856,153 @@
         "summary": "Read one published localized article."
       }
     },
+    "/v1/context": {
+      "get": {
+        "operationId": "readActiveContext",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readActiveContext.context": {
+                    "summary": "The active context carries the selected mode and its projection.",
+                    "value": {
+                      "capabilities": {
+                        "authorization_revision": "local:0:0",
+                        "capabilities": [
+                          "catalog_object.list",
+                          "catalog_object.read",
+                          "landscape.list",
+                          "landscape.read",
+                          "project.list",
+                          "project.read",
+                          "technology.list",
+                          "technology.read"
+                        ],
+                        "context_kind": "local",
+                        "expires_at": "2026-01-01T00:01:00.000Z",
+                        "generated_at": "2026-01-01T00:00:00.000Z",
+                        "issued_at": "2026-01-01T00:00:00.000Z",
+                        "mode": "local",
+                        "organization_id": null,
+                        "schema_version": 1,
+                        "unavailable": {}
+                      },
+                      "mode": "local",
+                      "organization_id": null,
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveContext"
+                }
+              }
+            },
+            "description": "Resolve the active context from the request authority.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Resolve the active context from the request authority."
+      }
+    },
     "/v1/devices": {
       "get": {
         "operationId": "listDevices",
@@ -25788,6 +27485,1270 @@
         },
         "security": [],
         "summary": "Report whether the deployment may take traffic."
+      }
+    },
+    "/v1/organizations": {
+      "get": {
+        "operationId": "listOrganizations",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "listOrganizations.context": {
+                    "summary": "The organization list is the explicit context selector source.",
+                    "value": {
+                      "items": [
+                        {
+                          "display_name": "fixture-org",
+                          "kind": "corporate",
+                          "membership_revision": 1,
+                          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "schema_version": 1
+                        }
+                      ],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationListResponse"
+                }
+              }
+            },
+            "description": "List remote organizations available to the authenticated account.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List remote organizations available to the authenticated account."
+      }
+    },
+    "/v1/organizations/{organization_id}/capabilities": {
+      "get": {
+        "operationId": "readOrganizationCapabilities",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readOrganizationCapabilities.context": {
+                    "summary": "Capabilities are selected per explicit organization.",
+                    "value": {
+                      "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                      "capabilities": [
+                        "catalog_object.list",
+                        "catalog_object.read",
+                        "landscape.list",
+                        "landscape.read",
+                        "organization.manage",
+                        "organization.read",
+                        "project.create",
+                        "project.delete",
+                        "project.link",
+                        "project.list",
+                        "project.read",
+                        "project.unlink",
+                        "project.update",
+                        "technology.list",
+                        "technology.read"
+                      ],
+                      "context_kind": "corporate",
+                      "expires_at": "2026-01-01T00:01:00.000Z",
+                      "generated_at": "2026-01-01T00:00:00.000Z",
+                      "issued_at": "2026-01-01T00:00:00.000Z",
+                      "mode": "corporate",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "schema_version": 1,
+                      "unavailable": {}
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityProjection"
+                }
+              }
+            },
+            "description": "Read the bounded capability projection for one selected organization.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the bounded capability projection for one selected organization."
+      }
+    },
+    "/v1/organizations/{organization_id}/project-link-plans": {
+      "post": {
+        "operationId": "createProjectLinkPlan",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "createProjectLinkPlan.context": {
+                  "summary": "A link plan is a no-side-effect decision.",
+                  "value": {
+                    "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                    "idempotency_key": "context-link-plan-0001",
+                    "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ProjectLinkPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "createProjectLinkPlan.context": {
+                    "summary": "A link plan is a no-side-effect decision.",
+                    "value": {
+                      "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                      "expires_at": "2026-01-01T00:15:00.000Z",
+                      "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_project_id": null,
+                      "provider_revision": null,
+                      "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLinkPlanResponse"
+                }
+              }
+            },
+            "description": "Create an exact no-side-effect project link plan.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create an exact no-side-effect project link plan."
+      }
+    },
+    "/v1/organizations/{organization_id}/project-link-plans/{plan_id}": {
+      "get": {
+        "operationId": "readProjectLinkPlan",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact project link plan identifier.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^link_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readProjectLinkPlan.context": {
+                    "summary": "A link plan can be inspected before confirmation.",
+                    "value": {
+                      "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                      "expires_at": "2026-01-01T00:15:00.000Z",
+                      "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_project_id": null,
+                      "provider_revision": null,
+                      "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLinkPlanResponse"
+                }
+              }
+            },
+            "description": "Read one exact project link plan.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read one exact project link plan."
+      }
+    },
+    "/v1/organizations/{organization_id}/project-unlink-plans": {
+      "post": {
+        "operationId": "createProjectUnlinkPlan",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "createProjectUnlinkPlan.context": {
+                  "summary": "Unlink planning is explicit and has no side effect.",
+                  "value": {
+                    "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                    "expected_link_revision": 1,
+                    "idempotency_key": "context-unlink-plan-0001",
+                    "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUnlinkPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "createProjectUnlinkPlan.context": {
+                    "summary": "Unlink planning is explicit and has no side effect.",
+                    "value": {
+                      "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                      "expected_link_revision": 1,
+                      "expires_at": "2026-01-01T00:15:00.000Z",
+                      "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "plan_id": "unlink_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_project_id": null,
+                      "provider_revision": null,
+                      "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectUnlinkPlanResponse"
+                }
+              }
+            },
+            "description": "Create an exact no-side-effect project unlink plan.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create an exact no-side-effect project unlink plan."
+      }
+    },
+    "/v1/organizations/{organization_id}/project-unlink-plans/{plan_id}": {
+      "get": {
+        "operationId": "readProjectUnlinkPlan",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact project unlink plan identifier.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^unlink_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readProjectUnlinkPlan.context": {
+                    "summary": "An unlink plan remains inspectable until explicit confirmation.",
+                    "value": {
+                      "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                      "expected_link_revision": 1,
+                      "expires_at": "2026-01-01T00:15:00.000Z",
+                      "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "plan_id": "unlink_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_project_id": null,
+                      "provider_revision": null,
+                      "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectUnlinkPlanResponse"
+                }
+              }
+            },
+            "description": "Read one exact project unlink plan.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read one exact project unlink plan."
       }
     },
     "/v1/owner/objects": {
@@ -29230,6 +32191,1898 @@
           }
         ],
         "summary": "Read one ownership claim and its staff preview."
+      }
+    },
+    "/v1/projects/links": {
+      "post": {
+        "operationId": "createProjectLink",
+        "parameters": [
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "createProjectLink.context": {
+                  "summary": "A confirmed plan creates one explicit link.",
+                  "value": {
+                    "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                    "idempotency_key": "context-link-0001",
+                    "plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ProjectLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "createProjectLink.context": {
+                    "summary": "A confirmed plan creates one explicit link.",
+                    "value": {
+                      "conflict_client_revision": null,
+                      "conflict_common_ancestor": null,
+                      "conflict_server_revision": null,
+                      "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_project_id": null,
+                      "provider_revision": null,
+                      "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "revision": 1,
+                      "schema_version": 1,
+                      "state": "linked",
+                      "updated_at": "2026-01-01T00:00:00.000Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLinkResponse"
+                }
+              }
+            },
+            "description": "Explicitly link a local project to a remote project.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Explicitly link a local project to a remote project."
+      }
+    },
+    "/v1/projects/links/{link_id}": {
+      "delete": {
+        "operationId": "unlinkProject",
+        "parameters": [
+          {
+            "description": "Explicit local/remote project link.",
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "unlinkProject.context": {
+                  "summary": "Unlink preserves the identities while changing only relationship state.",
+                  "value": {
+                    "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                    "idempotency_key": "context-unlink-0001",
+                    "plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "plan_id": "unlink_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUnlinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unlinkProject.context": {
+                    "summary": "Unlink preserves the identities while changing only relationship state.",
+                    "value": {
+                      "conflict_client_revision": null,
+                      "conflict_common_ancestor": null,
+                      "conflict_server_revision": null,
+                      "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_project_id": null,
+                      "provider_revision": null,
+                      "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "revision": 2,
+                      "schema_version": 1,
+                      "state": "unlinked",
+                      "updated_at": "2026-01-01T00:00:00.000Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLinkResponse"
+                }
+              }
+            },
+            "description": "Unlink one project pair without deleting either identity.",
+            "headers": {
+              "ETag": {
+                "description": "Current version, for a later If-Match.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Unlink one project pair without deleting either identity."
+      },
+      "get": {
+        "operationId": "readProjectLink",
+        "parameters": [
+          {
+            "description": "Explicit local/remote project link.",
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readProjectLink.context": {
+                    "summary": "Reading a link returns the authoritative relationship.",
+                    "value": {
+                      "conflict_client_revision": null,
+                      "conflict_common_ancestor": null,
+                      "conflict_server_revision": null,
+                      "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_project_id": "project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_id": "link_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_project_id": null,
+                      "provider_revision": null,
+                      "remote_project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "revision": 1,
+                      "schema_version": 1,
+                      "state": "linked",
+                      "updated_at": "2026-01-01T00:00:00.000Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLinkResponse"
+                }
+              }
+            },
+            "description": "Read one explicit project link.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read one explicit project link."
+      }
+    },
+    "/v1/projects/links/{link_id}/conflict-resolutions": {
+      "post": {
+        "operationId": "resolveProjectConflict",
+        "parameters": [
+          {
+            "description": "Explicit local/remote project link.",
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "resolveProjectConflict.context": {
+                  "summary": "An explicit two-parent merge returns an accepted receipt.",
+                  "value": {
+                    "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                    "content_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "event_id": "context-merge-0001",
+                    "expected_head_revision_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "idempotency_key": "context-merge-idem-0001",
+                    "operation": "upsert",
+                    "parent_revision_ids": [
+                      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                    ],
+                    "projection": {
+                      "file_count": 2,
+                      "kind": "project",
+                      "schema_version": 1
+                    },
+                    "revision_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ProjectConflictResolutionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "resolveProjectConflict.context": {
+                    "summary": "An explicit two-parent merge returns an accepted receipt.",
+                    "value": {
+                      "receipt": {
+                        "client_head_revision_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                        "common_ancestor_revision_id": null,
+                        "error_code": null,
+                        "event_id": "context-merge-0001",
+                        "revision_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "schema_version": 1,
+                        "server_head_revision_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                        "state": "accepted"
+                      },
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRevisionPushResponse"
+                }
+              }
+            },
+            "description": "Create an explicit two-parent project resolution revision.",
+            "headers": {
+              "ETag": {
+                "description": "Current version, for a later If-Match.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create an explicit two-parent project resolution revision."
+      }
+    },
+    "/v1/projects/links/{link_id}/revisions": {
+      "get": {
+        "operationId": "pullProjectRevisions",
+        "parameters": [
+          {
+            "description": "Explicit local/remote project link.",
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pullProjectRevisions.context": {
+                    "summary": "Pull returns a bounded redacted ledger view.",
+                    "value": {
+                      "head_revision_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "items": [
+                        {
+                          "actor_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                          "created_at": "2026-01-01T00:00:00.000Z",
+                          "device_id": "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "operation": "upsert",
+                          "parent_revision_ids": [],
+                          "projection": {
+                            "file_count": 1,
+                            "kind": "project",
+                            "schema_version": 1
+                          },
+                          "revision_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                          "schema_version": 1
+                        }
+                      ],
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRevisionPullResponse"
+                }
+              }
+            },
+            "description": "Pull redacted project revisions from the selected tenant ledger.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Pull redacted project revisions from the selected tenant ledger."
+      },
+      "post": {
+        "operationId": "pushProjectRevision",
+        "parameters": [
+          {
+            "description": "Explicit local/remote project link.",
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "pushProjectRevision.context": {
+                  "summary": "A revision push returns an idempotent ledger receipt.",
+                  "value": {
+                    "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                    "content_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "event_id": "context-event-0001",
+                    "idempotency_key": "context-revision-0001",
+                    "operation": "upsert",
+                    "parent_revision_ids": [],
+                    "projection": {
+                      "file_count": 1,
+                      "kind": "project",
+                      "schema_version": 1
+                    },
+                    "revision_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ProjectRevisionPushRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pushProjectRevision.context": {
+                    "summary": "A revision push returns an idempotent ledger receipt.",
+                    "value": {
+                      "receipt": {
+                        "client_head_revision_id": null,
+                        "common_ancestor_revision_id": null,
+                        "error_code": null,
+                        "event_id": "context-event-0001",
+                        "revision_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                        "schema_version": 1,
+                        "server_head_revision_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                        "state": "accepted"
+                      },
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRevisionPushResponse"
+                }
+              }
+            },
+            "description": "Push one content-addressed project revision through the tenant ledger.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Push one content-addressed project revision through the tenant ledger."
+      }
+    },
+    "/v1/projects/links/{link_id}/sync-plans": {
+      "post": {
+        "operationId": "createProjectSyncPlan",
+        "parameters": [
+          {
+            "description": "Explicit local/remote project link.",
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "createProjectSyncPlan.context": {
+                  "summary": "Sync planning reports a deterministic decision before apply.",
+                  "value": {
+                    "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                    "expected_link_revision": 1,
+                    "idempotency_key": "context-sync-plan-0001",
+                    "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ProjectSyncPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "createProjectSyncPlan.context": {
+                    "summary": "Sync planning reports a deterministic decision before apply.",
+                    "value": {
+                      "action": "noop",
+                      "common_ancestor_revision": null,
+                      "conflict_code": null,
+                      "expected_link_revision": 1,
+                      "expires_at": "2026-01-01T00:15:00.000Z",
+                      "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "plan_id": "sync_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_identity_revision": null,
+                      "provider_revision": null,
+                      "remote_identity_revision": 1,
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "schema_version": 1,
+                      "state": "ready"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSyncPlanResponse"
+                }
+              }
+            },
+            "description": "Create a deterministic project sync plan without applying it.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create a deterministic project sync plan without applying it."
+      }
+    },
+    "/v1/projects/links/{link_id}/sync-plans/{plan_id}/apply": {
+      "post": {
+        "operationId": "applyProjectSyncPlan",
+        "parameters": [
+          {
+            "description": "Explicit local/remote project link.",
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "pattern": "^project_link_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact sync plan identifier.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "pattern": "^sync_plan_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "applyProjectSyncPlan.context": {
+                  "summary": "An applied sync plan returns its durable server decision.",
+                  "value": {
+                    "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1",
+                    "expected_link_revision": 1,
+                    "idempotency_key": "context-apply-0001",
+                    "plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ProjectSyncApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "applyProjectSyncPlan.context": {
+                    "summary": "An applied sync plan returns its durable server decision.",
+                    "value": {
+                      "action": "local_to_remote",
+                      "common_ancestor_revision": null,
+                      "conflict_code": null,
+                      "expected_link_revision": 1,
+                      "expires_at": "2026-01-01T00:15:00.000Z",
+                      "link_id": "project_link_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "local_revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "plan_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                      "plan_id": "sync_plan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "provider_identity_revision": null,
+                      "provider_revision": null,
+                      "remote_identity_revision": 1,
+                      "remote_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                      "schema_version": 1,
+                      "state": "applied"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSyncPlanResponse"
+                }
+              }
+            },
+            "description": "Apply one exact non-conflicting project sync plan.",
+            "headers": {
+              "ETag": {
+                "description": "Current version, for a later If-Match.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_NOT_FOUND.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Apply one exact non-conflicting project sync plan."
       }
     },
     "/v1/publications/plans": {

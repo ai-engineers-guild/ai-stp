@@ -98,10 +98,11 @@ gen: docs-gen back-gen web-gen
 # Всё, что читает.
 check: docs-check back-check web-check security
 
-# Быстрый гейт для git-хука коммита: документация и статический Python-анализ.
-# Тысячи backend-тестов, сборка wheels и install-regression остаются в полном
-# `back-check`, который запускается на push и в CI.
-pre-commit: docs-check back-static
+# Fast gate for the local commit hook: source-level documentation checks, their
+# validator unit tests, and static Python analysis. Full documentation builds,
+# backend tests, wheel/install regression, web suites, and security scans are
+# CI-only and run from the pull-request or main-push workflow.
+pre-commit: docs-static docs-test back-static
 
 # Общий для репозитория, а не групповой: сканер пока один. Python-сканер
 # добавляется сюда же, когда будет выбран, а не пустым рецептом заранее.

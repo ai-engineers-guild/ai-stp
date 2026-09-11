@@ -30,10 +30,16 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "grant": "major-line access grant",
         "invite": "access grant invitation",
         "operation": "durable mutating operation",
+        "organization": "remote organization",
         "outbox": "official upstream synchronization outbox event",
         "plan": "publication plan",
         "prevision": "profile revision",
         "project": "project passport",
+        "remote_project": "remote project identity",
+        "provider_project": "provider project identity",
+        "project_link": "explicit local and remote project link",
+        "link_plan": "server-authored project link plan",
+        "unlink_plan": "server-authored project unlink plan",
         "report": "private report case",
         # Valid only inside one recommendation session (`ADR-0027`). Typed and
         # never reused like the rest, but naming no durable object: a proposal
@@ -44,6 +50,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "scan": "platform safety scan run",
         "snapshot": "validation snapshot",
         "setup": "setup logical entity",
+        "sync_plan": "project synchronization plan",
         "sub": "external provider subject",
         "variant": "native component realization",
     }
@@ -76,7 +83,10 @@ def new_id(prefix: str) -> str:
 
 def parse_id(value: str) -> tuple[str, str]:
     """Split and validate a stable ID; return ``(prefix, suffix)``."""
-    prefix, separator, suffix = value.partition("_")
+    # Some registered prefixes contain an underscore (for example
+    # ``remote_project``). Split at the final separator so those prefixes stay
+    # one typed namespace instead of being parsed as ``remote``.
+    prefix, separator, suffix = value.rpartition("_")
     if not separator:
         raise StableIdError(f"stable id has no prefix separator: {value!r}")
     if prefix not in ID_PREFIXES:

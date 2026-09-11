@@ -218,6 +218,28 @@ export type AccountSelectionImpactReport = {
   unavailable_reason?: string | null;
 };
 
+/**
+ * ActiveContext
+ *
+ * The context that owns the current request or UI state.
+ */
+export type ActiveContext = {
+  capabilities: CapabilityProjection;
+  /**
+   * Mode
+   */
+  mode: "local" | "personal" | "corporate";
+  /**
+   * Organization Id
+   */
+  organization_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
 export type AdaptationId = string;
 
 export const AlignmentState = {
@@ -438,6 +460,51 @@ export type CapabilityDelta = {
 };
 
 export type CapabilityId = string;
+
+/**
+ * CapabilityProjection
+ *
+ * Bounded server projection used by one shared UI.
+ *
+ * ``capabilities`` is an allowlist, not an authorization token. Every mutation
+ * still rechecks the current membership and policy revision on the server.
+ */
+export type CapabilityProjection = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Capabilities
+   */
+  capabilities: Array<string>;
+  /**
+   * Context Kind
+   */
+  context_kind: "local" | "personal" | "corporate";
+  expires_at: Timestamp;
+  generated_at: Timestamp;
+  issued_at: Timestamp;
+  /**
+   * Mode
+   */
+  mode: "local" | "personal" | "corporate";
+  /**
+   * Organization Id
+   */
+  organization_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Unavailable
+   */
+  unavailable: {
+    [key: string]: unknown | "unsupported" | "dependency" | "forbidden";
+  };
+  [key: string]: unknown;
+};
 
 /**
  * CapabilitySnapshot
@@ -3026,6 +3093,52 @@ export type ObjectKind = (typeof ObjectKind)[keyof typeof ObjectKind];
 export type OperationId = string;
 
 /**
+ * OrganizationListResponse
+ *
+ * Organizations the current account may explicitly select.
+ */
+export type OrganizationListResponse = {
+  /**
+   * Items
+   */
+  items: Array<OrganizationSummary>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * OrganizationSummary
+ *
+ * A remote organization available to the authenticated account.
+ */
+export type OrganizationSummary = {
+  /**
+   * Display Name
+   */
+  display_name: string;
+  /**
+   * Kind
+   */
+  kind: "personal" | "corporate";
+  /**
+   * Membership Revision
+   */
+  membership_revision: number;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
  * OwnerEvidenceRow
  *
  * One evidence binding for owner version view.
@@ -3777,6 +3890,695 @@ export type PrivateVersionTrust = {
 };
 
 /**
+ * ProjectConflictResolutionRequest
+ *
+ * Explicit two-parent merge; it never happens during ordinary push.
+ */
+export type ProjectConflictResolutionRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Content Digest
+   */
+  content_digest: string;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Expected Head Revision Id
+   */
+  expected_head_revision_id?: string | null;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Operation
+   */
+  operation: "upsert" | "tombstone";
+  /**
+   * Parent Revision Ids
+   */
+  parent_revision_ids: Array<string>;
+  /**
+   * Projection
+   */
+  projection: {
+    [key: string]: unknown;
+  };
+  /**
+   * Revision Id
+   */
+  revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectLinkPlanRequest
+ *
+ * Request a server-authored exact link plan without changing state.
+ */
+export type ProjectLinkPlanRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Local Project Id
+   */
+  local_project_id: string;
+  /**
+   * Local Revision
+   */
+  local_revision: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id?: string | null;
+  /**
+   * Provider Revision
+   */
+  provider_revision?: string | null;
+  /**
+   * Remote Project Id
+   */
+  remote_project_id: string;
+  /**
+   * Remote Revision
+   */
+  remote_revision: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectLinkPlanResponse
+ *
+ * The exact server-authored link decision awaiting confirmation.
+ */
+export type ProjectLinkPlanResponse = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  expires_at: Timestamp;
+  /**
+   * Local Project Id
+   */
+  local_project_id: string;
+  /**
+   * Local Revision
+   */
+  local_revision: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Plan Id
+   */
+  plan_id: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id: string | null;
+  /**
+   * Provider Revision
+   */
+  provider_revision: string | null;
+  /**
+   * Remote Project Id
+   */
+  remote_project_id: string;
+  /**
+   * Remote Revision
+   */
+  remote_revision: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectLinkProposalRequest
+ *
+ * Non-authoritative link evidence awaiting an explicit link plan.
+ */
+export type ProjectLinkProposalRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Evidence
+   */
+  evidence: {
+    [key: string]: unknown;
+  };
+  /**
+   * Local Project Id
+   */
+  local_project_id: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id?: string | null;
+  /**
+   * Remote Project Id
+   */
+  remote_project_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectLinkRequest
+ *
+ * Confirm one exact server-authored link plan.
+ */
+export type ProjectLinkRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Plan Id
+   */
+  plan_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectLinkResponse
+ *
+ * The durable link and its last observed endpoint revisions.
+ */
+export type ProjectLinkResponse = {
+  /**
+   * Conflict Client Revision
+   */
+  conflict_client_revision: string | null;
+  /**
+   * Conflict Common Ancestor
+   */
+  conflict_common_ancestor: string | null;
+  /**
+   * Conflict Server Revision
+   */
+  conflict_server_revision: string | null;
+  /**
+   * Link Id
+   */
+  link_id: string;
+  /**
+   * Local Project Id
+   */
+  local_project_id: string;
+  /**
+   * Local Revision
+   */
+  local_revision: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Plan Id
+   */
+  plan_id: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id: string | null;
+  /**
+   * Provider Revision
+   */
+  provider_revision: string | null;
+  /**
+   * Remote Project Id
+   */
+  remote_project_id: string;
+  /**
+   * Remote Revision
+   */
+  remote_revision: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "linked" | "unlinked" | "conflict";
+  updated_at: Timestamp;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectRevisionPullResponse
+ *
+ * Bounded pull of the tenant-scoped project ledger.
+ */
+export type ProjectRevisionPullResponse = {
+  /**
+   * Head Revision Id
+   */
+  head_revision_id: string | null;
+  /**
+   * Items
+   */
+  items: Array<ProjectRevisionView>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectRevisionPushRequest
+ *
+ * One explicit content-addressed project revision push.
+ */
+export type ProjectRevisionPushRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Content Digest
+   */
+  content_digest: string;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Expected Head Revision Id
+   */
+  expected_head_revision_id?: string | null;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Operation
+   */
+  operation: "upsert" | "tombstone";
+  /**
+   * Parent Revision Ids
+   */
+  parent_revision_ids: Array<string>;
+  /**
+   * Projection
+   */
+  projection: {
+    [key: string]: unknown;
+  };
+  /**
+   * Revision Id
+   */
+  revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectRevisionPushResponse
+ *
+ * Result of a project revision push.
+ */
+export type ProjectRevisionPushResponse = {
+  receipt: ProjectRevisionReceipt;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectRevisionReceipt
+ *
+ * Durable result of one project revision push.
+ */
+export type ProjectRevisionReceipt = {
+  /**
+   * Client Head Revision Id
+   */
+  client_head_revision_id: string | null;
+  /**
+   * Common Ancestor Revision Id
+   */
+  common_ancestor_revision_id: string | null;
+  /**
+   * Error Code
+   */
+  error_code: string | null;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Revision Id
+   */
+  revision_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Server Head Revision Id
+   */
+  server_head_revision_id: string | null;
+  /**
+   * State
+   */
+  state: "accepted" | "conflict" | "rejected" | "superseded";
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectRevisionView
+ *
+ * Redacted project revision returned by pull.
+ */
+export type ProjectRevisionView = {
+  /**
+   * Actor Account Id
+   */
+  actor_account_id: string;
+  /**
+   * Content Digest
+   */
+  content_digest: string;
+  created_at: Timestamp;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Operation
+   */
+  operation: "upsert" | "tombstone";
+  /**
+   * Parent Revision Ids
+   */
+  parent_revision_ids: Array<string>;
+  /**
+   * Projection
+   */
+  projection: {
+    [key: string]: unknown;
+  };
+  /**
+   * Revision Id
+   */
+  revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectSyncApplyRequest
+ *
+ * Apply one exact, previously-created non-conflicting sync plan.
+ */
+export type ProjectSyncApplyRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Expected Link Revision
+   */
+  expected_link_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectSyncPlanRequest
+ *
+ * Request a deterministic sync plan for an existing explicit link.
+ */
+export type ProjectSyncPlanRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Expected Link Revision
+   */
+  expected_link_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Link Id
+   */
+  link_id: string;
+  /**
+   * Local Revision
+   */
+  local_revision: string;
+  /**
+   * Provider Revision
+   */
+  provider_revision?: string | null;
+  /**
+   * Remote Revision
+   */
+  remote_revision: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectSyncPlanResponse
+ *
+ * A no-side-effect sync decision, or a conflict requiring user choice.
+ */
+export type ProjectSyncPlanResponse = {
+  /**
+   * Action
+   */
+  action: "noop" | "local_to_remote" | "remote_to_local" | "merge_required";
+  /**
+   * Common Ancestor Revision
+   */
+  common_ancestor_revision: string | null;
+  /**
+   * Conflict Code
+   */
+  conflict_code:
+    | "local_changed"
+    | "remote_changed"
+    | "both_changed"
+    | "provider_mismatch"
+    | "remote_missing"
+    | "stale_revision"
+    | null;
+  /**
+   * Expected Link Revision
+   */
+  expected_link_revision: number;
+  expires_at: Timestamp;
+  /**
+   * Link Id
+   */
+  link_id: string;
+  /**
+   * Local Revision
+   */
+  local_revision: string;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Plan Id
+   */
+  plan_id: string;
+  /**
+   * Provider Identity Revision
+   */
+  provider_identity_revision: number | null;
+  /**
+   * Provider Revision
+   */
+  provider_revision: string | null;
+  /**
+   * Remote Identity Revision
+   */
+  remote_identity_revision: number;
+  /**
+   * Remote Revision
+   */
+  remote_revision: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "ready" | "conflict" | "applied" | "failed" | "unknown";
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectUnlinkPlanRequest
+ *
+ * Request a no-side-effect plan for unlinking one exact link revision.
+ */
+export type ProjectUnlinkPlanRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Expected Link Revision
+   */
+  expected_link_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Link Id
+   */
+  link_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectUnlinkPlanResponse
+ *
+ * The exact server-authored unlink decision awaiting confirmation.
+ */
+export type ProjectUnlinkPlanResponse = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Expected Link Revision
+   */
+  expected_link_revision: number;
+  expires_at: Timestamp;
+  /**
+   * Link Id
+   */
+  link_id: string;
+  /**
+   * Local Project Id
+   */
+  local_project_id: string;
+  /**
+   * Local Revision
+   */
+  local_revision: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Plan Id
+   */
+  plan_id: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id: string | null;
+  /**
+   * Provider Revision
+   */
+  provider_revision: string | null;
+  /**
+   * Remote Project Id
+   */
+  remote_project_id: string;
+  /**
+   * Remote Revision
+   */
+  remote_revision: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectUnlinkRequest
+ *
+ * Confirm one exact server-authored unlink plan.
+ */
+export type ProjectUnlinkRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Plan Id
+   */
+  plan_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
  * ProjectedMember
  *
  * One canonical projected path and the provider semantics it requires.
@@ -3822,6 +4624,50 @@ export const ProjectionKind = {
 } as const;
 
 export type ProjectionKind = (typeof ProjectionKind)[keyof typeof ProjectionKind];
+
+/**
+ * ProviderProjectObservationRequest
+ *
+ * Provider identity evidence; it never creates a project link.
+ */
+export type ProviderProjectObservationRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Current Url
+   */
+  current_url: string;
+  /**
+   * Immutable Repository Id
+   */
+  immutable_repository_id: string;
+  /**
+   * Installation Id
+   */
+  installation_id: string;
+  /**
+   * Namespace Id
+   */
+  namespace_id: string;
+  /**
+   * Observed Name
+   */
+  observed_name: string;
+  /**
+   * Provider Kind
+   */
+  provider_kind: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
 
 /**
  * ProviderSurfaceRef
@@ -9328,6 +10174,50 @@ export type ReadContentResponses = {
 
 export type ReadContentResponse = ReadContentResponses[keyof ReadContentResponses];
 
+export type ReadActiveContextData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/context";
+};
+
+export type ReadActiveContextErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadActiveContextError = ReadActiveContextErrors[keyof ReadActiveContextErrors];
+
+export type ReadActiveContextResponses = {
+  /**
+   * Resolve the active context from the request authority.
+   */
+  200: ActiveContext;
+};
+
+export type ReadActiveContextResponse =
+  ReadActiveContextResponses[keyof ReadActiveContextResponses];
+
 export type ListDevicesData = {
   body?: never;
   headers?: {
@@ -10013,6 +10903,371 @@ export type HealthReadyResponses = {
 };
 
 export type HealthReadyResponse = HealthReadyResponses[keyof HealthReadyResponses];
+
+export type ListOrganizationsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/organizations";
+};
+
+export type ListOrganizationsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListOrganizationsError = ListOrganizationsErrors[keyof ListOrganizationsErrors];
+
+export type ListOrganizationsResponses = {
+  /**
+   * List remote organizations available to the authenticated account.
+   */
+  200: OrganizationListResponse;
+};
+
+export type ListOrganizationsResponse =
+  ListOrganizationsResponses[keyof ListOrganizationsResponses];
+
+export type ReadOrganizationCapabilitiesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/capabilities";
+};
+
+export type ReadOrganizationCapabilitiesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadOrganizationCapabilitiesError =
+  ReadOrganizationCapabilitiesErrors[keyof ReadOrganizationCapabilitiesErrors];
+
+export type ReadOrganizationCapabilitiesResponses = {
+  /**
+   * Read the bounded capability projection for one selected organization.
+   */
+  200: CapabilityProjection;
+};
+
+export type ReadOrganizationCapabilitiesResponse =
+  ReadOrganizationCapabilitiesResponses[keyof ReadOrganizationCapabilitiesResponses];
+
+export type CreateProjectLinkPlanData = {
+  body: ProjectLinkPlanRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-link-plans";
+};
+
+export type CreateProjectLinkPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateProjectLinkPlanError =
+  CreateProjectLinkPlanErrors[keyof CreateProjectLinkPlanErrors];
+
+export type CreateProjectLinkPlanResponses = {
+  /**
+   * Create an exact no-side-effect project link plan.
+   */
+  201: ProjectLinkPlanResponse;
+};
+
+export type CreateProjectLinkPlanResponse =
+  CreateProjectLinkPlanResponses[keyof CreateProjectLinkPlanResponses];
+
+export type ReadProjectLinkPlanData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Exact project link plan identifier.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}";
+};
+
+export type ReadProjectLinkPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectLinkPlanError = ReadProjectLinkPlanErrors[keyof ReadProjectLinkPlanErrors];
+
+export type ReadProjectLinkPlanResponses = {
+  /**
+   * Read one exact project link plan.
+   */
+  200: ProjectLinkPlanResponse;
+};
+
+export type ReadProjectLinkPlanResponse =
+  ReadProjectLinkPlanResponses[keyof ReadProjectLinkPlanResponses];
+
+export type CreateProjectUnlinkPlanData = {
+  body: ProjectUnlinkPlanRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-unlink-plans";
+};
+
+export type CreateProjectUnlinkPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateProjectUnlinkPlanError =
+  CreateProjectUnlinkPlanErrors[keyof CreateProjectUnlinkPlanErrors];
+
+export type CreateProjectUnlinkPlanResponses = {
+  /**
+   * Create an exact no-side-effect project unlink plan.
+   */
+  201: ProjectUnlinkPlanResponse;
+};
+
+export type CreateProjectUnlinkPlanResponse =
+  CreateProjectUnlinkPlanResponses[keyof CreateProjectUnlinkPlanResponses];
+
+export type ReadProjectUnlinkPlanData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Exact project unlink plan identifier.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/organizations/{organization_id}/project-unlink-plans/{plan_id}";
+};
+
+export type ReadProjectUnlinkPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectUnlinkPlanError =
+  ReadProjectUnlinkPlanErrors[keyof ReadProjectUnlinkPlanErrors];
+
+export type ReadProjectUnlinkPlanResponses = {
+  /**
+   * Read one exact project unlink plan.
+   */
+  200: ProjectUnlinkPlanResponse;
+};
+
+export type ReadProjectUnlinkPlanResponse =
+  ReadProjectUnlinkPlanResponses[keyof ReadProjectUnlinkPlanResponses];
 
 export type ListOwnerObjectsData = {
   body?: never;
@@ -10943,6 +12198,515 @@ export type ReadOwnershipClaimResponses = {
 
 export type ReadOwnershipClaimResponse =
   ReadOwnershipClaimResponses[keyof ReadOwnershipClaimResponses];
+
+export type CreateProjectLinkData = {
+  body: ProjectLinkRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/projects/links";
+};
+
+export type CreateProjectLinkErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateProjectLinkError = CreateProjectLinkErrors[keyof CreateProjectLinkErrors];
+
+export type CreateProjectLinkResponses = {
+  /**
+   * Explicitly link a local project to a remote project.
+   */
+  201: ProjectLinkResponse;
+};
+
+export type CreateProjectLinkResponse =
+  CreateProjectLinkResponses[keyof CreateProjectLinkResponses];
+
+export type UnlinkProjectData = {
+  body: ProjectUnlinkRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}";
+};
+
+export type UnlinkProjectErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UnlinkProjectError = UnlinkProjectErrors[keyof UnlinkProjectErrors];
+
+export type UnlinkProjectResponses = {
+  /**
+   * Unlink one project pair without deleting either identity.
+   */
+  200: ProjectLinkResponse;
+};
+
+export type UnlinkProjectResponse = UnlinkProjectResponses[keyof UnlinkProjectResponses];
+
+export type ReadProjectLinkData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}";
+};
+
+export type ReadProjectLinkErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectLinkError = ReadProjectLinkErrors[keyof ReadProjectLinkErrors];
+
+export type ReadProjectLinkResponses = {
+  /**
+   * Read one explicit project link.
+   */
+  200: ProjectLinkResponse;
+};
+
+export type ReadProjectLinkResponse = ReadProjectLinkResponses[keyof ReadProjectLinkResponses];
+
+export type ResolveProjectConflictData = {
+  body: ProjectConflictResolutionRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}/conflict-resolutions";
+};
+
+export type ResolveProjectConflictErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ResolveProjectConflictError =
+  ResolveProjectConflictErrors[keyof ResolveProjectConflictErrors];
+
+export type ResolveProjectConflictResponses = {
+  /**
+   * Create an explicit two-parent project resolution revision.
+   */
+  200: ProjectRevisionPushResponse;
+};
+
+export type ResolveProjectConflictResponse =
+  ResolveProjectConflictResponses[keyof ResolveProjectConflictResponses];
+
+export type PullProjectRevisionsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}/revisions";
+};
+
+export type PullProjectRevisionsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PullProjectRevisionsError =
+  PullProjectRevisionsErrors[keyof PullProjectRevisionsErrors];
+
+export type PullProjectRevisionsResponses = {
+  /**
+   * Pull redacted project revisions from the selected tenant ledger.
+   */
+  200: ProjectRevisionPullResponse;
+};
+
+export type PullProjectRevisionsResponse =
+  PullProjectRevisionsResponses[keyof PullProjectRevisionsResponses];
+
+export type PushProjectRevisionData = {
+  body: ProjectRevisionPushRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}/revisions";
+};
+
+export type PushProjectRevisionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PushProjectRevisionError = PushProjectRevisionErrors[keyof PushProjectRevisionErrors];
+
+export type PushProjectRevisionResponses = {
+  /**
+   * Push one content-addressed project revision through the tenant ledger.
+   */
+  200: ProjectRevisionPushResponse;
+};
+
+export type PushProjectRevisionResponse =
+  PushProjectRevisionResponses[keyof PushProjectRevisionResponses];
+
+export type CreateProjectSyncPlanData = {
+  body: ProjectSyncPlanRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}/sync-plans";
+};
+
+export type CreateProjectSyncPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateProjectSyncPlanError =
+  CreateProjectSyncPlanErrors[keyof CreateProjectSyncPlanErrors];
+
+export type CreateProjectSyncPlanResponses = {
+  /**
+   * Create a deterministic project sync plan without applying it.
+   */
+  201: ProjectSyncPlanResponse;
+};
+
+export type CreateProjectSyncPlanResponse =
+  CreateProjectSyncPlanResponses[keyof CreateProjectSyncPlanResponses];
+
+export type ApplyProjectSyncPlanData = {
+  body: ProjectSyncApplyRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+    /**
+     * Exact sync plan identifier.
+     */
+    plan_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}/sync-plans/{plan_id}/apply";
+};
+
+export type ApplyProjectSyncPlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_NOT_FOUND.
+   */
+  404: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_PRECONDITION_FAILED.
+   */
+  412: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ApplyProjectSyncPlanError =
+  ApplyProjectSyncPlanErrors[keyof ApplyProjectSyncPlanErrors];
+
+export type ApplyProjectSyncPlanResponses = {
+  /**
+   * Apply one exact non-conflicting project sync plan.
+   */
+  200: ProjectSyncPlanResponse;
+};
+
+export type ApplyProjectSyncPlanResponse =
+  ApplyProjectSyncPlanResponses[keyof ApplyProjectSyncPlanResponses];
 
 export type CreatePublicationPlanData = {
   body: PublicationPlanCreateRequest;

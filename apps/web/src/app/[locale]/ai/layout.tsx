@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { MachineFooter, MachineHeader } from "@/components/layouts/machine-chrome";
 import { ProjectionDock } from "@/components/molecules/projection-dock";
+import { ProjectionDockEnhancer } from "@/components/molecules/projection-dock-enhancer";
 import { readSession } from "@/lib/auth/session";
 import { getEnv } from "@/lib/env";
 import { UI } from "@/lib/ui-selectors";
@@ -43,8 +44,9 @@ export default async function MachineLayout({ children, params }: MachineLayoutP
         {children}
       </main>
       <MachineFooter />
+      <ProjectionDock locale={locale} projection="machine" />
       <Suspense fallback={null}>
-        <ProjectionDock locale={locale} />
+        <ProjectionDockEnhancer locale={locale} />
       </Suspense>
     </div>
   );

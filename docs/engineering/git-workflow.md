@@ -1,6 +1,6 @@
 ---
 description: "Rules for branches, commits, pull requests, and cross-repository changes."
-last_verified: "2026-08-12"
+last_verified: "2026-09-09"
 ---
 
 # Git workflow
@@ -9,12 +9,14 @@ last_verified: "2026-08-12"
 
 `main` is the repository's only line: it is the default, integration, and release branch. Implementation pull requests target it. There is no separate integration branch.
 
+Contributor branches use exactly one of these prefixes followed by a non-empty
+description: `feat/`, `chore/`, `docs/`, `test/`, `fix/`, or `refactor/`.
+Branches with other prefixes—including `claude/` and `codex/`—are rejected by
+the CI contract check. `main` is the only branch outside this naming rule.
+
 This was not always the case: `dev` used to be the integration branch, and moving from it to `main` required a separate promotion with a second review. That step caught nothing: `main` was unprotected, no checks were required, and promotions accumulated for weeks before landing as one pull request containing hundreds of commits. The second branch path cost more than it provided and was removed.
 
-Contributors work in personal branches:
-
-- `rldyourmnd` — Danil's personal working branch; Danil owns the project;
-- `letya999` — Artem's personal working branch.
+Contributors work in personal branches that follow this prefix rule.
 
 Each contributor writes only to their own personal branch and keeps it current by merging `main` into it. A completed change goes from the personal branch to `main` in a pull request; after green CI on the exact HEAD, the author lands it with a merge commit. Contributors perform integration together, each for their own work.
 

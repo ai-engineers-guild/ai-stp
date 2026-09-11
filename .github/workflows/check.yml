@@ -1,4 +1,6 @@
-# Every check this repository has, on GitHub-hosted runners.
+# Every expensive repository check runs on GitHub-hosted runners.
+# The local commit hook is intentionally fast; this workflow is the required
+# oracle for full docs, backend/BT regression, web, browser, and matrix suites.
 #
 # Split by what each job needs rather than by taste: only the test jobs need a
 # database, only the web jobs need a browser, and the rest need neither. No job
@@ -423,6 +425,23 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install pinned uv for the real local API fixture
+        run: |
+          set -euo pipefail
+          python_path="$(python -c 'import sys; print(sys.executable)')"
+          test -n "${python_path}"
+          echo "UV_PYTHON=${python_path}" >> "${GITHUB_ENV}"
+          echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-web-unit-${{ matrix.os }}" \
+            >> "${GITHUB_ENV}"
+          bash .github/scripts/install-uv.sh "${UV_VERSION}" "${RUNNER_TEMP}/uv"
+          echo "${RUNNER_TEMP}/uv" >> "${GITHUB_PATH}"
+      - name: Prepare the local API runtime
+        run: |
+          set -euo pipefail
+          uv sync --locked --group dev
       - name: Install pinned bun
         run: |
           set -euo pipefail

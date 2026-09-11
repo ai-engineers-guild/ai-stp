@@ -182,6 +182,7 @@ async def ensure_catalog_identity(
             ownership_revision_id="",
         )
         session.add(identity)
+        await session.flush()
         session.add(
             CatalogIdentityLocale(
                 stable_id=stable_id,

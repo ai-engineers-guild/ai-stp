@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-sync-apply-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Apply one exact, previously-created non-conflicting sync plan.",
+  "properties": {
+    "authorization_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Authorization Revision",
+      "type": "string"
+    },
+    "expected_link_revision": {
+      "minimum": 1,
+      "title": "Expected Link Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "plan_digest": {
+      "maxLength": 71,
+      "minLength": 71,
+      "title": "Plan Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "plan_digest",
+    "expected_link_revision",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "ProjectSyncApplyRequest",
+  "type": "object"
+}

@@ -57,6 +57,28 @@ def test_two_projects_are_two_passports(registry: sqlite3.Connection, tmp_path: 
     )
 
 
+def test_project_identity_survives_move_and_rename(
+    registry: sqlite3.Connection, project: Path, tmp_path: Path
+) -> None:
+    first = project_passport.scan(registry, project)
+    moved = tmp_path / "renamed-project"
+    project.rename(moved)
+    second = project_passport.scan(registry, moved)
+    assert second.stable_id == first.stable_id
+
+
+def test_a_cloned_directory_gets_its_own_identity(
+    registry: sqlite3.Connection, project: Path, tmp_path: Path
+) -> None:
+    import shutil
+
+    first = project_passport.scan(registry, project)
+    clone = tmp_path / "clone"
+    shutil.copytree(project, clone)
+    second = project_passport.scan(registry, clone)
+    assert second.stable_id != first.stable_id
+
+
 def test_a_revision_pins_the_index_toolchain_and_configuration(
     registry: sqlite3.Connection, project: Path
 ) -> None:

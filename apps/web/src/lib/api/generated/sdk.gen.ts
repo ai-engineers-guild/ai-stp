@@ -6,6 +6,9 @@ import type {
   AcceptGrantInvitationData,
   AcceptGrantInvitationErrors,
   AcceptGrantInvitationResponses,
+  ApplyProjectSyncPlanData,
+  ApplyProjectSyncPlanErrors,
+  ApplyProjectSyncPlanResponses,
   BindPublicationArtifactData,
   BindPublicationArtifactErrors,
   BindPublicationArtifactResponses,
@@ -47,6 +50,18 @@ import type {
   CreateOwnershipClaimData,
   CreateOwnershipClaimErrors,
   CreateOwnershipClaimResponses,
+  CreateProjectLinkData,
+  CreateProjectLinkErrors,
+  CreateProjectLinkPlanData,
+  CreateProjectLinkPlanErrors,
+  CreateProjectLinkPlanResponses,
+  CreateProjectLinkResponses,
+  CreateProjectSyncPlanData,
+  CreateProjectSyncPlanErrors,
+  CreateProjectSyncPlanResponses,
+  CreateProjectUnlinkPlanData,
+  CreateProjectUnlinkPlanErrors,
+  CreateProjectUnlinkPlanResponses,
   CreatePublicationPlanData,
   CreatePublicationPlanErrors,
   CreatePublicationPlanResponses,
@@ -98,6 +113,9 @@ import type {
   ListGrantsData,
   ListGrantsErrors,
   ListGrantsResponses,
+  ListOrganizationsData,
+  ListOrganizationsErrors,
+  ListOrganizationsResponses,
   ListOwnerObjectsData,
   ListOwnerObjectsErrors,
   ListOwnerObjectsResponses,
@@ -125,9 +143,15 @@ import type {
   PrepareGithubSourceData,
   PrepareGithubSourceErrors,
   PrepareGithubSourceResponses,
+  PullProjectRevisionsData,
+  PullProjectRevisionsErrors,
+  PullProjectRevisionsResponses,
   PullSyncEventsData,
   PullSyncEventsErrors,
   PullSyncEventsResponses,
+  PushProjectRevisionData,
+  PushProjectRevisionErrors,
+  PushProjectRevisionResponses,
   PushSyncEventsData,
   PushSyncEventsErrors,
   PushSyncEventsResponses,
@@ -143,6 +167,9 @@ import type {
   ReadAccountData,
   ReadAccountErrors,
   ReadAccountResponses,
+  ReadActiveContextData,
+  ReadActiveContextErrors,
+  ReadActiveContextResponses,
   ReadAuthMeData,
   ReadAuthMeErrors,
   ReadAuthMeResponses,
@@ -179,6 +206,9 @@ import type {
   ReadOAuthCallbackResultData,
   ReadOAuthCallbackResultErrors,
   ReadOAuthCallbackResultResponses,
+  ReadOrganizationCapabilitiesData,
+  ReadOrganizationCapabilitiesErrors,
+  ReadOrganizationCapabilitiesResponses,
   ReadOwnerObjectData,
   ReadOwnerObjectErrors,
   ReadOwnerObjectResponses,
@@ -200,6 +230,15 @@ import type {
   ReadPrivateSetupVersionData,
   ReadPrivateSetupVersionErrors,
   ReadPrivateSetupVersionResponses,
+  ReadProjectLinkData,
+  ReadProjectLinkErrors,
+  ReadProjectLinkPlanData,
+  ReadProjectLinkPlanErrors,
+  ReadProjectLinkPlanResponses,
+  ReadProjectLinkResponses,
+  ReadProjectUnlinkPlanData,
+  ReadProjectUnlinkPlanErrors,
+  ReadProjectUnlinkPlanResponses,
   ReadPublicationPlanData,
   ReadPublicationPlanErrors,
   ReadPublicationPlanResponses,
@@ -254,6 +293,9 @@ import type {
   RegisterDeviceData,
   RegisterDeviceErrors,
   RegisterDeviceResponses,
+  ResolveProjectConflictData,
+  ResolveProjectConflictErrors,
+  ResolveProjectConflictResponses,
   RevokeAccessGrantData,
   RevokeAccessGrantErrors,
   RevokeAccessGrantResponses,
@@ -296,6 +338,9 @@ import type {
   UnlinkAccountIdentityData,
   UnlinkAccountIdentityErrors,
   UnlinkAccountIdentityResponses,
+  UnlinkProjectData,
+  UnlinkProjectErrors,
+  UnlinkProjectResponses,
   UpdateAccountIdentityData,
   UpdateAccountIdentityErrors,
   UpdateAccountIdentityResponses,
@@ -1049,6 +1094,18 @@ export const readContent = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Resolve the active context from the request authority.
+ */
+export const readActiveContext = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadActiveContextData, ThrowOnError>,
+): RequestResult<ReadActiveContextResponses, ReadActiveContextErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ReadActiveContextResponses,
+    ReadActiveContextErrors,
+    ThrowOnError
+  >({ url: "/v1/context", ...options });
+
+/**
  * List the devices of the current account.
  */
 export const listDevices = <ThrowOnError extends boolean = false>(
@@ -1239,6 +1296,114 @@ export const healthReady = <ThrowOnError extends boolean = false>(
 ): RequestResult<HealthReadyResponses, HealthReadyErrors, ThrowOnError> =>
   (options?.client ?? client).get<HealthReadyResponses, HealthReadyErrors, ThrowOnError>({
     url: "/v1/health/ready",
+    ...options,
+  });
+
+/**
+ * List remote organizations available to the authenticated account.
+ */
+export const listOrganizations = <ThrowOnError extends boolean = false>(
+  options?: Options<ListOrganizationsData, ThrowOnError>,
+): RequestResult<ListOrganizationsResponses, ListOrganizationsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListOrganizationsResponses,
+    ListOrganizationsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations",
+    ...options,
+  });
+
+/**
+ * Read the bounded capability projection for one selected organization.
+ */
+export const readOrganizationCapabilities = <ThrowOnError extends boolean = false>(
+  options: Options<ReadOrganizationCapabilitiesData, ThrowOnError>,
+): RequestResult<
+  ReadOrganizationCapabilitiesResponses,
+  ReadOrganizationCapabilitiesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadOrganizationCapabilitiesResponses,
+    ReadOrganizationCapabilitiesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/capabilities",
+    ...options,
+  });
+
+/**
+ * Create an exact no-side-effect project link plan.
+ */
+export const createProjectLinkPlan = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProjectLinkPlanData, ThrowOnError>,
+): RequestResult<CreateProjectLinkPlanResponses, CreateProjectLinkPlanErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateProjectLinkPlanResponses,
+    CreateProjectLinkPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-link-plans",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read one exact project link plan.
+ */
+export const readProjectLinkPlan = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectLinkPlanData, ThrowOnError>,
+): RequestResult<ReadProjectLinkPlanResponses, ReadProjectLinkPlanErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadProjectLinkPlanResponses,
+    ReadProjectLinkPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-link-plans/{plan_id}",
+    ...options,
+  });
+
+/**
+ * Create an exact no-side-effect project unlink plan.
+ */
+export const createProjectUnlinkPlan = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProjectUnlinkPlanData, ThrowOnError>,
+): RequestResult<CreateProjectUnlinkPlanResponses, CreateProjectUnlinkPlanErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateProjectUnlinkPlanResponses,
+    CreateProjectUnlinkPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-unlink-plans",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read one exact project unlink plan.
+ */
+export const readProjectUnlinkPlan = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectUnlinkPlanData, ThrowOnError>,
+): RequestResult<ReadProjectUnlinkPlanResponses, ReadProjectUnlinkPlanErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadProjectUnlinkPlanResponses,
+    ReadProjectUnlinkPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/organizations/{organization_id}/project-unlink-plans/{plan_id}",
     ...options,
   });
 
@@ -1485,6 +1650,150 @@ export const readOwnershipClaim = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/ownership-claims/{claim_id}",
     ...options,
+  });
+
+/**
+ * Explicitly link a local project to a remote project.
+ */
+export const createProjectLink = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProjectLinkData, ThrowOnError>,
+): RequestResult<CreateProjectLinkResponses, CreateProjectLinkErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateProjectLinkResponses,
+    CreateProjectLinkErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Unlink one project pair without deleting either identity.
+ */
+export const unlinkProject = <ThrowOnError extends boolean = false>(
+  options: Options<UnlinkProjectData, ThrowOnError>,
+): RequestResult<UnlinkProjectResponses, UnlinkProjectErrors, ThrowOnError> =>
+  (options.client ?? client).delete<UnlinkProjectResponses, UnlinkProjectErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read one explicit project link.
+ */
+export const readProjectLink = <ThrowOnError extends boolean = false>(
+  options: Options<ReadProjectLinkData, ThrowOnError>,
+): RequestResult<ReadProjectLinkResponses, ReadProjectLinkErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadProjectLinkResponses, ReadProjectLinkErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}",
+    ...options,
+  });
+
+/**
+ * Create an explicit two-parent project resolution revision.
+ */
+export const resolveProjectConflict = <ThrowOnError extends boolean = false>(
+  options: Options<ResolveProjectConflictData, ThrowOnError>,
+): RequestResult<ResolveProjectConflictResponses, ResolveProjectConflictErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ResolveProjectConflictResponses,
+    ResolveProjectConflictErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}/conflict-resolutions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Pull redacted project revisions from the selected tenant ledger.
+ */
+export const pullProjectRevisions = <ThrowOnError extends boolean = false>(
+  options: Options<PullProjectRevisionsData, ThrowOnError>,
+): RequestResult<PullProjectRevisionsResponses, PullProjectRevisionsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    PullProjectRevisionsResponses,
+    PullProjectRevisionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}/revisions",
+    ...options,
+  });
+
+/**
+ * Push one content-addressed project revision through the tenant ledger.
+ */
+export const pushProjectRevision = <ThrowOnError extends boolean = false>(
+  options: Options<PushProjectRevisionData, ThrowOnError>,
+): RequestResult<PushProjectRevisionResponses, PushProjectRevisionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    PushProjectRevisionResponses,
+    PushProjectRevisionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}/revisions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Create a deterministic project sync plan without applying it.
+ */
+export const createProjectSyncPlan = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProjectSyncPlanData, ThrowOnError>,
+): RequestResult<CreateProjectSyncPlanResponses, CreateProjectSyncPlanErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateProjectSyncPlanResponses,
+    CreateProjectSyncPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}/sync-plans",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Apply one exact non-conflicting project sync plan.
+ */
+export const applyProjectSyncPlan = <ThrowOnError extends boolean = false>(
+  options: Options<ApplyProjectSyncPlanData, ThrowOnError>,
+): RequestResult<ApplyProjectSyncPlanResponses, ApplyProjectSyncPlanErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ApplyProjectSyncPlanResponses,
+    ApplyProjectSyncPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}/sync-plans/{plan_id}/apply",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

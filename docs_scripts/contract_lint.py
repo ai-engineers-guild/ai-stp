@@ -15,6 +15,7 @@ describe what it replaced.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -50,6 +51,8 @@ COMPONENT_TYPES = (
 
 # MCP transport classes from validation-policy.md.
 MCP_TRANSPORTS = ("local_exec", "package", "remote_https")
+BRANCH_PREFIXES = ("feat", "chore", "docs", "test", "fix", "refactor")
+BRANCH_NAME_RE = re.compile(rf"^(?:{'|'.join(BRANCH_PREFIXES)})/.+$")
 
 VALIDATION_POLICY = Path("docs/contracts/validation-policy.md")
 PASSPORTS_DOC = Path("docs/contracts/component-setup-passports.md")
@@ -251,6 +254,7 @@ class ContractLinter:
 
     def run(self) -> None:
         self.check_banned_terms()
+        self.check_branch_name()
         self.check_branch_parity()
         self.check_validation_matrix()
         self.check_component_type_examples()
@@ -334,6 +338,18 @@ class ContractLinter:
                 "CT013",
                 f"push branches {sorted(actual)} differ from documented {sorted(expected)}",
             )
+
+    def check_branch_name(self) -> None:
+        """CI branches use the repository's allowed conventional prefixes."""
+        branch = os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME")
+        if not branch or branch == "main" or BRANCH_NAME_RE.fullmatch(branch):
+            return
+        self.error(
+            GIT_WORKFLOW_DOC,
+            "CT014",
+            f"branch `{branch}` must use one of: "
+            f"{', '.join(f'{prefix}/' for prefix in BRANCH_PREFIXES)}",
+        )
 
     def check_validation_matrix(self) -> None:
         """Every component type and MCP transport class has a matrix row."""

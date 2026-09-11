@@ -1,0 +1,75 @@
+{
+  "$defs": {
+    "OrganizationSummary": {
+      "additionalProperties": true,
+      "description": "A remote organization available to the authenticated account.",
+      "properties": {
+        "display_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "personal",
+            "corporate"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "membership_revision": {
+          "minimum": 1,
+          "title": "Membership Revision",
+          "type": "integer"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "display_name",
+        "kind",
+        "membership_revision",
+        "organization_id",
+        "schema_version"
+      ],
+      "title": "OrganizationSummary",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:organization-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Organizations the current account may explicitly select.",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/OrganizationSummary"
+      },
+      "maxItems": 256,
+      "title": "Items",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "schema_version"
+  ],
+  "title": "OrganizationListResponse",
+  "type": "object"
+}

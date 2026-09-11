@@ -1,6 +1,6 @@
 ---
 description: "Public repository checks, pull deployment, and exact-artifact release order."
-last_verified: "2026-09-07"
+last_verified: "2026-09-10"
 ---
 
 # CI and releases
@@ -19,6 +19,22 @@ invoke `just`. `tests/contract/test_gate_split_covers_the_gate.py` verifies the
 relationship; `release_scripts/clean_install_regress.sh` is shared by the local
 and CI installation check. Windows invokes Git-for-Windows Bash through
 `release_scripts/run_bash.py`.
+
+## Heavy validation runs in CI
+
+The workstation commit hook is intentionally limited to fast source-level
+checks and focused tests. Full documentation builds/regression, PostgreSQL and
+BT backend regression, package/install regression, production web builds,
+coverage suites, browser E2E, feature profiles, cross-platform matrices, and
+repository-wide security scans are CI-only. They are not required or expected
+before a local commit or through a pre-push hook.
+
+`.github/workflows/check.yml` runs the heavy matrix for every pull request,
+including draft pull requests, and for pushes to `main`; `workflow_dispatch`
+is available for an explicit rerun. The CI status on the exact branch SHA is
+the authoritative result. This checkout has no GitLab remote and no
+`.gitlab-ci.yml`, so there is no GitLab pipeline to dispatch from this
+repository; a future mirror must preserve the same CI-only boundary.
 
 All jobs use standard GitHub-hosted runners. Server tests use Linux with a real
 PostgreSQL service and separate shards. CLI, web unit, browser E2E, and feature

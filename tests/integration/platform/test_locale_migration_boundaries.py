@@ -8,7 +8,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import select
+from sqlalchemy import Table, insert, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from ulid import ULID
 
@@ -62,17 +62,21 @@ def test_locale_repair_preserves_nonconflicting_names(
                     actor_device_id=f"device_{ULID.from_int(1)}",
                     name=entry.display_name_en,
                 )
-                session.add(OfficialUpstreamSource(**source))
+                source.pop("organization_id", None)
+                source_table = OfficialUpstreamSource.__table__
+                assert isinstance(source_table, Table)
+                await session.execute(insert(source_table).values(source))
                 for stable_id, slug in ((legacy_id, canonical), (unrelated_id, "review-tool")):
-                    session.add(
-                        CatalogIdentity(
+                    identity_table = CatalogIdentity.__table__
+                    assert isinstance(identity_table, Table)
+                    await session.execute(
+                        insert(identity_table).values(
                             stable_id=stable_id,
                             owner_account_id=owner_id,
                             canonical_name=slug,
                             canonical_name_normalized=slug,
                         )
                     )
-                    await session.flush()
                     for locale in names:
                         display = (
                             names[locale]

@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { SiteHeader } from "@/components/layouts/site-header";
 import { ProjectionDock } from "@/components/molecules/projection-dock";
+import { ProjectionDockEnhancer } from "@/components/molecules/projection-dock-enhancer";
 import { ConsentedAnalytics } from "@/components/organisms/consented-analytics";
 import { CookieConsent } from "@/components/organisms/cookie-consent";
 import { getEnv } from "@/lib/env";
@@ -128,8 +129,9 @@ export async function AppShell({ children, locale }: AppShellProps) {
           </div>
         </div>
       </footer>
+      <ProjectionDock locale={locale} projection="human" />
       <Suspense fallback={null}>
-        <ProjectionDock locale={locale} />
+        <ProjectionDockEnhancer locale={locale} />
       </Suspense>
       <ConsentedAnalytics {...publicAnalyticsConfig()} />
       {process.env.NEXT_PUBLIC_COOKIE_CONSENT_ENABLED !== "false" ? (

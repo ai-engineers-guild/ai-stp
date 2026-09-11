@@ -111,6 +111,7 @@
   "a required option must be an integer": "обязательная опция должна быть целым числом",
   "a required option must be repeatable text": "обязательная опция должна быть повторяемым текстом",
   "a required option was not supplied": "обязательная опция не передана",
+  "--local-project-id must be a project id": "--local-project-id должен быть идентификатором проекта",
   "a resolved component carries no artifact digest to bundle": "разрешённый компонент не несёт digest артефакта для упаковки",
   "a second adaptation requires one concrete harness": "вторая адаптация требует один конкретный харнесс",
   "a secret exists in both the credential store and a file, and they do not agree": "секрет есть и в хранилище учётных данных, и в файле, и они не совпадают",

@@ -28,6 +28,7 @@ from ai_stp_platform.github_client import GitHubClient
 from ai_stp_platform.github_models import GitHubConnector, GitHubSourceBinding
 from ai_stp_platform.github_settings import GitHubConnectorSettings
 from ai_stp_platform.models import Account, AuditEvent, Device, OAuthIdentity
+from ai_stp_platform.organization_models import Organization, OrganizationMembership
 from ai_stp_platform.storage.memory import MemoryObjectClient
 
 pytestmark = pytest.mark.platform
@@ -253,6 +254,30 @@ async def harness(migrated_database_url: str, settings_factory: Any) -> AsyncIte
 
 async def test_connect_scope_snapshot_disconnect_and_callback_replay(harness: Harness) -> None:
     h = harness
+
+    async def organization_state() -> tuple[list[tuple[object, ...]], list[tuple[object, ...]]]:
+        async with h.sessions() as db:
+            organizations = list(
+                (await db.scalars(select(Organization).order_by(Organization.id))).all()
+            )
+            memberships = list(
+                (
+                    await db.scalars(
+                        select(OrganizationMembership).order_by(OrganizationMembership.id)
+                    )
+                ).all()
+            )
+        return (
+            [(row.id, row.kind, row.owner_account_id, row.revision) for row in organizations],
+            [
+                (row.organization_id, row.account_id, row.role, row.state, row.revision)
+                for row in memberships
+            ],
+        )
+
+    context = await h.client.get("/v1/context", headers=h.headers)
+    assert context.status_code == 200 and context.json()["mode"] == "personal"
+    organization_state_before = await organization_state()
     response = await h.client.get(ROOT, headers=h.headers)
     assert all(c["state"] == "disconnected" for c in response.json()["connections"])
     callback = await h.connect()
@@ -290,6 +315,7 @@ async def test_connect_scope_snapshot_disconnect_and_callback_replay(harness: Ha
     assert disconnected.json()["connections"][0]["state"] == "disconnected"
     denied = await h.client.post(ROOT + "/sources", headers=h.headers, json=body)
     assert denied.status_code == 401
+    assert await organization_state() == organization_state_before
 
 
 async def test_install_callback_continues_to_user_authorization(harness: Harness) -> None:

@@ -215,7 +215,7 @@ export async function readComponent(
   const path = `/v1/catalog/components/${stableId}`;
   return sessionToken
     ? catalogPrivateGet<ComponentDetail>(path, sessionToken)
-    : publicApiGet<ComponentDetail>(path);
+    : publicApiGetLive<ComponentDetail>(path);
 }
 
 export async function readSetup(stableId: SetupId): Promise<SetupDetail> {

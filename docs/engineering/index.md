@@ -19,12 +19,12 @@ last_verified: "2026-08-03"
 | [failure-catalog.md](failure-catalog.md) | Historical failure lessons extracted from retired experiments, with current regression owners. | 2026-09-04 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Threat model for federated local ports and metadata adapters. | 2026-08-16 |
 | [first-party-corpus.md](first-party-corpus.md) | Rebuilding and publishing the first-party corpus from exact attested setup-system releases. | 2026-09-07 |
-| [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-08-12 |
+| [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-09-09 |
 | [github-connector-implementation-plan.md](github-connector-implementation-plan.md) | Implementation and verification sequence for GitHub Connector issues 181 through 186. | 2026-09-08 |
 | [github-connector-operations.md](github-connector-operations.md) | Operator runbook for the single GitHub App used by source access and repository actions. | 2026-09-09 |
 | [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-08 |
 | [official-registry-identity-and-requests-implementation-plan.md](official-registry-identity-and-requests-implementation-plan.md) | Implementation sequence for unique public identities, the Git-owned Official registry, recoverable updates, and unified ownership and verification requests. | 2026-09-04 |
-| [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-04 |
+| [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-10 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
 | [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-08 |
 | [repository-structure.md](repository-structure.md) | Target monorepository structure and code ownership rules. | 2026-08-05 |
@@ -33,7 +33,7 @@ last_verified: "2026-08-03"
 | [seo-publication-implementation-plan.md](seo-publication-implementation-plan.md) | Procedure for implementing the server-side SEO loop without mixing domain publication and model enrichment. | 2026-08-29 |
 | [tech-debt-rules.md](tech-debt-rules.md) | Rules for registering temporary compromises. | 2026-08-03 |
 | [tech-stack.md](tech-stack.md) | Target MVP stack and rules for choosing dependencies. | 2026-08-05 |
-| [testing.md](testing.md) | Test strategy for passports, builds, sync, providers, and platform. | 2026-09-05 |
+| [testing.md](testing.md) | Test strategy for passports, builds, sync, providers, and platform. | 2026-09-10 |
 | [web-quality.md](web-quality.md) | Web operating rules: SEO, machine discovery, browser storage, selectors, and quality gates. | 2026-08-29 |
 
 <!-- END CONTENTS -->

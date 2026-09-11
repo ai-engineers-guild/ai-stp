@@ -1206,6 +1206,68 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         ),
         down=("DROP TABLE sync_pending_version",),
     ),
+    Migration(
+        version=36,
+        summary="cache explicit remote project links and deterministic sync plans",
+        up=(
+            """
+            CREATE TABLE project_link (
+                local_project_id TEXT PRIMARY KEY REFERENCES entity(stable_id),
+                organization_id TEXT NOT NULL,
+                remote_project_id TEXT NOT NULL,
+                provider_project_id TEXT,
+                state TEXT NOT NULL CHECK (state IN ('linked', 'unlinked', 'conflict')),
+                local_revision TEXT NOT NULL,
+                remote_revision TEXT NOT NULL,
+                provider_revision TEXT,
+                link_revision INTEGER NOT NULL CHECK (link_revision >= 1),
+                updated_at TEXT NOT NULL
+            ) STRICT
+            """,
+            """
+            CREATE TABLE project_sync_plan (
+                plan_id TEXT PRIMARY KEY,
+                local_project_id TEXT NOT NULL REFERENCES project_link(local_project_id),
+                state TEXT NOT NULL CHECK (
+                    state IN ('ready', 'conflict', 'applied', 'failed', 'unknown')
+                ),
+                action TEXT NOT NULL CHECK (
+                    action IN ('noop', 'local_to_remote', 'remote_to_local', 'merge_required')
+                ),
+                expected_link_revision INTEGER NOT NULL CHECK (expected_link_revision >= 1),
+                local_revision TEXT NOT NULL,
+                remote_revision TEXT NOT NULL,
+                provider_revision TEXT,
+                conflict_code TEXT,
+                idempotency_key TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE (local_project_id, idempotency_key)
+            ) STRICT
+            """,
+        ),
+        down=("DROP TABLE project_sync_plan", "DROP TABLE project_link"),
+    ),
+    Migration(
+        version=37,
+        summary="retain exact sync plan digests and conflict ancestry in the local cache",
+        up=(
+            "ALTER TABLE project_sync_plan ADD COLUMN common_ancestor_revision TEXT",
+            "ALTER TABLE project_sync_plan ADD COLUMN plan_digest TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE project_sync_plan ADD COLUMN expires_at TEXT NOT NULL DEFAULT ''",
+        ),
+    ),
+    Migration(
+        version=38,
+        summary="retain the exact server-authored link plan in the local cache",
+        up=(
+            "ALTER TABLE project_link ADD COLUMN plan_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE project_link ADD COLUMN plan_digest TEXT NOT NULL DEFAULT ''",
+        ),
+        down=(
+            "ALTER TABLE project_link DROP COLUMN plan_digest",
+            "ALTER TABLE project_link DROP COLUMN plan_id",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested
