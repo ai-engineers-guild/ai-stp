@@ -1,0 +1,61 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-member",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "display_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Display Name"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "role": {
+      "enum": [
+        "superadmin",
+        "lead",
+        "staff"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "suspended"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "account_id",
+    "display_name",
+    "revision",
+    "role",
+    "schema_version",
+    "state"
+  ],
+  "title": "CorporateMember",
+  "type": "object"
+}

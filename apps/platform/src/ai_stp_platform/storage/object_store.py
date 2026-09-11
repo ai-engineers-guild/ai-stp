@@ -53,10 +53,24 @@ def content_key(
     digest: str,
     *,
     owner_account_id: str | None = None,
+    organization_id: str | None = None,
     namespace: str | None = None,
 ) -> str:
     """Build an owner-scoped content-addressed key."""
     prefix = settings.key_prefix.strip("/")
+    if owner_account_id is not None and organization_id is not None:
+        raise ValueError("object key accepts either account or organization scope")
+    if organization_id is not None:
+        if "/" in organization_id or not organization_id.startswith("organization_"):
+            raise ValueError("invalid organization id for object key")
+        scope = namespace.strip("/") if namespace else "artifacts"
+        parts = scope.split("/")
+        if not scope or any(not part or part in {".", ".."} for part in parts):
+            raise ValueError("invalid object namespace")
+        return (
+            f"{prefix}/organizations/{organization_id}/{scope}/sha256/"
+            f"{digest.removeprefix('sha256:')}"
+        )
     if owner_account_id is None:
         return f"{prefix}/sha256/{digest.removeprefix('sha256:')}"
     if "/" in owner_account_id or not owner_account_id:
@@ -104,12 +118,14 @@ class ImmutableObjectStore:
         digest: str,
         *,
         owner_account_id: str | None = None,
+        organization_id: str | None = None,
         namespace: str | None = None,
     ) -> str:
         return content_key(
             self._settings,
             digest,
             owner_account_id=owner_account_id,
+            organization_id=organization_id,
             namespace=namespace,
         )
 
@@ -119,11 +135,15 @@ class ImmutableObjectStore:
         *,
         expected_size: int | None = None,
         owner_account_id: str | None = None,
+        organization_id: str | None = None,
         namespace: str | None = None,
     ) -> bytes | None:
         """Read content-addressed bytes; verify size when known."""
         key = self.key_for_digest(
-            content_digest, owner_account_id=owner_account_id, namespace=namespace
+            content_digest,
+            owner_account_id=owner_account_id,
+            organization_id=organization_id,
+            namespace=namespace,
         )
         if expected_size is not None:
             return await self.read_verified(
@@ -148,6 +168,7 @@ class ImmutableObjectStore:
         expected_digest: str,
         expected_size: int,
         owner_account_id: str | None = None,
+        organization_id: str | None = None,
         namespace: str | None = None,
     ) -> StoredObject:
         """Write bytes after digest/size verification and conflict checks."""
@@ -157,7 +178,10 @@ class ImmutableObjectStore:
             raise ObjectIntegrityError("object bytes do not match declared digest and size")
 
         key = self.key_for_digest(
-            actual_digest, owner_account_id=owner_account_id, namespace=namespace
+            actual_digest,
+            owner_account_id=owner_account_id,
+            organization_id=organization_id,
+            namespace=namespace,
         )
         metadata = {
             "ai-stp-digest": actual_digest,
@@ -166,6 +190,8 @@ class ImmutableObjectStore:
         }
         if owner_account_id is not None:
             metadata["ai-stp-owner-account-id"] = owner_account_id
+        if organization_id is not None:
+            metadata["ai-stp-organization-id"] = organization_id
         existing = await self._client.head_object(bucket=self._bucket, key=key)
         if existing is not None:
             if _metadata_matches(existing, metadata):
@@ -201,8 +227,15 @@ class ImmutableObjectStore:
         expected_digest: str,
         expected_size: int,
         bucket: str | None = None,
+        organization_id: str | None = None,
     ) -> bytes | None:
         """Read the complete object and verify integrity before returning bytes."""
+        if organization_id is not None:
+            expected_prefix = (
+                f"{self._settings.key_prefix.strip('/')}/organizations/{organization_id}/"
+            )
+            if not object_key.startswith(expected_prefix):
+                raise ObjectIntegrityError("object key does not belong to organization")
         payload = await self._client.get_object_bytes(
             bucket=bucket or self._bucket,
             key=object_key,
@@ -223,8 +256,6 @@ def _metadata_matches(existing: dict[str, object], expected: dict[str, str]) -> 
         return False
     meta = cast(dict[str, object], metadata)
     return (
-        meta.get("ai-stp-digest") == expected["ai-stp-digest"]
-        and meta.get("ai-stp-size-bytes") == expected["ai-stp-size-bytes"]
-        and meta.get("ai-stp-content-id") == expected["ai-stp-content-id"]
+        all(meta.get(key) == value for key, value in expected.items())
         and str(size) == expected["ai-stp-size-bytes"]
     )

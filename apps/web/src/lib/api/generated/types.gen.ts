@@ -1729,6 +1729,561 @@ export type ContextDelta = {
   conditional_tokens: number;
 };
 
+/**
+ * CorporateAuditEntry
+ */
+export type CorporateAuditEntry = {
+  /**
+   * Action
+   */
+  action: string;
+  /**
+   * Actor Account Id
+   */
+  actor_account_id: string | null;
+  /**
+   * Audit Id
+   */
+  audit_id: number;
+  created_at: Timestamp;
+  /**
+   * Outcome
+   */
+  outcome: "succeeded" | "denied" | "failed";
+  /**
+   * Reason
+   */
+  reason: string | null;
+  /**
+   * Request Id
+   */
+  request_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Target Id
+   */
+  target_id: string;
+  /**
+   * Target Table
+   */
+  target_table: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateAuditList
+ */
+export type CorporateAuditList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateAuditEntry>;
+  /**
+   * Next Before Id
+   */
+  next_before_id: number | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateAuditQuery
+ */
+export type CorporateAuditQuery = {
+  /**
+   * Action
+   */
+  action?: string | null;
+  /**
+   * Actor Account Id
+   */
+  actor_account_id?: string | null;
+  /**
+   * Before Id
+   */
+  before_id?: number | null;
+  created_from?: Timestamp | null;
+  created_to?: Timestamp | null;
+  /**
+   * Target Id
+   */
+  target_id?: string | null;
+};
+
+/**
+ * CorporateBinding
+ */
+export type CorporateBinding = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Binding Id
+   */
+  binding_id: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Role
+   */
+  role: "superadmin" | "lead" | "staff";
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Scope Id
+   */
+  scope_id: string;
+  /**
+   * Scope Kind
+   */
+  scope_kind:
+    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+  /**
+   * State
+   */
+  state: "active" | "revoked";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateBindingRequest
+ */
+export type CorporateBindingRequest = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Role
+   */
+  role: "superadmin" | "lead" | "staff";
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Scope Id
+   */
+  scope_id?: string;
+  /**
+   * Scope Kind
+   */
+  scope_kind:
+    "system" | "organization" | "team" | "project" | "technology" | "catalog_object" | "telemetry";
+};
+
+/**
+ * CorporateBootstrapRequest
+ */
+export type CorporateBootstrapRequest = {
+  idempotency_key: IdempotencyKey;
+  /**
+   * Organization Name
+   */
+  organization_name: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Superadmin Account Id
+   */
+  superadmin_account_id: string;
+};
+
+/**
+ * CorporateContext
+ */
+export type CorporateContext = {
+  /**
+   * Bindings
+   */
+  bindings: Array<CorporateBinding>;
+  /**
+   * Capabilities
+   */
+  capabilities: Array<string>;
+  member: CorporateMember;
+  organization: CorporateOrganization;
+  /**
+   * Projects
+   */
+  projects: Array<CorporateProjectView>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Teams
+   */
+  teams: Array<CorporateTeamView>;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateMember
+ */
+export type CorporateMember = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Role
+   */
+  role: "superadmin" | "lead" | "staff";
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "active" | "suspended";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateMemberCreateRequest
+ */
+export type CorporateMemberCreateRequest = {
+  /**
+   * Account Id
+   */
+  account_id?: string | null;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Display Name
+   */
+  display_name: string;
+  /**
+   * Email
+   */
+  email?: string | null;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Role
+   */
+  role: "superadmin" | "lead" | "staff";
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateMemberList
+ */
+export type CorporateMemberList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateMember>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateMemberUpdateRequest
+ */
+export type CorporateMemberUpdateRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  /**
+   * Role
+   */
+  role: "superadmin" | "lead" | "staff";
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * State
+   */
+  state: "active" | "suspended";
+};
+
+/**
+ * CorporateMembershipAssignment
+ */
+export type CorporateMembershipAssignment = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Bindings
+   */
+  bindings: Array<CorporateBinding>;
+  /**
+   * Project Id
+   */
+  project_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Team Id
+   */
+  team_id: string | null;
+  /**
+   * Team Role
+   */
+  team_role: "lead" | "staff";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateMembershipAssignmentRequest
+ */
+export type CorporateMembershipAssignmentRequest = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Team Id
+   */
+  team_id?: string | null;
+  /**
+   * Team Role
+   */
+  team_role?: "lead" | "staff";
+};
+
+/**
+ * CorporateOrganization
+ */
+export type CorporateOrganization = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Display Name
+   */
+  display_name: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "active" | "suspended";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateProjectCreateRequest
+ */
+export type CorporateProjectCreateRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateProjectList
+ */
+export type CorporateProjectList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateProjectView>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateProjectUpdateRequest
+ */
+export type CorporateProjectUpdateRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * State
+   */
+  state: "active" | "archived";
+};
+
+/**
+ * CorporateProjectView
+ */
+export type CorporateProjectView = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "active" | "archived";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTeamCreateRequest
+ */
+export type CorporateTeamCreateRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateTeamList
+ */
+export type CorporateTeamList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateTeamView>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateTeamView
+ */
+export type CorporateTeamView = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "active" | "archived";
+  /**
+   * Team Id
+   */
+  team_id: string;
+  [key: string]: unknown;
+};
+
 export type CountryCode = string;
 
 export type CountryFilterValue = string;
@@ -10217,6 +10772,864 @@ export type ReadActiveContextResponses = {
 
 export type ReadActiveContextResponse =
   ReadActiveContextResponses[keyof ReadActiveContextResponses];
+
+export type BootstrapCorporateOrganizationData = {
+  body: CorporateBootstrapRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/corporate/bootstrap";
+};
+
+export type BootstrapCorporateOrganizationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type BootstrapCorporateOrganizationError =
+  BootstrapCorporateOrganizationErrors[keyof BootstrapCorporateOrganizationErrors];
+
+export type BootstrapCorporateOrganizationResponses = {
+  /**
+   * Create the installation's single initial corporate organization.
+   */
+  200: CorporateOrganization;
+};
+
+export type BootstrapCorporateOrganizationResponse =
+  BootstrapCorporateOrganizationResponses[keyof BootstrapCorporateOrganizationResponses];
+
+export type ListCorporateAuditData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: {
+    /**
+     * Action
+     */
+    action?: string | null;
+    /**
+     * Actor Account Id
+     */
+    actor_account_id?: string | null;
+    /**
+     * Before Id
+     */
+    before_id?: number | null;
+    created_from?: Timestamp | null;
+    created_to?: Timestamp | null;
+    /**
+     * Target Id
+     */
+    target_id?: string | null;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/audit";
+};
+
+export type ListCorporateAuditErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateAuditError = ListCorporateAuditErrors[keyof ListCorporateAuditErrors];
+
+export type ListCorporateAuditResponses = {
+  /**
+   * List the tenant audit journal.
+   */
+  200: CorporateAuditList;
+};
+
+export type ListCorporateAuditResponse =
+  ListCorporateAuditResponses[keyof ListCorporateAuditResponses];
+
+export type CreateCorporateBindingData = {
+  body: CorporateBindingRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/bindings";
+};
+
+export type CreateCorporateBindingErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateCorporateBindingError =
+  CreateCorporateBindingErrors[keyof CreateCorporateBindingErrors];
+
+export type CreateCorporateBindingResponses = {
+  /**
+   * Create a scoped role binding.
+   */
+  200: CorporateBinding;
+};
+
+export type CreateCorporateBindingResponse =
+  CreateCorporateBindingResponses[keyof CreateCorporateBindingResponses];
+
+export type ReadCorporateContextData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/context";
+};
+
+export type ReadCorporateContextErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateContextError =
+  ReadCorporateContextErrors[keyof ReadCorporateContextErrors];
+
+export type ReadCorporateContextResponses = {
+  /**
+   * Read effective corporate context and capabilities.
+   */
+  200: CorporateContext;
+};
+
+export type ReadCorporateContextResponse =
+  ReadCorporateContextResponses[keyof ReadCorporateContextResponses];
+
+export type ListCorporateMembersData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/members";
+};
+
+export type ListCorporateMembersErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateMembersError =
+  ListCorporateMembersErrors[keyof ListCorporateMembersErrors];
+
+export type ListCorporateMembersResponses = {
+  /**
+   * List organization members.
+   */
+  200: CorporateMemberList;
+};
+
+export type ListCorporateMembersResponse =
+  ListCorporateMembersResponses[keyof ListCorporateMembersResponses];
+
+export type CreateCorporateMemberData = {
+  body: CorporateMemberCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/members";
+};
+
+export type CreateCorporateMemberErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateCorporateMemberError =
+  CreateCorporateMemberErrors[keyof CreateCorporateMemberErrors];
+
+export type CreateCorporateMemberResponses = {
+  /**
+   * Provision an organization member.
+   */
+  200: CorporateMember;
+};
+
+export type CreateCorporateMemberResponse =
+  CreateCorporateMemberResponses[keyof CreateCorporateMemberResponses];
+
+export type ReadCorporateMemberData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed account identifier.
+     */
+    account_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/members/{account_id}";
+};
+
+export type ReadCorporateMemberErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateMemberError = ReadCorporateMemberErrors[keyof ReadCorporateMemberErrors];
+
+export type ReadCorporateMemberResponses = {
+  /**
+   * Read one organization member.
+   */
+  200: CorporateMember;
+};
+
+export type ReadCorporateMemberResponse =
+  ReadCorporateMemberResponses[keyof ReadCorporateMemberResponses];
+
+export type UpdateCorporateMemberData = {
+  body: CorporateMemberUpdateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed account identifier.
+     */
+    account_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/members/{account_id}";
+};
+
+export type UpdateCorporateMemberErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UpdateCorporateMemberError =
+  UpdateCorporateMemberErrors[keyof UpdateCorporateMemberErrors];
+
+export type UpdateCorporateMemberResponses = {
+  /**
+   * Update a member role or state.
+   */
+  200: CorporateMember;
+};
+
+export type UpdateCorporateMemberResponse =
+  UpdateCorporateMemberResponses[keyof UpdateCorporateMemberResponses];
+
+export type AssignCorporateMemberData = {
+  body: CorporateMembershipAssignmentRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/membership-assignments";
+};
+
+export type AssignCorporateMemberErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type AssignCorporateMemberError =
+  AssignCorporateMemberErrors[keyof AssignCorporateMemberErrors];
+
+export type AssignCorporateMemberResponses = {
+  /**
+   * Assign a member to a team or project.
+   */
+  200: CorporateMembershipAssignment;
+};
+
+export type AssignCorporateMemberResponse =
+  AssignCorporateMemberResponses[keyof AssignCorporateMemberResponses];
+
+export type ListCorporateProjectsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects";
+};
+
+export type ListCorporateProjectsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateProjectsError =
+  ListCorporateProjectsErrors[keyof ListCorporateProjectsErrors];
+
+export type ListCorporateProjectsResponses = {
+  /**
+   * List visible corporate projects.
+   */
+  200: CorporateProjectList;
+};
+
+export type ListCorporateProjectsResponse =
+  ListCorporateProjectsResponses[keyof ListCorporateProjectsResponses];
+
+export type CreateCorporateProjectData = {
+  body: CorporateProjectCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects";
+};
+
+export type CreateCorporateProjectErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateCorporateProjectError =
+  CreateCorporateProjectErrors[keyof CreateCorporateProjectErrors];
+
+export type CreateCorporateProjectResponses = {
+  /**
+   * Create a corporate project.
+   */
+  200: CorporateProjectView;
+};
+
+export type CreateCorporateProjectResponse =
+  CreateCorporateProjectResponses[keyof CreateCorporateProjectResponses];
+
+export type UpdateCorporateProjectData = {
+  body: CorporateProjectUpdateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}";
+};
+
+export type UpdateCorporateProjectErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UpdateCorporateProjectError =
+  UpdateCorporateProjectErrors[keyof UpdateCorporateProjectErrors];
+
+export type UpdateCorporateProjectResponses = {
+  /**
+   * Update or archive a corporate project.
+   */
+  200: CorporateProjectView;
+};
+
+export type UpdateCorporateProjectResponse =
+  UpdateCorporateProjectResponses[keyof UpdateCorporateProjectResponses];
+
+export type ListCorporateTeamsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/teams";
+};
+
+export type ListCorporateTeamsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateTeamsError = ListCorporateTeamsErrors[keyof ListCorporateTeamsErrors];
+
+export type ListCorporateTeamsResponses = {
+  /**
+   * List visible corporate teams.
+   */
+  200: CorporateTeamList;
+};
+
+export type ListCorporateTeamsResponse =
+  ListCorporateTeamsResponses[keyof ListCorporateTeamsResponses];
+
+export type CreateCorporateTeamData = {
+  body: CorporateTeamCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/teams";
+};
+
+export type CreateCorporateTeamErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateCorporateTeamError = CreateCorporateTeamErrors[keyof CreateCorporateTeamErrors];
+
+export type CreateCorporateTeamResponses = {
+  /**
+   * Create a corporate team.
+   */
+  200: CorporateTeamView;
+};
+
+export type CreateCorporateTeamResponse =
+  CreateCorporateTeamResponses[keyof CreateCorporateTeamResponses];
 
 export type ListDevicesData = {
   body?: never;

@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { listDevices } from "@/lib/api/devices";
+import { readCorporateWorkspace } from "@/lib/api/corporate";
 import { listGrants } from "@/lib/api/grants";
 import { listOwnReports, readOwnReport } from "@/lib/api/reports";
 import { listCatalogReactions } from "@/lib/api/reactions";
@@ -137,6 +138,22 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
         displayName: projection.display_name,
         bio: projection.bio,
         links: projection.links.map((item) => ({ label: item.label, url: item.url })),
+      });
+    },
+  },
+  {
+    pattern: "corporate",
+    resolve: async () => {
+      const t = await getTranslations("corporate");
+      const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "");
+      if (!workspace) return presentPage({ title: t("emptyTitle"), summary: t("emptyBody") });
+      return presentPage({
+        title: workspace.context.organization.display_name,
+        summary: t("subtitle"),
+        fields: [
+          [t("projects"), workspace.context.projects.map((item) => item.name).join(", ") || "-"],
+          [t("teams"), workspace.context.teams.map((item) => item.name).join(", ") || "-"],
+        ],
       });
     },
   },

@@ -6,14 +6,17 @@ import asyncio
 import time
 from contextlib import suppress
 from datetime import UTC, date, datetime
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_platform.logging import get_logger
+from ai_stp_platform.models import AuditEvent
 from ai_stp_platform.official_upstream.enqueue import enqueue_daily
 from ai_stp_platform.official_upstream.github import worker_github_token
 from ai_stp_platform.official_upstream.ledger import reconcile_delivery, record_queue_outcome
+from ai_stp_platform.organization_models import CorporateRoleBinding
 from ai_stp_platform.queue.engine import (
     DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     DEFAULT_LEASE_TIMEOUT_SECONDS,
@@ -23,13 +26,64 @@ from ai_stp_platform.queue.engine import (
     mark_succeeded,
     requeue_locked,
     requeue_stale,
+    validate_tenant_job,
 )
 from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import JobState, JobType
 from ai_stp_platform.safety.metrics import record_queue_job
+from ai_stp_platform.tenant_scope import set_tenant_scope
 from ai_stp_worker.handlers import resolve
 
 _log = get_logger("runner")
+
+
+async def audit_tenant_job_outcome(
+    session: AsyncSession, job: Job, outcome: str, error: str | None
+) -> None:
+    organization_id = getattr(job, "organization_id", None)
+    if organization_id is None:
+        return
+    envelope = job.payload.get("_tenant")
+    if not isinstance(envelope, dict):
+        return
+    envelope = cast("dict[str, object]", envelope)
+    actor_type = envelope.get("principal_type")
+    actor_id = envelope.get("principal_id")
+    if actor_type not in ("user", "service_principal") or not isinstance(actor_id, str):
+        return
+    principal_filter = (
+        CorporateRoleBinding.account_id == actor_id
+        if actor_type == "user"
+        else CorporateRoleBinding.service_principal_id == actor_id
+    )
+    bindings = (
+        await session.scalars(
+            select(CorporateRoleBinding).where(
+                CorporateRoleBinding.organization_id == organization_id,
+                CorporateRoleBinding.principal_type == actor_type,
+                principal_filter,
+                CorporateRoleBinding.state == "active",
+            )
+        )
+    ).all()
+    session.add(
+        AuditEvent(
+            organization_id=organization_id,
+            actor_account_id=actor_id if actor_type == "user" else None,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            effective_role_bindings=[
+                {"role": row.role, "scope_kind": row.scope_kind, "scope_id": row.scope_id}
+                for row in bindings
+            ],
+            action="job.execute",
+            target_table="job",
+            target_id=str(job.id),
+            outcome=outcome,
+            reason=error.split(":", 1)[0] if error else None,
+            payload={"job_type": job.job_type},
+        )
+    )
 
 
 class Worker:
@@ -120,6 +174,7 @@ class Worker:
         """Reclaim expired leases, claim one job and process it."""
         enqueued_for: date | None = None
         async with self._sessionmaker() as session, session.begin():
+            await set_tenant_scope(session, "*")
             today = datetime.now(UTC).date()
             if self._official_enqueue_day is not None and self._official_enqueue_day != today:
                 await enqueue_daily(session)
@@ -158,6 +213,7 @@ class Worker:
         heartbeat_task: asyncio.Task[None] | None = None
         try:
             async with self._sessionmaker() as session:
+                await set_tenant_scope(session, "*")
                 job = await session.get(Job, job_id)
                 if job is None:
                     return
@@ -166,6 +222,7 @@ class Worker:
                 handler = resolve(job.job_type)
             if handler is None:
                 async with self._sessionmaker() as session, session.begin():
+                    await set_tenant_scope(session, "*")
                     current = await session.get(Job, job_id)
                     if current is not None:
                         await fail(session, current, error="unregistered job type")
@@ -176,6 +233,7 @@ class Worker:
             error: str | None = None
             async with self._sessionmaker() as handler_session:
                 try:
+                    payload = await validate_tenant_job(handler_session, job)
                     await handler(handler_session, payload)
                     await handler_session.commit()
                 except Exception as exc:
@@ -190,6 +248,8 @@ class Worker:
                     )
 
             async with self._sessionmaker() as status_session, status_session.begin():
+                organization_id = getattr(job, "organization_id", None)
+                await set_tenant_scope(status_session, organization_id or "*")
                 current = await status_session.get(Job, job_id)
                 if current is None:
                     return
@@ -200,6 +260,7 @@ class Worker:
                     await fail(status_session, current, error=error)
                     await record_queue_outcome(status_session, current)
                     result = "failed"
+                await audit_tenant_job_outcome(status_session, current, result, error)
         finally:
             if heartbeat_task is not None:
                 heartbeat_task.cancel()
@@ -216,6 +277,7 @@ class Worker:
         while True:
             await asyncio.sleep(self._heartbeat_interval)
             async with self._sessionmaker() as session, session.begin():
+                await set_tenant_scope(session, "*")
                 alive = await heartbeat(
                     session,
                     worker_id=self._worker_id,
@@ -228,6 +290,7 @@ class Worker:
     async def _drain(self) -> int:
         async def _requeue() -> int:
             async with self._sessionmaker() as session, session.begin():
+                await set_tenant_scope(session, "*")
                 return await requeue_locked(session, worker_id=self._worker_id)
 
         try:

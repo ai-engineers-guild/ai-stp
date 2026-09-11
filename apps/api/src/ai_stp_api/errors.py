@@ -200,7 +200,47 @@ def status_to_category(status_code: int) -> ErrorCategory:
 
 async def _api_error_handler(request: Request, exc: Exception) -> JSONResponse:
     error = exc if isinstance(exc, ApiError) else ApiError(ErrorCategory.INTERNAL, "internal error")
+    if error.category is ErrorCategory.PERMISSION:
+        await _audit_denial(request)
     return _build(request, error.category, error.message, error.details)
+
+
+async def _audit_denial(request: Request) -> None:
+    """Persist a safe denial after the failed request transaction rolls back."""
+    from sqlalchemy import select
+
+    from ai_stp_api.audit import emit_audit
+    from ai_stp_platform.organization_models import OrganizationMembership
+
+    ctx = getattr(request.state, "auth_context", None)
+    sessionmaker = getattr(request.app.state, "sessionmaker", None)
+    if ctx is None or sessionmaker is None:
+        return
+    requested = request.path_params.get("organization_id")
+    try:
+        async with sessionmaker() as db:
+            organization_id = None
+            if isinstance(requested, str):
+                organization_id = await db.scalar(
+                    select(OrganizationMembership.organization_id).where(
+                        OrganizationMembership.organization_id == requested,
+                        OrganizationMembership.account_id == ctx.account_id,
+                    )
+                )
+            await emit_audit(
+                db,
+                actor_account_id=ctx.account_id,
+                organization_id=organization_id,
+                action=f"http.{request.method.lower()}.denied",
+                target_table="http_route",
+                target_id=request.url.path if organization_id is not None else "redacted",
+                outcome="denied",
+                reason="capability_forbidden",
+                request_id=_request_id(request),
+            )
+            await db.commit()
+    except Exception:
+        _log.error("audit_denial_failed")
 
 
 async def _validation_handler(request: Request, exc: Exception) -> JSONResponse:

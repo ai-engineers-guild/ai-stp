@@ -272,6 +272,14 @@ class ComplaintSettings(BaseSettings):
     target_window_seconds: int = Field(default=60, ge=1)
 
 
+class CorporateSettings(BaseSettings):
+    """One-use corporate bootstrap credential. Empty disables bootstrap."""
+
+    model_config = SettingsConfigDict(env_prefix="AI_STP_CORPORATE_", extra="ignore")
+
+    bootstrap_secret: str = Field(default="")
+
+
 @dataclass(frozen=True)
 class Settings:
     """Bundle of the independently sourced settings groups."""
@@ -282,6 +290,7 @@ class Settings:
     auth: AuthSettings
     catalog: CatalogSettings
     complaint: ComplaintSettings = field(default_factory=ComplaintSettings)
+    corporate: CorporateSettings = field(default_factory=CorporateSettings)
     content: ContentSettings = field(default_factory=ContentSettings)
     github_connector: GitHubConnectorSettings = field(default_factory=GitHubConnectorSettings)
 
@@ -295,6 +304,7 @@ def load_settings() -> Settings:
         auth=AuthSettings(),  # pyright: ignore[reportCallIssue]
         catalog=CatalogSettings(),  # pyright: ignore[reportCallIssue]
         complaint=ComplaintSettings(),
+        corporate=CorporateSettings(),
         content=ContentSettings(),
         github_connector=GitHubConnectorSettings(),
     )

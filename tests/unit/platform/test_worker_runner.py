@@ -12,6 +12,17 @@ from ai_stp_worker import runner
 pytestmark = pytest.mark.platform
 
 
+@pytest.fixture(autouse=True)
+def _tenant_scope(  # pyright: ignore[reportUnusedFunction]
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def set_scope(session: object, organization_id: str) -> None:
+        del session
+        assert organization_id == "*"
+
+    monkeypatch.setattr(runner, "set_tenant_scope", set_scope)
+
+
 class _Session:
     def __init__(self, jobs: dict[int, object]) -> None:
         self.jobs = jobs

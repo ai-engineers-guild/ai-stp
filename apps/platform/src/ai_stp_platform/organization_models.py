@@ -14,6 +14,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     PrimaryKeyConstraint,
@@ -45,6 +46,8 @@ class Organization(Base):
             name="ck_organization_owner_shape",
         ),
         CheckConstraint("revision >= 1", name="ck_organization_revision"),
+        CheckConstraint("policy_revision >= 1", name="ck_organization_policy_revision"),
+        CheckConstraint("state in ('active', 'suspended')", name="ck_organization_state"),
         Index(
             "uq_organization_personal_owner",
             "owner_account_id",
@@ -60,6 +63,12 @@ class Organization(Base):
     )
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    policy_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="active", server_default="active"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -89,7 +98,8 @@ class OrganizationMembership(Base):
             "organization_id", "account_id", name="uq_organization_membership_account"
         ),
         CheckConstraint(
-            "role in ('owner', 'admin', 'member')", name="ck_organization_membership_role"
+            "role in ('owner', 'admin', 'member', 'superadmin', 'lead', 'staff')",
+            name="ck_organization_membership_role",
         ),
         CheckConstraint(
             "state in ('active', 'suspended')", name="ck_organization_membership_state"
@@ -112,6 +122,280 @@ class OrganizationMembership(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class CorporateRolePermission(Base):
+    """One persisted permission in a corporate role's closed matrix."""
+
+    __tablename__ = "corporate_role_permission"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "role", "permission"),
+        CheckConstraint("role in ('superadmin', 'lead', 'staff')", name="ck_role_permission_role"),
+    )
+
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    permission: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class CorporateRole(Base):
+    """One named corporate role and its persisted hierarchy edge."""
+
+    __tablename__ = "corporate_role"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "name"),
+        CheckConstraint("name in ('superadmin', 'lead', 'staff')", name="ck_corporate_role_name"),
+        CheckConstraint(
+            "parent_role is null or parent_role in ('superadmin', 'lead')",
+            name="ck_corporate_role_parent",
+        ),
+    )
+
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(16), nullable=False)
+    parent_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
+
+class CorporateServicePrincipal(Base):
+    """One non-human corporate actor governed by the same scoped role policy."""
+
+    __tablename__ = "corporate_service_principal"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_corporate_service_principal_tenant_id"),
+        UniqueConstraint("organization_id", "name", name="uq_corporate_service_principal_name"),
+        CheckConstraint(
+            "state in ('active', 'suspended')", name="ck_corporate_service_principal_state"
+        ),
+        CheckConstraint("revision >= 1", name="ck_corporate_service_principal_revision"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporateRoleBinding(Base):
+    """One tenant-scoped role assignment for an organization member."""
+
+    __tablename__ = "corporate_role_binding"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "service_principal_id"],
+            [
+                "corporate_service_principal.organization_id",
+                "corporate_service_principal.id",
+            ],
+            ondelete="CASCADE",
+        ),
+        Index(
+            "uq_corporate_role_binding_active_user_scope",
+            "organization_id",
+            "account_id",
+            "role",
+            "scope_kind",
+            "scope_id",
+            unique=True,
+            postgresql_where=text("state = 'active' AND principal_type = 'user'"),
+        ),
+        Index(
+            "uq_corporate_role_binding_active_service_scope",
+            "organization_id",
+            "service_principal_id",
+            "role",
+            "scope_kind",
+            "scope_id",
+            unique=True,
+            postgresql_where=text("state = 'active' AND principal_type = 'service_principal'"),
+        ),
+        CheckConstraint("role in ('superadmin', 'lead', 'staff')", name="ck_role_binding_role"),
+        CheckConstraint(
+            "scope_kind in ('system', 'organization', 'team', 'project', 'technology', "
+            "'catalog_object', 'telemetry')",
+            name="ck_role_binding_scope_kind",
+        ),
+        CheckConstraint("state in ('active', 'revoked')", name="ck_role_binding_state"),
+        CheckConstraint(
+            "(principal_type = 'user' AND account_id IS NOT NULL "
+            "AND service_principal_id IS NULL) OR "
+            "(principal_type = 'service_principal' AND account_id IS NULL "
+            "AND service_principal_id IS NOT NULL)",
+            name="ck_role_binding_principal",
+        ),
+        CheckConstraint("revision >= 1", name="ck_role_binding_revision"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    principal_type: Mapped[str] = mapped_column(String(24), nullable=False, default="user")
+    account_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    service_principal_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    scope_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    scope_id: Mapped[str] = mapped_column(String(64), nullable=False, default="*")
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporateProject(Base):
+    """A corporate project whose identity and ownership share one tenant key."""
+
+    __tablename__ = "corporate_project"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_corporate_project_tenant_id"),
+        UniqueConstraint("organization_id", "name", name="uq_corporate_project_name"),
+        CheckConstraint("state in ('active', 'archived')", name="ck_corporate_project_state"),
+        CheckConstraint("revision >= 1", name="ck_corporate_project_revision"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporateTeam(Base):
+    """A minimal organization-owned team used by corporate bootstrap administration."""
+
+    __tablename__ = "corporate_team"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_corporate_team_tenant_id"),
+        UniqueConstraint("organization_id", "name", name="uq_corporate_team_name"),
+        CheckConstraint("state in ('active', 'archived')", name="ck_corporate_team_state"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporateTeamMember(Base):
+    """A tenant-compatible member assignment to one team."""
+
+    __tablename__ = "corporate_team_member"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "team_id", "account_id"),
+        ForeignKeyConstraint(
+            ["organization_id", "team_id"],
+            ["corporate_team.organization_id", "corporate_team.id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("role in ('lead', 'staff')", name="ck_corporate_team_member_role"),
+    )
+
+    organization_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    team_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False, default="staff")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CorporateProjectMember(Base):
+    """A tenant-compatible member assignment to one corporate project."""
+
+    __tablename__ = "corporate_project_member"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "project_id", "account_id"),
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["corporate_project.organization_id", "corporate_project.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    organization_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    project_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CorporateBootstrapReceipt(Base):
+    """The durable idempotency fence for the one corporate bootstrap."""
+
+    __tablename__ = "corporate_bootstrap_receipt"
+
+    idempotency_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    request_fingerprint: Mapped[str] = mapped_column(String(71), nullable=False)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, unique=True
+    )
+    account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CorporateProvisionedIdentity(Base):
+    """Verified-email handoff from corporate provisioning to later OAuth login."""
+
+    __tablename__ = "corporate_provisioned_identity"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "normalized_email"),
+        UniqueConstraint("normalized_email", name="uq_corporate_provisioned_identity_email"),
+    )
+
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
+    )
+    normalized_email: Mapped[str] = mapped_column(String(320), nullable=False)
+    account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CorporateMutationReceipt(Base):
+    """Idempotent response for one corporate create operation."""
+
+    __tablename__ = "corporate_mutation_receipt"
+    __table_args__ = (PrimaryKeyConstraint("organization_id", "idempotency_key"),)
+
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    operation: Mapped[str] = mapped_column(String(32), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(71), nullable=False)
+    response_body: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class OrganizationResource(Base):

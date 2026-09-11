@@ -660,6 +660,7 @@
     "conflict": "This identity is already linked to another account. Merge was not performed."
   },
   "account": {
+    "corporateWorkspace": "Corporate workspace",
     "title": "Account",
     "settingsBreadcrumb": "Settings",
     "subtitle": "Manage your public profile, sign-in methods and privacy.",
@@ -1254,5 +1255,17 @@
     "stateAwaitingAuthor": "awaiting author",
     "stateResolved": "resolved",
     "stateDismissed": "dismissed"
+  },
+  "corporate": {
+    "subtitle": "Your assigned corporate scope and available actions.",
+    "emptyTitle": "No corporate workspace",
+    "emptyBody": "This account is not assigned to a corporate organization.",
+    "projects": "Projects",
+    "teams": "Teams",
+    "noProjects": "No projects are assigned.",
+    "noTeams": "No teams are assigned.",
+    "administration": "Administration",
+    "membersAllowed": "Member and access administration is available through your granted capabilities.",
+    "projectsAllowed": "Project administration is available through your granted capabilities."
   }
 }

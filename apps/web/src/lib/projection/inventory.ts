@@ -68,6 +68,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "account/privacy", access: "session", presenter: "domain" },
   { pattern: "account/profile", access: "session", presenter: "domain" },
   { pattern: "account/profile/preview", access: "session", presenter: "domain" },
+  { pattern: "corporate", access: "session", presenter: "domain" },
   { pattern: "devices", access: "session", presenter: "domain" },
   { pattern: "objects", access: "session", presenter: "domain" },
   { pattern: "likes", access: "session", presenter: "domain" },

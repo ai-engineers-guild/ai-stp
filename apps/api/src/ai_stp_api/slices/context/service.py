@@ -43,6 +43,8 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.models import Account, Device
 from ai_stp_platform.organization_models import (
+    CorporateRoleBinding,
+    CorporateRolePermission,
     Organization,
     OrganizationMembership,
     ProjectIdentity,
@@ -82,13 +84,24 @@ PERSONAL_CAPABILITIES: tuple[str, ...] = (
 CORPORATE_CAPABILITIES: tuple[str, ...] = (
     *PERSONAL_CAPABILITIES,
     "assignment.assign",
+    "audit.list",
     "audit.read",
     "deployment.operate",
     "invitation.manage",
     "member.manage",
+    "member.create",
+    "member.read",
+    "member.update",
+    "member.delete",
+    "member.list",
     "organization.manage",
+    "project.delete",
     "saml.manage",
     "team.manage",
+    "team.create",
+    "team.read",
+    "team.update",
+    "team.list",
     "telemetry.read",
 )
 
@@ -98,7 +111,25 @@ _MODE_CAPABILITIES: dict[str, tuple[str, ...]] = {
     "corporate": CORPORATE_CAPABILITIES,
 }
 _ALL_CAPABILITIES = frozenset(CORPORATE_CAPABILITIES)
-_IMPLEMENTED_CAPABILITIES = frozenset(PERSONAL_CAPABILITIES)
+_IMPLEMENTED_CAPABILITIES = frozenset(
+    {
+        *PERSONAL_CAPABILITIES,
+        "audit.list",
+        "audit.read",
+        "member.create",
+        "member.read",
+        "member.update",
+        "member.delete",
+        "member.list",
+        "member.manage",
+        "organization.manage",
+        "project.delete",
+        "team.create",
+        "team.read",
+        "team.update",
+        "team.list",
+    }
+)
 _CORPORATE_ADMIN_ONLY = frozenset(
     {
         "assignment.assign",
@@ -243,6 +274,7 @@ def projection_for(
     policy_revision: int = 1,
     membership_revision: int | None = None,
     role: str = "owner",
+    effective_capabilities: set[str] | None = None,
 ) -> CapabilityProjection:
     """Build the single bounded capability answer for a resolved context."""
     if mode not in _MODE_CAPABILITIES:
@@ -252,14 +284,17 @@ def projection_for(
         capability
         for capability in _MODE_CAPABILITIES[mode]
         if capability in _IMPLEMENTED_CAPABILITIES
+        and (effective_capabilities is None or capability in effective_capabilities)
     ]
-    if mode == "corporate" and role not in {"owner", "admin"}:
+    if mode == "corporate" and role not in {"owner", "admin", "superadmin"}:
         available = [item for item in available if item not in _CORPORATE_ADMIN_ONLY]
     available.sort()
     unavailable = {
         capability: (
             "forbidden"
-            if mode == "corporate" and capability in _IMPLEMENTED_CAPABILITIES
+            if mode == "corporate"
+            and role in {"superadmin", "lead", "staff"}
+            and capability in _IMPLEMENTED_CAPABILITIES
             else "unsupported"
         )
         for capability in sorted(_ALL_CAPABILITIES - set(available))
@@ -288,12 +323,37 @@ async def remote_projection(
 ) -> CapabilityProjection:
     """Authorize and project one remote organization."""
     organization, membership = await _membership(db, ctx=ctx, organization_id=organization_id)
+    effective: set[str] | None = None
+    if organization.kind == "corporate":
+        effective = set(PERSONAL_CAPABILITIES)
+    if organization.kind == "corporate" and membership.role in {"superadmin", "lead", "staff"}:
+        effective = set(
+            (
+                await db.scalars(
+                    select(CorporateRolePermission.permission)
+                    .join(
+                        CorporateRoleBinding,
+                        (
+                            CorporateRoleBinding.organization_id
+                            == CorporateRolePermission.organization_id
+                        )
+                        & (CorporateRoleBinding.role == CorporateRolePermission.role),
+                    )
+                    .where(
+                        CorporateRoleBinding.organization_id == organization.id,
+                        CorporateRoleBinding.account_id == ctx.account_id,
+                        CorporateRoleBinding.state == "active",
+                    )
+                )
+            ).all()
+        )
     return projection_for(
         mode=organization.kind,
         organization_id=organization.id,
-        policy_revision=organization.revision,
+        policy_revision=organization.policy_revision,
         membership_revision=membership.revision,
         role=membership.role,
+        effective_capabilities=effective,
     )
 
 
@@ -306,14 +366,8 @@ async def require_capability(
     authorization_revision: str,
 ) -> Organization:
     """Re-evaluate the projection and reject forged or stale client hints."""
-    organization, membership = await _membership(db, ctx=ctx, organization_id=organization_id)
-    projection = projection_for(
-        mode=organization.kind,
-        organization_id=organization.id,
-        policy_revision=organization.revision,
-        membership_revision=membership.revision,
-        role=membership.role,
-    )
+    organization, _membership_row = await _membership(db, ctx=ctx, organization_id=organization_id)
+    projection = await remote_projection(db, ctx=ctx, organization_id=organization_id)
     if authorization_revision != projection.authorization_revision:
         raise ApiError(
             ErrorCategory.PRECONDITION,

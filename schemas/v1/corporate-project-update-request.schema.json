@@ -1,0 +1,45 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-project-update-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "expected_revision": {
+      "minimum": 1,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "archived"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "state",
+    "expected_revision",
+    "authorization_revision"
+  ],
+  "title": "CorporateProjectUpdateRequest",
+  "type": "object"
+}

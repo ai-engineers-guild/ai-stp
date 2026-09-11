@@ -18,6 +18,8 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_platform.grant_identity_models import OAuthIdentityAlias
 from ai_stp_platform.identity import allocate_account_identity
 from ai_stp_platform.models import Account, Device, OAuthIdentity
+from ai_stp_platform.organization_models import CorporateProvisionedIdentity
+from ai_stp_platform.tenant_scope import set_tenant_scope
 
 
 async def _identity_by_provider_subject(
@@ -209,6 +211,32 @@ async def resolve_login_identity(
         )
 
     email_accounts = await _accounts_for_verified_email(db, email)
+    await set_tenant_scope(db, "*")
+    provisioned = await db.scalar(
+        select(CorporateProvisionedIdentity).where(
+            CorporateProvisionedIdentity.normalized_email == email
+        )
+    )
+    if provisioned is not None:
+        if email_accounts and email_accounts != [provisioned.account_id]:
+            raise ApiError(ErrorCategory.CONFLICT, "identity link conflict")
+        identity = await _attach_identity(db, account_id=provisioned.account_id, profile=normalized)
+        await emit_audit(
+            db,
+            actor_account_id=provisioned.account_id,
+            organization_id=provisioned.organization_id,
+            action="auth.identity_linked",
+            target_table="oauth_identity",
+            target_id=str(identity.id),
+            payload={"provider": normalized.provider},
+        )
+        return LinkDecision(
+            account_id=provisioned.account_id,
+            identity_id=identity.id,
+            created_account=False,
+            linked_identity=True,
+            state=LinkState.LINKED,
+        )
     if not email_accounts:
         account = await _create_account(db)
         identity = await _attach_identity(db, account_id=account.id, profile=normalized)

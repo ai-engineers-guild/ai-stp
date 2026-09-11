@@ -176,6 +176,7 @@ last_verified: "2026-08-03"
 | [ADR-0176-organization-is-the-remote-ownership-aggregate.md](ADR-0176-organization-is-the-remote-ownership-aggregate.md) | Personal and corporate organizations are the remote ownership aggregates; workspace is not a context identity. | 2026-09-09 |
 | [ADR-0177-server-capabilities-drive-one-shared-ui.md](ADR-0177-server-capabilities-drive-one-shared-ui.md) | A versioned capability projection drives one shared web UI while API authorization remains authoritative. | 2026-09-09 |
 | [ADR-0178-project-identities-link-explicitly.md](ADR-0178-project-identities-link-explicitly.md) | Local, remote, and provider project identities remain distinct and are linked only by an explicit revisioned binding. | 2026-09-09 |
+| [ADR-0179-corporate-authorization-is-a-tenant-scoped-policy-table.md](ADR-0179-corporate-authorization-is-a-tenant-scoped-policy-table.md) | Corporate authorization uses persisted tenant-scoped role bindings, one server evaluator, and transactional audit. | 2026-09-11 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

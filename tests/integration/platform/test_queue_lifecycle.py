@@ -5,10 +5,20 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ai_stp_foundation.ids import new_id
+from ai_stp_platform.models import AuditEvent
+from ai_stp_platform.organization_models import (
+    CorporateRoleBinding,
+    CorporateRolePermission,
+    CorporateServicePrincipal,
+    Organization,
+)
 from ai_stp_platform.queue.engine import (
     DEFAULT_LEASE_TIMEOUT_SECONDS,
+    TenantJobInvalid,
     cancel,
     claim,
     enqueue,
@@ -17,10 +27,121 @@ from ai_stp_platform.queue.engine import (
     mark_succeeded,
     requeue_locked,
     requeue_stale,
+    validate_tenant_job,
 )
 from ai_stp_platform.queue.states import JobState, JobType
+from ai_stp_worker.runner import audit_tenant_job_outcome
 
 pytestmark = pytest.mark.platform
+
+
+@pytest.mark.asyncio
+async def test_tenant_jobs_are_partitioned_and_revalidate_delayed_authorization(
+    db_sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    first_id = new_id("organization")
+    second_id = new_id("organization")
+    async with db_sessionmaker() as session, session.begin():
+        session.add_all(
+            [
+                Organization(id=first_id, kind="corporate", display_name="First"),
+                Organization(id=second_id, kind="corporate", display_name="Second"),
+            ]
+        )
+        await session.flush()
+        principals: list[CorporateServicePrincipal] = []
+        for organization_id in (first_id, second_id):
+            principal = CorporateServicePrincipal(
+                id=new_id("service_principal"),
+                organization_id=organization_id,
+                name="queue-worker",
+            )
+            principals.append(principal)
+            session.add_all(
+                [
+                    principal,
+                    CorporateRolePermission(
+                        organization_id=organization_id,
+                        role="staff",
+                        permission="project.read",
+                    ),
+                ]
+            )
+            await session.flush()
+            session.add(
+                CorporateRoleBinding(
+                    id=new_id("operation"),
+                    organization_id=organization_id,
+                    principal_type="service_principal",
+                    service_principal_id=principal.id,
+                    role="staff",
+                    scope_kind="organization",
+                    scope_id=organization_id,
+                )
+            )
+        await session.flush()
+        first = await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "first"},
+            idempotency_key="same-logical-work",
+            organization_id=first_id,
+            authorization_revision=1,
+            principal_type="service_principal",
+            principal_id=principals[0].id,
+            required_permission="project.read",
+        )
+        second = await enqueue(
+            session,
+            job_type=JobType.UPLOAD,
+            payload={"path": "second"},
+            idempotency_key="same-logical-work",
+            organization_id=second_id,
+            authorization_revision=1,
+            principal_type="service_principal",
+            principal_id=principals[1].id,
+            required_permission="project.read",
+        )
+        assert first.id != second.id
+        assert (await validate_tenant_job(session, first))["path"] == "first"
+        first_organization = await session.get(Organization, first_id)
+        assert first_organization is not None
+        first_organization.policy_revision += 1
+        await session.flush()
+        with pytest.raises(TenantJobInvalid, match="revision is stale"):
+            await validate_tenant_job(session, first)
+        await audit_tenant_job_outcome(session, first, "failed", "TenantJobInvalid: stale")
+        audit = await session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.organization_id == first_id,
+                AuditEvent.target_id == str(first.id),
+                AuditEvent.action == "job.execute",
+            )
+        )
+        assert audit is not None
+        assert audit.actor_type == "service_principal"
+        assert audit.actor_id == principals[0].id
+        assert audit.outcome == "failed"
+        assert audit.reason == "TenantJobInvalid"
+        assert (await validate_tenant_job(session, second))["path"] == "second"
+
+        with pytest.raises(TenantJobInvalid, match="does not match"):
+            await enqueue(
+                session,
+                job_type=JobType.UPLOAD,
+                payload={
+                    "_tenant": {
+                        "organization_id": second_id,
+                        "authorization_revision": 1,
+                    }
+                },
+                idempotency_key="forged-tenant",
+                organization_id=first_id,
+                authorization_revision=1,
+                principal_type="service_principal",
+                principal_id=principals[0].id,
+                required_permission="project.read",
+            )
 
 
 @pytest.mark.asyncio

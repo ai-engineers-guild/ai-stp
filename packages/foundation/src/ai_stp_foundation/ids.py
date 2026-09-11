@@ -48,6 +48,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "proposal": "ephemeral composition proposal",
         "request": "machine request",
         "scan": "platform safety scan run",
+        "service_principal": "corporate non-human principal",
         "snapshot": "validation snapshot",
         "setup": "setup logical entity",
         "sync_plan": "project synchronization plan",

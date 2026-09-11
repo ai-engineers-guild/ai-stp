@@ -15,9 +15,11 @@ from sqlalchemy import CursorResult, case, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_platform.corporate_authorization import PrincipalType, has_corporate_permission
 from ai_stp_platform.queue.models import Job
 from ai_stp_platform.queue.states import CLAIMABLE_STATES, TERMINAL_STATES, JobState, JobType
 from ai_stp_platform.safety.metrics import record_queue_claim, record_queue_requeue
+from ai_stp_platform.tenant_scope import set_tenant_scope
 
 DEFAULT_MAX_ATTEMPTS = 5
 BACKOFF_BASE_SECONDS = 2.0
@@ -25,6 +27,11 @@ BACKOFF_CAP_SECONDS = 300.0
 DEFAULT_LEASE_TIMEOUT_SECONDS = 900.0
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 30.0
 STALE_LEASE_ERROR = "stale worker lease expired"
+TENANT_ENVELOPE_KEY = "_tenant"
+
+
+class TenantJobInvalid(ValueError):
+    """A queued tenant envelope is missing, inconsistent, or stale."""
 
 
 def _now() -> datetime:
@@ -45,23 +52,117 @@ async def enqueue(
     priority: int = 0,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     run_after: datetime | None = None,
+    organization_id: str | None = None,
+    authorization_revision: int | None = None,
+    principal_type: PrincipalType | None = None,
+    principal_id: str | None = None,
+    required_permission: str | None = None,
+    scope_kind: str = "organization",
+    scope_id: str | None = None,
 ) -> Job:
     """Insert a job in the caller's transaction (outbox); duplicate keys are a no-op."""
+    safe_payload = dict(payload)
+    if organization_id is None:
+        if TENANT_ENVELOPE_KEY in safe_payload:
+            raise TenantJobInvalid("global job cannot supply a tenant envelope")
+    else:
+        if (
+            authorization_revision is None
+            or authorization_revision < 1
+            or principal_type is None
+            or principal_id is None
+            or required_permission is None
+        ):
+            raise TenantJobInvalid("tenant job requires an authorization decision")
+        supplied = safe_payload.get(TENANT_ENVELOPE_KEY)
+        envelope = {
+            "organization_id": organization_id,
+            "authorization_revision": authorization_revision,
+            "principal_type": principal_type,
+            "principal_id": principal_id,
+            "required_permission": required_permission,
+            "scope_kind": scope_kind,
+            "scope_id": scope_id,
+        }
+        if supplied is not None and supplied != envelope:
+            raise TenantJobInvalid("tenant job envelope does not match queue scope")
+        safe_payload[TENANT_ENVELOPE_KEY] = envelope
+        await set_tenant_scope(session, organization_id)
     values = {
         "job_type": str(job_type),
-        "payload": dict(payload),
+        "payload": safe_payload,
+        "organization_id": organization_id,
         "state": JobState.QUEUED,
         "priority": priority,
         "max_attempts": max_attempts,
         "run_after": run_after or _now(),
         "idempotency_key": idempotency_key,
     }
-    stmt = (
-        pg_insert(Job).values(**values).on_conflict_do_nothing(index_elements=["idempotency_key"])
-    )
+    stmt = pg_insert(Job).values(**values).on_conflict_do_nothing()
     await session.execute(stmt)
-    existing = await session.execute(select(Job).where(Job.idempotency_key == idempotency_key))
+    tenant_filter = (
+        Job.organization_id.is_(None)
+        if organization_id is None
+        else Job.organization_id == organization_id
+    )
+    existing = await session.execute(
+        select(Job).where(Job.idempotency_key == idempotency_key, tenant_filter)
+    )
     return existing.scalar_one()
+
+
+async def validate_tenant_job(session: AsyncSession, job: Job) -> dict[str, object]:
+    """Validate the persisted tenant envelope immediately before handler execution."""
+    payload = dict(job.payload)
+    organization_id = getattr(job, "organization_id", None)
+    if organization_id is None:
+        if TENANT_ENVELOPE_KEY in payload:
+            raise TenantJobInvalid("global job carries a tenant envelope")
+        return payload
+    raw = payload.get(TENANT_ENVELOPE_KEY)
+    if not isinstance(raw, dict):
+        raise TenantJobInvalid("job tenant envelope does not match persisted scope")
+    envelope = cast("dict[str, object]", raw)
+    if envelope.get("organization_id") != organization_id:
+        raise TenantJobInvalid("job tenant envelope does not match persisted scope")
+    revision = envelope.get("authorization_revision")
+    if not isinstance(revision, int) or revision < 1:
+        raise TenantJobInvalid("job tenant envelope has no authorization revision")
+    principal_type = envelope.get("principal_type")
+    principal_id = envelope.get("principal_id")
+    permission = envelope.get("required_permission")
+    scope_kind = envelope.get("scope_kind")
+    scope_id = envelope.get("scope_id")
+    if (
+        principal_type not in ("user", "service_principal")
+        or not isinstance(principal_id, str)
+        or not isinstance(permission, str)
+        or not isinstance(scope_kind, str)
+        or (scope_id is not None and not isinstance(scope_id, str))
+    ):
+        raise TenantJobInvalid("job tenant envelope has no authorization decision")
+
+    from ai_stp_platform.organization_models import Organization
+
+    current = await session.get(Organization, organization_id)
+    if current is None or current.state != "active":
+        raise TenantJobInvalid("job organization is unavailable")
+    if current.policy_revision != revision:
+        raise TenantJobInvalid("job authorization revision is stale")
+    allowed = await has_corporate_permission(
+        session,
+        organization_id=organization_id,
+        principal_type=principal_type,
+        principal_id=principal_id,
+        permission=permission,
+        scope_kind=scope_kind,
+        scope_id=scope_id,
+        authorization_revision=revision,
+    )
+    if not allowed:
+        raise TenantJobInvalid("job authorization is no longer effective")
+    await set_tenant_scope(session, organization_id)
+    return payload
 
 
 async def claim(
@@ -222,6 +323,7 @@ async def requeue_stale(
 
 __all__ = [
     "TERMINAL_STATES",
+    "TenantJobInvalid",
     "backoff_seconds",
     "cancel",
     "claim",
@@ -231,4 +333,5 @@ __all__ = [
     "mark_succeeded",
     "requeue_locked",
     "requeue_stale",
+    "validate_tenant_job",
 ]

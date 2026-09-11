@@ -1,0 +1,157 @@
+{
+  "$defs": {
+    "CorporateBinding": {
+      "additionalProperties": true,
+      "properties": {
+        "account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Id"
+        },
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "default": "user",
+          "enum": [
+            "user",
+            "service_principal"
+          ],
+          "title": "Principal Type",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "role": {
+          "enum": [
+            "superadmin",
+            "lead",
+            "staff"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "system",
+            "organization",
+            "team",
+            "project",
+            "technology",
+            "catalog_object",
+            "telemetry"
+          ],
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "service_principal_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Principal Id"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "revoked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_id",
+        "binding_id",
+        "principal_type",
+        "revision",
+        "role",
+        "schema_version",
+        "scope_id",
+        "scope_kind",
+        "service_principal_id",
+        "state"
+      ],
+      "title": "CorporateBinding",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-service-principal-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "binding": {
+      "$ref": "#/$defs/CorporateBinding"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "service_principal_id": {
+      "title": "Service Principal Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "suspended"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "binding",
+    "name",
+    "organization_id",
+    "revision",
+    "schema_version",
+    "service_principal_id",
+    "state"
+  ],
+  "title": "CorporateServicePrincipalView",
+  "type": "object"
+}

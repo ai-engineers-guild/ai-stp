@@ -9,12 +9,18 @@ import type {
   ApplyProjectSyncPlanData,
   ApplyProjectSyncPlanErrors,
   ApplyProjectSyncPlanResponses,
+  AssignCorporateMemberData,
+  AssignCorporateMemberErrors,
+  AssignCorporateMemberResponses,
   BindPublicationArtifactData,
   BindPublicationArtifactErrors,
   BindPublicationArtifactResponses,
   BindPublicationProjectionArtifactData,
   BindPublicationProjectionArtifactErrors,
   BindPublicationProjectionArtifactResponses,
+  BootstrapCorporateOrganizationData,
+  BootstrapCorporateOrganizationErrors,
+  BootstrapCorporateOrganizationResponses,
   CompleteGithubConnectionData,
   CompleteGithubConnectionErrors,
   CompleteLegalOnboardingData,
@@ -35,6 +41,18 @@ import type {
   CreateComplaintData,
   CreateComplaintErrors,
   CreateComplaintResponses,
+  CreateCorporateBindingData,
+  CreateCorporateBindingErrors,
+  CreateCorporateBindingResponses,
+  CreateCorporateMemberData,
+  CreateCorporateMemberErrors,
+  CreateCorporateMemberResponses,
+  CreateCorporateProjectData,
+  CreateCorporateProjectErrors,
+  CreateCorporateProjectResponses,
+  CreateCorporateTeamData,
+  CreateCorporateTeamErrors,
+  CreateCorporateTeamResponses,
   CreateDeviceChallengeData,
   CreateDeviceChallengeErrors,
   CreateDeviceChallengeResponses,
@@ -107,6 +125,18 @@ import type {
   ListContentData,
   ListContentErrors,
   ListContentResponses,
+  ListCorporateAuditData,
+  ListCorporateAuditErrors,
+  ListCorporateAuditResponses,
+  ListCorporateMembersData,
+  ListCorporateMembersErrors,
+  ListCorporateMembersResponses,
+  ListCorporateProjectsData,
+  ListCorporateProjectsErrors,
+  ListCorporateProjectsResponses,
+  ListCorporateTeamsData,
+  ListCorporateTeamsErrors,
+  ListCorporateTeamsResponses,
   ListDevicesData,
   ListDevicesErrors,
   ListDevicesResponses,
@@ -194,6 +224,12 @@ import type {
   ReadContentRepositoryStateErrors,
   ReadContentRepositoryStateResponses,
   ReadContentResponses,
+  ReadCorporateContextData,
+  ReadCorporateContextErrors,
+  ReadCorporateContextResponses,
+  ReadCorporateMemberData,
+  ReadCorporateMemberErrors,
+  ReadCorporateMemberResponses,
   ReadGithubActionData,
   ReadGithubActionErrors,
   ReadGithubActionResponses,
@@ -347,6 +383,12 @@ import type {
   UpdateAccountPrivacyData,
   UpdateAccountPrivacyErrors,
   UpdateAccountPrivacyResponses,
+  UpdateCorporateMemberData,
+  UpdateCorporateMemberErrors,
+  UpdateCorporateMemberResponses,
+  UpdateCorporateProjectData,
+  UpdateCorporateProjectErrors,
+  UpdateCorporateProjectResponses,
   UpdateOwnerPresentationData,
   UpdateOwnerPresentationErrors,
   UpdateOwnerPresentationResponses,
@@ -1104,6 +1146,265 @@ export const readActiveContext = <ThrowOnError extends boolean = false>(
     ReadActiveContextErrors,
     ThrowOnError
   >({ url: "/v1/context", ...options });
+
+/**
+ * Create the installation's single initial corporate organization.
+ */
+export const bootstrapCorporateOrganization = <ThrowOnError extends boolean = false>(
+  options: Options<BootstrapCorporateOrganizationData, ThrowOnError>,
+): RequestResult<
+  BootstrapCorporateOrganizationResponses,
+  BootstrapCorporateOrganizationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    BootstrapCorporateOrganizationResponses,
+    BootstrapCorporateOrganizationErrors,
+    ThrowOnError
+  >({
+    url: "/v1/corporate/bootstrap",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List the tenant audit journal.
+ */
+export const listCorporateAudit = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateAuditData, ThrowOnError>,
+): RequestResult<ListCorporateAuditResponses, ListCorporateAuditErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListCorporateAuditResponses,
+    ListCorporateAuditErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/audit",
+    ...options,
+  });
+
+/**
+ * Create a scoped role binding.
+ */
+export const createCorporateBinding = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporateBindingData, ThrowOnError>,
+): RequestResult<CreateCorporateBindingResponses, CreateCorporateBindingErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateCorporateBindingResponses,
+    CreateCorporateBindingErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/bindings",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read effective corporate context and capabilities.
+ */
+export const readCorporateContext = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateContextData, ThrowOnError>,
+): RequestResult<ReadCorporateContextResponses, ReadCorporateContextErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadCorporateContextResponses,
+    ReadCorporateContextErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/context",
+    ...options,
+  });
+
+/**
+ * List organization members.
+ */
+export const listCorporateMembers = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateMembersData, ThrowOnError>,
+): RequestResult<ListCorporateMembersResponses, ListCorporateMembersErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListCorporateMembersResponses,
+    ListCorporateMembersErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/members",
+    ...options,
+  });
+
+/**
+ * Provision an organization member.
+ */
+export const createCorporateMember = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporateMemberData, ThrowOnError>,
+): RequestResult<CreateCorporateMemberResponses, CreateCorporateMemberErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateCorporateMemberResponses,
+    CreateCorporateMemberErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/members",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read one organization member.
+ */
+export const readCorporateMember = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateMemberData, ThrowOnError>,
+): RequestResult<ReadCorporateMemberResponses, ReadCorporateMemberErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadCorporateMemberResponses,
+    ReadCorporateMemberErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/members/{account_id}",
+    ...options,
+  });
+
+/**
+ * Update a member role or state.
+ */
+export const updateCorporateMember = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateCorporateMemberData, ThrowOnError>,
+): RequestResult<UpdateCorporateMemberResponses, UpdateCorporateMemberErrors, ThrowOnError> =>
+  (options.client ?? client).patch<
+    UpdateCorporateMemberResponses,
+    UpdateCorporateMemberErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/members/{account_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Assign a member to a team or project.
+ */
+export const assignCorporateMember = <ThrowOnError extends boolean = false>(
+  options: Options<AssignCorporateMemberData, ThrowOnError>,
+): RequestResult<AssignCorporateMemberResponses, AssignCorporateMemberErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    AssignCorporateMemberResponses,
+    AssignCorporateMemberErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/membership-assignments",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List visible corporate projects.
+ */
+export const listCorporateProjects = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateProjectsData, ThrowOnError>,
+): RequestResult<ListCorporateProjectsResponses, ListCorporateProjectsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListCorporateProjectsResponses,
+    ListCorporateProjectsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects",
+    ...options,
+  });
+
+/**
+ * Create a corporate project.
+ */
+export const createCorporateProject = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporateProjectData, ThrowOnError>,
+): RequestResult<CreateCorporateProjectResponses, CreateCorporateProjectErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateCorporateProjectResponses,
+    CreateCorporateProjectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Update or archive a corporate project.
+ */
+export const updateCorporateProject = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateCorporateProjectData, ThrowOnError>,
+): RequestResult<UpdateCorporateProjectResponses, UpdateCorporateProjectErrors, ThrowOnError> =>
+  (options.client ?? client).patch<
+    UpdateCorporateProjectResponses,
+    UpdateCorporateProjectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List visible corporate teams.
+ */
+export const listCorporateTeams = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateTeamsData, ThrowOnError>,
+): RequestResult<ListCorporateTeamsResponses, ListCorporateTeamsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListCorporateTeamsResponses,
+    ListCorporateTeamsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/teams",
+    ...options,
+  });
+
+/**
+ * Create a corporate team.
+ */
+export const createCorporateTeam = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporateTeamData, ThrowOnError>,
+): RequestResult<CreateCorporateTeamResponses, CreateCorporateTeamErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateCorporateTeamResponses,
+    CreateCorporateTeamErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/teams",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
 
 /**
  * List the devices of the current account.
