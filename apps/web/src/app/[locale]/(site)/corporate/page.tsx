@@ -5,6 +5,8 @@ import { StatePanel } from "@/components/molecules/state-panel";
 import { ApiError } from "@/lib/api/errors";
 import { readCorporateWorkspace } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { Link } from "@/lib/i18n/navigation";
+import { Icon } from "@/theme";
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -54,7 +56,8 @@ export default async function CorporatePage({ params }: PageProps) {
             state: item.state,
             revision: item.revision,
           }))}
-          labels={{ id: t("id"), revision: t("revision") }}
+          kind="projects"
+          openLabel={t("open")}
         />
         <CorporateList
           title={t("teams")}
@@ -65,7 +68,8 @@ export default async function CorporatePage({ params }: PageProps) {
             state: item.state,
             revision: item.revision,
           }))}
-          labels={{ id: t("id"), revision: t("revision") }}
+          kind="teams"
+          openLabel={t("open")}
         />
       </div>
 
@@ -75,27 +79,21 @@ export default async function CorporatePage({ params }: PageProps) {
           {members.items.length ? (
             <ul className="mt-4 space-y-2">
               {members.items.map((member) => (
-                <li key={member.account_id} className="border-border rounded border p-3">
-                  <details>
-                    <summary className="flex cursor-pointer list-none justify-between gap-3">
-                      <span>{member.display_name ?? member.account_id}</span>
-                      <span className="text-muted-foreground text-sm">{member.role}</span>
-                    </summary>
-                    <dl className="text-muted-foreground mt-3 grid gap-1 text-xs sm:grid-cols-3">
-                      <div>
-                        <dt>{t("id")}</dt>
-                        <dd className="break-all">{member.account_id}</dd>
-                      </div>
-                      <div>
-                        <dt>{t("state")}</dt>
-                        <dd>{member.state}</dd>
-                      </div>
-                      <div>
-                        <dt>{t("revision")}</dt>
-                        <dd>{member.revision}</dd>
-                      </div>
-                    </dl>
-                  </details>
+                <li key={member.account_id} className="border-border rounded border">
+                  <Link
+                    href={`/corporate/members/${encodeURIComponent(member.account_id)}`}
+                    className="focus-visible:ring-ring group flex min-h-14 items-center justify-between gap-3 rounded p-3 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                  >
+                    <span>{member.display_name ?? member.account_id}</span>
+                    <span className="text-muted-foreground flex items-center gap-2 text-sm">
+                      {member.role}
+                      <Icon
+                        name="chevronRight"
+                        size="sm"
+                        className="transition-transform group-hover:translate-x-0.5"
+                      />
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -121,12 +119,14 @@ function CorporateList({
   title,
   empty,
   items,
-  labels,
+  kind,
+  openLabel,
 }: {
   title: string;
   empty: string;
   items: ReadonlyArray<{ id: string; name: string; state: string; revision: number }>;
-  labels: { id: string; revision: string };
+  kind: "projects" | "teams";
+  openLabel: string;
 }) {
   return (
     <section className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
@@ -134,21 +134,22 @@ function CorporateList({
       {items.length ? (
         <ul className="mt-4 space-y-2">
           {items.map((item) => (
-            <li key={item.name} className="border-border flex justify-between rounded border p-3">
-              <details className="min-w-0 flex-1">
-                <summary className="cursor-pointer list-none">{item.name}</summary>
-                <dl className="text-muted-foreground mt-2 grid gap-1 text-xs">
-                  <div>
-                    <dt>{labels.id}</dt>
-                    <dd className="break-all">{item.id}</dd>
-                  </div>
-                  <div>
-                    <dt>{labels.revision}</dt>
-                    <dd>{item.revision}</dd>
-                  </div>
-                </dl>
-              </details>
-              <span className="text-muted-foreground ml-3 text-sm">{item.state}</span>
+            <li key={item.id} className="border-border rounded border">
+              <Link
+                href={`/corporate/${kind}/${encodeURIComponent(item.id)}`}
+                className="focus-visible:ring-ring group flex min-h-14 items-center justify-between gap-3 rounded p-3 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              >
+                <span className="min-w-0 truncate">{item.name}</span>
+                <span className="text-muted-foreground flex shrink-0 items-center gap-2 text-sm">
+                  {item.state}
+                  <span className="sr-only">{openLabel}</span>
+                  <Icon
+                    name="chevronRight"
+                    size="sm"
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
+                </span>
+              </Link>
             </li>
           ))}
         </ul>
