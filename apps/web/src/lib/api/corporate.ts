@@ -2,20 +2,26 @@ import { apiRequest } from "@/lib/api/http";
 
 import type {
   CorporateContext,
+  CorporateMemberList,
   OrganizationListResponse,
   OrganizationSummary,
 } from "./generated/types.gen";
 
-export async function readCorporateWorkspace(
-  sessionToken: string,
-): Promise<{ organization: OrganizationSummary; context: CorporateContext } | null> {
+export async function readCorporateWorkspace(sessionToken: string): Promise<{
+  organization: OrganizationSummary;
+  context: CorporateContext;
+  members: CorporateMemberList | null;
+} | null> {
   const organization = await readCorporateOrganization(sessionToken);
   if (!organization) return null;
-  const context = await apiRequest<CorporateContext>(
-    `/v1/corporate/organizations/${organization.organization_id}/context`,
-    { sessionToken },
-  );
-  return { organization, context };
+  const organizationPath = `/v1/corporate/organizations/${organization.organization_id}`;
+  const context = await apiRequest<CorporateContext>(`${organizationPath}/context`, {
+    sessionToken,
+  });
+  const members = context.capabilities.includes("member.list")
+    ? await apiRequest<CorporateMemberList>(`${organizationPath}/members`, { sessionToken })
+    : null;
+  return { organization, context, members };
 }
 
 export async function readCorporateOrganization(

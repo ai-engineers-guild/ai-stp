@@ -1262,8 +1262,13 @@
     "emptyBody": "This account is not assigned to a corporate organization.",
     "projects": "Projects",
     "teams": "Teams",
+    "members": "Members",
     "noProjects": "No projects are assigned.",
     "noTeams": "No teams are assigned.",
+    "noMembers": "No members are assigned.",
+    "id": "ID",
+    "revision": "Revision",
+    "state": "State",
     "administration": "Administration",
     "membersAllowed": "Member and access administration is available through your granted capabilities.",
     "projectsAllowed": "Project administration is available through your granted capabilities."
