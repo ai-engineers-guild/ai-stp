@@ -289,7 +289,17 @@ def upgrade() -> None:
         sa.Column("actor_type", sa.String(24), nullable=False, server_default="user"),
     )
     op.add_column("audit_event", sa.Column("actor_id", sa.String(128), nullable=True))
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute("DROP TRIGGER audit_event_append_only ON audit_event")
     op.execute("UPDATE audit_event SET actor_id = actor_account_id")
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute(
+            """
+            CREATE TRIGGER audit_event_append_only
+            BEFORE UPDATE OR DELETE ON audit_event
+            FOR EACH ROW EXECUTE FUNCTION reject_audit_event_mutation();
+            """
+        )
     op.add_column(
         "audit_event",
         sa.Column("effective_role_bindings", sa.JSON(), nullable=False, server_default="[]"),
