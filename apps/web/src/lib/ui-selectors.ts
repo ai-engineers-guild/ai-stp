@@ -28,11 +28,6 @@ export const UI = {
     locale: "locale-select",
     shortcuts: "keyboard-shortcuts",
   },
-  context: {
-    switcher: "product-context-switcher",
-    select: "product-context-select",
-    navigation: "product-context-navigation",
-  },
   theme: {
     toggle: "color-theme-toggle",
   },

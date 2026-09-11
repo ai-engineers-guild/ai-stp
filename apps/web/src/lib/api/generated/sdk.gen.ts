@@ -143,9 +143,15 @@ import type {
   PrepareGithubSourceData,
   PrepareGithubSourceErrors,
   PrepareGithubSourceResponses,
+  PullProjectRevisionsData,
+  PullProjectRevisionsErrors,
+  PullProjectRevisionsResponses,
   PullSyncEventsData,
   PullSyncEventsErrors,
   PullSyncEventsResponses,
+  PushProjectRevisionData,
+  PushProjectRevisionErrors,
+  PushProjectRevisionResponses,
   PushSyncEventsData,
   PushSyncEventsErrors,
   PushSyncEventsResponses,
@@ -287,6 +293,9 @@ import type {
   RegisterDeviceData,
   RegisterDeviceErrors,
   RegisterDeviceResponses,
+  ResolveProjectConflictData,
+  ResolveProjectConflictErrors,
+  ResolveProjectConflictResponses,
   RevokeAccessGrantData,
   RevokeAccessGrantErrors,
   RevokeAccessGrantResponses,
@@ -1085,7 +1094,7 @@ export const readContent = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Read the active local or explicitly selected remote context.
+ * Resolve the active context from the request authority.
  */
 export const readActiveContext = <ThrowOnError extends boolean = false>(
   options?: Options<ReadActiveContextData, ThrowOnError>,
@@ -1689,6 +1698,62 @@ export const readProjectLink = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/projects/links/{link_id}",
     ...options,
+  });
+
+/**
+ * Create an explicit two-parent project resolution revision.
+ */
+export const resolveProjectConflict = <ThrowOnError extends boolean = false>(
+  options: Options<ResolveProjectConflictData, ThrowOnError>,
+): RequestResult<ResolveProjectConflictResponses, ResolveProjectConflictErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ResolveProjectConflictResponses,
+    ResolveProjectConflictErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}/conflict-resolutions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Pull redacted project revisions from the selected tenant ledger.
+ */
+export const pullProjectRevisions = <ThrowOnError extends boolean = false>(
+  options: Options<PullProjectRevisionsData, ThrowOnError>,
+): RequestResult<PullProjectRevisionsResponses, PullProjectRevisionsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    PullProjectRevisionsResponses,
+    PullProjectRevisionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}/revisions",
+    ...options,
+  });
+
+/**
+ * Push one content-addressed project revision through the tenant ledger.
+ */
+export const pushProjectRevision = <ThrowOnError extends boolean = false>(
+  options: Options<PushProjectRevisionData, ThrowOnError>,
+): RequestResult<PushProjectRevisionResponses, PushProjectRevisionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    PushProjectRevisionResponses,
+    PushProjectRevisionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/projects/links/{link_id}/revisions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

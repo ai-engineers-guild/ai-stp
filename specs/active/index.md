@@ -85,7 +85,7 @@ last_verified: "2026-08-03"
 | [SPEC-074-product-modes-and-compatibility.md](SPEC-074-product-modes-and-compatibility.md) | SPEC-074: Local, personal SaaS, and corporate product modes and their compatibility matrix. | 2026-09-09 |
 | [SPEC-075-organization-kinds-and-context.md](SPEC-075-organization-kinds-and-context.md) | SPEC-075: Personal and corporate organization kinds, ownership boundaries, and active context. | 2026-09-09 |
 | [SPEC-076-context-capability-projection.md](SPEC-076-context-capability-projection.md) | SPEC-076: Versioned context capability projection for FastAPI and Next.js. | 2026-09-09 |
-| [SPEC-077-shared-product-mode-web-ui.md](SPEC-077-shared-product-mode-web-ui.md) | SPEC-077: One shared Next.js UI for local, personal, and corporate product contexts. | 2026-09-09 |
+| [SPEC-077-shared-product-mode-web-ui.md](SPEC-077-shared-product-mode-web-ui.md) | SPEC-077: Shared Next.js SaaS UI with server-resolved product context. | 2026-09-11 |
 | [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-09 |
 
 <!-- END CONTENTS -->

@@ -230,6 +230,7 @@ async def test_project_ledger_replay_fast_forward_conflict_and_resolution(
     assert link_view.json()["conflict_server_revision"] == branch_a_id
     assert link_view.json()["conflict_client_revision"] == branch_b_id
     assert link_view.json()["conflict_common_ancestor"] == root_id
+    assert link_view.json()["revision"] == 4
 
     async with sessionmaker() as db:
         revisions_before_rejections = await db.scalar(
@@ -646,6 +647,72 @@ async def test_unlinked_project_rejects_push_pull_and_sync_without_side_effects(
         )
 
 
+async def test_confirmed_unlink_preserves_identities_history_and_audit(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization_id, link_id, remote_project_id = project_harness
+    authorization_revision = f"personal:{organization_id}:1:1"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    pushed = await client.post(
+        f"/v1/projects/links/{link_id}/revisions",
+        headers=headers,
+        json=revision_payload(
+            remote_project_id=remote_project_id,
+            parents=[],
+            expected=None,
+            event_id="project-event-before-unlink",
+            idempotency_key="project-idem-before-unlink",
+            authorization_revision=authorization_revision,
+        ),
+    )
+    assert pushed.status_code == 200, pushed.text
+
+    planned = await client.post(
+        f"/v1/organizations/{organization_id}/project-unlink-plans",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "link_id": link_id,
+            "expected_link_revision": 2,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "unlink-plan-preserve-history",
+        },
+    )
+    assert planned.status_code == 201, planned.text
+    request = {
+        "schema_version": 1,
+        "plan_id": planned.json()["plan_id"],
+        "plan_digest": planned.json()["plan_digest"],
+        "authorization_revision": authorization_revision,
+        "idempotency_key": "unlink-confirm-preserve-history",
+    }
+    unlinked = await client.request(
+        "DELETE", f"/v1/projects/links/{link_id}", headers=headers, json=request
+    )
+    assert unlinked.status_code == 200, unlinked.text
+    assert unlinked.json()["state"] == "unlinked"
+    assert unlinked.json()["revision"] == 3
+    replay = await client.request(
+        "DELETE", f"/v1/projects/links/{link_id}", headers=headers, json=request
+    )
+    assert replay.status_code == 200
+    assert replay.json() == unlinked.json()
+
+    async with sessionmaker() as db:
+        assert await db.get(ProjectIdentity, remote_project_id) is not None
+        assert await db.scalar(select(func.count()).select_from(ProjectRevision)) == 1
+        assert await db.scalar(select(func.count()).select_from(ProjectRevisionReceipt)) == 1
+        assert (
+            await db.scalar(
+                select(func.count()).select_from(AuditEvent).where(AuditEvent.target_id == link_id)
+            )
+            or 0
+        ) >= 1
+
+
 async def test_sync_apply_rejects_exact_head_change_without_mutating_link(
     project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
 ) -> None:
@@ -698,6 +765,105 @@ async def test_sync_apply_rejects_exact_head_change_without_mutating_link(
         stored_plan = await db.get(ProjectSyncPlan, plan["plan_id"])
         assert link is not None and link.revision == 1
         assert stored_plan is not None and stored_plan.apply_idempotency_key is None
+
+
+@pytest.mark.parametrize("side", ["local_revision", "remote_revision"])
+async def test_sync_plan_rejects_unknown_single_side_revision(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    side: str,
+) -> None:
+    client, sessionmaker, token, organization_id, link_id, _remote_project_id = project_harness
+    authorization_revision = f"personal:{organization_id}:1:1"
+    payload = {
+        "schema_version": 1,
+        "link_id": link_id,
+        "expected_link_revision": 1,
+        "local_revision": "initial",
+        "remote_revision": "initial",
+        "provider_revision": None,
+        "authorization_revision": authorization_revision,
+        "idempotency_key": f"sync-unknown-{side}",
+    }
+    payload[side] = "sha256:" + "d" * 64
+
+    response = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-AI-STP-Organization-Id": organization_id,
+        },
+        json=payload,
+    )
+
+    assert response.status_code == 412, response.text
+    async with sessionmaker() as db:
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(ProjectSyncPlan)
+                .where(ProjectSyncPlan.link_id == link_id)
+            )
+            == 0
+        )
+
+
+async def test_provider_change_cannot_hide_behind_a_known_local_change(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization_id, link_id, remote_project_id = project_harness
+    provider_id = new_id("provider_project")
+    local_revision = "sha256:" + "e" * 64
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        db.add_all(
+            [
+                ProjectIdentity(
+                    id=provider_id,
+                    organization_id=organization_id,
+                    namespace="provider",
+                    external_key="provider-combined-change",
+                    display_name="Provider project",
+                ),
+                ProjectRevision(
+                    organization_id=organization_id,
+                    remote_project_id=remote_project_id,
+                    revision_id=local_revision,
+                    parent_revision_ids=[],
+                    operation="upsert",
+                    content_digest="sha256:" + "f" * 64,
+                    projection={"schema_version": 1, "kind": "project"},
+                    actor_account_id=link.actor_account_id,
+                    device_id=link.device_id,
+                    event_id="provider-combined-change",
+                ),
+            ]
+        )
+        link.provider_project_id = provider_id
+        link.provider_revision = "1"
+        await db.commit()
+
+    response = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-AI-STP-Organization-Id": organization_id,
+        },
+        json={
+            "schema_version": 1,
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "local_revision": local_revision,
+            "remote_revision": "initial",
+            "provider_revision": "2",
+            "authorization_revision": f"personal:{organization_id}:1:1",
+            "idempotency_key": "sync-provider-and-local-changed",
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["state"] == "conflict"
+    assert response.json()["conflict_code"] == "provider_mismatch"
 
 
 @pytest.mark.parametrize("change", ["conflict", "unlinked", "provider_revision", "provider_state"])

@@ -24911,7 +24911,7 @@
                 }
               }
             },
-            "description": "Read the active local or explicitly selected remote context.",
+            "description": "Resolve the active context from the request authority.",
             "headers": {
               "X-Request-Id": {
                 "description": "Correlation id, echoed or minted.",
@@ -25000,7 +25000,7 @@
           }
         },
         "security": [],
-        "summary": "Read the active local or explicitly selected remote context."
+        "summary": "Resolve the active context from the request authority."
       }
     },
     "/v1/devices": {

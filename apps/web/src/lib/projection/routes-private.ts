@@ -23,9 +23,6 @@ import {
 import { WORKSPACE_ROUTES } from "@/lib/projection/routes-workspace";
 import type { MachineRoute } from "@/lib/projection/route-table";
 import { presentPage } from "@/lib/projection/presenters";
-import { CONTEXT_SURFACES } from "@/lib/context-surfaces";
-import { hasCapability } from "@/lib/product-context";
-import { contextStatus, loadProductContext } from "@/lib/product-context-server";
 
 /**
  * Machine documents for the account, owner and staff sections. Access is
@@ -39,26 +36,6 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
     resolve: async () => {
       const t = await getTranslations("onboarding");
       return presentPage({ title: t("title"), summary: t("body") });
-    },
-  },
-  {
-    pattern: "workspace",
-    resolve: async () => {
-      const t = await getTranslations("context");
-      const snapshot = await loadProductContext();
-      const status = contextStatus(snapshot);
-      const links = CONTEXT_SURFACES.filter((surface) =>
-        hasCapability(snapshot.context, surface.capability),
-      ).map((surface) => [t("surfaces." + surface.key), surface.href] as const);
-      return presentPage({
-        title: t("workspace"),
-        summary: t("workspaceDescription"),
-        fields: [
-          [t("selector"), t(snapshot.context.mode)],
-          [t("surfaceNavigation"), t(status)],
-        ],
-        links,
-      });
     },
   },
   {

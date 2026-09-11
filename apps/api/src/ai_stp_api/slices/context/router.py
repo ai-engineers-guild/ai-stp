@@ -79,7 +79,7 @@ async def read_context(
     organization_id: Annotated[str | None, Header(alias="X-AI-STP-Organization-Id")] = None,
     product_mode: Annotated[str | None, Header(alias="X-AI-STP-Product-Mode")] = None,
 ) -> JSONResponse:
-    """Resolve local without auth, or an explicit/default personal context."""
+    """Resolve a loopback context or the backend-owned remote context."""
     if product_mode == "local":
         require_local_session(request)
         if organization_id is not None:

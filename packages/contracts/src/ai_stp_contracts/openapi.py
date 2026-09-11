@@ -347,7 +347,7 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         method="get",
         path="/context",
         operation_id="readActiveContext",
-        summary="Read the active local or explicitly selected remote context.",
+        summary="Resolve the active context from the request authority.",
         response=ActiveContext,
     ),
     Operation(

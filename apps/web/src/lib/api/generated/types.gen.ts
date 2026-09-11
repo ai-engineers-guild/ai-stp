@@ -3890,6 +3890,53 @@ export type PrivateVersionTrust = {
 };
 
 /**
+ * ProjectConflictResolutionRequest
+ *
+ * Explicit two-parent merge; it never happens during ordinary push.
+ */
+export type ProjectConflictResolutionRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Content Digest
+   */
+  content_digest: string;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Expected Head Revision Id
+   */
+  expected_head_revision_id?: string | null;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Operation
+   */
+  operation: "upsert" | "tombstone";
+  /**
+   * Parent Revision Ids
+   */
+  parent_revision_ids: Array<string>;
+  /**
+   * Projection
+   */
+  projection: {
+    [key: string]: unknown;
+  };
+  /**
+   * Revision Id
+   */
+  revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
  * ProjectLinkPlanRequest
  *
  * Request a server-authored exact link plan without changing state.
@@ -3985,6 +4032,40 @@ export type ProjectLinkPlanResponse = {
 };
 
 /**
+ * ProjectLinkProposalRequest
+ *
+ * Non-authoritative link evidence awaiting an explicit link plan.
+ */
+export type ProjectLinkProposalRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Evidence
+   */
+  evidence: {
+    [key: string]: unknown;
+  };
+  /**
+   * Local Project Id
+   */
+  local_project_id: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id?: string | null;
+  /**
+   * Remote Project Id
+   */
+  remote_project_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
  * ProjectLinkRequest
  *
  * Confirm one exact server-authored link plan.
@@ -4015,6 +4096,18 @@ export type ProjectLinkRequest = {
  * The durable link and its last observed endpoint revisions.
  */
 export type ProjectLinkResponse = {
+  /**
+   * Conflict Client Revision
+   */
+  conflict_client_revision: string | null;
+  /**
+   * Conflict Common Ancestor
+   */
+  conflict_common_ancestor: string | null;
+  /**
+   * Conflict Server Revision
+   */
+  conflict_server_revision: string | null;
   /**
    * Link Id
    */
@@ -4068,6 +4161,173 @@ export type ProjectLinkResponse = {
    */
   state: "linked" | "unlinked" | "conflict";
   updated_at: Timestamp;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectRevisionPullResponse
+ *
+ * Bounded pull of the tenant-scoped project ledger.
+ */
+export type ProjectRevisionPullResponse = {
+  /**
+   * Head Revision Id
+   */
+  head_revision_id: string | null;
+  /**
+   * Items
+   */
+  items: Array<ProjectRevisionView>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectRevisionPushRequest
+ *
+ * One explicit content-addressed project revision push.
+ */
+export type ProjectRevisionPushRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Content Digest
+   */
+  content_digest: string;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Expected Head Revision Id
+   */
+  expected_head_revision_id?: string | null;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Operation
+   */
+  operation: "upsert" | "tombstone";
+  /**
+   * Parent Revision Ids
+   */
+  parent_revision_ids: Array<string>;
+  /**
+   * Projection
+   */
+  projection: {
+    [key: string]: unknown;
+  };
+  /**
+   * Revision Id
+   */
+  revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * ProjectRevisionPushResponse
+ *
+ * Result of a project revision push.
+ */
+export type ProjectRevisionPushResponse = {
+  receipt: ProjectRevisionReceipt;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectRevisionReceipt
+ *
+ * Durable result of one project revision push.
+ */
+export type ProjectRevisionReceipt = {
+  /**
+   * Client Head Revision Id
+   */
+  client_head_revision_id: string | null;
+  /**
+   * Common Ancestor Revision Id
+   */
+  common_ancestor_revision_id: string | null;
+  /**
+   * Error Code
+   */
+  error_code: string | null;
+  /**
+   * Event Id
+   */
+  event_id: string;
+  /**
+   * Revision Id
+   */
+  revision_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Server Head Revision Id
+   */
+  server_head_revision_id: string | null;
+  /**
+   * State
+   */
+  state: "accepted" | "conflict" | "rejected" | "superseded";
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectRevisionView
+ *
+ * Redacted project revision returned by pull.
+ */
+export type ProjectRevisionView = {
+  /**
+   * Actor Account Id
+   */
+  actor_account_id: string;
+  /**
+   * Content Digest
+   */
+  content_digest: string;
+  created_at: Timestamp;
+  /**
+   * Device Id
+   */
+  device_id: string;
+  /**
+   * Operation
+   */
+  operation: "upsert" | "tombstone";
+  /**
+   * Parent Revision Ids
+   */
+  parent_revision_ids: Array<string>;
+  /**
+   * Projection
+   */
+  projection: {
+    [key: string]: unknown;
+  };
+  /**
+   * Revision Id
+   */
+  revision_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
   [key: string]: unknown;
 };
 
@@ -4180,9 +4440,17 @@ export type ProjectSyncPlanResponse = {
    */
   plan_id: string;
   /**
+   * Provider Identity Revision
+   */
+  provider_identity_revision: number | null;
+  /**
    * Provider Revision
    */
   provider_revision: string | null;
+  /**
+   * Remote Identity Revision
+   */
+  remote_identity_revision: number;
   /**
    * Remote Revision
    */
@@ -4356,6 +4624,50 @@ export const ProjectionKind = {
 } as const;
 
 export type ProjectionKind = (typeof ProjectionKind)[keyof typeof ProjectionKind];
+
+/**
+ * ProviderProjectObservationRequest
+ *
+ * Provider identity evidence; it never creates a project link.
+ */
+export type ProviderProjectObservationRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: string;
+  /**
+   * Current Url
+   */
+  current_url: string;
+  /**
+   * Immutable Repository Id
+   */
+  immutable_repository_id: string;
+  /**
+   * Installation Id
+   */
+  installation_id: string;
+  /**
+   * Namespace Id
+   */
+  namespace_id: string;
+  /**
+   * Observed Name
+   */
+  observed_name: string;
+  /**
+   * Provider Kind
+   */
+  provider_kind: string;
+  /**
+   * Provider Project Id
+   */
+  provider_project_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
 
 /**
  * ProviderSurfaceRef
@@ -9898,7 +10210,7 @@ export type ReadActiveContextError = ReadActiveContextErrors[keyof ReadActiveCon
 
 export type ReadActiveContextResponses = {
   /**
-   * Read the active local or explicitly selected remote context.
+   * Resolve the active context from the request authority.
    */
   200: ActiveContext;
 };
@@ -10766,7 +11078,7 @@ export type CreateProjectLinkPlanResponses = {
   /**
    * Create an exact no-side-effect project link plan.
    */
-  200: ProjectLinkPlanResponse;
+  201: ProjectLinkPlanResponse;
 };
 
 export type CreateProjectLinkPlanResponse =
@@ -10889,7 +11201,7 @@ export type CreateProjectUnlinkPlanResponses = {
   /**
    * Create an exact no-side-effect project unlink plan.
    */
-  200: ProjectUnlinkPlanResponse;
+  201: ProjectUnlinkPlanResponse;
 };
 
 export type CreateProjectUnlinkPlanResponse =
@@ -11937,7 +12249,7 @@ export type CreateProjectLinkResponses = {
   /**
    * Explicitly link a local project to a remote project.
    */
-  200: ProjectLinkResponse;
+  201: ProjectLinkResponse;
 };
 
 export type CreateProjectLinkResponse =
@@ -12071,6 +12383,191 @@ export type ReadProjectLinkResponses = {
 
 export type ReadProjectLinkResponse = ReadProjectLinkResponses[keyof ReadProjectLinkResponses];
 
+export type ResolveProjectConflictData = {
+  body: ProjectConflictResolutionRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}/conflict-resolutions";
+};
+
+export type ResolveProjectConflictErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ResolveProjectConflictError =
+  ResolveProjectConflictErrors[keyof ResolveProjectConflictErrors];
+
+export type ResolveProjectConflictResponses = {
+  /**
+   * Create an explicit two-parent project resolution revision.
+   */
+  200: ProjectRevisionPushResponse;
+};
+
+export type ResolveProjectConflictResponse =
+  ResolveProjectConflictResponses[keyof ResolveProjectConflictResponses];
+
+export type PullProjectRevisionsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}/revisions";
+};
+
+export type PullProjectRevisionsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PullProjectRevisionsError =
+  PullProjectRevisionsErrors[keyof PullProjectRevisionsErrors];
+
+export type PullProjectRevisionsResponses = {
+  /**
+   * Pull redacted project revisions from the selected tenant ledger.
+   */
+  200: ProjectRevisionPullResponse;
+};
+
+export type PullProjectRevisionsResponse =
+  PullProjectRevisionsResponses[keyof PullProjectRevisionsResponses];
+
+export type PushProjectRevisionData = {
+  body: ProjectRevisionPushRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit local/remote project link.
+     */
+    link_id: string;
+  };
+  query?: never;
+  url: "/v1/projects/links/{link_id}/revisions";
+};
+
+export type PushProjectRevisionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PushProjectRevisionError = PushProjectRevisionErrors[keyof PushProjectRevisionErrors];
+
+export type PushProjectRevisionResponses = {
+  /**
+   * Push one content-addressed project revision through the tenant ledger.
+   */
+  200: ProjectRevisionPushResponse;
+};
+
+export type PushProjectRevisionResponse =
+  PushProjectRevisionResponses[keyof PushProjectRevisionResponses];
+
 export type CreateProjectSyncPlanData = {
   body: ProjectSyncPlanRequest;
   headers: {
@@ -12127,7 +12624,7 @@ export type CreateProjectSyncPlanResponses = {
   /**
    * Create a deterministic project sync plan without applying it.
    */
-  200: ProjectSyncPlanResponse;
+  201: ProjectSyncPlanResponse;
 };
 
 export type CreateProjectSyncPlanResponse =

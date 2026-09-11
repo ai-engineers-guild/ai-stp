@@ -8,8 +8,8 @@ last_verified: "2026-09-09"
 ## Purpose
 
 Give API and Next.js one compact, versioned description of what the current
-actor may attempt in the selected context while keeping every authorization
-decision server-side.
+actor may attempt in the server-resolved context while keeping every
+authorization decision server-side.
 
 ## Scope
 
@@ -73,10 +73,11 @@ or serialize the complete RBAC graph into the browser.
 - `REQ-7611`: The projection contains no role graph, policy expression, email,
   provider token, hidden resource identifier, cross-organization count, or
   resource payload.
-- `REQ-7612`: Next.js uses the projection for navigation, layouts, page/action
-  visibility, and request preconditions. An absent capability renders forbidden
-  or unavailable according to the response reason and never sends a speculative
-  mutating request.
+- `REQ-7612`: Next.js may use the projection for server-provided navigation,
+  page/action visibility, and request preconditions. It never lets a browser
+  selector, stale cookie, or client header choose the product mode or
+  organization. An absent capability renders forbidden or unavailable according
+  to the response reason and never sends a speculative mutating request.
 - `REQ-7613`: Deployment build profiles do not add, remove, or override context
   capabilities. Unknown feature-profile keys and unknown capability identifiers
   both fail closed in their separate registries.
@@ -144,6 +145,6 @@ disables projection-driven corporate UI while API authorization remains active.
 | `REQ-7609` | Matrix fixtures advance revision for membership, role, organization status, policy, device/session, and resource-scope changes. |
 | `REQ-7610` | Boundary fixtures pass at 256 identifiers/16 KiB and fail without truncation above either limit. |
 | `REQ-7611` | Schema and privacy scans reject policy graphs, PII, tokens, hidden IDs, and payload fields. |
-| `REQ-7612` | `apps/web/tests/e2e/context-matrix.spec.ts` covers route entry, direct URL, context switching, action visibility, localization, accessibility, reduced motion, and all declared widths. |
+| `REQ-7612` | Web shell tests prove there is no context selector or client-selected scope; API tests prove capability denial and request preconditions remain server-side. |
 | `REQ-7613` | The web-profile matrix proves build configuration cannot change the capability response or API verdict. |
 | `REQ-7614` | Delayed-job tests revoke permission after enqueue and observe denial at execution without cross-tenant effects. |

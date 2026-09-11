@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 
@@ -121,6 +124,8 @@ def test_organization_backfill_preserves_account_attribution_and_revision_scope(
     assert "attribution_account_id" in migration
     assert "organization_id" in migration
     assert "organization.kind = 'personal'" in migration
+    assert "DISABLE TRIGGER audit_event_append_only" in migration
+    assert "ENABLE TRIGGER audit_event_append_only" in migration
     assert "json_array_length(parent_revision_ids) <= 2" in migration
 
 
@@ -167,6 +172,26 @@ def test_organization_backfill_is_idempotent_and_fails_closed_for_orphans() -> N
         connection.execute(text("INSERT INTO account (id) VALUES ('orphan_account')"))
         with pytest.raises(RuntimeError, match="missing or ambiguous"):
             migration._backfill_organization_resources(connection, rows)
+
+
+def test_organization_migration_repairs_the_unapplied_visibility_branch() -> None:
+    migration = importlib.import_module(
+        "migrations.versions.0059_project_ledger_and_ownership_scope"
+    )
+    engine = create_engine("sqlite://")
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE account (id VARCHAR(64) PRIMARY KEY)"))
+        operations = Operations(MigrationContext.configure(connection))
+        with patch.object(migration, "op", operations):
+            migration._ensure_visibility_plan_table(connection)
+            migration._ensure_visibility_plan_table(connection)
+
+        assert connection.dialect.has_table(connection, "visibility_plan")
+        columns = {
+            column["name"]
+            for column in connection.dialect.get_columns(connection, "visibility_plan")
+        }
+        assert columns == {"id", "actor_account_id", "idempotency_key", "state", "document"}
 
 
 def test_official_upstream_sync_does_not_cascade_on_source_delete() -> None:

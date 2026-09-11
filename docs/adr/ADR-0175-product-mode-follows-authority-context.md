@@ -1,5 +1,5 @@
 ---
-description: "Product mode is derived from the active authority context and remains separate from access state and deployment profile."
+description: "Product mode is derived from server authority and remains separate from access state and deployment profile."
 last_verified: "2026-09-09"
 ---
 
@@ -48,9 +48,13 @@ they may include or exclude deployment-owned content features but grant no
 product permission.
 
 The active context determines a versioned capability projection. Routes and UI
-consume that projection instead of evaluating a per-component mode matrix.
-Changing context changes the effective projection; it does not move resources,
-merge identities, or rewrite local state.
+consume server-owned results instead of evaluating a per-component mode matrix
+or presenting a context selector. Web uses the configured SaaS/backend endpoint;
+an authenticated request defaults to the personal organization unless that
+authoritative endpoint resolves another context. Local remains a CLI-only mode.
+Changing context through authentication or backend authority changes the
+effective projection; it does not move resources, merge identities, or rewrite
+local state.
 
 ## Consequences
 

@@ -92,6 +92,33 @@ def _account_expression(table_name: str, account_column: str) -> str:
     return "source." + account_column
 
 
+def _ensure_visibility_plan_table(connection: sa.Connection) -> None:
+    """Repair databases stamped at 0057 before the parallel 0056 branch existed."""
+    if sa.inspect(connection).has_table("visibility_plan"):
+        return
+
+    op.create_table(
+        "visibility_plan",
+        sa.Column("id", sa.String(64), primary_key=True),
+        sa.Column(
+            "actor_account_id",
+            sa.String(64),
+            sa.ForeignKey("account.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("idempotency_key", sa.String(128), nullable=False),
+        sa.Column("state", sa.String(16), nullable=False),
+        sa.Column("document", sa.JSON(), nullable=False),
+        sa.UniqueConstraint(
+            "actor_account_id", "idempotency_key", name="uq_visibility_plan_actor_key"
+        ),
+        sa.CheckConstraint(
+            "state in ('planned', 'applied', 'expired', 'refused')", name="ck_visibility_plan_state"
+        ),
+    )
+    op.create_index("ix_visibility_plan_actor_account_id", "visibility_plan", ["actor_account_id"])
+
+
 def _backfill_organization_resources(
     connection: sa.Connection,
     rows: Sequence[tuple[str, str, str]] = LEGACY_SCOPE_ROWS,
@@ -167,6 +194,7 @@ def upgrade() -> None:
     # The source account remains the attribution owner. The personal org is
     # stable and already exists for every account after 0058.
     connection = op.get_bind()
+    _ensure_visibility_plan_table(connection)
     _backfill_organization_resources(connection)
     for table_name, _key_column, account_column in LEGACY_SCOPE_ROWS:
         op.add_column(
@@ -206,6 +234,10 @@ def upgrade() -> None:
             ondelete="RESTRICT",
         )
         op.create_index("ix_" + table_name + "_organization_id", table_name, ["organization_id"])
+    # Adding the immutable tenant attribution is a metadata backfill, not an
+    # audit mutation. The trigger rejects every UPDATE, so suspend it only for
+    # this single statement while the application is stopped.
+    connection.execute(sa.text("ALTER TABLE audit_event DISABLE TRIGGER audit_event_append_only"))
     connection.execute(
         sa.text(
             "UPDATE audit_event AS event SET organization_id = (SELECT organization.id "
@@ -213,6 +245,7 @@ def upgrade() -> None:
             "AND organization.kind = 'personal') WHERE event.actor_account_id IS NOT NULL"
         )
     )
+    connection.execute(sa.text("ALTER TABLE audit_event ENABLE TRIGGER audit_event_append_only"))
 
     op.add_column("project_identity", sa.Column("provider_kind", sa.String(32), nullable=True))
     op.add_column(

@@ -9,11 +9,11 @@ Status: proposed.
 
 ## Context
 
-B2B-00 requires one Next.js application for local, personal SaaS, and corporate
-contexts. The current web build profiles control deployment-owned features, and
-the current Web/API boundary uses generated contracts. Corporate RBAC cannot be
-copied into React, while hiding a control in the browser cannot authorize the
-request behind it.
+B2B-00 requires one Next.js application for personal SaaS and corporate
+contexts. Local remains CLI-only. The current web build profiles control
+deployment-owned features, and the current Web/API boundary uses generated
+contracts. Corporate RBAC cannot be copied into React, while hiding a control in
+the browser cannot authorize the request behind it.
 
 Local mode also cannot depend on corporate endpoints or allow the browser to
 read SQLite directly. A second admin frontend or a duplicated corporate
@@ -44,10 +44,11 @@ rendering guidance, never an authorization grant. Permission changes advance the
 authorization revision; stale mutating requests fail and require a fresh
 projection.
 
-For local mode, an explicitly started loopback FastAPI session exposes the same
-contract family over local application services. It requires no account, binds
-only to loopback, uses a session-scoped anti-CSRF secret, and is not a persistent
-daemon. Next.js does not read the local registry or invoke CLI internals directly.
+Local clients may use the same contract family through the loopback FastAPI
+boundary, but Next.js does not start, stop, or proxy that session. It requires no
+account, binds only to loopback, uses a session-scoped anti-CSRF secret, and is
+not a persistent daemon. Next.js does not read the local registry or invoke CLI
+internals directly.
 
 One Next.js route and component tree renders shared resources. Capabilities
 control navigation, page availability, action visibility, and requests. Empty,
@@ -57,7 +58,8 @@ shell rather than a separate frontend.
 
 The `public_saas` and `self_hosted` build profiles remain limited to deployment
 features. They do not add capabilities and are not consulted by API
-authorization.
+authorization. Web uses the configured backend URL and does not let browser
+state choose a mode or organization.
 
 ## Consequences
 
@@ -65,8 +67,8 @@ authorization.
 - `SPEC-077` owns shared route, component, and local/personal/corporate UI
   behavior.
 - The generated API client remains the only Web/backend contract boundary.
-- Local web operation adds an on-demand loopback API process but no resident
-  daemon and no direct browser filesystem access.
+- Local CLI operation may use an on-demand loopback API process but no resident
+  daemon; Web has no local process or direct browser filesystem access.
 - Every protected scenario needs both rendering tests and server-side denial
   tests; a UI-only test is insufficient security evidence.
 

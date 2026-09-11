@@ -1,5 +1,5 @@
 ---
-description: "Personal and corporate organizations are the remote ownership aggregates; workspace is only an active UI context."
+description: "Personal and corporate organizations are the remote ownership aggregates; workspace is not a context identity."
 last_verified: "2026-09-09"
 ---
 
@@ -16,9 +16,9 @@ audit, and later SAML. Introducing a generic `Workspace` aggregate beside an
 organization would create two identifiers for the same ownership and isolation
 boundary.
 
-The word workspace is still useful in the interface: it describes the context
-currently shown to the user. That presentation concept does not require another
-domain object.
+The word workspace may still describe an authenticated owner area in the
+interface, but it is not a product context, identity, or selector. That
+presentation concept does not require another domain object.
 
 ## Options
 
@@ -27,7 +27,8 @@ domain object.
 2. Add both `Workspace` and `Organization`, with resources assigned to one or
    both. This creates ambiguous ownership, membership, and authorization joins.
 3. Use `Organization` as the only remote ownership aggregate, with `personal`
-   and `corporate` kinds; resolve a UI workspace to an organization.
+   and `corporate` kinds; let the authoritative backend resolve organization
+   scope for Web and CLI clients.
 
 ## Decision
 
@@ -48,10 +49,10 @@ organization-owned catalog object. Corporate authorization is evaluated within
 that organization. A remote resource belongs to exactly one organization; an
 identifier from another organization is rejected before the resource is read.
 
-`Workspace` is a UI label for the selected local or organization context. There
-is no `workspace_id`, workspace table, workspace passport, or independent
-workspace lifecycle. Server requests name their organization scope explicitly;
-a remembered UI selection is not authority.
+`Workspace` is not a product aggregate or context identity. There is no
+`workspace_id`, workspace table, workspace passport, or independent workspace
+lifecycle. Server requests name their organization scope explicitly; a
+remembered UI selection is not authority.
 
 Local projects retain local identities without an organization. Existing
 account-owned cloud data is migrated into one personal organization per account,
@@ -68,8 +69,8 @@ this decision.
   enabled; nullable or missing tenant ownership is not valid for corporate rows.
 - Existing personal data keeps its account attribution and receives an additive
   personal organization assignment.
-- UI copy may say workspace, but all machine contracts use local context or
-  organization identity.
+- UI copy may say workspace for an owner area, but all machine contracts use
+  server-resolved organization identity or local CLI state.
 
 ## Revisit conditions
 

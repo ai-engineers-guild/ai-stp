@@ -4,8 +4,6 @@ import { getTranslations } from "next-intl/server";
 import { SiteHeader } from "@/components/layouts/site-header";
 import { ProjectionDock } from "@/components/molecules/projection-dock";
 import { ProjectionDockEnhancer } from "@/components/molecules/projection-dock-enhancer";
-import { ProductContextSwitcher } from "@/components/molecules/product-context-switcher";
-import { ContextSurfaceNav } from "@/components/molecules/context-surface-nav";
 import { ConsentedAnalytics } from "@/components/organisms/consented-analytics";
 import { CookieConsent } from "@/components/organisms/cookie-consent";
 import { getEnv } from "@/lib/env";
@@ -14,28 +12,24 @@ import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { SITE_NAME } from "@/lib/site";
-import { contextStatus, loadProductContext } from "@/lib/product-context-server";
 
 type AppShellProps = {
   children: React.ReactNode;
   locale: string;
 };
 
-// eslint-disable-next-line max-lines-per-function -- the shared shell owns the complete page chrome.
 export async function AppShell({ children, locale }: AppShellProps) {
-  const productContext = await loadProductContext();
   const t = await getTranslations("a11y");
   const tf = await getTranslations("footer");
   const tc = await getTranslations("consent");
   const tm = await getTranslations("machine");
-  const tx = await getTranslations("context");
   const docsHref = getEnv().AI_STP_USER_DOCS_URL;
   const saasPublicPages = isFeatureEnabled("saas_public_pages");
 
   return (
     <div
       data-ui={UI.shell.root}
-      className="grid min-h-dvh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto_1fr_auto] overflow-x-clip"
+      className="grid min-h-dvh min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] overflow-x-clip"
     >
       <a
         href="#main-content"
@@ -44,41 +38,6 @@ export async function AppShell({ children, locale }: AppShellProps) {
         {t("skipToContent")}
       </a>
       <SiteHeader docsHref={docsHref} />
-      <div className="min-h-[88px]">
-        <ProductContextSwitcher
-          {...productContext}
-          labels={{
-            selector: tx("selector"),
-            local: tx("local"),
-            mode: { personal: tx("personal"), corporate: tx("corporate") },
-            loading: tx("loading"),
-            failed: tx("failed"),
-            partial: tx("partial"),
-            forbidden: tx("forbidden"),
-            stale: tx("stale"),
-            unavailable: tx("unavailable"),
-            unsupported: tx("unsupported"),
-            empty: tx("empty"),
-            unauthenticated: tx("unauthenticated"),
-            switchFailed: tx("switchFailed"),
-          }}
-        />
-        <ContextSurfaceNav
-          context={productContext.context}
-          status={contextStatus(productContext)}
-          labels={{
-            navigation: tx("surfaceNavigation"),
-            projects: tx("surfaces.projects"),
-            technology: tx("surfaces.technology"),
-            landscape: tx("surfaces.landscape"),
-            catalog: tx("surfaces.catalog"),
-            teams: tx("corporateSurfaces.teams"),
-            assignments: tx("corporateSurfaces.assignments"),
-            audit: tx("corporateSurfaces.audit"),
-            saml: tx("corporateSurfaces.saml"),
-          }}
-        />
-      </div>
       <main
         id={UI.shell.main}
         data-ui={UI.shell.main}

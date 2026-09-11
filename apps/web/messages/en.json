@@ -187,45 +187,6 @@
     "public": "Public",
     "private": "Private"
   },
-  "context": {
-    "selector": "Context",
-    "local": "Local",
-    "personal": "Personal",
-    "corporate": "Corporate",
-    "loading": "Loading",
-    "unauthenticated": "Sign-in required",
-    "failed": "Context failed",
-    "partial": "Context partially loaded",
-    "forbidden": "Access denied",
-    "stale": "Context is stale",
-    "unavailable": "Context unavailable",
-    "unsupported": "Not supported",
-    "empty": "No organizations",
-    "switchFailed": "Context switch failed",
-    "surfaceNavigation": "Context surfaces",
-    "workspace": "Workspace",
-    "workspaceDescription": "One shared surface. The selected context controls which routes, actions, and data are available.",
-    "statusMessage": "This context is currently {status}. No remote mutation was attempted.",
-    "ready": "Ready",
-    "corporateSurfaces": {
-      "teams": "Teams",
-      "assignments": "Assignments",
-      "audit": "Audit",
-      "saml": "Enterprise sign-in"
-    },
-    "surfaces": {
-      "projects": "Projects",
-      "technology": "Technology",
-      "landscape": "Landscape",
-      "catalog": "Catalog"
-    },
-    "surfaceDescriptions": {
-      "projects": "Adopted local projects and explicit remote links.",
-      "technology": "Technology facts attached to the active project context.",
-      "landscape": "The services and external systems visible to this context.",
-      "catalog": "Components and setups available in the active context."
-    }
-  },
   "landing": {
     "title": "The AI setup registry, not just a skill catalog",
     "subtitle": "Find, verify, install, and earn on AI components.",

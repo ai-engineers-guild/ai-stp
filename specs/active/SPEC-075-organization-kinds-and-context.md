@@ -30,8 +30,8 @@ and #203. A separate `Workspace` domain entity is excluded.
 - `OrganizationMembership` — the explicit relation between an account and a
   corporate organization; the personal owner relation is constrained to one
   account.
-- `workspace` — UI wording for the selected local or organization context, not
-  a machine identity.
+- `workspace` — optional wording for an authenticated owner area, not a context
+  identity or selector.
 
 ## Requirements
 
@@ -51,11 +51,12 @@ and #203. A separate `Workspace` domain entity is excluded.
   object stores one immutable `organization_id`; a missing organization on a
   corporate row is invalid.
 - `REQ-7506`: Every organization-scoped API request names its organization
-  explicitly. A session's remembered UI selection is presentation state and is
-  never substituted when the request omits or changes the scope.
+  explicitly. A session's remembered UI state is never substituted when the
+  request omits or changes the scope; Web receives scope from the authoritative
+  backend instead of persisting a user-selected organization.
 - `REQ-7507`: Machine contracts contain no `workspace_id`, workspace ownership,
-  workspace table, workspace passport, or workspace lifecycle. UI workspace
-  links resolve to either local context or an `organization_id`.
+  workspace table, workspace passport, or workspace lifecycle. No Web route
+  exposes a context selector or treats workspace as an independent identity.
 - `REQ-7508`: Local projects, local project passports, local registry objects,
   and local installation state require no organization row and do not receive a
   synthetic remote organization while offline.
@@ -75,7 +76,7 @@ and #203. A separate `Workspace` domain entity is excluded.
 
 ## States and errors
 
-Context selection returns `local`, `personal`, or `corporate` together with
+Context resolution returns `local`, `personal`, or `corporate` together with
 `ready`, `unauthenticated`, `organization_not_found`,
 `organization_forbidden`, or `organization_suspended`. Non-enumeration policy
 may map not-found and forbidden to the same public response. A personal
@@ -97,7 +98,9 @@ personal organization per existing account with cloud data, then backfill
 organization foreign keys, and only then make corporate ownership non-null and
 enable corporate routes. Old clients continue through personal account routes
 during the compatibility window. Rollback disables corporate routes but retains
-organization rows and the preserved account attribution.
+organization rows and the preserved account attribution. Older Web
+context-selection cookies and endpoints are ignored or removed; they never
+override backend resolution.
 
 ## Acceptance criteria
 
@@ -109,7 +112,7 @@ organization rows and the preserved account attribution.
 | `REQ-7504` | An authenticated non-member with a known corporate ID receives no resource or capability data. |
 | `REQ-7505` | Migration and model tests reject each corporate resource family without an organization ID. |
 | `REQ-7506` | Requests with absent, stale, or substituted organization scope fail without falling back to the remembered UI context. |
-| `REQ-7507` | Schema/database inventories contain no Workspace aggregate or `workspace_id`, while UI context links resolve correctly. |
+| `REQ-7507` | Schema/database inventories contain no Workspace aggregate or `workspace_id`, and browser checks find no context selector. |
 | `REQ-7508` | Network-disabled local project adoption and operation create no organization row or remote request. |
 | `REQ-7509` | A migration fixture preserves account authorship and attaches every existing cloud row to exactly one personal organization on repeated runs. |
 | `REQ-7510` | Hostile cross-organization read, write, list, search, and relationship tests fail before protected fields are loaded. |

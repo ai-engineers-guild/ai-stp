@@ -1008,6 +1008,8 @@ async def unlink_project_link(
     link.unlink_idempotency_key = payload.idempotency_key
     plan.state = "applied"
     plan.confirmation_idempotency_key = payload.idempotency_key
+    await db.flush()
+    await db.refresh(link)
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,
@@ -1295,7 +1297,7 @@ async def push_project_revision(
             organization_id=link.organization_id,
             remote_project_id=remote_project_id,
             left=server_head or payload.revision_id,
-            right=payload.expected_head_revision_id or payload.revision_id,
+            right=payload.revision_id,
         )
         body = _project_revision_receipt_body(
             event_id=payload.event_id,
@@ -1310,6 +1312,7 @@ async def push_project_revision(
         link.conflict_server_revision = server_head
         link.conflict_client_revision = payload.revision_id
         link.conflict_common_ancestor = common
+        link.revision += 1
     else:
         if head is None:
             head = ProjectRevisionHead(
@@ -1494,31 +1497,32 @@ async def create_sync_plan(
         if link.provider_project_id is not None
         else None
     )
+    changed_revisions = (
+        *((payload.local_revision,) if local_changed else ()),
+        *((payload.remote_revision,) if remote_changed else ()),
+    )
+    for revision_id in changed_revisions:
+        if (
+            await _project_revision(
+                db,
+                organization_id=link.organization_id,
+                remote_project_id=link.remote_project_id,
+                revision_id=revision_id,
+            )
+            is None
+        ):
+            raise ApiError(
+                ErrorCategory.PRECONDITION, "project revision is not in the organization ledger"
+            )
     if remote is None or remote.state != "active":
         state, action, conflict = "conflict", "merge_required", "remote_missing"
     elif (
         (provider is None and link.provider_project_id is not None)
         or (provider is not None and provider.state != "active")
-        or (provider_changed and not local_changed and not remote_changed)
+        or provider_changed
     ):
         state, action, conflict = "conflict", "merge_required", "provider_mismatch"
     elif local_changed and remote_changed:
-        local_known = await _project_revision(
-            db,
-            organization_id=link.organization_id,
-            remote_project_id=link.remote_project_id,
-            revision_id=payload.local_revision,
-        )
-        remote_known = await _project_revision(
-            db,
-            organization_id=link.organization_id,
-            remote_project_id=link.remote_project_id,
-            revision_id=payload.remote_revision,
-        )
-        if local_known is None or remote_known is None:
-            raise ApiError(
-                ErrorCategory.PRECONDITION, "project revision is not in the organization ledger"
-            )
         if await _project_is_ancestor(
             db,
             organization_id=link.organization_id,
