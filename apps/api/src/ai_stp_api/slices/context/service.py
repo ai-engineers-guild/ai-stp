@@ -97,8 +97,8 @@ _MODE_CAPABILITIES: dict[str, tuple[str, ...]] = {
     "personal": PERSONAL_CAPABILITIES,
     "corporate": CORPORATE_CAPABILITIES,
 }
+_ALL_CAPABILITIES = frozenset(CORPORATE_CAPABILITIES)
 _IMPLEMENTED_CAPABILITIES = frozenset(PERSONAL_CAPABILITIES)
-_CORPORATE_ONLY = frozenset(set(CORPORATE_CAPABILITIES) - set(PERSONAL_CAPABILITIES))
 _CORPORATE_ADMIN_ONLY = frozenset(
     {
         "assignment.assign",
@@ -259,12 +259,10 @@ def projection_for(
     unavailable = {
         capability: (
             "forbidden"
-            if mode == "corporate"
-            and (capability in _IMPLEMENTED_CAPABILITIES or role not in {"owner", "admin"})
+            if mode == "corporate" and capability in _IMPLEMENTED_CAPABILITIES
             else "unsupported"
         )
-        for capability in _CORPORATE_ONLY
-        if capability not in available
+        for capability in sorted(_ALL_CAPABILITIES - set(available))
     }
     revision = (
         f"{policy_revision}:{membership_revision}"

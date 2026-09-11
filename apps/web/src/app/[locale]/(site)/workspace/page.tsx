@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/lib/i18n/navigation";
-import { CONTEXT_SURFACES, CORPORATE_SURFACES, surfaceCapability } from "@/lib/context-surfaces";
+import { CONTEXT_SURFACES, CORPORATE_SURFACES } from "@/lib/context-surfaces";
 import { hasCapability } from "@/lib/product-context";
 import { contextStatus, loadProductContext } from "@/lib/product-context-server";
 
@@ -32,7 +32,7 @@ export default async function WorkspacePage({
     (item) => item.organization_id === snapshot.context.organization_id,
   );
   const visible = CONTEXT_SURFACES.filter((surface) =>
-    hasCapability(snapshot.context, surfaceCapability(snapshot.context.mode, surface.key)),
+    hasCapability(snapshot.context, surface.capability),
   );
   return (
     <section className="mx-auto max-w-5xl space-y-8 py-8" data-ui="context-workspace">

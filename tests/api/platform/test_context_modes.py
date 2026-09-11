@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_api.session import issue_session
@@ -66,6 +67,22 @@ async def test_product_mode_is_independent_from_auth_and_fails_closed(
     assert personal_context.status_code == 200
     assert personal_context.json()["mode"] == "personal"
     assert personal_context.json()["organization_id"] == personal.id
+    personal_projection = personal_context.json()["capabilities"]
+    assert "organization.manage" not in personal_projection["capabilities"]
+    assert all(
+        personal_projection["unavailable"][capability] == "unsupported"
+        for capability in (
+            "assignment.assign",
+            "audit.read",
+            "deployment.operate",
+            "invitation.manage",
+            "member.manage",
+            "organization.manage",
+            "saml.manage",
+            "team.manage",
+            "telemetry.read",
+        )
+    )
 
     corporate_context = await client.get(
         "/v1/context",
@@ -95,3 +112,35 @@ async def test_product_mode_is_independent_from_auth_and_fails_closed(
         },
     )
     assert local_with_org.status_code == 401
+
+
+async def test_authenticated_account_gets_one_personal_organization_by_default(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Any],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    async with sessionmaker() as db:
+        account = Account(id=new_id("account"))
+        db.add(account)
+        await db.flush()
+        issued = await issue_session(db, account_id=account.id, device_id=None, ttl_seconds=3600)
+        await db.commit()
+
+    response = await client.get(
+        "/v1/context", headers={"Authorization": f"Bearer {issued.raw_token}"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "personal"
+    assert response.json()["organization_id"].startswith("organization_")
+    async with sessionmaker() as db:
+        organizations = list(
+            (
+                await db.scalars(
+                    select(Organization).where(
+                        Organization.owner_account_id == account.id,
+                        Organization.kind == "personal",
+                    )
+                )
+            ).all()
+        )
+    assert len(organizations) == 1

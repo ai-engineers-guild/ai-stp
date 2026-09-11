@@ -651,6 +651,14 @@ const CORPORATE_ONLY_UNAVAILABLE = {
   "deployment.operate": "unsupported",
   "organization.manage": "unsupported",
 } as const;
+const PERSONAL_ONLY_UNAVAILABLE = {
+  "catalog_object.publish": "unsupported",
+  "organization.read": "unsupported",
+  "project.create": "unsupported",
+  "project.link": "unsupported",
+  "project.unlink": "unsupported",
+  "project.update": "unsupported",
+} as const;
 
 function contextFixtureError(fixture: string | null): MockResult | null {
   const errors: Record<string, [number, Parameters<typeof errorBody>[0], string]> = {
@@ -695,19 +703,6 @@ function contextMode(
 }
 
 function contextCapabilities(fixture: string | null, mode: "local" | "personal" | "corporate") {
-  const remote = [
-    "catalog_object.list",
-    "catalog_object.read",
-    "organization.read",
-    "project.create",
-    "project.link",
-    "project.list",
-    "project.read",
-    "project.unlink",
-    "project.update",
-    "technology.list",
-    "technology.read",
-  ];
   const local = [
     "catalog_object.list",
     "catalog_object.read",
@@ -718,9 +713,28 @@ function contextCapabilities(fixture: string | null, mode: "local" | "personal" 
     "technology.list",
     "technology.read",
   ];
+  const remote = [
+    "catalog_object.list",
+    "catalog_object.read",
+    "catalog_object.publish",
+    "landscape.list",
+    "landscape.read",
+    "organization.read",
+    "project.create",
+    "project.link",
+    "project.list",
+    "project.read",
+    "project.unlink",
+    "project.update",
+    "technology.list",
+    "technology.read",
+  ].sort();
   return {
     capabilities: fixture === "corporate-denied" ? [] : mode === "local" ? local : remote,
-    unavailable: CORPORATE_ONLY_UNAVAILABLE,
+    unavailable: {
+      ...(mode === "local" ? PERSONAL_ONLY_UNAVAILABLE : {}),
+      ...CORPORATE_ONLY_UNAVAILABLE,
+    },
   };
 }
 

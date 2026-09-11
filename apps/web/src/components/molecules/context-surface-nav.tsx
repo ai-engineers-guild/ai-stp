@@ -1,8 +1,4 @@
-import {
-  CONTEXT_SURFACES,
-  surfaceCapability,
-  type ContextSurfaceKey,
-} from "@/lib/context-surfaces";
+import { CONTEXT_SURFACES, type ContextSurfaceKey } from "@/lib/context-surfaces";
 import type { ActiveContext } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { hasCapability } from "@/lib/product-context";
@@ -28,9 +24,7 @@ export function ContextSurfaceNav({
       />
     ) : null;
   }
-  const visible = CONTEXT_SURFACES.filter((surface) =>
-    hasCapability(context, surfaceCapability(context.mode, surface.key)),
-  );
+  const visible = CONTEXT_SURFACES.filter((surface) => hasCapability(context, surface.capability));
   return (
     <nav
       data-ui={UI.context.navigation}

@@ -53,6 +53,10 @@ def test_projection_cannot_claim_a_different_context_or_overlap_unavailable() ->
 
 def test_server_projection_is_role_scoped_and_local_stays_corporate_free() -> None:
     local = projection_for(mode="local", organization_id=None)
+    personal = projection_for(
+        mode="personal",
+        organization_id="organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    )
     member = projection_for(
         mode="corporate",
         organization_id="organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
@@ -60,7 +64,10 @@ def test_server_projection_is_role_scoped_and_local_stays_corporate_free() -> No
     )
 
     assert "organization.manage" not in local.capabilities
-    assert member.unavailable["organization.manage"] == "forbidden"
+    assert local.unavailable["organization.read"] == "unsupported"
+    assert local.unavailable["project.create"] == "unsupported"
+    assert personal.unavailable["organization.manage"] == "unsupported"
+    assert member.unavailable["organization.manage"] == "unsupported"
     assert "project.read" in member.capabilities
 
 

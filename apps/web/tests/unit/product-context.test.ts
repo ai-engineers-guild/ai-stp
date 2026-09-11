@@ -6,11 +6,7 @@ import {
   contextStatus,
   hasCapability,
 } from "@/lib/product-context";
-import {
-  CONTEXT_SURFACE_MATRIX,
-  CONTEXT_SURFACES,
-  PRODUCT_CONTEXT_MODES,
-} from "@/lib/context-surfaces";
+import { CONTEXT_SURFACES } from "@/lib/context-surfaces";
 
 describe("product context", () => {
   it("keeps capability checks and cache identity context-bound", () => {
@@ -32,13 +28,19 @@ describe("product context", () => {
     );
   });
 
-  it("keeps one closed surface matrix for every product mode", () => {
-    expect(Object.keys(CONTEXT_SURFACE_MATRIX)).toEqual([...PRODUCT_CONTEXT_MODES]);
-    for (const mode of PRODUCT_CONTEXT_MODES) {
-      expect(Object.keys(CONTEXT_SURFACE_MATRIX[mode])).toEqual(
-        CONTEXT_SURFACES.map((surface) => surface.key),
-      );
-    }
+  it("keeps each shared surface bound to one server capability", () => {
+    expect(CONTEXT_SURFACES.map((surface) => surface.key)).toEqual([
+      "projects",
+      "technology",
+      "landscape",
+      "catalog",
+    ]);
+    expect(CONTEXT_SURFACES.map((surface) => surface.capability)).toEqual([
+      "project.list",
+      "technology.list",
+      "landscape.list",
+      "catalog_object.list",
+    ]);
   });
 
   it("isolates stale in-flight data by authorization revision", () => {

@@ -23,7 +23,7 @@ import {
 import { WORKSPACE_ROUTES } from "@/lib/projection/routes-workspace";
 import type { MachineRoute } from "@/lib/projection/route-table";
 import { presentPage } from "@/lib/projection/presenters";
-import { CONTEXT_SURFACES, surfaceCapability } from "@/lib/context-surfaces";
+import { CONTEXT_SURFACES } from "@/lib/context-surfaces";
 import { hasCapability } from "@/lib/product-context";
 import { contextStatus, loadProductContext } from "@/lib/product-context-server";
 
@@ -48,7 +48,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
       const snapshot = await loadProductContext();
       const status = contextStatus(snapshot);
       const links = CONTEXT_SURFACES.filter((surface) =>
-        hasCapability(snapshot.context, surfaceCapability(snapshot.context.mode, surface.key)),
+        hasCapability(snapshot.context, surface.capability),
       ).map((surface) => [t("surfaces." + surface.key), surface.href] as const);
       return presentPage({
         title: t("workspace"),
