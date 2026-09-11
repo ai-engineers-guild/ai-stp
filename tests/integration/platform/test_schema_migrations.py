@@ -8,6 +8,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import create_async_engine
 from ulid import ULID
 
@@ -107,3 +108,104 @@ def test_identity_migration_preserves_distinct_account_suffixes(
 
     command.upgrade(config, "head")
     assert asyncio.run(names()) == assigned
+
+
+def test_organization_identity_and_ownership_invariants(
+    migrated_database_url: str,
+) -> None:
+    account_id = f"account_{ULID()}"
+    other_account_id = f"account_{ULID()}"
+    personal_id = f"organization_{ULID()}"
+
+    async def exercise() -> None:
+        engine = create_async_engine(migrated_database_url)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(
+                    text("INSERT INTO account (id) VALUES (:id), (:other_id)"),
+                    {"id": account_id, "other_id": other_account_id},
+                )
+
+            with pytest.raises(DBAPIError):
+                async with engine.begin() as connection:
+                    await connection.execute(
+                        text(
+                            "INSERT INTO organization "
+                            "(id, kind, owner_account_id, display_name) "
+                            "VALUES (:id, 'personal', NULL, 'Invalid')"
+                        ),
+                        {"id": f"organization_{ULID()}"},
+                    )
+
+            with pytest.raises(DBAPIError):
+                async with engine.begin() as connection:
+                    await connection.execute(
+                        text(
+                            "INSERT INTO organization "
+                            "(id, kind, owner_account_id, display_name) "
+                            "VALUES (:id, 'corporate', :owner, 'Invalid')"
+                        ),
+                        {"id": f"organization_{ULID()}", "owner": account_id},
+                    )
+
+            with pytest.raises(DBAPIError):
+                async with engine.begin() as connection:
+                    await connection.execute(
+                        text(
+                            "INSERT INTO organization "
+                            "(id, kind, owner_account_id, display_name) "
+                            "VALUES ('not_an_organization', 'personal', :owner, 'Invalid')"
+                        ),
+                        {"owner": account_id},
+                    )
+
+            with pytest.raises(DBAPIError):
+                async with engine.begin() as connection:
+                    await connection.execute(
+                        text(
+                            "INSERT INTO organization "
+                            "(id, kind, owner_account_id, display_name) "
+                            "VALUES (:id, 'personal', :owner, 'Missing membership')"
+                        ),
+                        {"id": f"organization_{ULID()}", "owner": account_id},
+                    )
+
+            async with engine.begin() as connection:
+                await connection.execute(
+                    text(
+                        "INSERT INTO organization "
+                        "(id, kind, owner_account_id, display_name) "
+                        "VALUES (:id, 'personal', :owner, 'Personal')"
+                    ),
+                    {"id": personal_id, "owner": account_id},
+                )
+                await connection.execute(
+                    text(
+                        "INSERT INTO organization_membership "
+                        "(organization_id, account_id, role, state) "
+                        "VALUES (:organization, :account, 'owner', 'active')"
+                    ),
+                    {"organization": personal_id, "account": account_id},
+                )
+
+            with pytest.raises(DBAPIError):
+                async with engine.begin() as connection:
+                    await connection.execute(
+                        text(
+                            "INSERT INTO organization_membership "
+                            "(organization_id, account_id, role, state) "
+                            "VALUES (:organization, :account, 'member', 'active')"
+                        ),
+                        {"organization": personal_id, "account": other_account_id},
+                    )
+
+            with pytest.raises(DBAPIError):
+                async with engine.begin() as connection:
+                    await connection.execute(
+                        text("UPDATE organization SET kind = 'corporate' WHERE id = :id"),
+                        {"id": personal_id},
+                    )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(exercise())

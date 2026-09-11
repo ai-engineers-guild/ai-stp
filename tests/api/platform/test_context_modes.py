@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -125,13 +126,16 @@ async def test_authenticated_account_gets_one_personal_organization_by_default(
         issued = await issue_session(db, account_id=account.id, device_id=None, ttl_seconds=3600)
         await db.commit()
 
-    response = await client.get(
-        "/v1/context", headers={"Authorization": f"Bearer {issued.raw_token}"}
+    responses = await asyncio.gather(
+        client.get("/v1/context", headers={"Authorization": f"Bearer {issued.raw_token}"}),
+        client.get("/v1/context", headers={"Authorization": f"Bearer {issued.raw_token}"}),
     )
 
-    assert response.status_code == 200
-    assert response.json()["mode"] == "personal"
-    assert response.json()["organization_id"].startswith("organization_")
+    assert all(response.status_code == 200 for response in responses)
+    assert {response.json()["mode"] for response in responses} == {"personal"}
+    organization_ids = {response.json()["organization_id"] for response in responses}
+    assert len(organization_ids) == 1
+    assert next(iter(organization_ids)).startswith("organization_")
     async with sessionmaker() as db:
         organizations = list(
             (
@@ -143,4 +147,17 @@ async def test_authenticated_account_gets_one_personal_organization_by_default(
                 )
             ).all()
         )
-    assert len(organizations) == 1
+        assert len(organizations) == 1
+        memberships = list(
+            (
+                await db.scalars(
+                    select(OrganizationMembership).where(
+                        OrganizationMembership.organization_id == organizations[0].id,
+                    )
+                )
+            ).all()
+        )
+    assert len(memberships) == 1
+    assert memberships[0].account_id == account.id
+    assert memberships[0].role == "owner"
+    assert memberships[0].state == "active"

@@ -76,6 +76,13 @@ def test_sprint1_models_are_registered_on_platform_base() -> None:
     assert expected_tables.issubset(Base.metadata.tables)
 
 
+def test_workspace_is_not_a_domain_aggregate_or_machine_identifier() -> None:
+    assert "workspace" not in Base.metadata.tables
+    assert all("workspace_id" not in table.c for table in Base.metadata.tables.values())
+    contract_sources = Path("packages/contracts/src/ai_stp_contracts").glob("*.py")
+    assert all("workspace_id" not in path.read_text(encoding="utf-8") for path in contract_sources)
+
+
 def test_audit_migration_defines_append_only_trigger() -> None:
     source = Path("migrations/versions/0002_sprint1_core.py").read_text(encoding="utf-8")
     assert "CREATE TRIGGER audit_event_append_only" in source

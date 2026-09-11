@@ -34,7 +34,16 @@ class Organization(Base):
 
     __tablename__ = "organization"
     __table_args__ = (
+        CheckConstraint(
+            "substr(id, 1, 13) = 'organization_' AND length(id) = 39",
+            name="ck_organization_id",
+        ),
         CheckConstraint("kind in ('personal', 'corporate')", name="ck_organization_kind"),
+        CheckConstraint(
+            "(kind = 'personal' AND owner_account_id IS NOT NULL) OR "
+            "(kind = 'corporate' AND owner_account_id IS NULL)",
+            name="ck_organization_owner_shape",
+        ),
         CheckConstraint("revision >= 1", name="ck_organization_revision"),
         Index(
             "uq_organization_personal_owner",

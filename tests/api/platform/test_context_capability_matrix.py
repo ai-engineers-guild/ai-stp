@@ -93,7 +93,7 @@ async def test_outsider_suspended_and_foreign_contexts_fail_closed(
         foreign = Organization(
             id=new_id("organization"),
             kind="corporate",
-            owner_account_id=personal_membership.account_id,
+            owner_account_id=None,
             display_name="Foreign",
         )
         db.add_all([suspended_organization, suspended_membership, foreign])
