@@ -51,6 +51,33 @@ def test_projection_cannot_claim_a_different_context_or_overlap_unavailable() ->
         CapabilityProjection.model_validate(projection(unavailable={"project.read": "forbidden"}))
 
 
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"role_graph": {}},
+        {"policy_expression": "allow all"},
+        {"identity": {"email_address": "private@example.test"}},
+        {"provider": {"token": "secret"}},
+        {"hidden_project_id": "remote_project_private"},
+        {"cross_organization_count": 2},
+        {"resource_payload": {}},
+    ],
+)
+def test_projection_rejects_private_authorization_data(extra: dict[str, object]) -> None:
+    with pytest.raises(ValidationError, match="forbidden authorization data"):
+        CapabilityProjection.model_validate(projection(extension=extra))
+
+
+def test_projection_rejects_size_overflow() -> None:
+    with pytest.raises(ValidationError, match="16 KiB"):
+        CapabilityProjection.model_validate(projection(extension="x" * (16 * 1024)))
+
+
+def test_projection_capability_count_is_bounded_without_truncation() -> None:
+    with pytest.raises(ValidationError):
+        CapabilityProjection.model_validate(projection(capabilities=["project.read"] * 257))
+
+
 def test_server_projection_is_role_scoped_and_local_stays_corporate_free() -> None:
     local = projection_for(mode="local", organization_id=None)
     personal = projection_for(

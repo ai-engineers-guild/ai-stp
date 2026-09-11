@@ -56,6 +56,15 @@ _PRIVATE_PROJECTION_KEY_PARTS = (
     "source",
     "token",
 )
+_FORBIDDEN_CAPABILITY_PROJECTION_KEY_PARTS = (
+    "cross_organization",
+    "email",
+    "hidden",
+    "payload",
+    "policy",
+    "role",
+    "token",
+)
 
 
 def _safe_project_projection(
@@ -149,6 +158,20 @@ def is_capability_id(value: str) -> bool:
     return resource in CAPABILITY_RESOURCES and action in CAPABILITY_ACTIONS
 
 
+def _contains_forbidden_capability_data(value: object) -> bool:
+    if isinstance(value, Mapping):
+        items = cast(Mapping[object, object], value).items()
+        return any(
+            not isinstance(key, str)
+            or any(part in key.lower() for part in _FORBIDDEN_CAPABILITY_PROJECTION_KEY_PARTS)
+            or _contains_forbidden_capability_data(item)
+            for key, item in items
+        )
+    if isinstance(value, list):
+        return any(_contains_forbidden_capability_data(item) for item in cast(list[object], value))
+    return False
+
+
 class OrganizationSummary(BaseModel):
     """A remote organization available to the authenticated account."""
 
@@ -209,6 +232,8 @@ class CapabilityProjection(BaseModel):
             raise ValueError("a capability cannot be available and unavailable")
         if any(not is_capability_id(item) for item in self.unavailable):
             raise ValueError("unavailable capability is not in the closed vocabulary")
+        if _contains_forbidden_capability_data(self.model_extra or {}):
+            raise ValueError("capability projection contains forbidden authorization data")
         encoded = json.dumps(
             self.model_dump(mode="json"), ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")

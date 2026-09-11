@@ -110,9 +110,20 @@ test.describe(`shared context matrix / ${profile} (REQ-7712)`, () => {
 
   test("denied capability and expired projection fail closed", async ({ page }) => {
     await fixture(page, "corporate-denied");
+    const mutationRequests: string[] = [];
+    page.on("request", (request) => {
+      const path = new URL(request.url()).pathname;
+      if (
+        (path.startsWith("/api/") || path.startsWith("/v1/")) &&
+        ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())
+      ) {
+        mutationRequests.push(request.url());
+      }
+    });
     await page.goto("/en/workspace?surface=projects");
     await expect(page.locator('[data-ui="context-workspace"]')).toContainText("Access denied");
     await expect(page.getByRole("link", { name: "Projects", exact: true })).toHaveCount(0);
+    await expect.poll(() => mutationRequests).toEqual([]);
     await page.context().addCookies([
       {
         name: "ai_stp_context_fixture",
@@ -124,6 +135,7 @@ test.describe(`shared context matrix / ${profile} (REQ-7712)`, () => {
     await page.reload();
     await expect(page.locator('[data-ui="context-workspace"]')).toContainText("Context is stale");
     await expect(page.getByRole("link", { name: "Projects", exact: true })).toHaveCount(0);
+    await expect.poll(() => mutationRequests).toEqual([]);
   });
 
   test("future corporate owners are unavailable, including direct URLs", async ({ page }) => {
