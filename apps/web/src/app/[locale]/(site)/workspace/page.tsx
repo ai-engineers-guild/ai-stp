@@ -31,7 +31,7 @@ export default async function WorkspacePage({
   const organization = snapshot.organizations.find(
     (item) => item.organization_id === snapshot.context.organization_id,
   );
-  const visible = CONTEXT_SURFACES.filter((surface) =>
+  const visible = [...CONTEXT_SURFACES, ...CORPORATE_SURFACES].filter((surface) =>
     hasCapability(snapshot.context, surface.capability),
   );
   return (
@@ -56,10 +56,18 @@ export default async function WorkspacePage({
               href={surface.href}
               className="border-border hover:border-foreground/40 rounded-lg border p-5 transition-colors"
             >
-              <h2 className="font-medium">{t("surfaces." + surface.key)}</h2>
-              <p className="text-muted-foreground mt-2 text-sm">
-                {t("surfaceDescriptions." + surface.key)}
-              </p>
+              <h2 className="font-medium">
+                {t(
+                  CONTEXT_SURFACES.some((item) => item.key === surface.key)
+                    ? "surfaces." + surface.key
+                    : "corporateSurfaces." + surface.key,
+                )}
+              </h2>
+              {CONTEXT_SURFACES.some((item) => item.key === surface.key) && (
+                <p className="text-muted-foreground mt-2 text-sm">
+                  {t("surfaceDescriptions." + surface.key)}
+                </p>
+              )}
             </Link>
           ))}
           {CORPORATE_SURFACES.filter(
@@ -74,7 +82,13 @@ export default async function WorkspacePage({
               >
                 <h2 className="font-medium">{t("corporateSurfaces." + surface.key)}</h2>
                 <p className="text-muted-foreground mt-2 text-sm">
-                  {t(reason === "unsupported" ? "unsupported" : "unavailable")}
+                  {t(
+                    reason === "unsupported"
+                      ? "unsupported"
+                      : reason === "forbidden"
+                        ? "forbidden"
+                        : "unavailable",
+                  )}
                 </p>
               </div>
             );

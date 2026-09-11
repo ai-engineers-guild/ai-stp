@@ -734,6 +734,7 @@ function contextCapabilities(fixture: string | null, mode: "local" | "personal" 
     unavailable: {
       ...(mode === "local" ? PERSONAL_ONLY_UNAVAILABLE : {}),
       ...CORPORATE_ONLY_UNAVAILABLE,
+      ...(fixture === "corporate-surface-forbidden" ? { "team.manage": "forbidden" } : {}),
     },
   };
 }

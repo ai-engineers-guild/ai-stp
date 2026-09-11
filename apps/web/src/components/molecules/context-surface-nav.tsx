@@ -1,4 +1,9 @@
-import { CONTEXT_SURFACES, type ContextSurfaceKey } from "@/lib/context-surfaces";
+import {
+  CONTEXT_SURFACES,
+  CORPORATE_SURFACES,
+  type ContextSurfaceKey,
+  type CorporateSurfaceKey,
+} from "@/lib/context-surfaces";
 import type { ActiveContext } from "@/lib/api/generated/types.gen";
 import { Link } from "@/lib/i18n/navigation";
 import { hasCapability } from "@/lib/product-context";
@@ -13,7 +18,7 @@ export function ContextSurfaceNav({
 }: {
   context: ActiveContext;
   status: ProductContextStatus;
-  labels: Record<ContextSurfaceKey, string> & { navigation: string };
+  labels: Record<ContextSurfaceKey | CorporateSurfaceKey, string> & { navigation: string };
   reserveWhenHidden?: boolean;
 }) {
   if (status !== "ready") {
@@ -24,7 +29,9 @@ export function ContextSurfaceNav({
       />
     ) : null;
   }
-  const visible = CONTEXT_SURFACES.filter((surface) => hasCapability(context, surface.capability));
+  const visible = [...CONTEXT_SURFACES, ...CORPORATE_SURFACES].filter((surface) =>
+    hasCapability(context, surface.capability),
+  );
   return (
     <nav
       data-ui={UI.context.navigation}

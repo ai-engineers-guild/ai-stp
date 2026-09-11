@@ -4,6 +4,7 @@ const jar = {
   get: vi.fn((name: string) => {
     if (name === "ai_stp_session") return { value: "session-fixture" };
     if (name === "ai_stp_csrf") return { value: "csrf-fixture" };
+    if (name === "ai_stp_organization_id") return { value: "organization_fixture" };
     return undefined;
   }),
 };
@@ -70,6 +71,9 @@ describe("private request helpers", () => {
       }
       expect(init.cache).toBe("no-store");
       expect(init).not.toHaveProperty("next");
+      expect(init.headers).toMatchObject({
+        "X-AI-STP-Organization-Id": "organization_fixture",
+      });
     }
   });
 });

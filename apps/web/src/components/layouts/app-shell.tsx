@@ -72,6 +72,10 @@ export async function AppShell({ children, locale }: AppShellProps) {
             technology: tx("surfaces.technology"),
             landscape: tx("surfaces.landscape"),
             catalog: tx("surfaces.catalog"),
+            teams: tx("corporateSurfaces.teams"),
+            assignments: tx("corporateSurfaces.assignments"),
+            audit: tx("corporateSurfaces.audit"),
+            saml: tx("corporateSurfaces.saml"),
           }}
         />
       </div>

@@ -8,8 +8,14 @@ export const CONTEXT_SURFACES = [
 export type ContextSurfaceKey = (typeof CONTEXT_SURFACES)[number]["key"];
 
 export const CORPORATE_SURFACES = [
-  { key: "teams", capability: "team.manage" },
-  { key: "assignments", capability: "assignment.assign" },
-  { key: "audit", capability: "audit.read" },
-  { key: "saml", capability: "saml.manage" },
+  { key: "teams", href: "/workspace?surface=teams", capability: "team.manage" },
+  {
+    key: "assignments",
+    href: "/workspace?surface=assignments",
+    capability: "assignment.assign",
+  },
+  { key: "audit", href: "/workspace?surface=audit", capability: "audit.read" },
+  { key: "saml", href: "/workspace?surface=saml", capability: "saml.manage" },
 ] as const;
+
+export type CorporateSurfaceKey = (typeof CORPORATE_SURFACES)[number]["key"];

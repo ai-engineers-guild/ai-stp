@@ -9,6 +9,12 @@ const VIEWPORTS = [
 ] as const;
 const LOCALES = ["en", "ru"] as const;
 const MODES = ["local", "personal", "corporate"] as const;
+const SHARED_ROUTES = {
+  Projects: /\/en\/workspace\?surface=projects$/,
+  Technology: /\/en\/catalog\?resource=components$/,
+  Landscape: /\/en\/services$/,
+  Catalog: /\/en\/catalog$/,
+} as const;
 const STATES = {
   empty: "No organizations",
   partial: "Context partially loaded",
@@ -99,6 +105,30 @@ test.describe(`shared context matrix / ${profile} (REQ-7712)`, () => {
     }
   }
 
+  for (const mode of MODES) {
+    test(`${mode} enters every shared route from one navigation`, async ({ page }) => {
+      await fixture(page, mode, mode !== "local");
+      await page.goto("/en/workspace");
+      for (const [name, target] of Object.entries(SHARED_ROUTES)) {
+        await page
+          .getByRole("navigation", { name: "Context surfaces" })
+          .getByRole("link", { name, exact: true })
+          .click();
+        await expect(page).toHaveURL(target);
+      }
+    });
+  }
+
+  test("switcher contains only local and server-visible organizations", async ({ page }) => {
+    await fixture(page, "corporate");
+    await page.goto("/en/workspace");
+    await expect(page.getByRole("combobox").first().locator("option")).toHaveText([
+      "Local",
+      "Personal (Personal)",
+      "Acme Corp (Corporate)",
+    ]);
+  });
+
   for (const [state, label] of Object.entries(STATES)) {
     test(`${state} is distinct on direct URL`, async ({ page }) => {
       await fixture(page, state);
@@ -149,6 +179,13 @@ test.describe(`shared context matrix / ${profile} (REQ-7712)`, () => {
       await expect(workspace.getByRole("button")).toHaveCount(0);
       await expect(workspace.getByRole("link")).toHaveCount(0);
     }
+  });
+
+  test("forbidden corporate surfaces are not presented as unavailable", async ({ page }) => {
+    await fixture(page, "corporate-surface-forbidden");
+    await page.goto("/en/workspace");
+    const teams = page.locator('[data-ui="unavailable-surface"]').filter({ hasText: "Teams" });
+    await expect(teams).toContainText("Access denied");
   });
 
   test("personal mode rejects corporate-only direct URLs", async ({ page }) => {
