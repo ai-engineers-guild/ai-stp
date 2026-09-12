@@ -178,6 +178,7 @@ last_verified: "2026-08-03"
 | [ADR-0178-project-identities-link-explicitly.md](ADR-0178-project-identities-link-explicitly.md) | Local, remote, and provider project identities remain distinct and are linked only by an explicit revisioned binding. | 2026-09-09 |
 | [ADR-0179-corporate-authorization-is-a-tenant-scoped-policy-table.md](ADR-0179-corporate-authorization-is-a-tenant-scoped-policy-table.md) | Corporate authorization uses persisted tenant-scoped role bindings, one server evaluator, and transactional audit. | 2026-09-12 |
 | [ADR-0180-permanent-dev-and-protected-main.md](ADR-0180-permanent-dev-and-protected-main.md) | Permanent dev integration and protected main promotion with administrator bypass. | 2026-09-12 |
+| [ADR-0181-canonical-technology-relations-and-facts.md](ADR-0181-canonical-technology-relations-and-facts.md) | One tenant-scoped technology registry and canonical relations with attached reviewed facts, not duplicate landscape edges. | 2026-09-12 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

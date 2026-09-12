@@ -1,0 +1,189 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-landscape-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adoption": {
+      "anyOf": [
+        {
+          "enum": [
+            "none",
+            "assess",
+            "trial",
+            "adopt",
+            "hold"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Adoption"
+    },
+    "category_id": {
+      "anyOf": [
+        {
+          "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Category Id"
+    },
+    "context": {
+      "anyOf": [
+        {
+          "enum": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Context"
+    },
+    "freshness": {
+      "anyOf": [
+        {
+          "enum": [
+            "current",
+            "stale",
+            "absent",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Freshness"
+    },
+    "include_history": {
+      "default": false,
+      "title": "Include History",
+      "type": "boolean"
+    },
+    "include_inactive": {
+      "default": false,
+      "title": "Include Inactive",
+      "type": "boolean"
+    },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "enum": [
+            "draft",
+            "active",
+            "deprecated",
+            "archived"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lifecycle"
+    },
+    "limit": {
+      "default": 128,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "project_limit": {
+      "default": 128,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Project Limit",
+      "type": "integer"
+    },
+    "project_offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Project Offset",
+      "type": "integer"
+    },
+    "review": {
+      "anyOf": [
+        {
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected",
+            "overridden",
+            "retired"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Review"
+    },
+    "team_id": {
+      "anyOf": [
+        {
+          "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Team Id"
+    },
+    "technology_id": {
+      "anyOf": [
+        {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Technology Id"
+    }
+  },
+  "title": "TechnologyLandscapeQuery",
+  "type": "object"
+}

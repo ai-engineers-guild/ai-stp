@@ -13,7 +13,7 @@ type CorporateMutation = {
   csrfToken: string;
   organizationId: string;
   path: string;
-  method: "POST" | "PATCH" | "DELETE";
+  method: "POST" | "PUT" | "PATCH" | "DELETE";
   body: unknown;
 };
 
