@@ -5,7 +5,7 @@
       "type": "string"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:corporate-project-update-request",
+  "$id": "urn:ai-stp:schema:v1:corporate-team-update-request",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -50,6 +50,6 @@
     "authorization_revision",
     "idempotency_key"
   ],
-  "title": "CorporateProjectUpdateRequest",
+  "title": "CorporateTeamUpdateRequest",
   "type": "object"
 }

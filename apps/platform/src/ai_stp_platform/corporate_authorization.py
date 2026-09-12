@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.organization_models import (
+    CorporateRole,
     CorporateRoleBinding,
     CorporateRolePermission,
     CorporateServicePrincipal,
@@ -17,6 +18,34 @@ from ai_stp_platform.organization_models import (
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 PrincipalType = Literal["user", "service_principal"]
+
+
+async def _role_has_permission(
+    session: AsyncSession, *, organization_id: str, role: str, permission: str
+) -> bool:
+    """Resolve a role's inherited permissions inside one tenant."""
+    current: str | None = role
+    seen: set[str] = set()
+    while current is not None and current not in seen and len(seen) < 32:
+        seen.add(current)
+        if (
+            await session.scalar(
+                select(CorporateRolePermission.role).where(
+                    CorporateRolePermission.organization_id == organization_id,
+                    CorporateRolePermission.role == current,
+                    CorporateRolePermission.permission == permission,
+                )
+            )
+            is not None
+        ):
+            return True
+        current = await session.scalar(
+            select(CorporateRole.parent_role).where(
+                CorporateRole.organization_id == organization_id,
+                CorporateRole.name == current,
+            )
+        )
+    return False
 
 
 async def has_corporate_permission(
@@ -62,18 +91,12 @@ async def has_corporate_permission(
         return False
     scope = scope_id or organization_id
     binding = await session.scalar(
-        select(CorporateRoleBinding.id)
-        .join(
-            CorporateRolePermission,
-            (CorporateRolePermission.organization_id == CorporateRoleBinding.organization_id)
-            & (CorporateRolePermission.role == CorporateRoleBinding.role),
-        )
+        select(CorporateRoleBinding.role)
         .where(
             CorporateRoleBinding.organization_id == organization_id,
             CorporateRoleBinding.principal_type == principal_type,
             principal_filter,
             CorporateRoleBinding.state == "active",
-            CorporateRolePermission.permission == permission,
             (
                 (CorporateRoleBinding.scope_kind == "organization")
                 & ((CorporateRoleBinding.role == "superadmin") | (scope_kind == "organization"))
@@ -88,7 +111,9 @@ async def has_corporate_permission(
         )
         .limit(1)
     )
-    return binding is not None
+    return binding is not None and await _role_has_permission(
+        session, organization_id=organization_id, role=binding, permission=permission
+    )
 
 
 __all__ = ["PrincipalType", "has_corporate_permission"]

@@ -5,7 +5,7 @@
       "type": "string"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:corporate-project-update-request",
+  "$id": "urn:ai-stp:schema:v1:corporate-binding-update-request",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -22,10 +22,12 @@
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
-    "name": {
-      "maxLength": 200,
+    "role": {
+      "description": "Tenant-local role name.",
+      "maxLength": 64,
       "minLength": 1,
-      "title": "Name",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "title": "Role",
       "type": "string"
     },
     "schema_version": {
@@ -34,22 +36,43 @@
       "title": "Schema Version",
       "type": "integer"
     },
+    "scope_id": {
+      "default": "*",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "scope_kind": {
+      "enum": [
+        "system",
+        "organization",
+        "team",
+        "project",
+        "technology",
+        "catalog_object",
+        "telemetry"
+      ],
+      "title": "Scope Kind",
+      "type": "string"
+    },
     "state": {
       "enum": [
         "active",
-        "archived"
+        "revoked"
       ],
       "title": "State",
       "type": "string"
     }
   },
   "required": [
-    "name",
+    "role",
+    "scope_kind",
     "state",
     "expected_revision",
     "authorization_revision",
     "idempotency_key"
   ],
-  "title": "CorporateProjectUpdateRequest",
+  "title": "CorporateBindingUpdateRequest",
   "type": "object"
 }

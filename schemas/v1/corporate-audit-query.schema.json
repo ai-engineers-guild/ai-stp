@@ -36,6 +36,17 @@
       "default": null,
       "title": "Actor Account Id"
     },
+    "before_created_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "before_id": {
       "anyOf": [
         {

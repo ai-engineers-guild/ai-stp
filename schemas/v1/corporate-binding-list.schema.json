@@ -1,23 +1,33 @@
 {
   "$defs": {
-    "CorporateMember": {
+    "CorporateBinding": {
       "additionalProperties": true,
       "properties": {
         "account_id": {
-          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-          "title": "Account Id",
-          "type": "string"
-        },
-        "display_name": {
           "anyOf": [
             {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "type": "string"
             },
             {
               "type": "null"
             }
           ],
-          "title": "Display Name"
+          "default": null,
+          "title": "Account Id"
+        },
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "default": "user",
+          "enum": [
+            "user",
+            "service_principal"
+          ],
+          "title": "Principal Type",
+          "type": "string"
         },
         "revision": {
           "minimum": 1,
@@ -38,10 +48,39 @@
           "title": "Schema Version",
           "type": "integer"
         },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "system",
+            "organization",
+            "team",
+            "project",
+            "technology",
+            "catalog_object",
+            "telemetry"
+          ],
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "service_principal_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Principal Id"
+        },
         "state": {
           "enum": [
             "active",
-            "suspended"
+            "revoked"
           ],
           "title": "State",
           "type": "string"
@@ -49,23 +88,27 @@
       },
       "required": [
         "account_id",
-        "display_name",
+        "binding_id",
+        "principal_type",
         "revision",
         "role",
         "schema_version",
+        "scope_id",
+        "scope_kind",
+        "service_principal_id",
         "state"
       ],
-      "title": "CorporateMember",
+      "title": "CorporateBinding",
       "type": "object"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:corporate-member-list",
+  "$id": "urn:ai-stp:schema:v1:corporate-binding-list",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
     "items": {
       "items": {
-        "$ref": "#/$defs/CorporateMember"
+        "$ref": "#/$defs/CorporateBinding"
       },
       "maxItems": 256,
       "title": "Items",
@@ -82,6 +125,6 @@
     "items",
     "schema_version"
   ],
-  "title": "CorporateMemberList",
+  "title": "CorporateBindingList",
   "type": "object"
 }

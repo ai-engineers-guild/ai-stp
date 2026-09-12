@@ -35,11 +35,10 @@
           "type": "integer"
         },
         "role": {
-          "enum": [
-            "superadmin",
-            "lead",
-            "staff"
-          ],
+          "description": "Tenant-local role name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
           "title": "Role",
           "type": "string"
         },

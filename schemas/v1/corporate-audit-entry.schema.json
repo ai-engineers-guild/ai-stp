@@ -70,6 +70,11 @@
       "title": "Outcome",
       "type": "string"
     },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    },
     "reason": {
       "anyOf": [
         {
@@ -116,6 +121,7 @@
     "created_at",
     "effective_role_bindings",
     "outcome",
+    "payload",
     "reason",
     "request_id",
     "schema_version",

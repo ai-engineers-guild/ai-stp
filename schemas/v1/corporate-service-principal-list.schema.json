@@ -100,80 +100,82 @@
       ],
       "title": "CorporateBinding",
       "type": "object"
+    },
+    "CorporateServicePrincipalView": {
+      "additionalProperties": true,
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/CorporateBinding"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "service_principal_id": {
+          "title": "Service Principal Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "suspended"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "binding",
+        "name",
+        "organization_id",
+        "revision",
+        "schema_version",
+        "service_principal_id",
+        "state"
+      ],
+      "title": "CorporateServicePrincipalView",
+      "type": "object"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:corporate-membership-assignment",
+  "$id": "urn:ai-stp:schema:v1:corporate-service-principal-list",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
-    "account_id": {
-      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-      "title": "Account Id",
-      "type": "string"
-    },
-    "bindings": {
+    "items": {
       "items": {
-        "$ref": "#/$defs/CorporateBinding"
+        "$ref": "#/$defs/CorporateServicePrincipalView"
       },
-      "maxItems": 2,
-      "title": "Bindings",
+      "maxItems": 256,
+      "title": "Items",
       "type": "array"
-    },
-    "operation": {
-      "default": "assign",
-      "enum": [
-        "assign",
-        "remove"
-      ],
-      "title": "Operation",
-      "type": "string"
-    },
-    "project_id": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "title": "Project Id"
     },
     "schema_version": {
       "const": 1,
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
-    },
-    "team_id": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "title": "Team Id"
-    },
-    "team_role": {
-      "enum": [
-        "lead",
-        "staff"
-      ],
-      "title": "Team Role",
-      "type": "string"
     }
   },
   "required": [
-    "account_id",
-    "bindings",
-    "operation",
-    "project_id",
-    "schema_version",
-    "team_id",
-    "team_role"
+    "items",
+    "schema_version"
   ],
-  "title": "CorporateMembershipAssignment",
+  "title": "CorporateServicePrincipalList",
   "type": "object"
 }

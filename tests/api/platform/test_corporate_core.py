@@ -8,7 +8,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, text
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_api.session import issue_session
@@ -17,7 +17,11 @@ from ai_stp_api.slices.auth.service import resolve_login_identity
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account, AuditEvent
-from ai_stp_platform.organization_models import CorporateProject, Organization
+from ai_stp_platform.organization_models import (
+    CorporateProject,
+    CorporateProjectMember,
+    Organization,
+)
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 pytestmark = pytest.mark.platform
@@ -85,6 +89,20 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     organization = bootstrap.json()
     organization_id = organization["organization_id"]
     assert organization["authorization_revision"] == 1
+
+    invalid_role_member = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/members",
+        json={
+            "schema_version": 1,
+            "display_name": "Invalid Role",
+            "email": "invalid.role@example.com",
+            "role": "missing_role",
+            "authorization_revision": 1,
+            "idempotency_key": "create-invalid-role-0001",
+        },
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert invalid_role_member.status_code == 400
 
     replay = await client.post(
         "/v1/corporate/bootstrap",
@@ -158,6 +176,36 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     )
     assert context.status_code == 200, context.text
     revision = context.json()["organization"]["authorization_revision"]
+    bindings = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/bindings", headers=auth
+    )
+    assert bindings.status_code == 200, bindings.text
+    assert len(bindings.json()["items"]) == 3
+    binding_id = bindings.json()["items"][0]["binding_id"]
+    binding = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/bindings/{binding_id}", headers=auth
+    )
+    assert binding.status_code == 200, binding.text
+    owner_binding = next(
+        item
+        for item in bindings.json()["items"]
+        if item["account_id"] == owner_id and item["role"] == "superadmin"
+    )
+    demote_binding = await client.patch(
+        f"/v1/corporate/organizations/{organization_id}/bindings/{owner_binding['binding_id']}",
+        json={
+            "schema_version": 1,
+            "role": "lead",
+            "scope_kind": "organization",
+            "scope_id": organization_id,
+            "state": "active",
+            "expected_revision": owner_binding["revision"],
+            "authorization_revision": revision,
+            "idempotency_key": "demote-last-superadmin-binding-0001",
+        },
+        headers=auth,
+    )
+    assert demote_binding.status_code == 409, demote_binding.text
     project = await client.post(
         f"/v1/corporate/organizations/{organization_id}/projects",
         json={
@@ -170,6 +218,9 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     )
     assert project.status_code == 200, project.text
     project_id = project.json()["project_id"]
+    revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
     team = await client.post(
         f"/v1/corporate/organizations/{organization_id}/teams",
         json={
@@ -181,6 +232,9 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         headers=auth,
     )
     assert team.status_code == 200, team.text
+    revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
     assignment = await client.post(
         f"/v1/corporate/organizations/{organization_id}/membership-assignments",
         json={
@@ -195,29 +249,86 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         headers=auth,
     )
     assert assignment.status_code == 200, assignment.text
+    revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
     hidden_project = await client.post(
         f"/v1/corporate/organizations/{organization_id}/projects",
         json={
             "schema_version": 1,
             "name": "Restricted",
-            "authorization_revision": revision + 1,
+            "authorization_revision": revision,
             "idempotency_key": "create-project-0002",
         },
         headers=auth,
     )
     assert hidden_project.status_code == 200, hidden_project.text
+    revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
     lead_assignment = await client.post(
         f"/v1/corporate/organizations/{organization_id}/membership-assignments",
         json={
             "schema_version": 1,
             "account_id": lead_id,
             "project_id": project_id,
-            "authorization_revision": revision + 1,
+            "authorization_revision": revision,
             "idempotency_key": "assign-lead-0001",
         },
         headers=auth,
     )
     assert lead_assignment.status_code == 200, lead_assignment.text
+    revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
+
+    privileged_team_binding = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/bindings",
+        json={
+            "schema_version": 1,
+            "account_id": member_id,
+            "role": "superadmin",
+            "scope_kind": "team",
+            "scope_id": team.json()["team_id"],
+            "authorization_revision": revision,
+            "idempotency_key": "create-team-superadmin-binding-0001",
+        },
+        headers=auth,
+    )
+    assert privileged_team_binding.status_code == 200, privileged_team_binding.text
+    revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
+    promoted_member = await client.patch(
+        f"/v1/corporate/organizations/{organization_id}/members/{member_id}",
+        json={
+            "schema_version": 1,
+            "role": "lead",
+            "state": "active",
+            "expected_revision": 1,
+            "idempotency_key": "promote-member-0001",
+            "authorization_revision": revision,
+        },
+        headers=auth,
+    )
+    assert promoted_member.status_code == 200, promoted_member.text
+    member_bindings = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/bindings", headers=auth)
+    ).json()["items"]
+    assert not any(
+        item["account_id"] == member_id
+        and item["scope_kind"] == "team"
+        and item["role"] == "superadmin"
+        and item["state"] == "active"
+        for item in member_bindings
+    )
+    assert any(
+        item["account_id"] == member_id
+        and item["scope_kind"] == "team"
+        and item["role"] == "lead"
+        and item["state"] == "active"
+        for item in member_bindings
+    )
 
     _lead_id, lead_token = await _account_token(sessionmaker, account_id=lead_id)
     lead_auth = {"Authorization": f"Bearer {lead_token}"}
@@ -228,7 +339,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "name": "Core updated",
             "state": "active",
             "expected_revision": 1,
-            "authorization_revision": revision + 2,
+            "idempotency_key": "update-lead-project-0001",
+            "authorization_revision": revision + 1,
         },
         headers=lead_auth,
     )
@@ -240,6 +352,7 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "name": "Restricted changed",
             "state": "active",
             "expected_revision": 1,
+            "idempotency_key": "update-foreign-project-0001",
             "authorization_revision": revision + 2,
         },
         headers=lead_auth,
@@ -293,7 +406,9 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     removal_payload = {
         **reassignment_payload,
         "operation": "remove",
-        "authorization_revision": membership_revision + 1,
+        "authorization_revision": (
+            await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+        ).json()["organization"]["authorization_revision"],
         "idempotency_key": "remove-staff-membership-0001",
     }
     removal = await client.post(
@@ -328,14 +443,21 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             )
         )
         await db.flush()
+        foreign_project_id = new_id("remote_project")
+        db.add(CorporateProject(id=foreign_project_id, organization_id=foreign_id, name="Hidden"))
+        await db.commit()
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, "*")
         db.add(
-            CorporateProject(
-                id=new_id("remote_project"),
+            CorporateProjectMember(
                 organization_id=foreign_id,
-                name="Hidden",
+                project_id=foreign_project_id,
+                account_id=owner_id,
             )
         )
-        await db.commit()
+        with pytest.raises(IntegrityError):
+            await db.flush()
+        await db.rollback()
     foreign = await client.get(f"/v1/corporate/organizations/{foreign_id}/projects", headers=auth)
     assert foreign.status_code == 403
     assert "Hidden" not in foreign.text
@@ -376,12 +498,14 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     actions = {item["action"] for item in audit.json()["items"]}
     assert {
         "corporate.bootstrap",
+        "corporate.bootstrap.replay",
         "member.create",
         "project.create",
         "team.create",
         "member.assign",
         "member.remove",
     } <= actions
+    assert any(item.startswith("member.") and item.endswith(".replay") for item in actions)
     async with sessionmaker() as db:
         await set_tenant_scope(db, organization_id)
         membership_audit = await db.scalar(
@@ -418,7 +542,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "schema_version": 1,
             "role": "staff",
             "state": "active",
-            "expected_revision": 1,
+            "expected_revision": 2,
+            "idempotency_key": "update-member-0001",
             "authorization_revision": current,
         },
         headers=auth,
@@ -458,18 +583,30 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "schema_version": 1,
             "state": "suspended",
             "expected_revision": 1,
+            "idempotency_key": "update-service-principal-0001",
             "authorization_revision": current + 1,
         },
         headers=auth,
     )
     assert suspended.status_code == 200, suspended.text
     assert suspended.json()["binding"]["state"] == "revoked"
+    suspended_list = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/service-principals", headers=auth
+    )
+    assert suspended_list.status_code == 200, suspended_list.text
+    assert suspended_list.json()["items"][0]["state"] == "suspended"
+    suspended_read = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/service-principals/{principal_id}",
+        headers=auth,
+    )
+    assert suspended_read.status_code == 200, suspended_read.text
     reactivated = await client.patch(
         f"/v1/corporate/organizations/{organization_id}/service-principals/{principal_id}",
         json={
             "schema_version": 1,
             "state": "active",
             "expected_revision": 2,
+            "idempotency_key": "reactivate-service-principal-0001",
             "authorization_revision": current + 2,
         },
         headers=auth,
@@ -486,8 +623,91 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "role": "staff",
             "state": "active",
             "expected_revision": 1,
+            "idempotency_key": "demote-last-superadmin-0001",
             "authorization_revision": current,
         },
         headers=auth,
     )
     assert last_admin.status_code == 409
+
+    role_revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
+    created_role = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/roles",
+        json={
+            "schema_version": 1,
+            "name": "project_reviewer",
+            "parent_role": "lead",
+            "permissions": [],
+            "authorization_revision": role_revision,
+            "idempotency_key": "create-role-0001",
+        },
+        headers=auth,
+    )
+    assert created_role.status_code == 200, created_role.text
+    assert created_role.json()["parent_role"] == "lead"
+    missing_parent_role = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/roles",
+        json={
+            "schema_version": 1,
+            "name": "orphan_role",
+            "parent_role": "missing_role",
+            "permissions": [],
+            "authorization_revision": role_revision + 1,
+            "idempotency_key": "create-orphan-role-0001",
+        },
+        headers=auth,
+    )
+    assert missing_parent_role.status_code == 400
+    roles = await client.get(f"/v1/corporate/organizations/{organization_id}/roles", headers=auth)
+    assert roles.status_code == 200, roles.text
+    assert "project_reviewer" in {item["name"] for item in roles.json()["items"]}
+    role_revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
+    role_binding = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/bindings",
+        json={
+            "schema_version": 1,
+            "account_id": member_id,
+            "role": "project_reviewer",
+            "scope_kind": "project",
+            "scope_id": project_id,
+            "authorization_revision": role_revision,
+            "idempotency_key": "create-role-binding-0001",
+        },
+        headers=auth,
+    )
+    assert role_binding.status_code == 200, role_binding.text
+    async with sessionmaker() as db:
+        assert await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=member_id,
+            permission="project.update",
+            scope_kind="project",
+            scope_id=project_id,
+        )
+    unsupported_scope = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/bindings",
+        json={
+            "schema_version": 1,
+            "account_id": member_id,
+            "role": "project_reviewer",
+            "scope_kind": "telemetry",
+            "scope_id": "foreign-telemetry-id",
+            "authorization_revision": role_revision + 1,
+            "idempotency_key": "create-unsupported-scope-0001",
+        },
+        headers=auth,
+    )
+    assert unsupported_scope.status_code == 403
+    exported = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/audit/export", headers=auth
+    )
+    assert exported.status_code == 200, exported.text
+    assert exported.json()["organization_id"] == organization_id
+    assert any(item["action"] == "role.create" for item in exported.json()["items"])
+    assert all("token" not in item["payload"] for item in exported.json()["items"])

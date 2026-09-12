@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,11 +59,16 @@ def redact_payload(payload: Mapping[str, Any] | None) -> dict[str, object]:
         lowered = key.lower()
         if lowered in _REDACT_KEYS or any(part in lowered for part in _REDACT_KEYS):
             continue
-        if isinstance(value, Mapping):
-            cleaned[key] = redact_payload(value)  # type: ignore[arg-type]
-        else:
-            cleaned[key] = value
+        cleaned[key] = _redact_value(value)
     return cleaned
+
+
+def _redact_value(value: Any) -> object:
+    if isinstance(value, Mapping):
+        return redact_payload(cast(Mapping[str, Any], value))
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
+        return [_redact_value(item) for item in cast(Sequence[Any], value)]
+    return value
 
 
 async def emit_audit(

@@ -200,27 +200,29 @@ def status_to_category(status_code: int) -> ErrorCategory:
 
 async def _api_error_handler(request: Request, exc: Exception) -> JSONResponse:
     error = exc if isinstance(exc, ApiError) else ApiError(ErrorCategory.INTERNAL, "internal error")
-    if error.category is ErrorCategory.PERMISSION:
-        await _audit_denial(request)
+    await _audit_http_outcome(request, error)
     return _build(request, error.category, error.message, error.details)
 
 
-async def _audit_denial(request: Request) -> None:
-    """Persist a safe denial after the failed request transaction rolls back."""
+async def _audit_http_outcome(request: Request, error: ApiError) -> None:
+    """Persist a safe rejected corporate request after its transaction rolls back."""
     from sqlalchemy import select
 
     from ai_stp_api.audit import emit_audit
     from ai_stp_platform.organization_models import OrganizationMembership
+    from ai_stp_platform.tenant_scope import set_tenant_scope
 
+    app = request.scope.get("app")
+    sessionmaker = getattr(getattr(app, "state", None), "sessionmaker", None)
     ctx = getattr(request.state, "auth_context", None)
-    sessionmaker = getattr(request.app.state, "sessionmaker", None)
-    if ctx is None or sessionmaker is None:
+    if sessionmaker is None:
         return
     requested = request.path_params.get("organization_id")
     try:
         async with sessionmaker() as db:
+            await set_tenant_scope(db, "*")
             organization_id = None
-            if isinstance(requested, str):
+            if isinstance(requested, str) and ctx is not None:
                 organization_id = await db.scalar(
                     select(OrganizationMembership.organization_id).where(
                         OrganizationMembership.organization_id == requested,
@@ -229,13 +231,18 @@ async def _audit_denial(request: Request) -> None:
                 )
             await emit_audit(
                 db,
-                actor_account_id=ctx.account_id,
+                actor_account_id=ctx.account_id if ctx is not None else None,
                 organization_id=organization_id,
-                action=f"http.{request.method.lower()}.denied",
+                action=f"http.{request.method.lower()}."
+                f"{'denied' if error.category is ErrorCategory.PERMISSION else 'failed'}",
                 target_table="http_route",
                 target_id=request.url.path if organization_id is not None else "redacted",
-                outcome="denied",
-                reason="capability_forbidden",
+                outcome="denied" if error.category is ErrorCategory.PERMISSION else "failed",
+                reason=(
+                    "capability_forbidden"
+                    if error.category is ErrorCategory.PERMISSION
+                    else error.category.value
+                ),
                 request_id=_request_id(request),
             )
             await db.commit()
@@ -247,6 +254,9 @@ async def _validation_handler(request: Request, exc: Exception) -> JSONResponse:
     fields: list[str] = []
     if isinstance(exc, RequestValidationError):
         fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()]
+    await _audit_http_outcome(
+        request, ApiError(ErrorCategory.VALIDATION, "request validation failed")
+    )
     return _build(
         request, ErrorCategory.VALIDATION, "request validation failed", {"fields": fields}
     )
@@ -255,11 +265,16 @@ async def _validation_handler(request: Request, exc: Exception) -> JSONResponse:
 async def _http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     status_code = exc.status_code if isinstance(exc, StarletteHTTPException) else 500
     category = status_to_category(status_code)
+    await _audit_http_outcome(
+        request,
+        ApiError(category, HTTPStatus(status_code).phrase),
+    )
     return _build(request, category, HTTPStatus(status_code).phrase, {})
 
 
 async def _unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
     _log.error("unhandled_exception", error_type=type(exc).__name__)
+    await _audit_http_outcome(request, ApiError(ErrorCategory.INTERNAL, "internal error"))
     return _build(request, ErrorCategory.INTERNAL, "internal error", {})
 
 

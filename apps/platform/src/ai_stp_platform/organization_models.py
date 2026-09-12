@@ -97,10 +97,7 @@ class OrganizationMembership(Base):
         UniqueConstraint(
             "organization_id", "account_id", name="uq_organization_membership_account"
         ),
-        CheckConstraint(
-            "role in ('owner', 'admin', 'member', 'superadmin', 'lead', 'staff')",
-            name="ck_organization_membership_role",
-        ),
+        CheckConstraint("length(role) between 1 and 64", name="ck_organization_membership_role"),
         CheckConstraint(
             "state in ('active', 'suspended')", name="ck_organization_membership_state"
         ),
@@ -115,7 +112,7 @@ class OrganizationMembership(Base):
     account_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    role: Mapped[str] = mapped_column(String(16), nullable=False, default="member")
+    role: Mapped[str] = mapped_column(String(64), nullable=False, default="member")
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -130,13 +127,17 @@ class CorporateRolePermission(Base):
     __tablename__ = "corporate_role_permission"
     __table_args__ = (
         PrimaryKeyConstraint("organization_id", "role", "permission"),
-        CheckConstraint("role in ('superadmin', 'lead', 'staff')", name="ck_role_permission_role"),
+        ForeignKeyConstraint(
+            ["organization_id", "role"],
+            ["corporate_role.organization_id", "corporate_role.name"],
+            ondelete="CASCADE",
+        ),
     )
 
     organization_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
     )
-    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    role: Mapped[str] = mapped_column(String(64), nullable=False)
     permission: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
@@ -144,20 +145,14 @@ class CorporateRole(Base):
     """One named corporate role and its persisted hierarchy edge."""
 
     __tablename__ = "corporate_role"
-    __table_args__ = (
-        PrimaryKeyConstraint("organization_id", "name"),
-        CheckConstraint("name in ('superadmin', 'lead', 'staff')", name="ck_corporate_role_name"),
-        CheckConstraint(
-            "parent_role is null or parent_role in ('superadmin', 'lead')",
-            name="ck_corporate_role_parent",
-        ),
-    )
+    __table_args__ = (PrimaryKeyConstraint("organization_id", "name"),)
 
     organization_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False
     )
-    name: Mapped[str] = mapped_column(String(16), nullable=False)
-    parent_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    parent_role: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 class CorporateServicePrincipal(Base):
@@ -199,6 +194,16 @@ class CorporateRoleBinding(Base):
             ],
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "account_id"],
+            ["organization_membership.organization_id", "organization_membership.account_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "role"],
+            ["corporate_role.organization_id", "corporate_role.name"],
+            ondelete="RESTRICT",
+        ),
         Index(
             "uq_corporate_role_binding_active_user_scope",
             "organization_id",
@@ -219,7 +224,6 @@ class CorporateRoleBinding(Base):
             unique=True,
             postgresql_where=text("state = 'active' AND principal_type = 'service_principal'"),
         ),
-        CheckConstraint("role in ('superadmin', 'lead', 'staff')", name="ck_role_binding_role"),
         CheckConstraint(
             "scope_kind in ('system', 'organization', 'team', 'project', 'technology', "
             "'catalog_object', 'telemetry')",
@@ -245,7 +249,7 @@ class CorporateRoleBinding(Base):
         String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=True, index=True
     )
     service_principal_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    role: Mapped[str] = mapped_column(String(64), nullable=False)
     scope_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     scope_id: Mapped[str] = mapped_column(String(64), nullable=False, default="*")
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
@@ -314,6 +318,11 @@ class CorporateTeamMember(Base):
             ["corporate_team.organization_id", "corporate_team.id"],
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "account_id"],
+            ["organization_membership.organization_id", "organization_membership.account_id"],
+            ondelete="CASCADE",
+        ),
         CheckConstraint("role in ('lead', 'staff')", name="ck_corporate_team_member_role"),
     )
 
@@ -335,6 +344,11 @@ class CorporateProjectMember(Base):
         ForeignKeyConstraint(
             ["organization_id", "project_id"],
             ["corporate_project.organization_id", "corporate_project.id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "account_id"],
+            ["organization_membership.organization_id", "organization_membership.account_id"],
             ondelete="CASCADE",
         ),
     )

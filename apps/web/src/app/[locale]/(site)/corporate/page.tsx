@@ -2,14 +2,19 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { CorporateAdminPanel } from "@/components/organisms/corporate-admin-panel";
+import { CorporateAccessPanel } from "@/components/organisms/corporate-access-panel";
+import { CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
 import { ApiError } from "@/lib/api/errors";
 import { readCorporateWorkspace } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { readCsrfToken } from "@/lib/auth/session";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
 type PageProps = { params: Promise<{ locale: string }> };
 
+// eslint-disable-next-line max-lines-per-function, complexity
 export default async function CorporatePage({ params }: PageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -30,9 +35,11 @@ export default async function CorporatePage({ params }: PageProps) {
     return <StatePanel kind="empty" title={t("emptyTitle")} description={t("emptyBody")} />;
   }
 
-  const { context, members } = workspace;
+  const { context, members, roles, bindings, servicePrincipals, audit } = workspace;
   const canManageMembers = context.capabilities.includes("member.list");
   const canManageProjects = context.capabilities.includes("project.create");
+  const canManageTeams = context.capabilities.includes("team.create");
+  const canManageRoles = context.capabilities.includes("role.create");
 
   return (
     <div className="min-w-0 space-y-8">
@@ -71,6 +78,20 @@ export default async function CorporatePage({ params }: PageProps) {
           kind="teams"
           openLabel={t("open")}
         />
+        {roles ? (
+          <CorporateList
+            title={t("roles")}
+            empty={t("noRoles")}
+            items={roles.items.map((item) => ({
+              id: item.name,
+              name: item.name,
+              state: item.parent_role ?? "base",
+              revision: item.revision,
+            }))}
+            kind="roles"
+            openLabel={t("open")}
+          />
+        ) : null}
       </div>
 
       {members && (
@@ -103,14 +124,96 @@ export default async function CorporatePage({ params }: PageProps) {
         </section>
       )}
 
-      {(canManageMembers || canManageProjects) && (
-        <section className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
-          <h2 className="text-xl font-medium">{t("administration")}</h2>
-          <p className="text-muted-foreground mt-2 text-sm">
-            {canManageMembers ? t("membersAllowed") : t("projectsAllowed")}
-          </p>
-        </section>
+      {(canManageMembers || canManageProjects || canManageTeams || canManageRoles) && (
+        <CorporateAdminPanel
+          csrfToken={(await readCsrfToken()) ?? ""}
+          organizationId={context.organization.organization_id}
+          authorizationRevision={context.organization.authorization_revision}
+          permissions={context.capabilities}
+          labels={{
+            title: t("administration"),
+            description: t("administrationBody"),
+            members: t("members"),
+            projects: t("projects"),
+            teams: t("teams"),
+            roles: t("roles"),
+            displayName: t("displayName"),
+            email: t("email"),
+            name: t("name"),
+            role: t("role"),
+            parentRole: t("parentRole"),
+            permissions: t("permissions"),
+            create: t("create"),
+            creating: t("creating"),
+            saved: t("saved"),
+            failed: t("failed"),
+            staff: t("staff"),
+            lead: t("lead"),
+          }}
+        />
       )}
+      {(context.capabilities.includes("member.manage") ||
+        context.capabilities.includes("binding.create") ||
+        context.capabilities.includes("service_principal.manage")) && (
+        <CorporateAccessPanel
+          csrfToken={(await readCsrfToken()) ?? ""}
+          organizationId={context.organization.organization_id}
+          authorizationRevision={context.organization.authorization_revision}
+          members={members?.items ?? []}
+          projects={context.projects}
+          teams={context.teams}
+          roles={roles?.items ?? []}
+          bindings={bindings?.items ?? []}
+          servicePrincipals={servicePrincipals?.items ?? []}
+          permissions={context.capabilities}
+          labels={{
+            title: t("accessAdministration"),
+            assignments: t("assignments"),
+            bindings: t("bindings"),
+            servicePrincipals: t("servicePrincipals"),
+            member: t("member"),
+            team: t("team"),
+            project: t("project"),
+            role: t("role"),
+            state: t("state"),
+            scope: t("scope"),
+            organization: t("organization"),
+            operation: t("operation"),
+            assign: t("assign"),
+            remove: t("remove"),
+            create: t("create"),
+            creating: t("creating"),
+            update: t("update"),
+            saving: t("saving"),
+            delete: t("delete"),
+            deleting: t("deleting"),
+            activate: t("active"),
+            suspend: t("suspended"),
+            staff: t("staff"),
+            lead: t("lead"),
+            superadmin: t("superadmin"),
+            noBindings: t("noBindings"),
+            noServicePrincipals: t("noServicePrincipals"),
+            confirmDelete: t("confirmDelete"),
+            targetRequired: t("targetRequired"),
+            saved: t("saved"),
+            failed: t("failed"),
+          }}
+        />
+      )}
+      {audit ? (
+        <CorporateAuditPanel
+          organizationId={context.organization.organization_id}
+          audit={audit}
+          labels={{
+            title: t("auditJournal"),
+            export: t("exportAudit"),
+            exporting: t("exportingAudit"),
+            noAudit: t("noAudit"),
+            failed: t("failed"),
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -125,7 +228,7 @@ function CorporateList({
   title: string;
   empty: string;
   items: ReadonlyArray<{ id: string; name: string; state: string; revision: number }>;
-  kind: "projects" | "teams";
+  kind: "projects" | "teams" | "roles";
   openLabel: string;
 }) {
   return (

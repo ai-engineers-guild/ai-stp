@@ -1,6 +1,6 @@
 ---
 description: "Corporate authorization uses persisted tenant-scoped role bindings, one server evaluator, and transactional audit."
-last_verified: "2026-09-11"
+last_verified: "2026-09-12"
 ---
 
 # ADR-0179: Corporate authorization is a tenant-scoped policy table
@@ -43,7 +43,7 @@ the resulting capability projection only for rendering; it never authorizes a
 request.
 
 Corporate resources store a non-null `organization_id`. Relationships between
-corporate rows use tenant-compatible keys or an equivalent database constraint, and
+corporate rows use tenant-compatible composite keys or an equivalent database constraint, and
 application services reject a foreign identifier before loading protected fields.
 Queues, object keys, caches, exports, and search projections include the tenant
 boundary when they are introduced by their owning feature.

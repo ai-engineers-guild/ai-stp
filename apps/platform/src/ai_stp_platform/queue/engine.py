@@ -173,6 +173,7 @@ async def claim(
     now: datetime | None = None,
 ) -> list[Job]:
     """Claim up to `batch` due jobs; concurrent workers never take the same row."""
+    await set_tenant_scope(session, "*")
     moment = now or _now()
     stmt = (
         select(Job)
@@ -228,9 +229,19 @@ async def fail(
     await session.flush()
 
 
-async def cancel(session: AsyncSession, *, idempotency_key: str) -> bool:
-    """Cooperatively cancel a not-yet-running job; return whether it was cancelled."""
-    found = await session.execute(select(Job).where(Job.idempotency_key == idempotency_key))
+async def cancel(
+    session: AsyncSession, *, idempotency_key: str, organization_id: str | None = None
+) -> bool:
+    """Cooperatively cancel one global or tenant-partitioned queued job."""
+    await set_tenant_scope(session, organization_id or "*")
+    tenant_filter = (
+        Job.organization_id.is_(None)
+        if organization_id is None
+        else Job.organization_id == organization_id
+    )
+    found = await session.execute(
+        select(Job).where(Job.idempotency_key == idempotency_key, tenant_filter)
+    )
     job = found.scalar_one_or_none()
     if job is None or job.state not in CLAIMABLE_STATES:
         return False
@@ -245,6 +256,7 @@ async def requeue_locked(
     worker_id: str,
 ) -> int:
     """Requeue jobs still held by a stopping worker so none is lost on drain."""
+    await set_tenant_scope(session, "*")
     stmt = (
         update(Job)
         .where(Job.state == JobState.RUNNING, Job.locked_by == worker_id)
@@ -265,6 +277,7 @@ async def heartbeat(
     now: datetime | None = None,
 ) -> bool:
     """Extend one live lease without touching a handler transaction."""
+    await set_tenant_scope(session, "*")
     moment = now or _now()
     stmt = (
         update(Job)
@@ -292,6 +305,7 @@ async def requeue_stale(
     crashing job from remaining retryable forever while preserving the queue's
     at-least-once semantics.
     """
+    await set_tenant_scope(session, "*")
     moment = now or _now()
     cutoff = moment - timedelta(seconds=lease_timeout_seconds)
     next_attempts = Job.attempts + 1

@@ -130,40 +130,25 @@
       "type": "string"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:corporate-audit-list",
+  "$id": "urn:ai-stp:schema:v1:corporate-audit-export",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
+    "exported_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
     "items": {
       "items": {
         "$ref": "#/$defs/CorporateAuditEntry"
       },
-      "maxItems": 256,
+      "maxItems": 10000,
       "title": "Items",
       "type": "array"
     },
-    "next_before_created_at": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/Timestamp"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
-    },
-    "next_before_id": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Next Before Id"
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
     },
     "schema_version": {
       "const": 1,
@@ -173,11 +158,11 @@
     }
   },
   "required": [
+    "exported_at",
     "items",
-    "next_before_created_at",
-    "next_before_id",
+    "organization_id",
     "schema_version"
   ],
-  "title": "CorporateAuditList",
+  "title": "CorporateAuditExport",
   "type": "object"
 }

@@ -1,6 +1,6 @@
 ---
 description: "Create the one initial corporate organization and superadmin safely."
-last_verified: "2026-09-11"
+last_verified: "2026-09-12"
 ---
 
 # Corporate bootstrap
@@ -17,13 +17,22 @@ the first organization exists. Remove the bootstrap secret from runtime configur
 after a successful read of the new organization's corporate context.
 
 Rollback disables the corporate routes before reverting application code. Do not
-downgrade migration `0063` after corporate data exists: retaining tenant and audit rows
+downgrade migrations `0063` or `0064` after corporate data exists: retaining tenant and audit rows
 is safer than converting or deleting them.
 
-Corporate audit rows are append-only and retained indefinitely in B2B-01. There is no
-product export or purge route in this milestone; database backup/restore is the only
-operational export. A future retention policy must version its duration and migration
-under SPEC-013 before any deletion job is enabled.
+Corporate audit rows are append-only and retained indefinitely in B2B-01. The bounded
+audit export is tenant-filtered, permissioned, redacted, and itself audited; there is
+no purge route. Database backup/restore remains the operational recovery path. A future
+retention policy must version its duration and migration under SPEC-013 before any
+deletion job is enabled.
+
+B2B-01 does not make search indexes (#212), application caches and non-audit product
+exports (#247), private/runtime telemetry (#52, #218, #219), GitLab integration
+(#18, #213), or feature-specific technology/background handlers
+(#207, #208, #222, #215, #230) corporate-aware. Each owning follow-up issue must
+add its tenant partitioning, denial/replay audit, redaction, retention/export, and
+hostile cross-tenant runbook steps before enabling that feature for corporate
+tenants.
 
 ## Tenant execution context
 

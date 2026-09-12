@@ -5,7 +5,7 @@
       "type": "string"
     }
   },
-  "$id": "urn:ai-stp:schema:v1:corporate-project-update-request",
+  "$id": "urn:ai-stp:schema:v1:corporate-role-update-request",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -22,34 +22,43 @@
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
-    "name": {
-      "maxLength": 200,
-      "minLength": 1,
-      "title": "Name",
-      "type": "string"
+    "parent_role": {
+      "anyOf": [
+        {
+          "description": "Tenant-local role name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Role"
+    },
+    "permissions": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 128,
+      "title": "Permissions",
+      "type": "array"
     },
     "schema_version": {
       "const": 1,
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
-    },
-    "state": {
-      "enum": [
-        "active",
-        "archived"
-      ],
-      "title": "State",
-      "type": "string"
     }
   },
   "required": [
-    "name",
-    "state",
+    "permissions",
     "expected_revision",
     "authorization_revision",
     "idempotency_key"
   ],
-  "title": "CorporateProjectUpdateRequest",
+  "title": "CorporateRoleUpdateRequest",
   "type": "object"
 }

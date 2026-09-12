@@ -103,6 +103,18 @@ async def test_tenant_jobs_are_partitioned_and_revalidate_delayed_authorization(
             required_permission="project.read",
         )
         assert first.id != second.id
+        assert (
+            await cancel(session, idempotency_key="same-logical-work", organization_id=first_id)
+            is True
+        )
+        assert (
+            await cancel(session, idempotency_key="same-logical-work", organization_id=first_id)
+            is False
+        )
+        assert (
+            await cancel(session, idempotency_key="same-logical-work", organization_id=second_id)
+            is True
+        )
         assert (await validate_tenant_job(session, first))["path"] == "first"
         first_organization = await session.get(Organization, first_id)
         assert first_organization is not None

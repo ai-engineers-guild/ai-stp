@@ -66,13 +66,15 @@ async def load_connector(
     account_id: str,
     purpose: ConnectorPurpose,
     settings: GitHubConnectorSettings,
+    organization_id: str | None = None,
     lock: bool = False,
 ) -> tuple[GitHubConnector, str]:
     if not settings.enabled(purpose):
         raise GitHubError("connector_not_configured")
-    query = select(GitHubConnector).where(
-        GitHubConnector.account_id == account_id, GitHubConnector.purpose == purpose
-    )
+    filters = [GitHubConnector.account_id == account_id, GitHubConnector.purpose == purpose]
+    if organization_id is not None:
+        filters.append(GitHubConnector.organization_id == organization_id)
+    query = select(GitHubConnector).where(*filters)
     connector = await db.scalar(query.with_for_update() if lock else query)
     if connector is None:
         raise GitHubError("connect_github_required", status=401)

@@ -4,17 +4,26 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/atoms/badge";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { CorporateResourceActions } from "@/components/organisms/corporate-resource-actions";
 import { ApiError } from "@/lib/api/errors";
 import { readCorporateWorkspace } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { readCsrfToken } from "@/lib/auth/session";
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string; resourceId: string }>;
 };
 
+// eslint-disable-next-line complexity
 export default async function CorporateResourcePage({ params }: PageProps) {
   const { locale, resource, resourceId } = await params;
-  if (resource !== "projects" && resource !== "teams" && resource !== "members") notFound();
+  if (
+    resource !== "projects" &&
+    resource !== "teams" &&
+    resource !== "members" &&
+    resource !== "roles"
+  )
+    notFound();
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/${resource}/${resourceId}`);
   const t = await getTranslations("corporate");
@@ -34,6 +43,7 @@ export default async function CorporateResourcePage({ params }: PageProps) {
   const project = workspace.context.projects.find((item) => item.project_id === resourceId);
   const team = workspace.context.teams.find((item) => item.team_id === resourceId);
   const member = workspace.members?.items.find((item) => item.account_id === resourceId);
+  const role = workspace.roles?.items.find((item) => item.name === resourceId);
   const detail =
     resource === "projects"
       ? project && {
@@ -55,15 +65,27 @@ export default async function CorporateResourcePage({ params }: PageProps) {
             title: t("teamDetails"),
             description: t("teamDetailsBody"),
           }
-        : member && {
-            id: member.account_id,
-            name: member.display_name ?? member.account_id,
-            state: member.state,
-            revision: member.revision,
-            role: member.role,
-            title: t("memberDetails"),
-            description: t("memberDetailsBody"),
-          };
+        : resource === "members"
+          ? member && {
+              id: member.account_id,
+              name: member.display_name ?? member.account_id,
+              state: member.state,
+              revision: member.revision,
+              role: member.role,
+              title: t("memberDetails"),
+              description: t("memberDetailsBody"),
+            }
+          : role && {
+              id: role.name,
+              name: role.name,
+              state: role.parent_role ?? "base",
+              revision: role.revision,
+              role: role.name,
+              parentRole: role.parent_role,
+              rolePermissions: role.permissions,
+              title: t("roleDetails"),
+              description: t("roleDetailsBody"),
+            };
 
   if (!detail) notFound();
 
@@ -96,6 +118,40 @@ export default async function CorporateResourcePage({ params }: PageProps) {
           </div>
         </dl>
       </section>
+      <CorporateResourceActions
+        csrfToken={(await readCsrfToken()) ?? ""}
+        organizationId={workspace.context.organization.organization_id}
+        authorizationRevision={workspace.context.organization.authorization_revision}
+        resource={resource}
+        resourceId={detail.id}
+        name={detail.name}
+        {...(detail.role === undefined ? {} : { role: detail.role })}
+        {...("parentRole" in detail ? { parentRole: detail.parentRole } : {})}
+        {...("rolePermissions" in detail ? { rolePermissions: detail.rolePermissions } : {})}
+        state={detail.state}
+        revision={detail.revision}
+        permissions={workspace.context.capabilities}
+        labels={{
+          title: t("actions"),
+          name: t("name"),
+          role: t("role"),
+          parentRole: t("parentRole"),
+          permissions: t("permissions"),
+          state: t("state"),
+          update: t("update"),
+          saving: t("saving"),
+          saved: t("saved"),
+          delete: t("delete"),
+          deleting: t("deleting"),
+          confirmDelete: t("confirmDelete"),
+          staff: t("staff"),
+          lead: t("lead"),
+          superadmin: t("superadmin"),
+          active: t("active"),
+          suspended: t("suspended"),
+          archived: t("archived"),
+        }}
+      />
     </article>
   );
 }

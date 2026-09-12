@@ -1,4 +1,10 @@
 {
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
   "$id": "urn:ai-stp:schema:v1:corporate-member-update-request",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -13,12 +19,14 @@
       "title": "Expected Revision",
       "type": "integer"
     },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
     "role": {
-      "enum": [
-        "superadmin",
-        "lead",
-        "staff"
-      ],
+      "description": "Tenant-local role name.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]*$",
       "title": "Role",
       "type": "string"
     },
@@ -41,7 +49,8 @@
     "role",
     "state",
     "expected_revision",
-    "authorization_revision"
+    "authorization_revision",
+    "idempotency_key"
   ],
   "title": "CorporateMemberUpdateRequest",
   "type": "object"

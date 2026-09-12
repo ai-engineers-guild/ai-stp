@@ -1,0 +1,23 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-delete-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "resource_id": {
+      "title": "Resource Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "resource_id",
+    "schema_version"
+  ],
+  "title": "CorporateDeleteResult",
+  "type": "object"
+}

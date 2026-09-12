@@ -9,7 +9,15 @@ from ai_stp_foundation.ids import stable_id_pattern
 
 OrganizationId = Annotated[str, Field(pattern=stable_id_pattern("organization"))]
 AccountId = Annotated[str, Field(pattern=stable_id_pattern("account"))]
-CorporateRole = Literal["superadmin", "lead", "staff"]
+CorporateRole = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z][a-z0-9_-]*$",
+        description="Tenant-local role name.",
+    ),
+]
 CorporateState = Literal["active", "suspended"]
 ProjectState = Literal["active", "archived"]
 ScopeKind = Literal[
@@ -58,6 +66,21 @@ class CorporateMemberUpdateRequest(BaseModel):
     state: CorporateState
     expected_revision: Annotated[int, Field(ge=1)]
     authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateDeleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateDeleteResult(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    resource_id: str
 
 
 class CorporateMember(BaseModel):
@@ -101,6 +124,59 @@ class CorporateBinding(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
+class CorporateBindingUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    role: CorporateRole
+    scope_kind: ScopeKind
+    scope_id: Annotated[str, Field(min_length=1, max_length=64)] = "*"
+    state: Literal["active", "revoked"]
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateBindingList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: Annotated[list[CorporateBinding], Field(max_length=256)]
+
+
+class CorporateRoleCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    name: CorporateRole
+    parent_role: CorporateRole | None = None
+    permissions: Annotated[list[str], Field(max_length=128)] = Field(default_factory=list)
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateRoleUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    parent_role: CorporateRole | None = None
+    permissions: Annotated[list[str], Field(max_length=128)]
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateRoleView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    name: CorporateRole
+    parent_role: CorporateRole | None
+    permissions: Annotated[list[str], Field(max_length=128)]
+    revision: Annotated[int, Field(ge=1)]
+
+
+class CorporateRoleList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: Annotated[list[CorporateRoleView], Field(max_length=256)]
+
+
 class CorporateProjectCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
@@ -116,6 +192,7 @@ class CorporateProjectUpdateRequest(BaseModel):
     state: ProjectState
     expected_revision: Annotated[int, Field(ge=1)]
     authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
 
 
 class CorporateProjectView(BaseModel):
@@ -152,6 +229,16 @@ class CorporateTeamView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
 
 
+class CorporateTeamUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+    state: Literal["active", "archived"]
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
 class CorporateTeamList(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
@@ -175,6 +262,7 @@ class CorporateServicePrincipalUpdateRequest(BaseModel):
     state: CorporateState
     expected_revision: Annotated[int, Field(ge=1)]
     authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
 
 
 class CorporateServicePrincipalView(BaseModel):
@@ -186,6 +274,12 @@ class CorporateServicePrincipalView(BaseModel):
     state: CorporateState
     revision: Annotated[int, Field(ge=1)]
     binding: CorporateBinding
+
+
+class CorporateServicePrincipalList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: Annotated[list[CorporateServicePrincipalView], Field(max_length=256)]
 
 
 class CorporateMembershipAssignmentRequest(BaseModel):
@@ -236,6 +330,7 @@ class CorporateAuditEntry(BaseModel):
     outcome: Literal["succeeded", "denied", "failed"]
     reason: str | None
     request_id: str | None
+    payload: dict[str, object]
     created_at: Timestamp
 
 
@@ -243,12 +338,22 @@ class CorporateAuditList(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateAuditEntry], Field(max_length=256)]
+    next_before_created_at: Timestamp | None = None
     next_before_id: int | None = None
+
+
+class CorporateAuditExport(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    exported_at: Timestamp
+    items: Annotated[list[CorporateAuditEntry], Field(max_length=10000)]
 
 
 class CorporateAuditQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     before_id: Annotated[int | None, Field(ge=1)] = None
+    before_created_at: Timestamp | None = None
     actor_account_id: AccountId | None = None
     action: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     target_id: Annotated[str | None, Field(min_length=1, max_length=128)] = None
