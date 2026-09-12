@@ -17,7 +17,7 @@ command that can reproduce the refusal.
 | Missing adaptation is not a compile | Auto-acquired providers compiled a component that named no adaptation | `docs/contracts/eligibility-constraints.md`, `adaptation_unavailable` |
 | Provider v3 is one target | Treating several roots as one provider commit invented atomicity the protocol does not have | `ADR-0145`, SPEC-058 |
 | Index delivery is not a trust level | A PyPI wheel without PEP 740 verification would have been the easy unverified path | `ADR-0141`, `REQ-850` |
-| Branch protection is not a gate | Mandatory human reviews blocked agent integration; bypass alone proves no tree checks | ADR-0180, zero mandatory approvals and exact-SHA CI |
+| Branch protection is not a gate | Mandatory human reviews blocked agent integration; bypass alone proves no tree checks | `ADR-0180`, zero mandatory approvals and exact-SHA CI |
 | Six published internals are not one product | `uv tool install ai-stp-cli` depended on five other index projects remaining at the same version | `ADR-0146` |
 | `clean` is not `passed` | Evidence that asked "did nothing fail" treated an all-inconclusive matrix as green | `docs/engineering/implementation-roadmap.md`, evidence scripts |
 | Isolation unavailability is not enforcement | Reporting `enforced` when the launcher was absent hid Windows as ready | `docs/contracts/provider-protocol.md` |
