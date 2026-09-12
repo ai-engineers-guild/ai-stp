@@ -188,8 +188,67 @@ def _project_view(row: CorporateProject) -> CorporateProjectView:
     )
 
 
-def _team_view(row: CorporateTeam) -> CorporateTeamView:
+async def _team_view(
+    db: AsyncSession, row: CorporateTeam, *, ctx: AuthContext
+) -> CorporateTeamView:
+    leads = list(
+        (
+            await db.scalars(
+                select(CorporateRoleBinding.account_id)
+                .join(
+                    OrganizationMembership,
+                    (OrganizationMembership.organization_id == CorporateRoleBinding.organization_id)
+                    & (OrganizationMembership.account_id == CorporateRoleBinding.account_id),
+                )
+                .where(
+                    CorporateRoleBinding.organization_id == row.organization_id,
+                    CorporateRoleBinding.scope_kind == "team",
+                    CorporateRoleBinding.scope_id == row.id,
+                    CorporateRoleBinding.role == "lead",
+                    CorporateRoleBinding.state == "active",
+                    OrganizationMembership.state == "active",
+                )
+                .distinct()
+                .order_by(CorporateRoleBinding.account_id)
+                .limit(256)
+            )
+        ).all()
+    )
+    leads = [account_id for account_id in leads if account_id is not None]
+    if row.state != "active":
+        leads = []
+    can_list = ctx.account_id in leads or await has_corporate_permission(
+        db,
+        organization_id=row.organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        permission="member.list",
+        scope_kind="team",
+        scope_id=row.id,
+    )
+    query = (
+        select(OrganizationMembership, Account)
+        .join(
+            Account,
+            Account.id == OrganizationMembership.account_id,
+        )
+        .where(
+            OrganizationMembership.organization_id == row.organization_id,
+            OrganizationMembership.account_id.in_(
+                select(CorporateTeamMember.account_id).where(
+                    CorporateTeamMember.organization_id == row.organization_id,
+                    CorporateTeamMember.team_id == row.id,
+                )
+            )
+            | OrganizationMembership.account_id.in_(leads),
+        )
+    )
+    if not can_list:
+        query = query.where(OrganizationMembership.account_id.in_([ctx.account_id, *leads]))
+    pairs = (await db.execute(query.order_by(Account.id).limit(256))).all()
     return CorporateTeamView(
+        members=[_member_view(member, account) for member, account in pairs],
+        lead_account_ids=leads,
         team_id=row.id,
         organization_id=row.organization_id,
         name=row.name,
@@ -516,6 +575,14 @@ async def _authorize_idempotent(
     receipt = await db.get(CorporateMutationReceipt, (organization_id, idempotency_key))
     if receipt is not None:
         if receipt.operation != operation or receipt.request_fingerprint != fingerprint:
+            raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
+        if (
+            scope_kind in {"team", "project"}
+            and receipt.response_body.get(
+                f"{scope_kind}_id", receipt.response_body.get("resource_id")
+            )
+            != scope_id
+        ):
             raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
         await emit_audit(
             db,
@@ -1794,7 +1861,7 @@ async def create_team(
     db.add(row)
     await db.flush()
     organization.policy_revision += 1
-    response = _team_view(row)
+    response = await _team_view(db, row, ctx=ctx)
     await _store_receipt(
         db,
         organization_id=organization_id,
@@ -1848,7 +1915,7 @@ async def read_team(
         target_id=team_id,
         request_id=request_id,
     )
-    return _team_view(row)
+    return await _team_view(db, row, ctx=ctx)
 
 
 async def update_team(
@@ -1893,7 +1960,7 @@ async def update_team(
     row.state = payload.state
     row.revision += 1
     organization.policy_revision += 1
-    response = _team_view(row)
+    response = await _team_view(db, row, ctx=ctx)
     await _store_receipt(
         db,
         organization_id=organization_id,
@@ -2294,19 +2361,52 @@ async def delete_service_principal(
 async def list_teams(
     db: AsyncSession, *, ctx: AuthContext, organization_id: str, request_id: str | None
 ) -> CorporateTeamList:
-    _, membership = await authorize(
-        db, ctx=ctx, organization_id=organization_id, permission="team.list"
-    )
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="organization.read")
     query = select(CorporateTeam).where(CorporateTeam.organization_id == organization_id)
-    if membership.role != "superadmin":
-        query = query.join(
-            CorporateTeamMember,
-            (CorporateTeamMember.organization_id == CorporateTeam.organization_id)
-            & (CorporateTeamMember.team_id == CorporateTeam.id),
-        ).where(CorporateTeamMember.account_id == ctx.account_id)
-    rows = list(
-        (await db.scalars(query.order_by(CorporateTeam.name, CorporateTeam.id).limit(256))).all()
+    if not await has_corporate_permission(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        permission="team.list",
+        scope_kind="team",
+        scope_id="*",
+    ):
+        query = query.where(
+            CorporateTeam.id.in_(
+                select(CorporateTeamMember.team_id).where(
+                    CorporateTeamMember.organization_id == organization_id,
+                    CorporateTeamMember.account_id == ctx.account_id,
+                )
+            )
+            | CorporateTeam.id.in_(
+                select(CorporateRoleBinding.scope_id).where(
+                    CorporateRoleBinding.organization_id == organization_id,
+                    CorporateRoleBinding.account_id == ctx.account_id,
+                    CorporateRoleBinding.scope_kind == "team",
+                    CorporateRoleBinding.state == "active",
+                )
+            )
+        )
+    rows = await db.stream_scalars(
+        query.order_by(CorporateTeam.name, CorporateTeam.id).execution_options(yield_per=256)
     )
+    visible: list[CorporateTeamView] = []
+    async for row in rows:
+        assigned = await db.get(CorporateTeamMember, (organization_id, row.id, ctx.account_id))
+        if (row.state == "archived" and assigned is not None) or await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            permission="team.list",
+            scope_kind="team",
+            scope_id=row.id,
+        ):
+            visible.append(await _team_view(db, row, ctx=ctx))
+            if len(visible) == 256:
+                break
+    await rows.close()
     await emit_audit(
         db,
         actor_account_id=ctx.account_id,
@@ -2316,7 +2416,7 @@ async def list_teams(
         target_id=organization_id,
         request_id=request_id,
     )
-    return CorporateTeamList(items=[_team_view(row) for row in rows])
+    return CorporateTeamList(items=visible)
 
 
 async def assign_member(
@@ -2360,10 +2460,9 @@ async def assign_member(
             select(CorporateTeam).where(
                 CorporateTeam.organization_id == organization_id,
                 CorporateTeam.id == payload.team_id,
-                CorporateTeam.state == "active",
             )
         )
-        if team is None:
+        if team is None or (payload.operation == "assign" and team.state != "active"):
             raise ApiError(ErrorCategory.PERMISSION, "team access denied")
         team_member = await db.get(
             CorporateTeamMember, (organization_id, team.id, payload.account_id)
@@ -2538,28 +2637,23 @@ async def read_context(
     project_query = select(CorporateProject).where(
         CorporateProject.organization_id == organization_id
     )
-    team_query = select(CorporateTeam).where(CorporateTeam.organization_id == organization_id)
     if membership.role != "superadmin":
         project_query = project_query.join(
             CorporateProjectMember,
             (CorporateProjectMember.organization_id == CorporateProject.organization_id)
             & (CorporateProjectMember.project_id == CorporateProject.id),
         ).where(CorporateProjectMember.account_id == ctx.account_id)
-        team_query = team_query.join(
-            CorporateTeamMember,
-            (CorporateTeamMember.organization_id == CorporateTeam.organization_id)
-            & (CorporateTeamMember.team_id == CorporateTeam.id),
-        ).where(CorporateTeamMember.account_id == ctx.account_id)
     project_rows = list(
         (await db.scalars(project_query.order_by(CorporateProject.name).limit(256))).all()
     )
-    team_rows = list((await db.scalars(team_query.order_by(CorporateTeam.name).limit(256))).all())
     response = CorporateContext(
         organization=_organization_view(organization),
         member=_member_view(membership, account),
         bindings=[_binding_view(row) for row in bindings],
         projects=[_project_view(row) for row in project_rows],
-        teams=[_team_view(row) for row in team_rows],
+        teams=(
+            await list_teams(db, ctx=ctx, organization_id=organization_id, request_id=request_id)
+        ).items,
         capabilities=permissions,
     )
     await emit_audit(

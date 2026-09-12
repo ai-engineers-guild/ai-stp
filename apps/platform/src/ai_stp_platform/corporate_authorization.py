@@ -12,6 +12,7 @@ from ai_stp_platform.organization_models import (
     CorporateRoleBinding,
     CorporateRolePermission,
     CorporateServicePrincipal,
+    CorporateTeam,
     Organization,
     OrganizationMembership,
 )
@@ -97,6 +98,13 @@ async def has_corporate_permission(
             CorporateRoleBinding.principal_type == principal_type,
             principal_filter,
             CorporateRoleBinding.state == "active",
+            (CorporateRoleBinding.scope_kind != "team")
+            | CorporateRoleBinding.scope_id.in_(
+                select(CorporateTeam.id).where(
+                    CorporateTeam.organization_id == organization_id,
+                    CorporateTeam.state == "active",
+                )
+            ),
             (
                 (CorporateRoleBinding.scope_kind == "organization")
                 & ((CorporateRoleBinding.role == "superadmin") | (scope_kind == "organization"))

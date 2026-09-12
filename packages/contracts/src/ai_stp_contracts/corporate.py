@@ -227,6 +227,8 @@ class CorporateTeamView(BaseModel):
     name: str
     state: Literal["active", "archived"]
     revision: Annotated[int, Field(ge=1)]
+    members: Annotated[list[CorporateMember], Field(max_length=256)] = []
+    lead_account_ids: Annotated[list[AccountId], Field(max_length=256)] = []
 
 
 class CorporateTeamUpdateRequest(BaseModel):

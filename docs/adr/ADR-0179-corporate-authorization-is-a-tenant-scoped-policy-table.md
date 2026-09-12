@@ -57,6 +57,11 @@ redacted `AuditEvent` in the same database transaction as the decision or mutati
 Audit events are tenant-scoped and append-only; their payload allowlist excludes
 credentials, tokens, assertions, repository content, and private telemetry.
 
+Team leads are active team-scoped `lead` bindings, independent of the organization
+membership role. Archived teams retain historical relationships but contribute no
+effective grants. A team without an active lead remains under its superadmin's
+administration; no automatic promotion or broader lead authority is introduced.
+
 ## Consequences
 
 - `SPEC-079` owns the B2B-01 behavior and executable authorization matrix.

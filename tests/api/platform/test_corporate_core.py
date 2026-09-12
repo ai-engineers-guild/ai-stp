@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
@@ -22,6 +23,8 @@ from ai_stp_platform.models import Account, AuditEvent
 from ai_stp_platform.organization_models import (
     CorporateProject,
     CorporateProjectMember,
+    CorporateTeam,
+    CorporateTeamMember,
     Organization,
 )
 from ai_stp_platform.tenant_scope import set_tenant_scope
@@ -784,3 +787,235 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             )
         )
         assert self_audit == {"audit.list", "audit.export"}
+
+
+async def test_team_hierarchy_visibility_archive_and_recovery(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    owner_id, owner_token = await _account_token(sessionmaker)
+    auth = {"Authorization": f"Bearer {owner_token}"}
+    bootstrap = await client.post(
+        "/v1/corporate/bootstrap",
+        json={
+            "organization_name": "Team Corp",
+            "superadmin_account_id": owner_id,
+            "idempotency_key": "team-bootstrap-0001",
+        },
+        headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+    )
+    assert bootstrap.status_code == 200, bootstrap.text
+    org = bootstrap.json()["organization_id"]
+    base = f"/v1/corporate/organizations/{org}"
+
+    async def mutate(path: str, body: dict[str, object], method: str = "POST"):
+        context = await client.get(f"{base}/context", headers=auth)
+        payload = {
+            **body,
+            "authorization_revision": context.json()["organization"]["authorization_revision"],
+            "idempotency_key": str(uuid.uuid4()),
+        }
+        response = await client.request(method, f"{base}/{path}", json=payload, headers=auth)
+        assert response.status_code == 200, response.text
+        return response.json(), payload
+
+    people: list[str] = []
+    for i in range(3):
+        member, _ = await mutate(
+            "members",
+            {
+                "display_name": f"Member {i}",
+                "email": f"team-member-{i}@example.com",
+                "role": "staff",
+            },
+        )
+        people.append(member["account_id"])
+    teams: list[dict[str, Any]] = []
+    for name in ("First", "Second", "Foreign scope"):
+        team, _ = await mutate("teams", {"name": name})
+        teams.append(team)
+    lead, staff, other = people
+    for team in teams[:2]:
+        await mutate(
+            "membership-assignments",
+            {"account_id": lead, "team_id": team["team_id"], "team_role": "lead"},
+        )
+        await mutate("membership-assignments", {"account_id": staff, "team_id": team["team_id"]})
+        await mutate("membership-assignments", {"account_id": other, "team_id": team["team_id"]})
+    _, lead_token = await _account_token(sessionmaker, account_id=lead)
+    _, staff_token = await _account_token(sessionmaker, account_id=staff)
+    lead_auth = {"Authorization": f"Bearer {lead_token}"}
+    staff_auth = {"Authorization": f"Bearer {staff_token}"}
+    for headers, expected in ((lead_auth, set(people)), (staff_auth, {lead, staff})):
+        context = await client.get(f"{base}/context", headers=headers)
+        assert context.status_code == 200, context.text
+        visible = context.json()["teams"]
+        assert {item["team_id"] for item in visible} == {item["team_id"] for item in teams[:2]}
+        assert all({m["account_id"] for m in team["members"]} == expected for team in visible)
+        assert all(team["lead_account_ids"] == [lead] for team in visible)
+    denied = await client.get(f"{base}/teams/{teams[2]['team_id']}", headers=lead_auth)
+    assert denied.status_code == 403
+    context = (await client.get(f"{base}/context", headers=auth)).json()
+    denied = await client.post(
+        f"{base}/membership-assignments",
+        json={
+            "account_id": other,
+            "team_id": teams[0]["team_id"],
+            "team_role": "lead",
+            "authorization_revision": context["organization"]["authorization_revision"],
+            "idempotency_key": "staff-forbidden-team-change",
+        },
+        headers=staff_auth,
+    )
+    assert denied.status_code == 403
+    foreign_id = new_id("organization")
+    foreign_team_id = new_id("operation")
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, "*")
+        db.add(
+            Organization(
+                id=foreign_id, kind="corporate", owner_account_id=None, display_name="Foreign"
+            )
+        )
+        await db.flush()
+        db.add(CorporateTeam(id=foreign_team_id, organization_id=foreign_id, name="Hidden team"))
+        await db.commit()
+    for identifier in (foreign_team_id, new_id("operation")):
+        rejected = await client.get(f"{base}/teams/{identifier}", headers=auth)
+        assert rejected.status_code == 403 and "Hidden team" not in rejected.text
+        rejected = await client.post(
+            f"{base}/membership-assignments",
+            json={
+                "account_id": lead,
+                "team_id": identifier,
+                "authorization_revision": context["organization"]["authorization_revision"],
+                "idempotency_key": str(uuid.uuid4()),
+            },
+            headers=auth,
+        )
+        assert rejected.status_code == 403
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, "*")
+        db.add(
+            CorporateTeamMember(
+                organization_id=org, team_id=foreign_team_id, account_id=lead, role="staff"
+            )
+        )
+        with pytest.raises(IntegrityError):
+            await db.flush()
+        await db.rollback()
+    # A scoped binding is sufficient; lead status does not require a global role
+    # label or a duplicate membership row.
+    scoped, _ = await mutate(
+        "bindings",
+        {"account_id": lead, "role": "lead", "scope_kind": "team", "scope_id": teams[2]["team_id"]},
+    )
+    scoped_context = (await client.get(f"{base}/context", headers=lead_auth)).json()
+    assert len(scoped_context["teams"]) == 3
+    scoped_team = next(
+        item for item in scoped_context["teams"] if item["team_id"] == teams[2]["team_id"]
+    )
+    assert scoped_team["lead_account_ids"] == [lead]
+    await mutate(f"bindings/{scoped['binding_id']}", {"expected_revision": 1}, "DELETE")
+    first = teams[0]["team_id"]
+    await mutate(
+        "membership-assignments", {"account_id": lead, "team_id": first, "team_role": "staff"}
+    )
+    await mutate(
+        "membership-assignments", {"account_id": other, "team_id": first, "team_role": "lead"}
+    )
+    detail = (await client.get(f"{base}/teams/{first}", headers=lead_auth)).json()
+    assert detail["lead_account_ids"] == [other]
+    assert {m["account_id"] for m in detail["members"]} == {lead, other}
+    archived, archive_payload = await mutate(
+        f"teams/{first}",
+        {
+            "name": "Renamed",
+            "state": "archived",
+            "expected_revision": 1,
+        },
+        "PATCH",
+    )
+    replay = await client.patch(f"{base}/teams/{first}", json=archive_payload, headers=auth)
+    assert replay.status_code == 200 and replay.json() == archived
+    wrong_target = await client.patch(
+        f"{base}/teams/{teams[1]['team_id']}", json=archive_payload, headers=auth
+    )
+    assert wrong_target.status_code == 409
+    context = (await client.get(f"{base}/context", headers=auth)).json()
+    rejected = await client.post(
+        f"{base}/membership-assignments",
+        json={
+            "account_id": lead,
+            "team_id": first,
+            "authorization_revision": context["organization"]["authorization_revision"],
+            "idempotency_key": "archived-team-assignment",
+        },
+        headers=auth,
+    )
+    assert rejected.status_code == 403
+    async with sessionmaker() as db:
+        assert not await has_corporate_permission(
+            db,
+            organization_id=org,
+            principal_type="user",
+            principal_id=other,
+            permission="team.read",
+            scope_kind="team",
+            scope_id=first,
+        )
+    # Removal is allowed in the archive; restore must not resurrect removed grants.
+    await mutate(
+        "membership-assignments", {"account_id": other, "team_id": first, "operation": "remove"}
+    )
+    restored, _ = await mutate(
+        f"teams/{first}", {"name": "Renamed", "state": "active", "expected_revision": 2}, "PATCH"
+    )
+    async with sessionmaker() as db:
+        assert await has_corporate_permission(
+            db,
+            organization_id=org,
+            principal_type="user",
+            principal_id=lead,
+            permission="team.read",
+            scope_kind="team",
+            scope_id=first,
+        )
+    assert restored["lead_account_ids"] == []
+    assert {m["account_id"] for m in restored["members"]} == {lead, staff}
+    await mutate(
+        "membership-assignments", {"account_id": staff, "team_id": first, "team_role": "lead"}
+    )
+    await mutate(
+        f"members/{staff}", {"state": "suspended", "role": "staff", "expected_revision": 1}, "PATCH"
+    )
+    detail = (await client.get(f"{base}/teams/{first}", headers=auth)).json()
+    assert detail["lead_account_ids"] == []
+    # A stale request cannot turn the suspended member into an active lead.
+    stale = await client.patch(
+        f"{base}/teams/{first}",
+        json={
+            **archive_payload,
+            "expected_revision": 3,
+            "idempotency_key": "stale-team-update-0001",
+        },
+        headers=auth,
+    )
+    assert stale.status_code == 412
+    async with sessionmaker() as db:
+        events = list(
+            (
+                await db.scalars(
+                    select(AuditEvent).where(
+                        AuditEvent.organization_id == org,
+                        AuditEvent.action.in_(["member.assign", "member.remove", "team.update"]),
+                    )
+                )
+            ).all()
+        )
+        assert {event.action for event in events} == {
+            "member.assign",
+            "member.remove",
+            "team.update",
+        }
+        assert all("before" in event.payload and "after" in event.payload for event in events)
