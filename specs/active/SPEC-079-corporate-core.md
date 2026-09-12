@@ -161,6 +161,9 @@ bounded, filterable journal read and a bounded portable export; both use the sta
 `(created_at, id)` cursor (`before_created_at` plus `before_id`) and there is no deletion
 endpoint. Operational database backup and restore remains the recovery path until a
 versioned retention policy under SPEC-013 defines deletion behavior.
+Journal ordering, cursor comparisons, and time filters use canonical UTC millisecond
+precision, matching the public timestamp representation, including existing rows
+stored with PostgreSQL microsecond precision.
 
 ## Acceptance criteria
 

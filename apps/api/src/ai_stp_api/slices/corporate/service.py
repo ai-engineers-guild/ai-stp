@@ -219,42 +219,6 @@ async def _role_view(db: AsyncSession, row: CorporateRoleRow) -> CorporateRoleVi
     )
 
 
-async def _effective_role_permissions(
-    db: AsyncSession, *, organization_id: str, roles: set[str]
-) -> list[str]:
-    if not roles:
-        return []
-    role_rows = list(
-        (
-            await db.scalars(
-                select(CorporateRoleRow).where(CorporateRoleRow.organization_id == organization_id)
-            )
-        ).all()
-    )
-    parents = {row.name: row.parent_role for row in role_rows}
-    permission_rows = list(
-        (
-            await db.scalars(
-                select(CorporateRolePermission).where(
-                    CorporateRolePermission.organization_id == organization_id
-                )
-            )
-        ).all()
-    )
-    direct: dict[str, set[str]] = {}
-    for row in permission_rows:
-        direct.setdefault(row.role, set()).add(row.permission)
-    effective: set[str] = set()
-    for role in roles:
-        current: str | None = role
-        seen: set[str] = set()
-        while current is not None and current not in seen and len(seen) < 32:
-            seen.add(current)
-            effective.update(direct.get(current, ()))
-            current = parents.get(current)
-    return sorted(effective)
-
-
 def _role_permissions(payload: list[str]) -> list[str]:
     permissions = sorted(set(payload))
     if any(permission not in _KNOWN_PERMISSIONS for permission in permissions):
@@ -2561,11 +2525,16 @@ async def read_context(
             )
         ).all()
     )
-    permissions = await _effective_role_permissions(
-        db,
-        organization_id=organization_id,
-        roles={row.role for row in bindings},
-    )
+    permissions: list[str] = []
+    for permission in sorted(_KNOWN_PERMISSIONS):
+        if await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            permission=permission,
+        ):
+            permissions.append(permission)
     project_query = select(CorporateProject).where(
         CorporateProject.organization_id == organization_id
     )
@@ -2620,15 +2589,16 @@ async def list_audit(
     request_id: str | None,
 ) -> CorporateAuditList:
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="audit.list")
+    audit_time = func.date_trunc("milliseconds", AuditEvent.created_at)
     query = select(AuditEvent).where(AuditEvent.organization_id == organization_id)
     if before_created_at is not None:
         cursor_created_at = datetime.fromisoformat(before_created_at)
         if before_id is None:
-            query = query.where(AuditEvent.created_at < cursor_created_at)
+            query = query.where(audit_time < cursor_created_at)
         else:
             query = query.where(
-                (AuditEvent.created_at < cursor_created_at)
-                | ((AuditEvent.created_at == cursor_created_at) & (AuditEvent.id < before_id))
+                (audit_time < cursor_created_at)
+                | ((audit_time == cursor_created_at) & (AuditEvent.id < before_id))
             )
     elif before_id is not None:
         query = query.where(AuditEvent.id < before_id)
@@ -2639,15 +2609,11 @@ async def list_audit(
     if target_id is not None:
         query = query.where(AuditEvent.target_id == target_id)
     if created_from is not None:
-        query = query.where(AuditEvent.created_at >= datetime.fromisoformat(created_from))
+        query = query.where(audit_time >= datetime.fromisoformat(created_from))
     if created_to is not None:
-        query = query.where(AuditEvent.created_at <= datetime.fromisoformat(created_to))
+        query = query.where(audit_time <= datetime.fromisoformat(created_to))
     rows = list(
-        (
-            await db.scalars(
-                query.order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(101)
-            )
-        ).all()
+        (await db.scalars(query.order_by(audit_time.desc(), AuditEvent.id.desc()).limit(101))).all()
     )
     page = rows[:100]
     await emit_audit(
@@ -2703,15 +2669,16 @@ async def export_audit(
     request_id: str | None,
 ) -> CorporateAuditExport:
     await authorize(db, ctx=ctx, organization_id=organization_id, permission="audit.export")
+    audit_time = func.date_trunc("milliseconds", AuditEvent.created_at)
     query = select(AuditEvent).where(AuditEvent.organization_id == organization_id)
     if before_created_at is not None:
         cursor_created_at = datetime.fromisoformat(before_created_at)
         if before_id is None:
-            query = query.where(AuditEvent.created_at < cursor_created_at)
+            query = query.where(audit_time < cursor_created_at)
         else:
             query = query.where(
-                (AuditEvent.created_at < cursor_created_at)
-                | ((AuditEvent.created_at == cursor_created_at) & (AuditEvent.id < before_id))
+                (audit_time < cursor_created_at)
+                | ((audit_time == cursor_created_at) & (AuditEvent.id < before_id))
             )
     elif before_id is not None:
         query = query.where(AuditEvent.id < before_id)
@@ -2722,12 +2689,10 @@ async def export_audit(
     if target_id is not None:
         query = query.where(AuditEvent.target_id == target_id)
     if created_from is not None:
-        query = query.where(AuditEvent.created_at >= datetime.fromisoformat(created_from))
+        query = query.where(audit_time >= datetime.fromisoformat(created_from))
     if created_to is not None:
-        query = query.where(AuditEvent.created_at <= datetime.fromisoformat(created_to))
-    rows = list(
-        (await db.scalars(query.order_by(AuditEvent.created_at, AuditEvent.id).limit(10000))).all()
-    )
+        query = query.where(audit_time <= datetime.fromisoformat(created_to))
+    rows = list((await db.scalars(query.order_by(audit_time, AuditEvent.id).limit(10000))).all())
     response = CorporateAuditExport(
         organization_id=organization_id,
         exported_at=format_timestamp(datetime.now(UTC)),

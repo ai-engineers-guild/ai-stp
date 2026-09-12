@@ -16,6 +16,7 @@ from ai_stp_api.session import issue_session
 from ai_stp_api.slices.auth.domain import ProviderProfile
 from ai_stp_api.slices.auth.service import resolve_login_identity
 from ai_stp_foundation.ids import new_id
+from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account, AuditEvent
 from ai_stp_platform.organization_models import (
@@ -732,8 +733,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "actor_account_id": owner_id,
             "action": "acceptance.audit_probe",
             "target_id": organization_id,
-            "created_from": rows[0].created_at.isoformat(),
-            "created_to": rows[-1].created_at.isoformat(),
+            "created_from": format_timestamp(rows[0].created_at),
+            "created_to": format_timestamp(rows[-1].created_at),
         }
         await db.commit()
     audit_url = f"/v1/corporate/organizations/{organization_id}/audit"

@@ -12,6 +12,7 @@ from ai_stp_foundation.ids import new_id
 from ai_stp_platform.corporate_authorization import PrincipalType, has_corporate_permission
 from ai_stp_platform.models import Account, Device
 from ai_stp_platform.organization_models import (
+    CorporateProject,
     CorporateRole,
     CorporateRoleBinding,
     CorporateRolePermission,
@@ -50,9 +51,16 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
             organization_id=organization_id, account_id=account_id, role="viewer"
         )
         principal = CorporateServicePrincipal(
-            id=new_id("principal"), organization_id=organization_id, name="Probe"
+            id=new_id("service_principal"), organization_id=organization_id, name="Probe"
         )
         db.add_all([member, principal])
+        project = CorporateProject(
+            id=new_id("remote_project"), organization_id=organization_id, name="Bound"
+        )
+        other_project = CorporateProject(
+            id=new_id("remote_project"), organization_id=organization_id, name="Unbound"
+        )
+        db.add_all([project, other_project])
         db.add_all(
             [
                 CorporateRole(organization_id=organization_id, name="viewer"),
@@ -63,6 +71,11 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
             ]
         )
         await db.flush()
+        db.add(
+            CorporateRolePermission(
+                organization_id=organization_id, role="viewer", permission="organization.read"
+            )
+        )
         db.add_all(
             [
                 CorporateRolePermission(
@@ -75,7 +88,7 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
         roles = ["inherited", "viewer"] if grant_first else ["viewer", "inherited"]
         bindings = [
             CorporateRoleBinding(
-                id=new_id("binding"),
+                id=new_id("operation"),
                 organization_id=organization_id,
                 principal_type=principal_type,
                 account_id=account_id if principal_type == "user" else None,
@@ -120,16 +133,20 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
             )
             assert response.status_code == 200, response.text
             assert "organization.manage" in response.json()["capabilities"]
+            context = await client.get(
+                f"/v1/corporate/organizations/{organization_id}/context",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert context.status_code == 200, context.text
+            assert "organization.manage" in context.json()["capabilities"]
         grant = next(binding for binding in bindings if binding.role == "inherited")
         grant.scope_kind = "project"
-        grant.scope_id = "bound-project"
+        grant.scope_id = project.id
         await db.commit()
         assert not await allowed()
-        assert await allowed(
-            permission="project.update", scope_kind="project", scope_id="bound-project"
-        )
+        assert await allowed(permission="project.update", scope_kind="project", scope_id=project.id)
         assert not await allowed(
-            permission="project.update", scope_kind="project", scope_id="foreign-project"
+            permission="project.update", scope_kind="project", scope_id=other_project.id
         )
         if principal_type == "user":
             response = await client.get(
@@ -139,10 +156,16 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
             assert response.status_code == 200, response.text
             assert "organization.manage" not in response.json()["capabilities"]
             assert response.json()["unavailable"]["organization.manage"] == "forbidden"
+            context = await client.get(
+                f"/v1/corporate/organizations/{organization_id}/context",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert context.status_code == 200, context.text
+            assert "organization.manage" not in context.json()["capabilities"]
         grant.state = "revoked"
         await db.commit()
         assert not await allowed(
-            permission="project.update", scope_kind="project", scope_id="bound-project"
+            permission="project.update", scope_kind="project", scope_id=project.id
         )
         grant.state = "active"
         if principal_type == "user":
@@ -151,18 +174,25 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
             principal.state = "suspended"
         await db.commit()
         assert not await allowed(
-            permission="project.update", scope_kind="project", scope_id="bound-project"
+            permission="project.update", scope_kind="project", scope_id=project.id
         )
 
 
 @pytest.mark.parametrize(
-    ("role", "admin_capability"),
-    [("owner", False), ("admin", False), ("member", False)],
+    ("role", "read_capability"),
+    [
+        ("owner", True),
+        ("admin", True),
+        ("member", True),
+        ("lead", False),
+        ("staff", False),
+        ("custom", False),
+    ],
 )
 async def test_owner_admin_member_projection_matrix(
     project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
     role: str,
-    admin_capability: bool,
+    read_capability: bool,
 ) -> None:
     client, sessionmaker, token, organization_id, _link_id, _remote_project_id = project_harness
     async with sessionmaker() as db:
@@ -197,9 +227,10 @@ async def test_owner_admin_member_projection_matrix(
     )
     assert response.status_code == 200
     capabilities = response.json()["capabilities"]
-    assert ("organization.manage" in capabilities) is admin_capability
-    assert "project.read" in capabilities
-    assert "project.list" in capabilities
+    assert "organization.manage" not in capabilities
+    assert ("project.read" in capabilities) is read_capability
+    assert ("project.list" in capabilities) is read_capability
+    assert ("project.update" in capabilities) is read_capability
     unavailable = response.json()["unavailable"]
     for capability in ("team.manage", "assignment.assign", "saml.manage", "audit.read"):
         assert capability not in capabilities

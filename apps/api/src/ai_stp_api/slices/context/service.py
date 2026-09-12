@@ -330,9 +330,9 @@ async def remote_projection(
     effective: set[str] | None = None
     if organization.kind == "corporate":
         effective = set(PERSONAL_CAPABILITIES)
-    if (
-        organization.kind == "corporate"
-        and await db.scalar(
+    if organization.kind == "corporate" and (
+        membership.role not in {"owner", "admin", "member"}
+        or await db.scalar(
             select(CorporateRole.name)
             .where(CorporateRole.organization_id == organization.id)
             .limit(1)
