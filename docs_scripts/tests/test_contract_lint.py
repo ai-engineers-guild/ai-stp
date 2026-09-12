@@ -20,14 +20,14 @@ last_verified: "2026-08-04"
 
 # Git workflow
 
-`main` is the repository's only line.
+CI push branches: `dev`, `main`.
 """
 
 WORKFLOW = """name: check
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
   pull_request:
 """
 
@@ -140,8 +140,9 @@ class ContractLintTests(unittest.TestCase):
                 self.assertIn("CT014", self.codes())
 
     def test_allowed_branch_prefix_passes(self) -> None:
-        with patch.dict(os.environ, {"GITHUB_HEAD_REF": "refactor/git-workflow"}, clear=False):
-            self.assertNotIn("CT014", self.codes())
+        for branch in ("refactor/git-workflow", "dev", "main"):
+            with patch.dict(os.environ, {"GITHUB_HEAD_REF": branch}, clear=False):
+                self.assertNotIn("CT014", self.codes())
 
     def test_manifest_digest_fails(self) -> None:
         self.write("docs/contracts/x.md", self.doc("The version link contains `manifest_digest`."))
@@ -227,13 +228,13 @@ class ContractLintTests(unittest.TestCase):
         self.assertEqual(self.codes(), set())
 
     def test_workflow_branch_mismatch_fails(self) -> None:
-        self.write(".github/workflows/check.yml", WORKFLOW.replace("[main]", "[main, rldyourmnd]"))
+        self.write(".github/workflows/check.yml", WORKFLOW.replace("[dev, main]", "[main]"))
         self.assertIn("CT013", self.codes())
 
     def test_workflow_missing_declared_line_fails(self) -> None:
         self.write(
             "docs/engineering/git-workflow.md",
-            GIT_WORKFLOW_DOC.replace("`main` is the repository's only line.", "Branches vary."),
+            GIT_WORKFLOW_DOC.replace("CI push branches: `dev`, `main`.", "Branches vary."),
         )
         self.assertIn("CT012", self.codes())
 

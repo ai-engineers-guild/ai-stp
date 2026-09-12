@@ -64,6 +64,14 @@ A plan, exact digest, precondition revalidation, and idempotency are always mand
 
 ## Changing the repository
 
+Keep permanent local and remote `main` and `dev`. `dev` is the default integration
+branch; `main` is the protected release branch. Create a conventional work branch
+from current `dev`, PR it into GitHub `dev`, then promote same-repository `dev` into
+`main` by PR after exact-SHA checks. No mandatory human approval count is required;
+repository administrators retain explicit bypass for exceptions. Preserve permanent
+branches and history, synchronize local branches after remote merges, and follow
+`docs/engineering/git-workflow.md` and ADR-0180.
+
 Ordinary implementation within existing contracts proceeds directly: code, tests, updates to affected documentation, and diff review.
 
 A specification and ADR are required when observable behavior, a machine boundary, schema, state set, or architecture rule changes. For such a change:

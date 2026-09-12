@@ -5,7 +5,7 @@ last_verified: "2026-08-22"
 
 # ADR-0115: The repository does not guard the people working in it
 
-Status: accepted.
+Status: accepted. Branch policy superseded by ADR-0180; unrelated environment and tag decisions remain historical context.
 
 ## Context
 

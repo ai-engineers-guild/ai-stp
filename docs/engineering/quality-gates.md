@@ -329,7 +329,7 @@ CodeQL is not a gate. Who runs it and on which runner is defined in
 CodeQL is not a gate. Who runs it and on which runner is defined in
 `docs/operations/ci-cd.md`.
 
-`check` and `back-python-3.12` jobs run on pushes to `main` and on every pull
+`check` and `back-python-3.12` jobs run on pushes to `dev` and `main` and on every pull
 request. Push branches in the workflow must match the line from `git-workflow.md`.
 An obsolete run is superseded on every event: there is nothing else to interrupt,
 and the freed slot goes to the current run.
@@ -339,17 +339,13 @@ tree: checks run on GitHub-hosted runners (`ubuntu-latest`, `macos-15`, and the 
 matrix), and a one-job queue does not apply to them. The former wording described a
 private fleet and pointed to a record absent from the public tree.
 
-These statuses are not made required, and that is a decision rather than a platform
-limitation (`ADR-0115`). The repository has no participant protections: no branch
-protection, mandatory approvals, protected environments, or tag rules. The reason
-is who works here: the primary participant is a coding agent, and each such rule
-puts a step in its cycle that it cannot perform while none checks the change itself.
-The gate checks the change.
-
-The boundary is one line and worth remembering for the next similar question: a
-rule that checks the **change** remains; a rule that checks **permission** goes.
-Therefore the gate, the published-path allowlist, and product confirmation of an
-irreversible operation are not "protections" in this sense and remain.
+ADR-0180 replaces ADR-0115's branch-policy decision. Permanent `dev` and `main`
+require PRs and reject ordinary deletion and force updates. `main` requires the
+`branch-policy` status accepting only same-repository `dev` promotion, and only
+repository administrators may update it. Zero human approvals are required.
+Administrators have an explicit bypass for exceptional updates from other sources;
+the bypass never proves the product gate passed. Existing deployment and tag rules
+are not changed. Automatic branch deletion is disabled to preserve `dev`.
 
 The existence of a workflow without an observed run and branch rules does not count
 as satisfying a requirement. After every merge to `main`, the exact merge SHA is
