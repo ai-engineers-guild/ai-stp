@@ -2588,6 +2588,10 @@ export type CorporateTeamCreateRequest = {
    * Authorization Revision
    */
   authorization_revision: number;
+  /**
+   * Description
+   */
+  description?: string;
   idempotency_key: IdempotencyKey;
   /**
    * Name
@@ -2623,6 +2627,10 @@ export type CorporateTeamUpdateRequest = {
    */
   authorization_revision: number;
   /**
+   * Description
+   */
+  description?: string;
+  /**
    * Expected Revision
    */
   expected_revision: number;
@@ -2645,6 +2653,10 @@ export type CorporateTeamUpdateRequest = {
  * CorporateTeamView
  */
 export type CorporateTeamView = {
+  /**
+   * Description
+   */
+  description: string;
   /**
    * Lead Account Ids
    */

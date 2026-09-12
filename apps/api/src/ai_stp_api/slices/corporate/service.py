@@ -252,6 +252,7 @@ async def _team_view(
         team_id=row.id,
         organization_id=row.organization_id,
         name=row.name,
+        description=row.description,
         state=cast("Literal['active', 'archived']", row.state),
         revision=row.revision,
     )
@@ -563,6 +564,7 @@ async def _authorize_idempotent(
     request_id: str | None = None,
     scope_kind: str = "organization",
     scope_id: str | None = None,
+    legacy_fingerprint: str | None = None,
 ) -> tuple[Organization, CorporateMutationReceipt | None]:
     organization, _ = await authorize(
         db,
@@ -574,7 +576,10 @@ async def _authorize_idempotent(
     )
     receipt = await db.get(CorporateMutationReceipt, (organization_id, idempotency_key))
     if receipt is not None:
-        if receipt.operation != operation or receipt.request_fingerprint != fingerprint:
+        if receipt.operation != operation or receipt.request_fingerprint not in {
+            fingerprint,
+            legacy_fingerprint,
+        }:
             raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
         if (
             scope_kind in {"team", "project"}
@@ -1843,7 +1848,13 @@ async def create_team(
     payload: CorporateTeamCreateRequest,
     request_id: str | None,
 ) -> CorporateTeamView:
-    fingerprint = _fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    fingerprint = _fingerprint(
+        payload.model_dump(
+            mode="json",
+            exclude={"idempotency_key"}
+            | ({"description"} if "description" not in payload.model_fields_set else set()),
+        )
+    )
     organization, receipt = await _authorize_idempotent(
         db,
         ctx=ctx,
@@ -1857,7 +1868,12 @@ async def create_team(
     )
     if receipt is not None:
         return CorporateTeamView.model_validate(receipt.response_body)
-    row = CorporateTeam(id=new_id("operation"), organization_id=organization_id, name=payload.name)
+    row = CorporateTeam(
+        id=new_id("operation"),
+        organization_id=organization_id,
+        name=payload.name,
+        description=payload.description,
+    )
     db.add(row)
     await db.flush()
     organization.policy_revision += 1
@@ -1927,7 +1943,13 @@ async def update_team(
     payload: CorporateTeamUpdateRequest,
     request_id: str | None,
 ) -> CorporateTeamView:
-    fingerprint = _fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    fingerprint = _fingerprint(
+        payload.model_dump(
+            mode="json",
+            exclude={"idempotency_key"}
+            | ({"description"} if "description" not in payload.model_fields_set else set()),
+        )
+    )
     organization, receipt = await _authorize_idempotent(
         db,
         ctx=ctx,
@@ -1957,6 +1979,8 @@ async def update_team(
         raise ApiError(ErrorCategory.CONFLICT, "team revision changed")
     before = {"name": row.name, "state": row.state, "revision": row.revision}
     row.name = payload.name
+    if "description" in payload.model_fields_set:
+        row.description = payload.description
     row.state = payload.state
     row.revision += 1
     organization.policy_revision += 1
@@ -2427,7 +2451,10 @@ async def assign_member(
     payload: CorporateMembershipAssignmentRequest,
     request_id: str | None,
 ) -> CorporateMembershipAssignment:
-    fingerprint = _fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    # Authorization revision is a fresh-operation precondition, not an assignment effect.
+    fingerprint = _fingerprint(
+        payload.model_dump(mode="json", exclude={"idempotency_key", "authorization_revision"})
+    )
     operation = f"member.{payload.operation}"
     organization, receipt = await _authorize_idempotent(
         db,
@@ -2438,6 +2465,9 @@ async def assign_member(
         idempotency_key=payload.idempotency_key,
         operation=operation,
         fingerprint=fingerprint,
+        legacy_fingerprint=_fingerprint(
+            payload.model_dump(mode="json", exclude={"idempotency_key"})
+        ),
         request_id=request_id,
     )
     if receipt is not None:

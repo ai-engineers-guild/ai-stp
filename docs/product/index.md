@@ -10,6 +10,7 @@ last_verified: "2026-08-03"
 | Document | Description | Verified |
 | -------- | ----- | ------- |
 | [BRAND.md](BRAND.md) | The voice, tone, markers, and identity rules of the ai_stp product. | 2026-08-22 |
+| [corporate-workspace.md](corporate-workspace.md) | Interaction contract for corporate team and employee management. | 2026-09-12 |
 | [DESIGN.md](DESIGN.md) | The visual design system for the web MVP: tokens, typography, components, and modes. | 2026-08-22 |
 | [feature-list.md](feature-list.md) | MVP functional areas and their observable outcomes. | 2026-08-04 |
 | [glossary.md](glossary.md) | Canonical domain glossary. | 2026-08-24 |

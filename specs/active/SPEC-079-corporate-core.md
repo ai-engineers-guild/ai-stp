@@ -211,3 +211,36 @@ The #204 executable oracle covers multiple memberships and scoped leads, visibil
 lead replacement/removal, suspension, archived grants, restoration, forbidden
 mutations, stale revisions, replay, and tenant-crossing identifiers. Web team details
 show the server-authorized roster and lead relationships.
+
+## Corporate team workspace
+
+- `REQ-7919`: Teams have a name and optional description of at most 2000 characters.
+  Description is tenant-private, returned on team views, persisted on creation and
+  revision-checked update; omitted update descriptions preserve existing content.
+- `REQ-7920`: Human team details default to reading: name, description, state,
+  authorized roster, and active leads. Editing is explicitly entered from an action
+  menu and can be cancelled. Empty and archived teams have actionable explanations.
+- `REQ-7921`: Superadmins select organization employees on team details, search by
+  name, filter assigned/unassigned employees, and assign several employees as staff
+  or lead. Employee details show team relationships and allow selection of several
+  teams. Team roles are the closed staff/lead kinds, distinct from organization roles.
+  Suspended employees cannot receive assignments; archived teams accept removal only.
+  Batch UI requests run individually authorized/idempotent assignments in sequence
+  with fresh revisions. Partial completion is reported and refreshed; retry never
+  silently repeats completed rows.
+
+The workspace oracle covers default read mode, explicit edit/cancel, employee
+search and membership filters, team and employee assignment flows, lead changes,
+empty/archived states, partial failure, description persistence, and permissions.
+Existing member and role list endpoints remain their canonical sources.
+
+Assignment receipt fingerprints bind account, team/project, role, and operation;
+authorization revision is checked for fresh mutations but excluded from new
+assignment fingerprints so an uncertain committed response can be replayed after
+revision refresh. Replay still requires current permission. Existing exact-payload
+receipts remain accepted using their legacy fingerprint. Changing selected team
+role creates fresh keys for the newly requested effect.
+
+Team fingerprints exclude an omitted description and include an explicitly supplied
+description. Omission on update preserves content; explicit empty content clears it,
+and therefore is a distinct effect. This preserves pre-description exact receipts.

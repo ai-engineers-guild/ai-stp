@@ -66,3 +66,18 @@ team. Restore enables retained grants only for active principals. If every lead 
 removed or suspended, a superadmin appoints a replacement; staff receive no automatic
 privileges. Roll back an unintended archive by restoring the team's state using its
 current revisions.
+
+## Human team workspace
+
+Open `/corporate` as a superadmin. Create a team with name and optional description,
+then open it to select employees and appoint leads. Employee search supports
+team/unassigned filters; employee details list and manage team memberships. Team
+roles (staff/lead) are separate from organization roles. Editing is explicitly
+entered through the action menu. Archive blocks assignments; removal remains
+available for suspended employees. Partial batch completion retains unfinished
+selections for retry.
+
+Deploy migration `0066_corporate_team_description` before API/Web. Existing teams
+receive an empty description. Roll back application code while retaining the column
+and tenant data. A migration downgrade removes descriptions, so preserve a verified
+backup before discarding that content.

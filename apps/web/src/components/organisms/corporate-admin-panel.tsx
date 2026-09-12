@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { CorporateRoleView } from "@/lib/api/generated/types.gen";
 
 import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
@@ -13,6 +14,7 @@ type Props = {
   organizationId: string;
   authorizationRevision: number;
   permissions: readonly string[];
+  roles?: readonly CorporateRoleView[];
   labels: {
     title: string;
     description: string;
@@ -43,6 +45,7 @@ export function CorporateAdminPanel({
   organizationId,
   authorizationRevision,
   permissions,
+  roles = [],
   labels,
 }: Props) {
   const router = useRouter();
@@ -132,8 +135,11 @@ export function CorporateAdminPanel({
               }}
               className="border-border bg-background h-9 w-full rounded-sm border px-3 text-sm"
             >
-              <option value="staff">{labels.staff}</option>
-              <option value="lead">{labels.lead}</option>
+              {roles.map((item) => (
+                <option key={item.name} value={item.name}>
+                  {item.name}
+                </option>
+              ))}
             </select>
             <Button type="submit" disabled={busy} className="w-full">
               {busy ? labels.creating : labels.create}

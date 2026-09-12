@@ -5242,6 +5242,12 @@
             "title": "Authorization Revision",
             "type": "integer"
           },
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
           },
@@ -5299,6 +5305,12 @@
             "title": "Authorization Revision",
             "type": "integer"
           },
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
           "expected_revision": {
             "minimum": 1,
             "title": "Expected Revision",
@@ -5341,6 +5353,12 @@
       "CorporateTeamView": {
         "additionalProperties": true,
         "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
           "lead_account_ids": {
             "default": [],
             "items": {
@@ -5394,6 +5412,7 @@
           }
         },
         "required": [
+          "description",
           "lead_account_ids",
           "members",
           "name",
@@ -33628,6 +33647,7 @@
                   "createCorporateTeam.corporate": {
                     "summary": "Team creation returns immutable tenant ownership.",
                     "value": {
+                      "description": "",
                       "lead_account_ids": [],
                       "members": [],
                       "name": "platform",
@@ -34066,6 +34086,7 @@
                   "readCorporateTeam.corporate": {
                     "summary": "One team read keeps the tenant boundary explicit.",
                     "value": {
+                      "description": "",
                       "lead_account_ids": [],
                       "members": [],
                       "name": "platform",
@@ -34298,6 +34319,7 @@
                   "updateCorporateTeam.corporate": {
                     "summary": "Team archive state uses revision checks.",
                     "value": {
+                      "description": "",
                       "lead_account_ids": [],
                       "members": [],
                       "name": "platform",

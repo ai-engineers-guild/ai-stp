@@ -61,6 +61,12 @@
     "CorporateTeamView": {
       "additionalProperties": true,
       "properties": {
+        "description": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Description",
+          "type": "string"
+        },
         "lead_account_ids": {
           "default": [],
           "items": {
@@ -114,6 +120,7 @@
         }
       },
       "required": [
+        "description",
         "lead_account_ids",
         "members",
         "name",

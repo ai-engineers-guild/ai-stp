@@ -14,6 +14,12 @@
       "title": "Authorization Revision",
       "type": "integer"
     },
+    "description": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Description",
+      "type": "string"
+    },
     "expected_revision": {
       "minimum": 1,
       "title": "Expected Revision",

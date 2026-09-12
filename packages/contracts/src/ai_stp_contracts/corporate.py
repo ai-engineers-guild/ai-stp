@@ -215,6 +215,7 @@ class CorporateTeamCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
+    description: Annotated[str, Field(max_length=2000)] = ""
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
 
@@ -225,6 +226,7 @@ class CorporateTeamView(BaseModel):
     team_id: str
     organization_id: OrganizationId
     name: str
+    description: Annotated[str, Field(max_length=2000)] = ""
     state: Literal["active", "archived"]
     revision: Annotated[int, Field(ge=1)]
     members: Annotated[list[CorporateMember], Field(max_length=256)] = []
@@ -235,6 +237,7 @@ class CorporateTeamUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
+    description: Annotated[str, Field(max_length=2000)] = ""
     state: Literal["active", "archived"]
     expected_revision: Annotated[int, Field(ge=1)]
     authorization_revision: Annotated[int, Field(ge=1)]
