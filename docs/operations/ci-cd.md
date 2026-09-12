@@ -30,7 +30,7 @@ repository-wide security scans are CI-only. They are not required or expected
 before a local commit or through a pre-push hook.
 
 `.github/workflows/check.yml` runs the heavy matrix for every pull request,
-including draft pull requests, and for pushes to `main`; `workflow_dispatch`
+including draft pull requests, and for pushes to `dev` and `main`; `workflow_dispatch`
 is available for an explicit rerun. The CI status on the exact branch SHA is
 the authoritative result. This checkout has no GitLab remote and no
 `.gitlab-ci.yml`, so there is no GitLab pipeline to dispatch from this
@@ -50,8 +50,9 @@ A newer push cancels the older `check` for that ref. The workflow verdict alread
 combines its jobs; no extra aggregation job is needed.
 
 CodeQL is a separate public workflow using `security-extended`. It is not a
-substitute for the repository security recipe or an omitted test. Branch
-protection is not introduced as part of release work (`ADR-0115`).
+substitute for the repository security recipe or an omitted test. ADR-0180 defines
+default `dev`, protected `main`, dev promotion checks and administrator bypass;
+release work does not add mandatory human approvals.
 
 ## Promotion and production proof
 
