@@ -47,7 +47,9 @@ export function CorporateEmployeeDirectory({
           <Input
             id="employee-search"
             value={search}
-            onChange={(event) => { setSearch(event.target.value); }}
+            onChange={(event) => {
+              setSearch(event.target.value);
+            }}
           />
         </div>
         <div className="space-y-2">
@@ -55,7 +57,9 @@ export function CorporateEmployeeDirectory({
           <select
             id="employee-team-filter"
             value={filter}
-            onChange={(event) => { setFilter(event.target.value); }}
+            onChange={(event) => {
+              setFilter(event.target.value);
+            }}
             className="border-input bg-background h-9 max-w-full rounded-sm border px-3 text-sm"
           >
             <option value="all">{t("allEmployees")}</option>
@@ -76,7 +80,7 @@ export function CorporateEmployeeDirectory({
                 href={`/corporate/members/${member.account_id}`}
                 className="hover:bg-muted focus-visible:ring-ring flex flex-wrap items-center justify-between gap-3 p-4 outline-none focus-visible:ring-2"
               >
-                <div className="min-w-0 space-y-1">
+                <div className="min-w-0 space-y-1 [overflow-wrap:anywhere]">
                   <span className="block font-medium">
                     {member.display_name ?? member.account_id}
                   </span>

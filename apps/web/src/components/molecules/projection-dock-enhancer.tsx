@@ -20,6 +20,7 @@ export function ProjectionDockEnhancer({ locale }: { locale: string }) {
       locale,
       searchParams.toString(),
     );
+    dock.dataset.placement = /\/corporate(?:\/|$)/.test(humanHref) ? "inline" : "fixed";
     const machine = isMachinePagePath(pathname);
     const links = [
       {

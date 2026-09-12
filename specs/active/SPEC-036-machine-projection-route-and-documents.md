@@ -52,7 +52,9 @@ Does not include CLI, passports, domain APIs, access rules and color theme
   request from the client and does not control `style.display` from the script.
 - `REQ-3604`: Projection switch is a link to `Paired URL`, saves
   current path, query and locale, marks the active variant `aria-current` and
-  works with JavaScript disabled. It is anchored at the bottom center of the viewport andis not included in the document flow.
+  works with JavaScript disabled. It is anchored at the bottom center of the viewport outside document flow.
+  Corporate operating pages place it in document flow after the footer to keep
+  employee selection and focused form controls unobstructed.
 - `REQ-3605`: Markdown in a machine document is DOM nodes. Headings,
   links and service markers are not created via CSS generated content and
   are present in `textContent`.

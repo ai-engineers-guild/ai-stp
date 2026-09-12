@@ -219,7 +219,8 @@ show the server-authorized roster and lead relationships.
   revision-checked update; omitted update descriptions preserve existing content.
 - `REQ-7920`: Human team details default to reading: name, description, state,
   authorized roster, and active leads. Editing is explicitly entered from an action
-  menu and can be cancelled. Empty and archived teams have actionable explanations.
+  menu and can be cancelled. Long names wrap without overlapping status labels;
+  projection navigation remains available after the footer without covering controls. Empty and archived teams have actionable explanations.
 - `REQ-7921`: Superadmins select organization employees on team details, search by
   name, filter assigned/unassigned employees, and assign several employees as staff
   or lead. Employee details show team relationships and allow selection of several

@@ -99,7 +99,9 @@ export default async function CorporateResourcePage({ params }: PageProps) {
           <Badge variant="outline">{detail.state}</Badge>
           {detail.role ? <Badge variant="secondary">{detail.role}</Badge> : null}
         </div>
-        <h1 className="text-3xl font-medium tracking-tight">{detail.name}</h1>
+        <h1 className="text-3xl font-medium tracking-tight [overflow-wrap:anywhere]">
+          {detail.name}
+        </h1>
         <p className="text-muted-foreground max-w-prose">
           {team ? team.description || t("noDescription") : detail.description}
         </p>
@@ -139,18 +141,14 @@ export default async function CorporateResourcePage({ params }: PageProps) {
           {t("viewDetails")}
         </summary>
         <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-          <div>
-            <dt className="text-muted-foreground">{t("id")}</dt>
-            <dd className="mt-1 font-mono text-xs break-all">{detail.id}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">{t("state")}</dt>
-            <dd className="mt-1">{detail.state}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">{t("revision")}</dt>
-            <dd className="mt-1">{detail.revision}</dd>
-          </div>
+          {(["id", "state", "revision"] as const).map((key) => (
+            <div key={key}>
+              <dt className="text-muted-foreground">{t(key)}</dt>
+              <dd className={`mt-1 ${key === "id" ? "font-mono text-xs break-all" : ""}`}>
+                {detail[key]}
+              </dd>
+            </div>
+          ))}
         </dl>
       </details>
       {resource !== "teams" && (

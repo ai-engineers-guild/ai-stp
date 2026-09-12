@@ -1277,7 +1277,6 @@
     "noProjects": "No projects are assigned.",
     "noTeams": "No teams are assigned.",
     "noRoles": "No roles are defined.",
-    "noMembers": "No members are assigned.",
     "id": "ID",
     "revision": "Revision",
     "role": "Role",
@@ -1357,18 +1356,12 @@
     "chooseTeams": "Choose teams",
     "noEmployeeTeams": "This employee has no team assignments.",
     "createTeam": "Create team",
-    "teamCreated": "Team created. Add its employees next.",
-    "employee": "Employee",
-    "leads": "Team leads",
-    "teamCount": "{count} teams",
-    "employeeCount": "{count} employees",
     "teamRoleHint": "This role applies only to the selected team. Organization roles are managed separately.",
     "noOrganizationEmployees": "No employees yet. Create an employee in the workspace first.",
-    "removeMembership": "Remove assignment",
     "viewDetails": "Technical details",
-    "createEmployee": "Create employee",
     "membershipFilter": "Team membership",
     "teamFilter": "Filter by team",
+    "notAssigned": "Not assigned",
     "allTeams": "All teams"
   }
 }

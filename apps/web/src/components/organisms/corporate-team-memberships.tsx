@@ -140,7 +140,7 @@ export function CorporateTeamMemberships({
               key={`${item.team_id}:${member.account_id}`}
               className="flex flex-wrap items-center justify-between gap-3 p-4"
             >
-              <div className="min-w-0 space-y-1">
+              <div className="min-w-0 space-y-1 [overflow-wrap:anywhere]">
                 <span className="font-medium">
                   {team ? (
                     (member.display_name ?? member.account_id)
@@ -260,7 +260,7 @@ export function CorporateTeamMemberships({
                 }}
                 className="border-input bg-background h-9 rounded-sm border px-3 text-sm"
               >
-                <option value="available">{t(team ? "notInThisTeam" : "allTeams")}</option>
+                <option value="available">{t(team ? "notInThisTeam" : "notAssigned")}</option>
                 <option value="all">{t(team ? "allEmployees" : "allTeams")}</option>
                 {team && <option value="unassigned">{t("unassigned")}</option>}
               </select>
@@ -292,7 +292,7 @@ export function CorporateTeamMemberships({
                     }}
                     className="accent-primary h-4 w-4"
                   />
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                     <span className="block font-medium">{item.name}</span>
                     {team && (
                       <span className="text-muted-foreground block text-xs">
@@ -300,7 +300,7 @@ export function CorporateTeamMemberships({
                       </span>
                     )}
                   </span>
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-muted-foreground shrink-0 text-xs">
                     {item.assigned ? t("assigned") : t(item.state)}
                   </span>
                 </label>

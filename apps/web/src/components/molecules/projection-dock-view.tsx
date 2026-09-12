@@ -22,17 +22,13 @@ export function ProjectionDockView({
   return (
     <aside
       data-ui={UI.projection.toggle}
+      data-placement={/\/corporate(?:\/|$)/.test(humanHref) ? "inline" : "fixed"}
       className="projection-dock inline-grid grid-cols-2 gap-2 rounded-sm px-2 py-1"
       aria-label={labels.group}
       style={{
-        position: "fixed",
-        insetBlockEnd: "1.5rem",
-        insetInlineStart: "50%",
         inlineSize: "16rem",
         width: "16rem",
         gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        transform: "translateX(-50%)",
-        zIndex: 50,
       }}
     >
       <a

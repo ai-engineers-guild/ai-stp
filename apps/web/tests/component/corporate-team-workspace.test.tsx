@@ -141,6 +141,8 @@ describe("corporate team workspace", () => {
       ),
     );
     await user.click(screen.getByRole("button", { name: "Choose teams" }));
+    expect(screen.getByRole("option", { name: "Not assigned" })).toHaveValue("available");
+    expect(screen.getByRole("option", { name: "All teams" })).toHaveValue("all");
     await user.click(screen.getByRole("checkbox", { name: /Support/ }));
     await user.click(screen.getByRole("checkbox", { name: /Engineering/ }));
     await user.click(screen.getByRole("button", { name: "Add selected (2)" }));
