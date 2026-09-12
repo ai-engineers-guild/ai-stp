@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "../../messages/en.json";
 import { corporateMutationAction, corporateTeamAssignmentsAction } from "@/actions/corporate";
 import { CorporateResourceActions } from "@/components/organisms/corporate-resource-actions";
+import { ProjectionDockView } from "@/components/molecules/projection-dock-view";
 import { CorporateTeamEditor } from "@/components/organisms/corporate-team-editor";
 import { CorporateTeamMemberships } from "@/components/organisms/corporate-team-memberships";
 import { CorporateEmployeeDirectory } from "@/components/organisms/corporate-employee-directory";
@@ -220,5 +221,25 @@ describe("corporate team workspace", () => {
     );
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
+describe("corporate projection placement", () => {
+  it.each([
+    ["/en/corporate/teams/team_A?filter=all", "inline"],
+    ["/en/login?next=/en/corporate", "fixed"],
+  ])("uses only the path of %s", (humanHref, placement) => {
+    render(
+      <ProjectionDockView
+        projection="human"
+        humanHref={humanHref}
+        machineHref="/en/ai"
+        labels={{ group: "Site format", human: "Human", machine: "Machine" }}
+      />,
+    );
+    expect(screen.getByRole("complementary", { name: "Site format" })).toHaveAttribute(
+      "data-placement",
+      placement,
+    );
   });
 });

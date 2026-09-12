@@ -136,21 +136,7 @@ export default async function CorporateResourcePage({ params }: PageProps) {
           canManage={workspace.context.capabilities.includes("member.manage")}
         />
       ) : null}
-      <details className="border-border border-t pt-4">
-        <summary className="text-muted-foreground cursor-pointer text-sm">
-          {t("viewDetails")}
-        </summary>
-        <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-          {(["id", "state", "revision"] as const).map((key) => (
-            <div key={key}>
-              <dt className="text-muted-foreground">{t(key)}</dt>
-              <dd className={`mt-1 ${key === "id" ? "font-mono text-xs break-all" : ""}`}>
-                {detail[key]}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </details>
+      <TechnicalDetails detail={detail} />
       {resource !== "teams" && (
         <CorporateResourceActions
           csrfToken={(await readCsrfToken()) ?? ""}
@@ -189,5 +175,28 @@ export default async function CorporateResourcePage({ params }: PageProps) {
         />
       )}
     </article>
+  );
+}
+
+async function TechnicalDetails({
+  detail,
+}: {
+  detail: { id: string; state: string; revision: number };
+}) {
+  const t = await getTranslations("corporate");
+  return (
+    <details className="border-border border-t pt-4">
+      <summary className="text-muted-foreground cursor-pointer text-sm">{t("viewDetails")}</summary>
+      <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
+        {(["id", "state", "revision"] as const).map((key) => (
+          <div key={key}>
+            <dt className="text-muted-foreground">{t(key)}</dt>
+            <dd className={`mt-1 ${key === "id" ? "font-mono text-xs break-all" : ""}`}>
+              {detail[key]}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   );
 }

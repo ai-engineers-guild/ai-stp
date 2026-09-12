@@ -22,7 +22,9 @@ export function ProjectionDockView({
   return (
     <aside
       data-ui={UI.projection.toggle}
-      data-placement={/\/corporate(?:\/|$)/.test(humanHref) ? "inline" : "fixed"}
+      data-placement={
+        /\/corporate(?:\/|$)/.test(humanHref.split("?")[0] ?? "") ? "inline" : "fixed"
+      }
       className="projection-dock inline-grid grid-cols-2 gap-2 rounded-sm px-2 py-1"
       aria-label={labels.group}
       style={{
