@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-team-write-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "replace_owner_expected_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Replace Owner Expected Revision"
+    },
+    "replace_owner_relation_id": {
+      "anyOf": [
+        {
+          "pattern": "^relation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Replace Owner Relation Id"
+    },
+    "role": {
+      "enum": [
+        "owner",
+        "responsible",
+        "contributor"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "default": "current",
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "team_id": {
+      "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Team Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "expected_revision",
+    "idempotency_key",
+    "team_id",
+    "role"
+  ],
+  "title": "ProjectTeamWriteRequest",
+  "type": "object"
+}

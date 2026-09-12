@@ -1,0 +1,677 @@
+{
+  "$defs": {
+    "LandscapeProjectView": {
+      "additionalProperties": true,
+      "properties": {
+        "activity": {
+          "enum": [
+            "active",
+            "inactive",
+            "unknown"
+          ],
+          "title": "Activity",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "project_id": {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/$defs/ProjectTechnologyView"
+        }
+      },
+      "required": [
+        "activity",
+        "name",
+        "project_id",
+        "usage"
+      ],
+      "title": "LandscapeProjectView",
+      "type": "object"
+    },
+    "ProjectTechnologyView": {
+      "additionalProperties": true,
+      "properties": {
+        "facts": {
+          "items": {
+            "$ref": "#/$defs/UsageFactView"
+          },
+          "title": "Facts",
+          "type": "array"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "project_id": {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "relation_id": {
+          "pattern": "^relation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Relation Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "technology_id": {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Technology Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "facts",
+        "organization_id",
+        "project_id",
+        "relation_id",
+        "revision",
+        "state",
+        "technology_id"
+      ],
+      "title": "ProjectTechnologyView",
+      "type": "object"
+    },
+    "TechnologyEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "detector_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detector Version"
+        },
+        "mapping_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mapping Version"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9._:/+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "source": {
+          "enum": [
+            "manual",
+            "declared",
+            "configured",
+            "observed",
+            "forge_language"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "source_revision": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Revision"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at"
+      ],
+      "title": "TechnologyEvidence",
+      "type": "object"
+    },
+    "TechnologyLandscapeQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "adoption": {
+          "anyOf": [
+            {
+              "enum": [
+                "none",
+                "assess",
+                "trial",
+                "adopt",
+                "hold"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adoption"
+        },
+        "category_id": {
+          "anyOf": [
+            {
+              "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category Id"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "enum": [
+                "production",
+                "development",
+                "testing",
+                "browser_support"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "enum": [
+                "current",
+                "stale",
+                "absent",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Freshness"
+        },
+        "include_history": {
+          "default": false,
+          "title": "Include History",
+          "type": "boolean"
+        },
+        "include_inactive": {
+          "default": false,
+          "title": "Include Inactive",
+          "type": "boolean"
+        },
+        "lifecycle": {
+          "anyOf": [
+            {
+              "enum": [
+                "draft",
+                "active",
+                "deprecated",
+                "archived"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lifecycle"
+        },
+        "limit": {
+          "default": 128,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "project_limit": {
+          "default": 128,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Project Limit",
+          "type": "integer"
+        },
+        "project_offset": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Project Offset",
+          "type": "integer"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "enum": [
+                "proposed",
+                "confirmed",
+                "rejected",
+                "overridden",
+                "retired"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review"
+        },
+        "team_id": {
+          "anyOf": [
+            {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Id"
+        },
+        "technology_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technology Id"
+        }
+      },
+      "title": "TechnologyLandscapeQuery",
+      "type": "object"
+    },
+    "TechnologyLandscapeRow": {
+      "additionalProperties": true,
+      "properties": {
+        "project_count": {
+          "minimum": 0,
+          "title": "Project Count",
+          "type": "integer"
+        },
+        "projects": {
+          "items": {
+            "$ref": "#/$defs/LandscapeProjectView"
+          },
+          "title": "Projects",
+          "type": "array"
+        },
+        "proposed_project_count": {
+          "minimum": 0,
+          "title": "Proposed Project Count",
+          "type": "integer"
+        },
+        "technology": {
+          "$ref": "#/$defs/TechnologyView"
+        }
+      },
+      "required": [
+        "project_count",
+        "projects",
+        "proposed_project_count",
+        "technology"
+      ],
+      "title": "TechnologyLandscapeRow",
+      "type": "object"
+    },
+    "TechnologyView": {
+      "additionalProperties": true,
+      "properties": {
+        "aliases": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Aliases",
+          "type": "array"
+        },
+        "category_ids": {
+          "items": {
+            "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 4000,
+          "title": "Description",
+          "type": "string"
+        },
+        "icon_url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon Url"
+        },
+        "lifecycle": {
+          "enum": [
+            "draft",
+            "active",
+            "deprecated",
+            "archived"
+          ],
+          "title": "Lifecycle",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "official_urls": {
+          "default": [],
+          "items": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Official Urls",
+          "type": "array"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "provenance": {
+          "maxLength": 256,
+          "title": "Provenance",
+          "type": "string"
+        },
+        "redirect_id": {
+          "anyOf": [
+            {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Redirect Id"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "technology_id": {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Technology Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "aliases",
+        "category_ids",
+        "description",
+        "icon_url",
+        "lifecycle",
+        "name",
+        "official_urls",
+        "organization_id",
+        "provenance",
+        "redirect_id",
+        "revision",
+        "schema_version",
+        "technology_id"
+      ],
+      "title": "TechnologyView",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "UsageFactView": {
+      "additionalProperties": true,
+      "properties": {
+        "context": {
+          "enum": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ],
+          "title": "Context",
+          "type": "string"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyEvidence"
+          },
+          "maxItems": 64,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "freshness": {
+          "enum": [
+            "current",
+            "stale",
+            "absent",
+            "unknown"
+          ],
+          "title": "Freshness",
+          "type": "string"
+        },
+        "review": {
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected",
+            "overridden",
+            "retired"
+          ],
+          "title": "Review",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "version_kind": {
+          "default": "unknown",
+          "enum": [
+            "unknown",
+            "declared_range",
+            "observed_version"
+          ],
+          "title": "Version Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "context",
+        "evidence",
+        "freshness",
+        "review",
+        "version",
+        "version_kind"
+      ],
+      "title": "UsageFactView",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-landscape-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "evaluated_at": {
+      "$ref": "#/$defs/Timestamp"
+    },
+    "filters": {
+      "$ref": "#/$defs/TechnologyLandscapeQuery"
+    },
+    "inactivity_months": {
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Inactivity Months",
+      "type": "integer"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/TechnologyLandscapeRow"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "total": {
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "evaluated_at",
+    "filters",
+    "inactivity_months",
+    "items",
+    "organization_id",
+    "total"
+  ],
+  "title": "TechnologyLandscapeView",
+  "type": "object"
+}

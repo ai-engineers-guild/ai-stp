@@ -265,6 +265,21 @@ class CorporateProject(Base):
 
     __tablename__ = "corporate_project"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "id", "identity_namespace"],
+            [
+                "project_identity.organization_id",
+                "project_identity.id",
+                "project_identity.namespace",
+            ],
+            ondelete="RESTRICT",
+            name="fk_corporate_project_identity",
+        ),
+        CheckConstraint("identity_namespace = 'remote'", name="ck_corporate_project_identity"),
+        CheckConstraint(
+            "activity_override IS NULL OR activity_override IN ('active','inactive')",
+            name="ck_corporate_project_activity_override",
+        ),
         UniqueConstraint("organization_id", "id", name="uq_corporate_project_tenant_id"),
         UniqueConstraint("organization_id", "name", name="uq_corporate_project_name"),
         CheckConstraint("state in ('active', 'archived')", name="ck_corporate_project_state"),
@@ -276,6 +291,11 @@ class CorporateProject(Base):
         String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    identity_namespace: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="remote", server_default="remote"
+    )
+    repository_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    activity_override: Mapped[str | None] = mapped_column(String(16))
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -441,6 +461,10 @@ class ProjectIdentity(Base):
 
     __tablename__ = "project_identity"
     __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "id", "namespace", name="uq_project_identity_tenant_namespace"
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_project_identity_tenant_id"),
         UniqueConstraint(
             "organization_id", "namespace", "external_key", name="uq_project_identity_external"
         ),

@@ -21,6 +21,9 @@ import type {
   BootstrapCorporateOrganizationData,
   BootstrapCorporateOrganizationErrors,
   BootstrapCorporateOrganizationResponses,
+  ChangeTechnologyLifecycleData,
+  ChangeTechnologyLifecycleErrors,
+  ChangeTechnologyLifecycleResponses,
   CompleteGithubConnectionData,
   CompleteGithubConnectionErrors,
   CompleteLegalOnboardingData,
@@ -95,6 +98,12 @@ import type {
   CreateRequestCaseData,
   CreateRequestCaseErrors,
   CreateRequestCaseResponses,
+  CreateTechnologyCategoryData,
+  CreateTechnologyCategoryErrors,
+  CreateTechnologyCategoryResponses,
+  CreateTechnologyData,
+  CreateTechnologyErrors,
+  CreateTechnologyResponses,
   CreateVisibilityPlanData,
   CreateVisibilityPlanErrors,
   CreateVisibilityPlanResponses,
@@ -188,6 +197,12 @@ import type {
   ListOwnershipRevisionsData,
   ListOwnershipRevisionsErrors,
   ListOwnershipRevisionsResponses,
+  ListProjectTeamsData,
+  ListProjectTeamsErrors,
+  ListProjectTeamsResponses,
+  ListProjectTechnologiesData,
+  ListProjectTechnologiesErrors,
+  ListProjectTechnologiesResponses,
   ListReportCasesData,
   ListReportCasesErrors,
   ListReportCasesResponses,
@@ -197,6 +212,24 @@ import type {
   ListStaffReportsData,
   ListStaffReportsErrors,
   ListStaffReportsResponses,
+  ListTeamProjectsData,
+  ListTeamProjectsErrors,
+  ListTeamProjectsResponses,
+  ListTeamTechnologiesData,
+  ListTeamTechnologiesErrors,
+  ListTeamTechnologiesResponses,
+  ListTechnologiesData,
+  ListTechnologiesErrors,
+  ListTechnologiesResponses,
+  ListTechnologyCategoriesData,
+  ListTechnologyCategoriesErrors,
+  ListTechnologyCategoriesResponses,
+  ListTechnologyProjectsData,
+  ListTechnologyProjectsErrors,
+  ListTechnologyProjectsResponses,
+  ListTechnologyTeamsData,
+  ListTechnologyTeamsErrors,
+  ListTechnologyTeamsResponses,
   LogoutSessionData,
   LogoutSessionErrors,
   LogoutSessionResponses,
@@ -374,6 +407,15 @@ import type {
   ReadSystemVersionData,
   ReadSystemVersionErrors,
   ReadSystemVersionResponses,
+  ReadTechnologyData,
+  ReadTechnologyDecisionData,
+  ReadTechnologyDecisionErrors,
+  ReadTechnologyDecisionResponses,
+  ReadTechnologyErrors,
+  ReadTechnologyLandscapeData,
+  ReadTechnologyLandscapeErrors,
+  ReadTechnologyLandscapeResponses,
+  ReadTechnologyResponses,
   ReadVisibilityPlanData,
   ReadVisibilityPlanErrors,
   ReadVisibilityPlanResponses,
@@ -458,6 +500,24 @@ import type {
   UploadOwnerPresentationMediaData,
   UploadOwnerPresentationMediaErrors,
   UploadOwnerPresentationMediaResponses,
+  WriteProjectTeamData,
+  WriteProjectTeamErrors,
+  WriteProjectTeamResponses,
+  WriteProjectTechnologyData,
+  WriteProjectTechnologyErrors,
+  WriteProjectTechnologyResponses,
+  WriteTechnologyCategoryData,
+  WriteTechnologyCategoryErrors,
+  WriteTechnologyCategoryResponses,
+  WriteTechnologyData,
+  WriteTechnologyDecisionData,
+  WriteTechnologyDecisionErrors,
+  WriteTechnologyDecisionResponses,
+  WriteTechnologyErrors,
+  WriteTechnologyResponses,
+  WriteTechnologyTeamData,
+  WriteTechnologyTeamErrors,
+  WriteTechnologyTeamResponses,
 } from "./types.gen";
 
 export type Options<
@@ -1578,6 +1638,70 @@ export const updateCorporateProject = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Read authorized canonical relationships from either endpoint.
+ */
+export const listProjectTeams = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectTeamsData, ThrowOnError>,
+): RequestResult<ListProjectTeamsResponses, ListProjectTeamsErrors, ThrowOnError> =>
+  (options.client ?? client).get<ListProjectTeamsResponses, ListProjectTeamsErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/teams",
+    ...options,
+  });
+
+/**
+ * Change a current project-team role or exact owner.
+ */
+export const writeProjectTeam = <ThrowOnError extends boolean = false>(
+  options: Options<WriteProjectTeamData, ThrowOnError>,
+): RequestResult<WriteProjectTeamResponses, WriteProjectTeamErrors, ThrowOnError> =>
+  (options.client ?? client).put<WriteProjectTeamResponses, WriteProjectTeamErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/teams",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read authorized canonical relationships from either endpoint.
+ */
+export const listProjectTechnologies = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectTechnologiesData, ThrowOnError>,
+): RequestResult<ListProjectTechnologiesResponses, ListProjectTechnologiesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListProjectTechnologiesResponses,
+    ListProjectTechnologiesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/technologies",
+    ...options,
+  });
+
+/**
+ * Manually review one canonical project usage.
+ */
+export const writeProjectTechnology = <ThrowOnError extends boolean = false>(
+  options: Options<WriteProjectTechnologyData, ThrowOnError>,
+): RequestResult<WriteProjectTechnologyResponses, WriteProjectTechnologyErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    WriteProjectTechnologyResponses,
+    WriteProjectTechnologyErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/technologies",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * List tenant-local roles.
  */
 export const listCorporateRoles = <ThrowOnError extends boolean = false>(
@@ -1867,6 +1991,274 @@ export const updateCorporateTeam = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Read authorized canonical relationships from either endpoint.
+ */
+export const listTeamProjects = <ThrowOnError extends boolean = false>(
+  options: Options<ListTeamProjectsData, ThrowOnError>,
+): RequestResult<ListTeamProjectsResponses, ListTeamProjectsErrors, ThrowOnError> =>
+  (options.client ?? client).get<ListTeamProjectsResponses, ListTeamProjectsErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/teams/{team_id}/projects",
+    ...options,
+  });
+
+/**
+ * Read authorized canonical relationships from either endpoint.
+ */
+export const listTeamTechnologies = <ThrowOnError extends boolean = false>(
+  options: Options<ListTeamTechnologiesData, ThrowOnError>,
+): RequestResult<ListTeamTechnologiesResponses, ListTeamTechnologiesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListTeamTechnologiesResponses,
+    ListTeamTechnologiesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/teams/{team_id}/technologies",
+    ...options,
+  });
+
+/**
+ * List readable technologies before pagination.
+ */
+export const listTechnologies = <ThrowOnError extends boolean = false>(
+  options: Options<ListTechnologiesData, ThrowOnError>,
+): RequestResult<ListTechnologiesResponses, ListTechnologiesErrors, ThrowOnError> =>
+  (options.client ?? client).get<ListTechnologiesResponses, ListTechnologiesErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies",
+    ...options,
+  });
+
+/**
+ * Create a technology with a durable server ID.
+ */
+export const createTechnology = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTechnologyData, ThrowOnError>,
+): RequestResult<CreateTechnologyResponses, CreateTechnologyErrors, ThrowOnError> =>
+  (options.client ?? client).post<CreateTechnologyResponses, CreateTechnologyErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read technology metadata and retained redirect.
+ */
+export const readTechnology = <ThrowOnError extends boolean = false>(
+  options: Options<ReadTechnologyData, ThrowOnError>,
+): RequestResult<ReadTechnologyResponses, ReadTechnologyErrors, ThrowOnError> =>
+  (options.client ?? client).get<ReadTechnologyResponses, ReadTechnologyErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}",
+    ...options,
+  });
+
+/**
+ * Create or revise technology metadata and aliases.
+ */
+export const writeTechnology = <ThrowOnError extends boolean = false>(
+  options: Options<WriteTechnologyData, ThrowOnError>,
+): RequestResult<WriteTechnologyResponses, WriteTechnologyErrors, ThrowOnError> =>
+  (options.client ?? client).put<WriteTechnologyResponses, WriteTechnologyErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read current organizational adoption and lead.
+ */
+export const readTechnologyDecision = <ThrowOnError extends boolean = false>(
+  options: Options<ReadTechnologyDecisionData, ThrowOnError>,
+): RequestResult<ReadTechnologyDecisionResponses, ReadTechnologyDecisionErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadTechnologyDecisionResponses,
+    ReadTechnologyDecisionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/decision",
+    ...options,
+  });
+
+/**
+ * Set organizational adoption and designated lead.
+ */
+export const writeTechnologyDecision = <ThrowOnError extends boolean = false>(
+  options: Options<WriteTechnologyDecisionData, ThrowOnError>,
+): RequestResult<WriteTechnologyDecisionResponses, WriteTechnologyDecisionErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    WriteTechnologyDecisionResponses,
+    WriteTechnologyDecisionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/decision",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Approve, archive, deprecate, or restore.
+ */
+export const changeTechnologyLifecycle = <ThrowOnError extends boolean = false>(
+  options: Options<ChangeTechnologyLifecycleData, ThrowOnError>,
+): RequestResult<
+  ChangeTechnologyLifecycleResponses,
+  ChangeTechnologyLifecycleErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).patch<
+    ChangeTechnologyLifecycleResponses,
+    ChangeTechnologyLifecycleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/lifecycle",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read authorized canonical relationships from either endpoint.
+ */
+export const listTechnologyProjects = <ThrowOnError extends boolean = false>(
+  options: Options<ListTechnologyProjectsData, ThrowOnError>,
+): RequestResult<ListTechnologyProjectsResponses, ListTechnologyProjectsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListTechnologyProjectsResponses,
+    ListTechnologyProjectsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/projects",
+    ...options,
+  });
+
+/**
+ * Read authorized canonical relationships from either endpoint.
+ */
+export const listTechnologyTeams = <ThrowOnError extends boolean = false>(
+  options: Options<ListTechnologyTeamsData, ThrowOnError>,
+): RequestResult<ListTechnologyTeamsResponses, ListTechnologyTeamsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListTechnologyTeamsResponses,
+    ListTechnologyTeamsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/responsible-teams",
+    ...options,
+  });
+
+/**
+ * Change responsible teams without duplicating usage.
+ */
+export const writeTechnologyTeam = <ThrowOnError extends boolean = false>(
+  options: Options<WriteTechnologyTeamData, ThrowOnError>,
+): RequestResult<WriteTechnologyTeamResponses, WriteTechnologyTeamErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    WriteTechnologyTeamResponses,
+    WriteTechnologyTeamErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/responsible-teams",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List tenant technology categories.
+ */
+export const listTechnologyCategories = <ThrowOnError extends boolean = false>(
+  options: Options<ListTechnologyCategoriesData, ThrowOnError>,
+): RequestResult<ListTechnologyCategoriesResponses, ListTechnologyCategoriesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListTechnologyCategoriesResponses,
+    ListTechnologyCategoriesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-categories",
+    ...options,
+  });
+
+/**
+ * Create a category with a durable server ID.
+ */
+export const createTechnologyCategory = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTechnologyCategoryData, ThrowOnError>,
+): RequestResult<CreateTechnologyCategoryResponses, CreateTechnologyCategoryErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateTechnologyCategoryResponses,
+    CreateTechnologyCategoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-categories",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Create or revise a governed category.
+ */
+export const writeTechnologyCategory = <ThrowOnError extends boolean = false>(
+  options: Options<WriteTechnologyCategoryData, ThrowOnError>,
+): RequestResult<WriteTechnologyCategoryResponses, WriteTechnologyCategoryErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    WriteTechnologyCategoryResponses,
+    WriteTechnologyCategoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-categories/{category_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read filtered authorized landscape and distinct project counts.
+ */
+export const readTechnologyLandscape = <ThrowOnError extends boolean = false>(
+  options: Options<ReadTechnologyLandscapeData, ThrowOnError>,
+): RequestResult<ReadTechnologyLandscapeResponses, ReadTechnologyLandscapeErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadTechnologyLandscapeResponses,
+    ReadTechnologyLandscapeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technology-landscape",
+    ...options,
   });
 
 /**

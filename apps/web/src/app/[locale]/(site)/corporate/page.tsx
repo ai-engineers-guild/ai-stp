@@ -23,6 +23,7 @@ export default async function CorporatePage({ params }: PageProps) {
   await requireSession(locale, `/${locale}/corporate`);
   const t = await getTranslations("corporate");
   const tc = await getTranslations("common");
+  const technology = await getTranslations("technology");
 
   let workspace;
   try {
@@ -55,6 +56,14 @@ export default async function CorporatePage({ params }: PageProps) {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </header>
 
+      {context.capabilities.includes("landscape.read") && (
+        <Link
+          href="/corporate/technology-landscape"
+          className="inline-flex min-h-11 items-center underline underline-offset-4"
+        >
+          {technology("title")}
+        </Link>
+      )}
       <CorporateTeamEditor
         organizationId={context.organization.organization_id}
         authorizationRevision={context.organization.authorization_revision}

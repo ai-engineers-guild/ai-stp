@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_stp_platform.organization_models import (
+    CorporateProject,
     CorporateRole,
     CorporateRoleBinding,
     CorporateRolePermission,
@@ -15,6 +16,14 @@ from ai_stp_platform.organization_models import (
     CorporateTeam,
     Organization,
     OrganizationMembership,
+    ProjectIdentity,
+)
+from ai_stp_platform.technology_models import (
+    ProjectTeamRelation,
+    ProjectTechnologyRelation,
+    Technology,
+    TechnologyTeamResponsibility,
+    TechnologyUsageFact,
 )
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
@@ -91,6 +100,109 @@ async def has_corporate_permission(
     if principal_active is None:
         return False
     scope = scope_id or organization_id
+    scope_clause = (
+        (CorporateRoleBinding.scope_kind == "organization")
+        & ((CorporateRoleBinding.role == "superadmin") | (scope_kind == "organization"))
+    ) | (
+        (CorporateRoleBinding.scope_kind == scope_kind)
+        & ((CorporateRoleBinding.scope_id == "*") | (CorporateRoleBinding.scope_id == scope))
+    )
+    project_teams = (
+        select(ProjectTeamRelation.team_id)
+        .join(
+            CorporateTeam,
+            (CorporateTeam.organization_id == ProjectTeamRelation.organization_id)
+            & (CorporateTeam.id == ProjectTeamRelation.team_id),
+        )
+        .where(
+            ProjectTeamRelation.organization_id == organization_id,
+            ProjectTeamRelation.state == "current",
+            CorporateTeam.state == "active",
+        )
+    )
+    if scope_kind == "project":
+        current_teams = (
+            project_teams.join(
+                CorporateProject,
+                (CorporateProject.organization_id == ProjectTeamRelation.organization_id)
+                & (CorporateProject.id == ProjectTeamRelation.project_id),
+            )
+            .join(
+                ProjectIdentity,
+                (ProjectIdentity.organization_id == CorporateProject.organization_id)
+                & (ProjectIdentity.id == CorporateProject.id),
+            )
+            .where(
+                ProjectTeamRelation.project_id == scope,
+                CorporateProject.state == "active",
+                ProjectIdentity.state == "active",
+                ProjectIdentity.namespace == "remote",
+            )
+        )
+        scope_clause |= (CorporateRoleBinding.scope_kind == "team") & (
+            CorporateRoleBinding.scope_id.in_(current_teams)
+        )
+    elif scope_kind == "technology":
+        current_projects = (
+            select(ProjectTechnologyRelation.project_id)
+            .join(
+                TechnologyUsageFact,
+                (TechnologyUsageFact.organization_id == ProjectTechnologyRelation.organization_id)
+                & (TechnologyUsageFact.relation_id == ProjectTechnologyRelation.id),
+            )
+            .join(
+                CorporateProject,
+                (CorporateProject.organization_id == ProjectTechnologyRelation.organization_id)
+                & (CorporateProject.id == ProjectTechnologyRelation.project_id),
+            )
+            .join(
+                ProjectIdentity,
+                (ProjectIdentity.organization_id == CorporateProject.organization_id)
+                & (ProjectIdentity.id == CorporateProject.id),
+            )
+            .join(
+                Technology,
+                (Technology.organization_id == ProjectTechnologyRelation.organization_id)
+                & (Technology.id == ProjectTechnologyRelation.technology_id),
+            )
+            .where(
+                ProjectTechnologyRelation.organization_id == organization_id,
+                ProjectTechnologyRelation.technology_id == scope,
+                ProjectTechnologyRelation.state == "current",
+                TechnologyUsageFact.review.in_(("confirmed", "overridden")),
+                TechnologyUsageFact.freshness != "absent",
+                CorporateProject.state == "active",
+                ProjectIdentity.state == "active",
+                ProjectIdentity.namespace == "remote",
+                Technology.lifecycle.in_(("active", "deprecated")),
+                Technology.redirect_id.is_(None),
+            )
+        )
+        responsible_teams = (
+            select(TechnologyTeamResponsibility.team_id)
+            .join(
+                Technology,
+                (Technology.organization_id == TechnologyTeamResponsibility.organization_id)
+                & (Technology.id == TechnologyTeamResponsibility.technology_id),
+            )
+            .where(
+                TechnologyTeamResponsibility.organization_id == organization_id,
+                TechnologyTeamResponsibility.technology_id == scope,
+                TechnologyTeamResponsibility.state == "current",
+                Technology.lifecycle.in_(("active", "deprecated")),
+                Technology.redirect_id.is_(None),
+            )
+        )
+        technology_teams = responsible_teams.union(
+            project_teams.where(ProjectTeamRelation.project_id.in_(current_projects))
+        )
+        scope_clause |= (
+            (CorporateRoleBinding.scope_kind == "project")
+            & CorporateRoleBinding.scope_id.in_(current_projects)
+        ) | (
+            (CorporateRoleBinding.scope_kind == "team")
+            & CorporateRoleBinding.scope_id.in_(technology_teams)
+        )
     bindings = await session.scalars(
         select(CorporateRoleBinding.role)
         .where(
@@ -105,17 +217,7 @@ async def has_corporate_permission(
                     CorporateTeam.state == "active",
                 )
             ),
-            (
-                (CorporateRoleBinding.scope_kind == "organization")
-                & ((CorporateRoleBinding.role == "superadmin") | (scope_kind == "organization"))
-            )
-            | (
-                (CorporateRoleBinding.scope_kind == scope_kind)
-                & (
-                    (CorporateRoleBinding.scope_id == "*")
-                    | (CorporateRoleBinding.scope_id == scope)
-                )
-            ),
+            scope_clause,
         )
         .distinct()
     )

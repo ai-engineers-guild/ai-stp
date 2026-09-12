@@ -1,0 +1,27 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-list-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "include_archived": {
+      "default": false,
+      "title": "Include Archived",
+      "type": "boolean"
+    },
+    "limit": {
+      "default": 128,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    }
+  },
+  "title": "TechnologyListQuery",
+  "type": "object"
+}

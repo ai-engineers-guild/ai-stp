@@ -1,0 +1,110 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "TechnologyMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "aliases": {
+          "default": [],
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Aliases",
+          "type": "array"
+        },
+        "category_ids": {
+          "items": {
+            "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Category Ids",
+          "type": "array"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 4000,
+          "title": "Description",
+          "type": "string"
+        },
+        "icon_url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon Url"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "official_urls": {
+          "default": [],
+          "items": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Official Urls",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "category_ids"
+      ],
+      "title": "TechnologyMetadata",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-write-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "metadata": {
+      "$ref": "#/$defs/TechnologyMetadata"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "expected_revision",
+    "idempotency_key",
+    "metadata"
+  ],
+  "title": "TechnologyWriteRequest",
+  "type": "object"
+}

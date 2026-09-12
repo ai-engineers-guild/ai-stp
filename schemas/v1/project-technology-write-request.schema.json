@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "TechnologyEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "detector_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detector Version"
+        },
+        "mapping_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mapping Version"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9._:/+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "source": {
+          "enum": [
+            "manual",
+            "declared",
+            "configured",
+            "observed",
+            "forge_language"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "source_revision": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Revision"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at"
+      ],
+      "title": "TechnologyEvidence",
+      "type": "object"
+    },
+    "TechnologyUsageFact": {
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "enum": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ],
+          "title": "Context",
+          "type": "string"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyEvidence"
+          },
+          "maxItems": 64,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "version_kind": {
+          "default": "unknown",
+          "enum": [
+            "unknown",
+            "declared_range",
+            "observed_version"
+          ],
+          "title": "Version Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "context"
+      ],
+      "title": "TechnologyUsageFact",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-technology-write-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "fact": {
+      "$ref": "#/$defs/TechnologyUsageFact"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "review": {
+      "default": "confirmed",
+      "enum": [
+        "proposed",
+        "confirmed",
+        "rejected",
+        "overridden",
+        "retired"
+      ],
+      "title": "Review",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "default": "current",
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "technology_id": {
+      "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Technology Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "expected_revision",
+    "idempotency_key",
+    "technology_id",
+    "fact"
+  ],
+  "title": "ProjectTechnologyWriteRequest",
+  "type": "object"
+}

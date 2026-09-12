@@ -89,5 +89,7 @@ last_verified: "2026-08-03"
 | [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-14 |
 | [SPEC-079-corporate-core.md](SPEC-079-corporate-core.md) | SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal. | 2026-09-12 |
 | [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the agent task contract. | 2026-09-15 |
+| [SPEC-081-technology-registry-and-landscape.md](SPEC-081-technology-registry-and-landscape.md) | SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-12 |
+| [SPEC-082-canonical-corporate-relations.md](SPEC-082-canonical-corporate-relations.md) | SPEC-082: Single canonical team/project/technology relationships, responsibility, and current assignment scopes. | 2026-09-12 |
 
 <!-- END CONTENTS -->
