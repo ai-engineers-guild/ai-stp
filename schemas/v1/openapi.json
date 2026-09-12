@@ -33628,6 +33628,8 @@
                   "createCorporateTeam.corporate": {
                     "summary": "Team creation returns immutable tenant ownership.",
                     "value": {
+                      "lead_account_ids": [],
+                      "members": [],
                       "name": "platform",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "revision": 1,
@@ -34064,6 +34066,8 @@
                   "readCorporateTeam.corporate": {
                     "summary": "One team read keeps the tenant boundary explicit.",
                     "value": {
+                      "lead_account_ids": [],
+                      "members": [],
                       "name": "platform",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "revision": 1,
@@ -34294,6 +34298,8 @@
                   "updateCorporateTeam.corporate": {
                     "summary": "Team archive state uses revision checks.",
                     "value": {
+                      "lead_account_ids": [],
+                      "members": [],
                       "name": "platform",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "revision": 2,
