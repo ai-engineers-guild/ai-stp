@@ -2448,10 +2448,9 @@ async def assign_member(
         select(OrganizationMembership).where(
             OrganizationMembership.organization_id == organization_id,
             OrganizationMembership.account_id == payload.account_id,
-            OrganizationMembership.state == "active",
         )
     )
-    if member is None:
+    if member is None or (payload.operation == "assign" and member.state != "active"):
         raise ApiError(ErrorCategory.PERMISSION, "member access denied")
     bindings: list[CorporateRoleBinding] = []
     before: dict[str, object] = {}

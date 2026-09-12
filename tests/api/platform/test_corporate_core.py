@@ -991,6 +991,11 @@ async def test_team_hierarchy_visibility_archive_and_recovery(
     )
     detail = (await client.get(f"{base}/teams/{first}", headers=auth)).json()
     assert detail["lead_account_ids"] == []
+    await mutate(
+        "membership-assignments", {"account_id": staff, "team_id": first, "operation": "remove"}
+    )
+    detail = (await client.get(f"{base}/teams/{first}", headers=auth)).json()
+    assert staff not in {member["account_id"] for member in detail["members"]}
     # A stale request cannot turn the suspended member into an active lead.
     stale = await client.patch(
         f"{base}/teams/{first}",
