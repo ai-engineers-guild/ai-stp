@@ -317,20 +317,15 @@ class ContractLinter:
         actual = {item.strip().strip("\"'") for item in match.group(1).split(",") if item.strip()}
 
         text = doc.read_text(encoding="utf-8")
-        # There is one line rather than an integration and release pair. Read the
-        # declared line instead of assuming its name so workflow/document drift
-        # fails here rather than silently disabling checks on pull-request branches.
         declared = re.search(
-            r"`(\w[\w./-]*)`(?: is the repository's only line)",
+            r"CI push branches: ([^\n]+)",
             text,
             re.IGNORECASE,
         )
         if not declared:
-            self.error(
-                GIT_WORKFLOW_DOC, "CT012", "document does not name the repository's only line"
-            )
+            self.error(GIT_WORKFLOW_DOC, "CT012", "document does not name CI push branches")
             return
-        expected = {declared.group(1)}
+        expected = set(re.findall(r"`([^`]+)`", declared.group(1)))
 
         if actual != expected:
             self.error(
@@ -342,7 +337,7 @@ class ContractLinter:
     def check_branch_name(self) -> None:
         """CI branches use the repository's allowed conventional prefixes."""
         branch = os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME")
-        if not branch or branch == "main" or BRANCH_NAME_RE.fullmatch(branch):
+        if not branch or branch in {"main", "dev"} or BRANCH_NAME_RE.fullmatch(branch):
             return
         self.error(
             GIT_WORKFLOW_DOC,

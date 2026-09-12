@@ -1,6 +1,6 @@
 ---
 description: "SPEC-032: Evidence-based production readiness, data governance, abuse protection, and recovery."
-last_verified: "2026-08-22"
+last_verified: "2026-09-12"
 ---
 
 # SPEC-032: Production readiness, governance, and recovery
@@ -95,6 +95,14 @@ or state vocabulary.
   filesystem examples and at least two clean control examples. One sequential
   platform scenario runs them through server-side security checks without network
   access, emits a machine-readable report, and fails on a missed attack or false finding.
+- `REQ-3215`: The repository keeps permanent local and remote `dev` and `main`.
+  `dev` is default and accepts work-branch PRs; protected `main` accepts ordinary
+  promotion PRs only from same-repository `dev`. Repository administrators alone
+  may update `main` and retain explicit bypass. Required approval count is zero.
+  Both permanent branches reject ordinary deletion and force updates, automatic
+  branch deletion is disabled, and CI checks pushes to both lines and all PRs.
+  Deployment remains limited to verified `main`. Local rehearsal merges never
+  replace remote PR evidence; synchronization preserves promotion ancestry.
 
 ## States and errors
 
@@ -142,3 +150,4 @@ with a recorded outcome; production rollout remains owner-approved.
 | `REQ-3212` | The release-evidence inventory links required checks to a command, outcome, owner, and recovery instruction. |
 | `REQ-3213` | Unit tests verify the bounded metrics snapshot, while `just safety-benchmark --iterations 3 --concurrency 1` emits deterministic offline evidence with `network=disabled`, case order, and scan/check/queue metrics. |
 | `REQ-3214` | `just safety-corpus` reads the versioned manifest, sequentially verifies every file fixture and setup pin scenario, and records per-kind counts, recall, false-positive rate, and the mismatch list; the scenario test requires complete detection of manifest expectations with no findings in clean controls. |
+| `REQ-3215` | Branch-policy tests reject non-dev and foreign-repository main promotion; ruleset tests verify zero approvals and admin bypass. Live GitHub readback proves default dev, both permanent refs, ruleset enforcement and update restrictions; contract lint proves CI branch parity. |
