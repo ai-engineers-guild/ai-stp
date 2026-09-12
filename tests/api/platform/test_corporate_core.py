@@ -832,9 +832,29 @@ async def test_team_hierarchy_visibility_archive_and_recovery(
         people.append(member["account_id"])
     teams: list[dict[str, Any]] = []
     for name in ("First", "Second", "Foreign scope"):
-        team, _ = await mutate("teams", {"name": name})
+        team, _ = await mutate("teams", {"name": name, "description": "Customer-facing team"})
+        assert team["description"] == "Customer-facing team"
         teams.append(team)
     lead, staff, other = people
+    assigned, assignment_payload = await mutate(
+        "membership-assignments",
+        {"account_id": other, "team_id": teams[2]["team_id"], "team_role": "staff"},
+    )
+    fresh_context = (await client.get(f"{base}/context", headers=auth)).json()
+    retry_payload = {
+        **assignment_payload,
+        "authorization_revision": fresh_context["organization"]["authorization_revision"],
+    }
+    replay = await client.post(f"{base}/membership-assignments", json=retry_payload, headers=auth)
+    assert replay.status_code == 200 and replay.json() == assigned
+    changed = await client.post(
+        f"{base}/membership-assignments", json={**retry_payload, "team_role": "lead"}, headers=auth
+    )
+    assert changed.status_code == 409
+    await mutate(
+        "membership-assignments",
+        {"account_id": other, "team_id": teams[2]["team_id"], "operation": "remove"},
+    )
     for team in teams[:2]:
         await mutate(
             "membership-assignments",
@@ -931,6 +951,7 @@ async def test_team_hierarchy_visibility_archive_and_recovery(
         f"teams/{first}",
         {
             "name": "Renamed",
+            "description": "Updated team description",
             "state": "archived",
             "expected_revision": 1,
         },
@@ -968,7 +989,7 @@ async def test_team_hierarchy_visibility_archive_and_recovery(
     await mutate(
         "membership-assignments", {"account_id": other, "team_id": first, "operation": "remove"}
     )
-    restored, _ = await mutate(
+    restored, restore_payload = await mutate(
         f"teams/{first}", {"name": "Renamed", "state": "active", "expected_revision": 2}, "PATCH"
     )
     async with sessionmaker() as db:
@@ -981,6 +1002,11 @@ async def test_team_hierarchy_visibility_archive_and_recovery(
             scope_kind="team",
             scope_id=first,
         )
+    assert restored["description"] == "Updated team description"
+    changed_description = await client.patch(
+        f"{base}/teams/{first}", json={**restore_payload, "description": ""}, headers=auth
+    )
+    assert changed_description.status_code == 409
     assert restored["lead_account_ids"] == []
     assert {m["account_id"] for m in restored["members"]} == {lead, staff}
     await mutate(

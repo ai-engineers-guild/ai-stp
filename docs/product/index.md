@@ -15,6 +15,7 @@ last_verified: "2026-08-03"
 | [glossary.md](glossary.md) | Canonical domain glossary. | 2026-08-24 |
 | [privacy.md](privacy.md) | What leaves the user's machine, what never leaves it, and how to answer questions about telemetry. | 2026-09-01 |
 | [scope.md](scope.md) | Required MVP capabilities, harness statuses, and explicit exclusions. | 2026-09-05 |
+| [team-workspace.md](team-workspace.md) | Interaction contract for corporate team and employee management. | 2026-09-12 |
 | [user-flows.md](user-flows.md) | Primary user flows and system behavior on errors. | 2026-08-04 |
 | [vision.md](vision.md) | The problem, users, value, and positioning of ai_stp. | 2026-08-29 |
 | [web-scope.md](web-scope.md) | The web MVP scope and the ownership boundary between the web and CLI. | 2026-08-17 |

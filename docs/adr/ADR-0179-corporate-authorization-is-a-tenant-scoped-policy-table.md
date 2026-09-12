@@ -77,3 +77,10 @@ administration; no automatic promotion or broader lead authority is introduced.
 Revisit this decision when conditional policies require facts that cannot be
 represented by tenant and resource scopes, or when measured policy volume requires a
 dedicated decision service.
+
+Assignment idempotency binds the requested relationship effect independently of
+the refreshed authorization precondition. New assignment receipts exclude only
+`authorization_revision` from their fingerprint; fresh operations still check it,
+and all replays still authorize current access. Legacy exact-payload receipts remain
+valid. This permits safe retry after a committed response was lost without treating
+a refreshed precondition as a different relationship mutation.

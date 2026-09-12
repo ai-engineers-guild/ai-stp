@@ -329,6 +329,13 @@ a {
   backdrop-filter: blur(10px) saturate(140%);
 }
 
+.projection-dock[data-placement="inline"] {
+  position: static;
+  transform: none;
+  margin: 1.5rem auto;
+  z-index: auto;
+}
+
 .projection-dock__option {
   color: hsl(var(--background));
   opacity: 0.9;

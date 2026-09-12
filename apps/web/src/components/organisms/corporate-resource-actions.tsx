@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Icon } from "@/theme";
+import type { CorporateRoleView } from "@/lib/api/generated/types.gen";
 
 import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
@@ -21,6 +25,7 @@ type Props = {
   state: string;
   revision: number;
   permissions: readonly string[];
+  roles?: readonly CorporateRoleView[];
   labels: {
     title: string;
     name: string;
@@ -58,9 +63,12 @@ export function CorporateResourceActions({
   state,
   revision,
   permissions,
+  roles = [],
   labels,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("corporate");
+  const [editing, setEditing] = useState(false);
   const [busy, startTransition] = useTransition();
   const [nextName, setNextName] = useState(name);
   const [nextRole, setNextRole] = useState(role ?? "staff");
@@ -91,14 +99,61 @@ export function CorporateResourceActions({
         return;
       }
       setMessage(labels.saved);
+      setEditing(false);
       router.refresh();
     });
   }
 
   return (
-    <section className="border-border bg-card space-y-4 rounded-lg border p-5 shadow-sm sm:p-6">
-      <h2 className="text-xl font-medium">{labels.title}</h2>
-      {canUpdate ? (
+    <section className="space-y-4">
+      {!editing && (canUpdate || canDelete) && (
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <Button variant="outline" size="icon" aria-label={labels.title}>
+              <Icon name="more" />
+            </Button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              align="end"
+              className="border-border bg-popover text-popover-foreground z-50 min-w-40 rounded-lg border p-1 shadow-md"
+            >
+              {canUpdate && (
+                <DropdownMenu.Item
+                  className="focus:bg-muted cursor-default rounded-sm px-3 py-2 outline-none"
+                  onSelect={() => {
+                    setNextParentRole(parentRole ?? "");
+                    setNextPermissions((rolePermissions ?? []).join(", "));
+                    setNextName(name);
+                    setNextRole(role ?? "staff");
+                    setNextState(state);
+                    setEditing(true);
+                  }}
+                >
+                  {t("edit")}
+                </DropdownMenu.Item>
+              )}
+              {canDelete && (
+                <DropdownMenu.Item
+                  className="focus:bg-muted text-destructive cursor-default rounded-sm px-3 py-2 outline-none"
+                  onSelect={() => {
+                    if (window.confirm(labels.confirmDelete))
+                      submit("DELETE", {
+                        schema_version: 1,
+                        expected_revision: revision,
+                        authorization_revision: authorizationRevision,
+                        idempotency_key: crypto.randomUUID(),
+                      });
+                  }}
+                >
+                  {labels.delete}
+                </DropdownMenu.Item>
+              )}
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      )}
+      {canUpdate && editing ? (
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -125,15 +180,21 @@ export function CorporateResourceActions({
           {resource === "members" ? (
             <>
               <Label htmlFor="corporate-resource-role">{labels.role}</Label>
-              <Input
+              <select
                 id="corporate-resource-role"
                 required
-                pattern="[a-z][a-z0-9_-]*"
                 value={nextRole}
                 onChange={(event) => {
                   setNextRole(event.target.value);
                 }}
-              />
+                className="border-input bg-background h-9 w-full rounded-sm border px-3 text-sm"
+              >
+                {roles.map((item) => (
+                  <option key={item.name} value={item.name}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
             </>
           ) : resource === "roles" ? (
             <>
@@ -188,25 +249,17 @@ export function CorporateResourceActions({
           <Button type="submit" disabled={busy}>
             {busy ? labels.saving : labels.update}
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              setEditing(false);
+            }}
+          >
+            {t("cancel")}
+          </Button>
         </form>
-      ) : null}
-      {canDelete ? (
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={busy}
-          onClick={() => {
-            if (!window.confirm(labels.confirmDelete)) return;
-            submit("DELETE", {
-              schema_version: 1,
-              expected_revision: revision,
-              authorization_revision: authorizationRevision,
-              idempotency_key: crypto.randomUUID(),
-            });
-          }}
-        >
-          {busy ? labels.deleting : labels.delete}
-        </Button>
       ) : null}
       {message ? (
         <p className="text-muted-foreground text-sm" role="status" aria-live="polite">

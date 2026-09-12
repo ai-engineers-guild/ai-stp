@@ -2,6 +2,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { CorporateTeamEditor } from "@/components/organisms/corporate-team-editor";
+import { CorporateEmployeeDirectory } from "@/components/organisms/corporate-employee-directory";
 import { CorporateAdminPanel } from "@/components/organisms/corporate-admin-panel";
 import { CorporateAccessPanel } from "@/components/organisms/corporate-access-panel";
 import { CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
@@ -53,6 +55,12 @@ export default async function CorporatePage({ params }: PageProps) {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </header>
 
+      <CorporateTeamEditor
+        organizationId={context.organization.organization_id}
+        authorizationRevision={context.organization.authorization_revision}
+        csrfToken={(await readCsrfToken()) ?? ""}
+        canManage={canManageTeams}
+      />
       <div className="grid gap-5 lg:grid-cols-2">
         <CorporateList
           title={t("projects")}
@@ -94,112 +102,97 @@ export default async function CorporatePage({ params }: PageProps) {
         ) : null}
       </div>
 
-      {members && (
-        <section className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
-          <h2 className="text-xl font-medium">{t("members")}</h2>
-          {members.items.length ? (
-            <ul className="mt-4 space-y-2">
-              {members.items.map((member) => (
-                <li key={member.account_id} className="border-border rounded border">
-                  <Link
-                    href={`/corporate/members/${encodeURIComponent(member.account_id)}`}
-                    className="focus-visible:ring-ring group flex min-h-14 items-center justify-between gap-3 rounded p-3 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                  >
-                    <span>{member.display_name ?? member.account_id}</span>
-                    <span className="text-muted-foreground flex items-center gap-2 text-sm">
-                      {member.role}
-                      <Icon
-                        name="chevronRight"
-                        size="sm"
-                        className="transition-transform group-hover:translate-x-0.5"
-                      />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground mt-4 text-sm">{t("noMembers")}</p>
-          )}
-        </section>
-      )}
+      {members && <CorporateEmployeeDirectory members={members.items} teams={context.teams} />}
 
       {(canManageMembers || canManageProjects || canManageTeams || canManageRoles) && (
-        <CorporateAdminPanel
-          csrfToken={(await readCsrfToken()) ?? ""}
-          organizationId={context.organization.organization_id}
-          authorizationRevision={context.organization.authorization_revision}
-          permissions={context.capabilities}
-          labels={{
-            title: t("administration"),
-            description: t("administrationBody"),
-            members: t("members"),
-            projects: t("projects"),
-            teams: t("teams"),
-            roles: t("roles"),
-            displayName: t("displayName"),
-            email: t("email"),
-            name: t("name"),
-            role: t("role"),
-            parentRole: t("parentRole"),
-            permissions: t("permissions"),
-            create: t("create"),
-            creating: t("creating"),
-            saved: t("saved"),
-            failed: t("failed"),
-            staff: t("staff"),
-            lead: t("lead"),
-          }}
-        />
+        <details className="border-border border-t pt-4">
+          <summary className="cursor-pointer font-medium">{t("administration")}</summary>
+          <div className="mt-4">
+            <CorporateAdminPanel
+              csrfToken={(await readCsrfToken()) ?? ""}
+              organizationId={context.organization.organization_id}
+              authorizationRevision={context.organization.authorization_revision}
+              roles={roles?.items ?? []}
+              permissions={context.capabilities.filter(
+                (permission) => permission !== "team.create",
+              )}
+              labels={{
+                title: t("administration"),
+                description: t("administrationBody"),
+                members: t("members"),
+                projects: t("projects"),
+                teams: t("teams"),
+                roles: t("roles"),
+                displayName: t("displayName"),
+                email: t("email"),
+                name: t("name"),
+                role: t("organizationRole"),
+                parentRole: t("parentRole"),
+                permissions: t("permissions"),
+                create: t("create"),
+                creating: t("creating"),
+                saved: t("saved"),
+                failed: t("failed"),
+                staff: t("staff"),
+                lead: t("lead"),
+              }}
+            />
+          </div>
+        </details>
       )}
       {(context.capabilities.includes("member.manage") ||
         context.capabilities.includes("binding.create") ||
         context.capabilities.includes("service_principal.manage")) && (
-        <CorporateAccessPanel
-          csrfToken={(await readCsrfToken()) ?? ""}
-          organizationId={context.organization.organization_id}
-          authorizationRevision={context.organization.authorization_revision}
-          members={members?.items ?? []}
-          projects={context.projects}
-          teams={context.teams}
-          roles={roles?.items ?? []}
-          bindings={bindings?.items ?? []}
-          servicePrincipals={servicePrincipals?.items ?? []}
-          permissions={context.capabilities}
-          labels={{
-            title: t("accessAdministration"),
-            assignments: t("assignments"),
-            bindings: t("bindings"),
-            servicePrincipals: t("servicePrincipals"),
-            member: t("member"),
-            team: t("team"),
-            project: t("project"),
-            role: t("role"),
-            state: t("state"),
-            scope: t("scope"),
-            organization: t("organization"),
-            operation: t("operation"),
-            assign: t("assign"),
-            remove: t("remove"),
-            create: t("create"),
-            creating: t("creating"),
-            update: t("update"),
-            saving: t("saving"),
-            delete: t("delete"),
-            deleting: t("deleting"),
-            activate: t("active"),
-            suspend: t("suspended"),
-            staff: t("staff"),
-            lead: t("lead"),
-            superadmin: t("superadmin"),
-            noBindings: t("noBindings"),
-            noServicePrincipals: t("noServicePrincipals"),
-            confirmDelete: t("confirmDelete"),
-            targetRequired: t("targetRequired"),
-            saved: t("saved"),
-            failed: t("failed"),
-          }}
-        />
+        <details className="border-border border-t pt-4">
+          <summary className="cursor-pointer font-medium">{t("accessAdministration")}</summary>
+          <div className="mt-4">
+            <CorporateAccessPanel
+              csrfToken={(await readCsrfToken()) ?? ""}
+              organizationId={context.organization.organization_id}
+              authorizationRevision={context.organization.authorization_revision}
+              members={members?.items ?? []}
+              projects={context.projects}
+              teams={context.teams}
+              roles={roles?.items ?? []}
+              bindings={bindings?.items ?? []}
+              servicePrincipals={servicePrincipals?.items ?? []}
+              permissions={context.capabilities}
+              labels={{
+                title: t("accessAdministration"),
+                assignments: t("assignments"),
+                bindings: t("bindings"),
+                servicePrincipals: t("servicePrincipals"),
+                member: t("member"),
+                team: t("team"),
+                project: t("project"),
+                role: t("role"),
+                state: t("state"),
+                scope: t("scope"),
+                organization: t("organization"),
+                operation: t("operation"),
+                assign: t("assign"),
+                remove: t("remove"),
+                create: t("create"),
+                creating: t("creating"),
+                update: t("update"),
+                saving: t("saving"),
+                delete: t("delete"),
+                deleting: t("deleting"),
+                activate: t("active"),
+                suspend: t("suspended"),
+                staff: t("staff"),
+                lead: t("lead"),
+                superadmin: t("superadmin"),
+                noBindings: t("noBindings"),
+                noServicePrincipals: t("noServicePrincipals"),
+                confirmDelete: t("confirmDelete"),
+                targetRequired: t("targetRequired"),
+                saved: t("saved"),
+                failed: t("failed"),
+              }}
+            />
+          </div>
+        </details>
       )}
       {audit ? (
         <CorporateAuditPanel
