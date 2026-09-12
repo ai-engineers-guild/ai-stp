@@ -251,6 +251,25 @@
     "CorporateTeamView": {
       "additionalProperties": true,
       "properties": {
+        "lead_account_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Lead Account Ids",
+          "type": "array"
+        },
+        "members": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateMember"
+          },
+          "maxItems": 256,
+          "title": "Members",
+          "type": "array"
+        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -285,6 +304,8 @@
         }
       },
       "required": [
+        "lead_account_ids",
+        "members",
         "name",
         "organization_id",
         "revision",

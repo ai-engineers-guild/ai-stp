@@ -1,8 +1,85 @@
 {
   "$defs": {
+    "CorporateMember": {
+      "additionalProperties": true,
+      "properties": {
+        "account_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Account Id",
+          "type": "string"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "role": {
+          "description": "Tenant-local role name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Role",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "suspended"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_id",
+        "display_name",
+        "revision",
+        "role",
+        "schema_version",
+        "state"
+      ],
+      "title": "CorporateMember",
+      "type": "object"
+    },
     "CorporateTeamView": {
       "additionalProperties": true,
       "properties": {
+        "lead_account_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Lead Account Ids",
+          "type": "array"
+        },
+        "members": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateMember"
+          },
+          "maxItems": 256,
+          "title": "Members",
+          "type": "array"
+        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -37,6 +114,8 @@
         }
       },
       "required": [
+        "lead_account_ids",
+        "members",
         "name",
         "organization_id",
         "revision",

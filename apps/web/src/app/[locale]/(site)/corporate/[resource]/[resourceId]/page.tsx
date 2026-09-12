@@ -118,6 +118,22 @@ export default async function CorporateResourcePage({ params }: PageProps) {
           </div>
         </dl>
       </section>
+      {resource === "teams" && team ? (
+        <section className="border-border bg-card space-y-4 rounded-lg border p-5">
+          <h2 className="text-xl font-medium">{t("members")}</h2>
+          <ul className="space-y-2">
+            {team.members.map((item) => (
+              <li key={item.account_id} className="flex flex-wrap items-center gap-3">
+                <span>{item.display_name ?? item.account_id}</span>
+                <Badge variant="outline">{item.state}</Badge>
+                <Badge variant="secondary">
+                  {team.lead_account_ids.includes(item.account_id) ? t("lead") : t("staff")}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <CorporateResourceActions
         csrfToken={(await readCsrfToken()) ?? ""}
         organizationId={workspace.context.organization.organization_id}

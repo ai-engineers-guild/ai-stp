@@ -5341,6 +5341,25 @@
       "CorporateTeamView": {
         "additionalProperties": true,
         "properties": {
+          "lead_account_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 256,
+            "title": "Lead Account Ids",
+            "type": "array"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateMember"
+            },
+            "maxItems": 256,
+            "title": "Members",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -5375,6 +5394,8 @@
           }
         },
         "required": [
+          "lead_account_ids",
+          "members",
           "name",
           "organization_id",
           "revision",
@@ -33607,6 +33628,8 @@
                   "createCorporateTeam.corporate": {
                     "summary": "Team creation returns immutable tenant ownership.",
                     "value": {
+                      "lead_account_ids": [],
+                      "members": [],
                       "name": "platform",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "revision": 1,
@@ -34043,6 +34066,8 @@
                   "readCorporateTeam.corporate": {
                     "summary": "One team read keeps the tenant boundary explicit.",
                     "value": {
+                      "lead_account_ids": [],
+                      "members": [],
                       "name": "platform",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "revision": 1,
@@ -34273,6 +34298,8 @@
                   "updateCorporateTeam.corporate": {
                     "summary": "Team archive state uses revision checks.",
                     "value": {
+                      "lead_account_ids": [],
+                      "members": [],
                       "name": "platform",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "revision": 2,

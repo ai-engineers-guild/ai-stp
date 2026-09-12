@@ -2646,6 +2646,14 @@ export type CorporateTeamUpdateRequest = {
  */
 export type CorporateTeamView = {
   /**
+   * Lead Account Ids
+   */
+  lead_account_ids: Array<string>;
+  /**
+   * Members
+   */
+  members: Array<CorporateMember>;
+  /**
    * Name
    */
   name: string;

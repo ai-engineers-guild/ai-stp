@@ -48,3 +48,21 @@ evaluator and rejects a mismatched envelope, suspended principal, revoked bindin
 revision made stale by a later policy change. Corporate private objects use
 `objects/organizations/{organization_id}/...`; account-scoped or global keys are not
 valid substitutes.
+
+## Teams and leads
+
+Create or rename teams through the corporate team routes and assign staff or leads
+through `membership-assignments` with a team identifier. A member may belong to and
+lead multiple teams. Reassigning `team_role` replaces that member's scoped binding;
+`operation: remove` removes membership and revokes the team's bindings. Mutations
+require current authorization revision and a unique idempotency key; retry the same
+request with its original key, and refresh context after a successful change.
+
+Team details show the authorized roster and current leads. Staff see themselves and
+active leads; leads see only the rosters of teams they lead. Archive a team instead
+of deleting it to retain historical references. Archive disables its scoped grants
+and blocks new assignments; superadmins can remove old assignments or restore the
+team. Restore enables retained grants only for active principals. If every lead is
+removed or suspended, a superadmin appoints a replacement; staff receive no automatic
+privileges. Roll back an unintended archive by restoring the team's state using its
+current revisions.

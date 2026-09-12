@@ -13,10 +13,10 @@ privilege changes.
 
 ## Scope
 
-This specification owns milestone B2B-01 and issues #200, #203, and #202. It defines
+This specification owns milestone B2B-01 (#200, #203, and #202) and the basic team
+hierarchy (#204). It defines
 corporate bootstrap, the initial scoped RBAC model, corporate teams and projects, tenant
-isolation, capability invalidation, and the corporate audit journal. Team hierarchy,
-invitations, SAML, private telemetry, and dashboards remain owned by later
+isolation, capability invalidation, and the corporate audit journal. Invitations, SAML, private telemetry, and dashboards remain owned by later
 milestones.
 
 ## B2B-01 boundary and issue alignment
@@ -133,7 +133,7 @@ are follow-up scope.
 ## States and errors
 
 Organizations are `active` or `suspended`; memberships are `active` or `suspended`;
-projects are `active` or `archived`; bindings are `active` or `revoked`. Public errors
+teams and projects are `active` or `archived`; bindings are `active` or `revoked`. Public errors
 are `bootstrap_closed`, `organization_access_denied`, `capability_forbidden`,
 `capability_stale`, `last_superadmin`, `revision_conflict`, and `contract_invalid`.
 Foreign and unknown protected identifiers share the same non-enumerating response.
@@ -183,3 +183,31 @@ stored with PostgreSQL microsecond precision.
 | `REQ-7912` | Append-only, pagination, access-control, self-audit, and forbidden-field tests pass. |
 | `REQ-7913` | API and Web tests expose only effective implemented capabilities and reject forged or stale mutations. |
 | `REQ-7914` | OpenAPI drift, generated-client, contract-lint, and stable-error tests pass. |
+
+## Team hierarchy (#204)
+
+- `REQ-7915`: A user may be staff or lead in multiple teams. Lead is an active
+  tenant-scoped `lead` RBAC binding, never the organization membership role label.
+  Team views expose bounded member records and active lead account identifiers.
+  Superadmins and the team's leads see its roster; staff see themselves and its
+  active leads. Suspended members are not active leads. Other teams remain hidden.
+- `REQ-7916`: Creating, renaming, archiving, restoring, assigning, replacing leads,
+  and removing members reuse revision-checked, fingerprinted, idempotent corporate
+  mutations and transactional audit. Replayed team/project receipts are bound to
+  their original resource identifier as well as the request fingerprint.
+  Structural mutations require superadmin
+  permissions; leads have scoped read access, staff cannot administer teams.
+- `REQ-7917`: Archiving preserves the team, memberships, bindings, and audit history
+  but makes its team bindings ineffective immediately. New assignments and bindings
+  to archived teams are rejected. Assigned members retain historical team metadata
+  in their context; active-team visibility requires a current scoped grant.
+  Removal remains available to superadmins. Restore
+  reactivates retained bindings subject to current member and organization state.
+- `REQ-7918`: Empty teams and teams without an active lead are valid. The superadmin
+  remains their recovery administrator and can appoint a replacement; the system
+  never promotes staff or grants another team's lead access automatically.
+
+The #204 executable oracle covers multiple memberships and scoped leads, visibility,
+lead replacement/removal, suspension, archived grants, restoration, forbidden
+mutations, stale revisions, replay, and tenant-crossing identifiers. Web team details
+show the server-authorized roster and lead relationships.
