@@ -364,10 +364,8 @@ async def bootstrap(
     db.add_all(
         (
             CorporateRoleRow(organization_id=organization.id, name="superadmin", parent_role=None),
-            CorporateRoleRow(
-                organization_id=organization.id, name="lead", parent_role="superadmin"
-            ),
-            CorporateRoleRow(organization_id=organization.id, name="staff", parent_role="lead"),
+            CorporateRoleRow(organization_id=organization.id, name="lead", parent_role=None),
+            CorporateRoleRow(organization_id=organization.id, name="staff", parent_role=None),
         )
     )
     for role, permissions in ROLE_PERMISSIONS.items():

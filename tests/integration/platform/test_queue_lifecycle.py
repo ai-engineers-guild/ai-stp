@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import AuditEvent
 from ai_stp_platform.organization_models import (
+    CorporateRole,
     CorporateRoleBinding,
     CorporateRolePermission,
     CorporateServicePrincipal,
@@ -60,6 +61,11 @@ async def test_tenant_jobs_are_partitioned_and_revalidate_delayed_authorization(
             session.add_all(
                 [
                     principal,
+                    CorporateRole(
+                        organization_id=organization_id,
+                        name="staff",
+                        parent_role=None,
+                    ),
                     CorporateRolePermission(
                         organization_id=organization_id,
                         role="staff",

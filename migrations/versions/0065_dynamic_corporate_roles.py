@@ -41,6 +41,30 @@ def upgrade() -> None:
         "corporate_role",
         sa.Column("revision", sa.Integer(), nullable=False, server_default="1"),
     )
+    op.execute(
+        sa.text(
+            """
+            INSERT INTO corporate_role (organization_id, name, parent_role)
+            SELECT organizations.organization_id, roles.name, roles.parent_role
+            FROM (
+                SELECT id AS organization_id
+                FROM organization
+                WHERE kind = 'corporate'
+                UNION
+                SELECT organization_id FROM corporate_role_permission
+                UNION
+                SELECT organization_id FROM corporate_role_binding
+            ) AS organizations
+            CROSS JOIN (
+                VALUES
+                    ('superadmin', CAST(NULL AS VARCHAR(64))),
+                    ('lead', CAST(NULL AS VARCHAR(64))),
+                    ('staff', CAST(NULL AS VARCHAR(64)))
+            ) AS roles(name, parent_role)
+            ON CONFLICT (organization_id, name) DO NOTHING
+            """
+        )
+    )
     op.create_foreign_key(
         "fk_corporate_role_permission_role",
         "corporate_role_permission",
