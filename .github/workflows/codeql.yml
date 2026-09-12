@@ -12,7 +12,7 @@ name: codeql
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
   pull_request:
   schedule:
     # Weekly, offset off the hour so it does not join the crowd at midnight.

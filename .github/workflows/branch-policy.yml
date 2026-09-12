@@ -1,0 +1,31 @@
+name: branch-policy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  branch-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require dev for ordinary main promotion
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+          SOURCE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT}" = pull_request ] && [ "${BASE}" = main ]; then
+            test "${HEAD}" = dev && test "${SOURCE_REPOSITORY}" = "${REPOSITORY}" || {
+              echo 'main requires same-repository dev; administrators may bypass.' >&2
+              exit 1
+            }
+          fi
