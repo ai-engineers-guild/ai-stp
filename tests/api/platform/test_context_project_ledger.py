@@ -937,7 +937,6 @@ async def test_sync_apply_rechecks_every_link_and_identity_precondition(
             ProjectRevision,
             ProjectRevisionHead,
             ProjectRevisionReceipt,
-            AuditEvent,
         )
         before = {
             model.__tablename__: list((await db.execute(select(model.__table__))).mappings())
@@ -972,3 +971,16 @@ async def test_sync_apply_rechecks_every_link_and_identity_precondition(
             for model in tables
         }
         assert after == before
+        failed_audits = list(
+            (
+                await db.scalars(
+                    select(AuditEvent)
+                    .where(AuditEvent.action == "http.post.failed")
+                    .order_by(AuditEvent.id)
+                )
+            ).all()
+        )
+        assert len(failed_audits) == 1
+        assert failed_audits[0].outcome == "failed"
+        assert failed_audits[0].reason == "precondition"
+        assert failed_audits[0].target_id == "redacted"

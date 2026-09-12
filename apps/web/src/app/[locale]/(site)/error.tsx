@@ -13,14 +13,24 @@ type ErrorProps = {
 export default function LocaleError({ error, reset }: ErrorProps) {
   const t = useTranslations("errors");
   const tc = useTranslations("common");
-  void error;
+  const isChunkLoadError =
+    error.name === "ChunkLoadError" || /(?:Failed to load|Loading) chunk/i.test(error.message);
   return (
     <StatePanel
       kind="error"
       title={t("errorTitle")}
       description={t("errorBody")}
       action={
-        <Button type="button" onClick={reset}>
+        <Button
+          type="button"
+          onClick={() => {
+            if (isChunkLoadError) {
+              window.location.reload();
+              return;
+            }
+            reset();
+          }}
+        >
           {tc("retry")}
         </Button>
       }

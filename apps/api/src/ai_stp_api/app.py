@@ -27,6 +27,7 @@ from ai_stp_api.slices.catalog.router import router as catalog_router
 from ai_stp_api.slices.complaints.router import router as complaints_router
 from ai_stp_api.slices.content.router import router as content_router
 from ai_stp_api.slices.context.router import router as context_router
+from ai_stp_api.slices.corporate.router import router as corporate_router
 from ai_stp_api.slices.devices.router import router as devices_router
 from ai_stp_api.slices.documents.router import router as documents_router
 from ai_stp_api.slices.github_connector.router import router as github_connector_router
@@ -142,6 +143,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(catalog_router, prefix=_API_PREFIX)
     app.include_router(complaints_router, prefix=_API_PREFIX)
     app.include_router(context_router, prefix=_API_PREFIX)
+    app.include_router(corporate_router, prefix=_API_PREFIX)
     app.include_router(sync_router, prefix=_API_PREFIX)
     app.include_router(publish_router, prefix=_API_PREFIX)
     app.include_router(grants_router, prefix=_API_PREFIX)

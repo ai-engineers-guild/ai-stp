@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { listDevices } from "@/lib/api/devices";
+import { readCorporateWorkspace } from "@/lib/api/corporate";
 import { listGrants } from "@/lib/api/grants";
 import { listOwnReports, readOwnReport } from "@/lib/api/reports";
 import { listCatalogReactions } from "@/lib/api/reactions";
@@ -138,6 +139,74 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
         bio: projection.bio,
         links: projection.links.map((item) => ({ label: item.label, url: item.url })),
       });
+    },
+  },
+  {
+    pattern: "corporate",
+    resolve: async () => {
+      const t = await getTranslations("corporate");
+      const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "");
+      if (!workspace) return presentPage({ title: t("emptyTitle"), summary: t("emptyBody") });
+      return presentPage({
+        title: workspace.context.organization.display_name,
+        summary: t("subtitle"),
+        fields: [
+          [t("projects"), workspace.context.projects.map((item) => item.name).join(", ") || "-"],
+          [t("teams"), workspace.context.teams.map((item) => item.name).join(", ") || "-"],
+        ],
+      });
+    },
+  },
+  {
+    pattern: "corporate/:resource/:resourceId",
+    resolve: async ({ segments }) => {
+      const t = await getTranslations("corporate");
+      const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "");
+      if (!workspace) return presentPage({ title: t("emptyTitle"), summary: t("emptyBody") });
+
+      const resource = segments[1];
+      const resourceId = segments[2];
+      const project = workspace.context.projects.find((item) => item.project_id === resourceId);
+      const team = workspace.context.teams.find((item) => item.team_id === resourceId);
+      const member = workspace.members?.items.find((item) => item.account_id === resourceId);
+      if (resource === "projects" && project) {
+        return presentPage({
+          title: project.name,
+          summary: t("projectDetailsBody"),
+          fields: [
+            [t("id"), project.project_id],
+            [t("state"), project.state],
+            [t("revision"), String(project.revision)],
+          ],
+          links: [[t("backToWorkspace"), "/corporate"]],
+        });
+      }
+      if (resource === "teams" && team) {
+        return presentPage({
+          title: team.name,
+          summary: t("teamDetailsBody"),
+          fields: [
+            [t("id"), team.team_id],
+            [t("state"), team.state],
+            [t("revision"), String(team.revision)],
+          ],
+          links: [[t("backToWorkspace"), "/corporate"]],
+        });
+      }
+      if (resource === "members" && member) {
+        return presentPage({
+          title: member.display_name ?? member.account_id,
+          summary: t("memberDetailsBody"),
+          fields: [
+            [t("id"), member.account_id],
+            [t("role"), member.role],
+            [t("state"), member.state],
+            [t("revision"), String(member.revision)],
+          ],
+          links: [[t("backToWorkspace"), "/corporate"]],
+        });
+      }
+      return null;
     },
   },
   {

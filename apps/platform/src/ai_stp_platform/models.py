@@ -579,15 +579,29 @@ class AuditEvent(OrganizationScopedMixin, Base):
     """Append-only audit row for sensitive server actions."""
 
     __tablename__ = "audit_event"
+    __table_args__ = (
+        CheckConstraint(
+            "outcome in ('succeeded', 'denied', 'failed')", name="ck_audit_event_outcome"
+        ),
+        CheckConstraint(
+            "actor_type in ('user', 'service_principal', 'system')",
+            name="ck_audit_event_actor_type",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     actor_account_id: Mapped[str | None] = mapped_column(
         String(64), ForeignKey("account.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    actor_type: Mapped[str] = mapped_column(String(24), nullable=False, default="user")
+    actor_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    effective_role_bindings: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)
     action: Mapped[str] = mapped_column(String(128))
     target_table: Mapped[str] = mapped_column(String(128))
     target_id: Mapped[str] = mapped_column(String(128))
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False, default="succeeded")
+    request_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

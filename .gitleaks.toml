@@ -11,3 +11,6 @@ paths = [
   '''^\.serena/memories/current-work\.md$''',
   '''^apps/cli/src/ai_stp_cli/identity\.py$''',
 ]
+regexes = [
+  '''^proposal-evidence-0001$''',
+]

@@ -107,12 +107,14 @@ async def require_auth(
         raise ApiError(ErrorCategory.AUTH_REQUIRED, "authentication required")
 
     ensure_csrf(request, auth=auth, via_cookie=via_cookie)
-    return await verify_raw_token(
+    context = await verify_raw_token(
         db,
         raw,
         admin_account_ids=auth.admin_ids(),
         via_cookie=via_cookie,
     )
+    request.state.auth_context = context
+    return context
 
 
 async def require_onboarding_auth(

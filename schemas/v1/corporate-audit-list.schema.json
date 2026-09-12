@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "CorporateAuditEntry": {
+      "additionalProperties": true,
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "actor_account_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Actor Account Id"
+        },
+        "actor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Actor Id"
+        },
+        "actor_type": {
+          "enum": [
+            "user",
+            "service_principal",
+            "system"
+          ],
+          "title": "Actor Type",
+          "type": "string"
+        },
+        "audit_id": {
+          "title": "Audit Id",
+          "type": "integer"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "effective_role_bindings": {
+          "items": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": "Effective Role Bindings",
+          "type": "array"
+        },
+        "outcome": {
+          "enum": [
+            "succeeded",
+            "denied",
+            "failed"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_table": {
+          "title": "Target Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "actor_account_id",
+        "actor_id",
+        "actor_type",
+        "audit_id",
+        "created_at",
+        "effective_role_bindings",
+        "outcome",
+        "payload",
+        "reason",
+        "request_id",
+        "schema_version",
+        "target_id",
+        "target_table"
+      ],
+      "title": "CorporateAuditEntry",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-audit-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CorporateAuditEntry"
+      },
+      "maxItems": 256,
+      "title": "Items",
+      "type": "array"
+    },
+    "next_before_created_at": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "next_before_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Next Before Id"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "next_before_created_at",
+    "next_before_id",
+    "schema_version"
+  ],
+  "title": "CorporateAuditList",
+  "type": "object"
+}

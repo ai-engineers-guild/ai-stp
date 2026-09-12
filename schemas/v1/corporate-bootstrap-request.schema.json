@@ -1,0 +1,40 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-bootstrap-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "organization_name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Organization Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "superadmin_account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Superadmin Account Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "organization_name",
+    "superadmin_account_id",
+    "idempotency_key"
+  ],
+  "title": "CorporateBootstrapRequest",
+  "type": "object"
+}

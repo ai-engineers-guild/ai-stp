@@ -1,0 +1,44 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-organization",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "active",
+        "suspended"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "display_name",
+    "organization_id",
+    "schema_version",
+    "state"
+  ],
+  "title": "CorporateOrganization",
+  "type": "object"
+}

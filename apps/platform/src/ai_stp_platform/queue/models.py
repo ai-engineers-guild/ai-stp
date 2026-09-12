@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, Index, Integer, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_stp_platform.db import Base
@@ -20,6 +20,23 @@ class Job(OrganizationScopedMixin, Base):
     """A single unit of background work with its own state and retry accounting."""
 
     __tablename__ = "job"
+    __table_args__ = (
+        Index(
+            "uq_job_tenant_idempotency",
+            "organization_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("organization_id IS NOT NULL"),
+            sqlite_where=text("organization_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_job_global_idempotency",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("organization_id IS NULL"),
+            sqlite_where=text("organization_id IS NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     job_type: Mapped[str] = mapped_column(String(64))
@@ -30,7 +47,7 @@ class Job(OrganizationScopedMixin, Base):
     run_after: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
-    idempotency_key: Mapped[str] = mapped_column(String(255), unique=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255))
     priority: Mapped[int] = mapped_column(Integer, default=0)
     locked_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

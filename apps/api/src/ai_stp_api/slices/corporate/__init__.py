@@ -1,0 +1,1 @@
+"""Corporate core vertical slice."""

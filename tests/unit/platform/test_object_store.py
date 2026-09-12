@@ -288,6 +288,52 @@ async def test_owner_scoped_objects_cannot_collide_across_accounts() -> None:
 
 
 @pytest.mark.asyncio
+async def test_organization_scoped_objects_reject_cross_tenant_keys() -> None:
+    payload = b"corporate artifact"
+    client = RecordingObjectClient()
+    store = ImmutableObjectStore(settings=_settings(), client=client)
+    first_id = "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+    second_id = "organization_01JQZK7B8N4M6P2R9T5V0X3Y8A"
+
+    stored = await store.put_immutable(
+        payload,
+        expected_digest=_digest(payload),
+        expected_size=len(payload),
+        organization_id=first_id,
+    )
+    assert f"/organizations/{first_id}/" in stored.key
+    assert client.objects[(stored.bucket, stored.key)]["metadata"] == {
+        "ai-stp-digest": stored.digest,
+        "ai-stp-size-bytes": str(len(payload)),
+        "ai-stp-content-id": stored.content_id,
+        "ai-stp-organization-id": first_id,
+    }
+    assert (
+        await store.read_by_digest(
+            stored.digest,
+            expected_size=len(payload),
+            organization_id=first_id,
+        )
+        == payload
+    )
+    assert (
+        await store.read_by_digest(
+            stored.digest,
+            expected_size=len(payload),
+            organization_id=second_id,
+        )
+        is None
+    )
+    with pytest.raises(ObjectIntegrityError, match="does not belong"):
+        await store.read_verified(
+            object_key=stored.key,
+            expected_digest=stored.digest,
+            expected_size=len(payload),
+            organization_id=second_id,
+        )
+
+
+@pytest.mark.asyncio
 async def test_restore_verifier_hashes_artifacts_and_uploaded_assets() -> None:
     settings = StorageSettings(
         endpoint="memory://test",

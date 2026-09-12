@@ -1,0 +1,70 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-service-principal-create-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "role": {
+      "description": "Tenant-local role name.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "title": "Role",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope_id": {
+      "default": "*",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Scope Id",
+      "type": "string"
+    },
+    "scope_kind": {
+      "default": "organization",
+      "enum": [
+        "system",
+        "organization",
+        "team",
+        "project",
+        "technology",
+        "catalog_object",
+        "telemetry"
+      ],
+      "title": "Scope Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "role",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateServicePrincipalCreateRequest",
+  "type": "object"
+}

@@ -27,3 +27,8 @@ def test_redact_payload_strips_sensitive_keys_recursively() -> None:
     assert cleaned["nested"]["account_id"] == "account_x"  # type: ignore[index]
     assert "session_token" not in cleaned
     assert "nonce" not in cleaned["nested"]  # type: ignore[operator]
+
+
+def test_redact_payload_strips_sensitive_keys_inside_lists() -> None:
+    cleaned = redact_payload({"changes": [{"access_token": "secret", "role": "staff"}]})
+    assert cleaned == {"changes": [{"role": "staff"}]}

@@ -1,0 +1,58 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-role-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "description": "Tenant-local role name.",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "title": "Name",
+      "type": "string"
+    },
+    "parent_role": {
+      "anyOf": [
+        {
+          "description": "Tenant-local role name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Parent Role"
+    },
+    "permissions": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 128,
+      "title": "Permissions",
+      "type": "array"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "parent_role",
+    "permissions",
+    "revision",
+    "schema_version"
+  ],
+  "title": "CorporateRoleView",
+  "type": "object"
+}

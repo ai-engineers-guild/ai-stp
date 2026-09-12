@@ -27,7 +27,12 @@ def request_digest(value: object) -> str:
 async def bound_source(db: AsyncSession, plan: PublicationPlan) -> GitHubSourceBinding | None:
     if not getattr(plan, "source_binding_id", None):
         return None
-    binding = await db.get(GitHubSourceBinding, plan.source_binding_id)
+    binding = await db.scalar(
+        select(GitHubSourceBinding).where(
+            GitHubSourceBinding.id == plan.source_binding_id,
+            GitHubSourceBinding.organization_id == plan.organization_id,
+        )
+    )
     if binding is None:
         raise GitHubError("source_binding_mismatch", status=412)
     passport_hash = digest_bytes("ai-stp:passport:v1", canonize(cast(JsonValue, plan.passport)))
@@ -54,7 +59,11 @@ async def authorize_binding(
     public: bool = False,
 ) -> str:
     connector, token = await load_connector(
-        db, account_id=binding.account_id, purpose="source", settings=settings
+        db,
+        account_id=binding.account_id,
+        purpose="source",
+        settings=settings,
+        organization_id=binding.organization_id,
     )
     if connector.id != binding.connector_id:
         raise GitHubError("source_binding_mismatch", status=412)

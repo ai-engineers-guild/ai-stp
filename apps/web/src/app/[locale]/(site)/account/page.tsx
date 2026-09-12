@@ -8,6 +8,7 @@ import { GitHubConnectionLink } from "@/components/molecules/github-connection-l
 import { StatePanel } from "@/components/molecules/state-panel";
 import { IdentityList } from "@/components/organisms/identity-list";
 import { readAccount } from "@/lib/api/account";
+import { readCorporateOrganization } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
 import { readCsrfToken } from "@/lib/auth/session";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
@@ -30,8 +31,12 @@ export default async function AccountPage({ params }: PageProps) {
   const csrfToken = (await readCsrfToken()) ?? "";
 
   let profile;
+  let corporateOrganization;
   try {
-    profile = await readAccount(token ?? "");
+    [profile, corporateOrganization] = await Promise.all([
+      readAccount(token ?? ""),
+      readCorporateOrganization(token ?? ""),
+    ]);
   } catch (error) {
     if (error instanceof ApiError && error.code === "AI_STP_UNAVAILABLE") {
       return <StatePanel kind="error" title={tc("error")} description={tc("apiUnavailable")} />;
@@ -105,6 +110,11 @@ export default async function AccountPage({ params }: PageProps) {
           </div>
 
           <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
+            {corporateOrganization && (
+              <Button asChild className="min-h-11 w-full sm:w-auto">
+                <Link href="/corporate">{t("corporateWorkspace")}</Link>
+              </Button>
+            )}
             <Button asChild className="min-h-11 w-full sm:w-auto">
               <Link href="/account/profile">{t("editProfile")}</Link>
             </Button>

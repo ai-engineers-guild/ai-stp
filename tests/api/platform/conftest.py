@@ -27,6 +27,7 @@ from ai_stp_api.settings import (
     AuthSettings,
     CatalogSettings,
     ContentSettings,
+    CorporateSettings,
     ServiceSettings,
     Settings,
 )
@@ -99,6 +100,7 @@ def make_settings(
         catalog=catalog
         or CatalogSettings(cursor_signing_secret=TEST_CURSOR_SECRET, usage_enabled=False),
         content=content or ContentSettings(),
+        corporate=CorporateSettings(bootstrap_secret="corporate-bootstrap-test-secret"),
     )
 
 

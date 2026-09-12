@@ -1,0 +1,359 @@
+{
+  "$defs": {
+    "CorporateBinding": {
+      "additionalProperties": true,
+      "properties": {
+        "account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Account Id"
+        },
+        "binding_id": {
+          "title": "Binding Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "default": "user",
+          "enum": [
+            "user",
+            "service_principal"
+          ],
+          "title": "Principal Type",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "role": {
+          "description": "Tenant-local role name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Role",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "system",
+            "organization",
+            "team",
+            "project",
+            "technology",
+            "catalog_object",
+            "telemetry"
+          ],
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "service_principal_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Service Principal Id"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "revoked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_id",
+        "binding_id",
+        "principal_type",
+        "revision",
+        "role",
+        "schema_version",
+        "scope_id",
+        "scope_kind",
+        "service_principal_id",
+        "state"
+      ],
+      "title": "CorporateBinding",
+      "type": "object"
+    },
+    "CorporateMember": {
+      "additionalProperties": true,
+      "properties": {
+        "account_id": {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Account Id",
+          "type": "string"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Display Name"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "role": {
+          "description": "Tenant-local role name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Role",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "suspended"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_id",
+        "display_name",
+        "revision",
+        "role",
+        "schema_version",
+        "state"
+      ],
+      "title": "CorporateMember",
+      "type": "object"
+    },
+    "CorporateOrganization": {
+      "additionalProperties": true,
+      "properties": {
+        "authorization_revision": {
+          "minimum": 1,
+          "title": "Authorization Revision",
+          "type": "integer"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "suspended"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "authorization_revision",
+        "display_name",
+        "organization_id",
+        "schema_version",
+        "state"
+      ],
+      "title": "CorporateOrganization",
+      "type": "object"
+    },
+    "CorporateProjectView": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "archived"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "organization_id",
+        "project_id",
+        "revision",
+        "schema_version",
+        "state"
+      ],
+      "title": "CorporateProjectView",
+      "type": "object"
+    },
+    "CorporateTeamView": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "archived"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "team_id": {
+          "title": "Team Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "organization_id",
+        "revision",
+        "schema_version",
+        "state",
+        "team_id"
+      ],
+      "title": "CorporateTeamView",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-context",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "bindings": {
+      "items": {
+        "$ref": "#/$defs/CorporateBinding"
+      },
+      "maxItems": 256,
+      "title": "Bindings",
+      "type": "array"
+    },
+    "capabilities": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "member": {
+      "$ref": "#/$defs/CorporateMember"
+    },
+    "organization": {
+      "$ref": "#/$defs/CorporateOrganization"
+    },
+    "projects": {
+      "items": {
+        "$ref": "#/$defs/CorporateProjectView"
+      },
+      "maxItems": 256,
+      "title": "Projects",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "teams": {
+      "items": {
+        "$ref": "#/$defs/CorporateTeamView"
+      },
+      "maxItems": 256,
+      "title": "Teams",
+      "type": "array"
+    }
+  },
+  "required": [
+    "bindings",
+    "capabilities",
+    "member",
+    "organization",
+    "projects",
+    "schema_version",
+    "teams"
+  ],
+  "title": "CorporateContext",
+  "type": "object"
+}

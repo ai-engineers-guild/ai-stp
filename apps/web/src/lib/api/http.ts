@@ -8,7 +8,7 @@ import { executeJsonRequest, usesMock, type QueryValue } from "./http-shared";
 import { mockFetch, mockResultToData } from "./mock-transport";
 
 export type PrivateRequestOptions = {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   query?: Record<string, QueryValue>;
   headers?: Record<string, string>;
   body?: unknown;
