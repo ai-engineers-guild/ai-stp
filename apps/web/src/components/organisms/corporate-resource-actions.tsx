@@ -123,8 +123,8 @@ export function CorporateResourceActions({
                   className="focus:bg-muted cursor-default rounded-sm px-3 py-2 outline-none"
                   onSelect={() => {
                     setNextParentRole(parentRole ?? "");
-                  setNextPermissions((rolePermissions ?? []).join(", "));
-                  setNextName(name);
+                    setNextPermissions((rolePermissions ?? []).join(", "));
+                    setNextName(name);
                     setNextRole(role ?? "staff");
                     setNextState(state);
                     setEditing(true);
@@ -184,7 +184,9 @@ export function CorporateResourceActions({
                 id="corporate-resource-role"
                 required
                 value={nextRole}
-                onChange={(event) => { setNextRole(event.target.value); }}
+                onChange={(event) => {
+                  setNextRole(event.target.value);
+                }}
                 className="border-input bg-background h-9 w-full rounded-sm border px-3 text-sm"
               >
                 {roles.map((item) => (
@@ -247,7 +249,14 @@ export function CorporateResourceActions({
           <Button type="submit" disabled={busy}>
             {busy ? labels.saving : labels.update}
           </Button>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(false); }}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              setEditing(false);
+            }}
+          >
             {t("cancel")}
           </Button>
         </form>
