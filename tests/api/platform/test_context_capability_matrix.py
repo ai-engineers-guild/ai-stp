@@ -9,11 +9,150 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ai_stp_api.session import issue_session
 from ai_stp_foundation.ids import new_id
+from ai_stp_platform.corporate_authorization import PrincipalType, has_corporate_permission
 from ai_stp_platform.models import Account, Device
-from ai_stp_platform.organization_models import Organization, OrganizationMembership
+from ai_stp_platform.organization_models import (
+    CorporateRole,
+    CorporateRoleBinding,
+    CorporateRolePermission,
+    CorporateServicePrincipal,
+    Organization,
+    OrganizationMembership,
+)
 
 pytestmark = pytest.mark.platform
 pytest_plugins = ("tests.api.platform.test_context_project_ledger",)
+
+
+@pytest.mark.parametrize("principal_type", ["user", "service_principal"])
+@pytest.mark.parametrize("grant_first", [False, True])
+async def test_multiple_inherited_bindings_and_projection_fail_closed(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    principal_type: PrincipalType,
+    grant_first: bool,
+) -> None:
+    client, sessionmaker, token, personal_id, _link_id, _project_id = project_harness
+    async with sessionmaker() as db:
+        membership = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == personal_id
+            )
+        )
+        assert membership is not None
+        account_id = membership.account_id
+        organization = Organization(
+            id=new_id("organization"), kind="corporate", display_name="Scoped policy"
+        )
+        db.add(organization)
+        await db.flush()
+        organization_id = organization.id
+        member = OrganizationMembership(
+            organization_id=organization_id, account_id=account_id, role="viewer"
+        )
+        principal = CorporateServicePrincipal(
+            id=new_id("principal"), organization_id=organization_id, name="Probe"
+        )
+        db.add_all([member, principal])
+        db.add_all(
+            [
+                CorporateRole(organization_id=organization_id, name="viewer"),
+                CorporateRole(organization_id=organization_id, name="editor"),
+                CorporateRole(
+                    organization_id=organization_id, name="inherited", parent_role="editor"
+                ),
+            ]
+        )
+        await db.flush()
+        db.add_all(
+            [
+                CorporateRolePermission(
+                    organization_id=organization_id, role="editor", permission=permission
+                )
+                for permission in ("organization.manage", "project.update")
+            ]
+        )
+        principal_id = account_id if principal_type == "user" else principal.id
+        roles = ["inherited", "viewer"] if grant_first else ["viewer", "inherited"]
+        bindings = [
+            CorporateRoleBinding(
+                id=new_id("binding"),
+                organization_id=organization_id,
+                principal_type=principal_type,
+                account_id=account_id if principal_type == "user" else None,
+                service_principal_id=principal.id
+                if principal_type == "service_principal"
+                else None,
+                role=role,
+                scope_kind="organization",
+                scope_id=organization_id,
+            )
+            for role in roles
+        ]
+        db.add_all(bindings)
+        await db.commit()
+
+        async def allowed(
+            *,
+            permission: str = "organization.manage",
+            scope_kind: str = "organization",
+            scope_id: str | None = None,
+            organization_id: str = organization_id,
+            authorization_revision: int | None = None,
+        ) -> bool:
+            return await has_corporate_permission(
+                db,
+                organization_id=organization_id,
+                principal_type=principal_type,
+                principal_id=principal_id,
+                permission=permission,
+                scope_kind=scope_kind,
+                scope_id=scope_id,
+                authorization_revision=authorization_revision,
+            )
+
+        assert await allowed()
+        assert not await allowed(authorization_revision=organization.policy_revision + 1)
+        assert not await allowed(organization_id=personal_id)
+        if principal_type == "user":
+            response = await client.get(
+                f"/v1/organizations/{organization_id}/capabilities",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert response.status_code == 200, response.text
+            assert "organization.manage" in response.json()["capabilities"]
+        grant = next(binding for binding in bindings if binding.role == "inherited")
+        grant.scope_kind = "project"
+        grant.scope_id = "bound-project"
+        await db.commit()
+        assert not await allowed()
+        assert await allowed(
+            permission="project.update", scope_kind="project", scope_id="bound-project"
+        )
+        assert not await allowed(
+            permission="project.update", scope_kind="project", scope_id="foreign-project"
+        )
+        if principal_type == "user":
+            response = await client.get(
+                f"/v1/organizations/{organization_id}/capabilities",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert response.status_code == 200, response.text
+            assert "organization.manage" not in response.json()["capabilities"]
+            assert response.json()["unavailable"]["organization.manage"] == "forbidden"
+        grant.state = "revoked"
+        await db.commit()
+        assert not await allowed(
+            permission="project.update", scope_kind="project", scope_id="bound-project"
+        )
+        grant.state = "active"
+        if principal_type == "user":
+            member.state = "suspended"
+        else:
+            principal.state = "suspended"
+        await db.commit()
+        assert not await allowed(
+            permission="project.update", scope_kind="project", scope_id="bound-project"
+        )
 
 
 @pytest.mark.parametrize(

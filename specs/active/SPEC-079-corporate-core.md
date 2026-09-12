@@ -121,6 +121,11 @@ are follow-up scope.
 - `REQ-7913`: The corporate capability projection exposes only implemented effective
   capabilities and current authorization revision. Web navigation and actions follow
   this projection while every API request remains independently authorized.
+  Applicable active bindings contribute the union of their inherited permissions;
+  binding order and the membership's role label do not override effective grants.
+  The shared organization projection uses organization-scoped decisions: a resource
+  binding does not grant organization administration. Suspended principals, revoked
+  bindings, and stale revisions remain denied.
 - `REQ-7914`: Bootstrap, authorization, tenant ownership, and audit behavior is
   available through the generated `/v1` contract and uses stable error categories and
   idempotency keys.

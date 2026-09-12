@@ -41,10 +41,10 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account, Device
 from ai_stp_platform.organization_models import (
-    CorporateRoleBinding,
-    CorporateRolePermission,
+    CorporateRole,
     Organization,
     OrganizationMembership,
     ProjectIdentity,
@@ -286,14 +286,18 @@ def projection_for(
         if capability in _IMPLEMENTED_CAPABILITIES
         and (effective_capabilities is None or capability in effective_capabilities)
     ]
-    if mode == "corporate" and role not in {"owner", "admin", "superadmin"}:
+    if (
+        mode == "corporate"
+        and effective_capabilities is None
+        and role not in {"owner", "admin", "superadmin"}
+    ):
         available = [item for item in available if item not in _CORPORATE_ADMIN_ONLY]
     available.sort()
     unavailable = {
         capability: (
             "forbidden"
             if mode == "corporate"
-            and role in {"superadmin", "lead", "staff"}
+            and effective_capabilities is not None
             and capability in _IMPLEMENTED_CAPABILITIES
             else "unsupported"
         )
@@ -326,27 +330,25 @@ async def remote_projection(
     effective: set[str] | None = None
     if organization.kind == "corporate":
         effective = set(PERSONAL_CAPABILITIES)
-    if organization.kind == "corporate" and membership.role in {"superadmin", "lead", "staff"}:
-        effective = set(
-            (
-                await db.scalars(
-                    select(CorporateRolePermission.permission)
-                    .join(
-                        CorporateRoleBinding,
-                        (
-                            CorporateRoleBinding.organization_id
-                            == CorporateRolePermission.organization_id
-                        )
-                        & (CorporateRoleBinding.role == CorporateRolePermission.role),
-                    )
-                    .where(
-                        CorporateRoleBinding.organization_id == organization.id,
-                        CorporateRoleBinding.account_id == ctx.account_id,
-                        CorporateRoleBinding.state == "active",
-                    )
-                )
-            ).all()
+    if (
+        organization.kind == "corporate"
+        and await db.scalar(
+            select(CorporateRole.name)
+            .where(CorporateRole.organization_id == organization.id)
+            .limit(1)
         )
+        is not None
+    ):
+        effective = set()
+        for capability in _IMPLEMENTED_CAPABILITIES:
+            if await has_corporate_permission(
+                db,
+                organization_id=organization.id,
+                principal_type="user",
+                principal_id=ctx.account_id,
+                permission=capability,
+            ):
+                effective.add(capability)
     return projection_for(
         mode=organization.kind,
         organization_id=organization.id,

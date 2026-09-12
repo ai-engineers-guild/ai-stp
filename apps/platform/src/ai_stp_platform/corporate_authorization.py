@@ -90,7 +90,7 @@ async def has_corporate_permission(
     if principal_active is None:
         return False
     scope = scope_id or organization_id
-    binding = await session.scalar(
+    bindings = await session.scalars(
         select(CorporateRoleBinding.role)
         .where(
             CorporateRoleBinding.organization_id == organization_id,
@@ -109,11 +109,14 @@ async def has_corporate_permission(
                 )
             ),
         )
-        .limit(1)
+        .distinct()
     )
-    return binding is not None and await _role_has_permission(
-        session, organization_id=organization_id, role=binding, permission=permission
-    )
+    for role in bindings:
+        if await _role_has_permission(
+            session, organization_id=organization_id, role=role, permission=permission
+        ):
+            return True
+    return False
 
 
 __all__ = ["PrincipalType", "has_corporate_permission"]

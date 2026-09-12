@@ -11,6 +11,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ai_stp_api.audit import emit_audit
 from ai_stp_api.session import issue_session
 from ai_stp_api.slices.auth.domain import ProviderProfile
 from ai_stp_api.slices.auth.service import resolve_login_identity
@@ -711,3 +712,74 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     assert exported.json()["organization_id"] == organization_id
     assert any(item["action"] == "role.create" for item in exported.json()["items"])
     assert all("token" not in item["payload"] for item in exported.json()["items"])
+
+    async with sessionmaker() as db:
+        rows = [
+            await emit_audit(
+                db,
+                actor_account_id=owner_id,
+                organization_id=organization_id,
+                action="acceptance.audit_probe",
+                target_table="organization",
+                target_id=organization_id,
+                request_id=f"audit-probe-{index}",
+                payload={"index": index, "nested": {"token": "must-not-persist", "safe": True}},
+            )
+            for index in range(101)
+        ]
+        expected_ids = {row.id for row in rows}
+        filters = {
+            "actor_account_id": owner_id,
+            "action": "acceptance.audit_probe",
+            "target_id": organization_id,
+            "created_from": rows[0].created_at.isoformat(),
+            "created_to": rows[-1].created_at.isoformat(),
+        }
+        await db.commit()
+    audit_url = f"/v1/corporate/organizations/{organization_id}/audit"
+    first_page = await client.get(audit_url, params=filters, headers=auth)
+    assert first_page.status_code == 200, first_page.text
+    page = first_page.json()
+    assert len(page["items"]) == 100
+    second_page = await client.get(
+        audit_url,
+        params={
+            **filters,
+            "before_id": page["next_before_id"],
+            "before_created_at": page["next_before_created_at"],
+        },
+        headers=auth,
+    )
+    assert second_page.status_code == 200, second_page.text
+    tail = second_page.json()
+    assert len(tail["items"]) == 1
+    assert tail["next_before_id"] is None
+    assert {item["audit_id"] for item in page["items"] + tail["items"]} == expected_ids
+    filtered_export = await client.get(f"{audit_url}/export", params=filters, headers=auth)
+    assert filtered_export.status_code == 200, filtered_export.text
+    assert {item["audit_id"] for item in filtered_export.json()["items"]} == expected_ids
+    assert all(
+        item["payload"]["nested"] == {"safe": True} for item in filtered_export.json()["items"]
+    )
+    empty = await client.get(audit_url, params={**filters, "target_id": "missing"}, headers=auth)
+    assert empty.status_code == 200 and empty.json()["items"] == []
+    for suffix in ("", "/export"):
+        denied = await client.get(f"{audit_url}{suffix}", headers=staff_auth)
+        assert denied.status_code == 403
+        foreign_audit = await client.get(
+            f"/v1/corporate/organizations/{foreign_id}/audit{suffix}", headers=auth
+        )
+        assert foreign_audit.status_code == 403
+        assert "audit-probe" not in foreign_audit.text
+    async with sessionmaker() as db:
+        await set_tenant_scope(db, organization_id)
+        self_audit = set(
+            await db.scalars(
+                select(AuditEvent.action).where(
+                    AuditEvent.organization_id == organization_id,
+                    AuditEvent.action.in_(["audit.list", "audit.export"]),
+                    AuditEvent.actor_account_id == owner_id,
+                )
+            )
+        )
+        assert self_audit == {"audit.list", "audit.export"}
