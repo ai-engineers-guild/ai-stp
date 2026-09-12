@@ -1,0 +1,27 @@
+{
+  "$id": "urn:ai-stp:schema:v1:relationship-list-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "include_history": {
+      "default": false,
+      "title": "Include History",
+      "type": "boolean"
+    },
+    "limit": {
+      "default": 128,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    }
+  },
+  "title": "RelationshipListQuery",
+  "type": "object"
+}

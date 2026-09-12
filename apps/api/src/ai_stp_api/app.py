@@ -43,6 +43,7 @@ from ai_stp_api.slices.selection.router import router as selection_router
 from ai_stp_api.slices.seo.router import router as seo_router
 from ai_stp_api.slices.sync.router import router as sync_router
 from ai_stp_api.slices.system.router import router as system_router
+from ai_stp_api.slices.technology.router import router as technology_router
 from ai_stp_api.slices.visibility.router import router as visibility_router
 from ai_stp_platform.db import make_engine, make_sessionmaker
 from ai_stp_platform.logging import configure_logging, get_logger
@@ -144,6 +145,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(complaints_router, prefix=_API_PREFIX)
     app.include_router(context_router, prefix=_API_PREFIX)
     app.include_router(corporate_router, prefix=_API_PREFIX)
+    app.include_router(technology_router, prefix=_API_PREFIX)
     app.include_router(sync_router, prefix=_API_PREFIX)
     app.include_router(publish_router, prefix=_API_PREFIX)
     app.include_router(grants_router, prefix=_API_PREFIX)

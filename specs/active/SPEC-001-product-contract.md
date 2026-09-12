@@ -15,6 +15,10 @@ The MVP includes a local registry, anonymous reads from the public registry, pri
 
 Real payments, the enterprise landscape, a sophisticated web editor, and claims of an object's absolute safety are out of scope.
 
+This is the baseline MVP scope, not a prohibition on later corporate milestones.
+SPEC-080 and SPEC-081 own the B2B-02 extension under ADR-0181; its server-owned
+registry and relationships do not enter the offline CLI dependency closure.
+
 The first supported alpha line is `0.0.16` under `ADR-0142`. `0.0.18` continues
 that line as one public Python distribution under `ADR-0146`. Release evidence
 covers Linux, macOS and Windows on `x86_64` and `arm64`; a missing, skipped or
@@ -72,7 +76,7 @@ The CLI, API, schemas, and provider protocol have independent versions. Supporte
 | `REQ-105` | An enum/schema test accepts exactly seven identifiers and `undefined`. |
 | `REQ-106` | Recorded E2E tests complete install, launch, status, and restore across the support matrix. |
 | `REQ-107` | The primary E2E test for creation, compilation, and installation runs only through the CLI and provider, without browser automation. |
-| `REQ-108` | A scope check and dependency search confirm the absence of billing and enterprise runtime paths; Windows paths are expected, and their presence is not a defect. |
+| `REQ-108` | The MVP CLI dependency closure excludes billing and corporate runtime services; later B2B server paths are owned by SPEC-079/080/081. Windows paths are expected, not a defect. |
 | `REQ-109` | The OBT checklist is blocked by missing evidence for any harness in `SUPPORT_TIERS` on the declared matrix; a missing run is `not_verified` and does not drop the harness. |
 | `REQ-110` | The support status generator does not assign a verified level to a beta line without a recorded run. |
 | `REQ-111` | A fixture with a missing named variable permits installation and produces `needs_configuration` at launch. |

@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "CategoryView": {
+      "additionalProperties": true,
+      "properties": {
+        "category_id": {
+          "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Category Id",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "provenance": {
+          "title": "Provenance",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "category_id",
+        "description",
+        "name",
+        "provenance",
+        "revision"
+      ],
+      "title": "CategoryView",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-category-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CategoryView"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "title": "CategoryList",
+  "type": "object"
+}
