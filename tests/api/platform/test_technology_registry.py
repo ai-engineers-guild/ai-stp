@@ -100,6 +100,13 @@ async def test_manual_technology_http_path(
     listed = await client.get(f"{base}/technologies", headers=auth)
     assert listed.status_code == 200, listed.text
     assert listed.json()["total"] == 1
+    alias = await client.get(
+        f"{base}/technologies", headers=auth, params={"query": "  BUN RUNTIME  "}
+    )
+    assert alias.status_code == 200, alias.text
+    assert [entry["technology_id"] for entry in alias.json()["items"]] == [technology]
+    literal = await client.get(f"{base}/technologies", headers=auth, params={"query": "%"})
+    assert literal.status_code == 200 and literal.json()["total"] == 0
     foreign = await client.get(
         f"/v1/corporate/organizations/{new_id('organization')}/technologies/{technology}",
         headers=auth,

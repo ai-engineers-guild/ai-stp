@@ -1,10 +1,14 @@
 """Current canonical links expand explicit grants, never responsibility labels."""
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_stp_api.errors import ApiError
 from ai_stp_api.session import AuthContext
+from ai_stp_api.slices.context.service import remote_projection
 from ai_stp_api.slices.corporate.service import bootstrap, update_project
 from ai_stp_api.slices.technology.service import (
+    read_project_technology,
     write_project_team,
     write_project_technology,
     write_technology_team,
@@ -78,7 +82,7 @@ async def test_link_changes_revoke_expanded_scopes_without_snapshots(
     db_session.add_all(
         [
             CorporateRolePermission(organization_id=org, role="viewer", permission=value)
-            for value in ("project.read", "technology.read")
+            for value in ("project.read", "technology.read", "project_technology.read")
         ]
     )
     await db_session.flush()
@@ -141,6 +145,36 @@ async def test_link_changes_revoke_expanded_scopes_without_snapshots(
     await db_session.flush()
     assert await allowed("project", project)
     assert await allowed("technology", tech)
+    viewer_ctx = AuthContext(viewer, "viewer-scope-test", None, "active", False, False)
+    projection = await remote_projection(
+        db_session,
+        ctx=viewer_ctx,
+        organization_id=org,
+        scope_kind="project",
+        scope_id=project,
+    )
+    assert projection.registry_version == 2
+    assert "project.read" in projection.capabilities
+    assert "project_technology.read" in projection.capabilities
+    assert "project_technology.list" not in projection.capabilities
+    assert "project_team.create" not in projection.capabilities
+    known_usage = await read_project_technology(
+        db_session,
+        ctx=viewer_ctx,
+        organization_id=org,
+        project_id=project,
+        technology_id=tech,
+        request_id="known-scope-read",
+    )
+    assert known_usage.project_id == project and known_usage.technology_id == tech
+    with pytest.raises(ApiError, match="resource scope is unavailable"):
+        await remote_projection(
+            db_session,
+            ctx=viewer_ctx,
+            organization_id=org,
+            scope_kind="project",
+            scope_id=new_id("remote_project"),
+        )
     await write_project_team(
         db_session,
         ctx=ctx,
@@ -158,6 +192,14 @@ async def test_link_changes_revoke_expanded_scopes_without_snapshots(
     )
     assert not await allowed("project", project)
     assert await allowed("technology", tech)
+    with pytest.raises(ApiError, match="resource scope is unavailable"):
+        await remote_projection(
+            db_session,
+            ctx=viewer_ctx,
+            organization_id=org,
+            scope_kind="project",
+            scope_id=project,
+        )
     await write_technology_team(
         db_session,
         ctx=ctx,

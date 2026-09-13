@@ -16,6 +16,7 @@ export const UI = {
   navigation: {
     home: "nav-home",
     catalog: "nav-catalog",
+    hub: "nav-hub",
     services: "nav-services",
     docs: "nav-docs",
     content: "nav-content",

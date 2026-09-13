@@ -25,9 +25,19 @@
       "type": "boolean"
     },
     "authorization_revision": {
-      "minimum": 1,
-      "title": "Authorization Revision",
-      "type": "integer"
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+          "type": "string"
+        }
+      ],
+      "title": "Authorization Revision"
     },
     "expected_revision": {
       "minimum": 0,

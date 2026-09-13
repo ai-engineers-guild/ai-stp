@@ -12,6 +12,7 @@ import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { SITE_NAME } from "@/lib/site";
+import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -25,6 +26,8 @@ export async function AppShell({ children, locale }: AppShellProps) {
   const tm = await getTranslations("machine");
   const docsHref = getEnv().AI_STP_USER_DOCS_URL;
   const saasPublicPages = isFeatureEnabled("saas_public_pages");
+  const corporateHub = COMPILED_FEATURE_PROFILE === "corporate_hub";
+  const th = await getTranslations("hub");
 
   return (
     <div
@@ -52,7 +55,11 @@ export async function AppShell({ children, locale }: AppShellProps) {
       >
         <div
           className={`mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 ${
-            saasPublicPages ? "lg:grid-cols-[1.25fr_1fr_1fr_1fr]" : "lg:grid-cols-[1.25fr_1fr]"
+            saasPublicPages
+              ? "lg:grid-cols-[1.25fr_1fr_1fr_1fr]"
+              : corporateHub
+                ? "lg:grid-cols-[1.25fr_1fr_1fr]"
+                : "lg:grid-cols-[1.25fr_1fr]"
           }`}
         >
           <div className="space-y-4">
@@ -77,13 +84,23 @@ export async function AppShell({ children, locale }: AppShellProps) {
             title={tf("product")}
             links={[
               { label: tf("catalog"), href: "/catalog" },
-              { label: tf("services"), href: "/services" },
+              ...(!corporateHub ? [{ label: tf("services"), href: "/services" }] : []),
               { label: tf("docs"), href: docsHref },
               ...(isFeatureEnabled("content_hub")
                 ? [{ label: tf("content"), href: "/content" }]
                 : []),
             ]}
           />
+          {corporateHub && (
+            <FooterColumn
+              title={th("navigation")}
+              links={[
+                { label: th("overview"), href: "/corporate" },
+                { label: th("organization"), href: "/corporate/organization" },
+                { label: th("landscape"), href: "/corporate/technology-landscape" },
+              ]}
+            />
+          )}
           {saasPublicPages ? (
             <>
               <FooterColumn

@@ -21,6 +21,23 @@
           "title": "Project Id",
           "type": "string"
         },
+        "source_availability": {
+          "anyOf": [
+            {
+              "enum": [
+                "unknown",
+                "available",
+                "unavailable"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Availability"
+        },
         "usage": {
           "$ref": "#/$defs/ProjectTechnologyView"
         }
@@ -88,6 +105,58 @@
         "technology_id"
       ],
       "title": "ProjectTechnologyView",
+      "type": "object"
+    },
+    "TechnologyDecisionView": {
+      "additionalProperties": true,
+      "properties": {
+        "adoption": {
+          "enum": [
+            "none",
+            "assess",
+            "trial",
+            "adopt",
+            "hold"
+          ],
+          "title": "Adoption",
+          "type": "string"
+        },
+        "approved": {
+          "title": "Approved",
+          "type": "boolean"
+        },
+        "lead_account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lead Account Id"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "technology_id": {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Technology Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "adoption",
+        "approved",
+        "lead_account_id",
+        "revision",
+        "technology_id"
+      ],
+      "title": "TechnologyDecisionView",
       "type": "object"
     },
     "TechnologyEvidence": {
@@ -203,6 +272,23 @@
     "TechnologyLandscapeQuery": {
       "additionalProperties": false,
       "properties": {
+        "activity": {
+          "anyOf": [
+            {
+              "enum": [
+                "active",
+                "inactive",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Activity"
+        },
         "adoption": {
           "anyOf": [
             {
@@ -325,6 +411,24 @@
           "default": null,
           "title": "Project Id"
         },
+        "project_lifecycle": {
+          "anyOf": [
+            {
+              "enum": [
+                "active",
+                "deprecated",
+                "archived",
+                "deleted"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Lifecycle"
+        },
         "project_limit": {
           "default": 128,
           "maximum": 256,
@@ -337,6 +441,21 @@
           "minimum": 0,
           "title": "Project Offset",
           "type": "integer"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "pattern": ".*\\S.*",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query"
         },
         "review": {
           "anyOf": [
@@ -356,6 +475,23 @@
           ],
           "default": null,
           "title": "Review"
+        },
+        "source_availability": {
+          "anyOf": [
+            {
+              "enum": [
+                "unknown",
+                "available",
+                "unavailable"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Availability"
         },
         "team_id": {
           "anyOf": [
@@ -382,6 +518,17 @@
           ],
           "default": null,
           "title": "Technology Id"
+        },
+        "view": {
+          "default": "table",
+          "enum": [
+            "table",
+            "grouped",
+            "radar",
+            "relationships"
+          ],
+          "title": "View",
+          "type": "string"
         }
       },
       "title": "TechnologyLandscapeQuery",
@@ -390,6 +537,17 @@
     "TechnologyLandscapeRow": {
       "additionalProperties": true,
       "properties": {
+        "decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TechnologyDecisionView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "project_count": {
           "minimum": 0,
           "title": "Project Count",
@@ -412,6 +570,7 @@
         }
       },
       "required": [
+        "decision",
         "project_count",
         "projects",
         "proposed_project_count",
@@ -512,6 +671,16 @@
           "default": null,
           "title": "Redirect Id"
         },
+        "restore_lifecycle": {
+          "default": "draft",
+          "enum": [
+            "draft",
+            "active",
+            "deprecated"
+          ],
+          "title": "Restore Lifecycle",
+          "type": "string"
+        },
         "revision": {
           "minimum": 1,
           "title": "Revision",
@@ -540,6 +709,7 @@
         "organization_id",
         "provenance",
         "redirect_id",
+        "restore_lifecycle",
         "revision",
         "schema_version",
         "technology_id"

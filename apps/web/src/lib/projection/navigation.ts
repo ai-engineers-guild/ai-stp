@@ -1,5 +1,5 @@
 import { UI } from "@/lib/ui-selectors";
-import { COMPILED_FEATURES } from "@/lib/features/compiled";
+import { COMPILED_FEATURES, COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import type { FeatureKey } from "@/lib/features/definitions";
 
 export type NavItem = {
@@ -27,7 +27,9 @@ export function siteNavigation({ signedIn, docsHref }: NavigationInput): NavItem
   const items: NavItem[] = [
     { ui: UI.navigation.home, labelKey: "home", href: "/" },
     { ui: UI.navigation.catalog, labelKey: "catalog", href: "/catalog" },
-    { ui: UI.navigation.services, labelKey: "services", href: "/services" },
+    ...(COMPILED_FEATURE_PROFILE === "corporate_hub"
+      ? [{ ui: UI.navigation.hub, labelKey: "hub", href: "/corporate" }]
+      : [{ ui: UI.navigation.services, labelKey: "services", href: "/services" }]),
     { ui: UI.navigation.docs, labelKey: "docs", href: docsHref, external: true },
   ];
   items.push({

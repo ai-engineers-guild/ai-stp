@@ -28,6 +28,22 @@
           "minimum": 1,
           "title": "Revision",
           "type": "integer"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "enum": [
+                "active",
+                "archived"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
         }
       },
       "required": [

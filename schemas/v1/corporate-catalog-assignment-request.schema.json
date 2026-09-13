@@ -1,0 +1,88 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-assignment-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Assign a readable exact catalog version without granting access or installing it.",
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "object_kind": {
+      "enum": [
+        "setup",
+        "component"
+      ],
+      "title": "Object Kind",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "default": "current",
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "subject_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_kind": {
+      "enum": [
+        "employee",
+        "team",
+        "project"
+      ],
+      "title": "Subject Kind",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject_kind",
+    "subject_id",
+    "object_kind",
+    "stable_id",
+    "version",
+    "expected_revision",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateCatalogAssignmentRequest",
+  "type": "object"
+}

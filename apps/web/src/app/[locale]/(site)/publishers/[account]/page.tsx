@@ -53,19 +53,22 @@ function ProfileStat({
   icon,
   label,
   value,
+  locale,
 }: {
   icon: "cards" | "heart" | "eye";
   label: string;
   value: number;
+  locale: string;
 }) {
+  const formattedValue = value.toLocaleString(locale);
   return (
     <span
       className="group/stat text-muted-foreground hover:text-foreground relative inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors"
-      title={`${label}: ${value.toLocaleString()}`}
-      aria-label={`${label}: ${value.toLocaleString()}`}
+      title={`${label}: ${formattedValue}`}
+      aria-label={`${label}: ${formattedValue}`}
     >
       <Icon name={icon} size="sm" />
-      <span className="font-mono text-xs tabular-nums">{value.toLocaleString()}</span>
+      <span className="font-mono text-xs tabular-nums">{formattedValue}</span>
       <span
         role="tooltip"
         className="border-border bg-popover text-popover-foreground pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 rounded-md border px-2 py-1 text-xs whitespace-nowrap shadow-md group-hover/stat:block"
@@ -255,12 +258,23 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
           <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 pr-14">
             {stats ? (
               <>
-                <ProfileStat icon="cards" label={t("objectsStat")} value={stats.total_objects} />
-                <ProfileStat icon="heart" label={t("likesStat")} value={stats.likes_count} />
+                <ProfileStat
+                  icon="cards"
+                  label={t("objectsStat")}
+                  value={stats.total_objects}
+                  locale={locale}
+                />
+                <ProfileStat
+                  icon="heart"
+                  label={t("likesStat")}
+                  value={stats.likes_count}
+                  locale={locale}
+                />
                 <ProfileStat
                   icon="eye"
                   label={t("viewsAndDownloadsStat")}
                   value={stats.detail_views_count + stats.artifact_downloads_count}
+                  locale={locale}
                 />
               </>
             ) : null}

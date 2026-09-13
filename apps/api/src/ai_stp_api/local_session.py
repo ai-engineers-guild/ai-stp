@@ -20,7 +20,7 @@ from ai_stp_api.errors import ApiError, ErrorCategory
 LOCAL_SESSION_HEADER = "X-AI-STP-Local-Session"
 LOCAL_CSRF_HEADER = "X-AI-STP-Local-CSRF"
 LOCAL_SESSION_TTL = timedelta(hours=1)
-_STARTUP_TIMEOUT = 10.0
+_STARTUP_TIMEOUT = 30.0
 
 
 @dataclass(frozen=True)

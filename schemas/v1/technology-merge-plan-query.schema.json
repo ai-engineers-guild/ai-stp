@@ -1,0 +1,17 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-merge-plan-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "target_id": {
+      "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Target Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target_id"
+  ],
+  "title": "TechnologyMergePlanQuery",
+  "type": "object"
+}

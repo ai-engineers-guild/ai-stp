@@ -1,0 +1,34 @@
+{
+  "$id": "urn:ai-stp:schema:v1:capability-scope-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "scope_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 20,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scope Id"
+    },
+    "scope_kind": {
+      "default": "organization",
+      "enum": [
+        "organization",
+        "project",
+        "team",
+        "technology"
+      ],
+      "title": "Scope Kind",
+      "type": "string"
+    }
+  },
+  "title": "CapabilityScopeQuery",
+  "type": "object"
+}

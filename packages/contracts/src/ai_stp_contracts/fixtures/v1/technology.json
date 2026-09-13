@@ -1,0 +1,1741 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "removeTechnologyCategory.technology",
+      "operation_id": "removeTechnologyCategory",
+      "kind": "positive",
+      "why": "Category lifecycle retains the governed identity and prior classifications.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 1,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-removeTechnologyCategory-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "Runtime",
+        "description": "",
+        "revision": 2,
+        "provenance": "manual",
+        "state": "archived"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "changeTechnologyCategoryLifecycle.technology",
+      "operation_id": "changeTechnologyCategoryLifecycle",
+      "kind": "positive",
+      "why": "Category lifecycle retains the governed identity and prior classifications.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 1,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-changeTechnologyCategoryLifecycle-0001",
+          "target": "active"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "Runtime",
+        "description": "",
+        "revision": 2,
+        "provenance": "manual",
+        "state": "active"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "changeCorporateProjectLifecycle.technology",
+      "operation_id": "changeCorporateProjectLifecycle",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 1,
+          "target": "deprecated",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-changeCorporateProjectLifecycle-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "name": "Permanent identity",
+        "state": "archived",
+        "lifecycle": "deprecated",
+        "restore_lifecycle": "active",
+        "revision": 2
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "changeTechnologyLifecycle.technology",
+      "operation_id": "changeTechnologyLifecycle",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 1,
+          "lifecycle": "active",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-changeTechnologyLifecycle-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Bun",
+        "category_ids": [
+          "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        ],
+        "aliases": [
+          "Bun runtime"
+        ],
+        "description": "",
+        "icon_url": null,
+        "official_urls": [],
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "lifecycle": "active",
+        "restore_lifecycle": "draft",
+        "revision": 2,
+        "redirect_id": null,
+        "provenance": "manual"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "createTechnology.technology",
+      "operation_id": "createTechnology",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "metadata": {
+            "name": "Bun",
+            "category_ids": [
+              "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+            ],
+            "aliases": [
+              "Bun runtime"
+            ],
+            "description": ""
+          },
+          "expected_revision": 0,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-createTechnology-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Bun",
+        "category_ids": [
+          "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        ],
+        "aliases": [
+          "Bun runtime"
+        ],
+        "description": "",
+        "icon_url": null,
+        "official_urls": [],
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "lifecycle": "draft",
+        "restore_lifecycle": "draft",
+        "revision": 1,
+        "redirect_id": null,
+        "provenance": "manual"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "createTechnologyCategory.technology",
+      "operation_id": "createTechnologyCategory",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "metadata": {
+            "name": "Runtime"
+          },
+          "expected_revision": 0,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-createTechnologyCategory-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Runtime",
+        "description": "",
+        "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "provenance": "manual"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "importTechnologySeed.technology",
+      "operation_id": "importTechnologySeed",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 0,
+          "seed_version": 1,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-importTechnologySeed-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "seed_version": 1,
+        "created_category_ids": [
+          "category_00000000000000000000000001",
+          "category_00000000000000000000000002",
+          "category_00000000000000000000000003",
+          "category_00000000000000000000000004",
+          "category_00000000000000000000000005",
+          "category_00000000000000000000000006",
+          "category_00000000000000000000000007",
+          "category_00000000000000000000000008",
+          "category_00000000000000000000000009",
+          "category_00000000000000000000000010",
+          "category_00000000000000000000000011",
+          "category_00000000000000000000000012",
+          "category_00000000000000000000000013",
+          "category_00000000000000000000000014",
+          "category_00000000000000000000000015",
+          "category_00000000000000000000000016",
+          "category_00000000000000000000000017",
+          "category_00000000000000000000000018",
+          "category_00000000000000000000000019",
+          "category_00000000000000000000000020",
+          "category_00000000000000000000000021",
+          "category_00000000000000000000000022",
+          "category_00000000000000000000000023"
+        ],
+        "retained_category_ids": [],
+        "created_technology_ids": [
+          "technology_00000000000000000000000001",
+          "technology_00000000000000000000000002",
+          "technology_00000000000000000000000003",
+          "technology_00000000000000000000000004",
+          "technology_00000000000000000000000005",
+          "technology_00000000000000000000000006",
+          "technology_00000000000000000000000007"
+        ],
+        "retained_technology_ids": []
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listProjectTeams.technology",
+      "operation_id": "listProjectTeams",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "role": "owner",
+            "state": "current",
+            "revision": 1
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listProjectTechnologies.technology",
+      "operation_id": "listProjectTechnologies",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "state": "current",
+            "revision": 1,
+            "facts": [
+              {
+                "context": "development",
+                "version": null,
+                "version_kind": "unknown",
+                "evidence": [],
+                "review": "confirmed",
+                "freshness": "current"
+              }
+            ]
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listTeamProjects.technology",
+      "operation_id": "listTeamProjects",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "role": "owner",
+            "state": "current",
+            "revision": 1
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listTeamTechnologies.technology",
+      "operation_id": "listTeamTechnologies",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "state": "current",
+            "revision": 1
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listTechnologies.technology",
+      "operation_id": "listTechnologies",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "name": "Bun",
+            "category_ids": [
+              "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+            ],
+            "aliases": [
+              "Bun runtime"
+            ],
+            "description": "",
+            "icon_url": null,
+            "official_urls": [],
+            "schema_version": 1,
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "lifecycle": "draft",
+            "restore_lifecycle": "draft",
+            "revision": 1,
+            "redirect_id": null,
+            "provenance": "manual"
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listTechnologyCategories.technology",
+      "operation_id": "listTechnologyCategories",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "name": "Runtime",
+            "description": "",
+            "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "revision": 1,
+            "provenance": "manual"
+          }
+        ]
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listTechnologyProjects.technology",
+      "operation_id": "listTechnologyProjects",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "state": "current",
+            "revision": 1,
+            "facts": [
+              {
+                "context": "development",
+                "version": null,
+                "version_kind": "unknown",
+                "evidence": [],
+                "review": "confirmed",
+                "freshness": "current"
+              }
+            ]
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listTechnologyTeams.technology",
+      "operation_id": "listTechnologyTeams",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "state": "current",
+            "revision": 1
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnology.technology",
+      "operation_id": "readTechnology",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Bun",
+        "category_ids": [
+          "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        ],
+        "aliases": [
+          "Bun runtime"
+        ],
+        "description": "",
+        "icon_url": null,
+        "official_urls": [],
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "lifecycle": "draft",
+        "restore_lifecycle": "draft",
+        "revision": 1,
+        "redirect_id": null,
+        "provenance": "manual"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnologyCategory.technology",
+      "operation_id": "readTechnologyCategory",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Runtime",
+        "description": "",
+        "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "provenance": "manual"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnologyDecision.technology",
+      "operation_id": "readTechnologyDecision",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "lead_account_id": null,
+        "approved": false,
+        "adoption": "none"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnologyLandscape.technology",
+      "operation_id": "readTechnologyLandscape",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "evaluated_at": "2026-09-12T00:00:00.000Z",
+        "inactivity_months": 9,
+        "filters": {
+          "category_id": null,
+          "query": null,
+          "technology_id": null,
+          "project_id": null,
+          "team_id": null,
+          "lifecycle": null,
+          "adoption": null,
+          "context": null,
+          "review": null,
+          "freshness": null,
+          "include_history": false,
+          "include_inactive": false,
+          "offset": 0,
+          "limit": 128,
+          "project_offset": 0,
+          "project_limit": 128,
+          "view": "table"
+        },
+        "items": [
+          {
+            "technology": {
+              "name": "Bun",
+              "category_ids": [
+                "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+              ],
+              "aliases": [
+                "Bun runtime"
+              ],
+              "description": "",
+              "icon_url": null,
+              "official_urls": [],
+              "schema_version": 1,
+              "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "lifecycle": "active",
+              "restore_lifecycle": "draft",
+              "revision": 2,
+              "redirect_id": null,
+              "provenance": "manual"
+            },
+            "project_count": 1,
+            "proposed_project_count": 0,
+            "projects": [
+              {
+                "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                "name": "Known project",
+                "activity": "unknown",
+                "usage": {
+                  "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "state": "current",
+                  "revision": 1,
+                  "facts": [
+                    {
+                      "context": "development",
+                      "version": null,
+                      "version_kind": "unknown",
+                      "evidence": [],
+                      "review": "confirmed",
+                      "freshness": "current"
+                    }
+                  ]
+                }
+              }
+            ],
+            "decision": null
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "writeProjectTeam.technology",
+      "operation_id": "writeProjectTeam",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 0,
+          "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "role": "owner",
+          "state": "current",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-writeProjectTeam-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "role": "owner",
+        "state": "current",
+        "revision": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "writeProjectTechnology.technology",
+      "operation_id": "writeProjectTechnology",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 0,
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "fact": {
+            "context": "development",
+            "version_kind": "unknown",
+            "version": null,
+            "evidence": []
+          },
+          "review": "confirmed",
+          "state": "current",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-writeProjectTechnology-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "current",
+        "revision": 1,
+        "facts": [
+          {
+            "context": "development",
+            "version": null,
+            "version_kind": "unknown",
+            "evidence": [],
+            "review": "confirmed",
+            "freshness": "current"
+          }
+        ]
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "writeTechnology.technology",
+      "operation_id": "writeTechnology",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "metadata": {
+            "name": "Bun",
+            "category_ids": [
+              "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+            ],
+            "aliases": [
+              "Bun runtime"
+            ],
+            "description": ""
+          },
+          "expected_revision": 1,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-writeTechnology-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Bun",
+        "category_ids": [
+          "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        ],
+        "aliases": [
+          "Bun runtime"
+        ],
+        "description": "",
+        "icon_url": null,
+        "official_urls": [],
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "lifecycle": "draft",
+        "restore_lifecycle": "draft",
+        "revision": 2,
+        "redirect_id": null,
+        "provenance": "manual"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "writeTechnologyCategory.technology",
+      "operation_id": "writeTechnologyCategory",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "metadata": {
+            "name": "Runtime"
+          },
+          "expected_revision": 1,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-writeTechnologyCategory-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "name": "Runtime",
+        "description": "",
+        "category_id": "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 2,
+        "provenance": "manual"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "clearTechnologyDecision.technology",
+      "operation_id": "clearTechnologyDecision",
+      "kind": "positive",
+      "why": "Explicit removal retains the canonical decision identity and revision history.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 1,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-clearTechnologyDecision-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 2,
+        "lead_account_id": null,
+        "approved": false,
+        "adoption": "none"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "writeTechnologyDecision.technology",
+      "operation_id": "writeTechnologyDecision",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 0,
+          "approved": false,
+          "adoption": "none",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-writeTechnologyDecision-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "revision": 1,
+        "lead_account_id": null,
+        "approved": false,
+        "adoption": "none"
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "writeTechnologyTeam.technology",
+      "operation_id": "writeTechnologyTeam",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {},
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 0,
+          "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "state": "current",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-writeTechnologyTeam-0001"
+        },
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "team_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "current",
+        "revision": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnologyLandscapePolicy.technology",
+      "operation_id": "readTechnologyLandscapePolicy",
+      "kind": "positive",
+      "why": "Activity policy and override are separate from lifecycle and unknown activity.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "inactivity_months": 9,
+        "revision": 0
+      }
+    },
+    {
+      "case_id": "writeTechnologyLandscapePolicy.technology",
+      "operation_id": "writeTechnologyLandscapePolicy",
+      "kind": "positive",
+      "why": "Activity policy and override are separate from lifecycle and unknown activity.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": 1,
+          "expected_revision": 0,
+          "idempotency_key": "fixture-writeTechnologyLandscapePolicy-0001",
+          "inactivity_months": 12
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "inactivity_months": 12,
+        "revision": 1
+      }
+    },
+    {
+      "case_id": "readCorporateProjectActivity.technology",
+      "operation_id": "readCorporateProjectActivity",
+      "kind": "positive",
+      "why": "Activity policy and override are separate from lifecycle and unknown activity.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository_activity_at": null,
+        "activity_override": null,
+        "revision": 1
+      }
+    },
+    {
+      "case_id": "writeCorporateProjectActivity.technology",
+      "operation_id": "writeCorporateProjectActivity",
+      "kind": "positive",
+      "why": "Activity policy and override are separate from lifecycle and unknown activity.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": 1,
+          "expected_revision": 1,
+          "idempotency_key": "fixture-writeCorporateProjectActivity-0001",
+          "repository_activity_at": null,
+          "activity_override": null
+        }
+      },
+      "status": 200,
+      "body": {
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "repository_activity_at": null,
+        "activity_override": null,
+        "revision": 2
+      }
+    },
+    {
+      "case_id": "readTechnologyMergePlan.technology",
+      "operation_id": "readTechnologyMergePlan",
+      "kind": "positive",
+      "why": "A currently authorized preview pins all inputs without structural mutation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {
+          "target_id": "technology_00000000000000000000000002"
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "source": {
+          "name": "Bun",
+          "category_ids": [
+            "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+          ],
+          "aliases": [
+            "Bun runtime"
+          ],
+          "description": "",
+          "icon_url": null,
+          "official_urls": [],
+          "schema_version": 1,
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "lifecycle": "active",
+          "restore_lifecycle": "draft",
+          "revision": 2,
+          "redirect_id": null,
+          "provenance": "manual"
+        },
+        "target": {
+          "name": "npm CLI",
+          "category_ids": [
+            "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+          ],
+          "aliases": [],
+          "description": "",
+          "icon_url": null,
+          "official_urls": [],
+          "schema_version": 1,
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_00000000000000000000000002",
+          "lifecycle": "active",
+          "restore_lifecycle": "draft",
+          "revision": 2,
+          "redirect_id": null,
+          "provenance": "manual"
+        },
+        "affected_project_count": 0,
+        "affected_team_count": 0,
+        "digest": "sha256:b4afe4e8b56e3679facada6aa8622ae91163361b0bdaa4cc4685091c29263379"
+      }
+    },
+    {
+      "case_id": "mergeTechnology.technology",
+      "operation_id": "mergeTechnology",
+      "kind": "positive",
+      "why": "A deliberate merge retains source identity and original target lifecycle.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "target_id": "technology_00000000000000000000000002",
+          "expected_revision": 2,
+          "target_expected_revision": 2,
+          "plan_digest": "sha256:b4afe4e8b56e3679facada6aa8622ae91163361b0bdaa4cc4685091c29263379",
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-technology-merge-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "source": {
+          "name": "Bun",
+          "category_ids": [
+            "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+          ],
+          "aliases": [],
+          "description": "",
+          "icon_url": null,
+          "official_urls": [],
+          "schema_version": 1,
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "lifecycle": "archived",
+          "restore_lifecycle": "active",
+          "revision": 3,
+          "redirect_id": "technology_00000000000000000000000002",
+          "provenance": "manual"
+        },
+        "target": {
+          "name": "npm CLI",
+          "category_ids": [
+            "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+          ],
+          "aliases": [
+            "Bun",
+            "Bun runtime"
+          ],
+          "description": "",
+          "icon_url": null,
+          "official_urls": [],
+          "schema_version": 1,
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_00000000000000000000000002",
+          "lifecycle": "active",
+          "restore_lifecycle": "draft",
+          "revision": 3,
+          "redirect_id": null,
+          "provenance": "manual"
+        },
+        "project_effects": [],
+        "team_effects": []
+      }
+    },
+    {
+      "case_id": "readTechnologyMapping.technology",
+      "operation_id": "readTechnologyMapping",
+      "kind": "positive",
+      "why": "Immutable detector metadata never replaces owner decisions or creates ProjectLink.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "v1"
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "v1",
+        "entries": [
+          {
+            "kind": "executable",
+            "coordinate": "bun",
+            "technology_id": "technology_00000000000000000000000001",
+            "provenance": "reviewed-catalog-v1"
+          }
+        ],
+        "digest": "sha256:85dc041a89fc93a23c12dd2970e2156b631aa3bfc132b2a6f0c46559cb52e60a"
+      }
+    },
+    {
+      "case_id": "publishTechnologyMapping.technology",
+      "operation_id": "publishTechnologyMapping",
+      "kind": "positive",
+      "why": "Immutable detector metadata never replaces owner decisions or creates ProjectLink.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "version": "v1"
+        },
+        "body": {
+          "schema_version": 1,
+          "expected_revision": 0,
+          "authorization_revision": 1,
+          "idempotency_key": "fixture-mapping-publish-0001",
+          "entries": [
+            {
+              "kind": "executable",
+              "coordinate": "bun",
+              "technology_id": "technology_00000000000000000000000001",
+              "provenance": "reviewed-catalog-v1"
+            }
+          ]
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "version": "v1",
+        "entries": [
+          {
+            "kind": "executable",
+            "coordinate": "bun",
+            "technology_id": "technology_00000000000000000000000001",
+            "provenance": "reviewed-catalog-v1"
+          }
+        ],
+        "digest": "sha256:85dc041a89fc93a23c12dd2970e2156b631aa3bfc132b2a6f0c46559cb52e60a"
+      }
+    },
+    {
+      "case_id": "publishTechnologyScan.technology",
+      "operation_id": "publishTechnologyScan",
+      "kind": "positive",
+      "why": "Immutable detector metadata never replaces owner decisions or creates ProjectLink.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "authorization_revision": 1,
+          "expected_revision": 1,
+          "idempotency_key": "fixture-scan-publish-0001",
+          "handoff": {
+            "schema_version": 1,
+            "local_project_id": null,
+            "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+            "scope": "dependencies",
+            "complete": true,
+            "detector_version": "v1",
+            "mapping_version": "v1",
+            "observations": []
+          }
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_revision": 2,
+        "digest": "sha256:220e499455f4854f527e0cfea2cc9bb35484a159438eec2c3e0ebfc66a51d36f",
+        "usages": [],
+        "disagreements": [],
+        "created_relation_ids": []
+      }
+    },
+    {
+      "case_id": "readTechnologyScan.technology",
+      "operation_id": "readTechnologyScan",
+      "kind": "positive",
+      "why": "Immutable detector metadata never replaces owner decisions or creates ProjectLink.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "handoff": {
+          "schema_version": 1,
+          "local_project_id": null,
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "scope": "dependencies",
+          "complete": true,
+          "detector_version": "v1",
+          "mapping_version": "v1",
+          "observations": []
+        },
+        "result": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "scan_id": "scan_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_revision": 2,
+          "digest": "sha256:220e499455f4854f527e0cfea2cc9bb35484a159438eec2c3e0ebfc66a51d36f",
+          "usages": [],
+          "disagreements": [],
+          "created_relation_ids": []
+        }
+      }
+    },
+    {
+      "case_id": "readProjectTechnology.technology",
+      "operation_id": "readProjectTechnology",
+      "kind": "positive",
+      "why": "Known pair reads do not require list permission or create another relation.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "current",
+        "revision": 1,
+        "facts": [
+          {
+            "context": "development",
+            "version": null,
+            "version_kind": "unknown",
+            "evidence": [],
+            "review": "confirmed",
+            "freshness": "current"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "readTechnologyLandscape.grouped",
+      "operation_id": "readTechnologyLandscape",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {
+          "view": "grouped"
+        },
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "evaluated_at": "2026-09-12T00:00:00.000Z",
+        "inactivity_months": 9,
+        "filters": {
+          "category_id": null,
+          "query": null,
+          "technology_id": null,
+          "project_id": null,
+          "team_id": null,
+          "lifecycle": null,
+          "adoption": null,
+          "context": null,
+          "review": null,
+          "freshness": null,
+          "include_history": false,
+          "include_inactive": false,
+          "offset": 0,
+          "limit": 128,
+          "project_offset": 0,
+          "project_limit": 128,
+          "view": "grouped"
+        },
+        "items": [
+          {
+            "technology": {
+              "name": "Bun",
+              "category_ids": [
+                "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+              ],
+              "aliases": [
+                "Bun runtime"
+              ],
+              "description": "",
+              "icon_url": null,
+              "official_urls": [],
+              "schema_version": 1,
+              "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "lifecycle": "active",
+              "restore_lifecycle": "draft",
+              "revision": 2,
+              "redirect_id": null,
+              "provenance": "manual"
+            },
+            "project_count": 1,
+            "proposed_project_count": 0,
+            "projects": [
+              {
+                "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                "name": "Known project",
+                "activity": "unknown",
+                "usage": {
+                  "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "state": "current",
+                  "revision": 1,
+                  "facts": [
+                    {
+                      "context": "development",
+                      "version": null,
+                      "version_kind": "unknown",
+                      "evidence": [],
+                      "review": "confirmed",
+                      "freshness": "current"
+                    }
+                  ]
+                }
+              }
+            ],
+            "decision": null
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnologyLandscape.radar",
+      "operation_id": "readTechnologyLandscape",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {
+          "view": "radar"
+        },
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "evaluated_at": "2026-09-12T00:00:00.000Z",
+        "inactivity_months": 9,
+        "filters": {
+          "category_id": null,
+          "query": null,
+          "technology_id": null,
+          "project_id": null,
+          "team_id": null,
+          "lifecycle": null,
+          "adoption": null,
+          "context": null,
+          "review": null,
+          "freshness": null,
+          "include_history": false,
+          "include_inactive": false,
+          "offset": 0,
+          "limit": 128,
+          "project_offset": 0,
+          "project_limit": 128,
+          "view": "radar"
+        },
+        "items": [
+          {
+            "technology": {
+              "name": "Bun",
+              "category_ids": [
+                "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+              ],
+              "aliases": [
+                "Bun runtime"
+              ],
+              "description": "",
+              "icon_url": null,
+              "official_urls": [],
+              "schema_version": 1,
+              "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "lifecycle": "active",
+              "restore_lifecycle": "draft",
+              "revision": 2,
+              "redirect_id": null,
+              "provenance": "manual"
+            },
+            "project_count": 1,
+            "proposed_project_count": 0,
+            "projects": [
+              {
+                "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                "name": "Known project",
+                "activity": "unknown",
+                "usage": {
+                  "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "state": "current",
+                  "revision": 1,
+                  "facts": [
+                    {
+                      "context": "development",
+                      "version": null,
+                      "version_kind": "unknown",
+                      "evidence": [],
+                      "review": "confirmed",
+                      "freshness": "current"
+                    }
+                  ]
+                }
+              }
+            ],
+            "decision": {
+              "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "revision": 1,
+              "lead_account_id": null,
+              "approved": true,
+              "adoption": "adopt"
+            }
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "readTechnologyLandscape.relationships",
+      "operation_id": "readTechnologyLandscape",
+      "kind": "positive",
+      "why": "An authorized tenant request preserves the governed canonical identifiers.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "query": {
+          "view": "relationships"
+        },
+        "body": null,
+        "headers": {}
+      },
+      "status": 200,
+      "body": {
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "evaluated_at": "2026-09-12T00:00:00.000Z",
+        "inactivity_months": 9,
+        "filters": {
+          "category_id": null,
+          "query": null,
+          "technology_id": null,
+          "project_id": null,
+          "team_id": null,
+          "lifecycle": null,
+          "adoption": null,
+          "context": null,
+          "review": null,
+          "freshness": null,
+          "include_history": false,
+          "include_inactive": false,
+          "offset": 0,
+          "limit": 128,
+          "project_offset": 0,
+          "project_limit": 128,
+          "view": "relationships"
+        },
+        "items": [
+          {
+            "technology": {
+              "name": "Bun",
+              "category_ids": [
+                "category_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+              ],
+              "aliases": [
+                "Bun runtime"
+              ],
+              "description": "",
+              "icon_url": null,
+              "official_urls": [],
+              "schema_version": 1,
+              "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+              "lifecycle": "active",
+              "restore_lifecycle": "draft",
+              "revision": 2,
+              "redirect_id": null,
+              "provenance": "manual"
+            },
+            "project_count": 1,
+            "proposed_project_count": 0,
+            "projects": [
+              {
+                "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                "name": "Known project",
+                "activity": "unknown",
+                "usage": {
+                  "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                  "state": "current",
+                  "revision": 1,
+                  "facts": [
+                    {
+                      "context": "development",
+                      "version": null,
+                      "version_kind": "unknown",
+                      "evidence": [],
+                      "review": "confirmed",
+                      "freshness": "current"
+                    }
+                  ]
+                }
+              }
+            ],
+            "decision": null
+          }
+        ],
+        "total": 1
+      },
+      "error_code": null
+    },
+    {
+      "case_id": "listEmployeeTechnologies.technology",
+      "operation_id": "listEmployeeTechnologies",
+      "kind": "positive",
+      "why": "Employee technology competences are readable as tenant-scoped relationships.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "total": 0
+      }
+    },
+    {
+      "case_id": "listTechnologyEmployees.technology",
+      "operation_id": "listTechnologyEmployees",
+      "kind": "positive",
+      "why": "Technology competence reads can be anchored from the technology side.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "items": [],
+        "total": 0
+      }
+    },
+    {
+      "case_id": "writeEmployeeTechnology.technology",
+      "operation_id": "writeEmployeeTechnology",
+      "kind": "positive",
+      "why": "A team member can be assigned a simple current technology competence.",
+      "request": {
+        "path_params": {
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        },
+        "body": {
+          "schema_version": 1,
+          "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "state": "current",
+          "expected_revision": 0,
+          "authorization_revision": 1,
+          "idempotency_key": "employee-technology-0001"
+        }
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "relation_id": "relation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "technology_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        "state": "current",
+        "revision": 1
+      }
+    }
+  ]
+}

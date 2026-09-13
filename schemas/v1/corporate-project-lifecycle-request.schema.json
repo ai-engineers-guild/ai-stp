@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-project-lifecycle-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+          "type": "string"
+        }
+      ],
+      "title": "Authorization Revision"
+    },
+    "expected_revision": {
+      "minimum": 1,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "target": {
+      "enum": [
+        "active",
+        "deprecated",
+        "archived",
+        "restore"
+      ],
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target",
+    "expected_revision",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateProjectLifecycleRequest",
+  "type": "object"
+}

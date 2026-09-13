@@ -54,10 +54,23 @@ credential collection, or harness installation is introduced.
 
 ## Consequences
 
+Receipts may retain bounded effect metadata for current reauthorization of the
+original operation, such as an approval change. The metadata is not a stored
+permission grant and never bypasses the current tenant/scope evaluator.
+
 Migration adds tenant-compatible keys, exact project identity integration, registry
 and canonical relations before enabling API/Web. Existing IDs and evidence survive
 renames, lifecycle changes, merges and restoration. Seed/import receipts preserve
 manual changes. Merge conflicts require an explicit reviewed resolution.
+
+Deliberate merges keep source pairs and their original facts as retired history;
+they do not rewrite immutable endpoints. A current target pair is created only
+when absent and otherwise keeps its ID. Source technologies remain redirects,
+while immutable mapping/scan references retain their recorded identities.
+
+The shared capability projection uses its versioned closed vocabulary and the
+current canonical-link evaluator for known resource scopes. Technology writes
+consume its opaque authorization revision; legacy policy counters remain valid.
 
 Schemas/OpenAPI/client/projections are regenerated from source. Migrate first, deploy
 API second and Web third. Rollback disables new operations and reverts application

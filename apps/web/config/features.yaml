@@ -10,3 +10,7 @@ profiles:
     content_hub: false
     saas_public_pages: false
     catalog_usage_metrics: false
+  corporate_hub:
+    content_hub: false
+    saas_public_pages: false
+    catalog_usage_metrics: false

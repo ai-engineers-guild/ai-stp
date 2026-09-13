@@ -494,6 +494,10 @@ export type CapabilityProjection = {
    */
   organization_id: string | null;
   /**
+   * Registry Version
+   */
+  registry_version: 2;
+  /**
    * Schema Version
    */
   schema_version: 1;
@@ -504,6 +508,20 @@ export type CapabilityProjection = {
     [key: string]: unknown | "unsupported" | "dependency" | "forbidden";
   };
   [key: string]: unknown;
+};
+
+/**
+ * CapabilityScopeQuery
+ */
+export type CapabilityScopeQuery = {
+  /**
+   * Scope Id
+   */
+  scope_id?: string | null;
+  /**
+   * Scope Kind
+   */
+  scope_kind?: "organization" | "project" | "team" | "technology";
 };
 
 /**
@@ -790,6 +808,29 @@ export type CatalogUsageMetrics = {
 };
 
 /**
+ * CategoryLifecycleRequest
+ */
+export type CategoryLifecycleRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Target
+   */
+  target: "active" | "archived";
+};
+
+/**
  * CategoryList
  */
 export type CategoryList = {
@@ -824,6 +865,10 @@ export type CategoryView = {
    * Revision
    */
   revision: number;
+  /**
+   * State
+   */
+  state?: "active" | "archived" | null;
   [key: string]: unknown;
 };
 
@@ -834,7 +879,7 @@ export type CategoryWriteRequest = {
   /**
    * Authorization Revision
    */
-  authorization_revision: number;
+  authorization_revision: number | string;
   /**
    * Expected Revision
    */
@@ -2073,6 +2118,151 @@ export type CorporateBootstrapRequest = {
 };
 
 /**
+ * CorporateCatalogAssignment
+ */
+export type CorporateCatalogAssignment = {
+  /**
+   * Assignment Id
+   */
+  assignment_id: string;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Source Team Id
+   */
+  source_team_id: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "current" | "retired";
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind: "employee" | "team" | "project";
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateCatalogAssignmentList
+ */
+export type CorporateCatalogAssignmentList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateCatalogAssignment>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateCatalogAssignmentQuery
+ */
+export type CorporateCatalogAssignmentQuery = {
+  /**
+   * Include Retired
+   */
+  include_retired?: boolean;
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind: "employee" | "team" | "project";
+};
+
+/**
+ * CorporateCatalogAssignmentRequest
+ *
+ * Assign a readable exact catalog version without granting access or installing it.
+ */
+export type CorporateCatalogAssignmentRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state?: "current" | "retired";
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind: "employee" | "team" | "project";
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
  * CorporateContext
  */
 export type CorporateContext = {
@@ -2214,6 +2404,29 @@ export type CorporateMemberList = {
    */
   schema_version: 1;
   [key: string]: unknown;
+};
+
+/**
+ * CorporateMemberProfileRequest
+ */
+export type CorporateMemberProfileRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Display Name
+   */
+  display_name: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
 };
 
 /**
@@ -2362,6 +2575,29 @@ export type CorporateProjectCreateRequest = {
 };
 
 /**
+ * CorporateProjectLifecycleRequest
+ */
+export type CorporateProjectLifecycleRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Target
+   */
+  target: "active" | "deprecated" | "archived" | "restore";
+};
+
+/**
  * CorporateProjectList
  */
 export type CorporateProjectList = {
@@ -2408,6 +2644,10 @@ export type CorporateProjectUpdateRequest = {
  */
 export type CorporateProjectView = {
   /**
+   * Lifecycle
+   */
+  lifecycle?: "active" | "deprecated" | "archived" | "deleted" | null;
+  /**
    * Name
    */
   name: string;
@@ -2419,6 +2659,10 @@ export type CorporateProjectView = {
    * Project Id
    */
   project_id: string;
+  /**
+   * Restore Lifecycle
+   */
+  restore_lifecycle?: "active" | "deprecated" | null;
   /**
    * Revision
    */
@@ -3134,6 +3378,91 @@ export const DirectRecipientKind = {
 export type DirectRecipientKind = (typeof DirectRecipientKind)[keyof typeof DirectRecipientKind];
 
 export type DisplayName = string;
+
+/**
+ * EmployeeTechnologyList
+ */
+export type EmployeeTechnologyList = {
+  /**
+   * Items
+   */
+  items: Array<EmployeeTechnologyView>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * EmployeeTechnologyRequest
+ */
+export type EmployeeTechnologyRequest = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * State
+   */
+  state?: "current" | "retired";
+  /**
+   * Technology Id
+   */
+  technology_id: string;
+};
+
+/**
+ * EmployeeTechnologyView
+ */
+export type EmployeeTechnologyView = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Relation Id
+   */
+  relation_id: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "current" | "retired";
+  /**
+   * Technology Id
+   */
+  technology_id: string;
+  [key: string]: unknown;
+};
 
 export type EntityId = string;
 
@@ -3935,6 +4264,10 @@ export type LandscapeProjectView = {
    * Project Id
    */
   project_id: string;
+  /**
+   * Source Availability
+   */
+  source_availability?: "unknown" | "available" | "unavailable" | null;
   usage: ProjectTechnologyView;
   [key: string]: unknown;
 };
@@ -4931,6 +5264,62 @@ export type PrivateVersionTrust = {
 };
 
 /**
+ * ProjectActivityRequest
+ */
+export type ProjectActivityRequest = {
+  /**
+   * Activity Override
+   */
+  activity_override: "active" | "inactive" | null;
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  repository_activity_at: Timestamp | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Source Availability
+   */
+  source_availability?: "unknown" | "available" | "unavailable" | null;
+};
+
+/**
+ * ProjectActivityView
+ */
+export type ProjectActivityView = {
+  /**
+   * Activity Override
+   */
+  activity_override: "active" | "inactive" | null;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  repository_activity_at: Timestamp | null;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Source Availability
+   */
+  source_availability?: "unknown" | "available" | "unavailable" | null;
+  [key: string]: unknown;
+};
+
+/**
  * ProjectConflictResolutionRequest
  *
  * Explicit two-parent merge; it never happens during ordinary push.
@@ -5564,7 +5953,7 @@ export type ProjectTeamWriteRequest = {
   /**
    * Authorization Revision
    */
-  authorization_revision: number;
+  authorization_revision: number | string;
   /**
    * Expected Revision
    */
@@ -5653,7 +6042,7 @@ export type ProjectTechnologyWriteRequest = {
   /**
    * Authorization Revision
    */
-  authorization_revision: number;
+  authorization_revision: number | string;
   /**
    * Expected Revision
    */
@@ -8409,7 +8798,7 @@ export type TechnologyDecisionRequest = {
   /**
    * Authorization Revision
    */
-  authorization_revision: number;
+  authorization_revision: number | string;
   /**
    * Expected Revision
    */
@@ -8488,9 +8877,55 @@ export type TechnologyEvidence = {
 };
 
 /**
+ * TechnologyLandscapePolicyRequest
+ */
+export type TechnologyLandscapePolicyRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Inactivity Months
+   */
+  inactivity_months: number;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * TechnologyLandscapePolicyView
+ */
+export type TechnologyLandscapePolicyView = {
+  /**
+   * Inactivity Months
+   */
+  inactivity_months: number;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  [key: string]: unknown;
+};
+
+/**
  * TechnologyLandscapeQuery
  */
 export type TechnologyLandscapeQuery = {
+  /**
+   * Activity
+   */
+  activity?: "active" | "inactive" | "unknown" | null;
   /**
    * Adoption
    */
@@ -8532,6 +8967,10 @@ export type TechnologyLandscapeQuery = {
    */
   project_id?: string | null;
   /**
+   * Project Lifecycle
+   */
+  project_lifecycle?: "active" | "deprecated" | "archived" | "deleted" | null;
+  /**
    * Project Limit
    */
   project_limit?: number;
@@ -8540,9 +8979,17 @@ export type TechnologyLandscapeQuery = {
    */
   project_offset?: number;
   /**
+   * Query
+   */
+  query?: string | null;
+  /**
    * Review
    */
   review?: "proposed" | "confirmed" | "rejected" | "overridden" | "retired" | null;
+  /**
+   * Source Availability
+   */
+  source_availability?: "unknown" | "available" | "unavailable" | null;
   /**
    * Team Id
    */
@@ -8551,12 +8998,17 @@ export type TechnologyLandscapeQuery = {
    * Technology Id
    */
   technology_id?: string | null;
+  /**
+   * View
+   */
+  view?: "table" | "grouped" | "radar" | "relationships";
 };
 
 /**
  * TechnologyLandscapeRow
  */
 export type TechnologyLandscapeRow = {
+  decision: TechnologyDecisionView | null;
   /**
    * Project Count
    */
@@ -8605,7 +9057,7 @@ export type TechnologyLifecycleRequest = {
   /**
    * Authorization Revision
    */
-  authorization_revision: number;
+  authorization_revision: number | string;
   /**
    * Expected Revision
    */
@@ -8652,6 +9104,207 @@ export type TechnologyListQuery = {
    * Offset
    */
   offset?: number;
+  /**
+   * Query
+   */
+  query?: string | null;
+};
+
+/**
+ * TechnologyMappingEntry
+ */
+export type TechnologyMappingEntry = {
+  /**
+   * Coordinate
+   */
+  coordinate: string;
+  /**
+   * Kind
+   */
+  kind: "package" | "image" | "executable" | "configuration" | "alias";
+  /**
+   * Provenance
+   */
+  provenance: string;
+  /**
+   * Technology Id
+   */
+  technology_id: string;
+};
+
+/**
+ * TechnologyMappingRequest
+ */
+export type TechnologyMappingRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Entries
+   */
+  entries: Array<TechnologyMappingEntry>;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * TechnologyMappingView
+ */
+export type TechnologyMappingView = {
+  /**
+   * Digest
+   */
+  digest: string;
+  /**
+   * Entries
+   */
+  entries: Array<TechnologyMappingEntry>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyMergePlanQuery
+ */
+export type TechnologyMergePlanQuery = {
+  /**
+   * Target Id
+   */
+  target_id: string;
+};
+
+/**
+ * TechnologyMergePlanView
+ */
+export type TechnologyMergePlanView = {
+  /**
+   * Affected Project Count
+   */
+  affected_project_count: number;
+  /**
+   * Affected Team Count
+   */
+  affected_team_count: number;
+  /**
+   * Digest
+   */
+  digest: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  source: TechnologyView;
+  target: TechnologyView;
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyMergeProjectEffect
+ */
+export type TechnologyMergeProjectEffect = {
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Source Relation Id
+   */
+  source_relation_id: string;
+  /**
+   * Target Action
+   */
+  target_action: "create" | "update";
+  /**
+   * Target Relation Id
+   */
+  target_relation_id: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyMergeRequest
+ */
+export type TechnologyMergeRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Plan Digest
+   */
+  plan_digest: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Target Expected Revision
+   */
+  target_expected_revision: number;
+  /**
+   * Target Id
+   */
+  target_id: string;
+};
+
+/**
+ * TechnologyMergeResult
+ */
+export type TechnologyMergeResult = {
+  /**
+   * Project Effects
+   */
+  project_effects: Array<TechnologyMergeProjectEffect>;
+  source: TechnologyView;
+  target: TechnologyView;
+  /**
+   * Team Effects
+   */
+  team_effects: Array<TechnologyMergeTeamEffect>;
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyMergeTeamEffect
+ */
+export type TechnologyMergeTeamEffect = {
+  /**
+   * Source Relation Id
+   */
+  source_relation_id: string;
+  /**
+   * Target Action
+   */
+  target_action: "create" | "update";
+  /**
+   * Target Relation Id
+   */
+  target_relation_id: string;
+  /**
+   * Team Id
+   */
+  team_id: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -8682,6 +9335,204 @@ export type TechnologyMetadata = {
    * Official Urls
    */
   official_urls?: Array<string>;
+};
+
+/**
+ * TechnologyMutation
+ */
+export type TechnologyMutation = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * TechnologyObservation
+ */
+export type TechnologyObservation = {
+  fact: TechnologyUsageFact;
+  /**
+   * Technology Id
+   */
+  technology_id: string;
+};
+
+/**
+ * TechnologyScanHandoff
+ */
+export type TechnologyScanHandoff = {
+  /**
+   * Complete
+   */
+  complete: boolean;
+  /**
+   * Detector Version
+   */
+  detector_version: string;
+  /**
+   * Local Project Id
+   */
+  local_project_id?: string | null;
+  /**
+   * Mapping Version
+   */
+  mapping_version: string;
+  /**
+   * Observations
+   */
+  observations: Array<TechnologyObservation>;
+  /**
+   * Organization Id
+   */
+  organization_id?: string | null;
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Scope
+   */
+  scope: string;
+};
+
+/**
+ * TechnologyScanRequest
+ */
+export type TechnologyScanRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  handoff: TechnologyScanHandoff;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * TechnologyScanResult
+ */
+export type TechnologyScanResult = {
+  /**
+   * Created Relation Ids
+   */
+  created_relation_ids: Array<string>;
+  /**
+   * Digest
+   */
+  digest: string;
+  /**
+   * Disagreements
+   */
+  disagreements: Array<TechnologyObservation>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string;
+  /**
+   * Project Revision
+   */
+  project_revision: number;
+  /**
+   * Scan Id
+   */
+  scan_id: string;
+  /**
+   * Usages
+   */
+  usages: Array<ProjectTechnologyView>;
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologyScanView
+ */
+export type TechnologyScanView = {
+  handoff: TechnologyScanHandoff;
+  result: TechnologyScanResult;
+  [key: string]: unknown;
+};
+
+/**
+ * TechnologySeedRequest
+ */
+export type TechnologySeedRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number | string;
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Seed Version
+   */
+  seed_version?: 1;
+};
+
+/**
+ * TechnologySeedResult
+ */
+export type TechnologySeedResult = {
+  /**
+   * Created Category Ids
+   */
+  created_category_ids: Array<string>;
+  /**
+   * Created Technology Ids
+   */
+  created_technology_ids: Array<string>;
+  /**
+   * Retained Category Ids
+   */
+  retained_category_ids: Array<string>;
+  /**
+   * Retained Technology Ids
+   */
+  retained_technology_ids: Array<string>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Seed Version
+   */
+  seed_version: 1;
+  [key: string]: unknown;
 };
 
 /**
@@ -8737,7 +9588,7 @@ export type TechnologyTeamWriteRequest = {
   /**
    * Authorization Revision
    */
-  authorization_revision: number;
+  authorization_revision: number | string;
   /**
    * Expected Revision
    */
@@ -8824,6 +9675,10 @@ export type TechnologyView = {
    */
   redirect_id: string | null;
   /**
+   * Restore Lifecycle
+   */
+  restore_lifecycle: "draft" | "active" | "deprecated";
+  /**
    * Revision
    */
   revision: number;
@@ -8845,7 +9700,7 @@ export type TechnologyWriteRequest = {
   /**
    * Authorization Revision
    */
-  authorization_revision: number;
+  authorization_revision: number | string;
   /**
    * Expected Revision
    */
@@ -12483,6 +13338,151 @@ export type UpdateCorporateBindingResponses = {
 export type UpdateCorporateBindingResponse =
   UpdateCorporateBindingResponses[keyof UpdateCorporateBindingResponses];
 
+export type ListCorporateCatalogAssignmentsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query: {
+    /**
+     * Include Retired
+     */
+    include_retired?: boolean;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Subject Id
+     */
+    subject_id: string;
+    /**
+     * Subject Kind
+     */
+    subject_kind: "employee" | "team" | "project";
+  };
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments";
+};
+
+export type ListCorporateCatalogAssignmentsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateCatalogAssignmentsError =
+  ListCorporateCatalogAssignmentsErrors[keyof ListCorporateCatalogAssignmentsErrors];
+
+export type ListCorporateCatalogAssignmentsResponses = {
+  /**
+   * Read direct and team-derived assignments visible to the caller.
+   */
+  200: CorporateCatalogAssignmentList;
+};
+
+export type ListCorporateCatalogAssignmentsResponse =
+  ListCorporateCatalogAssignmentsResponses[keyof ListCorporateCatalogAssignmentsResponses];
+
+export type WriteCorporateCatalogAssignmentData = {
+  body: CorporateCatalogAssignmentRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments";
+};
+
+export type WriteCorporateCatalogAssignmentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteCorporateCatalogAssignmentError =
+  WriteCorporateCatalogAssignmentErrors[keyof WriteCorporateCatalogAssignmentErrors];
+
+export type WriteCorporateCatalogAssignmentResponses = {
+  /**
+   * Assign or retire an exact catalog version without granting access.
+   */
+  200: CorporateCatalogAssignment;
+};
+
+export type WriteCorporateCatalogAssignmentResponse =
+  WriteCorporateCatalogAssignmentResponses[keyof WriteCorporateCatalogAssignmentResponses];
+
 export type ReadCorporateContextData = {
   body?: never;
   headers?: {
@@ -12540,6 +13540,72 @@ export type ReadCorporateContextResponses = {
 
 export type ReadCorporateContextResponse =
   ReadCorporateContextResponses[keyof ReadCorporateContextResponses];
+
+export type WriteEmployeeTechnologyData = {
+  body: EmployeeTechnologyRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/employee-technologies";
+};
+
+export type WriteEmployeeTechnologyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteEmployeeTechnologyError =
+  WriteEmployeeTechnologyErrors[keyof WriteEmployeeTechnologyErrors];
+
+export type WriteEmployeeTechnologyResponses = {
+  /**
+   * Assign or retire an employee competence without changing access.
+   */
+  200: EmployeeTechnologyView;
+};
+
+export type WriteEmployeeTechnologyResponse =
+  WriteEmployeeTechnologyResponses[keyof WriteEmployeeTechnologyResponses];
 
 export type ListCorporateMembersData = {
   body?: never;
@@ -12862,6 +13928,196 @@ export type UpdateCorporateMemberResponses = {
 export type UpdateCorporateMemberResponse =
   UpdateCorporateMemberResponses[keyof UpdateCorporateMemberResponses];
 
+export type UpdateCorporateMemberProfileData = {
+  body: CorporateMemberProfileRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed account identifier.
+     */
+    account_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/members/{account_id}/profile";
+};
+
+export type UpdateCorporateMemberProfileErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UpdateCorporateMemberProfileError =
+  UpdateCorporateMemberProfileErrors[keyof UpdateCorporateMemberProfileErrors];
+
+export type UpdateCorporateMemberProfileResponses = {
+  /**
+   * Edit tenant employee display name without changing roles or account profile.
+   */
+  200: CorporateMember;
+};
+
+export type UpdateCorporateMemberProfileResponse =
+  UpdateCorporateMemberProfileResponses[keyof UpdateCorporateMemberProfileResponses];
+
+export type ListCorporateMemberProjectsData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed account identifier.
+     */
+    account_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/members/{account_id}/projects";
+};
+
+export type ListCorporateMemberProjectsErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateMemberProjectsError =
+  ListCorporateMemberProjectsErrors[keyof ListCorporateMemberProjectsErrors];
+
+export type ListCorporateMemberProjectsResponses = {
+  /**
+   * Read explicit employee project memberships visible to the caller.
+   */
+  200: CorporateProjectList;
+};
+
+export type ListCorporateMemberProjectsResponse =
+  ListCorporateMemberProjectsResponses[keyof ListCorporateMemberProjectsResponses];
+
+export type ListEmployeeTechnologiesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed account identifier.
+     */
+    account_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/members/{account_id}/technologies";
+};
+
+export type ListEmployeeTechnologiesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListEmployeeTechnologiesError =
+  ListEmployeeTechnologiesErrors[keyof ListEmployeeTechnologiesErrors];
+
+export type ListEmployeeTechnologiesResponses = {
+  /**
+   * List an employee's retained technology competences.
+   */
+  200: EmployeeTechnologyList;
+};
+
+export type ListEmployeeTechnologiesResponse =
+  ListEmployeeTechnologiesResponses[keyof ListEmployeeTechnologiesResponses];
+
 export type AssignCorporateMemberData = {
   body: CorporateMembershipAssignmentRequest;
   headers: {
@@ -13106,7 +14362,7 @@ export type DeleteCorporateProjectError =
 
 export type DeleteCorporateProjectResponses = {
   /**
-   * Remove a corporate project.
+   * Retain a corporate project deletion tombstone.
    */
   200: CorporateDeleteResult;
 };
@@ -13245,6 +14501,270 @@ export type UpdateCorporateProjectResponses = {
 
 export type UpdateCorporateProjectResponse =
   UpdateCorporateProjectResponses[keyof UpdateCorporateProjectResponses];
+
+export type ReadCorporateProjectActivityData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/activity";
+};
+
+export type ReadCorporateProjectActivityErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateProjectActivityError =
+  ReadCorporateProjectActivityErrors[keyof ReadCorporateProjectActivityErrors];
+
+export type ReadCorporateProjectActivityResponses = {
+  /**
+   * Read explicit project activity and override metadata.
+   */
+  200: ProjectActivityView;
+};
+
+export type ReadCorporateProjectActivityResponse =
+  ReadCorporateProjectActivityResponses[keyof ReadCorporateProjectActivityResponses];
+
+export type WriteCorporateProjectActivityData = {
+  body: ProjectActivityRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/activity";
+};
+
+export type WriteCorporateProjectActivityErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteCorporateProjectActivityError =
+  WriteCorporateProjectActivityErrors[keyof WriteCorporateProjectActivityErrors];
+
+export type WriteCorporateProjectActivityResponses = {
+  /**
+   * Update explicit project activity and override metadata.
+   */
+  200: ProjectActivityView;
+};
+
+export type WriteCorporateProjectActivityResponse =
+  WriteCorporateProjectActivityResponses[keyof WriteCorporateProjectActivityResponses];
+
+export type ChangeCorporateProjectLifecycleData = {
+  body: CorporateProjectLifecycleRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/lifecycle";
+};
+
+export type ChangeCorporateProjectLifecycleErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ChangeCorporateProjectLifecycleError =
+  ChangeCorporateProjectLifecycleErrors[keyof ChangeCorporateProjectLifecycleErrors];
+
+export type ChangeCorporateProjectLifecycleResponses = {
+  /**
+   * Deprecate, archive or explicitly restore a retained corporate project.
+   */
+  200: CorporateProjectView;
+};
+
+export type ChangeCorporateProjectLifecycleResponse =
+  ChangeCorporateProjectLifecycleResponses[keyof ChangeCorporateProjectLifecycleResponses];
+
+export type ListCorporateProjectMembersData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/members";
+};
+
+export type ListCorporateProjectMembersErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateProjectMembersError =
+  ListCorporateProjectMembersErrors[keyof ListCorporateProjectMembersErrors];
+
+export type ListCorporateProjectMembersResponses = {
+  /**
+   * Read explicit project memberships visible to the caller.
+   */
+  200: CorporateMemberList;
+};
+
+export type ListCorporateProjectMembersResponse =
+  ListCorporateProjectMembersResponses[keyof ListCorporateProjectMembersResponses];
 
 export type ListProjectTeamsData = {
   body?: never;
@@ -13531,6 +15051,207 @@ export type WriteProjectTechnologyResponses = {
 
 export type WriteProjectTechnologyResponse =
   WriteProjectTechnologyResponses[keyof WriteProjectTechnologyResponses];
+
+export type ReadProjectTechnologyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+    /**
+     * Stable technology ID.
+     */
+    technology_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/technologies/{technology_id}";
+};
+
+export type ReadProjectTechnologyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadProjectTechnologyError =
+  ReadProjectTechnologyErrors[keyof ReadProjectTechnologyErrors];
+
+export type ReadProjectTechnologyResponses = {
+  /**
+   * Read a known canonical usage pair without list permission.
+   */
+  200: ProjectTechnologyView;
+};
+
+export type ReadProjectTechnologyResponse =
+  ReadProjectTechnologyResponses[keyof ReadProjectTechnologyResponses];
+
+export type PublishTechnologyScanData = {
+  body: TechnologyScanRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/technology-scans";
+};
+
+export type PublishTechnologyScanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PublishTechnologyScanError =
+  PublishTechnologyScanErrors[keyof PublishTechnologyScanErrors];
+
+export type PublishTechnologyScanResponses = {
+  /**
+   * Publish observations without replacing owner decisions.
+   */
+  200: TechnologyScanResult;
+};
+
+export type PublishTechnologyScanResponse =
+  PublishTechnologyScanResponses[keyof PublishTechnologyScanResponses];
+
+export type ReadTechnologyScanData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate project identifier.
+     */
+    project_id: string;
+    /**
+     * Immutable scan ID.
+     */
+    scan_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/projects/{project_id}/technology-scans/{scan_id}";
+};
+
+export type ReadTechnologyScanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyScanError = ReadTechnologyScanErrors[keyof ReadTechnologyScanErrors];
+
+export type ReadTechnologyScanResponses = {
+  /**
+   * Read an immutable authorized scan and its disagreements.
+   */
+  200: TechnologyScanView;
+};
+
+export type ReadTechnologyScanResponse =
+  ReadTechnologyScanResponses[keyof ReadTechnologyScanResponses];
 
 export type ListCorporateRolesData = {
   body?: never;
@@ -14663,6 +16384,10 @@ export type ListTechnologiesData = {
      * Offset
      */
     offset?: number;
+    /**
+     * Query
+     */
+    query?: string | null;
   };
   url: "/v1/corporate/organizations/{organization_id}/technologies";
 };
@@ -14897,6 +16622,76 @@ export type WriteTechnologyResponses = {
 
 export type WriteTechnologyResponse = WriteTechnologyResponses[keyof WriteTechnologyResponses];
 
+export type ClearTechnologyDecisionData = {
+  body: TechnologyMutation;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable technology ID.
+     */
+    technology_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/decision";
+};
+
+export type ClearTechnologyDecisionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ClearTechnologyDecisionError =
+  ClearTechnologyDecisionErrors[keyof ClearTechnologyDecisionErrors];
+
+export type ClearTechnologyDecisionResponses = {
+  /**
+   * Clear a canonical decision without deleting its history.
+   */
+  200: TechnologyDecisionView;
+};
+
+export type ClearTechnologyDecisionResponse =
+  ClearTechnologyDecisionResponses[keyof ClearTechnologyDecisionResponses];
+
 export type ReadTechnologyDecisionData = {
   body?: never;
   headers?: {
@@ -15029,6 +16824,68 @@ export type WriteTechnologyDecisionResponses = {
 export type WriteTechnologyDecisionResponse =
   WriteTechnologyDecisionResponses[keyof WriteTechnologyDecisionResponses];
 
+export type ListTechnologyEmployeesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable technology ID.
+     */
+    technology_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/employees";
+};
+
+export type ListTechnologyEmployeesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListTechnologyEmployeesError =
+  ListTechnologyEmployeesErrors[keyof ListTechnologyEmployeesErrors];
+
+export type ListTechnologyEmployeesResponses = {
+  /**
+   * List employees with a retained technology competence.
+   */
+  200: EmployeeTechnologyList;
+};
+
+export type ListTechnologyEmployeesResponse =
+  ListTechnologyEmployeesResponses[keyof ListTechnologyEmployeesResponses];
+
 export type ChangeTechnologyLifecycleData = {
   body: TechnologyLifecycleRequest;
   headers: {
@@ -15098,6 +16955,141 @@ export type ChangeTechnologyLifecycleResponses = {
 
 export type ChangeTechnologyLifecycleResponse =
   ChangeTechnologyLifecycleResponses[keyof ChangeTechnologyLifecycleResponses];
+
+export type MergeTechnologyData = {
+  body: TechnologyMergeRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable technology ID.
+     */
+    technology_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/merge";
+};
+
+export type MergeTechnologyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type MergeTechnologyError = MergeTechnologyErrors[keyof MergeTechnologyErrors];
+
+export type MergeTechnologyResponses = {
+  /**
+   * Apply a digest-pinned deliberate technology merge.
+   */
+  200: TechnologyMergeResult;
+};
+
+export type MergeTechnologyResponse = MergeTechnologyResponses[keyof MergeTechnologyResponses];
+
+export type ReadTechnologyMergePlanData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable technology ID.
+     */
+    technology_id: string;
+  };
+  query: {
+    /**
+     * Target Id
+     */
+    target_id: string;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/merge-plan";
+};
+
+export type ReadTechnologyMergePlanErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyMergePlanError =
+  ReadTechnologyMergePlanErrors[keyof ReadTechnologyMergePlanErrors];
+
+export type ReadTechnologyMergePlanResponses = {
+  /**
+   * Preview a digest-pinned deliberate technology merge.
+   */
+  200: TechnologyMergePlanView;
+};
+
+export type ReadTechnologyMergePlanResponse =
+  ReadTechnologyMergePlanResponses[keyof ReadTechnologyMergePlanResponses];
 
 export type ListTechnologyProjectsData = {
   body?: never;
@@ -15441,6 +17433,138 @@ export type CreateTechnologyCategoryResponses = {
 export type CreateTechnologyCategoryResponse =
   CreateTechnologyCategoryResponses[keyof CreateTechnologyCategoryResponses];
 
+export type RemoveTechnologyCategoryData = {
+  body: TechnologyMutation;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable category ID.
+     */
+    category_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-categories/{category_id}";
+};
+
+export type RemoveTechnologyCategoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type RemoveTechnologyCategoryError =
+  RemoveTechnologyCategoryErrors[keyof RemoveTechnologyCategoryErrors];
+
+export type RemoveTechnologyCategoryResponses = {
+  /**
+   * Archive a category while retaining its identity and classifications.
+   */
+  200: CategoryView;
+};
+
+export type RemoveTechnologyCategoryResponse =
+  RemoveTechnologyCategoryResponses[keyof RemoveTechnologyCategoryResponses];
+
+export type ReadTechnologyCategoryData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable category ID.
+     */
+    category_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-categories/{category_id}";
+};
+
+export type ReadTechnologyCategoryErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyCategoryError =
+  ReadTechnologyCategoryErrors[keyof ReadTechnologyCategoryErrors];
+
+export type ReadTechnologyCategoryResponses = {
+  /**
+   * Read one known category without collection discovery.
+   */
+  200: CategoryView;
+};
+
+export type ReadTechnologyCategoryResponse =
+  ReadTechnologyCategoryResponses[keyof ReadTechnologyCategoryResponses];
+
 export type WriteTechnologyCategoryData = {
   body: CategoryWriteRequest;
   headers: {
@@ -15511,6 +17635,76 @@ export type WriteTechnologyCategoryResponses = {
 export type WriteTechnologyCategoryResponse =
   WriteTechnologyCategoryResponses[keyof WriteTechnologyCategoryResponses];
 
+export type ChangeTechnologyCategoryLifecycleData = {
+  body: CategoryLifecycleRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Stable category ID.
+     */
+    category_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-categories/{category_id}/lifecycle";
+};
+
+export type ChangeTechnologyCategoryLifecycleErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ChangeTechnologyCategoryLifecycleError =
+  ChangeTechnologyCategoryLifecycleErrors[keyof ChangeTechnologyCategoryLifecycleErrors];
+
+export type ChangeTechnologyCategoryLifecycleResponses = {
+  /**
+   * Explicitly archive or restore the same retained category identity.
+   */
+  200: CategoryView;
+};
+
+export type ChangeTechnologyCategoryLifecycleResponse =
+  ChangeTechnologyCategoryLifecycleResponses[keyof ChangeTechnologyCategoryLifecycleResponses];
+
 export type ReadTechnologyLandscapeData = {
   body?: never;
   headers?: {
@@ -15526,6 +17720,10 @@ export type ReadTechnologyLandscapeData = {
     organization_id: string;
   };
   query?: {
+    /**
+     * Activity
+     */
+    activity?: "active" | "inactive" | "unknown" | null;
     /**
      * Adoption
      */
@@ -15567,6 +17765,10 @@ export type ReadTechnologyLandscapeData = {
      */
     project_id?: string | null;
     /**
+     * Project Lifecycle
+     */
+    project_lifecycle?: "active" | "deprecated" | "archived" | "deleted" | null;
+    /**
      * Project Limit
      */
     project_limit?: number;
@@ -15575,9 +17777,17 @@ export type ReadTechnologyLandscapeData = {
      */
     project_offset?: number;
     /**
+     * Query
+     */
+    query?: string | null;
+    /**
      * Review
      */
     review?: "proposed" | "confirmed" | "rejected" | "overridden" | "retired" | null;
+    /**
+     * Source Availability
+     */
+    source_availability?: "unknown" | "available" | "unavailable" | null;
     /**
      * Team Id
      */
@@ -15586,6 +17796,10 @@ export type ReadTechnologyLandscapeData = {
      * Technology Id
      */
     technology_id?: string | null;
+    /**
+     * View
+     */
+    view?: "table" | "grouped" | "radar" | "relationships";
   };
   url: "/v1/corporate/organizations/{organization_id}/technology-landscape";
 };
@@ -15629,6 +17843,328 @@ export type ReadTechnologyLandscapeResponses = {
 
 export type ReadTechnologyLandscapeResponse =
   ReadTechnologyLandscapeResponses[keyof ReadTechnologyLandscapeResponses];
+
+export type ReadTechnologyLandscapePolicyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-landscape-policy";
+};
+
+export type ReadTechnologyLandscapePolicyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyLandscapePolicyError =
+  ReadTechnologyLandscapePolicyErrors[keyof ReadTechnologyLandscapePolicyErrors];
+
+export type ReadTechnologyLandscapePolicyResponses = {
+  /**
+   * Read the organization calendar-month inactivity policy.
+   */
+  200: TechnologyLandscapePolicyView;
+};
+
+export type ReadTechnologyLandscapePolicyResponse =
+  ReadTechnologyLandscapePolicyResponses[keyof ReadTechnologyLandscapePolicyResponses];
+
+export type WriteTechnologyLandscapePolicyData = {
+  body: TechnologyLandscapePolicyRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-landscape-policy";
+};
+
+export type WriteTechnologyLandscapePolicyErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteTechnologyLandscapePolicyError =
+  WriteTechnologyLandscapePolicyErrors[keyof WriteTechnologyLandscapePolicyErrors];
+
+export type WriteTechnologyLandscapePolicyResponses = {
+  /**
+   * Update the organization calendar-month inactivity policy.
+   */
+  200: TechnologyLandscapePolicyView;
+};
+
+export type WriteTechnologyLandscapePolicyResponse =
+  WriteTechnologyLandscapePolicyResponses[keyof WriteTechnologyLandscapePolicyResponses];
+
+export type ReadTechnologyMappingData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable mapping version.
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-mappings/{version}";
+};
+
+export type ReadTechnologyMappingErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadTechnologyMappingError =
+  ReadTechnologyMappingErrors[keyof ReadTechnologyMappingErrors];
+
+export type ReadTechnologyMappingResponses = {
+  /**
+   * Read a complete immutable mapping snapshot.
+   */
+  200: TechnologyMappingView;
+};
+
+export type ReadTechnologyMappingResponse =
+  ReadTechnologyMappingResponses[keyof ReadTechnologyMappingResponses];
+
+export type PublishTechnologyMappingData = {
+  body: TechnologyMappingRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Immutable mapping version.
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-mappings/{version}";
+};
+
+export type PublishTechnologyMappingErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PublishTechnologyMappingError =
+  PublishTechnologyMappingErrors[keyof PublishTechnologyMappingErrors];
+
+export type PublishTechnologyMappingResponses = {
+  /**
+   * Publish an immutable mapping snapshot.
+   */
+  200: TechnologyMappingView;
+};
+
+export type PublishTechnologyMappingResponse =
+  PublishTechnologyMappingResponses[keyof PublishTechnologyMappingResponses];
+
+export type ImportTechnologySeedData = {
+  body: TechnologySeedRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/technology-seed";
+};
+
+export type ImportTechnologySeedErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ImportTechnologySeedError =
+  ImportTechnologySeedErrors[keyof ImportTechnologySeedErrors];
+
+export type ImportTechnologySeedResponses = {
+  /**
+   * Import seed v1 without replacing owner edits.
+   */
+  200: TechnologySeedResult;
+};
+
+export type ImportTechnologySeedResponse =
+  ImportTechnologySeedResponses[keyof ImportTechnologySeedResponses];
 
 export type ListDevicesData = {
   body?: never;
@@ -16382,7 +18918,16 @@ export type ReadOrganizationCapabilitiesData = {
      */
     organization_id: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * Scope Id
+     */
+    scope_id?: string | null;
+    /**
+     * Scope Kind
+     */
+    scope_kind?: "organization" | "project" | "team" | "technology";
+  };
   url: "/v1/organizations/{organization_id}/capabilities";
 };
 

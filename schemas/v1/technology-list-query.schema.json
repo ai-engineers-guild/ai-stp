@@ -20,6 +20,21 @@
       "minimum": 0,
       "title": "Offset",
       "type": "integer"
+    },
+    "query": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Query"
     }
   },
   "title": "TechnologyListQuery",

@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 const scenarios = [
   { profile: "public_saas", content: "true", saas: "true" },
   { profile: "self_hosted", content: "false", saas: "false" },
+  { profile: "corporate_hub", content: "false", saas: "false" },
 ];
 
 for (const scenario of scenarios) {
