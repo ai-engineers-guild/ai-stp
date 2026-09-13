@@ -5,18 +5,63 @@ from urllib.parse import urlunsplit
 import pytest
 from pydantic import ValidationError
 
+from ai_stp_contracts.context import CapabilityScopeQuery
 from ai_stp_contracts.technology import (
     INITIAL_CATEGORY_NAMES,
     RESERVED_CATEGORY_NAMES,
     TechnologyCategoryMetadata,
     TechnologyEvidence,
     TechnologyLandscapeQuery,
+    TechnologyMappingEntry,
     TechnologyMetadata,
     TechnologyScanHandoff,
     TechnologyUsageFact,
     normalize_technology_name,
 )
-from ai_stp_foundation.ids import new_id
+from ai_stp_contracts.technology_seed import SEED_CATEGORIES, SEED_TECHNOLOGIES
+from ai_stp_foundation.ids import is_valid_id, new_id
+
+
+def test_mapping_coordinates_preserve_scoped_packages_but_reject_uri_credentials() -> None:
+    base = {"technology_id": new_id("technology"), "kind": "package", "provenance": "catalog-v1"}
+    assert (
+        TechnologyMappingEntry.model_validate({**base, "coordinate": "@scope/package"}).coordinate
+        == "@scope/package"
+    )
+    credential_uri = urlunsplit(("https", "owner:password@example.invalid", "/artifact", "", ""))
+    with pytest.raises(ValidationError, match="credentials"):
+        TechnologyMappingEntry.model_validate({**base, "coordinate": credential_uri})
+
+
+def test_seed_manifest_identity_and_classification() -> None:
+    assert len(SEED_CATEGORIES) == 23
+    assert len({identifier for identifier, _ in SEED_CATEGORIES}) == 23
+    assert all(is_valid_id(identifier, "category") for identifier, _ in SEED_CATEGORIES)
+    assert all(is_valid_id(identifier, "technology") for identifier, _ in SEED_TECHNOLOGIES)
+    by_name = {metadata.name: (identifier, metadata) for identifier, metadata in SEED_TECHNOLOGIES}
+    assert by_name["React"][1].aliases == ["React.js"]
+    assert by_name["PostgreSQL"][1].aliases == ["Postgres"]
+    assert by_name["npm CLI"][0] != by_name["npm registry"][0]
+    assert by_name["GitLab CI/CD"][0] != by_name["GitLab Runner"][0]
+    categories = dict(SEED_CATEGORIES)
+    assert {categories[key] for key in by_name["Bun"][1].category_ids} == {
+        "Runtime",
+        "Build and bundling tool",
+        "Package manager",
+        "Test runner and browser automation",
+    }
+
+
+def test_scoped_projection_rejects_untyped_or_missing_resource_identity() -> None:
+    assert CapabilityScopeQuery().scope_kind == "organization"
+    assert CapabilityScopeQuery(scope_kind="technology", scope_id=new_id("technology"))
+    for fields in (
+        {"scope_kind": "project"},
+        {"scope_kind": "project", "scope_id": new_id("technology")},
+        {"scope_kind": "setup", "scope_id": new_id("operation")},
+    ):
+        with pytest.raises(ValidationError):
+            CapabilityScopeQuery.model_validate(fields)
 
 
 def test_landscape_filters_are_typed_and_independently_bounded() -> None:
@@ -30,6 +75,8 @@ def test_landscape_filters_are_typed_and_independently_bounded() -> None:
         {"project_offset": -1},
         {"context": "setup"},
         {"project_id": new_id("technology")},
+        {"query": "   "},
+        {"query": "x" * 201},
     ):
         with pytest.raises(ValidationError):
             TechnologyLandscapeQuery.model_validate(fields)

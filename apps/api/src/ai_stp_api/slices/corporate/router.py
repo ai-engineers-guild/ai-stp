@@ -12,8 +12,9 @@ from ai_stp_api.deps import get_db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
-from ai_stp_api.slices.corporate import service
+from ai_stp_api.slices.corporate import assignments, profiles, service
 from ai_stp_contracts.corporate import (
+    AccountId,
     CorporateAuditExport,
     CorporateAuditList,
     CorporateBinding,
@@ -21,17 +22,23 @@ from ai_stp_contracts.corporate import (
     CorporateBindingRequest,
     CorporateBindingUpdateRequest,
     CorporateBootstrapRequest,
+    CorporateCatalogAssignment,
+    CorporateCatalogAssignmentList,
+    CorporateCatalogAssignmentQuery,
+    CorporateCatalogAssignmentRequest,
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
     CorporateMember,
     CorporateMemberCreateRequest,
     CorporateMemberList,
+    CorporateMemberProfileRequest,
     CorporateMembershipAssignment,
     CorporateMembershipAssignmentRequest,
     CorporateMemberUpdateRequest,
     CorporateOrganization,
     CorporateProjectCreateRequest,
+    CorporateProjectLifecycleRequest,
     CorporateProjectList,
     CorporateProjectUpdateRequest,
     CorporateProjectView,
@@ -47,14 +54,113 @@ from ai_stp_contracts.corporate import (
     CorporateTeamList,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
+    OrganizationId,
 )
 from ai_stp_contracts.http import Timestamp
 
 router = APIRouter(tags=["corporate"])
 
 
+@router.patch(
+    "/corporate/organizations/{organization_id}/members/{account_id}/profile",
+    response_model=CorporateMember,
+)
+async def update_member_profile(
+    organization_id: OrganizationId,
+    account_id: AccountId,
+    payload: CorporateMemberProfileRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateMember:
+    return await profiles.update_member_profile(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        account_id=account_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
+
+
 def _request_id(request: Request) -> str | None:
     return getattr(request.state, "request_id", None)
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/projects/{project_id}/members",
+    response_model=CorporateMemberList,
+)
+async def list_project_members(
+    organization_id: str,
+    project_id: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateMemberList:
+    return await service.list_project_members(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        project_id=project_id,
+        request_id=_request_id(request),
+    )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/members/{account_id}/projects",
+    response_model=CorporateProjectList,
+)
+async def list_member_projects(
+    organization_id: str,
+    account_id: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateProjectList:
+    return await service.list_member_projects(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        account_id=account_id,
+        request_id=_request_id(request),
+    )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/catalog-assignments",
+    response_model=CorporateCatalogAssignmentList,
+)
+async def list_catalog_assignments(
+    organization_id: str,
+    query: Annotated[CorporateCatalogAssignmentQuery, Query()],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateCatalogAssignmentList:
+    return await assignments.list_assignments(
+        db, ctx=ctx, organization_id=organization_id, query=query, request_id=_request_id(request)
+    )
+
+
+@router.put(
+    "/corporate/organizations/{organization_id}/catalog-assignments",
+    response_model=CorporateCatalogAssignment,
+)
+async def write_catalog_assignment(
+    organization_id: str,
+    payload: CorporateCatalogAssignmentRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateCatalogAssignment:
+    return await assignments.write_assignment(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
 
 
 @router.post("/corporate/bootstrap", response_model=CorporateOrganization)
@@ -131,6 +237,28 @@ async def update_member(
         ctx=ctx,
         organization_id=organization_id,
         account_id=account_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/projects/{project_id}/lifecycle",
+    response_model=CorporateProjectView,
+)
+async def change_project_lifecycle(
+    organization_id: str,
+    project_id: str,
+    payload: CorporateProjectLifecycleRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateProjectView:
+    return await service.change_project_lifecycle(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        project_id=project_id,
         payload=payload,
         request_id=_request_id(request),
     )

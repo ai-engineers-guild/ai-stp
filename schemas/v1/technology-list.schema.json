@@ -92,6 +92,16 @@
           "default": null,
           "title": "Redirect Id"
         },
+        "restore_lifecycle": {
+          "default": "draft",
+          "enum": [
+            "draft",
+            "active",
+            "deprecated"
+          ],
+          "title": "Restore Lifecycle",
+          "type": "string"
+        },
         "revision": {
           "minimum": 1,
           "title": "Revision",
@@ -120,6 +130,7 @@
         "organization_id",
         "provenance",
         "redirect_id",
+        "restore_lifecycle",
         "revision",
         "schema_version",
         "technology_id"

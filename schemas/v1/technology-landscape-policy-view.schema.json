@@ -1,0 +1,30 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-landscape-policy-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "inactivity_months": {
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Inactivity Months",
+      "type": "integer"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "inactivity_months",
+    "organization_id",
+    "revision"
+  ],
+  "title": "TechnologyLandscapePolicyView",
+  "type": "object"
+}

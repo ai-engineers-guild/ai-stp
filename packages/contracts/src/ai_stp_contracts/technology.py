@@ -12,9 +12,10 @@ from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.json_schema import JsonSchemaValue
 
 from ai_stp_contracts.context import OrganizationId, RemoteProjectId
-from ai_stp_contracts.corporate import AccountId
+from ai_stp_contracts.corporate import AccountId, ProjectLifecycle
 from ai_stp_contracts.http import (
     IdempotencyKey,
     Timestamp,
@@ -24,6 +25,7 @@ from ai_stp_contracts.http import (
 from ai_stp_foundation.ids import stable_id_pattern
 
 TechnologyId = Annotated[str, Field(pattern=stable_id_pattern("technology"))]
+TechnologyScanId = Annotated[str, Field(pattern=stable_id_pattern("scan"))]
 CategoryId = Annotated[str, Field(pattern=stable_id_pattern("category"))]
 RelationId = Annotated[str, Field(pattern=stable_id_pattern("relation"))]
 TeamId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
@@ -32,6 +34,7 @@ UsageReview = Literal["proposed", "confirmed", "rejected", "overridden", "retire
 UsageContext = Literal["production", "development", "testing", "browser_support"]
 EvidenceFreshness = Literal["current", "stale", "absent", "unknown"]
 MappingVersion = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9._+-]+$")]
+TechnologySearch = Annotated[str, Field(min_length=1, max_length=200, pattern=r".*\S.*")]
 
 INITIAL_CATEGORY_NAMES = (
     "Language",
@@ -241,6 +244,7 @@ class TechnologyView(TechnologyMetadata):
     organization_id: OrganizationId
     technology_id: TechnologyId
     lifecycle: TechnologyLifecycle
+    restore_lifecycle: Literal["draft", "active", "deprecated"] = "draft"
     revision: Annotated[int, Field(ge=1)]
     redirect_id: TechnologyId | None = None
     provenance: Annotated[str, Field(max_length=256)]
@@ -249,7 +253,17 @@ class TechnologyView(TechnologyMetadata):
 class TechnologyMutation(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
-    authorization_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: (
+        Annotated[int, Field(ge=1)]
+        | Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=128,
+                pattern=r"^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+            ),
+        ]
+    )
     expected_revision: Annotated[int, Field(ge=0)]
     idempotency_key: IdempotencyKey
 
@@ -258,8 +272,144 @@ class TechnologyWriteRequest(TechnologyMutation):
     metadata: TechnologyMetadata
 
 
+class TechnologyMappingEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    kind: Literal["package", "image", "executable", "configuration", "alias"]
+    coordinate: Annotated[
+        str, Field(min_length=1, max_length=512, pattern=r"^[A-Za-z0-9._:/@+*-]+$")
+    ]
+    technology_id: TechnologyId
+    provenance: Annotated[str, Field(min_length=1, max_length=256, pattern=r"^[A-Za-z0-9._:/+-]+$")]
+
+    @field_validator("coordinate")
+    @classmethod
+    def no_credentials(cls, value: str) -> str:
+        if "://" in value and urlsplit(value).username is not None:
+            raise ValueError("mapping coordinates must not contain credentials")
+        return value
+
+
+class TechnologyMappingRequest(TechnologyMutation):
+    expected_revision: Annotated[int, Field(ge=0, le=0)] = 0
+    entries: Annotated[list[TechnologyMappingEntry], Field(min_length=1, max_length=4096)]
+
+    @field_validator("entries")
+    @classmethod
+    def distinct_entries(cls, values: list[TechnologyMappingEntry]) -> list[TechnologyMappingEntry]:
+        keys = [(value.kind, value.coordinate, value.technology_id) for value in values]
+        if len(keys) != len(set(keys)):
+            raise ValueError("mapping entries must be distinct")
+        return values
+
+
+class TechnologyMappingView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    version: MappingVersion
+    entries: list[TechnologyMappingEntry]
+    digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
+
+
+class TechnologyScanRequest(TechnologyMutation):
+    handoff: TechnologyScanHandoff
+
+
 class CategoryWriteRequest(TechnologyMutation):
     metadata: TechnologyCategoryMetadata
+
+
+class TechnologySeedRequest(TechnologyMutation):
+    expected_revision: Annotated[int, Field(ge=0, le=0)] = 0
+    seed_version: Literal[1] = 1
+
+
+class TechnologyLandscapePolicyRequest(TechnologyMutation):
+    inactivity_months: Annotated[int, Field(ge=1, le=120)]
+
+
+class TechnologyMergeRequest(TechnologyMutation):
+    target_id: TechnologyId
+    target_expected_revision: Annotated[int, Field(ge=1)]
+    plan_digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
+
+
+class TechnologyMergePlanQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    target_id: TechnologyId
+
+
+class TechnologyMergePlanView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    source: TechnologyView
+    target: TechnologyView
+    affected_project_count: Annotated[int, Field(ge=0)]
+    affected_team_count: Annotated[int, Field(ge=0)]
+    digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
+
+
+class TechnologyMergeProjectEffect(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    project_id: RemoteProjectId
+    source_relation_id: RelationId
+    target_relation_id: RelationId
+    target_action: Literal["create", "update"]
+
+
+class TechnologyMergeTeamEffect(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    team_id: TeamId
+    source_relation_id: RelationId
+    target_relation_id: RelationId
+    target_action: Literal["create", "update"]
+
+
+class TechnologyMergeResult(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    source: TechnologyView
+    target: TechnologyView
+    project_effects: list[TechnologyMergeProjectEffect]
+    team_effects: list[TechnologyMergeTeamEffect]
+
+
+class TechnologyLandscapePolicyView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    inactivity_months: Annotated[int, Field(ge=1, le=120)]
+    revision: Annotated[int, Field(ge=0)]
+
+
+class ProjectActivityRequest(TechnologyMutation):
+    repository_activity_at: Timestamp | None
+    activity_override: Literal["active", "inactive"] | None
+    source_availability: Literal["unknown", "available", "unavailable"] | None = None
+
+
+def _source_availability_wire_object(schema: JsonSchemaValue) -> None:
+    open_wire_object(schema)
+    schema["required"] = [name for name in schema["required"] if name != "source_availability"]
+
+
+class ProjectActivityView(BaseModel):
+    model_config = ConfigDict(
+        extra="allow", frozen=True, json_schema_extra=_source_availability_wire_object
+    )
+    project_id: RemoteProjectId
+    organization_id: OrganizationId
+    repository_activity_at: Timestamp | None
+    activity_override: Literal["active", "inactive"] | None
+    source_availability: Literal["unknown", "available", "unavailable"] | None = None
+    revision: Annotated[int, Field(ge=1)]
+
+
+class TechnologySeedResult(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    seed_version: Literal[1] = 1
+    created_category_ids: list[CategoryId]
+    retained_category_ids: list[CategoryId]
+    created_technology_ids: list[TechnologyId]
+    retained_technology_ids: list[TechnologyId]
 
 
 class TechnologyLifecycleRequest(TechnologyMutation):
@@ -304,11 +454,22 @@ class TechnologyTeamWriteRequest(TechnologyMutation):
     state: Literal["current", "retired"] = "current"
 
 
+class CategoryLifecycleRequest(TechnologyMutation):
+    target: Literal["active", "archived"]
+
+
+def _category_wire_object(schema: JsonSchemaValue) -> None:
+    open_wire_object(schema)
+    # ADR-0183: older snapshots do not assert a category state.
+    schema["required"] = [name for name in schema["required"] if name != "state"]
+
+
 class CategoryView(TechnologyCategoryMetadata):
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=_category_wire_object)
     category_id: CategoryId
     revision: Annotated[int, Field(ge=1)]
     provenance: str
+    state: Literal["active", "archived"] | None = None
 
 
 class CategoryList(BaseModel):
@@ -325,6 +486,7 @@ class TechnologyList(BaseModel):
 class TechnologyListQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     include_archived: bool = False
+    query: TechnologySearch | None = None
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=256)] = 128
 
@@ -350,6 +512,24 @@ class ProjectTechnologyList(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     items: list[ProjectTechnologyView]
     total: Annotated[int, Field(ge=0)] = 0
+
+
+class TechnologyScanResult(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    organization_id: OrganizationId
+    project_id: RemoteProjectId
+    scan_id: Annotated[str, Field(pattern=stable_id_pattern("scan"))]
+    project_revision: Annotated[int, Field(ge=1)]
+    digest: Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
+    usages: list[ProjectTechnologyView]
+    disagreements: list[TechnologyObservation]
+    created_relation_ids: list[RelationId]
+
+
+class TechnologyScanView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    handoff: TechnologyScanHandoff
+    result: TechnologyScanResult
 
 
 class ProjectTeamView(BaseModel):
@@ -385,6 +565,35 @@ class TechnologyTeamList(BaseModel):
     total: Annotated[int, Field(ge=0)] = 0
 
 
+class EmployeeTechnologyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    account_id: AccountId
+    technology_id: TechnologyId
+    state: Literal["current", "retired"] = "current"
+    expected_revision: Annotated[int, Field(ge=0)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class EmployeeTechnologyView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    relation_id: RelationId
+    account_id: AccountId
+    technology_id: TechnologyId
+    state: Literal["current", "retired"]
+    revision: Annotated[int, Field(ge=1)]
+
+
+class EmployeeTechnologyList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: Annotated[list[EmployeeTechnologyView], Field(max_length=256)]
+    total: Annotated[int, Field(ge=0)] = 0
+
+
 class RelationshipListQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     include_history: bool = False
@@ -403,11 +612,16 @@ class TechnologyDecisionView(BaseModel):
 
 class TechnologyLandscapeQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    view: Literal["table", "grouped", "radar", "relationships"] = "table"
     category_id: CategoryId | None = None
+    query: TechnologySearch | None = None
     technology_id: TechnologyId | None = None
     project_id: RemoteProjectId | None = None
     team_id: TeamId | None = None
     lifecycle: TechnologyLifecycle | None = None
+    project_lifecycle: ProjectLifecycle | None = None
+    activity: Literal["active", "inactive", "unknown"] | None = None
+    source_availability: Literal["unknown", "available", "unavailable"] | None = None
     adoption: Literal["none", "assess", "trial", "adopt", "hold"] | None = None
     context: UsageContext | None = None
     review: UsageReview | None = None
@@ -421,10 +635,13 @@ class TechnologyLandscapeQuery(BaseModel):
 
 
 class LandscapeProjectView(BaseModel):
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(
+        extra="allow", frozen=True, json_schema_extra=_source_availability_wire_object
+    )
     project_id: RemoteProjectId
     name: str
     activity: Literal["active", "inactive", "unknown"]
+    source_availability: Literal["unknown", "available", "unavailable"] | None = None
     usage: ProjectTechnologyView
 
 
@@ -434,6 +651,7 @@ class TechnologyLandscapeRow(BaseModel):
     project_count: Annotated[int, Field(ge=0)]
     proposed_project_count: Annotated[int, Field(ge=0)]
     projects: list[LandscapeProjectView]
+    decision: TechnologyDecisionView | None = None
 
 
 class TechnologyLandscapeView(BaseModel):

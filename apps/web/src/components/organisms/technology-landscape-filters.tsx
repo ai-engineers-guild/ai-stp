@@ -7,10 +7,14 @@ import { Link } from "@/lib/i18n/navigation";
 import type { CorporateContext } from "@/lib/api/generated/types.gen";
 
 const dimensions = {
+  view: ["table", "grouped", "radar", "relationships"],
   context: ["production", "development", "testing", "browser_support"],
   review: ["proposed", "confirmed", "rejected", "overridden", "retired"],
   freshness: ["current", "stale", "absent", "unknown"],
   lifecycle: ["draft", "active", "deprecated", "archived"],
+  project_lifecycle: ["active", "deprecated", "archived", "deleted"],
+  activity: ["active", "inactive", "unknown"],
+  source_availability: ["unknown", "available", "unavailable"],
   adoption: ["none", "assess", "trial", "adopt", "hold"],
 } as const;
 
@@ -26,6 +30,10 @@ export async function TechnologyLandscapeFilters({
     <form className="space-y-4" method="get">
       <h2 className="text-xl font-medium">{t("filters")}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="landscape-query">{t("search")}</Label>
+          <Input id="landscape-query" name="query" maxLength={200} defaultValue={filters.query} />
+        </div>
         {Object.entries(dimensions).map(([key, values]) => (
           <FilterSelect
             key={key}

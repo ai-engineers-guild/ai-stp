@@ -19,6 +19,20 @@ ProductMode = Literal["local", "personal", "corporate"]
 OrganizationKind = Literal["personal", "corporate"]
 CapabilityId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{1,31}\.[a-z][a-z0-9_]{1,31}$")]
 CapabilityUnavailableReason = Literal["unsupported", "dependency", "forbidden"]
+
+
+def context_authorization_revision(
+    mode: str,
+    organization_id: str | None,
+    policy_revision: int,
+    membership_revision: int | None = None,
+) -> str:
+    revision = str(policy_revision)
+    if membership_revision is not None:
+        revision += f":{membership_revision}"
+    return f"{mode}:{organization_id or 'local'}:{revision}"
+
+
 OrganizationId = Annotated[str, Field(pattern=stable_id_pattern("organization"))]
 RemoteProjectId = Annotated[str, Field(pattern=stable_id_pattern("remote_project"))]
 ProviderProjectId = Annotated[str, Field(pattern=stable_id_pattern("provider_project"))]
@@ -132,6 +146,11 @@ CAPABILITY_RESOURCES = frozenset(
         "invitation",
         "saml",
         "deployment",
+        "category",
+        "project_team",
+        "project_technology",
+        "technology_team",
+        "technology_decision",
     }
 )
 CAPABILITY_ACTIONS = frozenset(
@@ -148,6 +167,10 @@ CAPABILITY_ACTIONS = frozenset(
         "revoke",
         "manage",
         "operate",
+        "approve",
+        "merge",
+        "responsibility",
+        "scan_publish",
     }
 )
 
@@ -193,6 +216,27 @@ class OrganizationListResponse(BaseModel):
     items: Annotated[list[OrganizationSummary], Field(max_length=256)]
 
 
+class CapabilityScopeQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    scope_kind: Literal["organization", "project", "team", "technology"] = "organization"
+    scope_id: Annotated[str, Field(min_length=20, max_length=128)] | None = None
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> "CapabilityScopeQuery":
+        prefix = {
+            "organization": "organization",
+            "project": "remote_project",
+            "team": "operation",
+            "technology": "technology",
+        }[self.scope_kind]
+        if self.scope_id is None:
+            if self.scope_kind != "organization":
+                raise ValueError("resource scope requires an identifier")
+        elif not is_valid_id(self.scope_id, prefix):
+            raise ValueError("scope identifier has the wrong type")
+        return self
+
+
 class CapabilityProjection(BaseModel):
     """Bounded server projection used by one shared UI.
 
@@ -203,6 +247,7 @@ class CapabilityProjection(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
     schema_version: Literal[1] = 1
+    registry_version: Literal[2] = 2
     mode: ProductMode
     context_kind: ProductMode
     organization_id: OrganizationId | None

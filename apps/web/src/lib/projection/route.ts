@@ -1,10 +1,13 @@
 import { routing } from "@/lib/i18n/routing";
 
 export const PROTECTED_SEGMENTS = new Set([
+  "onboarding",
   "account",
+  "corporate",
   "devices",
   "objects",
   "access",
+  "likes",
   "publications",
   "invitations",
   "reports",

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
 
@@ -16,6 +17,7 @@ from ai_stp_api.audit import emit_audit
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.auth.domain import normalize_email
+from ai_stp_contracts.context import context_authorization_revision
 from ai_stp_contracts.corporate import (
     CorporateAuditEntry,
     CorporateAuditExport,
@@ -36,6 +38,7 @@ from ai_stp_contracts.corporate import (
     CorporateMemberUpdateRequest,
     CorporateOrganization,
     CorporateProjectCreateRequest,
+    CorporateProjectLifecycleRequest,
     CorporateProjectList,
     CorporateProjectUpdateRequest,
     CorporateProjectView,
@@ -52,6 +55,7 @@ from ai_stp_contracts.corporate import (
     CorporateTeamList,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
+    ProjectLifecycle,
     ProjectState,
     ScopeKind,
 )
@@ -184,10 +188,10 @@ def _organization_view(row: Organization) -> CorporateOrganization:
     )
 
 
-def _member_view(row: OrganizationMembership, account: Account) -> CorporateMember:
+def member_view(row: OrganizationMembership, account: Account) -> CorporateMember:
     return CorporateMember(
         account_id=row.account_id,
-        display_name=account.display_name,
+        display_name=row.display_name if row.display_name is not None else account.display_name,
         role=row.role,
         state=cast(CorporateState, row.state),
         revision=row.revision,
@@ -214,6 +218,8 @@ def _project_view(row: CorporateProject) -> CorporateProjectView:
         organization_id=row.organization_id,
         name=row.name,
         state=cast(ProjectState, row.state),
+        lifecycle=cast(ProjectLifecycle, row.lifecycle),
+        restore_lifecycle=cast("Literal['active','deprecated']", row.restore_lifecycle),
         revision=row.revision,
     )
 
@@ -277,7 +283,7 @@ async def _team_view(
         query = query.where(OrganizationMembership.account_id.in_([ctx.account_id, *leads]))
     pairs = (await db.execute(query.order_by(Account.id).limit(256))).all()
     return CorporateTeamView(
-        members=[_member_view(member, account) for member, account in pairs],
+        members=[member_view(member, account) for member, account in pairs],
         lead_account_ids=leads,
         team_id=row.id,
         organization_id=row.organization_id,
@@ -581,14 +587,18 @@ async def store_mutation_receipt(
     operation: str,
     fingerprint: str,
     response: BaseModel,
+    effect_metadata: Mapping[str, object] | None = None,
 ) -> None:
+    body = response.model_dump(mode="json")
+    if effect_metadata is not None:
+        body["_mutation_effect"] = dict(effect_metadata)
     db.add(
         CorporateMutationReceipt(
             organization_id=organization_id,
             idempotency_key=key,
             operation=operation,
             request_fingerprint=fingerprint,
-            response_body=response.model_dump(mode="json"),
+            response_body=body,
         )
     )
 
@@ -599,7 +609,7 @@ async def authorize_idempotent(
     ctx: AuthContext,
     organization_id: str,
     permission: str,
-    authorization_revision: int,
+    authorization_revision: int | str,
     idempotency_key: str,
     operation: str,
     fingerprint: str,
@@ -608,7 +618,7 @@ async def authorize_idempotent(
     scope_id: str | None = None,
     legacy_fingerprint: str | None = None,
 ) -> tuple[Organization, CorporateMutationReceipt | None]:
-    organization, _ = await authorize(
+    organization, membership = await authorize(
         db,
         ctx=ctx,
         organization_id=organization_id,
@@ -625,7 +635,7 @@ async def authorize_idempotent(
     )
     if locked is None:
         raise ApiError(ErrorCategory.PERMISSION, "organization access denied")
-    organization, _ = await authorize(
+    organization, membership = await authorize(
         db,
         ctx=ctx,
         organization_id=organization_id,
@@ -642,6 +652,7 @@ async def authorize_idempotent(
             raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
         if (
             scope_kind in {"team", "project"}
+            and scope_id not in {None, "*"}
             and receipt.response_body.get(
                 f"{scope_kind}_id", receipt.response_body.get("resource_id")
             )
@@ -660,7 +671,14 @@ async def authorize_idempotent(
             request_id=request_id,
         )
         return organization, receipt
-    if authorization_revision != organization.policy_revision:
+    expected_authorization_revision = (
+        context_authorization_revision(
+            "corporate", organization_id, organization.policy_revision, membership.revision
+        )
+        if isinstance(authorization_revision, str)
+        else organization.policy_revision
+    )
+    if authorization_revision != expected_authorization_revision:
         raise ApiError(ErrorCategory.PRECONDITION, "capability revision is stale")
     return organization, None
 
@@ -992,6 +1010,7 @@ async def create_member(
     membership = OrganizationMembership(
         organization_id=organization_id,
         account_id=account.id,
+        display_name=payload.display_name.strip(),
         role=payload.role,
         state="active",
     )
@@ -1009,7 +1028,7 @@ async def create_member(
     db.add(binding)
     organization.policy_revision += 1
     await db.flush()
-    response = _member_view(membership, account)
+    response = member_view(membership, account)
     await store_mutation_receipt(
         db,
         organization_id=organization_id,
@@ -1052,7 +1071,65 @@ async def list_members(
         target_id=organization_id,
         request_id=request_id,
     )
-    return CorporateMemberList(items=[_member_view(member, account) for member, account in rows])
+    return CorporateMemberList(items=[member_view(member, account) for member, account in rows])
+
+
+async def list_project_members(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    project_id: str,
+    request_id: str | None,
+) -> CorporateMemberList:
+    await read_project(
+        db, ctx=ctx, organization_id=organization_id, project_id=project_id, request_id=request_id
+    )
+    members = await list_members(
+        db, ctx=ctx, organization_id=organization_id, request_id=request_id
+    )
+    assigned = set(
+        (
+            await db.scalars(
+                select(CorporateProjectMember.account_id).where(
+                    CorporateProjectMember.organization_id == organization_id,
+                    CorporateProjectMember.project_id == project_id,
+                )
+            )
+        ).all()
+    )
+    return CorporateMemberList(
+        items=[member for member in members.items if member.account_id in assigned]
+    )
+
+
+async def list_member_projects(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    account_id: str,
+    request_id: str | None,
+) -> CorporateProjectList:
+    await read_member(
+        db, ctx=ctx, organization_id=organization_id, account_id=account_id, request_id=request_id
+    )
+    projects = await list_projects(
+        db, ctx=ctx, organization_id=organization_id, request_id=request_id
+    )
+    assigned = set(
+        (
+            await db.scalars(
+                select(CorporateProjectMember.project_id).where(
+                    CorporateProjectMember.organization_id == organization_id,
+                    CorporateProjectMember.account_id == account_id,
+                )
+            )
+        ).all()
+    )
+    return CorporateProjectList(
+        items=[project for project in projects.items if project.project_id in assigned]
+    )
 
 
 async def update_member(
@@ -1145,7 +1222,7 @@ async def update_member(
             ]
         )
     organization.policy_revision += 1
-    response = _member_view(row, account)
+    response = member_view(row, account)
     await store_mutation_receipt(
         db,
         organization_id=organization_id,
@@ -1295,7 +1372,7 @@ async def read_member(
         target_id=account_id,
         request_id=request_id,
     )
-    return _member_view(*row)
+    return member_view(*row)
 
 
 async def create_binding(
@@ -1671,7 +1748,10 @@ async def create_project(
     if receipt is not None:
         return CorporateProjectView.model_validate(receipt.response_body)
     row = CorporateProject(
-        id=new_id("remote_project"), organization_id=organization_id, name=payload.name
+        id=new_id("remote_project"),
+        organization_id=organization_id,
+        name=payload.name,
+        lifecycle="active",
     )
     db.add(
         ProjectIdentity(
@@ -1783,7 +1863,12 @@ async def update_project(
     payload: CorporateProjectUpdateRequest,
     request_id: str | None,
 ) -> CorporateProjectView:
-    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    fingerprint = mutation_fingerprint(
+        {
+            "project_id": project_id,
+            "payload": payload.model_dump(mode="json", exclude={"idempotency_key"}),
+        }
+    )
     organization, receipt = await authorize_idempotent(
         db,
         ctx=ctx,
@@ -1792,6 +1877,9 @@ async def update_project(
         idempotency_key=payload.idempotency_key,
         operation="project.update",
         fingerprint=fingerprint,
+        legacy_fingerprint=mutation_fingerprint(
+            payload.model_dump(mode="json", exclude={"idempotency_key"})
+        ),
         request_id=request_id,
         scope_kind="project",
         scope_id=project_id,
@@ -1811,6 +1899,8 @@ async def update_project(
         raise ApiError(ErrorCategory.PERMISSION, "project access denied")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "project revision changed")
+    if row.lifecycle == "deleted":
+        raise ApiError(ErrorCategory.CONFLICT, "deleted project requires explicit restoration")
     before = {"name": row.name, "state": row.state, "revision": row.revision}
     identity = await db.scalar(
         select(ProjectIdentity)
@@ -1827,6 +1917,11 @@ async def update_project(
     identity.state = payload.state
     identity.revision += 1
     row.name = payload.name
+    # Unchanged compatibility state must not silently revive a deprecated project.
+    if payload.state != row.state:
+        if row.lifecycle in {"active", "deprecated"}:
+            row.restore_lifecycle = row.lifecycle
+        row.lifecycle = payload.state
     row.state = payload.state
     row.revision += 1
     organization.policy_revision += 1
@@ -1855,6 +1950,100 @@ async def update_project(
     return response
 
 
+async def change_project_lifecycle(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    project_id: str,
+    payload: CorporateProjectLifecycleRequest,
+    request_id: str | None,
+) -> CorporateProjectView:
+    fingerprint = mutation_fingerprint(
+        {
+            "project_id": project_id,
+            "payload": payload.model_dump(mode="json", exclude={"idempotency_key"}),
+        }
+    )
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="project.update",
+        scope_kind="project",
+        scope_id=project_id,
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation="project.lifecycle",
+        fingerprint=fingerprint,
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return CorporateProjectView.model_validate(receipt.response_body)
+    row = await db.scalar(
+        select(CorporateProject)
+        .where(
+            CorporateProject.organization_id == organization_id,
+            CorporateProject.id == project_id,
+        )
+        .with_for_update()
+    )
+    if row is None:
+        raise ApiError(ErrorCategory.PERMISSION, "project access denied")
+    if row.revision != payload.expected_revision:
+        raise ApiError(ErrorCategory.CONFLICT, "project revision changed")
+    before = _project_view(row).model_dump(mode="json")
+    if payload.target == "restore":
+        if row.lifecycle not in {"archived", "deleted"}:
+            raise ApiError(ErrorCategory.CONFLICT, "project is not restorable")
+        target = row.restore_lifecycle
+    else:
+        if row.lifecycle in {"archived", "deleted"}:
+            raise ApiError(ErrorCategory.CONFLICT, "project requires explicit restoration")
+        target = payload.target
+    if target == row.lifecycle:
+        raise ApiError(ErrorCategory.CONFLICT, "project lifecycle is unchanged")
+    identity = await db.scalar(
+        select(ProjectIdentity)
+        .where(
+            ProjectIdentity.organization_id == organization_id,
+            ProjectIdentity.id == project_id,
+            ProjectIdentity.namespace == "remote",
+        )
+        .with_for_update()
+    )
+    if identity is None:
+        raise ApiError(ErrorCategory.CONFLICT, "project identity is unavailable")
+    if row.lifecycle in {"active", "deprecated"}:
+        row.restore_lifecycle = row.lifecycle
+    row.lifecycle = target
+    row.state = "active" if target == "active" else "archived"
+    row.revision += 1
+    identity.state = row.state
+    identity.revision += 1
+    organization.policy_revision += 1
+    response = _project_view(row)
+    await store_mutation_receipt(
+        db,
+        organization_id=organization_id,
+        key=payload.idempotency_key,
+        operation="project.lifecycle",
+        fingerprint=fingerprint,
+        response=response,
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="project.lifecycle",
+        target_table="corporate_project",
+        target_id=project_id,
+        request_id=request_id,
+        payload={"before": before, "after": response.model_dump(mode="json")},
+    )
+    return response
+
+
 async def delete_project(
     db: AsyncSession,
     *,
@@ -1864,7 +2053,12 @@ async def delete_project(
     payload: CorporateDeleteRequest,
     request_id: str | None,
 ) -> CorporateDeleteResult:
-    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    fingerprint = mutation_fingerprint(
+        {
+            "project_id": project_id,
+            "payload": payload.model_dump(mode="json", exclude={"idempotency_key"}),
+        }
+    )
     organization, receipt = await authorize_idempotent(
         db,
         ctx=ctx,
@@ -1873,6 +2067,9 @@ async def delete_project(
         idempotency_key=payload.idempotency_key,
         operation="project.delete",
         fingerprint=fingerprint,
+        legacy_fingerprint=mutation_fingerprint(
+            payload.model_dump(mode="json", exclude={"idempotency_key"})
+        ),
         request_id=request_id,
         scope_kind="project",
         scope_id=project_id,
@@ -1892,15 +2089,26 @@ async def delete_project(
         raise ApiError(ErrorCategory.PERMISSION, "project access denied")
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "project revision changed")
-    before = {"name": row.name, "state": row.state}
-    await db.execute(
-        delete(CorporateRoleBinding).where(
-            CorporateRoleBinding.organization_id == organization_id,
-            CorporateRoleBinding.scope_kind == "project",
-            CorporateRoleBinding.scope_id == project_id,
+    if row.lifecycle == "deleted":
+        raise ApiError(ErrorCategory.CONFLICT, "project is already deleted")
+    before = _project_view(row).model_dump(mode="json")
+    identity = await db.scalar(
+        select(ProjectIdentity)
+        .where(
+            ProjectIdentity.organization_id == organization_id,
+            ProjectIdentity.id == project_id,
+            ProjectIdentity.namespace == "remote",
         )
+        .with_for_update()
     )
-    await db.delete(row)
+    if identity is None:
+        raise ApiError(ErrorCategory.CONFLICT, "project identity is unavailable")
+    if row.lifecycle in {"active", "deprecated"}:
+        row.restore_lifecycle = row.lifecycle
+    row.lifecycle, row.state = "deleted", "archived"
+    row.revision += 1
+    identity.state = "deleted"
+    identity.revision += 1
     organization.policy_revision += 1
     response = CorporateDeleteResult(resource_id=project_id)
     await store_mutation_receipt(
@@ -1919,7 +2127,7 @@ async def delete_project(
         target_table="corporate_project",
         target_id=project_id,
         request_id=request_id,
-        payload={"before": before, "after": None},
+        payload={"before": before, "after": _project_view(row).model_dump(mode="json")},
     )
     return response
 
@@ -2768,7 +2976,7 @@ async def read_context(
     ][:256]
     response = CorporateContext(
         organization=_organization_view(organization),
-        member=_member_view(membership, account),
+        member=member_view(membership, account),
         bindings=[_binding_view(row) for row in bindings],
         projects=[_project_view(row) for row in project_rows],
         teams=(

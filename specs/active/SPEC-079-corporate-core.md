@@ -132,8 +132,22 @@ are follow-up scope.
 
 ## States and errors
 
+Under ADR-0182, corporate projects have one authoritative `lifecycle`: `active`,
+`deprecated`, `archived` or `deleted`. The legacy `state` remains the compatible
+active/archive projection, not an independent decision. The additive lifecycle
+view field does not extend its closed legacy enum. Explicit legacy active/archive
+writes remain supported. Lifecycle writes use the same project update/delete
+permissions, entity revisions, current authorization and idempotency contracts.
+Deleted projects reject ordinary updates and new work; explicit lifecycle restore
+is separately requested and currently authorized. Archive restore retains the
+prior active/deprecated lifecycle. Project deletion is a retained tombstone,
+preserving exact identity, links, memberships, bindings, facts and audit history;
+inactive endpoints make retained scoped grants ineffective without deleting IDs.
+Repository activity and explicit source-availability metadata remain independent;
+SPEC-080 owns their additive project representation and landscape semantics.
+
 Organizations are `active` or `suspended`; memberships are `active` or `suspended`;
-teams and projects are `active` or `archived`; bindings are `active` or `revoked`. Public errors
+teams and legacy project state projections are `active` or `archived`; bindings are `active` or `revoked`. Public errors
 are `bootstrap_closed`, `organization_access_denied`, `capability_forbidden`,
 `capability_stale`, `last_superadmin`, `revision_conflict`, and `contract_invalid`.
 Foreign and unknown protected identifiers share the same non-enumerating response.

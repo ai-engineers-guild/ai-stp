@@ -179,6 +179,11 @@ last_verified: "2026-08-03"
 | [ADR-0179-corporate-authorization-is-a-tenant-scoped-policy-table.md](ADR-0179-corporate-authorization-is-a-tenant-scoped-policy-table.md) | Corporate authorization uses persisted tenant-scoped role bindings, one server evaluator, and transactional audit. | 2026-09-12 |
 | [ADR-0180-permanent-dev-and-protected-main.md](ADR-0180-permanent-dev-and-protected-main.md) | Permanent dev integration and protected main promotion with administrator bypass. | 2026-09-12 |
 | [ADR-0181-canonical-technology-relations-and-facts.md](ADR-0181-canonical-technology-relations-and-facts.md) | One tenant-scoped technology registry and canonical relations with attached reviewed facts, not duplicate landscape edges. | 2026-09-12 |
+| [ADR-0182-retained-corporate-project-lifecycle.md](ADR-0182-retained-corporate-project-lifecycle.md) | Retain corporate project identities and history through an authoritative lifecycle with a compatible legacy state projection. | 2026-09-12 |
+| [ADR-0183-retained-category-removal.md](ADR-0183-retained-category-removal.md) | Retain category identities and classifications across dictionary removal and restoration. | 2026-09-12 |
+| [ADR-0184-corporate-catalog-assignments.md](ADR-0184-corporate-catalog-assignments.md) | Separate corporate catalog assignments from authorization and harness installation. | 2026-09-13 |
+| [ADR-0185-tenant-member-display-names.md](ADR-0185-tenant-member-display-names.md) | ADR-0185: Employee display names are organization-scoped profile data. | 2026-09-13 |
+| [ADR-0186-retained-employee-technology-competences.md](ADR-0186-retained-employee-technology-competences.md) | ADR-0186: Tenant-scoped retained employee technology competence links. | 2026-09-13 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

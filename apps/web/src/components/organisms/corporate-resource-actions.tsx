@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -68,6 +68,7 @@ export function CorporateResourceActions({
 }: Props) {
   const router = useRouter();
   const t = useTranslations("corporate");
+  const common = useTranslations("common");
   const [editing, setEditing] = useState(false);
   const [busy, startTransition] = useTransition();
   const [nextName, setNextName] = useState(name);
@@ -76,6 +77,7 @@ export function CorporateResourceActions({
   const [nextPermissions, setNextPermissions] = useState((rolePermissions ?? []).join(", "));
   const [nextState, setNextState] = useState(state);
   const [message, setMessage] = useState<string | null>(null);
+  const retry = useRef<{ effect: string; key: string } | null>(null);
   const endpoint = `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`;
   const canUpdate = permissions.includes(
     `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.update`,
@@ -84,23 +86,31 @@ export function CorporateResourceActions({
     `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.delete`,
   );
 
-  function submit(method: "PATCH" | "DELETE", body: unknown) {
+  function submit(method: "PATCH" | "DELETE", body: Record<string, unknown>) {
+    const effect = JSON.stringify({ method, body });
+    if (retry.current?.effect !== effect) retry.current = { effect, key: crypto.randomUUID() };
+    const requestBody = { ...body, idempotency_key: retry.current.key };
     setMessage(null);
     startTransition(async () => {
-      const result = await corporateMutationAction({
-        csrfToken,
-        organizationId,
-        path: endpoint,
-        method,
-        body,
-      });
-      if (!result.ok) {
-        setMessage(result.message);
-        return;
+      try {
+        const result = await corporateMutationAction({
+          csrfToken,
+          organizationId,
+          path: endpoint,
+          method,
+          body: requestBody,
+        });
+        if (!result.ok) {
+          setMessage(result.message);
+          return;
+        }
+        setMessage(labels.saved);
+        retry.current = null;
+        setEditing(false);
+        router.refresh();
+      } catch {
+        setMessage(common("apiUnavailable"));
       }
-      setMessage(labels.saved);
-      setEditing(false);
-      router.refresh();
     });
   }
 
@@ -142,7 +152,6 @@ export function CorporateResourceActions({
                         schema_version: 1,
                         expected_revision: revision,
                         authorization_revision: authorizationRevision,
-                        idempotency_key: crypto.randomUUID(),
                       });
                   }}
                 >
@@ -173,7 +182,6 @@ export function CorporateResourceActions({
                   : { name: nextName, state: nextState }),
               expected_revision: revision,
               authorization_revision: authorizationRevision,
-              idempotency_key: crypto.randomUUID(),
             });
           }}
         >

@@ -84,11 +84,12 @@ last_verified: "2026-08-03"
 | [SPEC-073-github-connector-and-source-publication.md](SPEC-073-github-connector-and-source-publication.md) | SPEC-073: Selected GitHub App source access and separately confirmed repository management. | 2026-09-09 |
 | [SPEC-074-product-modes-and-compatibility.md](SPEC-074-product-modes-and-compatibility.md) | SPEC-074: Local, personal SaaS, and corporate product modes and their compatibility matrix. | 2026-09-09 |
 | [SPEC-075-organization-kinds-and-context.md](SPEC-075-organization-kinds-and-context.md) | SPEC-075: Personal and corporate organization kinds, ownership boundaries, and active context. | 2026-09-09 |
-| [SPEC-076-context-capability-projection.md](SPEC-076-context-capability-projection.md) | SPEC-076: Versioned context capability projection for FastAPI and Next.js. | 2026-09-09 |
+| [SPEC-076-context-capability-projection.md](SPEC-076-context-capability-projection.md) | SPEC-076: Versioned context capability projection for FastAPI and Next.js. | 2026-09-12 |
 | [SPEC-077-shared-product-mode-web-ui.md](SPEC-077-shared-product-mode-web-ui.md) | SPEC-077: Shared Next.js SaaS UI with server-resolved product context. | 2026-09-11 |
 | [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-09 |
 | [SPEC-079-corporate-core.md](SPEC-079-corporate-core.md) | SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal. | 2026-09-12 |
 | [SPEC-080-technology-registry-and-landscape.md](SPEC-080-technology-registry-and-landscape.md) | SPEC-080: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-12 |
 | [SPEC-081-canonical-corporate-relations.md](SPEC-081-canonical-corporate-relations.md) | SPEC-081: Single canonical team/project/technology relationships, responsibility, and current assignment scopes. | 2026-09-12 |
+| [SPEC-082-corporate-hub-workspace.md](SPEC-082-corporate-hub-workspace.md) | SPEC-082: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-09-13 |
 
 <!-- END CONTENTS -->

@@ -40,6 +40,7 @@ class TechnologyCategory(_TenantRow, Base):
     __table_args__ = (
         UniqueConstraint("organization_id", "normalized_name", name="uq_technology_category_name"),
         CheckConstraint("revision >= 1", name="ck_technology_category_revision"),
+        CheckConstraint("state IN ('active','archived')", name="ck_technology_category_state"),
     )
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -49,6 +50,9 @@ class TechnologyCategory(_TenantRow, Base):
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     provenance: Mapped[str] = mapped_column(String(256), nullable=False)
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="active", server_default="active"
+    )
 
 
 class Technology(_TenantRow, Base):
@@ -378,5 +382,37 @@ class TechnologyLandscapePolicy(_TenantRow, Base):
     )
     inactivity_months: Mapped[int] = mapped_column(
         Integer, nullable=False, default=9, server_default="9"
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class EmployeeTechnology(_TenantRow, Base):
+    """Retained competence, independent from project usage and access bindings."""
+
+    __tablename__ = "employee_technology"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "account_id", "technology_id", name="uq_employee_technology"
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "account_id"],
+            ["organization_membership.organization_id", "organization_membership.account_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "technology_id"],
+            ["technology.organization_id", "technology.id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("state IN ('current','retired')", name="ck_employee_technology_state"),
+        CheckConstraint("revision >= 1", name="ck_employee_technology_revision"),
+        Index("ix_employee_technology_account", "organization_id", "account_id"),
+        Index("ix_employee_technology_technology", "organization_id", "technology_id"),
+    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    technology_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="current", server_default="current"
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")

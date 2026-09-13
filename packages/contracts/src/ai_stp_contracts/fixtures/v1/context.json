@@ -80,7 +80,7 @@
       "why": "The active context carries the selected mode and its projection.",
       "request": {"headers": {"X-AI-STP-Product-Mode": "local"}},
       "status": 200,
-      "body": {"schema_version": 1, "mode": "local", "organization_id": null, "capabilities": {"schema_version": 1, "mode": "local", "context_kind": "local", "organization_id": null, "authorization_revision": "local:0:0", "issued_at": "2026-01-01T00:00:00.000Z", "generated_at": "2026-01-01T00:00:00.000Z", "expires_at": "2026-01-01T00:01:00.000Z", "capabilities": ["catalog_object.list", "catalog_object.read", "landscape.list", "landscape.read", "project.list", "project.read", "technology.list", "technology.read"], "unavailable": {}}}
+      "body": {"schema_version": 1, "mode": "local", "organization_id": null, "capabilities": {"schema_version": 1, "mode": "local", "registry_version": 2, "context_kind": "local", "organization_id": null, "authorization_revision": "local:0:0", "issued_at": "2026-01-01T00:00:00.000Z", "generated_at": "2026-01-01T00:00:00.000Z", "expires_at": "2026-01-01T00:01:00.000Z", "capabilities": ["catalog_object.list", "catalog_object.read", "landscape.list", "landscape.read", "project.list", "project.read", "technology.list", "technology.read"], "unavailable": {}}}
     },
     {
       "case_id": "readOrganizationCapabilities.context",
@@ -89,7 +89,7 @@
       "why": "Capabilities are selected per explicit organization.",
       "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "headers": {"Authorization": "Bearer fixture-access-token"}},
       "status": 200,
-      "body": {"schema_version": 1, "mode": "corporate", "context_kind": "corporate", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "issued_at": "2026-01-01T00:00:00.000Z", "generated_at": "2026-01-01T00:00:00.000Z", "expires_at": "2026-01-01T00:01:00.000Z", "capabilities": ["catalog_object.list", "catalog_object.read", "landscape.list", "landscape.read", "organization.manage", "organization.read", "project.create", "project.delete", "project.link", "project.list", "project.read", "project.unlink", "project.update", "technology.list", "technology.read"], "unavailable": {}}
+      "body": {"schema_version": 1, "mode": "corporate", "registry_version": 2, "context_kind": "corporate", "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "authorization_revision": "corporate:organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z:1:1", "issued_at": "2026-01-01T00:00:00.000Z", "generated_at": "2026-01-01T00:00:00.000Z", "expires_at": "2026-01-01T00:01:00.000Z", "capabilities": ["catalog_object.list", "catalog_object.read", "landscape.list", "landscape.read", "organization.manage", "organization.read", "project.create", "project.delete", "project.link", "project.list", "project.read", "project.unlink", "project.update", "technology.list", "technology.read"], "unavailable": {}}
     },
     {
       "case_id": "readProjectLink.context",

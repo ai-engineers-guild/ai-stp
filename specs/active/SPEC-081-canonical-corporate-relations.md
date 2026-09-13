@@ -95,13 +95,42 @@ for project-to-team ownership. Harnesses, setups and components keep their ident
 
 ## States and errors
 
-Relations are current or retired; project/team lifecycle remains active or archived
+Relations are current or retired; team lifecycle remains active or archived
 under SPEC-079. Technology lifecycle and usage review remain SPEC-080 dimensions.
+
+Pair retirement retains all usage facts unchanged; it is not a context correction
+or a new declaration. The compatibility request's fact fields do not rewrite
+evidence, version, freshness or review when the pair state is retired.
+Corporate project lifecycle distinguishes active, deprecated, archived and retained
+deleted projects under ADR-0182; legacy state is only a compatibility projection.
 Responsibility removal is not registry deletion. Use corporate forbidden/stale/
 revision-conflict conventions plus explicit relation-conflict, unavailable-target
 and invalid-role reasons. Unknown and foreign identifiers remain non-enumerating.
 
+Known-technology decision reads check both decision and technology read authority
+before hydration. An unknown or foreign technology remains forbidden. Only an
+already authorized existing technology without a decision returns not-found;
+Web may offer exact-revision-zero creation for that legitimate empty state.
+Denied or failed reads are never interpreted as an absent decision or approval.
+
 ## Security and privacy
+
+Decision receipt replay reauthorizes technology read and the original approval
+change under the current policy, including approval revocation. Receipts retain
+safe effect metadata indicating whether the original request changed approval;
+this is a description of an effect, never a permission snapshot or grant.
+Legacy decision receipts without this marker conservatively require approval
+authority on replay, because the original change is not recorded in the current
+decision. Ordinary adoption/lead updates that did not change approval
+remain independently authorized; new receipts do not couple them to approval.
+`DELETE` on a known technology's `/decision` path clears lead, approval and
+adoption under independent `technology_decision.delete`, exact decision revision
+and current authorization. It retains the record/technology identity and audited
+history, including on archived endpoints. Revoking approval additionally requires
+current technology approval authority. A missing record is a conflict, not a new
+default decision. Web uses the same canonical decision and responsibility DTOs,
+pins loaded revisions, and accepts explicitly known team IDs without requiring
+team discovery. Responsibility labels never become permission grants.
 
 Endpoint ownership and permission checks precede protected hydration and aggregation.
 Ownership does not grant credentials or source-provider access. Relation history

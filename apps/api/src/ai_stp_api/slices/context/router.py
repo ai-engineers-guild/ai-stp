@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +18,7 @@ from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.context import service
 from ai_stp_contracts.context import (
     ActiveContext,
+    CapabilityScopeQuery,
     OrganizationListResponse,
     OrganizationSummary,
     ProductMode,
@@ -138,8 +139,15 @@ async def read_organization_capabilities(
     organization_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     ctx: Annotated[AuthContext, Depends(require_auth)],
+    scope: Annotated[CapabilityScopeQuery, Query()],
 ) -> JSONResponse:
-    body = await service.remote_projection(db, ctx=ctx, organization_id=organization_id)
+    body = await service.remote_projection(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        scope_kind=scope.scope_kind,
+        scope_id=scope.scope_id,
+    )
     return JSONResponse(content=body.model_dump(mode="json"), headers=_NO_STORE)
 
 
