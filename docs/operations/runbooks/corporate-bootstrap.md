@@ -5,6 +5,37 @@ last_verified: "2026-09-12"
 
 # Corporate bootstrap
 
+Overview keeps organization hierarchy and component/setup usage on the same page.
+Summary counts cover visible teams, projects, employees and related technologies, not an
+unrestricted tenant inventory. Directory and catalog-ownership permissions govern
+additional descriptions, technologies and owner names; inaccessible names never
+fall back to IDs. Existing data and grants are unchanged by switches or filters.
+Rollback this presentation by reverting its web and API projection changes; no migration or
+harness-state operation is involved.
+
+## Local Overview demo
+
+The explicit utility `release_scripts/seed_corporate_overview.py` runs only with
+`API_ENVIRONMENT=dev`; it is never an application startup seed. Take a local database
+backup first. From the repository root run `uv run python -m
+release_scripts.seed_corporate_overview --organization <organization-id>
+--expected-revision <revision>` to print the plan and fixture SHA-256. Apply the
+same plan with `--apply --digest <printed-digest>` and the normal database environment.
+
+The loader accepts only the local `test_twinby`/`Twinby` tenant with two reference
+projects and five existing non-demo memberships. It preserves their accounts and
+grants, adds thirteen credential-free private accounts, four teams in total,
+canonical project/team links, six classified technologies and experimental catalog
+examples. Artifact placeholders are demonstration data, not production installables.
+The new project lead bindings belong only to credential-free fixture accounts.
+Target revisions and fixture digests are checked before applying the transaction.
+Repeat with the current organization revision to verify idempotency: fixture IDs
+and assignments are reused; no existing records are deleted.
+
+Rollback by restoring the pre-seed backup into a separate database, verifying it,
+then switching the local deployment to that database. Do not overwrite a database
+that has acquired unrelated data since the backup.
+
 Set `AI_STP_CORPORATE_BOOTSTRAP_SECRET` to a high-entropy deployment secret, restart
 the API, and call `POST /v1/corporate/bootstrap` once with the same value in
 `X-AI-STP-Bootstrap-Secret`. The body names the existing account that becomes the

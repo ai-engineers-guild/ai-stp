@@ -13,6 +13,7 @@ import { UI } from "@/lib/ui-selectors";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { SITE_NAME } from "@/lib/site";
 import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
+import { corporateHref } from "@/lib/features/corporate-path";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -63,7 +64,7 @@ export async function AppShell({ children, locale }: AppShellProps) {
           }`}
         >
           <div className="space-y-4">
-            <Link href="/" className="inline-flex items-center gap-3 font-medium">
+            <Link href={corporateHref("/")} className="inline-flex items-center gap-3 font-medium">
               <img
                 src="/brand/logo-mark-64.png"
                 alt=""
@@ -83,7 +84,7 @@ export async function AppShell({ children, locale }: AppShellProps) {
           <FooterColumn
             title={tf("product")}
             links={[
-              { label: tf("catalog"), href: "/catalog" },
+              { label: tf("catalog"), href: corporateHref("/catalog") },
               ...(!corporateHub ? [{ label: tf("services"), href: "/services" }] : []),
               { label: tf("docs"), href: docsHref },
               ...(isFeatureEnabled("content_hub")
@@ -95,9 +96,10 @@ export async function AppShell({ children, locale }: AppShellProps) {
             <FooterColumn
               title={th("navigation")}
               links={[
-                { label: th("overview"), href: "/corporate" },
+                { label: th("overview"), href: "/corporate/overview" },
                 { label: th("organization"), href: "/corporate/organization" },
                 { label: th("landscape"), href: "/corporate/technology-landscape" },
+                { label: th("dashboard"), href: "/corporate/dashboard" },
               ]}
             />
           )}
@@ -153,7 +155,7 @@ export async function AppShell({ children, locale }: AppShellProps) {
       <ConsentedAnalytics {...publicAnalyticsConfig()} />
       {process.env.NEXT_PUBLIC_COOKIE_CONSENT_ENABLED !== "false" ? (
         <CookieConsent
-          privacyHref={`/${locale}/legal/privacy`}
+          {...(saasPublicPages ? { privacyHref: `/${locale}/legal/privacy` } : {})}
           labels={{
             title: tc("title"),
             body: tc("body"),

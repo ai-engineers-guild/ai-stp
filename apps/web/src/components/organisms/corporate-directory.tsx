@@ -6,13 +6,16 @@ import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import { Badge } from "@/components/atoms/badge";
+import {
+  CorporateDirectoryResults,
+  type DirectoryItem,
+} from "@/components/organisms/corporate-directory-results";
 import { Textarea } from "@/components/atoms/textarea";
-import { Link, useRouter } from "@/lib/i18n/navigation";
+import { useRouter } from "@/lib/i18n/navigation";
 
-type Item = { id: string; name: string; state: string; description?: string; role?: string };
+type Item = DirectoryItem;
 type Props = {
-  resource: "projects" | "teams" | "members";
+  resource: "projects" | "teams" | "members" | "technologies";
   items: Item[];
   organizationId: string;
   authorizationRevision: number;
@@ -210,30 +213,7 @@ export function CorporateDirectory({
           )}
         </form>
       )}
-      <ul className="border-border divide-border divide-y overflow-hidden rounded-lg border">
-        {visible.map((item) => (
-          <li key={item.id}>
-            <Link
-              href={`/corporate/${resource}/${encodeURIComponent(item.id)}${filters ? `?${filters}` : ""}`}
-              className="hover:bg-muted focus-visible:ring-ring flex min-h-16 flex-wrap items-center justify-between gap-3 p-4 focus-visible:ring-2"
-            >
-              <div className="min-w-0 flex-1 space-y-1">
-                <span className="block font-medium break-words">{item.name}</span>
-                {item.description && (
-                  <p className="text-muted-foreground text-sm">{item.description}</p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Badge variant="outline">{t(item.state)}</Badge>
-                {item.role && <Badge variant="secondary">{item.role}</Badge>}
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {!visible.length && (
-        <p className="text-muted-foreground p-4">{t(items.length ? "noMatches" : "empty")}</p>
-      )}
+      <CorporateDirectoryResults resource={resource} items={visible} filters={filters} />
     </div>
   );
 }

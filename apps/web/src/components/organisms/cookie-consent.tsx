@@ -34,7 +34,7 @@ function subscribeToConsent(notify: () => void) {
 const readConsentCookie = () => document.cookie;
 const noConsentOnTheServer = () => "";
 
-export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacyHref: string }) {
+export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacyHref?: string }) {
   // Read during render rather than written from an effect. The saved value
   // decides both what the form shows and whether the banner opens at all, and
   // an effect that set both produced a second render pass on every visit.
@@ -77,9 +77,11 @@ export function CookieConsent({ labels, privacyHref }: { labels: Labels; privacy
         {labels.title}
       </h2>
       <p className="text-muted-foreground mt-2 text-sm">{labels.body}</p>
-      <a className="mt-2 inline-block text-sm underline" href={privacyHref}>
-        {labels.privacy}
-      </a>
+      {privacyHref && (
+        <a className="mt-2 inline-block text-sm underline" href={privacyHref}>
+          {labels.privacy}
+        </a>
+      )}
       <div className="mt-4 space-y-2">
         <label className="flex gap-2">
           <input type="checkbox" checked disabled /> {labels.necessary}

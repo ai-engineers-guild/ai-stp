@@ -9,6 +9,8 @@ import {
   createSessionToken,
   setSessionCookies,
 } from "@/lib/auth/session";
+import { corporateHref } from "@/lib/features/corporate-path";
+import { getEnv } from "@/lib/env";
 import { FIXTURE_ACCOUNT_ID, FIXTURE_DEVICE_ID } from "@/mocks/fixtures";
 
 export type LoginProvider = "google" | "github";
@@ -25,19 +27,22 @@ export async function startLoginAction(
   provider: LoginProvider,
   options: { returnTo?: string; locale?: string } = {},
 ) {
+  const locale = options.locale === "en" || options.locale === "ru" ? options.locale : "ru";
+  if (!getEnv().AI_STP_USE_MOCKS) {
+    redirectTo(corporateHref(`/${locale}/login?status=error`));
+  }
   // Mock success path: establish opaque server session immediately.
   const accountId = asAccountId(FIXTURE_ACCOUNT_ID);
   const deviceId = asDeviceId(FIXTURE_DEVICE_ID);
   const { token } = createSessionToken(accountId, deviceId);
   const csrf = createCsrfToken();
   await setSessionCookies(token, csrf);
-  const locale = options.locale === "en" || options.locale === "ru" ? options.locale : "ru";
-  const fallback = `/${locale}/account`;
+  const fallback = corporateHref(`/${locale}/account`);
   const target =
     options.returnTo && options.returnTo.startsWith(`/${locale}/`)
-      ? options.returnTo
+      ? corporateHref(options.returnTo)
       : options.returnTo && options.returnTo.startsWith("/")
-        ? `/${locale}${options.returnTo}`
+        ? corporateHref(`/${locale}${options.returnTo}`)
         : fallback;
   // Provider is recorded only for UX parity tests; tokens never stored client-side.
   void provider;
@@ -46,15 +51,21 @@ export async function startLoginAction(
 
 export async function logoutAction(locale = "ru") {
   await clearSessionCookies();
-  redirectTo(`/${locale}/login`);
+  redirectTo(corporateHref(`/${locale}/login`));
 }
 
 export async function mockLoginErrorAction(locale = "ru") {
+  if (!getEnv().AI_STP_USE_MOCKS) {
+    redirectTo(corporateHref(`/${locale}/login?status=error`));
+  }
   await Promise.resolve();
-  redirectTo(`/${locale}/login?status=error`);
+  redirectTo(corporateHref(`/${locale}/login?status=error`));
 }
 
 export async function mockLoginCancelAction(locale = "ru") {
+  if (!getEnv().AI_STP_USE_MOCKS) {
+    redirectTo(corporateHref(`/${locale}/login?status=error`));
+  }
   await Promise.resolve();
-  redirectTo(`/${locale}/login?status=cancel`);
+  redirectTo(corporateHref(`/${locale}/login?status=cancel`));
 }

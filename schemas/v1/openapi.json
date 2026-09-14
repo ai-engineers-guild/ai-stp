@@ -4719,6 +4719,175 @@
         "title": "CorporateCatalogAssignmentRequest",
         "type": "object"
       },
+      "CorporateCatalogOwnership": {
+        "additionalProperties": true,
+        "properties": {
+          "can_edit": {
+            "title": "Can Edit",
+            "type": "boolean"
+          },
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "owner_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Account Id"
+          },
+          "owner_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Display Name"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stable_id": {
+            "title": "Stable Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "can_edit",
+          "object_kind",
+          "organization_id",
+          "owner_account_id",
+          "owner_display_name",
+          "revision",
+          "schema_version",
+          "stable_id"
+        ],
+        "title": "CorporateCatalogOwnership",
+        "type": "object"
+      },
+      "CorporateCatalogOwnershipQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_kind",
+          "stable_id",
+          "version"
+        ],
+        "title": "CorporateCatalogOwnershipQuery",
+        "type": "object"
+      },
+      "CorporateCatalogOwnershipRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "minimum": 1,
+            "title": "Authorization Revision",
+            "type": "integer"
+          },
+          "expected_revision": {
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "owner_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Account Id"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_kind",
+          "stable_id",
+          "version",
+          "owner_account_id",
+          "expected_revision",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "CorporateCatalogOwnershipRequest",
+        "type": "object"
+      },
       "CorporateContext": {
         "additionalProperties": true,
         "properties": {
@@ -4829,6 +4998,428 @@
           "schema_version"
         ],
         "title": "CorporateDeleteResult",
+        "type": "object"
+      },
+      "CorporateDirectoryFacets": {
+        "additionalProperties": true,
+        "properties": {
+          "categories": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "leads": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Leads",
+            "type": "array"
+          },
+          "projects": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Projects",
+            "type": "array"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Teams",
+            "type": "array"
+          },
+          "technologies": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Technologies",
+            "type": "array"
+          }
+        },
+        "required": [
+          "categories",
+          "leads",
+          "projects",
+          "teams",
+          "technologies"
+        ],
+        "title": "CorporateDirectoryFacets",
+        "type": "object"
+      },
+      "CorporateDirectoryItem": {
+        "additionalProperties": true,
+        "properties": {
+          "categories": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "maxItems": 32,
+            "title": "Categories",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "is_lead": {
+            "default": false,
+            "title": "Is Lead",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "project",
+              "team",
+              "employee",
+              "technology",
+              "category"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "leads": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Leads",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorporateDirectoryReference"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "owner_team": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorporateDirectoryReference"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "projects": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Projects",
+            "type": "array"
+          },
+          "related_teams": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Related Teams",
+            "type": "array"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "active",
+              "deprecated",
+              "archived",
+              "suspended"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "teams": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Teams",
+            "type": "array"
+          },
+          "technologies": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryReference"
+            },
+            "title": "Technologies",
+            "type": "array"
+          }
+        },
+        "required": [
+          "categories",
+          "description",
+          "id",
+          "is_lead",
+          "kind",
+          "leads",
+          "name",
+          "owner",
+          "owner_team",
+          "projects",
+          "related_teams",
+          "revision",
+          "role",
+          "state",
+          "teams",
+          "technologies"
+        ],
+        "title": "CorporateDirectoryItem",
+        "type": "object"
+      },
+      "CorporateDirectoryQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "category_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Category Ids",
+            "type": "array"
+          },
+          "include_archived": {
+            "default": false,
+            "title": "Include Archived",
+            "type": "boolean"
+          },
+          "is_lead": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Is Lead"
+          },
+          "lead_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Lead Ids",
+            "type": "array"
+          },
+          "limit": {
+            "default": 128,
+            "maximum": 256,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "project_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Project Ids",
+            "type": "array"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": ".*\\S.*",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Query"
+          },
+          "resource": {
+            "enum": [
+              "projects",
+              "teams",
+              "members",
+              "technologies"
+            ],
+            "title": "Resource",
+            "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "draft",
+                  "active",
+                  "deprecated",
+                  "archived",
+                  "suspended"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "State"
+          },
+          "team_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Team Ids",
+            "type": "array"
+          },
+          "technology_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Technology Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resource"
+        ],
+        "title": "CorporateDirectoryQuery",
+        "type": "object"
+      },
+      "CorporateDirectoryReference": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "project",
+              "team",
+              "employee",
+              "technology",
+              "category"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name"
+        ],
+        "title": "CorporateDirectoryReference",
+        "type": "object"
+      },
+      "CorporateDirectoryView": {
+        "additionalProperties": true,
+        "properties": {
+          "facets": {
+            "$ref": "#/components/schemas/CorporateDirectoryFacets"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateDirectoryItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/CorporateOrganization"
+          },
+          "resource": {
+            "enum": [
+              "projects",
+              "teams",
+              "members",
+              "technologies"
+            ],
+            "title": "Resource",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "facets",
+          "items",
+          "organization",
+          "resource",
+          "schema_version",
+          "total"
+        ],
+        "title": "CorporateDirectoryView",
         "type": "object"
       },
       "CorporateMember": {
@@ -5258,6 +5849,138 @@
           "state"
         ],
         "title": "CorporateOrganization",
+        "type": "object"
+      },
+      "CorporateOverview": {
+        "additionalProperties": true,
+        "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateOverviewEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateOverviewNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/CorporateOrganization"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "edges",
+          "nodes",
+          "organization",
+          "schema_version"
+        ],
+        "title": "CorporateOverview",
+        "type": "object"
+      },
+      "CorporateOverviewEdge": {
+        "additionalProperties": true,
+        "properties": {
+          "child_id": {
+            "title": "Child Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "project_team",
+              "team_employee"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "parent_id": {
+            "title": "Parent Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "responsible",
+              "contributor",
+              "lead",
+              "staff"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "child_id",
+          "kind",
+          "parent_id",
+          "role"
+        ],
+        "title": "CorporateOverviewEdge",
+        "type": "object"
+      },
+      "CorporateOverviewNode": {
+        "additionalProperties": true,
+        "properties": {
+          "assignments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateCatalogAssignment"
+            },
+            "title": "Assignments",
+            "type": "array"
+          },
+          "assignments_readable": {
+            "default": false,
+            "title": "Assignments Readable",
+            "type": "boolean"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "project",
+              "team",
+              "employee"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "lead_account_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "title": "Lead Account Ids",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignments",
+          "assignments_readable",
+          "id",
+          "kind",
+          "lead_account_ids",
+          "name"
+        ],
+        "title": "CorporateOverviewNode",
         "type": "object"
       },
       "CorporateProjectCreateRequest": {
@@ -6812,6 +7535,304 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "EntityProfileFields": {
+        "additionalProperties": false,
+        "properties": {
+          "avatar_asset_id": {
+            "anyOf": [
+              {
+                "pattern": "^avatar_[a-f0-9]{24}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Avatar Asset Id"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 20000,
+            "title": "Description",
+            "type": "string"
+          },
+          "links": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProfileLink"
+            },
+            "maxItems": 8,
+            "title": "Links",
+            "type": "array"
+          },
+          "media": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/EntityProfileMedia"
+            },
+            "maxItems": 5,
+            "title": "Media",
+            "type": "array"
+          }
+        },
+        "title": "EntityProfileFields",
+        "type": "object"
+      },
+      "EntityProfileMedia": {
+        "additionalProperties": false,
+        "properties": {
+          "alt": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Alt",
+            "type": "string"
+          },
+          "caption": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Caption",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "video",
+              "youtube"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url",
+          "alt"
+        ],
+        "title": "EntityProfileMedia",
+        "type": "object"
+      },
+      "EntityProfileUploadQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "minimum": 1,
+            "title": "Authorization Revision",
+            "type": "integer"
+          },
+          "expected_revision": {
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "purpose": {
+            "enum": [
+              "avatar",
+              "media"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose",
+          "expected_revision",
+          "authorization_revision"
+        ],
+        "title": "EntityProfileUploadQuery",
+        "type": "object"
+      },
+      "EntityProfileUploadResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "avatar_asset_id": {
+            "title": "Avatar Asset Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "video"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "public_url": {
+            "title": "Public Url",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "exclusiveMinimum": 0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "state": {
+            "const": "ready",
+            "default": "ready",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatar_asset_id",
+          "kind",
+          "media_id",
+          "public_url",
+          "schema_version",
+          "size_bytes",
+          "state"
+        ],
+        "title": "EntityProfileUploadResponse",
+        "type": "object"
+      },
+      "EntityProfileView": {
+        "additionalProperties": true,
+        "properties": {
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Avatar Url"
+          },
+          "can_edit": {
+            "title": "Can Edit",
+            "type": "boolean"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/EntityProfileFields"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "owner_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Owner Account Id"
+          },
+          "revision": {
+            "minimum": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "subject_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "subject_kind": {
+            "enum": [
+              "team",
+              "project",
+              "employee",
+              "technology"
+            ],
+            "title": "Subject Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatar_url",
+          "can_edit",
+          "fields",
+          "name",
+          "organization_id",
+          "owner_account_id",
+          "revision",
+          "schema_version",
+          "subject_id",
+          "subject_kind"
+        ],
+        "title": "EntityProfileView",
+        "type": "object"
+      },
+      "EntityProfileWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+                "type": "string"
+              }
+            ],
+            "title": "Authorization Revision"
+          },
+          "expected_revision": {
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/EntityProfileFields"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "expected_revision",
+          "idempotency_key",
+          "fields"
+        ],
+        "title": "EntityProfileWriteRequest",
+        "type": "object"
       },
       "EnvVarRequirement": {
         "additionalProperties": false,
@@ -10148,6 +11169,29 @@
           "trust_lane"
         ],
         "title": "PrivateVersionTrust",
+        "type": "object"
+      },
+      "ProfileLink": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "url"
+        ],
+        "title": "ProfileLink",
         "type": "object"
       },
       "ProjectActivityRequest": {
@@ -18560,6 +19604,60 @@
           "fact"
         ],
         "title": "TechnologyObservation",
+        "type": "object"
+      },
+      "TechnologyOwnerRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_revision": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+                "type": "string"
+              }
+            ],
+            "title": "Authorization Revision"
+          },
+          "expected_revision": {
+            "minimum": 0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "owner_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Account Id"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorization_revision",
+          "expected_revision",
+          "idempotency_key",
+          "owner_account_id"
+        ],
+        "title": "TechnologyOwnerRequest",
         "type": "object"
       },
       "TechnologyScanHandoff": {
@@ -32536,6 +33634,445 @@
         "summary": "Assign or retire an exact catalog version without granting access."
       }
     },
+    "/v1/corporate/organizations/{organization_id}/catalog-ownership": {
+      "get": {
+        "operationId": "readCorporateCatalogOwnership",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "object_kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "setup",
+                "component"
+              ],
+              "title": "Object Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Stable Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateCatalogOwnership.corporateProfile": {
+                    "summary": "An authorized tenant reads operational ownership for an exact setup version.",
+                    "value": {
+                      "can_edit": true,
+                      "object_kind": "setup",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_display_name": "fixture-owner",
+                      "revision": 1,
+                      "schema_version": 1,
+                      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateCatalogOwnership"
+                }
+              }
+            },
+            "description": "Read tenant operational ownership without changing catalog authorship.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read tenant operational ownership without changing catalog authorship."
+      },
+      "put": {
+        "operationId": "writeCorporateCatalogOwnership",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "writeCorporateCatalogOwnership.corporateProfile": {
+                  "summary": "A tenant owner assignment returns its retained revision.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-write-catalog-ownership-0001",
+                    "object_kind": "setup",
+                    "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "schema_version": 1,
+                    "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "version": "1.0"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorporateCatalogOwnershipRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "writeCorporateCatalogOwnership.corporateProfile": {
+                    "summary": "A tenant owner assignment returns its retained revision.",
+                    "value": {
+                      "can_edit": true,
+                      "object_kind": "setup",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_display_name": "fixture-owner",
+                      "revision": 1,
+                      "schema_version": 1,
+                      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateCatalogOwnership"
+                }
+              }
+            },
+            "description": "Assign or clear a tenant operational owner under retained revision.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Assign or clear a tenant operational owner under retained revision."
+      }
+    },
     "/v1/corporate/organizations/{organization_id}/context": {
       "get": {
         "operationId": "readCorporateContext",
@@ -32731,6 +34268,383 @@
           }
         ],
         "summary": "Read effective corporate context and capabilities."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/directory": {
+      "get": {
+        "operationId": "readCorporateDirectory",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "title": "Category Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "is_lead",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Is Lead"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lead_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "title": "Lead Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 128,
+              "maximum": 256,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "title": "Project Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "pattern": ".*\\S.*",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Query"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "enum": [
+                "projects",
+                "teams",
+                "members",
+                "technologies"
+              ],
+              "title": "Resource",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "active",
+                    "deprecated",
+                    "archived",
+                    "suspended"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "title": "Team Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "technology_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "title": "Technology Ids",
+              "type": "array"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateDirectory.empty": {
+                    "summary": "An authorized empty directory exposes no fabricated cards or facets.",
+                    "value": {
+                      "facets": {
+                        "categories": [],
+                        "leads": [],
+                        "projects": [],
+                        "teams": [],
+                        "technologies": []
+                      },
+                      "items": [],
+                      "organization": {
+                        "authorization_revision": 1,
+                        "display_name": "Corporate engineering",
+                        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "schema_version": 1,
+                        "state": "active"
+                      },
+                      "resource": "teams",
+                      "schema_version": 1,
+                      "total": 0
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateDirectoryView"
+                }
+              }
+            },
+            "description": "Read authorized named cards and facets; filter before pagination.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read authorized named cards and facets; filter before pagination."
       }
     },
     "/v1/corporate/organizations/{organization_id}/employee-technologies": {
@@ -32969,6 +34883,479 @@
           }
         ],
         "summary": "Assign or retire an employee competence without changing access."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/entity-profiles/{subject_kind}/{subject_id}": {
+      "get": {
+        "operationId": "readCorporateEntityProfile",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Entity kind.",
+            "in": "path",
+            "name": "subject_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(team|project|employee|technology)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed identity matched to entity kind.",
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(operation|remote_project|account|technology)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateEntityProfile.corporateProfile": {
+                    "summary": "An authorized tenant reads the editable presentation of a typed team identity.",
+                    "value": {
+                      "avatar_url": "/v1/media/avatars/avatar_0123456789abcdef01234567",
+                      "can_edit": true,
+                      "fields": {
+                        "avatar_asset_id": "avatar_0123456789abcdef01234567",
+                        "description": "fixture team profile",
+                        "links": [
+                          {
+                            "label": "Repository",
+                            "url": "https://example.com/fixture-team"
+                          }
+                        ],
+                        "media": [
+                          {
+                            "alt": "Fixture team profile",
+                            "caption": "Fixture media",
+                            "kind": "image",
+                            "url": "/v1/media/avatars/avatar_0123456789abcdef01234567"
+                          }
+                        ]
+                      },
+                      "name": "fixture-team",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "revision": 1,
+                      "schema_version": 1,
+                      "subject_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "subject_kind": "team"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/EntityProfileView"
+                }
+              }
+            },
+            "description": "Read tenant presentation and current edit capability.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read tenant presentation and current edit capability."
+      },
+      "put": {
+        "operationId": "writeCorporateEntityProfile",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Entity kind.",
+            "in": "path",
+            "name": "subject_kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(team|project|employee|technology)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed identity matched to entity kind.",
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "pattern": "^(operation|remote_project|account|technology)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "writeCorporateEntityProfile.corporateProfile": {
+                  "summary": "A tenant replaces profile fields under an independent optimistic revision.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 1,
+                    "fields": {
+                      "avatar_asset_id": "avatar_0123456789abcdef01234567",
+                      "description": "fixture team profile updated",
+                      "links": [],
+                      "media": []
+                    },
+                    "idempotency_key": "fixture-write-profile-0001",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/EntityProfileWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "writeCorporateEntityProfile.corporateProfile": {
+                    "summary": "A tenant replaces profile fields under an independent optimistic revision.",
+                    "value": {
+                      "avatar_url": "/v1/media/avatars/avatar_0123456789abcdef01234567",
+                      "can_edit": true,
+                      "fields": {
+                        "avatar_asset_id": "avatar_0123456789abcdef01234567",
+                        "description": "fixture team profile updated",
+                        "links": [],
+                        "media": []
+                      },
+                      "name": "fixture-team",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "revision": 2,
+                      "schema_version": 1,
+                      "subject_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "subject_kind": "team"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/EntityProfileView"
+                }
+              }
+            },
+            "description": "Replace tenant presentation under independent optimistic revision.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Replace tenant presentation under independent optimistic revision."
       }
     },
     "/v1/corporate/organizations/{organization_id}/members": {
@@ -34864,6 +37251,493 @@
           }
         ],
         "summary": "Assign a member to a team or project."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/overview": {
+      "get": {
+        "operationId": "readCorporateOverview",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateOverview.shared-team": {
+                    "summary": "The authorized normalized graph retains typed identities and restricted assignment visibility.",
+                    "value": {
+                      "edges": [
+                        {
+                          "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "kind": "project_team",
+                          "parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "role": "owner"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "role": "lead"
+                        }
+                      ],
+                      "nodes": [
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "kind": "project",
+                          "lead_account_ids": [],
+                          "name": "Platform"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "kind": "team",
+                          "lead_account_ids": [
+                            "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                          ],
+                          "name": "Core"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": false,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Team lead"
+                        }
+                      ],
+                      "organization": {
+                        "authorization_revision": 1,
+                        "display_name": "Corporate engineering",
+                        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "schema_version": 1,
+                        "state": "active"
+                      },
+                      "schema_version": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateOverview"
+                }
+              }
+            },
+            "description": "Read the authorized project/team/employee graph and catalog assignments.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the authorized project/team/employee graph and catalog assignments."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/profiles/{kind}/{id}/media": {
+      "post": {
+        "operationId": "uploadCorporateEntityProfileMedia",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Entity kind.",
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(team|project|employee|technology)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Typed entity identity.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^(operation|remote_project|account|technology)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "authorization_revision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Authorization Revision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_revision",
+            "required": true,
+            "schema": {
+              "minimum": 0,
+              "title": "Expected Revision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "enum": [
+                "avatar",
+                "media"
+              ],
+              "title": "Purpose",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "uploadCorporateEntityProfileMedia.corporateProfile": {
+                    "summary": "Profile media upload carries raw bytes and a typed upload query without a JSON wrapper.",
+                    "value": {
+                      "avatar_asset_id": "avatar_0123456789abcdef01234567",
+                      "kind": "image",
+                      "media_id": "media_fixture_profile_upload",
+                      "public_url": "/v1/media/avatars/avatar_0123456789abcdef01234567",
+                      "schema_version": 1,
+                      "size_bytes": 3,
+                      "state": "ready"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/EntityProfileUploadResponse"
+                }
+              }
+            },
+            "description": "Upload processed profile-authorized avatar or gallery bytes.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Upload processed profile-authorized avatar or gallery bytes."
       }
     },
     "/v1/corporate/organizations/{organization_id}/projects": {
@@ -44794,6 +47668,244 @@
           }
         ],
         "summary": "Preview a digest-pinned deliberate technology merge."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/owner": {
+      "put": {
+        "operationId": "writeTechnologyOwner",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Stable technology ID.",
+            "in": "path",
+            "name": "technology_id",
+            "required": true,
+            "schema": {
+              "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "writeTechnologyOwner.corporateProfile": {
+                  "summary": "Technology ownership is written independently of the technology profile fields.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "expected_revision": 0,
+                    "idempotency_key": "fixture-write-technology-owner-0001",
+                    "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TechnologyOwnerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "writeTechnologyOwner.corporateProfile": {
+                    "summary": "Technology ownership is written independently of the technology profile fields.",
+                    "value": {
+                      "avatar_url": null,
+                      "can_edit": true,
+                      "fields": {
+                        "avatar_asset_id": null,
+                        "description": "",
+                        "links": [],
+                        "media": []
+                      },
+                      "name": "fixture-technology",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "revision": 1,
+                      "schema_version": 1,
+                      "subject_id": "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "subject_kind": "technology"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/EntityProfileView"
+                }
+              }
+            },
+            "description": "Assign an independent technology owner from active tenant employees.",
+            "headers": {
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Assign an independent technology owner from active tenant employees."
       }
     },
     "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/projects": {

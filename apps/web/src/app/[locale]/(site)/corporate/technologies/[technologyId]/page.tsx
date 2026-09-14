@@ -3,6 +3,9 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { TechnologyMergeControls } from "@/components/organisms/technology-merge-controls";
+import { CorporateEntityDetail } from "@/components/organisms/corporate-entity-detail";
+import { CorporateTechnologyOwnerEditor } from "@/components/organisms/corporate-technology-owner-editor";
+import { readCorporatePresentation } from "@/lib/api/corporate-detail";
 import {
   TechnologyDecisionEditor,
   TechnologyTeamEditor,
@@ -24,6 +27,7 @@ type GovernanceMutation = {
   authorizationRevision: string;
 };
 
+// eslint-disable-next-line max-lines-per-function -- this page composes the existing technology controls
 export default async function TechnologyDetailPage({
   params,
 }: {
@@ -54,117 +58,162 @@ export default async function TechnologyDetailPage({
     csrfToken: (await readCsrfToken()) ?? "",
     authorizationRevision: permissions.authorization_revision,
   };
+  const presentation = await readCorporatePresentation(
+    session,
+    organizationId,
+    "technologies",
+    technologyId,
+    workspace.organization.authorization_revision,
+  );
+  if (presentation) {
+    const owner = detail.members.find(
+      (member) => member.account_id === presentation.owner_account_id,
+    );
+    presentation.owner = owner
+      ? { kind: "employee", id: owner.account_id, name: owner.display_name ?? h("employees") }
+      : null;
+  }
+  const canAssignOwner =
+    workspace.capabilities.includes("member.update") ||
+    workspace.teams.some(
+      (team) =>
+        team.state === "active" &&
+        team.members.some(
+          (member) => member.account_id === workspace.member.account_id && member.role === "lead",
+        ),
+    );
   return (
     <div className="min-w-0 space-y-8">
       <header className="space-y-3">
         <HistoryBackButton label={t("back")} fallback="/corporate/technologies" />
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{technology.name}</h1>
         <p className="text-muted-foreground">{t(`values.${technology.lifecycle}`)}</p>
-        {technology.description && <p className="max-w-prose">{technology.description}</p>}
       </header>
-      <dl className="grid gap-4 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-muted-foreground">{t("categories")}</dt>
-          <dd className="mt-1">
-            {technology.category_ids.map((id) => {
-              const category = categories?.items.find((item) => item.category_id === id);
-              return category ? (
-                <Link
-                  key={id}
-                  href={`/corporate/categories/${id}`}
-                  className="mr-3 underline underline-offset-4"
-                >
-                  {category.name}
-                </Link>
-              ) : null;
-            })}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{t("aliases")}</dt>
-          <dd className="mt-1">
-            {technology.aliases.length ? technology.aliases.join(", ") : t("values.none")}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{t("officialUrls")}</dt>
-          <dd>
-            <ul>
-              {technology.official_urls.map((url) => (
-                <li key={url}>
-                  <a
-                    href={url}
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-11 max-w-full items-center break-all underline underline-offset-4"
-                  >
-                    {url}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </dd>
-        </div>
-        {technology.icon_url && (
+      <CorporateEntityDetail
+        presentation={presentation}
+        description={technology.description}
+        organizationId={organizationId}
+        resource="technologies"
+        resourceId={technologyId}
+        csrfToken={mutation.csrfToken}
+        rail={
+          presentation && canAssignOwner && !technology.redirect_id ? (
+            <CorporateTechnologyOwnerEditor
+              organizationId={organizationId}
+              technologyId={technologyId}
+              ownerAccountId={presentation.owner_account_id}
+              revision={presentation.revision}
+              authorizationRevision={workspace.organization.authorization_revision}
+              csrfToken={mutation.csrfToken}
+              members={detail.members}
+            />
+          ) : null
+        }
+      >
+        <dl className="grid gap-4 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-muted-foreground">{t("iconUrl")}</dt>
-            <dd>
-              <a
-                href={technology.icon_url}
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 max-w-full items-center break-all underline underline-offset-4"
-              >
-                {technology.icon_url}
-              </a>
+            <dt className="text-muted-foreground">{t("categories")}</dt>
+            <dd className="mt-1">
+              {technology.category_ids.map((id) => {
+                const category = categories?.items.find((item) => item.category_id === id);
+                return category ? (
+                  <Link
+                    key={id}
+                    href={`/corporate/categories/${id}`}
+                    className="mr-3 underline underline-offset-4"
+                  >
+                    {category.name}
+                  </Link>
+                ) : null;
+              })}
             </dd>
           </div>
+          <div>
+            <dt className="text-muted-foreground">{t("aliases")}</dt>
+            <dd className="mt-1">
+              {technology.aliases.length ? technology.aliases.join(", ") : t("values.none")}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">{t("officialUrls")}</dt>
+            <dd>
+              <ul>
+                {technology.official_urls.map((url) => (
+                  <li key={url}>
+                    <a
+                      href={url}
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 max-w-full items-center break-all underline underline-offset-4"
+                    >
+                      {url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+          {technology.icon_url && (
+            <div>
+              <dt className="text-muted-foreground">{t("iconUrl")}</dt>
+              <dd>
+                <a
+                  href={technology.icon_url}
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 max-w-full items-center break-all underline underline-offset-4"
+                >
+                  {technology.icon_url}
+                </a>
+              </dd>
+            </div>
+          )}
+        </dl>
+        <TechnologyProjectsPanel
+          projects={detail.projects}
+          labels={{ title: h("projects"), empty: h("empty"), unavailable: t("unavailable") }}
+        />
+        {technology.redirect_id && (
+          <Link
+            href={`/corporate/technologies/${technology.redirect_id}`}
+            className="inline-flex min-h-11 items-center underline underline-offset-4"
+          >
+            {t("mergedIdentity")}
+          </Link>
         )}
-      </dl>
-      <TechnologyProjectsPanel
-        projects={detail.projects}
-        labels={{ title: h("projects"), empty: h("empty"), unavailable: t("unavailable") }}
-      />
-      {technology.redirect_id && (
-        <Link
-          href={`/corporate/technologies/${technology.redirect_id}`}
-          className="inline-flex min-h-11 items-center underline underline-offset-4"
-        >
-          {t("mergedIdentity")}
-        </Link>
-      )}
-      {permissions.capabilities.includes("technology.update") && !technology.redirect_id && (
-        <details>
-          <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
-            {common("edit")}
-          </summary>
-          <TechnologyRegistryCreate
-            kind="technology"
-            initial={technology}
-            categories={categories?.items ?? null}
-            {...mutation}
-          />
-        </details>
-      )}
-      <TechnologyLifecycleControls
-        technology={technology}
-        capabilities={permissions.capabilities}
-        {...mutation}
-      />
-      <TechnologyGovernancePanel
-        technologyId={technology.technology_id}
-        permissions={permissions}
-        decision={decision}
-        teams={teams}
-        mutation={mutation}
-        availableTeams={detail.availableTeams}
-        members={detail.members}
-        labels={{ governance: t("governance"), responsibilities: t("responsibilities") }}
-      />
-      {permissions.capabilities.includes("technology.merge") && !technology.redirect_id && (
-        <details>
-          <summary className="min-h-11 cursor-pointer py-3 text-sm">{t("mergeTitle")}</summary>
-          <TechnologyMergeControls technology={technology} {...mutation} />
-        </details>
-      )}
+        {permissions.capabilities.includes("technology.update") && !technology.redirect_id && (
+          <details>
+            <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
+              {common("edit")}
+            </summary>
+            <TechnologyRegistryCreate
+              kind="technology"
+              initial={technology}
+              categories={categories?.items ?? null}
+              {...mutation}
+            />
+          </details>
+        )}
+        <TechnologyLifecycleControls
+          technology={technology}
+          capabilities={permissions.capabilities}
+          {...mutation}
+        />
+        <TechnologyGovernancePanel
+          technologyId={technology.technology_id}
+          permissions={permissions}
+          decision={decision}
+          teams={teams}
+          mutation={mutation}
+          availableTeams={detail.availableTeams}
+          members={detail.members}
+          labels={{ governance: t("governance"), responsibilities: t("responsibilities") }}
+        />
+        {permissions.capabilities.includes("technology.merge") && !technology.redirect_id && (
+          <details>
+            <summary className="min-h-11 cursor-pointer py-3 text-sm">{t("mergeTitle")}</summary>
+            <TechnologyMergeControls technology={technology} {...mutation} />
+          </details>
+        )}
+      </CorporateEntityDetail>
     </div>
   );
 }

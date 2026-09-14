@@ -24,6 +24,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ai_stp_platform.db import Base
+from ai_stp_platform.organization_models import EntityProfileColumns
 
 
 class _TenantRow:
@@ -55,9 +56,15 @@ class TechnologyCategory(_TenantRow, Base):
     )
 
 
-class Technology(_TenantRow, Base):
+class Technology(EntityProfileColumns, _TenantRow, Base):
     __tablename__ = "technology"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "owner_account_id"],
+            ["organization_membership.organization_id", "organization_membership.account_id"],
+            ondelete="RESTRICT",
+            name="fk_technology_owner_membership",
+        ),
         ForeignKeyConstraint(
             ["organization_id", "redirect_id"],
             ["technology.organization_id", "technology.id"],
@@ -72,8 +79,10 @@ class Technology(_TenantRow, Base):
         ),
         CheckConstraint("redirect_id IS NULL OR redirect_id <> id", name="ck_technology_redirect"),
         CheckConstraint("revision >= 1", name="ck_technology_revision"),
+        CheckConstraint("profile_revision >= 0", name="ck_technology_profile_revision"),
     )
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(
         String(4000), nullable=False, default="", server_default=""

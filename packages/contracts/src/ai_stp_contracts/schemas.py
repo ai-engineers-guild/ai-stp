@@ -130,6 +130,7 @@ from ai_stp_contracts.corporate import (
     CorporateMembershipAssignmentRequest,
     CorporateMemberUpdateRequest,
     CorporateOrganization,
+    CorporateOverview,
     CorporateProjectCreateRequest,
     CorporateProjectLifecycleRequest,
     CorporateProjectList,
@@ -147,6 +148,18 @@ from ai_stp_contracts.corporate import (
     CorporateTeamList,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
+)
+from ai_stp_contracts.corporate_catalog_ownership import (
+    CorporateCatalogOwnership,
+    CorporateCatalogOwnershipQuery,
+    CorporateCatalogOwnershipRequest,
+)
+from ai_stp_contracts.corporate_directory import CorporateDirectoryView
+from ai_stp_contracts.corporate_profiles import (
+    EntityProfileUploadResponse,
+    EntityProfileView,
+    EntityProfileWriteRequest,
+    TechnologyOwnerRequest,
 )
 from ai_stp_contracts.deep_links import DeepLinkView
 from ai_stp_contracts.estate_release import EstateRelease
@@ -542,6 +555,15 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "corporate-binding-update-request": CorporateBindingUpdateRequest,
     "corporate-bootstrap-request": CorporateBootstrapRequest,
     "corporate-context": CorporateContext,
+    "corporate-overview": CorporateOverview,
+    "corporate-directory": CorporateDirectoryView,
+    "corporate-catalog-ownership": CorporateCatalogOwnership,
+    "corporate-catalog-ownership-query": CorporateCatalogOwnershipQuery,
+    "corporate-catalog-ownership-request": CorporateCatalogOwnershipRequest,
+    "corporate-entity-profile": EntityProfileView,
+    "corporate-entity-profile-upload-response": EntityProfileUploadResponse,
+    "corporate-entity-profile-write-request": EntityProfileWriteRequest,
+    "technology-owner-request": TechnologyOwnerRequest,
     "corporate-delete-request": CorporateDeleteRequest,
     "corporate-delete-result": CorporateDeleteResult,
     "corporate-member": CorporateMember,

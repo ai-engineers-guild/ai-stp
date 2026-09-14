@@ -131,6 +131,7 @@ from ai_stp_contracts.corporate import (
     CorporateMembershipAssignmentRequest,
     CorporateMemberUpdateRequest,
     CorporateOrganization,
+    CorporateOverview,
     CorporateProjectCreateRequest,
     CorporateProjectLifecycleRequest,
     CorporateProjectList,
@@ -148,6 +149,19 @@ from ai_stp_contracts.corporate import (
     CorporateTeamList,
     CorporateTeamUpdateRequest,
     CorporateTeamView,
+)
+from ai_stp_contracts.corporate_catalog_ownership import (
+    CorporateCatalogOwnership,
+    CorporateCatalogOwnershipQuery,
+    CorporateCatalogOwnershipRequest,
+)
+from ai_stp_contracts.corporate_directory import CorporateDirectoryQuery, CorporateDirectoryView
+from ai_stp_contracts.corporate_profiles import (
+    EntityProfileUploadQuery,
+    EntityProfileUploadResponse,
+    EntityProfileView,
+    EntityProfileWriteRequest,
+    TechnologyOwnerRequest,
 )
 from ai_stp_contracts.families import (
     SetupFamilyCreateRequest,
@@ -375,6 +389,8 @@ class Operation:
     status: int = 200
     authenticated: bool = False
     idempotent_mutation: bool = False
+    #: Whether the HTTP transport requires `If-Match`; request-model revision
+    #: fields remain an independent precondition when the route uses them.
     requires_precondition: bool = False
 
     #: What the success body is. Anything but JSON has no schema to reference,
@@ -466,6 +482,104 @@ _TECHNOLOGY_ID = PathParam(
 _CATEGORY_ID = PathParam("category_id", "Stable category ID.", stable_id_pattern("category"))
 
 OPERATIONS: Final[tuple[Operation, ...]] = (
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/catalog-ownership",
+        operation_id="readCorporateCatalogOwnership",
+        summary="Read tenant operational ownership without changing catalog authorship.",
+        response=CorporateCatalogOwnership,
+        query=CorporateCatalogOwnershipQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/catalog-ownership",
+        operation_id="writeCorporateCatalogOwnership",
+        summary="Assign or clear a tenant operational owner under retained revision.",
+        response=CorporateCatalogOwnership,
+        body=CorporateCatalogOwnershipRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/profiles/{kind}/{id}/media",
+        operation_id="uploadCorporateEntityProfileMedia",
+        summary="Upload processed profile-authorized avatar or gallery bytes.",
+        response=EntityProfileUploadResponse,
+        query=EntityProfileUploadQuery,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam("kind", "Entity kind.", "^(team|project|employee|technology)$"),
+            PathParam(
+                "id",
+                "Typed entity identity.",
+                "^(operation|remote_project|account|technology)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            ),
+        ),
+        authenticated=True,
+        idempotent_mutation=True,
+        request_media_type="application/octet-stream",
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/entity-profiles/{subject_kind}/{subject_id}",
+        operation_id="readCorporateEntityProfile",
+        summary="Read tenant presentation and current edit capability.",
+        response=EntityProfileView,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam("subject_kind", "Entity kind.", "^(team|project|employee|technology)$"),
+            PathParam(
+                "subject_id",
+                "Typed identity matched to entity kind.",
+                "^(operation|remote_project|account|technology)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            ),
+        ),
+        authenticated=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/entity-profiles/{subject_kind}/{subject_id}",
+        operation_id="writeCorporateEntityProfile",
+        summary="Replace tenant presentation under independent optimistic revision.",
+        response=EntityProfileView,
+        body=EntityProfileWriteRequest,
+        path_params=(
+            _ORGANIZATION_ID,
+            PathParam("subject_kind", "Entity kind.", "^(team|project|employee|technology)$"),
+            PathParam(
+                "subject_id",
+                "Typed identity matched to entity kind.",
+                "^(operation|remote_project|account|technology)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            ),
+        ),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/technologies/{technology_id}/owner",
+        operation_id="writeTechnologyOwner",
+        summary="Assign an independent technology owner from active tenant employees.",
+        response=EntityProfileView,
+        body=TechnologyOwnerRequest,
+        path_params=(_ORGANIZATION_ID, _TECHNOLOGY_ID),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/directory",
+        operation_id="readCorporateDirectory",
+        summary="Read authorized named cards and facets; filter before pagination.",
+        response=CorporateDirectoryView,
+        query=CorporateDirectoryQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
     Operation(
         method="get",
         path="/corporate/organizations/{organization_id}/members/{account_id}/technologies",
@@ -908,6 +1022,15 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         operation_id="readCorporateContext",
         summary="Read effective corporate context and capabilities.",
         response=CorporateContext,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/overview",
+        operation_id="readCorporateOverview",
+        summary="Read the authorized project/team/employee graph and catalog assignments.",
+        response=CorporateOverview,
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
     ),

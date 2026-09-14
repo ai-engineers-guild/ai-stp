@@ -9,6 +9,7 @@ import { Link } from "@/lib/i18n/navigation";
 import { isShellPrefetchHref } from "@/lib/prefetch-policy";
 import { UI } from "@/lib/ui-selectors";
 import { Icon, type IconName } from "@/theme";
+import { corporateHref } from "@/lib/features/corporate-path";
 
 export function AccountControl({ signedIn }: { signedIn: boolean }) {
   const t = useTranslations("nav");
@@ -18,7 +19,7 @@ export function AccountControl({ signedIn }: { signedIn: boolean }) {
       <Button asChild size="icon" variant="outline" className="size-11">
         <Link
           data-ui={UI.navigation.account}
-          href="/login"
+          href={corporateHref("/login")}
           prefetch={isShellPrefetchHref("/login")}
           title={t("loginHint")}
           aria-label={t("login")}
@@ -116,7 +117,7 @@ function AccountMenuLink({
   return (
     <DropdownMenu.Item asChild>
       <Link
-        href={href}
+        href={corporateHref(href)}
         prefetch={false}
         {...(ui ? { "data-ui": ui } : {})}
         className="hover:bg-muted focus:bg-muted flex min-h-11 items-center gap-3 rounded-sm px-3 py-2 text-sm outline-none"

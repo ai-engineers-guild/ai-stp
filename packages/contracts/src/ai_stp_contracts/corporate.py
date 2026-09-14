@@ -474,3 +474,70 @@ class CorporateAuditQuery(BaseModel):
     target_id: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     created_from: Timestamp | None = None
     created_to: Timestamp | None = None
+
+
+class CorporateOverviewNode(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["project", "team", "employee"]
+    id: Annotated[str, Field(min_length=1, max_length=64)]
+    name: str
+    lead_account_ids: list[AccountId] = []
+    assignments: list[CorporateCatalogAssignment] = []
+    assignments_readable: bool = False
+
+    @model_validator(mode="after")
+    def typed_identity(self) -> Self:
+        prefix = {"project": "remote_project", "team": "operation", "employee": "account"}[
+            self.kind
+        ]
+        if not re.fullmatch(stable_id_pattern(prefix), self.id):
+            raise ValueError("overview identity does not match its kind")
+        if self.kind != "team" and self.lead_account_ids:
+            raise ValueError("only teams expose team leads")
+        return self
+
+
+class CorporateOverviewEdge(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    parent_id: str
+    child_id: str
+    kind: Literal["project_team", "team_employee"]
+    role: Literal["owner", "responsible", "contributor", "lead", "staff"]
+
+
+class CorporateOverview(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization: CorporateOrganization
+    nodes: list[CorporateOverviewNode]
+    edges: list[CorporateOverviewEdge]
+
+    @model_validator(mode="after")
+    def coherent_graph(self) -> Self:
+        nodes = {node.id: node for node in self.nodes}
+        if len(nodes) != len(self.nodes):
+            raise ValueError("overview nodes must have distinct identities")
+        seen: set[tuple[str, str]] = set()
+        for edge in self.edges:
+            parent, child = nodes.get(edge.parent_id), nodes.get(edge.child_id)
+            if parent is None or child is None:
+                raise ValueError("overview edges require visible anchors")
+            expected = ("project", "team") if edge.kind == "project_team" else ("team", "employee")
+            if (parent.kind, child.kind) != expected:
+                raise ValueError("overview edge kinds must preserve hierarchy")
+            roles = (
+                {"owner", "responsible", "contributor"}
+                if edge.kind == "project_team"
+                else {"lead", "staff"}
+            )
+            if edge.role not in roles or (edge.parent_id, edge.child_id) in seen:
+                raise ValueError("overview edge role or identity is invalid")
+            seen.add((edge.parent_id, edge.child_id))
+        for node in self.nodes:
+            if any(
+                assignment.organization_id != self.organization.organization_id
+                or assignment.subject_id != node.id
+                for assignment in node.assignments
+            ):
+                raise ValueError("overview assignments require the same tenant and subject")
+        return self

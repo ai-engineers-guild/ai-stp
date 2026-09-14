@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { useRouter } from "@/lib/i18n/navigation";
+import { corporateHref } from "@/lib/features/corporate-path";
 
 type KeyboardNavigationProps = {
   accountHref: "/account" | "/login";
@@ -26,14 +27,14 @@ export function KeyboardNavigation({ accountHref, contactEnabled }: KeyboardNavi
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        router.push("/catalog");
+        router.push(corporateHref("/catalog"));
         return;
       }
       if (event.ctrlKey || event.metaKey || event.shiftKey) return;
 
       const key = event.key.toLowerCase();
       if (contactEnabled && key === "c") router.push("/contact");
-      if (key === "p") router.push(accountHref);
+      if (key === "p") router.push(corporateHref(accountHref));
     }
 
     window.addEventListener("keydown", onKeyDown);

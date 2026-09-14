@@ -33,6 +33,7 @@ roots = [
   "docker-compose.dev.yml",
   "docker-compose.prod.yml",
   "docker-compose.seo-enrichment.yml",
+  "docker-compose.corporate-local.yml",
   "Dockerfile",
   "Dockerfile.user-docs",
   "Dockerfile.worker-safety",

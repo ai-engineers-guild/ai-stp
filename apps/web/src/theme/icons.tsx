@@ -35,6 +35,11 @@ import {
   MoreHorizontal,
   MoreVertical,
   Boxes,
+  UsersRound,
+  Box,
+  Database,
+  Settings,
+  Code,
   SlidersHorizontal,
   SortAsc,
   Sparkles,
@@ -99,7 +104,12 @@ export type IconName =
   | "logout"
   | "objects"
   | "devices"
-  | "access";
+  | "access"
+  | "team"
+  | "component"
+  | "technology"
+  | "setup"
+  | "code";
 
 export type IconSize = keyof typeof iconSizes;
 
@@ -156,6 +166,11 @@ const REGISTRY: Record<IconName, LucideIcon> = {
   objects: Boxes,
   devices: Monitor,
   access: KeyRound,
+  team: UsersRound,
+  component: Box,
+  technology: Database,
+  setup: Settings,
+  code: Code,
 };
 
 export type IconProps = Omit<LucideProps, "size"> & {

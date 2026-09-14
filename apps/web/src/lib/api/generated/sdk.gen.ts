@@ -332,12 +332,24 @@ import type {
   ReadCorporateBindingData,
   ReadCorporateBindingErrors,
   ReadCorporateBindingResponses,
+  ReadCorporateCatalogOwnershipData,
+  ReadCorporateCatalogOwnershipErrors,
+  ReadCorporateCatalogOwnershipResponses,
   ReadCorporateContextData,
   ReadCorporateContextErrors,
   ReadCorporateContextResponses,
+  ReadCorporateDirectoryData,
+  ReadCorporateDirectoryErrors,
+  ReadCorporateDirectoryResponses,
+  ReadCorporateEntityProfileData,
+  ReadCorporateEntityProfileErrors,
+  ReadCorporateEntityProfileResponses,
   ReadCorporateMemberData,
   ReadCorporateMemberErrors,
   ReadCorporateMemberResponses,
+  ReadCorporateOverviewData,
+  ReadCorporateOverviewErrors,
+  ReadCorporateOverviewResponses,
   ReadCorporateProjectActivityData,
   ReadCorporateProjectActivityErrors,
   ReadCorporateProjectActivityResponses,
@@ -560,12 +572,21 @@ import type {
   UpdateOwnerPresentationData,
   UpdateOwnerPresentationErrors,
   UpdateOwnerPresentationResponses,
+  UploadCorporateEntityProfileMediaData,
+  UploadCorporateEntityProfileMediaErrors,
+  UploadCorporateEntityProfileMediaResponses,
   UploadOwnerPresentationMediaData,
   UploadOwnerPresentationMediaErrors,
   UploadOwnerPresentationMediaResponses,
   WriteCorporateCatalogAssignmentData,
   WriteCorporateCatalogAssignmentErrors,
   WriteCorporateCatalogAssignmentResponses,
+  WriteCorporateCatalogOwnershipData,
+  WriteCorporateCatalogOwnershipErrors,
+  WriteCorporateCatalogOwnershipResponses,
+  WriteCorporateEntityProfileData,
+  WriteCorporateEntityProfileErrors,
+  WriteCorporateEntityProfileResponses,
   WriteCorporateProjectActivityData,
   WriteCorporateProjectActivityErrors,
   WriteCorporateProjectActivityResponses,
@@ -589,6 +610,9 @@ import type {
   WriteTechnologyLandscapePolicyData,
   WriteTechnologyLandscapePolicyErrors,
   WriteTechnologyLandscapePolicyResponses,
+  WriteTechnologyOwnerData,
+  WriteTechnologyOwnerErrors,
+  WriteTechnologyOwnerResponses,
   WriteTechnologyResponses,
   WriteTechnologyTeamData,
   WriteTechnologyTeamErrors,
@@ -1537,6 +1561,50 @@ export const writeCorporateCatalogAssignment = <ThrowOnError extends boolean = f
   });
 
 /**
+ * Read tenant operational ownership without changing catalog authorship.
+ */
+export const readCorporateCatalogOwnership = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateCatalogOwnershipData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateCatalogOwnershipResponses,
+  ReadCorporateCatalogOwnershipErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateCatalogOwnershipResponses,
+    ReadCorporateCatalogOwnershipErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-ownership",
+    ...options,
+  });
+
+/**
+ * Assign or clear a tenant operational owner under retained revision.
+ */
+export const writeCorporateCatalogOwnership = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateCatalogOwnershipData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateCatalogOwnershipResponses,
+  WriteCorporateCatalogOwnershipErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateCatalogOwnershipResponses,
+    WriteCorporateCatalogOwnershipErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-ownership",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * Read effective corporate context and capabilities.
  */
 export const readCorporateContext = <ThrowOnError extends boolean = false>(
@@ -1553,6 +1621,22 @@ export const readCorporateContext = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Read authorized named cards and facets; filter before pagination.
+ */
+export const readCorporateDirectory = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateDirectoryData, ThrowOnError>,
+): RequestResult<ReadCorporateDirectoryResponses, ReadCorporateDirectoryErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadCorporateDirectoryResponses,
+    ReadCorporateDirectoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/directory",
+    ...options,
+  });
+
+/**
  * Assign or retire an employee competence without changing access.
  */
 export const writeEmployeeTechnology = <ThrowOnError extends boolean = false>(
@@ -1565,6 +1649,50 @@ export const writeEmployeeTechnology = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/employee-technologies",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read tenant presentation and current edit capability.
+ */
+export const readCorporateEntityProfile = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateEntityProfileData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateEntityProfileResponses,
+  ReadCorporateEntityProfileErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateEntityProfileResponses,
+    ReadCorporateEntityProfileErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/entity-profiles/{subject_kind}/{subject_id}",
+    ...options,
+  });
+
+/**
+ * Replace tenant presentation under independent optimistic revision.
+ */
+export const writeCorporateEntityProfile = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateEntityProfileData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateEntityProfileResponses,
+  WriteCorporateEntityProfileErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateEntityProfileResponses,
+    WriteCorporateEntityProfileErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/entity-profiles/{subject_kind}/{subject_id}",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -1740,6 +1868,47 @@ export const assignCorporateMember = <ThrowOnError extends boolean = false>(
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read the authorized project/team/employee graph and catalog assignments.
+ */
+export const readCorporateOverview = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateOverviewData, ThrowOnError>,
+): RequestResult<ReadCorporateOverviewResponses, ReadCorporateOverviewErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ReadCorporateOverviewResponses,
+    ReadCorporateOverviewErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/overview",
+    ...options,
+  });
+
+/**
+ * Upload processed profile-authorized avatar or gallery bytes.
+ */
+export const uploadCorporateEntityProfileMedia = <ThrowOnError extends boolean = false>(
+  options: Options<UploadCorporateEntityProfileMediaData, ThrowOnError>,
+): RequestResult<
+  UploadCorporateEntityProfileMediaResponses,
+  UploadCorporateEntityProfileMediaErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    UploadCorporateEntityProfileMediaResponses,
+    UploadCorporateEntityProfileMediaErrors,
+    ThrowOnError
+  >({
+    bodySerializer: null,
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/profiles/{kind}/{id}/media",
+    ...options,
+    headers: {
+      "Content-Type": "application/octet-stream",
       ...options.headers,
     },
   });
@@ -2542,6 +2711,26 @@ export const readTechnologyMergePlan = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/merge-plan",
     ...options,
+  });
+
+/**
+ * Assign an independent technology owner from active tenant employees.
+ */
+export const writeTechnologyOwner = <ThrowOnError extends boolean = false>(
+  options: Options<WriteTechnologyOwnerData, ThrowOnError>,
+): RequestResult<WriteTechnologyOwnerResponses, WriteTechnologyOwnerErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    WriteTechnologyOwnerResponses,
+    WriteTechnologyOwnerErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/technologies/{technology_id}/owner",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

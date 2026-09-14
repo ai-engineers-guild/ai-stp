@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { CSRF_COOKIE, SESSION_COOKIE } from "@/lib/auth/cookies";
+import { corporateHref } from "@/lib/features/corporate-path";
 import { getEnv } from "@/lib/env";
 
 /**
@@ -66,7 +67,7 @@ async function revokeServerSession(): Promise<void> {
 
 export async function POST(request: Request): Promise<NextResponse> {
   await revokeServerSession();
-  return clearAndRedirect(`/${localeOf(request)}/login`);
+  return clearAndRedirect(corporateHref(`/${localeOf(request)}/login`));
 }
 
 export function GET(request: Request): NextResponse {
@@ -76,7 +77,7 @@ export function GET(request: Request): NextResponse {
   const returnTo = url.searchParams.get("returnTo");
   const reason = url.searchParams.get("reason");
   if (returnTo) {
-    params.set("returnTo", returnTo);
+    params.set("returnTo", corporateHref(returnTo));
   }
   if (reason) {
     params.set("reason", reason);
@@ -84,5 +85,5 @@ export function GET(request: Request): NextResponse {
   // Stale-session GET only clears local cookies; do not revoke a still-valid
   // server session when middleware bounced a parse failure.
   const qs = params.toString();
-  return clearAndRedirect(`/${locale}/login${qs ? `?${qs}` : ""}`);
+  return clearAndRedirect(corporateHref(`/${locale}/login${qs ? `?${qs}` : ""}`));
 }

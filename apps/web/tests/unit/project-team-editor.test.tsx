@@ -68,3 +68,32 @@ it("links by name and includes both revisions for an atomic owner replacement", 
   await screen.findByText("Conflict");
   expect(refresh).not.toHaveBeenCalled();
 });
+
+it("keeps the common Teams section visible while mutation controls stay collapsed", () => {
+  render(
+    <>
+      <section>
+        <h2>teams</h2>
+        <a href="/corporate/teams/team_old">Old</a>
+      </section>
+      <details>
+        <summary>Edit</summary>
+        <ProjectTeamEditor
+          organizationId="organization_fixture"
+          projectId="project_fixture"
+          authorizationRevision="revision_fixture"
+          csrfToken="csrf_fixture"
+          capabilities={["project_team.create"]}
+          teams={[{ team_id: "team_old", name: "Old" }]}
+          relations={[]}
+        />
+      </details>
+    </>,
+  );
+  expect(
+    screen
+      .getAllByRole("heading", { name: "teams" })
+      .filter((heading) => !heading.closest("details")),
+  ).toHaveLength(1);
+  expect(screen.getByText("Edit").closest("details")).not.toHaveProperty("open", true);
+});

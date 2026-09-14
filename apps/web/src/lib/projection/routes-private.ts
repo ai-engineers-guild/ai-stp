@@ -1,10 +1,9 @@
 import { getTranslations } from "next-intl/server";
-import { canViewCorporateSection } from "@/lib/corporate-hub";
 
 import { listDevices } from "@/lib/api/devices";
 import {
   readCorporateWorkspace,
-  readCorporateContext,
+  readCorporateOverview,
   readCorporateDirectory,
   readCorporateResource,
 } from "@/lib/api/corporate";
@@ -31,6 +30,7 @@ import {
 import { WORKSPACE_ROUTES } from "@/lib/projection/routes-workspace";
 import type { MachineRoute } from "@/lib/projection/route-table";
 import { presentPage } from "@/lib/projection/presenters";
+import { corporateNodeHref } from "@/lib/corporate-overview";
 import { TECHNOLOGY_ROUTES } from "@/lib/projection/routes-technology";
 
 /**
@@ -150,41 +150,42 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
       });
     },
   },
-  {
-    pattern: "corporate",
+  ...["corporate", "corporate/overview"].map((pattern): MachineRoute => ({
+    pattern,
     resolve: async () => {
       const t = await getTranslations("corporate");
-      const workspace = await readCorporateWorkspace((await sessionCookieValue()) ?? "");
-      if (!workspace) return presentPage({ title: t("emptyTitle"), summary: t("emptyBody") });
+      const graph = await readCorporateOverview((await sessionCookieValue()) ?? "");
+      if (!graph) return presentPage({ title: t("emptyTitle"), summary: t("emptyBody") });
+      const h = await getTranslations("hub");
       return presentPage({
-        title: workspace.context.organization.display_name,
+        title: graph.organization.display_name,
         summary: t("subtitle"),
-        fields: [
-          [t("projects"), workspace.context.projects.map((item) => item.name).join(", ") || "-"],
-          [t("teams"), workspace.context.teams.map((item) => item.name).join(", ") || "-"],
-        ],
+        links: graph.nodes.map((node) => [node.name, corporateNodeHref(node)] as const),
+        fields: graph.nodes.flatMap((node) => {
+          const children = graph.edges
+            .filter((edge) => edge.parent_id === node.id)
+            .map((edge) => graph.nodes.find((child) => child.id === edge.child_id)?.name)
+            .filter(Boolean)
+            .join(", ");
+          const assignments = node.assignments
+            .map((item) => `${item.display_name || h(item.object_kind)} ${item.version}`)
+            .join(", ");
+          return [
+            [node.name, children || "-"],
+            [
+              `${node.name}: ${h("catalogAssignments")}`,
+              node.assignments_readable
+                ? assignments || h("noAssignments")
+                : h("assignmentsRestricted"),
+            ],
+          ] as const;
+        }),
       });
     },
-  },
+  })),
   {
-    pattern: "corporate/organization",
-    resolve: async () => {
-      const t = await getTranslations("hub");
-      const context = await readCorporateContext((await sessionCookieValue()) ?? "");
-      if (!context) return presentPage({ title: t("organization"), summary: t("empty") });
-      return presentPage({
-        title: context.organization.display_name,
-        summary: t("organizationBody"),
-        links: [
-          { key: "employees", href: "/corporate/members" },
-          { key: "projects", href: "/corporate/projects" },
-          { key: "teams", href: "/corporate/teams" },
-          { key: "admins", href: "/corporate/organization/admins" },
-        ]
-          .filter((item) => canViewCorporateSection(item.key, context.capabilities))
-          .map((item): [string, string] => [t(item.key), item.href]),
-      });
-    },
+    pattern: "corporate/dashboard",
+    resolve: async () => presentPage({ title: (await getTranslations("hub"))("dashboard") }),
   },
   {
     pattern: "corporate/organization/admins",

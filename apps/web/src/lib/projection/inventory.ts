@@ -69,6 +69,8 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "account/profile", access: "session", presenter: "domain" },
   { pattern: "account/profile/preview", access: "session", presenter: "domain" },
   { pattern: "corporate", access: "session", presenter: "domain" },
+  { pattern: "corporate/overview", access: "session", presenter: "domain" },
+  { pattern: "corporate/dashboard", access: "session", presenter: "domain" },
   { pattern: "corporate/organization", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins/settings", access: "session", presenter: "domain" },
@@ -107,10 +109,10 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
 
 export const PAGE_INVENTORY_PATTERNS = PAGE_INVENTORY.map((entry) => entry.pattern);
 
-/** Convert a human `page.tsx` path under `(site)` into an inventory pattern. */
+/** Convert a human page path, including build-gated extensions, into a pattern. */
 export function pageFileToPattern(relativeFromSite: string): string {
   const normalized = relativeFromSite.replace(/\\/g, "/");
-  const withoutFile = normalized === "page.tsx" ? "" : normalized.replace(/\/page\.tsx$/, "");
+  const withoutFile = normalized.replace(/(^|\/)page(?:\.(?:content|saas|regional))?\.tsx$/, "");
   const parts = withoutFile.split("/").filter((part) => part.length > 0 && !part.startsWith("("));
   if (parts.length === 0) return "";
   return parts

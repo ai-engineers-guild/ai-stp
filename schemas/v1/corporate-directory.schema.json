@@ -1,0 +1,334 @@
+{
+  "$defs": {
+    "CorporateDirectoryFacets": {
+      "additionalProperties": true,
+      "properties": {
+        "categories": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "leads": {
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Leads",
+          "type": "array"
+        },
+        "projects": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Projects",
+          "type": "array"
+        },
+        "teams": {
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Teams",
+          "type": "array"
+        },
+        "technologies": {
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Technologies",
+          "type": "array"
+        }
+      },
+      "required": [
+        "categories",
+        "leads",
+        "projects",
+        "teams",
+        "technologies"
+      ],
+      "title": "CorporateDirectoryFacets",
+      "type": "object"
+    },
+    "CorporateDirectoryItem": {
+      "additionalProperties": true,
+      "properties": {
+        "categories": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "maxItems": 32,
+          "title": "Categories",
+          "type": "array"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "is_lead": {
+          "default": false,
+          "title": "Is Lead",
+          "type": "boolean"
+        },
+        "kind": {
+          "enum": [
+            "project",
+            "team",
+            "employee",
+            "technology",
+            "category"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "leads": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Leads",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CorporateDirectoryReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "owner_team": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CorporateDirectoryReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "projects": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Projects",
+          "type": "array"
+        },
+        "related_teams": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Related Teams",
+          "type": "array"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "state": {
+          "enum": [
+            "draft",
+            "active",
+            "deprecated",
+            "archived",
+            "suspended"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "teams": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Teams",
+          "type": "array"
+        },
+        "technologies": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Technologies",
+          "type": "array"
+        }
+      },
+      "required": [
+        "categories",
+        "description",
+        "id",
+        "is_lead",
+        "kind",
+        "leads",
+        "name",
+        "owner",
+        "owner_team",
+        "projects",
+        "related_teams",
+        "revision",
+        "role",
+        "state",
+        "teams",
+        "technologies"
+      ],
+      "title": "CorporateDirectoryItem",
+      "type": "object"
+    },
+    "CorporateDirectoryReference": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "project",
+            "team",
+            "employee",
+            "technology",
+            "category"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name"
+      ],
+      "title": "CorporateDirectoryReference",
+      "type": "object"
+    },
+    "CorporateOrganization": {
+      "additionalProperties": true,
+      "properties": {
+        "authorization_revision": {
+          "minimum": 1,
+          "title": "Authorization Revision",
+          "type": "integer"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "suspended"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "authorization_revision",
+        "display_name",
+        "organization_id",
+        "schema_version",
+        "state"
+      ],
+      "title": "CorporateOrganization",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-directory",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "facets": {
+      "$ref": "#/$defs/CorporateDirectoryFacets"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CorporateDirectoryItem"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "organization": {
+      "$ref": "#/$defs/CorporateOrganization"
+    },
+    "resource": {
+      "enum": [
+        "projects",
+        "teams",
+        "members",
+        "technologies"
+      ],
+      "title": "Resource",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "total": {
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "facets",
+    "items",
+    "organization",
+    "resource",
+    "schema_version",
+    "total"
+  ],
+  "title": "CorporateDirectoryView",
+  "type": "object"
+}
