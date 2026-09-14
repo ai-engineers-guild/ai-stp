@@ -39,11 +39,13 @@ export default defineConfig({
     // A regression that only Chrome shows is one this suite could not see.
     channel: "chrome",
     trace: "on-first-retry",
-    // The retry is where the trace comes from; these two cover the first
-    // failure as well, which is the one that says whether the page ever had
-    // the content the assertion looked for.
+    // The retry is where the trace comes from; a screenshot covers the first
+    // failure as well, which is the one that says whether the page ever had the
+    // content the assertion looked for. Video is deliberately absent: it needs
+    // Playwright's ffmpeg, which these jobs do not install because they run
+    // Chrome as installed, and asking for it fails every context at `newPage`
+    // rather than only the failing test.
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
     storageState: {
       cookies: [
         {
