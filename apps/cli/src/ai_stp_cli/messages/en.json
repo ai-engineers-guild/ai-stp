@@ -382,6 +382,7 @@
   "that path answers to more than one surface; name the harness to adopt it for": "that path answers to more than one surface; name the harness to adopt it for",
   "that path is not a directory": "that path is not a directory",
   "that plan already carries an apply under a different idempotency key": "that plan already carries an apply under a different idempotency key",
+  "that plan belongs to another project link on this device": "that plan belongs to another project link on this device",
   "that program operation is not waiting on a postcondition": "that program operation is not waiting on a postcondition",
   "that project root is not a directory": "that project root is not a directory",
   "that provider is for a different harness": "that provider is for a different harness",

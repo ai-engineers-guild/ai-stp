@@ -430,15 +430,22 @@ def _malformed(response: httpx.Response, error: BaseException) -> CliFailure:
     This is a client-side refusal, not a server error: what arrived does not
     match the published contract, and acting on it would mean acting on
     something nobody agreed to.
+
+    It used to be `AI_STP_VALIDATION_ERROR`, whose handling is
+    `correct_request`. That names the caller as the author of the problem, so an
+    agent given a perfectly valid request went and edited it — and for a
+    mutation it is worse than useless: the server answered, so the request may
+    well have taken effect, and the one thing that matters is finding out.
     """
     return CliFailure(
-        "AI_STP_VALIDATION_ERROR",
+        "AI_STP_PROTOCOL_VIOLATION",
         "the platform answered with a body that does not match the published contract",
         details={
             "status": str(response.status_code),
             "exception": type(error).__name__,
             "request_id": response.headers.get(REQUEST_ID_HEADER, ""),
         },
+        next_actions=["version --json", "doctor --json"],
     )
 
 
@@ -490,6 +497,57 @@ def _way_back(code: str) -> list[str]:
     return list(_WAY_BACK.get(code, ()))
 
 
+#: Detail keys a server refusal may carry through to the caller. An allowlist
+#: rather than the whole mapping: the details are the server's own text, and a
+#: field nobody designed for a reader is how a path, a token or another
+#: account's identifier ends up in output that `SPEC-011` REQ-1108 keeps clean.
+#: Each of these is a machine-readable binding a caller acts on — which
+#: precondition failed, which field was rejected, which revision it expected.
+FORWARDED_DETAILS: Final[frozenset[str]] = frozenset(
+    {
+        "reason",
+        "fields",
+        "expected",
+        "found",
+        "supported",
+        "capability",
+        "authorization_revision",
+        "revision",
+        "state",
+        "allowed",
+        "retry_after",
+    }
+)
+
+#: Bounded, because the length of a server string is not something this process
+#: decides. Long enough for a revision or a field list, short enough that a
+#: detail cannot become a payload.
+DETAIL_LIMIT: Final[int] = 256
+
+
+def _forwarded(error: Mapping[str, object]) -> dict[str, str]:
+    """The server's own bindings, narrowed to the ones a caller can act on.
+
+    The API answers a stale capability with `reason=capability_stale` and a
+    rejected body with the exact field paths. None of that used to survive the
+    client: the caller was told something failed and had to guess which
+    precondition it was.
+    """
+    details = error.get("details")
+    if not isinstance(details, dict):
+        return {}
+    kept: dict[str, str] = {}
+    for name, value in cast(dict[str, object], details).items():
+        if name not in FORWARDED_DETAILS:
+            continue
+        if isinstance(value, list):
+            rendered = ", ".join(str(item) for item in cast(list[object], value))
+        else:
+            rendered = str(value)
+        kept[str(name)] = rendered[:DETAIL_LIMIT]
+    return kept
+
+
 def failure_from(response: httpx.Response) -> CliFailure:
     """Turn an error response into a registered code.
 
@@ -500,6 +558,7 @@ def failure_from(response: httpx.Response) -> CliFailure:
     code = "AI_STP_DEPENDENCY_UNAVAILABLE"
     message = "the platform reported a failure"
     retryable = response.status_code in RETRYABLE_STATUSES
+    reported_details: dict[str, str] = {}
     try:
         envelope = cast(dict[str, object], json.loads(response.text))
         error = cast(dict[str, object], envelope.get("error", {}))
@@ -508,6 +567,7 @@ def failure_from(response: httpx.Response) -> CliFailure:
             code = reported
             message = str(error.get("message", message))
             retryable = bool(error.get("retryable", retryable))
+            reported_details = _forwarded(error)
     except (ValueError, AttributeError, TypeError):
         pass
     return CliFailure(
@@ -515,6 +575,7 @@ def failure_from(response: httpx.Response) -> CliFailure:
         message,
         retryable=retryable,
         details={
+            **reported_details,
             "status": str(response.status_code),
             "request_id": response.headers.get(REQUEST_ID_HEADER, ""),
         },

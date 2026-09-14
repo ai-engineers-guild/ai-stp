@@ -354,3 +354,28 @@ def test_a_plan_this_device_never_cached_is_refused_without_a_request(
     with pytest.raises(CliFailure) as raised:
         project_commands.sync_apply({**_parameters(), "plan-id": new_id("sync_plan")})
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+
+
+def test_a_plan_from_another_link_is_refused_before_anything_is_sent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The local project id was the whole key of this cache.
+
+    Nothing recorded which server link or organization the cached rows came
+    from, so a plan created for one link could be applied under another link's
+    identifiers with no local disagreement.
+    """
+    registry_path = tmp_path / "registry.sqlite"
+    _registry(registry_path)
+
+    def refuses(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("a mismatched link must not reach the server")
+
+    _wired(monkeypatch, registry_path, refuses)
+    with pytest.raises(CliFailure) as other_link:
+        project_commands.sync_apply({**_parameters(), "link-id": new_id("project_link")})
+    assert other_link.value.code == "AI_STP_CONFLICT"
+
+    with pytest.raises(CliFailure) as other_organization:
+        project_commands.sync_apply({**_parameters(), "organization-id": new_id("organization")})
+    assert other_organization.value.code == "AI_STP_CONFLICT"

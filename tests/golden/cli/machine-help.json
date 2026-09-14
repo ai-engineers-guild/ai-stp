@@ -9618,6 +9618,12 @@
       "description": "the supplied revision or ETag no longer matches the object"
     },
     {
+      "code": "AI_STP_PROTOCOL_VIOLATION",
+      "exit_class": 5,
+      "handling": "inspect_effect",
+      "description": "the platform answered outside the published contract"
+    },
+    {
       "code": "AI_STP_RATE_LIMITED",
       "exit_class": 5,
       "handling": "retry_if_retryable",

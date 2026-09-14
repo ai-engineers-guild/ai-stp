@@ -138,6 +138,15 @@ ERROR_CODES: Final[Mapping[str, ErrorCodeEntry]] = MappingProxyType(
             "inspect_effect",
             "the call timed out without a confirmed effect",
         ),
+        # A body that does not match the published contract is not the caller's
+        # mistake, and answering `correct_request` sent an agent to edit a
+        # request that was already right. The server answered, so whether it
+        # acted is the open question — which is what `inspect_effect` says.
+        "AI_STP_PROTOCOL_VIOLATION": ErrorCodeEntry(
+            EXIT_UNAVAILABLE,
+            "inspect_effect",
+            "the platform answered outside the published contract",
+        ),
         "AI_STP_PARTIAL_OPERATION": ErrorCodeEntry(
             EXIT_PARTIAL,
             "recover_partial",

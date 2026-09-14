@@ -382,6 +382,7 @@
   "that path answers to more than one surface; name the harness to adopt it for": "этот путь отвечает более чем одной поверхности; назовите harness для усыновления",
   "that path is not a directory": "этот путь не является каталогом",
   "that plan already carries an apply under a different idempotency key": "у этого плана уже есть применение с другим ключом идемпотентности",
+  "that plan belongs to another project link on this device": "этот план относится к другой связи проекта на этом устройстве",
   "that program operation is not waiting on a postcondition": "эта программная операция не ждёт проверки постусловия",
   "that project root is not a directory": "этот корень проекта не является каталогом",
   "that provider is for a different harness": "этот провайдер относится к другому харнессу",
