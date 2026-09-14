@@ -40,6 +40,7 @@ it("restores directory filters and carries them to the detail page", () => {
     />,
   );
   expect(screen.getByLabelText("search")).toHaveValue("Mobile");
+  fireEvent.click(screen.getByRole("button", { name: /filters/ }));
   expect(screen.getByLabelText("status")).toHaveValue("active");
   expect(screen.getByRole("link", { name: /Mobile/ })).toHaveAttribute(
     "href",
@@ -71,6 +72,7 @@ it("restores visible rows on history navigation and preserves router history sta
   window.history.replaceState(routerState, "", "/en/corporate/teams?query=Web&status=active");
   fireEvent(window, new PopStateEvent("popstate"));
   expect(screen.getByLabelText("search")).toHaveValue("Web");
+  fireEvent.click(screen.getByRole("button", { name: /filters/ }));
   expect(screen.getByLabelText("status")).toHaveValue("active");
   expect(screen.queryByRole("link", { name: /Mobile/ })).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: /Web/ })).toHaveAttribute(
@@ -101,7 +103,7 @@ it("searches projects and preserves a failed creation draft and receipt key on r
     "/corporate/projects/mobile?query=mobile",
   );
   expect(screen.queryByRole("link", { name: /Web/ })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "create" }));
+  fireEvent.click(screen.getByRole("button", { name: "addProject" }));
   fireEvent.change(screen.getByLabelText("name"), { target: { value: "New project" } });
   fireEvent.click(screen.getByRole("button", { name: "save" }));
   await screen.findByRole("alert");

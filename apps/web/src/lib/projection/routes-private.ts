@@ -32,6 +32,7 @@ import type { MachineRoute } from "@/lib/projection/route-table";
 import { presentPage } from "@/lib/projection/presenters";
 import { corporateNodeHref } from "@/lib/corporate-overview";
 import { TECHNOLOGY_ROUTES } from "@/lib/projection/routes-technology";
+import { CORPORATE_ROUTES } from "@/lib/projection/routes-corporate";
 
 /**
  * Machine documents for the account, owner and staff sections. Access is
@@ -41,6 +42,7 @@ import { TECHNOLOGY_ROUTES } from "@/lib/projection/routes-technology";
 
 const ACCOUNT_ROUTES: MachineRoute[] = [
   ...TECHNOLOGY_ROUTES,
+  ...CORPORATE_ROUTES,
   {
     pattern: "onboarding",
     resolve: async () => {
