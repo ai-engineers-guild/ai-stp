@@ -767,6 +767,242 @@ async def test_sync_apply_rejects_exact_head_change_without_mutating_link(
         assert stored_plan is not None and stored_plan.apply_idempotency_key is None
 
 
+@pytest.mark.parametrize("action", ["noop", "local_to_remote"])
+async def test_server_authored_sync_plan_applies_once_and_replays(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    action: str,
+) -> None:
+    """The plan the server authored passes the server's own verification.
+
+    Creation and application must hash one document. When they hash two, every
+    fresh plan is rejected as stale and the whole synchronization path is dead,
+    while each side looks correct on its own.
+    """
+    client, sessionmaker, token, organization_id, link_id, remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    authorization_revision = f"personal:{organization_id}:1:1"
+    local_revision = "initial"
+    if action == "local_to_remote":
+        local_revision = "sha256:" + "1" * 64
+        async with sessionmaker() as db:
+            link = await db.get(ProjectLink, link_id)
+            assert link is not None
+            db.add(
+                ProjectRevision(
+                    organization_id=organization_id,
+                    remote_project_id=remote_project_id,
+                    revision_id=local_revision,
+                    parent_revision_ids=[],
+                    operation="upsert",
+                    content_digest="sha256:" + "2" * 64,
+                    projection={"schema_version": 1, "kind": "project"},
+                    actor_account_id=link.actor_account_id,
+                    device_id=link.device_id,
+                    event_id=f"sync-apply-{action}",
+                )
+            )
+            await db.commit()
+
+    planned = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "local_revision": local_revision,
+            "remote_revision": "initial",
+            "provider_revision": None,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": f"sync-plan-idem-{action}",
+        },
+    )
+    assert planned.status_code == 201, planned.text
+    plan = planned.json()
+    assert plan["state"] == "ready"
+    assert plan["action"] == action
+    assert plan["conflict_code"] is None
+
+    apply_request = {
+        "schema_version": 1,
+        "plan_digest": plan["plan_digest"],
+        "expected_link_revision": 1,
+        "authorization_revision": authorization_revision,
+        "idempotency_key": f"sync-apply-idem-{action}",
+    }
+    applied = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans/{plan['plan_id']}/apply",
+        headers=headers,
+        json=apply_request,
+    )
+    assert applied.status_code == 200, applied.text
+    body = applied.json()
+    assert body["state"] == "applied"
+    assert body["plan_digest"] == plan["plan_digest"]
+
+    replayed = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans/{plan['plan_id']}/apply",
+        headers=headers,
+        json=apply_request,
+    )
+    assert replayed.status_code == 200, replayed.text
+    assert replayed.json() == body
+
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        stored_plan = await db.get(ProjectSyncPlan, plan["plan_id"])
+        head = await db.get(ProjectRevisionHead, (organization_id, remote_project_id))
+        assert link is not None and stored_plan is not None
+        # One remote effect for one plan, whether or not the retry was answered
+        # from the receipt.
+        assert link.revision == 2
+        assert link.local_revision == local_revision
+        assert link.remote_revision == "initial"
+        assert stored_plan.state == "applied"
+        assert stored_plan.result == {"link_revision": 2, "action": action}
+        if action == "noop":
+            assert head is None
+        else:
+            assert head is not None and head.revision_id == local_revision
+
+
+@pytest.mark.parametrize(
+    "field,tampered",
+    [
+        ("conflict_code", "both_changed"),
+        ("action", "remote_to_local"),
+        ("expected_link_revision", 2),
+        ("common_ancestor_revision", "sha256:" + "3" * 64),
+    ],
+)
+async def test_sync_apply_rejects_a_plan_whose_bound_field_changed(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+    field: str,
+    tampered: object,
+) -> None:
+    """Every field the digest binds is actually verified before any effect."""
+    client, sessionmaker, token, organization_id, link_id, _remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    authorization_revision = f"personal:{organization_id}:1:1"
+    planned = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "local_revision": "initial",
+            "remote_revision": "initial",
+            "provider_revision": None,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": f"sync-idem-tampered-{field}",
+        },
+    )
+    assert planned.status_code == 201, planned.text
+    plan = planned.json()
+
+    async with sessionmaker() as db:
+        stored_plan = await db.get(ProjectSyncPlan, plan["plan_id"])
+        assert stored_plan is not None
+        setattr(stored_plan, field, tampered)
+        await db.commit()
+
+    applied = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans/{plan['plan_id']}/apply",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "plan_digest": plan["plan_digest"],
+            "expected_link_revision": 1,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": f"sync-apply-tampered-{field}",
+        },
+    )
+    assert applied.status_code == 412, applied.text
+
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        stored_plan = await db.get(ProjectSyncPlan, plan["plan_id"])
+        assert link is not None and link.revision == 1
+        assert stored_plan is not None and stored_plan.apply_idempotency_key is None
+
+
+async def test_sync_plan_replay_requires_the_same_request(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    """One idempotency key answers one exact request, not any later one."""
+    client, sessionmaker, token, organization_id, link_id, remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    authorization_revision = f"personal:{organization_id}:1:1"
+    local_revision = "sha256:" + "4" * 64
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        db.add(
+            ProjectRevision(
+                organization_id=organization_id,
+                remote_project_id=remote_project_id,
+                revision_id=local_revision,
+                parent_revision_ids=[],
+                operation="upsert",
+                content_digest="sha256:" + "5" * 64,
+                projection={"schema_version": 1, "kind": "project"},
+                actor_account_id=link.actor_account_id,
+                device_id=link.device_id,
+                event_id="sync-replay-identity",
+            )
+        )
+        await db.commit()
+
+    request = {
+        "schema_version": 1,
+        "link_id": link_id,
+        "expected_link_revision": 1,
+        "local_revision": "initial",
+        "remote_revision": "initial",
+        "provider_revision": None,
+        "authorization_revision": authorization_revision,
+        "idempotency_key": "sync-idem-replay-identity",
+    }
+    planned = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans", headers=headers, json=request
+    )
+    assert planned.status_code == 201, planned.text
+    plan = planned.json()
+
+    identical = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans", headers=headers, json=request
+    )
+    assert identical.status_code == 201, identical.text
+    assert identical.json() == plan
+
+    different = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers=headers,
+        json={**request, "local_revision": local_revision},
+    )
+    assert different.status_code == 409, different.text
+
+    async with sessionmaker() as db:
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(ProjectSyncPlan)
+                .where(ProjectSyncPlan.link_id == link_id)
+            )
+            == 1
+        )
+
+
 @pytest.mark.parametrize("side", ["local_revision", "remote_revision"])
 async def test_sync_plan_rejects_unknown_single_side_revision(
     project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
