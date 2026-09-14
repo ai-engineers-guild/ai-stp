@@ -1,6 +1,6 @@
 ---
 description: "SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization."
-last_verified: "2026-09-09"
+last_verified: "2026-09-14"
 ---
 
 # SPEC-078: Project identity, linking, and synchronization
@@ -91,6 +91,21 @@ targets or make source-provider access equivalent to organization authority.
 - `REQ-7815`: Technology detection, GitLab/GitHub discovery, landscape, team
   relations, assignments, and project UI reference the remote `project_id` and
   may display link status; none reimplements project matching or link authority.
+- `REQ-7816`: One owner defines the document a plan digest covers, and creation
+  and verification read the stored plan through it. A plan the server authored
+  and has not mutated verifies against its own digest; any bound field that
+  changes afterwards makes application stale.
+- `REQ-7817`: A planning idempotency key identifies one exact request. The same
+  key with the same revisions, actor, and device replays the original decision;
+  the same key with a different request is a conflict rather than a silently
+  reused older decision. Applying a plan requires the actor and device it was
+  authored for.
+- `REQ-7818`: A device records the exact apply key before the request and keeps
+  the server's receipt in its own short transaction. No network call runs while
+  a local write transaction is held. A confirmed remote effect with a stale
+  local view, and an effect that was never confirmed, are reported as different
+  outcomes; recovery from the unconfirmed one reuses the same key rather than
+  creating a second operation.
 
 ## States and errors
 
@@ -149,3 +164,6 @@ and immutable history so re-enabling cannot produce duplicate identities.
 | `REQ-7813` | Rename, move, archive, stale observation, URL change, and namespace-transfer fixtures create no duplicate or implicit relink. |
 | `REQ-7814` | Contract/privacy scans reject paths, source, environment values, credentials, unapproved observations, and foreign IDs. |
 | `REQ-7815` | Consumer contract tests reference the canonical remote ID/link status and contain no second matching implementation. |
+| `REQ-7816` | An API create → apply of the exact returned ready plan succeeds against PostgreSQL; mutating any bound field of the stored plan makes it stale. |
+| `REQ-7817` | An identical planning replay returns the original plan; the same key with changed revisions is refused; a plan applied from another device is refused. |
+| `REQ-7818` | Injected failures after the remote effect, during the link refresh, and on the response itself leave one remote effect, a durable receipt, and distinguishable states; a concurrent local writer is never held behind a request. |

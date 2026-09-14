@@ -25,6 +25,7 @@ DIGEST_DOMAINS: Final[frozenset[str]] = frozenset(
         "ai-stp:bundle:v1",
         "ai-stp:native-discovery:v1",
         "ai-stp:path-inventory:v1",
+        "ai-stp:cli-registry:v1",
         "ai-stp:component-source-binding:v1",
         "ai-stp:github-request:v1",
         "ai-stp:passport:v1",

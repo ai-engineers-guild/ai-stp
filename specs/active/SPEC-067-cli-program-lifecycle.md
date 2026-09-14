@@ -1,6 +1,6 @@
 ---
 description: "SPEC-067: Shared executable lifecycle for catalog cli components."
-last_verified: "2026-09-06"
+last_verified: "2026-09-14"
 ---
 
 # SPEC-067: Shared cli executable lifecycle
@@ -51,6 +51,13 @@ Included: composition conversion of `cli`, and `component program install`,
   as raw ZIP bytes or selected by first-member order. Raw single executables
   remain valid.
 
+- `REQ-6709`: The environment a program runs in is exactly the one its version
+  passport declares: each `required_env` variable this process holds, plus
+  `HOME`, with an empty `PATH`. A declared variable this process does not hold
+  is named before the program starts, never valued. An undeclared variable does
+  not reach the program. An interpreter that resolves through `PATH` is refused
+  with that reason rather than started without one.
+
 ## States and errors
 
 `AI_STP_VALIDATION_ERROR` — the object is not a `cli` component.
@@ -84,3 +91,4 @@ are corrected; that is not a new component kind.
 | `REQ-6706` | Tampered program bytes and a pointer to another component are rejected by both status and invoke. |
 | `REQ-6707` | Component/version/program symlink destinations are refused; replacing a hardlinked program leaves its outside name unchanged. |
 | `REQ-6708` | Single-file archive positive control; empty, multi-file, linked and corrupt ZIP negative controls. |
+| `REQ-6709` | A declared variable reaches the program while an ambient one does not and `PATH` stays empty; a missing declared variable is refused by name; an `env` shebang is refused with its interpreter named. |

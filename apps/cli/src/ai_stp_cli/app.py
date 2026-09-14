@@ -378,8 +378,54 @@ def build_group() -> click.Group:
     return root
 
 
+def _valued_options(argv: list[str]) -> frozenset[str]:
+    """The options of the named command that consume the token after them.
+
+    Read from the registry rather than guessed: which spellings take a value is
+    exactly what decides whether the next token is a flag or an opaque value,
+    and the declarations already say so.
+    """
+    for command in sorted(COMMANDS, key=lambda item: len(item.descriptor.path), reverse=True):
+        path = command.descriptor.path
+        if argv[: len(path)] == path:
+            return frozenset(
+                f"--{parameter.name}"
+                for parameter in command.descriptor.parameters
+                if parameter.value_type != "boolean"
+            )
+    return frozenset()
+
+
+def _help_requested(argv: list[str]) -> bool:
+    """Whether help was asked for, as syntax rather than as a matching string.
+
+    `--help` anywhere in argv used to count. But
+
+        ai-stp component program invoke --id X --arg --help --json
+
+    is an agent asking an installed program to describe itself: the second
+    token is an opaque value this CLI forwards, and reading it as a request for
+    usage refused exactly the call that learns what a tool can do. A value is a
+    value wherever it appears, and everything after `--` is operand text.
+    """
+    # The machine flag is accepted at every level, so it may sit before the
+    # command; the path is what the tokens say once it is set aside.
+    valued = _valued_options([token for token in argv if token != JSON_FLAG])
+    expecting = False
+    for token in argv:
+        if expecting:
+            expecting = False
+            continue
+        if token == "--":
+            return False
+        if token in _HELP_FLAGS:
+            return True
+        expecting = token in valued
+    return False
+
+
 def _dispatch(argv: list[str], machine: bool, request_id: str) -> int:
-    if machine and _HELP_FLAGS.intersection(argv):
+    if machine and _help_requested(argv):
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "usage text is not machine readable",
@@ -524,6 +570,22 @@ def _auth_providers() -> tuple[str, ...]:
     return ()  # pragma: no cover — `auth login` is a declared command
 
 
+def _supplied_provider(command_words: list[str]) -> str | None:
+    """The value written for `--provider`, in either spelling Click accepts.
+
+    `--provider=google` is one token. Looking for the literal `--provider` found
+    nothing there and answered "auth login requires --provider" for a call that
+    supplied one correctly — sending the caller to edit the one argument that
+    was right while `--bogus`, the actual failure, went unmentioned.
+    """
+    for index, word in enumerate(command_words):
+        if word.startswith("--provider="):
+            return word.split("=", 1)[1]
+        if word == "--provider" and index + 1 < len(command_words):
+            return command_words[index + 1]
+    return None
+
+
 def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFailure:
     """Turn auth spelling mistakes into a safe, executable correction.
 
@@ -551,11 +613,8 @@ def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFa
     next_actions = [f"auth login --provider {name} --json" for name in providers]
 
     if command_words[:2] == ["auth", "login"]:
-        provider_index = (
-            command_words.index("--provider") if "--provider" in command_words else None
-        )
-        if provider_index is not None and provider_index + 1 < len(command_words):
-            supplied = command_words[provider_index + 1]
+        supplied = _supplied_provider(command_words)
+        if supplied is not None:
             if supplied in providers:
                 # The provider is right, so this failure is about something
                 # else. Say what Click said rather than inventing a subject.

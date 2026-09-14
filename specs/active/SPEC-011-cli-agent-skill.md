@@ -1,6 +1,6 @@
 ---
 description: "SPEC-011: CLI, machine help and agent skill."
-last_verified: "2026-09-06"
+last_verified: "2026-09-14"
 ---
 
 # SPEC-011: CLI, machine help, and agent skill
@@ -43,6 +43,23 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
 - `REQ-1117`: Offline mode is achieved by disabling directory and synchronization in the config and does not require other changes.
 - `REQ-1118`: The CLI and each of its commands do not call model interfaces, do not require a model credential and do not depend on the optional server presentation enrichment `SPEC-053`.
 - `REQ-1121`: Recommendation session, suggestion display and confirmation are declared in machine help; creation of `SetupVersion` from a proposal is only available through the confirmation action of `docs/contracts/selection-proposal.md`.
+- `REQ-1130`: Machine help answers the whole registry by default and one named
+  command family on request, from the same canonical registry rather than a
+  second hand-maintained one. A scoped answer carries the same build identity,
+  global options and error dispositions as a full one; a path no command lives
+  under is a typed refusal, not an empty answer.
+- `REQ-1129`: Discovery answers identify the machine surface they describe by a
+  deterministic fingerprint over the command registry and error dispositions,
+  and name the local schema version the build reads. A caller reuses kept help
+  while the fingerprint is unchanged rather than while the version string is
+  unchanged: two builds may report one version with different surfaces.
+- `REQ-1128`: A failure names the boundary that owns it. A request this CLI
+  built wrongly, a body the platform returned outside the published contract, a
+  wire major this build does not read, and a dependency that did not answer are
+  distinct codes with distinct handling; an answer the caller cannot parse is
+  never reported as a request the caller must correct. A refusal carries the
+  machine-readable bindings a caller acts on through a published allowlist of
+  detail keys, and nothing outside it.
 - `REQ-1122`: The complaint command is declared in the machine help, collects only the mechanical fields of the allowed list `docs/contracts/report-case.md`, shows a full preview and submits the case only after the user's explicit consent.
 - `REQ-1124`: Diagnostics reports the preconditions for creating a setup with a separate check, the state of which remains `ready` in their absence, and `detail` names the exact commands for creating missing passports. The list of these commands has one owner and matches the list named by the corresponding command's refusal.
 - `REQ-1125`: Diagnostics names registered objects that hold no head revision, because every command reaches an object through its head and such an object is addressable by none of them; the check reports them and changes nothing, and the state remains `ready` because the installation is sound.
@@ -102,3 +119,6 @@ Machine JSON, help and skill projection have versions. Unknown optional fields a
 | `REQ-1127` | A real SQLite registry at the previous migration reports ready without changing its schema or rows; the next ordinary write upgrades it. A newer unsupported schema remains failed. |
 | `REQ-1123` | The contract test for search, discover, adopt, status, diff and rollback builds the required parameters and enum from machine help only, checks the existence of each `result_schema`; update plan only accepts the declared value `action=update`. |
 | `REQ-1126` | Bootstrap uses known workspace roots and scopes discovery/adoption to the requested outcome; a ready-setup scenario reaches acquire and install without broad home discovery or unrelated adoption. |
+| `REQ-1128` | The invalid-response corpus is refused as a platform contract violation rather than as caller input; a forwarded refusal keeps allowlisted details and drops the rest. |
+| `REQ-1129` | Both introspection answers report one fingerprint; removing a command or changing an error disposition changes it; capabilities reports the local schema version this build reads. |
+| `REQ-1130` | A scoped read returns one family and fewer commands than the full registry while carrying the same fingerprint, options and error codes; an unknown path is refused as not found. |

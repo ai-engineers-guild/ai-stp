@@ -156,6 +156,33 @@ def _plan_digest(values: dict[str, object]) -> str:
     )
 
 
+def _sync_plan_preimage(plan: ProjectSyncPlan, *, organization_id: str) -> dict[str, object]:
+    """The single owner of the bytes a sync plan's digest covers.
+
+    Creation and verification must hash the same document. Two hand-written
+    copies of the field list drift, and the drift is silent: an omitted key and
+    a `null` key are different JSON, so a field present on only one side makes
+    every fresh plan fail its own check. Both sides read the stored row through
+    this function so the document cannot differ.
+    """
+    return {
+        "link_id": plan.link_id,
+        "action": plan.action,
+        "expected_link_revision": plan.expected_link_revision,
+        "local_revision": plan.local_revision,
+        "remote_revision": plan.remote_revision,
+        "provider_revision": plan.provider_revision,
+        "remote_identity_revision": plan.remote_identity_revision,
+        "provider_identity_revision": plan.provider_identity_revision,
+        "conflict_code": plan.conflict_code,
+        "common_ancestor_revision": plan.common_ancestor_revision,
+        "organization_id": organization_id,
+        "actor_account_id": plan.actor_account_id,
+        "device_id": plan.device_id,
+        "expires_at": _timestamp(plan.expires_at),
+    }
+
+
 async def personal_organization(
     db: AsyncSession, *, account_id: str, create: bool = False
 ) -> Organization | None:
@@ -1528,6 +1555,27 @@ async def create_sync_plan(
         )
     )
     if replay is not None:
+        # A retry returns the decision the caller asked for, not whatever
+        # decision happens to carry the same key: the key identifies one exact
+        # request, as it does for link and unlink planning.
+        requested = (
+            payload.expected_link_revision,
+            payload.local_revision,
+            payload.remote_revision,
+            payload.provider_revision,
+        )
+        original = (
+            replay.expected_link_revision,
+            replay.local_revision,
+            replay.remote_revision,
+            replay.provider_revision,
+        )
+        if (
+            original != requested
+            or replay.actor_account_id != ctx.account_id
+            or replay.device_id != device.id
+        ):
+            raise ApiError(ErrorCategory.CONFLICT, "idempotency key belongs to another sync plan")
         return sync_plan_body(replay)
     if link.revision != payload.expected_link_revision:
         raise ApiError(ErrorCategory.PRECONDITION, "project link revision is stale")
@@ -1604,16 +1652,6 @@ async def create_sync_plan(
     else:
         state, action, conflict = "ready", "noop", None
 
-    values = {
-        "link_id": link.id,
-        "expected_link_revision": payload.expected_link_revision,
-        "local_revision": payload.local_revision,
-        "remote_revision": payload.remote_revision,
-        "provider_revision": payload.provider_revision,
-        "remote_identity_revision": remote.revision if remote is not None else None,
-        "provider_identity_revision": provider.revision if provider is not None else None,
-        "action": action,
-    }
     common_ancestor = None
     if state == "conflict" and conflict == "both_changed":
         common_ancestor = await _project_common_ancestor(
@@ -1623,17 +1661,7 @@ async def create_sync_plan(
             left=payload.local_revision,
             right=payload.remote_revision,
         )
-    values["common_ancestor_revision"] = common_ancestor
     expires_at = datetime.now(UTC) + timedelta(minutes=15)
-    digest = _plan_digest(
-        {
-            **values,
-            "organization_id": organization_id,
-            "actor_account_id": ctx.account_id,
-            "device_id": device.id,
-            "expires_at": _timestamp(expires_at),
-        }
-    )
     plan = ProjectSyncPlan(
         id=new_id("sync_plan"),
         link_id=link.id,
@@ -1650,9 +1678,14 @@ async def create_sync_plan(
         conflict_code=conflict,
         common_ancestor_revision=common_ancestor if state == "conflict" else None,
         idempotency_key=payload.idempotency_key,
-        plan_digest=digest,
+        plan_digest="",
         expires_at=expires_at,
     )
+    # Digested from the row itself, so what is signed is what is stored. The
+    # link and unlink plans build one `values` mapping and pass it to both the
+    # digest and the model; this one is assembled field by field, and the copy
+    # that fed the digest had already drifted from the copy that fed the row.
+    plan.plan_digest = _plan_digest(_sync_plan_preimage(plan, organization_id=organization_id))
     db.add(plan)
     await db.flush()
     await emit_audit(
@@ -1703,7 +1736,7 @@ async def apply_sync_plan(
     payload: ProjectSyncApplyRequest,
 ) -> ProjectSyncPlanResponse:
     """Apply one exact ready plan and record an idempotent receipt."""
-    await require_active_device(db, ctx=ctx)
+    device = await require_active_device(db, ctx=ctx)
     plan = await db.scalar(
         select(ProjectSyncPlan).where(ProjectSyncPlan.id == plan_id).with_for_update()
     )
@@ -1727,30 +1760,15 @@ async def apply_sync_plan(
         capability="project.update",
         authorization_revision=payload.authorization_revision,
     )
+    if plan.actor_account_id != ctx.account_id or plan.device_id != device.id:
+        raise ApiError(ErrorCategory.PERMISSION, "sync plan belongs to another device")
     if plan.apply_idempotency_key == payload.idempotency_key:
         return sync_plan_body(plan)
     if plan.apply_idempotency_key is not None:
         raise ApiError(ErrorCategory.CONFLICT, "sync plan was already applied")
     if plan.plan_digest != payload.plan_digest:
         raise ApiError(ErrorCategory.PRECONDITION, "sync plan digest is stale")
-    expected_digest = _plan_digest(
-        {
-            "link_id": plan.link_id,
-            "expected_link_revision": plan.expected_link_revision,
-            "local_revision": plan.local_revision,
-            "remote_revision": plan.remote_revision,
-            "provider_revision": plan.provider_revision,
-            "remote_identity_revision": plan.remote_identity_revision,
-            "provider_identity_revision": plan.provider_identity_revision,
-            "conflict_code": plan.conflict_code,
-            "common_ancestor_revision": plan.common_ancestor_revision,
-            "action": plan.action,
-            "organization_id": organization_id,
-            "actor_account_id": plan.actor_account_id,
-            "device_id": plan.device_id,
-            "expires_at": _timestamp(plan.expires_at),
-        }
-    )
+    expected_digest = _plan_digest(_sync_plan_preimage(plan, organization_id=organization_id))
     if plan.plan_digest != expected_digest:
         raise ApiError(ErrorCategory.PRECONDITION, "sync plan digest is stale")
     expires_at = plan.expires_at
