@@ -38,6 +38,8 @@ from ai_stp_passports.versions import ComponentVersionPassport
 
 CURRENT: Final[str] = "current"
 MAX_INVOKE_OUTPUT: Final[int] = 65_536
+MAX_POINTER_BYTES: Final[int] = 32_768
+INVOKE_TIMEOUT_SECONDS: Final[float] = 30.0
 
 #: How long to wait for a reader after the child is gone. A surviving grandchild
 #: can hold the write end open with nothing left to send, and this command
@@ -48,8 +50,6 @@ _DRAIN_GRACE_SECONDS: Final[float] = 2.0
 #: writing without stopping is drained rather than buffered, large enough that
 #: an ordinary program is read in one or two calls.
 _READ_CHUNK: Final[int] = 8_192
-MAX_POINTER_BYTES: Final[int] = 32_768
-INVOKE_TIMEOUT_SECONDS: Final[float] = 30.0
 
 
 def prefix() -> Path:
