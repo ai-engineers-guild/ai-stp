@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:6688a77a67cfa0ccff6248410392e12a7ecb09d3aeccc0d16b184384fc0976b2",
+  "registry_digest": "sha256:7822fcb1fe63c7659d600817f8495e0c1fab7a802ccc3fc570e573ab352f87c7",
   "global_options": [
     {
       "name": "json",
@@ -4823,8 +4823,9 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-link-response",
       "next_actions": [
-        "project unlink",
-        "project sync plan"
+        "project link show",
+        "project sync plan",
+        "project revision push"
       ]
     },
     {
@@ -4849,7 +4850,163 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "project symbols"
+        "project symbols",
+        "project revision push"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "revision",
+        "pull"
+      ],
+      "summary": "Pull redacted organization project-ledger revisions for one link.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "link-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit project link identifier.",
+          "choices": []
+        },
+        {
+          "name": "local-project-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-revision-pull-response",
+      "next_actions": [
+        "project sync plan",
+        "project revision push",
+        "project link show"
+      ]
+    },
+    {
+      "path": [
+        "project",
+        "revision",
+        "push"
+      ],
+      "summary": "Push one local passport projection into the organization project ledger.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "organization-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit remote organization.",
+          "choices": []
+        },
+        {
+          "name": "link-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Explicit project link identifier.",
+          "choices": []
+        },
+        {
+          "name": "local-project-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable local project identifier.",
+          "choices": []
+        },
+        {
+          "name": "parent-revision-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Ledger parent of this revision. Repeatable. Defaults to the current remote head when that is already a ledger revision.",
+          "choices": []
+        },
+        {
+          "name": "expected-head-revision-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Expected current ledger head. Defaults to the single parent.",
+          "choices": []
+        },
+        {
+          "name": "event-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable event identifier for this exact push.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision from the selected capability projection.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact push.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": true,
+          "repeatable": false,
+          "summary": "Confirm publishing this projection.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:project-revision-push-response",
+      "next_actions": [
+        "project sync plan",
+        "project revision pull",
+        "project link show"
       ]
     },
     {
@@ -4973,7 +5130,8 @@
       "result_schema": "urn:ai-stp:schema:v1:project-sync-plan-response",
       "next_actions": [
         "project sync plan",
-        "project link show"
+        "project link show",
+        "project revision push"
       ]
     },
     {
@@ -5028,7 +5186,7 @@
           "value_type": "string",
           "required": true,
           "repeatable": false,
-          "summary": "Currently observed local revision.",
+          "summary": "Organization ledger revision currently held locally. The revision_id from project revision push, not the passport revision_id.",
           "choices": []
         },
         {
@@ -5037,7 +5195,7 @@
           "value_type": "string",
           "required": true,
           "repeatable": false,
-          "summary": "Currently observed remote revision.",
+          "summary": "Organization ledger revision currently on the link. Read it from project link show.",
           "choices": []
         },
         {
@@ -5073,7 +5231,8 @@
       "next_actions": [
         "project sync apply",
         "project link show",
-        "project unlink"
+        "project unlink",
+        "project revision push"
       ]
     },
     {

@@ -22,9 +22,13 @@ description: "Найти корни проектов, проиндексиров
 | `ai-stp project index` | `read` | `none` | проиндексировать один корень проекта, ограниченно, пропуская секреты и двоичное содержимое |
 | `ai-stp project symbols` | `read` | `none` | прочитать публичные символы проекта, точки входа и тесты; графа вызовов нет |
 | `ai-stp project passport` | `apply` | `none` | записать ревизию паспорта проекта, закрепляющую индекс, toolchain и конфигурацию |
+| `ai-stp project revision push` | `apply` | `explicit_flag` | опубликовать allowlisted-проекцию локального паспорта в ledger организации |
+| `ai-stp project revision pull` | `read` | `none` | прочитать redacted-узлы ledger организации для одной связи |
 
-`--root` обязателен на каждой команде этой группы. Настроенного
+`--root` обязателен на discover, index, symbols и passport. Настроенного
 запасного пути нет, и «текущий каталог» молчанием не подразумевается.
+Revision push и pull берут идентификатор локального проекта и связь
+организации.
 
 ## Типичный путь
 
@@ -153,6 +157,27 @@ ai-stp project passport --root <root> --json
 Изменить дерево и записать снова — добавить ревизию. Предыдущую это
 не правит.
 
+Локальный паспорт не находится в ledger организации. После связи
+проекта путь в организацию — `project revision push`, затем
+`project revision pull`, если другой device уже публиковал, затем
+`project sync plan` и `project sync apply`. `--local-revision` у плана —
+это ledger `revision_id` из квитанции push. Собственный `revision_id`
+паспорта — другой домен дайджеста; план с ним отклоняется как ревизия,
+которой организация не видела.
+
+## Ledger организации
+
+Локальный паспорт остаётся на устройстве, пока вы не опубликуете его
+allowlisted-проекцию. `project revision push` — эта публикация: дайджесты,
+счётчики и состояние индекса, никогда пути и исходники. `project revision pull`
+читает redacted-узлы, которые уже опубликовал другой device. Ни одна из этих
+команд не двигает указатели `ProjectLink`; это `project sync plan`, затем
+`project sync apply`. План `local_to_remote` отклоняется, пока ревизии нет
+в ledger организации.
+
+Флаги, подтверждение и схемы результата берите из `ai-stp help --agent
+--json`. Не копируйте их сюда.
+
 ## Что содержит успешный конверт
 
 Discover, index и symbols каждый возвращают поля, названные в своих
@@ -175,12 +200,15 @@ Discover, index и symbols каждый возвращают поля, назв�
 
 | Что видно | Что это значит | Что делать |
 | --- | --- | --- |
-| `AI_STP_VALIDATION_ERROR` нет `--root` | каждая команда этой группы его требует | передать `--root <root>` |
+| `AI_STP_VALIDATION_ERROR` нет `--root` | discover, index, symbols и passport его требуют | передать `--root <root>` |
 | `AI_STP_VALIDATION_ERROR` home directory | discovery отказывается сканировать home | назвать каталог проекта внутри него |
 | `state: partial` на index или symbols | сработала граница размера, глубины, числа записей или времени | читать `stopped_by`; не считать ответ полным |
 | `complete: false` на discover | сканирование остановилось внутри границ | читать `diagnostics` |
 | `AI_STP_VALIDATION_ERROR` unreadable root | пути нет или его нельзя прочитать | передать точный существующий корень проекта |
 | ожидание, что `index` запишет паспорт | индексация — чтение | `project passport --root <root> --json` |
+| `AI_STP_PRECONDITION_FAILED` нет паспорта для публикации | revision push проецирует локальный паспорт | `project passport --root <root> --json` |
+| `AI_STP_PRECONDITION_FAILED` заново наблюдать project link | пустой мигрированный `link_id` — не привязка | `project link show`, затем та же команда |
+| `AI_STP_PRECONDITION_FAILED` ревизии нет в ledger организации | `--local-revision` плана — не id ledger | `project revision push`, затем план с `revision_id` квитанции |
 
 ## Связанные страницы
 
@@ -196,4 +224,5 @@ Discover, index и symbols каждый возвращают поля, назв�
 !!! note "Флаги из `ai-stp help --agent --json`"
     Если `help --agent` расходится с флагом на этой странице, прав CLI.
     Необязательные флаги здесь не перечислены. Читайте их из дескриптора.
-    Каждая команда здесь требует `--root`.
+    Discover, index, symbols и passport требуют `--root`. Revision
+    push и pull — нет.

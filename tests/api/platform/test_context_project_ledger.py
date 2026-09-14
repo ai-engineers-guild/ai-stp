@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -1280,3 +1282,225 @@ async def test_sync_apply_rechecks_every_link_and_identity_precondition(
         assert failed_audits[0].outcome == "failed"
         assert failed_audits[0].reason == "precondition"
         assert failed_audits[0].target_id == "redacted"
+
+
+async def test_sync_apply_refuses_a_plan_authored_for_another_device(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization_id, link_id, _remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    authorization_revision = f"personal:{organization_id}:1:1"
+    planned = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "local_revision": "initial",
+            "remote_revision": "initial",
+            "provider_revision": None,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "sync-idem-other-device",
+        },
+    )
+    assert planned.status_code == 201, planned.text
+    plan = planned.json()
+
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        other = Device(
+            id=new_id("device"),
+            account_id=link.actor_account_id,
+            public_key="b3RoZXItZGV2aWNlLWtleS1mb3Itc3luYw==",
+            state="active",
+        )
+        db.add(other)
+        await db.flush()
+        issued = await issue_session(
+            db, account_id=link.actor_account_id, device_id=other.id, ttl_seconds=3600
+        )
+        await db.commit()
+
+    applied = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans/{plan['plan_id']}/apply",
+        headers={
+            "Authorization": f"Bearer {issued.raw_token}",
+            "X-AI-STP-Organization-Id": organization_id,
+        },
+        json={
+            "schema_version": 1,
+            "plan_digest": plan["plan_digest"],
+            "expected_link_revision": 1,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "sync-apply-other-device",
+        },
+    )
+    assert applied.status_code == 403, applied.text
+    assert "another device" in applied.text
+
+
+async def test_sync_apply_refuses_an_expired_plan(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization_id, link_id, _remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    authorization_revision = f"personal:{organization_id}:1:1"
+    planned = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "local_revision": "initial",
+            "remote_revision": "initial",
+            "provider_revision": None,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "sync-idem-expired",
+        },
+    )
+    assert planned.status_code == 201, planned.text
+    plan = planned.json()
+
+    async with sessionmaker() as db:
+        stored = await db.get(ProjectSyncPlan, plan["plan_id"])
+        assert stored is not None
+        stored.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+        await db.commit()
+
+    applied = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans/{plan['plan_id']}/apply",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "plan_digest": plan["plan_digest"],
+            "expected_link_revision": 1,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "sync-apply-expired",
+        },
+    )
+    assert applied.status_code == 412, applied.text
+    assert "expired" in applied.text
+
+
+async def test_concurrent_equal_sync_plan_creates_share_one_row(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization_id, link_id, _remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    payload = {
+        "schema_version": 1,
+        "link_id": link_id,
+        "expected_link_revision": 1,
+        "local_revision": "initial",
+        "remote_revision": "initial",
+        "provider_revision": None,
+        "authorization_revision": f"personal:{organization_id}:1:1",
+        "idempotency_key": "sync-idem-concurrent-equal",
+    }
+
+    async def create() -> Response:
+        return await client.post(
+            f"/v1/projects/links/{link_id}/sync-plans", headers=headers, json=payload
+        )
+
+    first, second = await asyncio.gather(create(), create())
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+    assert first.json() == second.json()
+
+    async with sessionmaker() as db:
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(ProjectSyncPlan)
+                .where(ProjectSyncPlan.link_id == link_id)
+            )
+            == 1
+        )
+
+
+async def test_remote_to_local_apply_advances_the_link_to_the_ledger_head(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    client, sessionmaker, token, organization_id, link_id, remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    authorization_revision = f"personal:{organization_id}:1:1"
+    remote_revision = "sha256:" + "a" * 64
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        db.add(
+            ProjectRevision(
+                organization_id=organization_id,
+                remote_project_id=remote_project_id,
+                revision_id=remote_revision,
+                parent_revision_ids=[],
+                operation="upsert",
+                content_digest="sha256:" + "b" * 64,
+                projection={"schema_version": 1, "kind": "project"},
+                actor_account_id=link.actor_account_id,
+                device_id=link.device_id,
+                event_id="remote-to-local-head",
+            )
+        )
+        db.add(
+            ProjectRevisionHead(
+                organization_id=organization_id,
+                remote_project_id=remote_project_id,
+                revision_id=remote_revision,
+            )
+        )
+        await db.commit()
+
+    planned = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "local_revision": "initial",
+            "remote_revision": remote_revision,
+            "provider_revision": None,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "sync-idem-remote-to-local",
+        },
+    )
+    assert planned.status_code == 201, planned.text
+    plan = planned.json()
+    assert plan["action"] == "remote_to_local"
+    assert plan["state"] == "ready"
+
+    applied = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans/{plan['plan_id']}/apply",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "plan_digest": plan["plan_digest"],
+            "expected_link_revision": 1,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "sync-apply-remote-to-local",
+        },
+    )
+    assert applied.status_code == 200, applied.text
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        assert link is not None
+        assert link.remote_revision == remote_revision
+        assert link.local_revision == "initial"
+        assert link.state == "linked"
