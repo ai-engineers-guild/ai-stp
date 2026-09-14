@@ -49,7 +49,11 @@ export function CorporateEmployeeDirectory({
         name: member.display_name?.trim() || hub("unknownEmployee"),
         state: member.state,
         role: member.role,
-        teams: memberships.map((team) => ({ id: team.team_id, name: team.name })),
+        teams: memberships.map((team) => ({
+          id: team.team_id,
+          name: team.name,
+          kind: "team" as const,
+        })),
         is_lead: teams.some((team) => team.lead_account_ids.includes(member.account_id)),
       };
     });

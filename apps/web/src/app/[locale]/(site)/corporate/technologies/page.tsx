@@ -92,6 +92,7 @@ export default async function TechnologyRegistryPage({
         roles={[]}
         initialQuery={query ?? ""}
         initialStatus={typeof filters.status === "string" ? filters.status : ""}
+        showHeader={false}
       />
     </div>
   );

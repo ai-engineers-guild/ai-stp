@@ -17,6 +17,7 @@ const organization = [
   { key: "admins", href: "/corporate/organization/admins" },
 ] as const;
 const landscape = [
+  { key: "components", href: "/corporate/components" },
   { key: "technologies", href: "/corporate/technologies" },
   { key: "categories", href: "/corporate/categories" },
 ] as const;
@@ -25,7 +26,9 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
   const t = useTranslations("hub");
   const path = usePathname();
   if (path === "/corporate" || path === "/corporate/overview") return null;
-  const inLandscape = /\/corporate\/(technologies|categories|technology-landscape)/.test(path);
+  const inLandscape = /\/corporate\/(components|technologies|categories|technology-landscape)/.test(
+    path,
+  );
   const activeSection =
     path === "/corporate" || path === "/corporate/overview"
       ? "overview"

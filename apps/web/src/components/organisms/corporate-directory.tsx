@@ -1,22 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+
 import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import {
-  CorporateDirectoryResults,
-  type DirectoryItem,
-} from "@/components/organisms/corporate-directory-results";
 import { Textarea } from "@/components/atoms/textarea";
+import { CorporateDirectoryResults } from "@/components/organisms/corporate-directory-results";
+import type {
+  DirectoryItem,
+  DirectoryResource,
+} from "@/components/organisms/corporate-directory-types";
 import { useRouter } from "@/lib/i18n/navigation";
 
-type Item = DirectoryItem;
 type Props = {
-  resource: "projects" | "teams" | "members" | "technologies";
-  items: Item[];
+  resource: DirectoryResource;
+  items: readonly DirectoryItem[];
   organizationId: string;
   authorizationRevision: number;
   csrfToken: string;
@@ -24,6 +25,7 @@ type Props = {
   roles: string[];
   initialQuery?: string;
   initialStatus?: string;
+  showHeader?: boolean;
 };
 
 // eslint-disable-next-line max-lines-per-function
@@ -37,46 +39,31 @@ export function CorporateDirectory({
   roles,
   initialQuery = "",
   initialStatus = "",
+  showHeader = true,
 }: Props) {
   const t = useTranslations("hub");
   const c = useTranslations("corporate");
   const router = useRouter();
-  const [query, setQuery] = useState(initialQuery);
-  const [status, setStatus] = useState(initialStatus);
-  useEffect(() => {
-    function restoreFilters() {
-      const params = new URLSearchParams(window.location.search);
-      setQuery(params.get("query") ?? "");
-      setStatus(params.get("status") ?? "");
-    }
-    window.addEventListener("popstate", restoreFilters);
-    return () => {
-      window.removeEventListener("popstate", restoreFilters);
-    };
-  }, []);
-  const filters = new URLSearchParams({
-    ...(query ? { query } : {}),
-    ...(status ? { status } : {}),
-  }).toString();
-  function updateFilters(nextQuery: string, nextStatus: string) {
-    setQuery(nextQuery);
-    setStatus(nextStatus);
-    const url = new URL(window.location.href);
-    if (nextQuery) url.searchParams.set("query", nextQuery);
-    else url.searchParams.delete("query");
-    if (nextStatus) url.searchParams.set("status", nextStatus);
-    else url.searchParams.delete("status");
-    window.history.replaceState(window.history.state, "", url);
-  }
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const retry = useRef<{ effect: string; key: string } | null>(null);
-  const visible = items.filter(
-    (item) =>
-      item.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&
-      (!status || item.state === status),
-  );
+  const titleKey = resource === "members" ? "employees" : resource;
+  const description = {
+    projects: t("browseProjects"),
+    teams: t("browseTeams"),
+    members: t("browseEmployees"),
+    technologies: t("browseTechnologies"),
+    components: t("browseComponents"),
+  }[resource];
+  const addLabel = {
+    projects: t("addProject"),
+    teams: t("addTeam"),
+    members: t("addEmployee"),
+    technologies: t("addTechnology"),
+    components: t("components"),
+  }[resource];
+
   async function create(form: HTMLFormElement) {
     const data = new FormData(form);
     const fields =
@@ -114,51 +101,44 @@ export function CorporateDirectory({
       setBusy(false);
     }
   }
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-48 flex-1 space-y-2">
-          <Label htmlFor="directory-search">{t("search")}</Label>
-          <Input
-            id="directory-search"
-            value={query}
-            onChange={(event) => {
-              updateFilters(event.target.value, status);
-            }}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="directory-status">{t("status")}</Label>
-          <select
-            id="directory-status"
-            value={status}
-            onChange={(event) => {
-              updateFilters(query, event.target.value);
-            }}
-            className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
-          >
-            <option value="">{t("all")}</option>
-            {[...new Set(items.map((item) => item.state))].map((value) => (
-              <option key={value} value={value}>
-                {t(value)}
-              </option>
-            ))}
-          </select>
-        </div>
-        {canCreate && (
-          <Button
-            disabled={busy}
-            onClick={() => {
-              setAdding(!adding);
-            }}
-          >
-            {t(adding ? "cancel" : "create")}
-          </Button>
-        )}
-      </div>
-      {adding && (
+    <div className="min-w-0 space-y-6">
+      {showHeader ? (
+        <header className="flex min-w-0 flex-wrap items-end justify-between gap-5">
+          <div className="min-w-0 space-y-2">
+            <h1 className="text-4xl font-medium tracking-tight break-words">{t(titleKey)}</h1>
+            <p className="text-muted-foreground text-lg">{description}</p>
+          </div>
+          {canCreate ? (
+            <Button
+              type="button"
+              size="lg"
+              onClick={() => {
+                setAdding((open) => !open);
+              }}
+            >
+              <span aria-hidden="true" className="text-xl leading-none">
+                +
+              </span>
+              {adding ? t("cancel") : addLabel}
+            </Button>
+          ) : null}
+        </header>
+      ) : null}
+      <CorporateDirectoryResults
+        resource={resource}
+        items={items}
+        initialQuery={initialQuery}
+        initialStatus={initialStatus}
+        filters={new URLSearchParams({
+          ...(initialQuery ? { query: initialQuery } : {}),
+          ...(initialStatus ? { status: initialStatus } : {}),
+        }).toString()}
+      />
+      {adding ? (
         <form
-          className="border-border max-w-xl space-y-4 rounded-lg border p-5"
+          className="border-border bg-card max-w-xl space-y-4 rounded-lg border p-5"
           onSubmit={(event) => {
             event.preventDefault();
             void create(event.currentTarget);
@@ -176,13 +156,13 @@ export function CorporateDirectory({
                 maxLength={resource === "members" ? 80 : 200}
               />
             </div>
-            {resource === "teams" && (
+            {resource === "teams" ? (
               <div className="space-y-2">
                 <Label htmlFor="create-description">{c("description")}</Label>
                 <Textarea id="create-description" name="description" maxLength={2000} />
               </div>
-            )}
-            {resource === "members" && (
+            ) : null}
+            {resource === "members" ? (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="create-email">{c("email")}</Label>
@@ -203,17 +183,16 @@ export function CorporateDirectory({
                   </select>
                 </div>
               </>
-            )}
+            ) : null}
             <Button type="submit">{t("save")}</Button>
           </fieldset>
-          {message && (
+          {message ? (
             <p role="alert" className="text-sm">
               {message}
             </p>
-          )}
+          ) : null}
         </form>
-      )}
-      <CorporateDirectoryResults resource={resource} items={visible} filters={filters} />
+      ) : null}
     </div>
   );
 }

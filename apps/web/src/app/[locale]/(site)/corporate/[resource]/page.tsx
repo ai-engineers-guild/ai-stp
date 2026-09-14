@@ -46,23 +46,18 @@ export default async function CorporateDirectoryPage({
   if (!directory)
     return <StatePanel kind="empty" title={t("organization")} description={t("empty")} />;
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-medium tracking-tight">
-        {t(resource === "members" ? "employees" : resource)}
-      </h1>
-      <CorporateDirectory
-        resource={resource}
-        items={directory.items}
-        organizationId={directory.context.organization.organization_id}
-        authorizationRevision={directory.context.organization.authorization_revision}
-        csrfToken={(await readCsrfToken()) ?? ""}
-        canCreate={directory.context.capabilities.includes(
-          `${resource === "members" ? "member" : resource === "teams" ? "team" : "project"}.create`,
-        )}
-        roles={directory.roles?.items.map((role) => role.name) ?? []}
-        initialQuery={typeof filters.query === "string" ? filters.query : ""}
-        initialStatus={typeof filters.status === "string" ? filters.status : ""}
-      />
-    </div>
+    <CorporateDirectory
+      resource={resource}
+      items={directory.items}
+      organizationId={directory.context.organization.organization_id}
+      authorizationRevision={directory.context.organization.authorization_revision}
+      csrfToken={(await readCsrfToken()) ?? ""}
+      canCreate={directory.context.capabilities.includes(
+        `${resource === "members" ? "member" : resource === "teams" ? "team" : "project"}.create`,
+      )}
+      roles={directory.roles?.items.map((role) => role.name) ?? []}
+      initialQuery={typeof filters.query === "string" ? filters.query : ""}
+      initialStatus={typeof filters.status === "string" ? filters.status : ""}
+    />
   );
 }

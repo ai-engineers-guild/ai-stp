@@ -11,6 +11,9 @@ export function canViewCorporateAdministration(capabilities: readonly string[]):
 
 export function canViewCorporateSection(key: string, capabilities: readonly string[]): boolean {
   if (key === "admins") return canViewCorporateAdministration(capabilities);
+  if (key === "components") {
+    return capabilities.includes("project.list") || capabilities.includes("member.list");
+  }
   const permission = {
     employees: "member.list",
     projects: "project.list",
