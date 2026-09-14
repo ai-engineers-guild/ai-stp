@@ -458,6 +458,13 @@ def revision_pull(parameters: Mapping[str, object]) -> Answer[ProjectRevisionPul
         )
         with transaction(connection):
             for item in response.items:
+                held = project_ledger.cached_revision(
+                    connection,
+                    local_project_id=local_project_id,
+                    revision_id=item.revision_id,
+                )
+                if held == item:
+                    continue
                 project_ledger.cache_revision(
                     connection,
                     local_project_id=local_project_id,

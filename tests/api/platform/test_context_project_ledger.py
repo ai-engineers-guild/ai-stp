@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 """Executable acceptance evidence for the organization-scoped project DAG."""
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
+from ai_stp_api.slices.context.service import _plan_digest, _sync_plan_preimage
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import digest_canonical
 from ai_stp_foundation.ids import new_id
@@ -1374,6 +1376,10 @@ async def test_sync_apply_refuses_an_expired_plan(
         stored = await db.get(ProjectSyncPlan, plan["plan_id"])
         assert stored is not None
         stored.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+        stored.plan_digest = _plan_digest(
+            _sync_plan_preimage(stored, organization_id=organization_id)
+        )
+        digest = stored.plan_digest
         await db.commit()
 
     applied = await client.post(
@@ -1381,7 +1387,7 @@ async def test_sync_apply_refuses_an_expired_plan(
         headers=headers,
         json={
             "schema_version": 1,
-            "plan_digest": plan["plan_digest"],
+            "plan_digest": digest,
             "expected_link_revision": 1,
             "authorization_revision": authorization_revision,
             "idempotency_key": "sync-apply-expired",
