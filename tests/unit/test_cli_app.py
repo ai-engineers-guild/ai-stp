@@ -637,3 +637,131 @@ def test_a_damaged_registry_is_named_not_reported_as_an_internal_fault(
     assert answer["error"]["code"] == "AI_STP_PRECONDITION_FAILED"
     assert "registry" in answer["error"]["details"]
     assert code == 4
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["auth", "login", "--provider=google", "--bogus", "--json"],
+        ["auth", "login", "--provider", "google", "--bogus", "--json"],
+    ],
+)
+def test_a_correct_provider_written_either_way_is_not_blamed_for_another_option(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--provider=google` is a provider, and the attached form is the common one.
+
+    Looking for the literal token `--provider` found nothing in the attached
+    spelling, so the answer was "auth login requires --provider" for a call that
+    had supplied one. An agent following that edits the argument that was right
+    and never sees `--bogus`.
+    """
+    code, out, _err = _run(argv, capsys)
+    assert code == 2
+    envelope = _envelope(out)
+    error = cast(Mapping[str, object], envelope["error"])
+    assert "--bogus" in str(error["message"])
+    assert "requires --provider" not in str(error["message"])
+
+
+@pytest.mark.parametrize(
+    ("argv", "supplied"),
+    [
+        (["auth", "login", "--provider=nope", "--json"], "attached"),
+        (["auth", "login", "--provider", "nope", "--json"], "spaced"),
+    ],
+)
+def test_a_wrong_provider_written_either_way_is_named_as_the_wrong_provider(
+    argv: list[str], supplied: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, _err = _run(argv, capsys)
+    assert code == 2
+    error = cast(Mapping[str, object], _envelope(out)["error"])
+    assert error["message"] == "invalid auth provider", supplied
+    assert cast(Mapping[str, object], error["details"])["allowed"] == "google, github"
+
+
+def test_a_missing_provider_is_still_reported_as_missing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, _err = _run(["auth", "login", "--json"], capsys)
+    assert code == 2
+    error = cast(Mapping[str, object], _envelope(out)["error"])
+    assert error["message"] == "auth login requires --provider"
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["help", "--agent", "--help", "--json"],
+        ["--help", "--json"],
+        ["version", "-h", "--json"],
+    ],
+)
+def test_asking_for_usage_in_machine_mode_is_still_refused(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, _err = _run(argv, capsys)
+    assert code == 2
+    error = cast(Mapping[str, object], _envelope(out)["error"])
+    assert error["message"] == "usage text is not machine readable"
+
+
+@pytest.mark.parametrize(
+    "tail",
+    [
+        ["--arg", "--help"],
+        ["--arg=--help"],
+        ["--arg", "-h"],
+        ["--arg", "run", "--arg", "--help"],
+    ],
+)
+def test_a_forwarded_help_value_is_a_value_and_not_a_request_for_usage(
+    tail: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Asking an installed program to describe itself is the point of `invoke`.
+
+    The refusal used to fire on any `--help` anywhere in argv, so the one call
+    an agent makes to learn what a tool does was answered with "usage text is
+    not machine readable" — about this CLI's usage, which nobody had asked for.
+    """
+    argv = [
+        "component",
+        "program",
+        "invoke",
+        "--id",
+        "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        *tail,
+        "--json",
+    ]
+    code, out, _err = _run(argv, capsys)
+    _assert_not_about_usage(out)
+    assert code != 0
+
+    # The machine flag is accepted at every level, so the same call with it
+    # written first must read the same way.
+    code, out, _err = _run(["--json", *argv[:-1]], capsys)
+    _assert_not_about_usage(out)
+    assert code != 0
+
+
+def _assert_not_about_usage(out: str) -> None:
+    """It got as far as the registry, which is what "not intercepted" means."""
+    error = cast(Mapping[str, object], _envelope(out)["error"])
+    assert error["message"] != "usage text is not machine readable"
+
+
+def test_everything_after_the_terminator_is_operand_text(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """After `--` there are no flags left, so there is no help request either.
+
+    Click is the authority on what the tokens mean, and it calls this one an
+    unexpected argument. Answering about usage instead would name a problem the
+    caller does not have.
+    """
+    code, out, _err = _run(["version", "--json", "--", "--help"], capsys)
+    assert code == 2
+    error = cast(Mapping[str, object], _envelope(out)["error"])
+    assert "--help" in str(error["message"])
+    assert error["message"] != "usage text is not machine readable"
