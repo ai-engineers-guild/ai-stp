@@ -108,6 +108,10 @@ _STATUS_OVERRIDES: Final[dict[str, int]] = {
     "AI_STP_DEVICE_REVOKED": 403,
     "AI_STP_RATE_LIMITED": 429,
     "AI_STP_TIMEOUT_UNCONFIRMED": 504,
+    # Raised by a client against whatever answered it, so this status describes
+    # the condition rather than a route: something upstream replied outside the
+    # contract. The platform itself never emits this code.
+    "AI_STP_PROTOCOL_VIOLATION": 502,
     # A failed `If-Match` is a precondition failure, not a generic conflict:
     # the caller sent a version and it no longer holds. Answering 409 would make
     # it indistinguishable from a concurrent-change conflict the caller can

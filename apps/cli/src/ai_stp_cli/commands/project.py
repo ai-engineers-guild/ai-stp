@@ -390,19 +390,17 @@ def _effect_unknown(failure: CliFailure) -> bool:
     """Whether the server may have acted despite this failure.
 
     The registry's own disposition decides it: a dependency that did not answer,
-    a call that timed out and an internal fault are all failures the caller
-    cannot conclude anything from. A refusal the server *decided* — bad input,
-    a stale precondition, a missing grant — is an answer, and an answer means no
-    effect.
-
-    The exception is a contract violation carried by a successful status. The
-    server answered, so it may well have applied the plan; only the body is
-    unusable, and that is not something the caller can correct.
+    a call that timed out, a body outside the contract and an internal fault are
+    all failures the caller cannot conclude anything from. A refusal the server
+    *decided* — bad input, a stale precondition, a missing grant — is an answer,
+    and an answer means no effect.
     """
     entry = ERROR_CODES.get(failure.code)
-    if entry is None or entry.handling in {"retry_if_retryable", "inspect_effect", "report_bug"}:
-        return True
-    return str(failure.details.get("status", "")).startswith("2")
+    return entry is None or entry.handling in {
+        "retry_if_retryable",
+        "inspect_effect",
+        "report_bug",
+    }
 
 
 def _with_effect(
