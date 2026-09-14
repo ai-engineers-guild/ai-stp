@@ -250,6 +250,7 @@
   "no attested provider asset exists for this platform": "для этой платформы нет attested-артефакта провайдера",
   "no backup with that identifier was recorded": "резервная копия с таким идентификатором не записана",
   "no command given": "команда не указана",
+  "no command lives under that path": "по этому пути нет ни одной команды",
   "no consent record covers that target": "ни одна запись согласия не покрывает эту цель",
   "no discovered component sits at that path": "по этому пути нет обнаруженного компонента",
   "no executable sits at that path": "по этому пути нет исполняемого файла",

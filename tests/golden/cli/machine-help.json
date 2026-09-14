@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
+  "registry_digest": "sha256:6688a77a67cfa0ccff6248410392e12a7ecb09d3aeccc0d16b184384fc0976b2",
   "global_options": [
     {
       "name": "json",
@@ -3453,7 +3454,7 @@
       "path": [
         "help"
       ],
-      "summary": "Emit the full command registry for an agent.",
+      "summary": "Emit the command registry for an agent, whole or scoped to one family.",
       "mutability": "read",
       "confirmation": "none",
       "parameters": [
@@ -3464,6 +3465,15 @@
           "required": false,
           "repeatable": false,
           "summary": "Names the caller. The machine registry is the only answer this command has, with or without it.",
+          "choices": []
+        },
+        {
+          "name": "path",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Return only the commands under this path, e.g. 'project sync'. Omitted, the whole registry. The answer always names the build it describes, so a scoped read stays comparable to a full one.",
           "choices": []
         }
       ],

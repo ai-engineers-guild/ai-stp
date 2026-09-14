@@ -165,6 +165,13 @@ class MachineHelp(BaseModel):
     schema_version: Literal[1] = 1
     cli_version: Annotated[str, Field(min_length=1)]
 
+    #: The exact machine surface this answer describes. A distribution version
+    #: does not identify it: a source build and a released wheel report the same
+    #: string while their registries differ by a command, a flag or an error
+    #: code, and a caller that cached help "for this version" then constructs
+    #: calls the running build does not accept. Compare this instead.
+    registry_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+
     #: Options every command accepts. Declared once rather than repeated on each
     #: descriptor: `--json` is not a property of any one command, and repeating
     #: it would make the registry look like it varies when it does not.
@@ -190,6 +197,16 @@ class Capabilities(BaseModel):
     #: The `/v1` wire major this build speaks. An agent comparing it against a
     #: server can tell a version mismatch from a missing feature.
     wire_schema_version: Literal[1] = 1
+
+    #: The same fingerprint `help --agent` reports, so a caller can tell whether
+    #: the help it kept still describes the build in front of it without
+    #: fetching the whole registry again.
+    registry_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+
+    #: The local registry schema this build reads and writes. Data written by a
+    #: newer build is refused rather than downgraded, and saying so here lets a
+    #: caller see the mismatch before a command hits it.
+    local_schema_version: Annotated[int, Field(ge=1)]
 
     supported_harnesses: Annotated[list[HarnessId], Field(min_length=1)]
     catalog_enabled: bool

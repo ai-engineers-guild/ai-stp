@@ -32,6 +32,9 @@ from ai_stp_contracts.machine_help import (
     ConfirmationKind,
     MutabilityClass,
 )
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.digests import digest_canonical
+from ai_stp_foundation.errors import ERROR_CODES
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER, HARNESS_IDS
 from ai_stp_passports.versions import COMPONENT_TYPES, MAX_TAG_LENGTH, MAX_TAGS
 
@@ -1663,7 +1666,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
     ),
     Declaration(
         path=["help"],
-        summary="Emit the full command registry for an agent.",
+        summary="Emit the command registry for an agent, whole or scoped to one family.",
         result_schema="urn:ai-stp:schema:v1:cli-machine-help",
         handler="machine_help:registry",
         parameters=(
@@ -1672,6 +1675,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "boolean",
                 "Names the caller. The machine registry is the only answer this "
                 "command has, with or without it.",
+            ),
+            option(
+                "path",
+                "string",
+                "Return only the commands under this path, e.g. 'project sync'. "
+                "Omitted, the whole registry. The answer always names the build "
+                "it describes, so a scoped read stays comparable to a full one.",
             ),
         ),
         next_actions=("capabilities",),
@@ -3998,6 +4008,31 @@ def command_paths() -> list[str]:
 def descriptors() -> list[CommandDescriptor]:
     """Every descriptor, ordered so the rendering is deterministic."""
     return [command.descriptor for command in sorted(COMMANDS, key=lambda item: item.name)]
+
+
+def registry_digest() -> str:
+    """A fingerprint of the machine surface this build actually offers.
+
+    The distribution version is not enough to key a cache on. A source build
+    and a released wheel can report the same string while their registries
+    differ by a command, a flag or an error code — and an agent that cached
+    help "for this version" would then construct calls the running build does
+    not accept. This digest changes when any of that changes and does not
+    change when nothing does, so it is safe to compare across machines.
+    """
+    document: JsonValue = {
+        "global_options": [option.model_dump(mode="json") for option in GLOBAL_OPTIONS],
+        "commands": [descriptor.model_dump(mode="json") for descriptor in descriptors()],
+        "error_codes": [
+            {
+                "code": code,
+                "exit_class": entry.exit_class,
+                "handling": entry.handling,
+            }
+            for code, entry in sorted(ERROR_CODES.items())
+        ],
+    }
+    return digest_canonical("ai-stp:cli-registry:v1", document)
 
 
 def reserved_option_names() -> frozenset[str]:

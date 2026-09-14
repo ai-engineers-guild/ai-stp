@@ -250,6 +250,7 @@
   "no attested provider asset exists for this platform": "no attested provider asset exists for this platform",
   "no backup with that identifier was recorded": "no backup with that identifier was recorded",
   "no command given": "no command given",
+  "no command lives under that path": "no command lives under that path",
   "no consent record covers that target": "no consent record covers that target",
   "no discovered component sits at that path": "no discovered component sits at that path",
   "no executable sits at that path": "no executable sits at that path",

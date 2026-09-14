@@ -35,6 +35,16 @@
       "title": "Command Paths",
       "type": "array"
     },
+    "local_schema_version": {
+      "minimum": 1,
+      "title": "Local Schema Version",
+      "type": "integer"
+    },
+    "registry_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Registry Digest",
+      "type": "string"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -64,6 +74,8 @@
     "catalog_enabled",
     "cli_version",
     "command_paths",
+    "local_schema_version",
+    "registry_digest",
     "schema_version",
     "supported_harnesses",
     "sync_enabled",
