@@ -53,6 +53,7 @@ from ai_stp_contracts.machine_help import (
     SetupImportPlan,
 )
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.errors import ERROR_CODES
 from ai_stp_foundation.harnesses import HARNESS_IDS
 from ai_stp_foundation.ids import is_valid_id
 
@@ -208,9 +209,25 @@ def sync_plan(parameters: Mapping[str, object]) -> Answer[ProjectSyncPlanRespons
 
 
 def sync_apply(parameters: Mapping[str, object]) -> Answer[ProjectSyncPlanResponse]:
-    """Apply one exact ready sync plan and cache its idempotent receipt."""
+    """Apply one exact ready sync plan and keep its receipt whatever follows.
+
+    The order here is the whole point. A remote effect that succeeded is not
+    allowed to disappear because something after it failed, and no network call
+    runs inside a write transaction: `BEGIN IMMEDIATE` holds the local write
+    lock, so a request made under it blocks every other local writer for as long
+    as the network takes and then rolls back the receipt if it fails.
+
+    Three outcomes are different things and are reported as different things:
+    the effect happened and this device knows it, the effect happened and the
+    local view of the link is stale, and the effect is unknown. The last one
+    keeps the exact idempotency key, because the way out of an unknown effect is
+    to ask again as the *same* operation rather than to start a second one.
+    """
     _confirmed(parameters, "sync apply")
     link_id = _required(parameters, "link-id")
+    organization_id = _required(parameters, "organization-id")
+    local_project_id = _required(parameters, "local-project-id")
+    plan_id = _required(parameters, "plan-id")
     request = ProjectSyncApplyRequest(
         plan_digest=_required(parameters, "plan-digest"),
         expected_link_revision=_integer(parameters, "expected-link-revision"),
@@ -218,32 +235,170 @@ def sync_apply(parameters: Mapping[str, object]) -> Answer[ProjectSyncPlanRespon
         idempotency_key=_required(parameters, "idempotency-key"),
     )
     held = cloud_auth.required("project sync apply")
-    response = cloud_context.sync_apply(
-        endpoint(),
-        held.access_token,
-        _required(parameters, "organization-id"),
-        link_id,
-        _required(parameters, "plan-id"),
-        request,
+    warnings: list[str] = []
+    with closing(open_registry(configured_path())) as connection:
+        cached = project_links.cached_sync_plan(
+            connection, local_project_id=local_project_id, plan_id=plan_id
+        )
+        cached = _checked_locally(cached, parameters=parameters, plan_id=plan_id, request=request)
+        if cached.receipt is not None and cached.apply_idempotency_key == request.idempotency_key:
+            # The effect already happened and this device recorded it. Sending
+            # the same key again would be answered from the server's receipt;
+            # reading the local one costs nothing and cannot fail.
+            response = cached.receipt
+        else:
+            with transaction(connection):
+                project_links.begin_sync_apply(
+                    connection,
+                    local_project_id=local_project_id,
+                    plan_id=plan_id,
+                    idempotency_key=request.idempotency_key,
+                )
+            try:
+                response = cloud_context.sync_apply(
+                    endpoint(), held.access_token, organization_id, link_id, plan_id, request
+                )
+            except CliFailure as failure:
+                unknown = _effect_unknown(failure)
+                with transaction(connection):
+                    project_links.mark_sync_apply(
+                        connection,
+                        local_project_id=local_project_id,
+                        plan_id=plan_id,
+                        state="unknown" if unknown else "failed",
+                    )
+                raise _with_effect(failure, parameters, unknown=unknown) from failure
+            with transaction(connection):
+                project_links.record_sync_apply(
+                    connection,
+                    local_project_id=local_project_id,
+                    plan=response,
+                    idempotency_key=request.idempotency_key,
+                )
+        try:
+            refreshed = cloud_context.show(endpoint(), held.access_token, organization_id, link_id)
+        except CliFailure:
+            # Enrichment, not the effect. The link is the server's to report and
+            # this device can ask again; the receipt above stays either way.
+            warnings.append(
+                "the sync was applied; refreshing the cached link failed, "
+                "so the local link view is stale until `project link show` succeeds"
+            )
+        else:
+            with transaction(connection):
+                project_links.cache_link(connection, refreshed)
+    return Answer(response, tuple(warnings))
+
+
+def _checked_locally(
+    cached: project_links.CachedSyncPlan | None,
+    *,
+    parameters: Mapping[str, object],
+    plan_id: str,
+    request: ProjectSyncApplyRequest,
+) -> project_links.CachedSyncPlan:
+    """Refuse before the effect, not after it.
+
+    Everything here is knowable without the network, and each of these reaching
+    the server would spend a remote operation to be told what this device
+    already held.
+    """
+    if cached is None:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "this device holds no cached sync plan with that identifier",
+            details={"plan_id": plan_id},
+            next_actions=[_replan(parameters)],
+        )
+    if cached.plan_digest != request.plan_digest:
+        raise CliFailure(
+            "AI_STP_PLAN_STALE",
+            "the supplied digest is not the one this device cached for that plan",
+            details={"plan_id": plan_id},
+            next_actions=[_replan(parameters)],
+        )
+    if (
+        cached.apply_idempotency_key is not None
+        and cached.apply_idempotency_key != request.idempotency_key
+        and cached.apply_state in {"pending", "unknown", "applied"}
+    ):
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "that plan already carries an apply under a different idempotency key",
+            details={"plan_id": plan_id, "idempotency_key": cached.apply_idempotency_key},
+            next_actions=[_link_show(parameters)],
+        )
+    return cached
+
+
+def _link_show(parameters: Mapping[str, object]) -> str:
+    """Read the authority on the link, with the identifiers this call used."""
+    return (
+        f"project link show --organization-id {_required(parameters, 'organization-id')} "
+        f"--link-id {_required(parameters, 'link-id')} --json"
     )
-    with closing(open_registry(configured_path())) as connection, transaction(connection):
-        project_links.cache_sync_plan(
-            connection,
-            local_project_id=_required(parameters, "local-project-id"),
-            plan=response,
-            idempotency_key=request.idempotency_key,
-            created_at=moment(),
-        )
-        project_links.cache_link(
-            connection,
-            cloud_context.show(
-                endpoint(),
-                held.access_token,
-                _required(parameters, "organization-id"),
-                link_id,
-            ),
-        )
-    return Answer(response)
+
+
+def _replan(parameters: Mapping[str, object]) -> str:
+    """Ask for a fresh decision. The revisions come from the caller's state, so
+    the pointer names what is known here and leaves the rest to the call."""
+    return (
+        f"project sync plan --organization-id {_required(parameters, 'organization-id')} "
+        f"--link-id {_required(parameters, 'link-id')} "
+        f"--local-project-id {_required(parameters, 'local-project-id')} ..."
+    )
+
+
+def _effect_unknown(failure: CliFailure) -> bool:
+    """Whether the server may have acted despite this failure.
+
+    The registry's own disposition decides it: a dependency that did not answer,
+    a call that timed out and an internal fault are all failures the caller
+    cannot conclude anything from. A refusal the server *decided* — bad input,
+    a stale precondition, a missing grant — is an answer, and an answer means no
+    effect.
+
+    The exception is a contract violation carried by a successful status. The
+    server answered, so it may well have applied the plan; only the body is
+    unusable, and that is not something the caller can correct.
+    """
+    entry = ERROR_CODES.get(failure.code)
+    if entry is None or entry.handling in {"retry_if_retryable", "inspect_effect", "report_bug"}:
+        return True
+    return str(failure.details.get("status", "")).startswith("2")
+
+
+def _with_effect(
+    failure: CliFailure, parameters: Mapping[str, object], *, unknown: bool
+) -> CliFailure:
+    """Say what is known about the effect, and how to finish the same operation."""
+    if not unknown:
+        return failure
+    details = dict(failure.details)
+    details["effect"] = "unknown"
+    retry = " ".join(
+        [
+            "project sync apply",
+            f"--organization-id {_required(parameters, 'organization-id')}",
+            f"--link-id {_required(parameters, 'link-id')}",
+            f"--plan-id {_required(parameters, 'plan-id')}",
+            f"--local-project-id {_required(parameters, 'local-project-id')}",
+            f"--plan-digest {_required(parameters, 'plan-digest')}",
+            f"--expected-link-revision {_required(parameters, 'expected-link-revision')}",
+            f"--authorization-revision {_required(parameters, 'authorization-revision')}",
+            # The same key, deliberately. A fresh one would ask the server for a
+            # second effect on a plan that may already have had one.
+            f"--idempotency-key {_required(parameters, 'idempotency-key')}",
+            "--confirm --json",
+        ]
+    )
+    return CliFailure(
+        failure.code,
+        failure.message,
+        retryable=failure.retryable,
+        details=details,
+        next_actions=[_link_show(parameters), retry],
+    )
 
 
 def _required(parameters: Mapping[str, object], name: str) -> str:

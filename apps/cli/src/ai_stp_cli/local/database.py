@@ -1268,6 +1268,20 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "ALTER TABLE project_link DROP COLUMN plan_id",
         ),
     ),
+    Migration(
+        version=39,
+        summary="retain the exact project sync apply attempt and its durable receipt",
+        up=(
+            "ALTER TABLE project_sync_plan ADD COLUMN apply_idempotency_key TEXT",
+            "ALTER TABLE project_sync_plan ADD COLUMN apply_state TEXT",
+            "ALTER TABLE project_sync_plan ADD COLUMN apply_receipt_json TEXT",
+        ),
+        down=(
+            "ALTER TABLE project_sync_plan DROP COLUMN apply_receipt_json",
+            "ALTER TABLE project_sync_plan DROP COLUMN apply_state",
+            "ALTER TABLE project_sync_plan DROP COLUMN apply_idempotency_key",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested
