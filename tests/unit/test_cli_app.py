@@ -735,11 +735,20 @@ def test_a_forwarded_help_value_is_a_value_and_not_a_request_for_usage(
         "--json",
     ]
     code, out, _err = _run(argv, capsys)
-    error = cast(Mapping[str, object], _envelope(out)["error"])
-    # It gets as far as the registry, which is what "not intercepted" means
-    # here; this installation has no program by that identifier.
-    assert error["message"] != "usage text is not machine readable"
+    _assert_not_about_usage(out)
     assert code != 0
+
+    # The machine flag is accepted at every level, so the same call with it
+    # written first must read the same way.
+    code, out, _err = _run(["--json", *argv[:-1]], capsys)
+    _assert_not_about_usage(out)
+    assert code != 0
+
+
+def _assert_not_about_usage(out: str) -> None:
+    """It got as far as the registry, which is what "not intercepted" means."""
+    error = cast(Mapping[str, object], _envelope(out)["error"])
+    assert error["message"] != "usage text is not machine readable"
 
 
 def test_everything_after_the_terminator_is_operand_text(

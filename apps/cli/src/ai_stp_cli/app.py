@@ -408,7 +408,9 @@ def _help_requested(argv: list[str]) -> bool:
     usage refused exactly the call that learns what a tool can do. A value is a
     value wherever it appears, and everything after `--` is operand text.
     """
-    valued = _valued_options(argv)
+    # The machine flag is accepted at every level, so it may sit before the
+    # command; the path is what the tokens say once it is set aside.
+    valued = _valued_options([token for token in argv if token != JSON_FLAG])
     expecting = False
     for token in argv:
         if expecting:
