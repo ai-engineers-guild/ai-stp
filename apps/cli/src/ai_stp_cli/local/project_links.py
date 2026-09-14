@@ -15,11 +15,12 @@ def cache_link(connection: sqlite3.Connection, link: ProjectLinkResponse) -> Non
     connection.execute(
         """
         INSERT INTO project_link (
-            local_project_id, plan_id, plan_digest, organization_id, remote_project_id,
+            local_project_id, link_id, plan_id, plan_digest, organization_id, remote_project_id,
             provider_project_id,
             state, local_revision, remote_revision, provider_revision, link_revision, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(local_project_id) DO UPDATE SET
+            link_id = excluded.link_id,
             plan_id = excluded.plan_id,
             plan_digest = excluded.plan_digest,
             organization_id = excluded.organization_id,
@@ -34,6 +35,7 @@ def cache_link(connection: sqlite3.Connection, link: ProjectLinkResponse) -> Non
         """,
         (
             link.local_project_id,
+            link.link_id,
             link.plan_id,
             link.plan_digest,
             link.organization_id,
@@ -63,12 +65,13 @@ def cache_sync_plan(
     connection.execute(
         """
         INSERT INTO project_sync_plan (
-            plan_id, local_project_id, state, action, expected_link_revision,
+            plan_id, local_project_id, link_id, state, action, expected_link_revision,
             local_revision, remote_revision, provider_revision, conflict_code,
             common_ancestor_revision, plan_digest, expires_at, idempotency_key, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(local_project_id, idempotency_key) DO UPDATE SET
             plan_id = excluded.plan_id,
+            link_id = excluded.link_id,
             state = excluded.state,
             action = excluded.action,
             expected_link_revision = excluded.expected_link_revision,
@@ -83,6 +86,7 @@ def cache_sync_plan(
         (
             plan.plan_id,
             local_project_id,
+            plan.link_id,
             plan.state,
             plan.action,
             plan.expected_link_revision,
@@ -107,10 +111,45 @@ APPLY_STATES: Final[frozenset[str]] = frozenset({"pending", "applied", "failed",
 
 
 @dataclass(frozen=True)
+class CachedLink:
+    """Which server link a local project is bound to here.
+
+    The local project id alone was the whole key, so nothing recorded which
+    remote link or organization the cached rows came from; a valid-looking local
+    id could be pointed at another project's plan without anything noticing.
+    """
+
+    link_id: str
+    organization_id: str
+    remote_project_id: str
+    state: str
+    link_revision: int
+
+
+def cached_link(connection: sqlite3.Connection, *, local_project_id: str) -> CachedLink | None:
+    """The link this device recorded for one local project."""
+    row = connection.execute(
+        "SELECT link_id, organization_id, remote_project_id, state, link_revision "
+        "FROM project_link WHERE local_project_id = ?",
+        (local_project_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return CachedLink(
+        link_id=str(row[0]),
+        organization_id=str(row[1]),
+        remote_project_id=str(row[2]),
+        state=str(row[3]),
+        link_revision=int(row[4]),
+    )
+
+
+@dataclass(frozen=True)
 class CachedSyncPlan:
     """One cached server decision and this device's apply attempt on it."""
 
     plan_id: str
+    link_id: str
     plan_digest: str
     state: str
     action: str
@@ -125,7 +164,7 @@ def cached_sync_plan(
     """The plan this device recorded, with whatever is known about applying it."""
     row = connection.execute(
         "SELECT plan_digest, state, action, apply_idempotency_key, apply_state, "
-        "apply_receipt_json FROM project_sync_plan "
+        "apply_receipt_json, link_id FROM project_sync_plan "
         "WHERE plan_id = ? AND local_project_id = ?",
         (plan_id, local_project_id),
     ).fetchone()
@@ -134,6 +173,7 @@ def cached_sync_plan(
     receipt = None if row[5] is None else ProjectSyncPlanResponse.model_validate_json(str(row[5]))
     return CachedSyncPlan(
         plan_id=plan_id,
+        link_id=str(row[6]),
         plan_digest=str(row[0]),
         state=str(row[1]),
         action=str(row[2]),

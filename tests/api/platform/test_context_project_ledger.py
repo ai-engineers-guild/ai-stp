@@ -869,6 +869,66 @@ async def test_server_authored_sync_plan_applies_once_and_replays(
             assert head is not None and head.revision_id == local_revision
 
 
+async def test_a_conflict_plan_is_refused_as_a_conflict_and_not_as_a_stale_digest(
+    project_harness: tuple[AsyncClient, async_sessionmaker[AsyncSession], str, str, str, str],
+) -> None:
+    """The refusal has to name the thing the caller must resolve.
+
+    While creation and verification hashed different documents, every plan —
+    conflict or not — was refused for a stale digest, which says "plan again"
+    about a state that planning cannot fix.
+    """
+    client, sessionmaker, token, organization_id, link_id, remote_project_id = project_harness
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-AI-STP-Organization-Id": organization_id,
+    }
+    authorization_revision = f"personal:{organization_id}:1:1"
+    async with sessionmaker() as db:
+        remote = await db.get(ProjectIdentity, remote_project_id)
+        assert remote is not None
+        remote.state = "archived"
+        await db.commit()
+
+    planned = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "link_id": link_id,
+            "expected_link_revision": 1,
+            "local_revision": "initial",
+            "remote_revision": "initial",
+            "provider_revision": None,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "sync-idem-conflict-plan",
+        },
+    )
+    assert planned.status_code == 201, planned.text
+    plan = planned.json()
+    assert plan["state"] == "conflict"
+    assert plan["conflict_code"] == "remote_missing"
+
+    applied = await client.post(
+        f"/v1/projects/links/{link_id}/sync-plans/{plan['plan_id']}/apply",
+        headers=headers,
+        json={
+            "schema_version": 1,
+            "plan_digest": plan["plan_digest"],
+            "expected_link_revision": 1,
+            "authorization_revision": authorization_revision,
+            "idempotency_key": "sync-apply-conflict-plan",
+        },
+    )
+    assert applied.status_code == 409, applied.text
+
+    async with sessionmaker() as db:
+        link = await db.get(ProjectLink, link_id)
+        stored_plan = await db.get(ProjectSyncPlan, plan["plan_id"])
+        assert link is not None and link.revision == 1
+        assert stored_plan is not None and stored_plan.apply_idempotency_key is None
+
+
 @pytest.mark.parametrize(
     "field,tampered",
     [

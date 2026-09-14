@@ -237,10 +237,15 @@ def sync_apply(parameters: Mapping[str, object]) -> Answer[ProjectSyncPlanRespon
     held = cloud_auth.required("project sync apply")
     warnings: list[str] = []
     with closing(open_registry(configured_path())) as connection:
-        cached = project_links.cached_sync_plan(
-            connection, local_project_id=local_project_id, plan_id=plan_id
+        cached = _checked_locally(
+            project_links.cached_sync_plan(
+                connection, local_project_id=local_project_id, plan_id=plan_id
+            ),
+            held_link=project_links.cached_link(connection, local_project_id=local_project_id),
+            parameters=parameters,
+            plan_id=plan_id,
+            request=request,
         )
-        cached = _checked_locally(cached, parameters=parameters, plan_id=plan_id, request=request)
         if cached.receipt is not None and cached.apply_idempotency_key == request.idempotency_key:
             # The effect already happened and this device recorded it. Sending
             # the same key again would be answered from the server's receipt;
@@ -293,6 +298,7 @@ def sync_apply(parameters: Mapping[str, object]) -> Answer[ProjectSyncPlanRespon
 def _checked_locally(
     cached: project_links.CachedSyncPlan | None,
     *,
+    held_link: project_links.CachedLink | None,
     parameters: Mapping[str, object],
     plan_id: str,
     request: ProjectSyncApplyRequest,
@@ -310,6 +316,7 @@ def _checked_locally(
             details={"plan_id": plan_id},
             next_actions=[_replan(parameters)],
         )
+    _same_link(cached, held_link, parameters=parameters, plan_id=plan_id)
     if cached.plan_digest != request.plan_digest:
         raise CliFailure(
             "AI_STP_PLAN_STALE",
@@ -329,6 +336,36 @@ def _checked_locally(
             next_actions=[_link_show(parameters)],
         )
     return cached
+
+
+def _same_link(
+    cached: project_links.CachedSyncPlan,
+    held_link: project_links.CachedLink | None,
+    *,
+    parameters: Mapping[str, object],
+    plan_id: str,
+) -> None:
+    """The plan, the link and the organization named here must be one binding.
+
+    A local project id was the whole key of the cache, so a plan created for one
+    link could be applied under another link's identifiers without anything
+    local disagreeing. Rows written before this device recorded the link carry
+    an empty id and are left alone rather than guessed at.
+    """
+    link_id = _required(parameters, "link-id")
+    organization_id = _required(parameters, "organization-id")
+    mismatched = (
+        (cached.link_id and cached.link_id != link_id)
+        or (held_link is not None and held_link.link_id and held_link.link_id != link_id)
+        or (held_link is not None and held_link.organization_id != organization_id)
+    )
+    if mismatched:
+        raise CliFailure(
+            "AI_STP_CONFLICT",
+            "that plan belongs to another project link on this device",
+            details={"plan_id": plan_id, "link_id": link_id},
+            next_actions=[_link_show(parameters)],
+        )
 
 
 def _link_show(parameters: Mapping[str, object]) -> str:

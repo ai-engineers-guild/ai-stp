@@ -1282,6 +1282,18 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "ALTER TABLE project_sync_plan DROP COLUMN apply_idempotency_key",
         ),
     ),
+    Migration(
+        version=40,
+        summary="bind cached project rows to the server link they came from",
+        up=(
+            "ALTER TABLE project_link ADD COLUMN link_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE project_sync_plan ADD COLUMN link_id TEXT NOT NULL DEFAULT ''",
+        ),
+        down=(
+            "ALTER TABLE project_sync_plan DROP COLUMN link_id",
+            "ALTER TABLE project_link DROP COLUMN link_id",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested
