@@ -26,6 +26,7 @@ get_logger('probe').info(
     email='private@example.test', passport={'password': 'not-for-logs'},
     reason='https://private.test/?token=sensitive-value',
 )
+logging.getLogger('httpx').info('HTTP Request: GET https://private.test/?token=sensitive-value')
 logging.getLogger('httpx').warning('request https://private.test/?token=sensitive-value')
 try:
     raise ValueError('private@example.test sensitive-value')
@@ -42,6 +43,8 @@ except ValueError:
     assert len(stored) == 3
     assert stored[0]["catalog_indexed"] == 7
     assert stored[1]["event"] == "external_log"
+    assert stored[1]["logger"] == "httpx"
+    assert stored[1]["level"] == "warning"
     assert stored[2]["error_type"] == "ValueError"
     for text in [run.stdout, run.stderr, file_text]:
         assert "sensitive-value" not in text

@@ -381,6 +381,67 @@ def test_pull_caches_each_redacted_node(tmp_path: Path, monkeypatch: pytest.Monk
     assert cached.revision_id == revision_id
 
 
+def test_a_repeat_pull_of_an_identical_node_does_not_rewrite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    local_project_id = _registry(registry_path, _project_root(tmp_path))
+    revision_id = "sha256:" + "d" * 64
+    item = ProjectRevisionView(
+        revision_id=revision_id,
+        parent_revision_ids=[],
+        operation="upsert",
+        content_digest="sha256:" + "e" * 64,
+        projection={"schema_version": 1, "kind": "project"},
+        actor_account_id=ACCOUNT,
+        device_id=DEVICE,
+        created_at=AT,
+    )
+    writes: list[str] = []
+    real = project_ledger.cache_revision
+
+    def counted(
+        connection: sqlite3.Connection,
+        *,
+        local_project_id: str,
+        link_id: str,
+        item: ProjectRevisionView,
+        origin: str,
+    ) -> None:
+        writes.append(origin)
+        real(
+            connection,
+            local_project_id=local_project_id,
+            link_id=link_id,
+            item=item,
+            origin=origin,
+        )
+
+    monkeypatch.setattr(project_ledger, "cache_revision", counted)
+
+    def route(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        return httpx.Response(
+            200,
+            json={
+                "schema_version": 1,
+                "head_revision_id": revision_id,
+                "items": [item.model_dump(mode="json")],
+            },
+        )
+
+    _wired(monkeypatch, registry_path, route)
+    parameters = {
+        "organization-id": ORGANIZATION,
+        "link-id": LINK,
+        "local-project-id": local_project_id,
+        "authorization-revision": f"personal:{ORGANIZATION}:1:1",
+    }
+    project_commands.revision_pull(parameters)
+    project_commands.revision_pull(parameters)
+    assert writes == ["pulled"]
+
+
 def test_push_without_a_passport_is_refused_without_a_request(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

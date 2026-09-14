@@ -304,6 +304,21 @@ def test_deployment_verification_reports_only_declared_probe_origins() -> None:
     assert "--retry-max-time" in web_probe
 
 
+def test_edge_refuses_malformed_server_action_probes() -> None:
+    """A one-character next-action header is a scanner, not a Next.js action.
+
+    Production logged `Server Reference ID did not match the expected format.
+    Received "y"` for a POST the web container then treated as a server error.
+    Real action ids are long hashed references; 1-9 characters never is one.
+    """
+    config = Path("deploy/nginx/ai-stp.conf.template").read_text(encoding="utf-8")
+    assert "http_next_action" in config
+    assert 'if ($method_next_action ~ "^POST:.{1,9}$")' in config
+    assert "return 400;" in config
+    catch_all = config.split("location / {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+    assert "proxy_pass http://@@WEB_BIND@@" in catch_all
+
+
 def test_edge_routes_the_google_compatibility_callback_to_the_api() -> None:
     config = Path("deploy/nginx/ai-stp.conf.template").read_text(encoding="utf-8")
     block = config.split("location = /api/auth/callback/google", maxsplit=1)[1].split(

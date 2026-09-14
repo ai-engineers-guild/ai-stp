@@ -130,6 +130,11 @@ def configure_logging(log_dir: Path) -> None:
         handler.setFormatter(formatter)
         root.addHandler(handler)
     root.setLevel(logging.INFO)
+    # httpx INFO is "HTTP Request: GET https://…". The URL is stripped, so the
+    # sink would keep an empty `external_log` for every outbound call. Warnings
+    # still arrive; their message is still redacted.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
