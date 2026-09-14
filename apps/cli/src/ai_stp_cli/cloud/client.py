@@ -30,6 +30,7 @@ from pydantic import BaseModel, ValidationError
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.runtime import DISTRIBUTION, cli_version
+from ai_stp_contracts.auth import OAUTH_PROVIDERS
 from ai_stp_contracts.http import (
     API_BASE_PATH,
     REQUEST_ID_HEADER,
@@ -37,7 +38,7 @@ from ai_stp_contracts.http import (
     SCHEMA_VERSION_HEADER,
 )
 from ai_stp_foundation.canonical import JsonValue
-from ai_stp_foundation.errors import ERROR_CODES, is_registered_code
+from ai_stp_foundation.errors import is_registered_code
 
 #: Bounded on purpose. An agent waiting on a hung connection cannot tell the
 #: difference between slow and broken, and neither can the person waiting on it.
@@ -441,26 +442,52 @@ def _malformed(response: httpx.Response, error: BaseException) -> CliFailure:
     )
 
 
-#: How to get out of a refusal the server reported, keyed by the closed
-#: registry's own handling class. A code raised locally already names its way
-#: back; the same code arriving over the wire named nothing, because the
-#: response body carries no next actions. Only the classes with one unambiguous
-#: CLI answer are listed — `correct_request` and `reconcile_state` depend on the
-#: command that failed, and inventing a step for them would be worse than
+#: Starting a sign-in again, one command per declared provider. Which provider
+#: this installation uses is not knowable from a transport failure, and naming
+#: GitHub for everybody sent an account that signs in with Google into a flow
+#: it cannot finish. Enumerating the declared set is what the argument parser
+#: already does when a provider is missing.
+_LOGIN_ACTIONS: Final[tuple[str, ...]] = tuple(
+    f"auth login --provider {name} --json" for name in OAUTH_PROVIDERS
+)
+
+#: How to get out of a refusal the server reported. A code raised locally
+#: already names its way back; the same code arriving over the wire named
+#: nothing, because the response body carries no next actions.
+#:
+#: Keyed by the exact code rather than by the registry's handling class, which
+#: is a coarser thing than a recovery: one `restart_authorization` covers an
+#: expired authorization, a declined one and a revoked device. The recipe that
+#: fits the third — retiring the device key — discards a healthy identity in
+#: the first and overrides the user's own answer in the second. Codes whose
+#: recovery depends on the command that failed are absent on purpose: inventing
+#: a step for `correct_request` or `reconcile_state` would be worse than
 #: silence.
 _WAY_BACK: Final[Mapping[str, tuple[str, ...]]] = {
-    "authenticate": ("auth login --provider github --json",),
-    "await_authorization": ("auth complete --json",),
-    "restart_authorization": (
-        "device reset --confirm --json",
-        "auth login --provider github --json",
-    ),
+    "AI_STP_AUTH_REQUIRED": _LOGIN_ACTIONS,
+    "AI_STP_AUTHORIZATION_PENDING": ("auth complete --json",),
+    # The request aged out; the identity behind it did not. Ask again.
+    "AI_STP_AUTHORIZATION_EXPIRED": _LOGIN_ACTIONS,
+    # The user said no. No command here turns that into approval, and offering
+    # one asks the same person the same question until they stop reading it.
+    # Reading the resulting state is the only honest next step.
+    "AI_STP_AUTHORIZATION_DECLINED": ("auth status --json",),
+    # Revocation is the one case where the key itself is the problem, and
+    # `SPEC-002` REQ-207 is explicit that resuming needs a new key *and* a new
+    # sign-in. This is the only entry that retires anything, and it is reached
+    # only when the server says the device is revoked — which is the same
+    # recovery `cloud/login.py` gives when this device notices it first.
+    "AI_STP_DEVICE_REVOKED": ("device reset --confirm --json", *_LOGIN_ACTIONS),
 }
 
 
+def login_actions() -> list[str]:
+    """Starting a sign-in again, for callers that refuse before any request."""
+    return list(_LOGIN_ACTIONS)
+
+
 def _way_back(code: str) -> list[str]:
-    entry = ERROR_CODES.get(code)
-    return [] if entry is None else list(_WAY_BACK.get(entry.handling, ()))
+    return list(_WAY_BACK.get(code, ()))
 
 
 def failure_from(response: httpx.Response) -> CliFailure:
