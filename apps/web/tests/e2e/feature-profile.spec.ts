@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const enabled = process.env["AI_STP_EXPECT_CONTENT_HUB"] !== "false";
 const saas = process.env["AI_STP_EXPECT_SAAS_PUBLIC_PAGES"] !== "false";
+const corporate = process.env["AI_STP_WEB_PROFILE"] === "corporate_hub";
 
 test("compiled content profile is consistent across every public projection", async ({
   page,
@@ -15,6 +16,10 @@ test("compiled content profile is consistent across every public projection", as
   const contact = await request.get("/en/contact");
   const machineContact = await request.get("/en/ai/contact");
   const privacy = await request.get("/en/legal/privacy");
+  const services = await request.get("/en/services");
+  const machineServices = await request.get("/en/ai/services");
+  expect(services.status()).toBe(corporate ? 404 : 200);
+  expect(machineServices.status()).toBe(corporate ? 404 : 200);
   expect(human.status()).toBe(enabled ? 200 : 404);
   expect(machine.status()).toBe(enabled ? 200 : 404);
   expect(detail.status()).toBe(enabled ? 200 : 404);
@@ -25,6 +30,16 @@ test("compiled content profile is consistent across every public projection", as
   expect(privacy.status()).toBe(saas ? 200 : 404);
 
   await page.goto("/en");
+  await expect(page.locator('[data-ui="nav-services"]')).toHaveCount(corporate ? 0 : 1);
+  await expect(page.locator('footer a[href$="/services"]')).toHaveCount(corporate ? 0 : 1);
+  if (corporate) {
+    await expect(page.locator('[data-ui="nav-overview"]')).toHaveAttribute(
+      "href",
+      "/en/corporate/overview",
+    );
+    await expect(page.locator('[data-ui="nav-admins"]')).toHaveCount(0);
+    await expect(page.locator('footer a[href$="/corporate/dashboard"]')).toHaveCount(1);
+  }
   await expect(page.locator('[data-ui="nav-content"]')).toHaveCount(enabled ? 1 : 0);
   await expect(page.locator('[data-ui="nav-contact"]')).toHaveCount(saas ? 1 : 0);
   await expect(page.locator('footer a[href$="/contact"]')).toHaveCount(saas ? 1 : 0);

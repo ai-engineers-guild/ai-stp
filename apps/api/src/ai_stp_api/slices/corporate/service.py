@@ -179,7 +179,7 @@ def mutation_fingerprint(value: object) -> str:
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
-def _organization_view(row: Organization) -> CorporateOrganization:
+def organization_view(row: Organization) -> CorporateOrganization:
     return CorporateOrganization(
         organization_id=row.id,
         display_name=row.display_name,
@@ -224,9 +224,10 @@ def _project_view(row: CorporateProject) -> CorporateProjectView:
     )
 
 
-async def _team_view(
-    db: AsyncSession, row: CorporateTeam, *, ctx: AuthContext
-) -> CorporateTeamView:
+async def team_lead_ids(db: AsyncSession, row: CorporateTeam) -> list[str]:
+    """Read all active tenant-local leads before any presentation limit."""
+    if row.state != "active":
+        return []
     leads = list(
         (
             await db.scalars(
@@ -246,13 +247,14 @@ async def _team_view(
                 )
                 .distinct()
                 .order_by(CorporateRoleBinding.account_id)
-                .limit(256)
             )
         ).all()
     )
-    leads = [account_id for account_id in leads if account_id is not None]
-    if row.state != "active":
-        leads = []
+    return [account_id for account_id in leads if account_id is not None]
+
+
+async def team_view(db: AsyncSession, row: CorporateTeam, *, ctx: AuthContext) -> CorporateTeamView:
+    leads = await team_lead_ids(db, row)
     can_list = ctx.account_id in leads or await has_corporate_permission(
         db,
         organization_id=row.organization_id,
@@ -284,7 +286,7 @@ async def _team_view(
     pairs = (await db.execute(query.order_by(Account.id).limit(256))).all()
     return CorporateTeamView(
         members=[member_view(member, account) for member, account in pairs],
-        lead_account_ids=leads,
+        lead_account_ids=leads[:256],
         team_id=row.id,
         organization_id=row.organization_id,
         name=row.name,
@@ -393,7 +395,7 @@ async def bootstrap(
             reason="idempotent_replay",
             request_id=request_id,
         )
-        return _organization_view(organization)
+        return organization_view(organization)
     existing = await db.scalar(
         select(Organization).where(Organization.kind == "corporate").with_for_update()
     )
@@ -463,7 +465,7 @@ async def bootstrap(
         target_id=organization.id,
         request_id=request_id,
     )
-    return _organization_view(organization)
+    return organization_view(organization)
 
 
 async def _organization_and_membership(
@@ -488,6 +490,9 @@ async def _organization_and_membership(
     return pair[0], pair[1]
 
 
+organization_and_membership = _organization_and_membership
+
+
 async def authorize(
     db: AsyncSession,
     *,
@@ -507,6 +512,19 @@ async def authorize(
     ):
         raise ApiError(ErrorCategory.PRECONDITION, "capability revision is stale")
     scope = scope_id or organization_id
+    if permission in {"entity_profile.update", "entity_profile.owner"}:
+        from ai_stp_api.slices.corporate.entity_profiles import can_edit_profile
+
+        if not await can_edit_profile(
+            db,
+            ctx=ctx,
+            organization_id=organization_id,
+            subject_kind=scope_kind,
+            subject_id=scope,
+            owner_assignment=permission == "entity_profile.owner",
+        ):
+            raise ApiError(ErrorCategory.PERMISSION, "profile edit is forbidden")
+        return organization, membership
     allowed = await has_corporate_permission(
         db,
         organization_id=organization_id,
@@ -650,15 +668,18 @@ async def authorize_idempotent(
             legacy_fingerprint,
         }:
             raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
-        if (
-            scope_kind in {"team", "project"}
-            and scope_id not in {None, "*"}
-            and receipt.response_body.get(
-                f"{scope_kind}_id", receipt.response_body.get("resource_id")
+        if scope_kind in {"team", "project"} and scope_id not in {None, "*"}:
+            receipt_scope_id = receipt.response_body.get(
+                f"{scope_kind}_id",
+                receipt.response_body.get("resource_id", receipt.response_body.get("subject_id")),
             )
-            != scope_id
-        ):
-            raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
+            if receipt_scope_id is None and operation not in {
+                "entity.profile.upload",
+                "entity.profile.update",
+            }:
+                raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
+            if receipt_scope_id is not None and receipt_scope_id != scope_id:
+                raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
         await emit_audit(
             db,
             actor_account_id=ctx.account_id,
@@ -2169,7 +2190,7 @@ async def create_team(
     db.add(row)
     await db.flush()
     organization.policy_revision += 1
-    response = await _team_view(db, row, ctx=ctx)
+    response = await team_view(db, row, ctx=ctx)
     await store_mutation_receipt(
         db,
         organization_id=organization_id,
@@ -2223,7 +2244,7 @@ async def read_team(
         target_id=team_id,
         request_id=request_id,
     )
-    return await _team_view(db, row, ctx=ctx)
+    return await team_view(db, row, ctx=ctx)
 
 
 async def update_team(
@@ -2276,7 +2297,7 @@ async def update_team(
     row.state = payload.state
     row.revision += 1
     organization.policy_revision += 1
-    response = await _team_view(db, row, ctx=ctx)
+    response = await team_view(db, row, ctx=ctx)
     await store_mutation_receipt(
         db,
         organization_id=organization_id,
@@ -2719,7 +2740,7 @@ async def list_teams(
             scope_kind="team",
             scope_id=row.id,
         ):
-            visible.append(await _team_view(db, row, ctx=ctx))
+            visible.append(await team_view(db, row, ctx=ctx))
             if len(visible) == 256:
                 break
     await rows.close()
@@ -2975,7 +2996,7 @@ async def read_context(
         )
     ][:256]
     response = CorporateContext(
-        organization=_organization_view(organization),
+        organization=organization_view(organization),
         member=member_view(membership, account),
         bindings=[_binding_view(row) for row in bindings],
         projects=[_project_view(row) for row in project_rows],

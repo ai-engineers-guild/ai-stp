@@ -45,6 +45,16 @@ describe("requireSession", () => {
     );
   });
 
+  it("keeps corporate session redirects in the corporate URL space", async () => {
+    stubEnv();
+    vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+    cookieStore.get.mockReturnValue(undefined);
+    const { requireSession } = await import("@/lib/auth/require-session");
+    await expect(requireSession("en", "/en/account")).rejects.toThrow(
+      "REDIRECT:/en/corporate/login?returnTo=%2Fen%2Fcorporate%2Faccount",
+    );
+  });
+
   it("sends stale cookies through logout so they are cleared", async () => {
     stubEnv();
     // Cookie present but mock session cannot parse it as a valid session.

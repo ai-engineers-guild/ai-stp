@@ -1,9 +1,13 @@
 import { apiRequest } from "@/lib/api/http";
+import { ApiError } from "@/lib/api/errors";
 
 import type {
   CorporateAuditList,
   CorporateBindingList,
   CorporateContext,
+  CorporateDirectoryQuery,
+  CorporateDirectoryView,
+  CorporateOverview,
   CorporateMemberList,
   CorporateRoleList,
   CorporateServicePrincipalList,
@@ -27,50 +31,68 @@ export async function readCorporateContext(sessionToken: string): Promise<Corpor
   );
 }
 
+export async function readCorporateOverview(
+  sessionToken: string,
+): Promise<CorporateOverview | null> {
+  const organization = await readCorporateOrganization(sessionToken);
+  if (!organization) return null;
+  return apiRequest<CorporateOverview>(
+    `/v1/corporate/organizations/${organization.organization_id}/overview`,
+    { sessionToken },
+  );
+}
+
 export async function readCorporateDirectory(
   sessionToken: string,
-  resource: "projects" | "teams" | "members",
+  resource: "projects" | "teams" | "members" | "technologies",
 ) {
   const context = await readCorporateContext(sessionToken);
   if (!context) return null;
   const path = `/v1/corporate/organizations/${context.organization.organization_id}`;
-  const items: Array<{
-    id: string;
-    name: string;
-    state: string;
-    description?: string;
-    role?: string;
-  }> =
-    resource === "members"
-      ? (await apiRequest<CorporateMemberList>(`${path}/members`, { sessionToken })).items.map(
-          (item) => ({
-            id: item.account_id,
-            name: item.display_name ?? item.account_id,
-            state: item.state,
-            role: item.role,
-          }),
-        )
-      : resource === "teams"
-        ? (await apiRequest<CorporateTeamList>(`${path}/teams`, { sessionToken })).items.map(
-            (item) => ({
-              id: item.team_id,
-              name: item.name,
-              state: item.state,
-              description: item.description,
-            }),
-          )
-        : (await apiRequest<CorporateProjectList>(`${path}/projects`, { sessionToken })).items.map(
-            (item) => ({
-              id: item.project_id,
-              name: item.name,
-              state: item.lifecycle ?? item.state,
-            }),
-          );
+  const directory = await readCorporateDirectoryPages(
+    sessionToken,
+    context.organization.organization_id,
+    { resource, include_archived: true },
+  );
   const roles =
     resource === "members" && context.capabilities.includes("role.list")
       ? await apiRequest<CorporateRoleList>(`${path}/roles`, { sessionToken })
       : null;
-  return { context, items, roles };
+  return { ...directory, context, roles };
+}
+
+export async function readCorporateDirectoryPages(
+  sessionToken: string,
+  organizationId: string,
+  filters: Omit<CorporateDirectoryQuery, "offset" | "limit">,
+): Promise<CorporateDirectoryView> {
+  const items: CorporateDirectoryView["items"] = [];
+  let page: CorporateDirectoryView;
+  do {
+    page = await apiRequest<CorporateDirectoryView>(
+      `/v1/corporate/organizations/${organizationId}/directory`,
+      {
+        sessionToken,
+        query: {
+          ...filters,
+          query: filters.query ?? undefined,
+          state: filters.state ?? undefined,
+          is_lead: filters.is_lead ?? undefined,
+          offset: items.length,
+          limit: 256,
+        },
+      },
+    );
+    if (!page.items.length && items.length < page.total) {
+      throw new ApiError({
+        code: "AI_STP_UNAVAILABLE",
+        status: 503,
+        message: "Corporate directory pagination returned an incomplete collection",
+      });
+    }
+    items.push(...page.items);
+  } while (items.length < page.total);
+  return { ...page, items };
 }
 
 export async function readCorporateWorkspace(
@@ -173,8 +195,7 @@ export async function readCorporateResource(
     (resource === "teams" || resource === "members") && context.capabilities.includes("team.list")
       ? apiRequest<CorporateTeamList>(`${path}/teams`, { sessionToken })
       : null,
-    (resource === "teams" || resource === "projects") &&
-    context.capabilities.includes("member.list")
+    resource === "teams" && context.capabilities.includes("member.list")
       ? apiRequest<CorporateMemberList>(`${path}/members`, { sessionToken })
       : null,
     resource === "members" && context.capabilities.includes("project.list")
@@ -184,12 +205,6 @@ export async function readCorporateResource(
   const projectMemberships =
     resource === "members" && context.capabilities.includes("project.list")
       ? await apiRequest<CorporateProjectList>(`${path}/members/${resourceId}/projects`, {
-          sessionToken,
-        })
-      : null;
-  const projectMembers =
-    resource === "projects" && context.capabilities.includes("member.list")
-      ? await apiRequest<CorporateMemberList>(`${path}/projects/${resourceId}/members`, {
           sessionToken,
         })
       : null;
@@ -206,7 +221,6 @@ export async function readCorporateResource(
     members,
     roles: null,
     projectMemberships,
-    projectMembers,
   };
 }
 

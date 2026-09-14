@@ -37,6 +37,8 @@ describe("the site shell mounts consent and analytics", () => {
   });
 
   it("points the banner at the privacy document for the current locale", () => {
-    expect(shell).toContain("privacyHref={`/${locale}/legal/privacy`}");
+    expect(shell).toContain('const saasPublicPages = isFeatureEnabled("saas_public_pages")');
+    expect(shell).toContain("saasPublicPages ? { privacyHref: `/${locale}/legal/privacy` } : {}");
+    expect(shell).not.toContain('privacyHref="/legal/privacy"');
   });
 });

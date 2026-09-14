@@ -1,4 +1,5 @@
 import { type MachineDocument } from "@/lib/projection/machine-document";
+import { corporateHref } from "@/lib/features/corporate-path";
 import { projectedHref } from "@/lib/projection/paths";
 import { UI } from "@/lib/ui-selectors";
 
@@ -30,7 +31,7 @@ export function MachineDocumentView({
           case "link": {
             const href = block.href.startsWith("http")
               ? block.href
-              : projectedHref(block.href, locale);
+              : projectedHref(corporateHref(block.href), locale);
             return (
               <div key={i}>
                 [{block.text}](

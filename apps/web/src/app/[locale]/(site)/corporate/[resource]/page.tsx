@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 import { CorporateDirectory } from "@/components/organisms/corporate-directory";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { readCorporateDirectory } from "@/lib/api/corporate";
+import { ApiError } from "@/lib/api/errors";
+import {
+  isCorporateTeamProjectResource,
+  readCorporateTeamProjectDirectory,
+} from "@/lib/api/corporate-team-project";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 
@@ -15,20 +20,26 @@ export default async function CorporateDirectoryPage({
 }) {
   const { locale, resource } = await params;
   const filters = await searchParams;
-  if (resource !== "projects" && resource !== "teams" && resource !== "members") notFound();
+  if (resource !== "members" && !isCorporateTeamProjectResource(resource)) notFound();
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/${resource}`);
   const t = await getTranslations("hub");
   const c = await getTranslations("common");
   let directory;
   try {
-    directory = await readCorporateDirectory((await sessionCookieValue()) ?? "", resource);
-  } catch {
+    const session = (await sessionCookieValue()) ?? "";
+    directory = isCorporateTeamProjectResource(resource)
+      ? await readCorporateTeamProjectDirectory(session, resource)
+      : await readCorporateDirectory(session, resource);
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
     return (
       <StatePanel
         kind="error"
         title={t(resource === "members" ? "employees" : resource)}
-        description={c("apiUnavailable")}
+        description={
+          error.status === 403 || error.status === 401 ? c("accessDenied") : c("apiUnavailable")
+        }
       />
     );
   }

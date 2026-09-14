@@ -6,6 +6,7 @@ import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { login } from "@/lib/cli-copy";
 import { getEnv } from "@/lib/env";
+import { corporateHref } from "@/lib/features/corporate-path";
 import { Icon } from "@/theme";
 
 type PageProps = {
@@ -44,8 +45,9 @@ export default async function LoginPage({ params, searchParams }: PageProps) {
   const env = getEnv();
   const showMockSimulators = env.AI_STP_USE_MOCKS && sp.debug === "1";
   const useMockLogin = env.AI_STP_USE_MOCKS;
-  const defaultReturn = `/${locale}/account`;
-  const returnTo = sp.returnTo && sp.returnTo.startsWith("/") ? sp.returnTo : defaultReturn;
+  const defaultReturn = corporateHref(`/${locale}/account`);
+  const returnTo =
+    sp.returnTo && sp.returnTo.startsWith("/") ? corporateHref(sp.returnTo) : defaultReturn;
 
   return (
     <div className="mx-auto w-full max-w-md min-w-0 space-y-6">

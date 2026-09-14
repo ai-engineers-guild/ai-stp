@@ -80,6 +80,43 @@ describe("technology landscape boundary", () => {
     );
   });
 
+  it("keeps the canonical Offline technology reverse link attached to Platform", async () => {
+    request.mockReset();
+    request.mockResolvedValueOnce({
+      items: [
+        {
+          organization_id: "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          project_id: "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          relation_id:
+            "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z:technology:technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          revision: 1,
+          state: "current",
+          technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          facts: [],
+        },
+      ],
+      total: 1,
+    });
+    request.mockResolvedValueOnce({
+      project_id: "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      name: "Platform",
+    });
+    const result = await readTechnologyProjects(
+      "offline-session",
+      "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    );
+    expect(result.status).toBe("data");
+    if (result.status !== "data") throw new Error("reverse technology projection unavailable");
+    expect(result.data.projects).toEqual([
+      {
+        project_id: "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        name: "Platform",
+      },
+    ]);
+    expect(result.data.relations.items[0]).toMatchObject({ state: "current" });
+  });
+
   it("keeps failed reverse reads distinct from an empty related-project list", async () => {
     request.mockReset();
     request.mockRejectedValueOnce(new Error("offline"));

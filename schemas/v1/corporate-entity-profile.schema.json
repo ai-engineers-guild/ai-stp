@@ -1,0 +1,197 @@
+{
+  "$defs": {
+    "EntityProfileFields": {
+      "additionalProperties": false,
+      "properties": {
+        "avatar_asset_id": {
+          "anyOf": [
+            {
+              "pattern": "^avatar_[a-f0-9]{24}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Avatar Asset Id"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 20000,
+          "title": "Description",
+          "type": "string"
+        },
+        "links": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProfileLink"
+          },
+          "maxItems": 8,
+          "title": "Links",
+          "type": "array"
+        },
+        "media": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EntityProfileMedia"
+          },
+          "maxItems": 5,
+          "title": "Media",
+          "type": "array"
+        }
+      },
+      "title": "EntityProfileFields",
+      "type": "object"
+    },
+    "EntityProfileMedia": {
+      "additionalProperties": false,
+      "properties": {
+        "alt": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Caption",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "image",
+            "video",
+            "youtube"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "alt"
+      ],
+      "title": "EntityProfileMedia",
+      "type": "object"
+    },
+    "ProfileLink": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 8,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "url"
+      ],
+      "title": "ProfileLink",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-entity-profile",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "avatar_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Avatar Url"
+    },
+    "can_edit": {
+      "title": "Can Edit",
+      "type": "boolean"
+    },
+    "fields": {
+      "$ref": "#/$defs/EntityProfileFields"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "owner_account_id": {
+      "anyOf": [
+        {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner Account Id"
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "subject_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_kind": {
+      "enum": [
+        "team",
+        "project",
+        "employee",
+        "technology"
+      ],
+      "title": "Subject Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "avatar_url",
+    "can_edit",
+    "fields",
+    "name",
+    "organization_id",
+    "owner_account_id",
+    "revision",
+    "schema_version",
+    "subject_id",
+    "subject_kind"
+  ],
+  "title": "EntityProfileView",
+  "type": "object"
+}

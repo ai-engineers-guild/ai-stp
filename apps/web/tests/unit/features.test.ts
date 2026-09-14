@@ -33,7 +33,7 @@ describe("web feature profiles", () => {
       "src/lib/projection/registry.ts",
       "src/app/sitemap.ts",
       "src/app/robots.ts",
-      "src/app/feed.xml/route.ts",
+      "src/app/feed.xml/route.content.ts",
     ];
     for (const consumer of consumers) {
       expect(readFileSync(path.join(process.cwd(), consumer), "utf8")).toContain("content_hub");

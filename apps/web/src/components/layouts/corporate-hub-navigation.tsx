@@ -5,9 +5,10 @@ import { Link, usePathname } from "@/lib/i18n/navigation";
 import { canViewCorporateSection } from "@/lib/corporate-hub";
 
 const sections = [
-  { key: "overview", href: "/corporate" },
+  { key: "overview", href: "/corporate/overview" },
   { key: "organization", href: "/corporate/organization" },
   { key: "landscape", href: "/corporate/technology-landscape" },
+  { key: "dashboard", href: "/corporate/dashboard" },
 ] as const;
 const organization = [
   { key: "employees", href: "/corporate/members" },
@@ -23,9 +24,16 @@ const landscape = [
 export function CorporateHubNavigation({ capabilities }: { capabilities: readonly string[] }) {
   const t = useTranslations("hub");
   const path = usePathname();
+  if (path === "/corporate" || path === "/corporate/overview") return null;
   const inLandscape = /\/corporate\/(technologies|categories|technology-landscape)/.test(path);
   const activeSection =
-    path === "/corporate" ? "overview" : inLandscape ? "landscape" : "organization";
+    path === "/corporate" || path === "/corporate/overview"
+      ? "overview"
+      : path === "/corporate/dashboard"
+        ? "dashboard"
+        : inLandscape
+          ? "landscape"
+          : "organization";
   return (
     <div className="border-border mb-6 space-y-2 border-b pb-4">
       <nav aria-label={t("navigation")} className="flex flex-wrap gap-2">
@@ -40,7 +48,7 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
           </Link>
         ))}
       </nav>
-      {activeSection !== "overview" && (
+      {(activeSection === "organization" || activeSection === "landscape") && (
         <nav aria-label={t(activeSection)} className="flex flex-wrap gap-2">
           {(inLandscape ? landscape : organization)
             .filter((item) => canViewCorporateSection(item.key, capabilities))

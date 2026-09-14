@@ -1,54 +1,90 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-
-import { Badge } from "@/components/atoms/badge";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import { Link } from "@/lib/i18n/navigation";
+import {
+  CorporateDirectoryResults,
+  type DirectoryItem,
+} from "@/components/organisms/corporate-directory-results";
 import type { CorporateMember, CorporateTeamView } from "@/lib/api/generated/types.gen";
+
+function initialFilter(name: "query" | "team_filter", fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  return new URLSearchParams(window.location.search).get(name) ?? fallback;
+}
 
 export function CorporateEmployeeDirectory({
   members,
   teams,
+  items,
 }: {
   members: readonly CorporateMember[];
   teams: readonly CorporateTeamView[];
+  items?: readonly DirectoryItem[];
 }) {
   const t = useTranslations("corporate");
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const visible = members
-    .map((member) => ({
-      member,
-      memberships: teams.filter((team) =>
+  const hub = useTranslations("hub");
+  const [search, setSearch] = useState(() => initialFilter("query", ""));
+  const [filter, setFilter] = useState(() => initialFilter("team_filter", "all"));
+  useEffect(() => {
+    function restore() {
+      const params = new URLSearchParams(window.location.search);
+      setSearch(params.get("query") ?? "");
+      setFilter(params.get("team_filter") ?? "all");
+    }
+    window.addEventListener("popstate", restore);
+    return () => {
+      window.removeEventListener("popstate", restore);
+    };
+  }, []);
+  const employees =
+    items ??
+    members.map((member) => {
+      const memberships = teams.filter((team) =>
         team.members.some((item) => item.account_id === member.account_id),
-      ),
-    }))
-    .filter(
-      ({ member, memberships }) =>
-        (member.display_name ?? member.account_id)
-          .toLocaleLowerCase()
-          .includes(search.toLocaleLowerCase()) &&
-        (filter === "all" ||
-          (filter === "unassigned"
-            ? !memberships.length
-            : memberships.some((team) => team.team_id === filter))),
-    );
+      );
+      return {
+        id: member.account_id,
+        name: member.display_name?.trim() || hub("unknownEmployee"),
+        state: member.state,
+        role: member.role,
+        teams: memberships.map((team) => ({ id: team.team_id, name: team.name })),
+        is_lead: teams.some((team) => team.lead_account_ids.includes(member.account_id)),
+      };
+    });
+  function updateUrl(nextSearch: string, nextFilter: string) {
+    const url = new URL(window.location.href);
+    if (nextSearch) url.searchParams.set("query", nextSearch);
+    else url.searchParams.delete("query");
+    if (nextFilter === "all") url.searchParams.delete("team_filter");
+    else url.searchParams.set("team_filter", nextFilter);
+    window.history.replaceState(window.history.state, "", url);
+  }
+  const visible = employees.filter((item) => {
+    const matchesSearch = item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase());
+    const memberships = item.teams ?? [];
+    const matchesTeam =
+      filter === "all" ||
+      (filter === "unassigned"
+        ? memberships.length === 0
+        : memberships.some((team) => team.id === filter));
+    return matchesSearch && matchesTeam;
+  });
   return (
-    <section className="space-y-4">
-      <h2 className="text-xl font-medium">
-        {t("members")} <span className="text-muted-foreground text-base">({members.length})</span>
-      </h2>
-      <div className="flex flex-wrap gap-3">
+    <section className="min-w-0 space-y-4">
+      <h2 className="text-xl font-medium">{t("members")}</h2>
+      <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-48 flex-1 space-y-2">
           <Label htmlFor="employee-search">{t("searchEmployees")}</Label>
           <Input
             id="employee-search"
+            type="search"
             value={search}
             onChange={(event) => {
-              setSearch(event.target.value);
+              const nextSearch = event.target.value;
+              setSearch(nextSearch);
+              updateUrl(nextSearch, filter);
             }}
           />
         </div>
@@ -58,9 +94,11 @@ export function CorporateEmployeeDirectory({
             id="employee-team-filter"
             value={filter}
             onChange={(event) => {
-              setFilter(event.target.value);
+              const nextFilter = event.target.value;
+              setFilter(nextFilter);
+              updateUrl(search, nextFilter);
             }}
-            className="border-input bg-background h-9 max-w-full rounded-sm border px-3 text-sm"
+            className="border-input bg-background min-h-11 max-w-full rounded-sm border px-3 text-sm"
           >
             <option value="all">{t("allEmployees")}</option>
             <option value="unassigned">{t("unassigned")}</option>
@@ -72,35 +110,7 @@ export function CorporateEmployeeDirectory({
           </select>
         </div>
       </div>
-      {visible.length ? (
-        <ul className="border-border divide-border divide-y rounded-lg border">
-          {visible.map(({ member, memberships }) => (
-            <li key={member.account_id}>
-              <Link
-                href={`/corporate/members/${member.account_id}`}
-                className="hover:bg-muted focus-visible:ring-ring flex flex-wrap items-center justify-between gap-3 p-4 outline-none focus-visible:ring-2"
-              >
-                <div className="min-w-0 space-y-1 [overflow-wrap:anywhere]">
-                  <span className="block font-medium">
-                    {member.display_name ?? member.account_id}
-                  </span>
-                  <span className="text-muted-foreground block text-sm">
-                    {memberships.map((team) => team.name).join(", ") || t("unassigned")}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">{t(member.state)}</Badge>
-                  <Badge variant="secondary">{member.role}</Badge>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-muted-foreground py-6 text-sm">
-          {t(members.length ? "noMatches" : "noOrganizationEmployees")}
-        </p>
-      )}
+      <CorporateDirectoryResults resource="members" items={visible} />
     </section>
   );
 }

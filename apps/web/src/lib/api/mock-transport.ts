@@ -20,6 +20,8 @@ import { componentVersionResponse, setupVersionResponse } from "@/mocks/passport
 
 import { mapHttpError, ApiError } from "./errors";
 import { profileHandlers } from "./mock-profile";
+import { corporateHandlers } from "./mock-corporate";
+import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import { readMockPresentation, workspaceHandlers } from "./mock-workspace";
 
 type MockResult = { status: number; body: unknown; headers?: Record<string, string> };
@@ -819,13 +821,21 @@ function contextHandler(
   if (localSession) return localSession;
   if (method !== "GET") return null;
   if (path === "/v1/context") return contextResponse(fixture, auth, headers);
-  if (path === "/v1/organizations") return organizationsResponse(fixture, auth);
+  if (path === "/v1/organizations") {
+    if (!fixture && COMPILED_FEATURE_PROFILE === "corporate_hub") {
+      return corporateHandlers(method, path, Boolean(auth), undefined);
+    }
+    return organizationsResponse(fixture, auth);
+  }
   return null;
 }
 
-function parseMockBody(raw: string | undefined): unknown {
+function parseMockBody(raw: BodyInit | undefined): unknown {
   if (!raw) {
     return undefined;
+  }
+  if (typeof raw !== "string") {
+    return raw;
   }
   try {
     return JSON.parse(raw) as unknown;
@@ -840,7 +850,7 @@ export function mockFetch(
   init?: {
     query?: URLSearchParams;
     headers?: HeadersInit;
-    body?: string;
+    body?: BodyInit;
   },
 ): MockResult {
   const auth = readAuth(init?.headers);
@@ -869,6 +879,11 @@ export function mockFetch(
   if (identity) {
     return identity;
   }
+  const corporate =
+    path.startsWith("/v1/corporate/") || COMPILED_FEATURE_PROFILE === "corporate_hub"
+      ? corporateHandlers(method, path, Boolean(auth), body, init?.query, init?.headers)
+      : null;
+  if (corporate) return corporate;
   const workspace = workspaceHandlers(method, path, auth, body);
   if (workspace) {
     return workspace;

@@ -12,7 +12,8 @@ from ai_stp_api.deps import get_db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
-from ai_stp_api.slices.corporate import assignments, profiles, service
+from ai_stp_api.slices.corporate import assignments, directory, overview, profiles, service
+from ai_stp_api.slices.corporate.profile_router import router as profile_router
 from ai_stp_contracts.corporate import (
     AccountId,
     CorporateAuditExport,
@@ -37,6 +38,7 @@ from ai_stp_contracts.corporate import (
     CorporateMembershipAssignmentRequest,
     CorporateMemberUpdateRequest,
     CorporateOrganization,
+    CorporateOverview,
     CorporateProjectCreateRequest,
     CorporateProjectLifecycleRequest,
     CorporateProjectList,
@@ -56,9 +58,42 @@ from ai_stp_contracts.corporate import (
     CorporateTeamView,
     OrganizationId,
 )
+from ai_stp_contracts.corporate_directory import CorporateDirectoryQuery, CorporateDirectoryView
 from ai_stp_contracts.http import Timestamp
 
 router = APIRouter(tags=["corporate"])
+router.include_router(profile_router)
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/directory", response_model=CorporateDirectoryView
+)
+async def read_directory(
+    organization_id: OrganizationId,
+    query: Annotated[CorporateDirectoryQuery, Query()],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateDirectoryView:
+    return await directory.read_directory(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        query=query,
+        request_id=_request_id(request),
+    )
+
+
+@router.get("/corporate/organizations/{organization_id}/overview", response_model=CorporateOverview)
+async def read_overview(
+    organization_id: OrganizationId,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateOverview:
+    return await overview.read_overview(
+        db, ctx=ctx, organization_id=organization_id, request_id=_request_id(request)
+    )
 
 
 @router.patch(

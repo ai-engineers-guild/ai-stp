@@ -1,13 +1,25 @@
+import path from "node:path";
+
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 import { resolveDevApiRewrites } from "./src/lib/dev-api-rewrites";
-import { resolveFeatureProfile } from "./src/lib/features/load-profile";
+import {
+  disabledWebModuleAliases,
+  resolveFeatureProfile,
+  webPageExtensions,
+} from "./src/lib/features/load-profile";
 import { assertContentLocaleParity } from "./src/lib/content/source";
 
 const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
 const featureProfile = resolveFeatureProfile(process.cwd(), process.env);
-assertContentLocaleParity();
+const disabledPublicSurface = path.resolve(
+  process.cwd(),
+  "src/lib/features/disabled-public-surface.ts",
+);
+if (featureProfile.features.content_hub) assertContentLocaleParity();
+
+type WebpackConfig = { resolve?: { alias?: Record<string, string | false> } };
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const contentSecurityPolicy = [
@@ -27,6 +39,22 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  pageExtensions: webPageExtensions(featureProfile),
+  skipMiddlewareUrlNormalize: featureProfile.profile === "corporate_hub",
+  outputFileTracingExcludes: {
+    "*": [
+      ...(!featureProfile.features.content_hub ? ["**/docs-user-facing/content/**/*"] : []),
+      ...(!featureProfile.features.saas_public_pages ? ["**/docs-user-facing/legal/**/*"] : []),
+    ],
+  },
+  webpack(config: WebpackConfig) {
+    const aliases = disabledWebModuleAliases(featureProfile, disabledPublicSurface);
+    if (Object.keys(aliases).length > 0) {
+      config.resolve ??= {};
+      config.resolve.alias = { ...config.resolve.alias, ...aliases };
+    }
+    return config;
+  },
   env: {
     AI_STP_COMPILED_FEATURE_PROFILE: featureProfile.profile,
     AI_STP_COMPILED_FEATURE_CONTENT_HUB: String(featureProfile.features.content_hub),
@@ -89,9 +117,13 @@ const nextConfig: NextConfig = {
   // Dev-only: same-origin /v1 (and API docs) → internal API without a host proxy.
   // Prod keeps the path split in the host's nginx (ADR-0135); rewrites stay empty there.
   rewrites() {
-    return Promise.resolve(
-      resolveDevApiRewrites(process.env.NODE_ENV, process.env.AI_STP_API_BASE_URL),
-    );
+    const rules = resolveDevApiRewrites(process.env.NODE_ENV, process.env.AI_STP_API_BASE_URL);
+    if (process.env.NODE_ENV !== "development" || process.env.AI_STP_USE_MOCKS === "true")
+      return Promise.resolve(rules);
+    return Promise.resolve({
+      beforeFiles: rules.filter((rule) => rule.source === "/v1/:path*"),
+      afterFiles: rules.filter((rule) => rule.source !== "/v1/:path*"),
+    });
   },
   // typedRoutes off for mock-first MVP: returnTo paths are dynamic query strings.
   eslint: {

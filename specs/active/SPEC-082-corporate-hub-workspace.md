@@ -61,7 +61,141 @@ continues to use its own feature profile.
   removal or suspension appropriate to their canonical lifecycle. Employee name
   editing is independent of role/access administration.
 
+## Corporate workspace presentation and editing extension
+
+The September 13 Corporate Hub redesign brief extends the requirements above.
+It preserves the incumbent Catalog card/list and two-column detail composition,
+tokens, typography, locale controls, theme controls, and account drawer. It does
+not redesign administration or Technology Landscape. Dashboard is an empty route.
+
+- `REQ-8209`: Local context has no website deployment. Personal SaaS retains its
+  existing routes and navigation. The corporate build excludes Articles, Regional
+  Services, Company, and Legal pages from its route/build surface, not merely from
+  navigation. Corporate routes use `/corporate/`; Overview is
+  `/corporate/overview`. The corporate account entry button is removed and an
+  orange Corporate Hub badge immediately precedes the locale control. Header
+  destinations are Overview, Catalog, Organization, Landscape, Dashboard, and
+  For Admins; the last destination requires server-authorized administration
+  capabilities. A Corporate Hub footer group links the four workspace destinations.
+- `REQ-8210`: Overview shows the organization name and quick-navigation cards for
+  teams, projects, employees, and technologies, with deduplicated counts from the
+  authorized graph and directory relationships.
+  Its expandable DAG/WBS projection
+  displays project/team/employee relationships, team leads, and exact catalog
+  assignments at each node. Shared teams and employees may appear under multiple
+  parents without manufacturing additional membership records. Expansion-depth
+  controls reach employees; filters support multiple selections. Team-derived
+  projects are a labeled projection distinct from explicit employee/project links.
+- `REQ-8211`: Team, project, technology, and employee directories share Catalog
+  search, filter, full-width list, and two-column card composition. Team filters
+  include leads, technologies, and related teams; project filters include teams
+  and technologies; technology filters include projects, teams, and categories;
+  employee filters include projects, teams, technologies, and whether the employee
+  leads a team. Filter semantics and related-team derivation must be explicit in
+  the generated machine contract; unreadable objects never affect visible counts.
+  Cards display team leads, project owner team, technology owner employee, or
+  employee identity in the author position respectively. Tags display team
+  technologies, project technologies, technology projects, or employee teams.
+  Team action-menu placeholders are permitted; directory data is never fixture data.
+- `REQ-8212`: Shared two-column detail composition shows Markdown description,
+  links, catalog assignments, and named related objects. Team details show
+  employees/projects; project details show technologies/teams and the owner team;
+  technology details show owner and reverse relations; employee details show their
+  profile, teams, team-derived projects, and authored catalog components. Catalog
+  authorship and designated ownership remain independent concepts.
+- `REQ-8213`: Add designated technology and catalog-object ownership independently
+  of authorship and competence. Administrators can edit project/team/technology
+  presentation. Team leads can edit team presentation, owner-team projects, and
+  other employee profiles. The brief's broader team-lead editing authority applies
+  to presentation editing across the organization, not role/binding administration,
+  visibility, publication, installation, or security policy. Technology owners can
+  edit their technology presentation. Enforce these authorities on endpoints, not
+  only navigation, and keep tenant and revision checks mandatory.
+- `REQ-8214`: Shared presentation editors support Markdown description, replacement
+  of the default avatar with an uploaded avatar, media uploads, and links. Corporate
+  presentation and media remain tenant-scoped; public-description editing does not
+  publish private organization content to the personal SaaS profile. Reuse existing
+  profile controls and storage mechanisms where their authorization fits. Validate
+  MIME type, size, links, and same-tenant media references mechanically. A failed
+  upload/write preserves the draft; unused uploads have an explicit cleanup path.
+- `REQ-8215`: Add server-side authorized directory and Overview projections rather
+  than fetching unrestricted collections and filtering in the browser. Preserve
+  existing typed stable identities, including the historical `operation_` team
+  namespace; do not replace IDs with a second UUID scheme. Additive migrations
+  precede contract/API/Web rollout and retain old data on application rollback.
+
+The extension is accepted only after route/build-profile assertions, PostgreSQL
+tenant/RBAC/media tests, generated-contract checks, and desktop/mobile browser
+flows demonstrate all of the above. Browser coverage includes list/card switching,
+multiple filters, expansion depth, owner/lead edits, another employee's profile,
+media upload, named reverse navigation, denial recovery, and unchanged personal
+SaaS navigation. A green narrow directory test does not prove the entire extension.
+
 ## States and errors
+
+`GET /v1/corporate/organizations/{organization_id}/directory` initially serves
+`resource=teams|projects`. It returns named cards, complete readable facets and
+filtered total; query/state, lead_ids, team_ids and technology_ids use OR within
+each selected dimension and AND across dimensions. Authorization precedes facets,
+filters, sorting and offset/limit pagination. Team team_ids matches other teams
+sharing a readable current project. Project team_ids matches its related teams.
+Team technology tags combine current technology responsibility and usage of its
+readable current projects. Technology names require technology read and canonical
+relation read/list permissions. Archived roots retain identity/revision but do not
+manufacture active related links. No directory load fetches catalog assignments.
+This incremental endpoint does not replace employee/technology directory work.
+
+Public-only route sources use build-gated Next page extensions: `content.tsx`
+and `content.ts` for editorial pages/layout/feed, `saas.tsx` for contact/legal,
+and `regional.tsx` for services/countries. Feature extensions require their
+compiled feature; regional extensions are excluded in corporate builds while
+preserving the existing noncorporate packaged surface. Disabled
+routes therefore have no compiled page modules; middleware remains defense in
+depth for the generic machine-document route. Personal SaaS URLs are unchanged.
+Corporate profile overrides cannot reenable editorial or SaaS-public surfaces.
+Corporate builds also set Next's native `skipMiddlewareUrlNormalize` flag so
+excluded machine targets are not reconstructed by URL normalization; other
+profiles retain the default value.
+Standalone packaging reads baked feature values from required-server-files,
+omits disabled editorial/legal Markdown and editorial public assets, and retains
+documentation. Docker consumes this same packaged asset tree. Browser regressions
+resolve user-facing sources from the packaged artifact, not the source checkout.
+
+`GET /v1/corporate/organizations/{organization_id}/overview` returns a normalized
+current graph: organization, distinct project/team/employee nodes with readable
+names, team leads and exact catalog assignments, and project/team or team/employee
+edges. The read requires organization access, each visible anchor's access, and
+canonical relationship read/list permissions. It excludes inactive subjects and
+retired links. Employee assignments additionally require the existing employee
+read authority; roster visibility alone does not grant assignment access. All
+assignment pages are consumed, not silently truncated to the first 128 entries.
+The graph creates no state and contains no raw-ID label fallbacks. Filter/expansion
+UI operates on the authorized graph and never requests hidden data.
+
+Overview retains one organization header and four summary counts above an in-place
+switch between organization hierarchy and component/setup usage. Organization rows
+show named links, readable descriptions, leads, roster counts, technology chips and
+catalog assignments. Usage groups each stable component/setup once across versions
+and deduplicates its visible usage anchors. Exact-version assignment links remain
+unchanged. Descriptions and operational owners use existing directory, catalog and
+ownership reads, never a new API contract. Unavailable ownership is not reported as
+unassigned. Filters use incumbent searchable selectors; mobile filters use Sheet.
+Search, selection, sort and expansion affect only the read projection; clear is
+visible only with active filters. Shared branches retain their canonical identity.
+Dense desktop rows align entity details, lead and assignment statistics; mobile
+rows stack without horizontal scrolling. Owning teams appear first; the initial
+hierarchy expands the first team's compact three-employee preview. More employees
+remain reachable through `+N`, or the Employees expansion depth.
+Project leads use existing scoped lead
+bindings. Team roster lead metadata is displayed only to authorized roster readers
+and never substitutes for permission checks. Presentation descriptions use the
+existing entity profile description, independently of membership authorization role.
+Catalog descriptions and ownership are optional enrichment reads; a transient
+catalog or rate-limit failure must leave the authorized organization graph
+renderable with its available names and assignments.
+The explicit development-only Twinby fixture loader preserves existing accounts,
+memberships and assignments, adds canonical project/team relationships, classified
+technologies and experimental catalog examples, and refuses changed target revisions.
 
 The audit journal has a dedicated `/corporate/organization/admins/audit` page.
 It requires `audit.list`; actor names are resolved only from an authorized member

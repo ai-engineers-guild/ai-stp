@@ -23,11 +23,18 @@ export function CorporateEmployeeTechnologies({
   authorizationRevision: number;
   csrfToken: string;
   canManage: boolean;
-  labels: { title: string; empty: string; assign: string; remove: string; technology: string };
+  labels: {
+    edit: string;
+    empty: string;
+    assign: string;
+    remove: string;
+    technology: string;
+  };
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState(technologies[0]?.technology_id ?? "");
   const [busy, startTransition] = useTransition();
+  if (!canManage) return null;
   function submit(state: "current" | "retired", technologyId: string, revision: number) {
     startTransition(async () => {
       const result = await corporateMutationAction({
@@ -48,23 +55,26 @@ export function CorporateEmployeeTechnologies({
     });
   }
   return (
-    <section className="space-y-4">
-      <h2 className="text-xl font-medium">{labels.title}</h2>
-      {assignments.items.length ? (
-        <ul className="divide-border divide-y">
-          {assignments.items.map((item) => (
-            <li
-              key={item.relation_id}
-              className="flex flex-wrap items-center justify-between gap-3 py-3"
-            >
-              <Link
-                href={`/corporate/technologies/${item.technology_id}`}
-                className="underline underline-offset-4"
+    <details>
+      <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
+        {labels.edit}
+      </summary>
+      <div className="space-y-4 pt-3">
+        {assignments.items.length ? (
+          <ul className="divide-border divide-y">
+            {assignments.items.map((item) => (
+              <li
+                key={item.relation_id}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
               >
-                {technologies.find((technology) => technology.technology_id === item.technology_id)
-                  ?.name ?? labels.technology}
-              </Link>
-              {canManage ? (
+                <Link
+                  href={`/corporate/technologies/${item.technology_id}`}
+                  className="underline underline-offset-4"
+                >
+                  {technologies.find(
+                    (technology) => technology.technology_id === item.technology_id,
+                  )?.name ?? labels.technology}
+                </Link>
                 <Button
                   type="button"
                   variant="outline"
@@ -75,14 +85,12 @@ export function CorporateEmployeeTechnologies({
                 >
                   {labels.remove}
                 </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-muted-foreground text-sm">{labels.empty}</p>
-      )}
-      {canManage ? (
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground text-sm">{labels.empty}</p>
+        )}
         <div className="flex flex-wrap items-end gap-3">
           <select
             aria-label={labels.technology}
@@ -108,7 +116,7 @@ export function CorporateEmployeeTechnologies({
             {labels.assign}
           </Button>
         </div>
-      ) : null}
-    </section>
+      </div>
+    </details>
   );
 }

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- this route intentionally owns all corporate resource actions. */
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -9,9 +10,18 @@ import { CorporateTeamEditor } from "@/components/organisms/corporate-team-edito
 import { CorporateTeamMemberships } from "@/components/organisms/corporate-team-memberships";
 import { LocalizedResourceActions } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
-import { CorporateProjectMemberships } from "@/components/organisms/corporate-project-memberships";
 import { CorporateMemberProfile } from "@/components/organisms/corporate-member-profile";
 import { CorporateEmployeeTechnologies } from "@/components/organisms/corporate-employee-technologies";
+import {
+  CorporateEmployeeDetail,
+  corporateEmployeeDetailLabels,
+} from "@/components/organisms/corporate-employee-detail";
+import { CorporateEntityDetail } from "@/components/organisms/corporate-entity-detail";
+import { readCorporatePresentation } from "@/lib/api/corporate-detail";
+import {
+  assembleCorporateEmployeePresentation,
+  readCorporateEmployeeContent,
+} from "@/lib/api/corporate-employee";
 import { ProjectTechnologyEditor } from "@/components/organisms/project-technology-editor";
 import { ProjectTeamEditor } from "@/components/organisms/project-team-editor";
 import { ProjectLifecycleControls } from "@/components/organisms/corporate-governance-controls";
@@ -21,8 +31,11 @@ import {
   readCorporateCatalogAssignments,
   readEmployeeTechnologies,
 } from "@/lib/api/corporate";
-import { readTechnologyRegistry } from "@/lib/api/technology";
-import { readProjectTechnologyDetail, readTeamProjects } from "@/lib/api/technology";
+import {
+  readProjectTechnologyDetail,
+  readTechnologyRegistry,
+  readTeamProjects,
+} from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 
@@ -51,6 +64,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
   const t = await getTranslations("corporate");
   const tc = await getTranslations("common");
   const h = await getTranslations("hub");
+  const technology = await getTranslations("technology");
   const session = (await sessionCookieValue()) ?? "";
 
   let workspace;
@@ -79,7 +93,9 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     : null;
   const member = workspace.member;
   const competenceData =
-    member && workspace.context.capabilities.includes("technology.list")
+    member &&
+    workspace.context.capabilities.includes("technology.list") &&
+    workspace.context.capabilities.includes("member.manage")
       ? await Promise.all([
           readEmployeeTechnologies(
             session,
@@ -89,6 +105,14 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
           readTechnologyRegistry(session, workspace.organization.organization_id),
         ])
       : null;
+  const employeeContent = member
+    ? await readCorporateEmployeeContent({
+        sessionToken: session,
+        organizationId: workspace.organization.organization_id,
+        accountId: member.account_id,
+        canReadTechnologies: workspace.context.capabilities.includes("technology.list"),
+      })
+    : null;
   const role = workspace.role;
   const detail =
     resource === "projects"
@@ -114,7 +138,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         : resource === "members"
           ? member && {
               id: member.account_id,
-              name: member.display_name ?? member.account_id,
+              name: member.display_name?.trim() || t("unknownEmployee"),
               state: member.state,
               revision: member.revision,
               role: undefined,
@@ -155,8 +179,82 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     resource === "roles"
       ? "/corporate/organization/admins"
       : `/corporate/${resource}${directoryQuery ? `?${directoryQuery}` : ""}`;
+  let presentation =
+    resource === "roles"
+      ? null
+      : await readCorporatePresentation(
+          session,
+          workspace.organization.organization_id,
+          resource,
+          resourceId,
+          workspace.context.organization.authorization_revision,
+        );
+  if (presentation) {
+    if (team) {
+      presentation.leads = team.members
+        .filter((item) => item.role === "lead")
+        .map((item) => ({
+          kind: "employee",
+          id: item.account_id,
+          name: item.display_name ?? h("employees"),
+        }));
+    }
+    if (projectDetail) {
+      presentation.technologies = (projectDetail.relations?.items ?? [])
+        .filter((item) => item.state === "current")
+        .flatMap((item) => {
+          const relatedTechnology = projectDetail.technologies.find(
+            (candidate) => candidate.technology_id === item.technology_id,
+          );
+          return relatedTechnology
+            ? [
+                {
+                  kind: "technology" as const,
+                  id: relatedTechnology.technology_id,
+                  name: relatedTechnology.name,
+                },
+              ]
+            : [];
+        });
+    }
+    if (projectDetail?.projectTeams) {
+      presentation.teams = projectDetail.projectTeams.items
+        .filter((item) => item.state === "current")
+        .flatMap((item) => {
+          const relatedTeam = projectDetail.teams.find(
+            (candidate) => candidate.team_id === item.team_id,
+          );
+          return relatedTeam
+            ? [{ kind: "team" as const, id: relatedTeam.team_id, name: relatedTeam.name }]
+            : [];
+        });
+      const owner = projectDetail.projectTeams.items.find(
+        (item) => item.state === "current" && item.role === "owner",
+      );
+      const ownerTeam = projectDetail.teams.find((item) => item.team_id === owner?.team_id);
+      presentation.owner = ownerTeam
+        ? { kind: "team", id: ownerTeam.team_id, name: ownerTeam.name }
+        : null;
+    }
+    if (member && employeeContent) {
+      presentation = await assembleCorporateEmployeePresentation({
+        presentation,
+        sessionToken: session,
+        organizationId: workspace.organization.organization_id,
+        member,
+        teams: workspace.context.teams,
+        projects: workspace.context.projects,
+        content: employeeContent,
+        includeTechnologies: true,
+        unknownName: t("unknownEmployee"),
+      });
+    }
+  }
+  const displayDescription = presentation
+    ? presentation.description
+    : team?.description || detail.description;
   return (
-    <article className="mx-auto max-w-5xl space-y-6">
+    <article className="mx-auto max-w-7xl space-y-8">
       <div className="flex flex-wrap items-center gap-3">
         <HistoryBackButton label={h("historyBack")} fallback={parentHref} />
         <Link
@@ -172,173 +270,146 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
           {detail.role ? <Badge variant="secondary">{detail.role}</Badge> : null}
         </div>
         <h1 className="text-3xl font-medium tracking-tight [overflow-wrap:anywhere]">
-          {detail.name}
+          {presentation?.name ?? detail.name}
         </h1>
-        <p className="text-muted-foreground max-w-prose">
-          {team ? team.description || t("noDescription") : detail.description}
-        </p>
       </header>
-
-      {resource === "teams" && team ? (
-        <>
-          <CorporateTeamEditor
-            team={team}
-            organizationId={workspace.context.organization.organization_id}
+      <CorporateEntityDetail
+        presentation={presentation}
+        description={displayDescription}
+        organizationId={workspace.organization.organization_id}
+        resource={resource === "roles" ? "teams" : resource}
+        resourceId={resourceId}
+        csrfToken={(await readCsrfToken()) ?? ""}
+      >
+        {resource === "teams" && team ? (
+          <>
+            <CorporateTeamEditor
+              team={team}
+              organizationId={workspace.context.organization.organization_id}
+              authorizationRevision={workspace.context.organization.authorization_revision}
+              csrfToken={(await readCsrfToken()) ?? ""}
+              canManage={workspace.context.capabilities.includes("team.update")}
+            />
+            <CorporateTeamMemberships
+              team={team}
+              teams={workspace.context.teams}
+              members={workspace.members?.items ?? []}
+              organizationId={workspace.context.organization.organization_id}
+              csrfToken={(await readCsrfToken()) ?? ""}
+              canManage={workspace.context.capabilities.includes("member.manage")}
+            />
+            {teamProjects && (
+              <section className="space-y-3">
+                <h2 className="text-xl font-medium">{h("projects")}</h2>
+                <ul className="divide-border divide-y">
+                  {teamProjects.relations.items
+                    .filter((item) => item.state === "current")
+                    .map((item) => (
+                      <li
+                        key={item.relation_id}
+                        className="flex flex-wrap items-center justify-between gap-3 py-3"
+                      >
+                        <Link
+                          href={`/corporate/projects/${item.project_id}`}
+                          className="inline-flex min-h-11 items-center underline underline-offset-4"
+                        >
+                          {teamProjects.projects?.items.find(
+                            (project) => project.project_id === item.project_id,
+                          )?.name ?? h("projects")}
+                        </Link>
+                        <span className="text-muted-foreground text-sm">{h(item.role)}</span>
+                      </li>
+                    ))}
+                </ul>
+                {!teamProjects.relations.items.some((item) => item.state === "current") && (
+                  <p className="text-muted-foreground text-sm">{h("empty")}</p>
+                )}
+              </section>
+            )}
+          </>
+        ) : null}
+        {member && workspace.context.capabilities.includes("member.update") && (
+          <CorporateMemberProfile
+            member={member}
+            organizationId={workspace.organization.organization_id}
             authorizationRevision={workspace.context.organization.authorization_revision}
             csrfToken={(await readCsrfToken()) ?? ""}
-            canManage={workspace.context.capabilities.includes("team.update")}
           />
-          <CorporateTeamMemberships
-            team={team}
-            teams={workspace.context.teams}
-            members={workspace.members?.items ?? []}
-            organizationId={workspace.context.organization.organization_id}
+        )}
+        {member && employeeContent ? (
+          <CorporateEmployeeDetail
+            content={employeeContent}
+            leadTeams={(presentation?.leads ?? [])
+              .filter((ref) => ref.kind === "team")
+              .map((ref) => ({ id: ref.id, name: ref.name }))}
+            labels={corporateEmployeeDetailLabels(t)}
+          />
+        ) : null}
+        {member && competenceData?.[0] && competenceData[1].technologies && (
+          <CorporateEmployeeTechnologies
+            employee={member}
+            assignments={competenceData[0]}
+            technologies={competenceData[1].technologies.items}
+            organizationId={workspace.organization.organization_id}
+            authorizationRevision={workspace.organization.authorization_revision}
             csrfToken={(await readCsrfToken()) ?? ""}
             canManage={workspace.context.capabilities.includes("member.manage")}
+            labels={{
+              edit: tc("edit"),
+              empty: technology("noEmployeeTechnologies"),
+              assign: t("assign"),
+              remove: t("remove"),
+              technology: technology("technology"),
+            }}
           />
-          {teamProjects && (
-            <section className="space-y-3">
-              <h2 className="text-xl font-medium">{h("projects")}</h2>
-              <ul className="divide-border divide-y">
-                {teamProjects.relations.items
-                  .filter((item) => item.state === "current")
-                  .map((item) => (
-                    <li
-                      key={item.relation_id}
-                      className="flex flex-wrap items-center justify-between gap-3 py-3"
-                    >
-                      <Link
-                        href={`/corporate/projects/${item.project_id}`}
-                        className="inline-flex min-h-11 items-center underline underline-offset-4"
-                      >
-                        {teamProjects.projects?.items.find(
-                          (project) => project.project_id === item.project_id,
-                        )?.name ?? h("projects")}
-                      </Link>
-                      <span className="text-muted-foreground text-sm">{h(item.role)}</span>
-                    </li>
-                  ))}
-              </ul>
-              {!teamProjects.relations.items.some((item) => item.state === "current") && (
-                <p className="text-muted-foreground text-sm">{h("empty")}</p>
-              )}
-            </section>
-          )}
-        </>
-      ) : null}
-      {member && workspace.context.capabilities.includes("member.update") && (
-        <CorporateMemberProfile
-          member={member}
-          organizationId={workspace.organization.organization_id}
-          authorizationRevision={workspace.context.organization.authorization_revision}
-          csrfToken={(await readCsrfToken()) ?? ""}
-        />
-      )}
-      {member && competenceData?.[0] && competenceData[1].technologies && (
-        <CorporateEmployeeTechnologies
-          employee={member}
-          assignments={competenceData[0]}
-          technologies={competenceData[1].technologies.items}
-          organizationId={workspace.organization.organization_id}
-          authorizationRevision={workspace.organization.authorization_revision}
-          csrfToken={(await readCsrfToken()) ?? ""}
-          canManage={workspace.context.capabilities.includes("member.manage")}
-          labels={{
-            title: h("technologies"),
-            empty: t("noEmployeeTechnologies"),
-            assign: tc("assign"),
-            remove: tc("remove"),
-            technology: t("technology"),
-          }}
-        />
-      )}
-      {resource === "members" && member ? (
-        <CorporateTeamMemberships
-          employee={member}
-          teams={workspace.context.teams}
-          members={workspace.members?.items ?? []}
-          organizationId={workspace.context.organization.organization_id}
-          csrfToken={(await readCsrfToken()) ?? ""}
-          canManage={workspace.context.capabilities.includes("member.manage")}
-        />
-      ) : null}
-      {projectDetail && (
-        <ProjectTechnologyPanel detail={projectDetail} csrfToken={(await readCsrfToken()) ?? ""} />
-      )}
-      {member && workspace.projectMemberships && (
-        <CorporateProjectMemberships
-          organizationId={workspace.organization.organization_id}
-          authorizationRevision={workspace.organization.authorization_revision}
-          csrfToken={(await readCsrfToken()) ?? ""}
-          accountId={member.account_id}
-          options={workspace.context.projects.map((item) => ({
-            id: item.project_id,
-            name: item.name,
-          }))}
-          assigned={workspace.projectMemberships.items.map((item) => ({
-            id: item.project_id,
-            name: item.name,
-          }))}
-          canManage={workspace.context.capabilities.includes("member.manage")}
-        />
-      )}
-      {project && workspace.projectMembers && (
-        <CorporateProjectMemberships
-          organizationId={workspace.organization.organization_id}
-          authorizationRevision={workspace.organization.authorization_revision}
-          csrfToken={(await readCsrfToken()) ?? ""}
-          projectId={project.project_id}
-          options={(workspace.members?.items ?? []).map((item) => ({
-            id: item.account_id,
-            name: item.display_name ?? item.account_id,
-          }))}
-          assigned={workspace.projectMembers.items.map((item) => ({
-            id: item.account_id,
-            name: item.display_name ?? item.account_id,
-          }))}
-          canManage={workspace.context.capabilities.includes("member.manage")}
-        />
-      )}
-      {assignments && subjectKind && (
-        <CorporateCatalogAssignments
-          items={assignments.items}
-          organizationId={workspace.organization.organization_id}
-          subjectKind={subjectKind}
-          subjectId={resourceId}
-          authorizationRevision={workspace.organization.authorization_revision}
-          csrfToken={(await readCsrfToken()) ?? ""}
-          canManage={workspace.context.capabilities.includes(
-            subjectKind === "employee" ? "member.manage" : `${subjectKind}.update`,
-          )}
-        />
-      )}
-      {member &&
-        workspace.context.capabilities.some((capability) =>
-          ["member.update", "member.delete"].includes(capability),
-        ) && (
-          <Link
-            href={`/corporate/organization/admins/members/${member.account_id}`}
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {t("accessAdministration")}
-          </Link>
         )}
-      {resource !== "teams" && resource !== "members" && project?.lifecycle !== "deleted" && (
-        <LocalizedResourceActions
-          csrfToken={(await readCsrfToken()) ?? ""}
-          organizationId={workspace.context.organization.organization_id}
-          authorizationRevision={workspace.context.organization.authorization_revision}
-          resource={resource}
-          resourceId={detail.id}
-          name={detail.name}
-          {...(detail.role === undefined ? {} : { role: detail.role })}
-          {...("parentRole" in detail ? { parentRole: detail.parentRole } : {})}
-          {...("rolePermissions" in detail ? { rolePermissions: detail.rolePermissions } : {})}
-          state={project?.state ?? detail.state}
-          revision={detail.revision}
-          permissions={projectDetail?.permissions.capabilities ?? workspace.context.capabilities}
-        />
-      )}
+        {projectDetail && (
+          <ProjectTechnologyPanel
+            detail={projectDetail}
+            csrfToken={(await readCsrfToken()) ?? ""}
+          />
+        )}
+        {assignments && subjectKind && (
+          <CorporateCatalogAssignments
+            items={assignments.items}
+            organizationId={workspace.organization.organization_id}
+            subjectKind={subjectKind}
+            subjectId={resourceId}
+            authorizationRevision={workspace.organization.authorization_revision}
+            csrfToken={(await readCsrfToken()) ?? ""}
+            canManage={workspace.context.capabilities.includes(
+              subjectKind === "employee" ? "member.manage" : `${subjectKind}.update`,
+            )}
+          />
+        )}
+        {member &&
+          workspace.context.capabilities.some((capability) =>
+            ["member.update", "member.delete"].includes(capability),
+          ) && (
+            <Link
+              href={`/corporate/organization/admins/members/${member.account_id}`}
+              className="inline-flex min-h-11 items-center underline underline-offset-4"
+            >
+              {t("accessAdministration")}
+            </Link>
+          )}
+        {resource !== "teams" && resource !== "members" && project?.lifecycle !== "deleted" && (
+          <LocalizedResourceActions
+            csrfToken={(await readCsrfToken()) ?? ""}
+            organizationId={workspace.context.organization.organization_id}
+            authorizationRevision={workspace.context.organization.authorization_revision}
+            resource={resource}
+            resourceId={detail.id}
+            name={detail.name}
+            {...(detail.role === undefined ? {} : { role: detail.role })}
+            {...("parentRole" in detail ? { parentRole: detail.parentRole } : {})}
+            {...("rolePermissions" in detail ? { rolePermissions: detail.rolePermissions } : {})}
+            state={project?.state ?? detail.state}
+            revision={detail.revision}
+            permissions={projectDetail?.permissions.capabilities ?? workspace.context.capabilities}
+          />
+        )}
+      </CorporateEntityDetail>
     </article>
   );
 }
@@ -350,19 +421,29 @@ async function ProjectTechnologyPanel({
   detail: NonNullable<Awaited<ReturnType<typeof readProjectTechnologyDetail>>>;
   csrfToken: string;
 }) {
-  const t = await getTranslations("technology");
+  const h = await getTranslations("hub");
+  const canManageTeams = detail.permissions.capabilities.some((capability) =>
+    ["project_team.create", "project_team.update", "project_team.delete"].includes(capability),
+  );
   return (
     <>
-      {detail.projectTeams && (
-        <ProjectTeamEditor
-          projectId={detail.project.project_id}
-          organizationId={detail.project.organization_id}
-          authorizationRevision={detail.permissions.authorization_revision}
-          csrfToken={csrfToken}
-          capabilities={detail.permissions.capabilities}
-          teams={detail.teams}
-          relations={detail.projectTeams.items}
-        />
+      {detail.projectTeams && canManageTeams && (
+        <details>
+          <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
+            {h("edit")}
+          </summary>
+          <div className="pt-3">
+            <ProjectTeamEditor
+              projectId={detail.project.project_id}
+              organizationId={detail.project.organization_id}
+              authorizationRevision={detail.permissions.authorization_revision}
+              csrfToken={csrfToken}
+              capabilities={detail.permissions.capabilities}
+              teams={detail.teams}
+              relations={detail.projectTeams.items}
+            />
+          </div>
+        </details>
       )}
       {detail.permissions.capabilities.includes("project.update") && (
         <>
@@ -390,34 +471,6 @@ async function ProjectTechnologyPanel({
           usages={detail.relations?.items ?? []}
           technologies={detail.technologies}
         />
-      )}
-      {detail.relations && (
-        <section className="space-y-3" aria-label={t("manualUsage")}>
-          <h2 className="text-xl font-medium">{t("manualUsage")}</h2>
-          <ul className="divide-border divide-y">
-            {detail.relations.items
-              .filter((relation) => relation.state === "current")
-              .map((relation) => (
-                <li key={relation.relation_id} className="space-y-2 py-3">
-                  <Link
-                    href={`/corporate/technologies/${relation.technology_id}`}
-                    className="font-medium underline underline-offset-4"
-                  >
-                    {detail.technologies.find(
-                      (technology) => technology.technology_id === relation.technology_id,
-                    )?.name ?? t("values.unknown")}
-                  </Link>
-                  <ul>
-                    {relation.facts.map((fact) => (
-                      <li key={fact.context} className="text-sm">
-                        {t(`values.${fact.context}`)} · {fact.version ?? t("values.unknown")}
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-          </ul>
-        </section>
       )}
     </>
   );

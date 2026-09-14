@@ -7,8 +7,13 @@ import { defineConfig, devices } from "@playwright/test";
 // have avoided. 6767 is chosen for being outside the ranges dev servers reach
 // for by habit; PLAYWRIGHT_PORT still moves it without editing tracked config.
 const port = Number(process.env["PLAYWRIGHT_PORT"] ?? 6767);
+const host = process.env["PLAYWRIGHT_HOST"] ?? "127.0.0.1";
+if (host !== "127.0.0.1" && host !== "localhost") {
+  throw new Error(`PLAYWRIGHT_HOST must be localhost or 127.0.0.1, got ${host}`);
+}
 const externalBaseURL = process.env["PLAYWRIGHT_EXTERNAL_BASE_URL"];
-const baseURL = externalBaseURL ?? `http://127.0.0.1:${String(port)}`;
+const baseURL = externalBaseURL ?? `http://${host}:${String(port)}`;
+const baseURLHost = new URL(baseURL).hostname;
 const nextDistDir = process.env["AI_STP_NEXT_DIST_DIR"] ?? ".next";
 
 export default defineConfig({
@@ -34,7 +39,7 @@ export default defineConfig({
         {
           name: "ai_stp_consent",
           value: "v1.none",
-          domain: "127.0.0.1",
+          domain: baseURLHost,
           path: "/",
           expires: -1,
           httpOnly: false,
@@ -73,14 +78,19 @@ export default defineConfig({
             // The standalone server takes its bind address from the environment; there
             // is no --port flag to pass.
             PORT: String(port),
-            HOSTNAME: "127.0.0.1",
+            HOSTNAME: host,
             // Offline e2e uses in-process mocks (including mock OAuth).
             AI_STP_USE_MOCKS: "true",
             AI_STP_MOCK_AUTH: "true",
             AI_STP_API_BASE_URL: "http://127.0.0.1:8000",
             NEXT_PUBLIC_APP_URL: baseURL,
             AI_STP_SESSION_SECRET: "playwright-session-secret-32chars-min",
-            AI_STP_USER_FACING_ROOT: path.resolve(process.cwd(), "..", "..", "docs-user-facing"),
+            AI_STP_USER_FACING_ROOT: path.resolve(
+              process.cwd(),
+              nextDistDir,
+              "standalone",
+              "docs-user-facing",
+            ),
           },
         },
       }),

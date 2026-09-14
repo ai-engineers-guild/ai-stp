@@ -90,7 +90,18 @@ def _reject_organization_identity_change(  # pyright: ignore[reportUnusedFunctio
         raise ValueError("personal organization owner is immutable")
 
 
-class OrganizationMembership(Base):
+class EntityProfileColumns:
+    """Tenant presentation content has its own optimistic revision."""
+
+    profile: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict, server_default="{}"
+    )
+    profile_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+
+class OrganizationMembership(EntityProfileColumns, Base):
     """One account's active or suspended membership in one organization."""
 
     __tablename__ = "organization_membership"
@@ -103,6 +114,9 @@ class OrganizationMembership(Base):
             "state in ('active', 'suspended')", name="ck_organization_membership_state"
         ),
         CheckConstraint("revision >= 1", name="ck_organization_membership_revision"),
+        CheckConstraint(
+            "profile_revision >= 0", name="ck_organization_membership_profile_revision"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -262,7 +276,7 @@ class CorporateRoleBinding(Base):
     )
 
 
-class CorporateProject(Base):
+class CorporateProject(EntityProfileColumns, Base):
     """A corporate project whose identity and ownership share one tenant key."""
 
     __tablename__ = "corporate_project"
@@ -298,6 +312,7 @@ class CorporateProject(Base):
             name="ck_corporate_project_projection",
         ),
         CheckConstraint("revision >= 1", name="ck_corporate_project_revision"),
+        CheckConstraint("profile_revision >= 0", name="ck_corporate_project_profile_revision"),
         CheckConstraint(
             "source_availability IN ('unknown','available','unavailable')",
             name="ck_corporate_project_source_availability",
@@ -331,7 +346,7 @@ class CorporateProject(Base):
     )
 
 
-class CorporateTeam(Base):
+class CorporateTeam(EntityProfileColumns, Base):
     """A minimal organization-owned team used by corporate bootstrap administration."""
 
     __tablename__ = "corporate_team"
@@ -339,6 +354,7 @@ class CorporateTeam(Base):
         UniqueConstraint("organization_id", "id", name="uq_corporate_team_tenant_id"),
         UniqueConstraint("organization_id", "name", name="uq_corporate_team_name"),
         CheckConstraint("state in ('active', 'archived')", name="ck_corporate_team_state"),
+        CheckConstraint("profile_revision >= 0", name="ck_corporate_team_profile_revision"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

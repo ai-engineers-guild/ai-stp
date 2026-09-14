@@ -1,0 +1,284 @@
+{
+  "$defs": {
+    "CorporateCatalogAssignment": {
+      "additionalProperties": true,
+      "properties": {
+        "assignment_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Assignment Id",
+          "type": "string"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        },
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_team_id": {
+          "anyOf": [
+            {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Team Id"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "subject_id": {
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_kind": {
+          "enum": [
+            "employee",
+            "team",
+            "project"
+          ],
+          "title": "Subject Kind",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assignment_id",
+        "display_name",
+        "object_kind",
+        "organization_id",
+        "revision",
+        "schema_version",
+        "source_team_id",
+        "stable_id",
+        "state",
+        "subject_id",
+        "subject_kind",
+        "version"
+      ],
+      "title": "CorporateCatalogAssignment",
+      "type": "object"
+    },
+    "CorporateOrganization": {
+      "additionalProperties": true,
+      "properties": {
+        "authorization_revision": {
+          "minimum": 1,
+          "title": "Authorization Revision",
+          "type": "integer"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "suspended"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "authorization_revision",
+        "display_name",
+        "organization_id",
+        "schema_version",
+        "state"
+      ],
+      "title": "CorporateOrganization",
+      "type": "object"
+    },
+    "CorporateOverviewEdge": {
+      "additionalProperties": true,
+      "properties": {
+        "child_id": {
+          "title": "Child Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "project_team",
+            "team_employee"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "parent_id": {
+          "title": "Parent Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "owner",
+            "responsible",
+            "contributor",
+            "lead",
+            "staff"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "child_id",
+        "kind",
+        "parent_id",
+        "role"
+      ],
+      "title": "CorporateOverviewEdge",
+      "type": "object"
+    },
+    "CorporateOverviewNode": {
+      "additionalProperties": true,
+      "properties": {
+        "assignments": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateCatalogAssignment"
+          },
+          "title": "Assignments",
+          "type": "array"
+        },
+        "assignments_readable": {
+          "default": false,
+          "title": "Assignments Readable",
+          "type": "boolean"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "project",
+            "team",
+            "employee"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "lead_account_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "type": "string"
+          },
+          "title": "Lead Account Ids",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assignments",
+        "assignments_readable",
+        "id",
+        "kind",
+        "lead_account_ids",
+        "name"
+      ],
+      "title": "CorporateOverviewNode",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-overview",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/CorporateOverviewEdge"
+      },
+      "title": "Edges",
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/CorporateOverviewNode"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "organization": {
+      "$ref": "#/$defs/CorporateOrganization"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "edges",
+    "nodes",
+    "organization",
+    "schema_version"
+  ],
+  "title": "CorporateOverview",
+  "type": "object"
+}

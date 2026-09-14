@@ -1,0 +1,33 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-ownership-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "object_kind": {
+      "enum": [
+        "setup",
+        "component"
+      ],
+      "title": "Object Kind",
+      "type": "string"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "object_kind",
+    "stable_id",
+    "version"
+  ],
+  "title": "CorporateCatalogOwnershipQuery",
+  "type": "object"
+}

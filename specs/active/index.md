@@ -91,5 +91,6 @@ last_verified: "2026-08-03"
 | [SPEC-080-technology-registry-and-landscape.md](SPEC-080-technology-registry-and-landscape.md) | SPEC-080: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-12 |
 | [SPEC-081-canonical-corporate-relations.md](SPEC-081-canonical-corporate-relations.md) | SPEC-081: Single canonical team/project/technology relationships, responsibility, and current assignment scopes. | 2026-09-12 |
 | [SPEC-082-corporate-hub-workspace.md](SPEC-082-corporate-hub-workspace.md) | SPEC-082: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-09-13 |
+| [SPEC-083-corporate-entity-profiles.md](SPEC-083-corporate-entity-profiles.md) | SPEC-083: Persistent tenant presentation and independent technology ownership. | 2026-09-13 |
 
 <!-- END CONTENTS -->

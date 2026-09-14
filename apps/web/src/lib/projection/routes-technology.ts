@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { canViewCorporateSection } from "@/lib/corporate-hub";
 
 import {
   readCorporateContext,
@@ -21,6 +22,26 @@ import { presentPage } from "@/lib/projection/presenters";
 import type { MachineRoute } from "@/lib/projection/route-table";
 
 export const TECHNOLOGY_ROUTES: MachineRoute[] = [
+  {
+    pattern: "corporate/organization",
+    resolve: async () => {
+      const t = await getTranslations("hub");
+      const context = await readCorporateContext((await sessionCookieValue()) ?? "");
+      if (!context) return presentPage({ title: t("organization"), summary: t("empty") });
+      return presentPage({
+        title: context.organization.display_name,
+        summary: t("organizationBody"),
+        links: [
+          { key: "employees", href: "/corporate/members" },
+          { key: "projects", href: "/corporate/projects" },
+          { key: "teams", href: "/corporate/teams" },
+          { key: "admins", href: "/corporate/organization/admins" },
+        ]
+          .filter((item) => canViewCorporateSection(item.key, context.capabilities))
+          .map((item): [string, string] => [t(item.key), item.href]),
+      });
+    },
+  },
   {
     pattern: "corporate/organization/admins/members/:accountId",
     resolve: async ({ segments }) => {

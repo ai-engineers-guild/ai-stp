@@ -184,6 +184,9 @@ last_verified: "2026-08-03"
 | [ADR-0184-corporate-catalog-assignments.md](ADR-0184-corporate-catalog-assignments.md) | Separate corporate catalog assignments from authorization and harness installation. | 2026-09-13 |
 | [ADR-0185-tenant-member-display-names.md](ADR-0185-tenant-member-display-names.md) | ADR-0185: Employee display names are organization-scoped profile data. | 2026-09-13 |
 | [ADR-0186-retained-employee-technology-competences.md](ADR-0186-retained-employee-technology-competences.md) | ADR-0186: Tenant-scoped retained employee technology competence links. | 2026-09-13 |
+| [ADR-0187-corporate-workspace-presentation-boundary.md](ADR-0187-corporate-workspace-presentation-boundary.md) | ADR-0187: Corporate build isolation and tenant-scoped presentation ownership. | 2026-09-13 |
+| [ADR-0188-corporate-entity-profile-authority.md](ADR-0188-corporate-entity-profile-authority.md) | ADR-0188: Independent tenant presentation and technology owner edit authority. | 2026-09-13 |
+| [ADR-0189-tenant-operational-catalog-ownership.md](ADR-0189-tenant-operational-catalog-ownership.md) | Separate tenant operational catalog ownership from authorship and ownership claims. | 2026-09-13 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

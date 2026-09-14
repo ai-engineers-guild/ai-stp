@@ -3,8 +3,9 @@
 import { useTranslations } from "next-intl";
 
 import { KeyboardNavigation } from "@/components/molecules/keyboard-navigation";
-import { COMPILED_FEATURES } from "@/lib/features/compiled";
 import { ThemeToggle } from "@/components/molecules/theme-toggle";
+import { COMPILED_FEATURES } from "@/lib/features/compiled";
+import { corporateHref } from "@/lib/features/corporate-path";
 import { usePathname, useRouter } from "@/lib/i18n/navigation";
 import { locales } from "@/lib/i18n/routing";
 import { siteNavigation } from "@/lib/projection/navigation";
@@ -52,7 +53,9 @@ export function MachineHeader({ signedIn, locale, docsHref }: MachineChromeProps
             data-ui={item.ui}
             className={item.labelKey === "home" ? undefined : "hidden sm:inline"}
           >
-            <MdLink href={item.external ? item.href : projectedHref(item.href, locale)}>
+            <MdLink
+              href={item.external ? item.href : projectedHref(corporateHref(item.href), locale)}
+            >
               {item.labelKey === "home" ? "ai_stp" : nav(item.labelKey)}
             </MdLink>
           </span>

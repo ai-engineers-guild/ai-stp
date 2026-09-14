@@ -212,6 +212,34 @@ def test_a_mutation_declares_its_idempotency_and_precondition_headers() -> None:
             assert "If-Match" in headers, path
 
 
+def test_corporate_profile_and_ownership_mutations_use_payload_revisions() -> None:
+    operation_ids = {
+        "writeCorporateCatalogOwnership",
+        "uploadCorporateEntityProfileMedia",
+        "writeCorporateEntityProfile",
+        "writeTechnologyOwner",
+    }
+    by_id = {operation.operation_id: operation for operation in OPERATIONS}
+    for operation_id in operation_ids:
+        operation = by_id[operation_id]
+        assert operation.idempotent_mutation
+        assert not operation.requires_precondition
+
+        path = f"{API_BASE_PATH}{operation.path}"
+        entry = PATHS[path][operation.method]
+        headers = {
+            cast(dict[str, object], parameter)["name"]
+            for parameter in cast(list[object], entry["parameters"])
+            if cast(dict[str, object], parameter)["in"] == "header"
+        }
+        assert "Idempotency-Key" in headers
+        assert "If-Match" not in headers
+
+        request_model = operation.query or operation.body
+        assert request_model is not None
+        assert {"expected_revision", "authorization_revision"} <= set(request_model.model_fields)
+
+
 def test_every_response_carries_the_correlation_header() -> None:
     for path, _method, entry in operations():
         success = cast(dict[str, dict[str, object]], entry["responses"])[
