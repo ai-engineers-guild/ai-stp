@@ -211,3 +211,87 @@ def test_a_program_that_outlives_the_timeout_is_ended_with_its_children(
             return
         time.sleep(0.05)
     raise AssertionError("the forked child outlived the invocation that started it")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX shell fixture")
+def test_a_program_receives_the_variables_it_declared_and_nothing_else() -> None:
+    """Readiness and execution have to describe the same process.
+
+    `environment inspect` called a declared variable satisfied when it was
+    present here, while the program was started with `PATH` and `HOME` alone —
+    so the variable it declared could never reach it, and whichever of the two
+    answers a caller believed, one was wrong. The bound is the declaration, not
+    the ambient environment: an unrelated secret in this process stays here.
+    """
+    script = '#!/bin/sh\necho "${DEMO_TOKEN:-absent} ${CANARY:-absent} path=[${PATH}]"\n'
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="cli",
+            harness_id="claude-code",
+            payload=script.encode("utf-8"),
+            managed_path="bin/declared-env",
+            native_ids=["declared-env"],
+            required_env=[{"name": "DEMO_TOKEN", "purpose": "the declared one"}],
+        )
+        cli_program.install(connection, stable_id=member[0], version="1.0")
+        os.environ["DEMO_TOKEN"] = "forwarded"
+        os.environ["CANARY"] = "must-not-travel"
+        try:
+            invoked = cli_program.invoke(
+                connection, stable_id=member[0], version="1.0", arguments=()
+            )
+        finally:
+            del os.environ["DEMO_TOKEN"]
+            del os.environ["CANARY"]
+
+    assert invoked.exit_code == 0
+    assert invoked.output.strip() == "forwarded absent path=[]"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX shell fixture")
+def test_a_declared_variable_this_process_lacks_is_named_before_the_program_runs() -> None:
+    script = "#!/bin/sh\necho ran\n"
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="cli",
+            harness_id="claude-code",
+            payload=script.encode("utf-8"),
+            managed_path="bin/needs-env",
+            native_ids=["needs-env"],
+            required_env=[{"name": "AI_STP_TEST_ABSENT_TOKEN", "purpose": "never set"}],
+        )
+        cli_program.install(connection, stable_id=member[0], version="1.0")
+        with pytest.raises(CliFailure) as raised:
+            cli_program.invoke(connection, stable_id=member[0], version="1.0", arguments=())
+
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    # The name is what the caller acts on; the value is exactly what must never
+    # travel into output.
+    assert raised.value.details["variables"] == "AI_STP_TEST_ABSENT_TOKEN"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX shebang fixture")
+def test_a_shebang_that_resolves_through_path_is_refused_with_the_reason() -> None:
+    """`#!/usr/bin/env python3` is an absolute path to a resolver.
+
+    What it resolves is a `PATH` lookup this program deliberately does not get,
+    so it would start, fail to find its runtime, and report whatever that looked
+    like. Saying so before it runs is the precise answer.
+    """
+    with closing(open_registry(configured_path(), create=True)) as connection:
+        member = _release_component(
+            connection,
+            component_type="cli",
+            harness_id="claude-code",
+            payload=b"#!/usr/bin/env python3\nprint('ready')\n",
+            managed_path="bin/env-shebang",
+            native_ids=["env-shebang"],
+        )
+        cli_program.install(connection, stable_id=member[0], version="1.0")
+        with pytest.raises(CliFailure) as raised:
+            cli_program.invoke(connection, stable_id=member[0], version="1.0", arguments=())
+
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert "python3" in raised.value.details["interpreter"]
