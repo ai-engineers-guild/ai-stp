@@ -9,13 +9,15 @@ from __future__ import annotations
 import io
 import os
 import shutil
+import signal
 import sqlite3
 import stat
 import subprocess
 import tempfile
+import threading
 import zipfile
 from pathlib import Path
-from typing import Final
+from typing import IO, Final
 
 from pydantic import ValidationError
 
@@ -38,6 +40,16 @@ CURRENT: Final[str] = "current"
 MAX_INVOKE_OUTPUT: Final[int] = 65_536
 MAX_POINTER_BYTES: Final[int] = 32_768
 INVOKE_TIMEOUT_SECONDS: Final[float] = 30.0
+
+#: How long to wait for a reader after the child is gone. A surviving grandchild
+#: can hold the write end open with nothing left to send, and this command
+#: answers its caller rather than waiting on that.
+_DRAIN_GRACE_SECONDS: Final[float] = 2.0
+
+#: How much is read from a child pipe at a time. Small enough that a program
+#: writing without stopping is drained rather than buffered, large enough that
+#: an ordinary program is read in one or two calls.
+_READ_CHUNK: Final[int] = 8_192
 
 
 def prefix() -> Path:
@@ -100,13 +112,10 @@ def invoke(
         )
     recorded, executable = installed
     try:
-        finished = subprocess.run(
+        code, output = _bounded_run(
             _argv(executable, arguments),
-            capture_output=True,
-            text=True,
-            timeout=INVOKE_TIMEOUT_SECONDS,
-            check=False,
             env={"PATH": "", "HOME": os.environ.get("HOME", "")},
+            timeout=INVOKE_TIMEOUT_SECONDS,
         )
     except (OSError, UnicodeError, subprocess.SubprocessError) as error:
         raise CliFailure(
@@ -114,7 +123,6 @@ def invoke(
             "the cli program could not be invoked",
             details={"id": recorded.stable_id, "error": type(error).__name__},
         ) from error
-    output = ((finished.stdout or "") + (finished.stderr or ""))[:MAX_INVOKE_OUTPUT]
     return CliProgram(
         stable_id=recorded.stable_id,
         version=recorded.version,
@@ -122,9 +130,85 @@ def invoke(
         state="invoked",
         prefix=str(prefix()),
         executable=str(executable),
-        exit_code=finished.returncode,
+        exit_code=code,
         output=output,
     )
+
+
+def _bounded_run(argv: list[str], *, env: dict[str, str], timeout: float) -> tuple[int, str]:
+    """Run a child program, keeping at most `MAX_INVOKE_OUTPUT` of its output.
+
+    `subprocess.run(capture_output=True)` keeps everything the child writes and
+    the slice happens after it exits, so a program that prints a gigabyte puts a
+    gigabyte in this process first. The limit has to bind while reading. The
+    pipes are still drained to the end — a reader that stops reading blocks the
+    child on a full pipe, which turns a noisy program into a hang — but the
+    bytes past the limit are dropped rather than accumulated.
+
+    A child that outlives the timeout is killed with whatever it started, not
+    only in its own process: a program that forked leaves its children holding
+    the pipe, and waiting on that is the same hang by another route.
+    """
+    kept: list[list[bytes]] = [[], []]
+    sizes = [0, 0]
+
+    def drain(stream: IO[bytes], index: int) -> None:
+        while True:
+            chunk = stream.read(_READ_CHUNK)
+            if not chunk:
+                return
+            room = MAX_INVOKE_OUTPUT - sizes[index]
+            if room > 0:
+                kept[index].append(chunk[:room])
+                sizes[index] += min(room, len(chunk))
+
+    # A new session on POSIX so the timeout can end the whole group; Windows has
+    # no equivalent here and `kill()` ends the process it started.
+    child = subprocess.Popen(
+        argv,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        start_new_session=os.name != "nt",
+    )
+    readers = [
+        threading.Thread(target=drain, args=(stream, index), daemon=True)
+        for index, stream in enumerate((child.stdout, child.stderr))
+        if stream is not None
+    ]
+    for reader in readers:
+        reader.start()
+    try:
+        code = child.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _end(child)
+        code = child.wait()
+        raise
+    finally:
+        # Bounded, and only closed once nobody is reading it. A grandchild that
+        # survived still holds the write end, so a reader can be blocked with no
+        # more bytes coming; that thread is a daemon and must not be waited on,
+        # and closing a pipe underneath it would raise there instead.
+        for index, reader in enumerate(readers):
+            reader.join(timeout=_DRAIN_GRACE_SECONDS)
+            if reader.is_alive():
+                continue
+            stream = (child.stdout, child.stderr)[index]
+            if stream is not None:
+                stream.close()
+    combined = b"".join(kept[0]) + b"".join(kept[1])
+    return code, combined.decode("utf-8", errors="replace")[:MAX_INVOKE_OUTPUT]
+
+
+def _end(child: subprocess.Popen[bytes]) -> None:
+    """Kill the child and anything it started, as far as this platform allows."""
+    if os.name != "nt":
+        try:
+            os.killpg(os.getpgid(child.pid), signal.SIGKILL)
+            return
+        except (OSError, AttributeError):
+            pass
+    child.kill()
 
 
 def status(
