@@ -8,6 +8,7 @@ process holds the local write lock.
 """
 
 import sqlite3
+from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
 
@@ -107,7 +108,7 @@ def _parameters() -> dict[str, object]:
 def _wired(
     monkeypatch: pytest.MonkeyPatch,
     registry_path: Path,
-    route: object,
+    route: Callable[[httpx.Request], httpx.Response],
 ) -> None:
     held = session.Session(
         account_id=ACCOUNT,
@@ -116,17 +117,20 @@ def _wired(
         refresh_token="refresh",
         expires_at=LATER,
     )
-    monkeypatch.setattr(cloud_auth, "required", lambda _purpose: held)
-    monkeypatch.setattr(project_commands, "configured_path", lambda: registry_path)
-    monkeypatch.setattr(
-        project_commands,
-        "endpoint",
-        lambda: Endpoint(
+
+    def required(_purpose: str) -> session.Session:
+        return held
+
+    def where() -> Endpoint:
+        return Endpoint(
             "https://platform.example",
             max_attempts=1,
-            transport=httpx.MockTransport(route),  # pyright: ignore[reportArgumentType]
-        ),
-    )
+            transport=httpx.MockTransport(route),
+        )
+
+    monkeypatch.setattr(cloud_auth, "required", required)
+    monkeypatch.setattr(project_commands, "configured_path", lambda: registry_path)
+    monkeypatch.setattr(project_commands, "endpoint", where)
 
 
 def _stored(registry_path: Path) -> project_links.CachedSyncPlan:
