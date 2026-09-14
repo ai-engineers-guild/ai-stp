@@ -15,7 +15,11 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports
 from ai_stp_cli.runtime import cli_version
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.auth import DeviceAuthorizationResponse, DeviceTokenResponse
+from ai_stp_contracts.auth import (
+    OAUTH_PROVIDERS,
+    DeviceAuthorizationResponse,
+    DeviceTokenResponse,
+)
 from ai_stp_contracts.http import API_BASE_PATH
 from ai_stp_contracts.mock import MOCK_BASE_URL, build_transport
 from ai_stp_foundation.ids import new_id
@@ -1229,3 +1233,59 @@ def test_the_shipped_client_names_itself_rather_than_its_library() -> None:
     assert agent.startswith("ai-stp-cli/"), agent
     assert "httpx" not in agent
     assert cli_version() in agent
+
+
+def _refused(code: str, status: int = 403) -> CliFailure:
+    def refuses(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status, json={"error": {"code": code}})
+
+    with (
+        client.open_client(MOCK, transport=httpx.MockTransport(refuses)) as http,
+        pytest.raises(CliFailure) as raised,
+    ):
+        client.call(http, "GET", "/health/live", DeviceAuthorizationResponse, attempts=1)
+    return raised.value
+
+
+@pytest.mark.parametrize("code", ["AI_STP_AUTHORIZATION_EXPIRED", "AI_STP_AUTHORIZATION_DECLINED"])
+def test_an_ordinary_authorization_refusal_never_offers_to_discard_the_key(code: str) -> None:
+    """An expired request and a declined one leave a healthy identity healthy.
+
+    Both used to share one handling class with a revoked device, and that class
+    answered with `device reset --confirm`. Following it would retire a working
+    key because a sign-in request aged out, or because the user said no.
+    """
+    failure = _refused(code)
+    assert failure.code == code
+    assert all("device reset" not in action for action in failure.next_actions)
+
+
+def test_a_declined_authorization_is_not_answered_with_another_login() -> None:
+    # Asking again is asking the same person the same question. Nothing this
+    # CLI runs turns a decline into an approval.
+    failure = _refused("AI_STP_AUTHORIZATION_DECLINED")
+    assert all("auth login" not in action for action in failure.next_actions)
+    assert failure.next_actions == ["auth status --json"]
+
+
+def test_an_expired_authorization_restarts_the_request_for_any_provider() -> None:
+    failure = _refused("AI_STP_AUTHORIZATION_EXPIRED")
+    assert failure.next_actions == [
+        f"auth login --provider {name} --json" for name in OAUTH_PROVIDERS
+    ]
+
+
+def test_a_revoked_device_keeps_the_reset_behind_its_decision_gate() -> None:
+    """Revocation is the case where the key really is the problem.
+
+    The way back still stops at the user: `device reset` without `--confirm`
+    refuses and says what it would discard, which is where that decision
+    belongs.
+    """
+    failure = _refused("AI_STP_DEVICE_REVOKED")
+    assert failure.next_actions[0] == "device reset --confirm --json"
+    # Resuming needs a new key and a new sign-in, and the provider is not
+    # assumed to be GitHub.
+    assert failure.next_actions[1:] == [
+        f"auth login --provider {name} --json" for name in OAUTH_PROVIDERS
+    ]
