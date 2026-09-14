@@ -15,7 +15,11 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports
 from ai_stp_cli.runtime import cli_version
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.auth import DeviceAuthorizationResponse, DeviceTokenResponse
+from ai_stp_contracts.auth import (
+    OAUTH_PROVIDERS,
+    DeviceAuthorizationResponse,
+    DeviceTokenResponse,
+)
 from ai_stp_contracts.http import API_BASE_PATH
 from ai_stp_contracts.mock import MOCK_BASE_URL, build_transport
 from ai_stp_foundation.ids import new_id
@@ -903,11 +907,14 @@ def test_the_client_refuses_every_body_the_corpus_calls_invalid(case: object) ->
         assert operation.response is not None
         client.call(http, "GET", "/health/live", operation.response, attempts=1)
 
-    # A client-side refusal, not a server error: what arrived does not match the
-    # published contract, and acting on it would mean acting on something nobody
-    # agreed to.
-    assert raised.value.code in {"AI_STP_VALIDATION_ERROR", "AI_STP_SCHEMA_UNSUPPORTED"}
-    assert raised.value.exit_code == 2
+    # A client-side refusal: what arrived does not match the published contract,
+    # and acting on it would mean acting on something nobody agreed to. The
+    # code names whose contract broke — the platform's body, or a wire major
+    # this build does not read — and never the caller's request, which was
+    # valid. `correct_request` here sent an agent to edit an argument that had
+    # nothing to do with the failure.
+    assert raised.value.code in {"AI_STP_PROTOCOL_VIOLATION", "AI_STP_SCHEMA_UNSUPPORTED"}
+    assert raised.value.exit_code in {2, 5}
 
 
 def test_the_corpus_still_carries_bodies_a_client_must_refuse() -> None:
@@ -1229,3 +1236,147 @@ def test_the_shipped_client_names_itself_rather_than_its_library() -> None:
     assert agent.startswith("ai-stp-cli/"), agent
     assert "httpx" not in agent
     assert cli_version() in agent
+
+
+def _refused(code: str, status: int = 403) -> CliFailure:
+    def refuses(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status, json={"error": {"code": code}})
+
+    with (
+        client.open_client(MOCK, transport=httpx.MockTransport(refuses)) as http,
+        pytest.raises(CliFailure) as raised,
+    ):
+        client.call(http, "GET", "/health/live", DeviceAuthorizationResponse, attempts=1)
+    return raised.value
+
+
+@pytest.mark.parametrize("code", ["AI_STP_AUTHORIZATION_EXPIRED", "AI_STP_AUTHORIZATION_DECLINED"])
+def test_an_ordinary_authorization_refusal_never_offers_to_discard_the_key(code: str) -> None:
+    """An expired request and a declined one leave a healthy identity healthy.
+
+    Both used to share one handling class with a revoked device, and that class
+    answered with `device reset --confirm`. Following it would retire a working
+    key because a sign-in request aged out, or because the user said no.
+    """
+    failure = _refused(code)
+    assert failure.code == code
+    assert all("device reset" not in action for action in failure.next_actions)
+
+
+def test_a_declined_authorization_is_not_answered_with_another_login() -> None:
+    # Asking again is asking the same person the same question. Nothing this
+    # CLI runs turns a decline into an approval.
+    failure = _refused("AI_STP_AUTHORIZATION_DECLINED")
+    assert all("auth login" not in action for action in failure.next_actions)
+    assert failure.next_actions == ["auth status --json"]
+
+
+def test_an_expired_authorization_restarts_the_request_for_any_provider() -> None:
+    failure = _refused("AI_STP_AUTHORIZATION_EXPIRED")
+    assert failure.next_actions == [
+        f"auth login --provider {name} --json" for name in OAUTH_PROVIDERS
+    ]
+
+
+def test_a_revoked_device_keeps_the_reset_behind_its_decision_gate() -> None:
+    """Revocation is the case where the key really is the problem.
+
+    The way back still stops at the user: `device reset` without `--confirm`
+    refuses and says what it would discard, which is where that decision
+    belongs.
+    """
+    failure = _refused("AI_STP_DEVICE_REVOKED")
+    assert failure.next_actions[0] == "device reset --confirm --json"
+    # Resuming needs a new key and a new sign-in, and the provider is not
+    # assumed to be GitHub.
+    assert failure.next_actions[1:] == [
+        f"auth login --provider {name} --json" for name in OAUTH_PROVIDERS
+    ]
+
+
+def test_a_body_outside_the_contract_is_the_platforms_problem_not_the_callers() -> None:
+    """The request was valid; the answer was not.
+
+    `AI_STP_VALIDATION_ERROR` carries the handling `correct_request`, so an
+    agent reading it went and edited a request nobody had objected to. The
+    server answered, which also means a mutation may have taken effect — the
+    disposition that fits is inspecting, not editing.
+    """
+    from ai_stp_foundation.errors import ERROR_CODES
+
+    def nonsense(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"schema_version": 1, "not": "a device authorization"})
+
+    with (
+        client.open_client(MOCK, transport=httpx.MockTransport(nonsense)) as http,
+        pytest.raises(CliFailure) as raised,
+    ):
+        client.call(http, "POST", "/auth/device", DeviceAuthorizationResponse, attempts=1)
+
+    assert raised.value.code == "AI_STP_PROTOCOL_VIOLATION"
+    assert ERROR_CODES[raised.value.code].handling == "inspect_effect"
+    assert raised.value.details["status"] == "200"
+
+
+def test_a_server_refusal_keeps_the_bindings_a_caller_acts_on() -> None:
+    """The API says which precondition failed. That used to stop at the client.
+
+    `reason=capability_stale` is the difference between "ask for a fresh
+    capability projection and retry" and "something went wrong"; the caller was
+    getting the second.
+    """
+
+    def stale(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            412,
+            json={
+                "schema_version": 1,
+                "ok": False,
+                "error": {
+                    "code": "AI_STP_PRECONDITION_FAILED",
+                    "message": "capability is stale",
+                    "details": {
+                        "reason": "capability_stale",
+                        "authorization_revision": "personal:organization_x:2:3",
+                        "note": "a field nobody designed for a reader",
+                    },
+                },
+            },
+        )
+
+    with (
+        client.open_client(MOCK, transport=httpx.MockTransport(stale)) as http,
+        pytest.raises(CliFailure) as raised,
+    ):
+        client.call(http, "GET", "/health/live", DeviceAuthorizationResponse, attempts=1)
+
+    assert raised.value.details["reason"] == "capability_stale"
+    assert raised.value.details["authorization_revision"] == "personal:organization_x:2:3"
+    # Not everything travels: details are the server's own text, and an
+    # allowlist is what keeps a path or a token out of local output.
+    assert "note" not in raised.value.details
+
+
+def test_a_forwarded_detail_cannot_become_a_payload() -> None:
+    def verbose(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            409,
+            json={
+                "schema_version": 1,
+                "ok": False,
+                "error": {
+                    "code": "AI_STP_CONFLICT",
+                    "message": "conflict",
+                    "details": {"reason": "x" * 4096, "fields": ["body.a", "body.b"]},
+                },
+            },
+        )
+
+    with (
+        client.open_client(MOCK, transport=httpx.MockTransport(verbose)) as http,
+        pytest.raises(CliFailure) as raised,
+    ):
+        client.call(http, "GET", "/health/live", DeviceAuthorizationResponse, attempts=1)
+
+    assert len(raised.value.details["reason"]) == client.DETAIL_LIMIT
+    assert raised.value.details["fields"] == "body.a, body.b"

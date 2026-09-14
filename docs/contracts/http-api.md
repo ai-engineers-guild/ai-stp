@@ -83,10 +83,15 @@ The stable-code-to-status-code mapping is closed and derived from the completion
 | `412` | `AI_STP_PRECONDITION_FAILED` |
 | `429` | `AI_STP_RATE_LIMITED` |
 | `500` | `AI_STP_PARTIAL_OPERATION`, `AI_STP_CATALOG_INTEGRITY`, `AI_STP_INTERNAL`, `AI_STP_SEO_RENDER_FAILED` |
+| `502` | `AI_STP_PROTOCOL_VIOLATION` |
 | `503` | `AI_STP_DEPENDENCY_UNAVAILABLE`, `AI_STP_SEO_ENRICHMENT_UNAVAILABLE` |
 | `504` | `AI_STP_TIMEOUT_UNCONFIRMED` |
 
 The three device-flow states share `400` under RFC 8628, but each retains its own stable code: a shared status code does not collapse distinct outcomes; `code` remains the machine identifier.
+
+`AI_STP_PROTOCOL_VIOLATION` is the one code in this table the platform never sends. A client raises it against whatever answered it when the body does not match the published contract — a successful status carrying an unreadable payload, or a proxy answering in place of the API. Its status describes that condition rather than a route. It is deliberately not `AI_STP_VALIDATION_ERROR`: that code is handled as `correct_request`, and a caller whose request was valid has nothing to correct. Because the peer did answer, a mutation may have taken effect, which is why its handling is `inspect_effect`.
+
+A refusal carries the machine-readable bindings a caller acts on — which precondition failed, which fields were rejected, which revision was expected — through a published allowlist of detail keys. Anything outside that list does not travel: details are the server's own text, and `SPEC-011` REQ-1108 keeps paths, tokens and foreign identifiers out of local output.
 
 `AI_STP_CATALOG_INTEGRITY` applies to a reachable published record that fails its own integrity validation under `SPEC-021` `REQ-2108`. It is not `AI_STP_NOT_FOUND`: the object exists and is public, and claiming it is absent would send the client elsewhere to find something already present. It is not `AI_STP_INTERNAL` either: the condition is diagnosable, has a recovery path, and requires separate operator alerting. Retrying does not change the outcome—the stored bytes will not become valid between attempts—so the client does not retry this code despite `500`.
 

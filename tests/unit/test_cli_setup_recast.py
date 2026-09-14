@@ -59,6 +59,7 @@ def _release_component(
     content_format: str = "ai-stp-component-file/1",
     native_ids: list[str] | None = None,
     supported_os: list[str] | None = None,
+    required_env: list[dict[str, JsonValue]] | None = None,
 ) -> tuple[str, str, str]:
     digest = digest_bytes("ai-stp:artifact:v1", payload)
     content.put(connection, payload, at=CREATED)  # type: ignore[arg-type]
@@ -102,6 +103,8 @@ def _release_component(
         "supported_os": _fact(list(supported_os or [])),
         "adaptation_contents": _fact(sources),
     }
+    if required_env:
+        facts["required_env"] = _fact(cast(JsonValue, required_env))
     stored = revisions.commit(
         connection,  # type: ignore[arg-type]
         {

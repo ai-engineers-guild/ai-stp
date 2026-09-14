@@ -19,7 +19,7 @@ last_verified: "2026-08-03"
 | [SPEC-008-provider-installation.md](SPEC-008-provider-installation.md) | SPEC-008: Providers, installation and recovery. | 2026-09-06 |
 | [SPEC-009-local-registry-sync.md](SPEC-009-local-registry-sync.md) | SPEC-009: Local registry and synchronization. | 2026-09-08 |
 | [SPEC-010-platform-api.md](SPEC-010-platform-api.md) | SPEC-010: Server platform and API. | 2026-09-04 |
-| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-09-06 |
+| [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-09-14 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Uninstallation, full cleanup, and recovery. | 2026-08-03 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: User data governance. | 2026-09-01 |
 | [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Managed toolchain and bootstrap. | 2026-08-04 |
@@ -75,7 +75,7 @@ last_verified: "2026-08-03"
 | [SPEC-064-component-projections-assurance-and-portability.md](SPEC-064-component-projections-assurance-and-portability.md) | SPEC-064: Complete platform contract for one component with exact harness projections, target-bound assurance, search, and web presentation. | 2026-09-06 |
 | [SPEC-065-setup-families-and-harness-invariant-alignment.md](SPEC-065-setup-families-and-harness-invariant-alignment.md) | SPEC-065: Complete platform contract for harness-specific setup families, invariant alignment, provenance, exact component projection display, and canonical OBT support. | 2026-09-06 |
 | [SPEC-066-adaptation-evidence.md](SPEC-066-adaptation-evidence.md) | SPEC-066: Per-adaptation evaluation evidence for a component version. | 2026-09-06 |
-| [SPEC-067-cli-program-lifecycle.md](SPEC-067-cli-program-lifecycle.md) | SPEC-067: Shared executable lifecycle for catalog cli components. | 2026-09-06 |
+| [SPEC-067-cli-program-lifecycle.md](SPEC-067-cli-program-lifecycle.md) | SPEC-067: Shared executable lifecycle for catalog cli components. | 2026-09-14 |
 | [SPEC-068-preserved-native-setups.md](SPEC-068-preserved-native-setups.md) | SPEC-068: Preserve an existing harness setup and restore its complete native state. | 2026-09-07 |
 | [SPEC-069-multi-harness-environments.md](SPEC-069-multi-harness-environments.md) | SPEC-069: Coordinate separate harness setups within one project environment. | 2026-09-07 |
 | [SPEC-070-environment-prerequisite-inspection.md](SPEC-070-environment-prerequisite-inspection.md) | SPEC-070: Inspect exact setup prerequisites and expose executable preparation steps. | 2026-09-07 |
@@ -86,7 +86,7 @@ last_verified: "2026-08-03"
 | [SPEC-075-organization-kinds-and-context.md](SPEC-075-organization-kinds-and-context.md) | SPEC-075: Personal and corporate organization kinds, ownership boundaries, and active context. | 2026-09-09 |
 | [SPEC-076-context-capability-projection.md](SPEC-076-context-capability-projection.md) | SPEC-076: Versioned context capability projection for FastAPI and Next.js. | 2026-09-09 |
 | [SPEC-077-shared-product-mode-web-ui.md](SPEC-077-shared-product-mode-web-ui.md) | SPEC-077: Shared Next.js SaaS UI with server-resolved product context. | 2026-09-11 |
-| [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-09 |
+| [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-14 |
 | [SPEC-079-corporate-core.md](SPEC-079-corporate-core.md) | SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal. | 2026-09-12 |
 
 <!-- END CONTENTS -->

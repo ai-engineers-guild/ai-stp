@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { defineConfig, devices } from "@playwright/test";
+import { defineConfig, devices, type ReporterDescription } from "@playwright/test";
 
 // 3100 collided with another project on the maintainer's machine and the
 // failure read as "already used" rather than as a conflict this suite could
@@ -11,6 +11,16 @@ const externalBaseURL = process.env["PLAYWRIGHT_EXTERNAL_BASE_URL"];
 const baseURL = externalBaseURL ?? `http://127.0.0.1:${String(port)}`;
 const nextDistDir = process.env["AI_STP_NEXT_DIST_DIR"] ?? ".next";
 
+// `list` is what a person reads while the run happens. The JSON report is what
+// survives the job: a failed browser scenario used to leave nothing behind but a
+// line of console output, so the next question — was this persistence, cache
+// invalidation, rendering, or a locator that gave up too early — had no evidence
+// to answer it, and the only way forward was to run it again and hope.
+const retainedReporters: ReporterDescription[] = [
+  ["list"],
+  ["json", { outputFile: "test-results/report.json" }],
+];
+
 export default defineConfig({
   testDir: "./tests/e2e",
   // Mock auth/profile/catalog state is intentionally process-local and shared by
@@ -20,7 +30,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] ? 1 : 0,
   workers: 1,
-  reporter: "list",
+  reporter: process.env["CI"] ? retainedReporters : "list",
   use: {
     baseURL,
     // Google Chrome as installed, not Playwright's bundled Chromium. What ships
@@ -29,6 +39,13 @@ export default defineConfig({
     // A regression that only Chrome shows is one this suite could not see.
     channel: "chrome",
     trace: "on-first-retry",
+    // The retry is where the trace comes from; a screenshot covers the first
+    // failure as well, which is the one that says whether the page ever had the
+    // content the assertion looked for. Video is deliberately absent: it needs
+    // Playwright's ffmpeg, which these jobs do not install because they run
+    // Chrome as installed, and asking for it fails every context at `newPage`
+    // rather than only the failing test.
+    screenshot: "only-on-failure",
     storageState: {
       cookies: [
         {

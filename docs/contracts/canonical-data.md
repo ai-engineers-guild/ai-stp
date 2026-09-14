@@ -46,6 +46,7 @@ Different objects use different domains:
 
 ```text
 ai-stp:artifact:v1
+ai-stp:cli-registry:v1
 ai-stp:component-adaptation:v1
 ai-stp:passport:v1
 ai-stp:revision:v1
@@ -97,6 +98,12 @@ The `path-inventory` domain belongs to explicit-root inventory under
 `path-inventory.md`: relation, origin, and relative path of one classified
 object. Equal native-discovery bytes do not produce an interchangeable
 identifier.
+
+The `cli-registry` domain belongs to the machine surface one CLI build offers:
+its global options, command descriptors, and the exit class and handling of every
+error code. A distribution version does not identify that surface — a source build
+and a released wheel can report the same string with different registries — so a
+caller keeping help between calls compares this digest rather than the version.
 
 The `standard-inventory` domain belongs to the coordinated family inventory under
 `standard-family.md`: family id, axis identities, and exported schema `$id`s.

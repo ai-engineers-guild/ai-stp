@@ -22,10 +22,14 @@ what was actually verified.
 
 1. Run `ai-stp doctor --json`, then `ai-stp help --agent --json`.
    If the executable is missing, follow [bootstrap](references/bootstrap.md).
-2. Read the envelope and keep the installed version's command descriptors.
+2. Read the envelope and keep the command descriptors it carries.
    Use their parameters, parameter rules, confirmation and result schemas to
-   construct calls. Reload help after a CLI update or a command mismatch;
-   reuse it within the same version instead of fetching it before every call.
+   construct calls. Keep the envelope's registry fingerprint beside them and
+   reuse the descriptors while it is unchanged; reload help when it differs, or
+   after a command mismatch. The version string is not the fingerprint: two
+   builds can report the same version with different commands and flags.
+   The help descriptor itself declares how to read one command family instead
+   of the whole registry; once the playbook below names the family, read that.
 3. Take the harness, project root and requested outcome from the conversation
    and current workspace. Inspect missing facts. Ask only for information that
    cannot be determined and materially changes the requested effect.

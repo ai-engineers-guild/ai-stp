@@ -285,6 +285,11 @@
       "title": "Global Options",
       "type": "array"
     },
+    "registry_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Registry Digest",
+      "type": "string"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -297,6 +302,7 @@
     "commands",
     "error_codes",
     "global_options",
+    "registry_digest",
     "schema_version"
   ],
   "title": "MachineHelp",
