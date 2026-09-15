@@ -363,6 +363,9 @@ describe("manual registry creation", () => {
       },
     });
     mutation.mockResolvedValue({ ok: true, data: {} });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "importSeed" })).toBeEnabled(),
+    );
     fireEvent.click(screen.getByRole("button", { name: "importSeed" }));
     await screen.findByText("saved");
     expect(mutation.mock.calls[1]?.[0].body).toEqual(first.body);
