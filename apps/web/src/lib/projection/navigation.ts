@@ -13,6 +13,45 @@ export type NavItem = {
   feature?: FeatureKey;
 };
 
+function matchesPath(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Returns the active top-level destination for the human navigation shell. */
+export function isPrimaryNavigationActive(item: NavItem, pathname: string): boolean {
+  if (item.external || !pathname.startsWith("/")) return false;
+
+  switch (item.ui) {
+    case UI.navigation.overview:
+      return pathname === "/corporate/overview";
+    case UI.navigation.catalog:
+      return matchesPath(pathname, "/catalog");
+    case UI.navigation.organization:
+      return (
+        !matchesPath(pathname, "/corporate/organization/admins") &&
+        [
+          "/corporate/organization",
+          "/corporate/projects",
+          "/corporate/teams",
+          "/corporate/members",
+          "/corporate/technologies",
+        ].some((base) => matchesPath(pathname, base))
+      );
+    case UI.navigation.landscape:
+      return [
+        "/corporate/components",
+        "/corporate/technology-landscape",
+        "/corporate/categories",
+      ].some((base) => matchesPath(pathname, base));
+    case UI.navigation.dashboard:
+      return matchesPath(pathname, "/corporate/dashboard");
+    case UI.navigation.admins:
+      return matchesPath(pathname, "/corporate/organization/admins");
+    default:
+      return matchesPath(pathname, item.href);
+  }
+}
+
 type NavigationInput = {
   signedIn: boolean;
   docsHref: string;

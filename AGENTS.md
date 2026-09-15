@@ -13,6 +13,17 @@ A system for creating, validating, storing, selecting, and installing complete A
 - `packages/` — `foundation` (identifiers, canonicalization, digests, errors), `passports` (passport and revision models), `contracts` (machine contracts, schemas, machine help), `assurance` (author-attestation records);
 - `schemas/v1`, `provider-kit`, `skills/projections`, `docs/adr/index.md`, and `docs/index.md` are **generated**: edit the source, then run `just back-gen` or `just docs-gen`.
 
+## Web UI component gate
+
+For changes under `apps/web`, read [`apps/web/DESIGN.md`](apps/web/DESIGN.md)
+and [`docs/product/DESIGN.md`](docs/product/DESIGN.md) first. Before creating a
+new UI component, inspect the existing atoms, molecules, organisms, layouts,
+theme tokens, and icon registry under `apps/web/src/components` and
+`apps/web/src/theme`. New components are prohibited until the existing library
+is shown to be insufficient; prefer reusing or extending the existing
+component and record the reason when a new one is necessary. UI must use the
+kit, semantic tokens, and registered icons—no one-off controls or raw colors.
+
 ## Source of truth
 
 Priority: the user's current task → active specifications in `specs/active/` → accepted ADRs → documentation in `docs/` → code, tests, and Git history as verifiable evidence.

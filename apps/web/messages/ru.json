@@ -30,7 +30,11 @@
     "sortUsage": "По использованию",
     "usedBy": "Используется",
     "showLess": "Показать меньше",
-    "historyBack": "Назад",
+    "backToCategories": "Назад к категориям",
+    "backToProjects": "Назад к проектам",
+    "backToTeams": "Назад к командам",
+    "backToEmployees": "Назад к сотрудникам",
+    "backToAdmins": "Назад к администрированию",
     "structure": "Структура организации",
     "assignmentsRestricted": "Назначения недоступны с вашими текущими правами.",
     "overviewDenied": "У вас нет доступа к этой организации. Проверьте выбранную организацию или обратитесь к администратору.",
@@ -101,8 +105,7 @@
     "moreActions": "Другие действия",
     "unknownEmployee": "Сотрудник без имени",
     "notAvailable": "Нет данных",
-    "deleted": "Удалён",
-    "back": "Вернуться к списку"
+    "deleted": "Удалён"
   },
   "technology": {
     "mergeTitle": "Явное объединение технологий",
@@ -236,10 +239,11 @@
     "previous": "Назад",
     "next": "Далее",
     "open": "Открыть проект",
-    "back": "Корпоративное пространство"
+    "backToWorkspace": "Назад в корпоративное пространство",
+    "backToTechnologies": "Назад к технологиям"
   },
   "githubConnector": {
-    "back": "Аккаунт",
+    "backToAccount": "Назад к аккаунту",
     "title": "Подключения GitHub",
     "accountHint": "Управляйте подключёнными аккаунтами GitHub.",
     "connectShort": "Подключить",
@@ -909,6 +913,7 @@
   "account": {
     "corporateWorkspace": "Корпоративное пространство",
     "title": "Аккаунт",
+    "backToAccount": "Назад к аккаунту",
     "settingsBreadcrumb": "Настройки",
     "subtitle": "Управляйте публичным профилем, способами входа и приватностью.",
     "publisherOn": "Автор на ai_stp",

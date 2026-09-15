@@ -179,6 +179,14 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     resource === "roles"
       ? "/corporate/organization/admins"
       : `/corporate/${resource}${directoryQuery ? `?${directoryQuery}` : ""}`;
+  const backLabel =
+    resource === "roles"
+      ? h("backToAdmins")
+      : resource === "members"
+        ? h("backToEmployees")
+        : resource === "teams"
+          ? h("backToTeams")
+          : h("backToProjects");
   let presentation =
     resource === "roles"
       ? null
@@ -255,15 +263,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     : team?.description || detail.description;
   return (
     <article className="mx-auto max-w-7xl space-y-8">
-      <div className="flex flex-wrap items-center gap-3">
-        <HistoryBackButton label={h("historyBack")} fallback={parentHref} />
-        <Link
-          href={parentHref}
-          className="text-muted-foreground text-sm underline underline-offset-4"
-        >
-          {resource === "roles" ? h("admins") : h("back")}
-        </Link>
-      </div>
+      <HistoryBackButton label={backLabel} fallback={parentHref} />
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="outline">{detail.state}</Badge>

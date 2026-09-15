@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { Button } from "@/components/atoms/button";
 import { CountryFlag } from "@/components/atoms/country-flag";
+import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
 import { readExternalProduct } from "@/lib/api/catalog";
@@ -41,12 +41,7 @@ export default async function ServicePage({
   return (
     <main className="space-y-10">
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
-      <Button asChild variant="outline" size="sm">
-        <Link href="/services">
-          <Icon name="arrowLeft" size="sm" />
-          {t("backToServices")}
-        </Link>
-      </Button>
+      <HistoryBackButton label={t("backToServices")} fallback="/services" />
       <header className="max-w-3xl space-y-4">
         <p className="text-muted-foreground text-sm">{t("externalService")}</p>
         <div className="flex flex-wrap items-end justify-between gap-4">

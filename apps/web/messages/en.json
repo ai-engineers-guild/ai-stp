@@ -30,7 +30,11 @@
     "sortUsage": "Most used",
     "usedBy": "Used by",
     "showLess": "Show less",
-    "historyBack": "Back",
+    "backToCategories": "Back to categories",
+    "backToProjects": "Back to projects",
+    "backToTeams": "Back to teams",
+    "backToEmployees": "Back to employees",
+    "backToAdmins": "Back to admins",
     "structure": "Organization structure",
     "assignmentsRestricted": "Assignments are not available with your current access.",
     "overviewDenied": "You do not have access to this organization. Check your active organization or ask an administrator.",
@@ -101,8 +105,7 @@
     "moreActions": "More actions",
     "unknownEmployee": "Unknown employee",
     "notAvailable": "Not available",
-    "deleted": "Deleted",
-    "back": "Back to list"
+    "deleted": "Deleted"
   },
   "technology": {
     "mergeTitle": "Deliberate technology merge",
@@ -236,10 +239,11 @@
     "previous": "Previous",
     "next": "Next",
     "open": "Open project",
-    "back": "Corporate workspace"
+    "backToWorkspace": "Back to corporate workspace",
+    "backToTechnologies": "Back to technologies"
   },
   "githubConnector": {
-    "back": "Account",
+    "backToAccount": "Back to account",
     "title": "GitHub connections",
     "accountHint": "Manage connected GitHub accounts.",
     "connectShort": "Connect",
@@ -909,6 +913,7 @@
   "account": {
     "corporateWorkspace": "Corporate workspace",
     "title": "Account",
+    "backToAccount": "Back to account",
     "settingsBreadcrumb": "Settings",
     "subtitle": "Manage your public profile, sign-in methods and privacy.",
     "publisherOn": "Publisher on ai_stp",

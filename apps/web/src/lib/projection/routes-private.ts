@@ -34,6 +34,13 @@ import { corporateNodeHref } from "@/lib/corporate-overview";
 import { TECHNOLOGY_ROUTES } from "@/lib/projection/routes-technology";
 import { CORPORATE_ROUTES } from "@/lib/projection/routes-corporate";
 
+const CORPORATE_RESOURCE_BACK_LABELS = {
+  projects: "backToProjects",
+  teams: "backToTeams",
+  members: "backToEmployees",
+  roles: "backToAdmins",
+} as const;
+
 /**
  * Machine documents for the account, owner and staff sections. Access is
  * unchanged by the projection: these routes sit behind the same session gate
@@ -86,7 +93,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
       return presentPage({
         title: t("title"),
         summary: t("simpleIntro"),
-        links: [[t("back"), "/account"]],
+        links: [[t("backToAccount"), "/account"]],
       });
     },
   },
@@ -223,6 +230,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
     pattern: "corporate/:resource/:resourceId",
     resolve: async ({ segments }) => {
       const t = await getTranslations("corporate");
+      const h = await getTranslations("hub");
       const resource = segments[1];
       const resourceId = segments[2];
       if (
@@ -250,6 +258,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
       const project = projectDetail?.project;
       const team = workspace.team;
       const member = workspace.member;
+      const backLabel = h(CORPORATE_RESOURCE_BACK_LABELS[resource]);
       if (resource === "projects" && project) {
         const technologyLabels = await getTranslations("technology");
         return presentPage({
@@ -269,7 +278,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
                 fields: [[technologyLabels("version"), fact.version ?? "unknown"]],
               })),
             })),
-          links: [[t("backToWorkspace"), "/corporate/projects"]],
+          links: [[backLabel, "/corporate/projects"]],
         });
       }
       if (resource === "teams" && team) {
@@ -277,7 +286,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
           title: team.name,
           summary: t("teamDetailsBody"),
           fields: [[t("state"), team.state]],
-          links: [[t("backToWorkspace"), "/corporate/teams"]],
+          links: [[backLabel, "/corporate/teams"]],
         });
       }
       if (resource === "members" && member) {
@@ -285,14 +294,14 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
           title: member.display_name ?? t("member"),
           summary: t("memberDetailsBody"),
           fields: [[t("state"), member.state]],
-          links: [[t("backToWorkspace"), "/corporate/members"]],
+          links: [[backLabel, "/corporate/members"]],
         });
       }
       if (resource === "roles" && workspace.role)
         return presentPage({
           title: workspace.role.name,
           fields: [[t("permissions"), workspace.role.permissions.join(", ")]],
-          links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+          links: [[backLabel, "/corporate/organization/admins"]],
         });
       return null;
     },

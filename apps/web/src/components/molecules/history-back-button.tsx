@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 import { Button } from "@/components/atoms/button";
+import { useRouter } from "@/lib/i18n/navigation";
+import { canGoBack, currentNavigationHref, getNavigationStorage } from "@/lib/navigation-history";
+import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme";
 
 export function HistoryBackButton({ label, fallback }: { label: string; fallback: string }) {
@@ -12,9 +13,13 @@ export function HistoryBackButton({ label, fallback }: { label: string; fallback
     <Button
       type="button"
       variant="ghost"
-      size="sm"
+      size="default"
+      data-ui={UI.navigation.back}
+      aria-label={label}
+      className="min-h-11 px-2 sm:px-3"
       onClick={() => {
-        if (window.history.length > 1) router.back();
+        const storage = getNavigationStorage();
+        if (canGoBack(storage, currentNavigationHref(window.location))) router.back();
         else router.push(fallback);
       }}
     >

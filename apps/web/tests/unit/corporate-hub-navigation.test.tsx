@@ -35,6 +35,19 @@ it("shows authorized directories and selects the team tab on its detail page", (
   expect(screen.queryByRole("link", { name: "dashboard" })).not.toBeInTheDocument();
 });
 
+it("orders the Organization tabs as Projects, Teams, Employees, Technologies", () => {
+  route.path = "/corporate/organization";
+  render(
+    <CorporateHubNavigation
+      capabilities={["project.list", "team.list", "member.list", "technology.list"]}
+    />,
+  );
+  expect(screen.getByRole("navigation").querySelectorAll("a")).toHaveLength(4);
+  expect(
+    [...screen.getByRole("navigation").querySelectorAll("a")].map((link) => link.textContent),
+  ).toEqual(["projects", "teams", "employees", "technologies"]);
+});
+
 it("keeps the technology directory in the Organization section", () => {
   route.path = "/corporate/technologies";
   render(<CorporateHubNavigation capabilities={["technology.list"]} />);

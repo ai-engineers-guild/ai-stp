@@ -168,7 +168,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
       return presentPage({
         title: detail?.category.name ?? h("categories"),
         summary: detail?.category.description ?? "",
-        links: [[h("categories"), "/corporate/categories"]],
+        links: [[h("backToCategories"), "/corporate/categories"]],
         sections: [
           {
             heading: h("technologies"),
@@ -189,7 +189,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
       const t = await getTranslations("technology");
       const session = (await sessionCookieValue()) ?? "";
       const workspace = await readCorporateContext(session);
-      const links = [[t("back"), "/corporate"]] as const;
+      const links = [[t("backToWorkspace"), "/corporate"]] as const;
       if (!workspace)
         return presentPage({ title: t("registry"), summary: t("registryEmpty"), links });
       try {
@@ -238,7 +238,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
       const t = await getTranslations("technology");
       const session = (await sessionCookieValue()) ?? "";
       const workspace = await readCorporateContext(session);
-      const links = [[t("back"), "/corporate/technologies"]] as const;
+      const links = [[t("backToTechnologies"), "/corporate/technologies"]] as const;
       const technologyId = segments[2];
       if (!workspace || !technologyId || !/^technology_[0-9A-HJKMNP-TV-Z]{26}$/.test(technologyId))
         return presentPage({ title: t("registry"), summary: t("notPermitted"), links });
@@ -308,7 +308,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
       const t = await getTranslations("technology");
       const session = (await sessionCookieValue()) ?? "";
       const workspace = await readCorporateContext(session);
-      const links = [[t("back"), "/corporate"]] as const;
+      const links = [[t("backToWorkspace"), "/corporate"]] as const;
       if (!workspace) return presentPage({ title: t("title"), summary: t("empty"), links });
       const filters = landscapeFilters(searchParams);
       try {

@@ -85,7 +85,7 @@ export default async function TechnologyDetailPage({
   return (
     <div className="min-w-0 space-y-8">
       <header className="space-y-3">
-        <HistoryBackButton label={t("back")} fallback="/corporate/technologies" />
+        <HistoryBackButton label={t("backToTechnologies")} fallback="/corporate/technologies" />
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{technology.name}</h1>
         <p className="text-muted-foreground">{t(`values.${technology.lifecycle}`)}</p>
       </header>

@@ -149,7 +149,7 @@ export function GithubConnector({
   return (
     <div className="min-w-0 space-y-8" aria-busy={busy}>
       <header className="space-y-3">
-        <HistoryBackButton label={t("back")} fallback="/account" />
+        <HistoryBackButton label={t("backToAccount")} fallback="/account" />
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-medium tracking-tight">{t("title")}</h1>
           <span

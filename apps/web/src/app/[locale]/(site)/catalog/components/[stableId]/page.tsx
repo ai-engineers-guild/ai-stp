@@ -4,7 +4,6 @@ import { catalogReturnHref } from "@/lib/catalog-return";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { Button } from "@/components/atoms/button";
 import { ObjectAuthorRail } from "@/components/molecules/catalog-author-link";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CompactChipList } from "@/components/molecules/compact-chip-list";
@@ -20,6 +19,7 @@ import {
   RequirementsSummary,
 } from "@/components/molecules/requirements-summary";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import {
   ComponentTargetMatrix,
   targetMatrixLabels,
@@ -50,14 +50,12 @@ import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
-import { Link } from "@/lib/i18n/navigation";
 import { UI } from "@/lib/ui-selectors";
 import { sourceLinksFor } from "@/lib/source-url";
 import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
 import { ComponentTypeIcon } from "@/theme/component-types";
-import { Icon } from "@/theme/icons";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string }>;
@@ -157,11 +155,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   return (
     <article className="mx-auto max-w-6xl min-w-0 space-y-8 overflow-x-clip">
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
-      <Button asChild variant="ghost" size="sm">
-        <Link href={backHref}>
-          <Icon name="arrowLeft" size="sm" /> {t("backToCatalog")}
-        </Link>
-      </Button>
+      <HistoryBackButton label={t("backToCatalog")} fallback={backHref} />
 
       <ObjectDetailHeader
         icon={<ComponentTypeIcon type={summary.latest_component_type} />}
