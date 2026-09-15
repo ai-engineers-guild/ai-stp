@@ -34,7 +34,6 @@ def test_extended_identity_and_filters() -> None:
             kind="technology",
             id=new_id("technology"),
             name=name,
-            state="active",
             revision=1,
             categories=[category],
             projects=[project],
@@ -85,7 +84,7 @@ def test_extended_identity_and_filters() -> None:
         CorporateDirectoryQuery(resource="technologies", category_ids=[new_id("account")])
     with pytest.raises(ValidationError):
         CorporateDirectoryItem(
-            kind="technology", id=items[0].id, name="Wrong", state="active", revision=1, owner=team
+            kind="technology", id=items[0].id, name="Wrong", revision=1, owner=team
         )
 
 
@@ -190,6 +189,7 @@ async def test_extended_projection_authorizes_names_before_facets(
         request_id=None,
     )
     assert result.total == 1
+    assert "state" not in result.items[0].model_dump()
     assert [item.id for item in result.items[0].teams] == [team.id]
     assert [item.id for item in result.items[0].projects] == [project.id]
     assert "Secret" not in result.model_dump_json()

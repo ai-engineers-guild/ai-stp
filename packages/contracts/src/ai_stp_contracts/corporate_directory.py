@@ -36,7 +36,6 @@ class CorporateDirectoryReference(BaseModel):
 
 
 class CorporateDirectoryItem(CorporateDirectoryReference):
-    state: Literal["draft", "active", "deprecated", "archived", "suspended"]
     description: str = ""
     revision: Annotated[int, Field(ge=1)]
     leads: list[CorporateDirectoryReference] = []
@@ -83,7 +82,6 @@ class CorporateDirectoryQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     resource: Literal["projects", "teams", "members", "technologies"]
     query: Annotated[str | None, Field(min_length=1, max_length=200, pattern=r".*\S.*")] = None
-    state: Literal["draft", "active", "deprecated", "archived", "suspended"] | None = None
     include_archived: bool = False
     lead_ids: Annotated[list[AccountId], Field(max_length=64)] = []
     team_ids: Annotated[list[TeamId], Field(max_length=64)] = []

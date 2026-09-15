@@ -15,11 +15,6 @@ import {
 } from "./corporate-directory-types";
 
 type Labels = {
-  active: string;
-  draft: string;
-  archived: string;
-  deprecated: string;
-  suspended: string;
   lead: string;
   ownerTeam: string;
   teams: string;
@@ -50,38 +45,13 @@ function relationHref(ref: DirectoryRef, returnFilters: string) {
 function EntityMark({ resource, item }: { resource: DirectoryResource; item: DirectoryItem }) {
   const icon = resource === "components" ? "component" : resourceIcons[resource];
   return (
-    <span className="bg-muted border-border text-foreground inline-flex size-14 shrink-0 items-center justify-center rounded-md border">
+    <span className="bg-muted border-border text-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-md border">
       {resource === "components" && isComponentType(item.component_type) ? (
         <ComponentTypeIcon type={item.component_type} compact />
       ) : (
-        <Icon name={icon} size="lg" />
+        <Icon name={icon} size="sm" />
       )}
     </span>
-  );
-}
-
-function StatusBadge({ state, labels }: { state: string; labels: Labels }) {
-  const label =
-    state === "active"
-      ? labels.active
-      : state === "draft"
-        ? labels.draft
-        : state === "archived"
-          ? labels.archived
-          : state === "deprecated"
-            ? labels.deprecated
-            : labels.suspended;
-  return (
-    <Badge variant={state === "active" ? "success" : "outline"} className="gap-2 px-3 py-1 text-sm">
-      <span
-        aria-hidden="true"
-        className={cn(
-          "size-2 rounded-full",
-          state === "active" ? "bg-success-foreground" : "bg-muted-foreground",
-        )}
-      />
-      {label}
-    </Badge>
   );
 }
 
@@ -95,7 +65,7 @@ function ReferenceChip({
   return (
     <Link
       href={relationHref(reference, returnFilters)}
-      className="bg-muted hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex max-w-full items-center rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="border-border hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex max-w-full items-center rounded-md border px-2 py-0.5 font-mono text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
       <span className="max-w-full truncate">{reference.name}</span>
     </Link>
@@ -213,7 +183,6 @@ export function CorporateDirectoryCard({
   item,
   labels,
   returnFilters,
-  view,
 }: {
   resource: DirectoryResource;
   item: DirectoryItem;
@@ -253,14 +222,14 @@ export function CorporateDirectoryCard({
         className={cn(
           "bg-background border-border group relative min-w-0 overflow-hidden rounded-lg border transition-colors",
           "hover:bg-muted/20 focus-within:ring-ring focus-within:ring-2",
-          view === "list" ? "p-4" : "p-5",
+          "p-4",
         )}
       >
-        <div className="flex min-w-0 items-start gap-4 pr-20">
+        <div className="flex min-w-0 items-start gap-3 pr-11">
           <EntityMark resource={resource} item={item} />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h3 className="min-w-0 text-xl leading-tight font-medium tracking-tight break-words">
+              <h3 className="min-w-0 text-lg leading-tight font-medium tracking-tight break-words">
                 <Link
                   href={href}
                   className="hover:text-primary focus-visible:ring-ring rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
@@ -275,7 +244,7 @@ export function CorporateDirectoryCard({
               ) : null}
             </div>
             {resource === "members" && item.role ? (
-              <p className="text-muted-foreground mt-1 text-base">{item.role}</p>
+              <p className="text-muted-foreground mt-1 text-sm">{item.role}</p>
             ) : null}
             {references.length ? (
               <div className="mt-4 flex min-w-0 flex-wrap gap-2">
@@ -302,7 +271,6 @@ export function CorporateDirectoryCard({
           </div>
         </div>
         <div className="absolute top-5 right-5 flex items-center gap-3">
-          <StatusBadge state={item.state} labels={labels} />
           <DropdownMenu.Root modal={false}>
             <DropdownMenu.Trigger asChild>
               <Button variant="ghost" size="icon" aria-label={`${labels.moreActions}: ${title}`}>

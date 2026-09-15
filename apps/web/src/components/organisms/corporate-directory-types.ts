@@ -9,7 +9,6 @@ export type DirectoryFacet = "leads" | "teams" | "technologies" | "projects" | "
 export type DirectoryItem = {
   id: string;
   name: string;
-  state: string;
   description?: string;
   role?: string | null;
   leads?: readonly DirectoryRef[];

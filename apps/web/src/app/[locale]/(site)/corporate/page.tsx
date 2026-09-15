@@ -70,7 +70,7 @@ export async function CorporateOverview({
             href: "/corporate/projects",
             icon: "component",
             count: graph.nodes.filter((node) => node.kind === "project").length,
-            caption: t("activeProjects"),
+            caption: t("projectsSummary"),
           },
           {
             key: "employees",

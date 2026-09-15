@@ -30,7 +30,6 @@ export default async function CorporateComponentsPage({
   let rows: Array<{
     id: string;
     name: string;
-    state: string;
     description?: string;
     component_type?: ComponentType;
     author_name?: string;
@@ -56,7 +55,6 @@ export default async function CorporateComponentsPage({
     rows = [...result.items, ...result.experimental].map((item) => ({
       id: item.stable_id,
       name: item.latest_name,
-      state: item.latest_lifecycle,
       description: item.latest_description,
       component_type: item.latest_component_type,
       author_name: authorNames.get(item.publisher_id) || item.owner_handle || catalog("author"),

@@ -1,7 +1,7 @@
 """Directory discovery filters every named anchor before facets and pagination."""
 
 from collections.abc import Sequence
-from typing import Literal, cast
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,8 +46,6 @@ def select_directory(
                 not query.query
                 or query.query.casefold() in f"{item.name} {item.description}".casefold()
             )
-            and (not query.state or item.state == query.state)
-            and (query.include_archived or query.state == "archived" or item.state != "archived")
             and (not query.lead_ids or any(ref.id in query.lead_ids for ref in item.leads))
             and (not query.team_ids or any(ref.id in query.team_ids for ref in teams))
             and (
@@ -207,7 +205,6 @@ async def read_directory(
                         kind="employee",
                         id=member.account_id,
                         name=nodes[member.account_id].name,
-                        state=cast(Literal["active", "suspended"], member.state),
                         revision=member.revision,
                         role=member.role,
                         description=str(
@@ -256,6 +253,8 @@ async def read_directory(
                 )
             ).all()
             for technology in technologies:
+                if not query.include_archived and technology.lifecycle == "archived":
+                    continue
                 if technology.id not in nodes or not await permitted(
                     "technology.list", "technology", technology.id
                 ):
@@ -271,10 +270,6 @@ async def read_directory(
                         kind="technology",
                         id=technology.id,
                         name=technology.name,
-                        state=cast(
-                            Literal["draft", "active", "deprecated", "archived"],
-                            technology.lifecycle,
-                        ),
                         revision=technology.revision,
                         description=technology.description or "",
                         owner=nodes.get(technology.owner_account_id or ""),
@@ -359,6 +354,8 @@ async def read_directory(
     kind = "project" if query.resource == "projects" else "team"
     # ponytail: request-local permission cache; batch evaluation if directory latency warrants it.
     for row in rows:
+        if not query.include_archived and row.state == "archived":
+            continue
         if not await permitted(f"{kind}.list", kind, row.id) or not await permitted(
             f"{kind}.read", kind, row.id
         ):
@@ -383,7 +380,6 @@ async def read_directory(
                 "name": row.name,
                 "description": str((row.profile or {}).get("description", ""))
                 or (row.description if isinstance(row, CorporateTeam) else ""),
-                "state": row.lifecycle if isinstance(row, CorporateProject) else row.state,
                 "revision": row.revision,
                 "teams": references(teams),
                 "projects": references(projects),

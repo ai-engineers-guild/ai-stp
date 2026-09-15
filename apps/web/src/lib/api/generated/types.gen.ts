@@ -2495,10 +2495,6 @@ export type CorporateDirectoryItem = {
    */
   role: string | null;
   /**
-   * State
-   */
-  state: "draft" | "active" | "deprecated" | "archived" | "suspended";
-  /**
    * Teams
    */
   teams: Array<CorporateDirectoryReference>;
@@ -2549,10 +2545,6 @@ export type CorporateDirectoryQuery = {
    * Resource
    */
   resource: "projects" | "teams" | "members" | "technologies";
-  /**
-   * State
-   */
-  state?: "draft" | "active" | "deprecated" | "archived" | "suspended" | null;
   /**
    * Team Ids
    */
@@ -14279,10 +14271,6 @@ export type ReadCorporateDirectoryData = {
      * Resource
      */
     resource: "projects" | "teams" | "members" | "technologies";
-    /**
-     * State
-     */
-    state?: "draft" | "active" | "deprecated" | "archived" | "suspended" | null;
     /**
      * Team Ids
      */
