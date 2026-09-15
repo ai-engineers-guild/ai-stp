@@ -69,11 +69,10 @@ export async function corporateCatalogVersionsAction(input: {
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
     if (!(await readSession())) return { ok: false, message: "not signed in" };
-    if (
-      (input.kind !== "setup" && input.kind !== "component") ||
-      !new RegExp(`^${input.kind}_[0-9A-HJKMNP-TV-Z]{26}$`).test(input.id)
-    )
-      return { ok: false, message: "invalid catalog target" };
+    const validId =
+      (input.kind === "setup" && /^setup_[0-9A-HJKMNP-TV-Z]{26}$/.test(input.id)) ||
+      (input.kind === "component" && /^component_[0-9A-HJKMNP-TV-Z]{26}$/.test(input.id));
+    if (!validId) return { ok: false, message: "invalid catalog target" };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     const result = await privateApiRequest<SetupDetail | ComponentDetail>(
       `/v1/catalog/${input.kind === "setup" ? "setups" : "components"}/${input.id}`,
