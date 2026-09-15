@@ -76,7 +76,6 @@ export async function readCorporateDirectoryPages(
         query: {
           ...filters,
           query: filters.query ?? undefined,
-          state: filters.state ?? undefined,
           is_lead: filters.is_lead ?? undefined,
           offset: items.length,
           limit: 256,

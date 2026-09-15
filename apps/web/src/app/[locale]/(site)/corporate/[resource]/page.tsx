@@ -57,7 +57,6 @@ export default async function CorporateDirectoryPage({
       )}
       roles={directory.roles?.items.map((role) => role.name) ?? []}
       initialQuery={typeof filters.query === "string" ? filters.query : ""}
-      initialStatus={typeof filters.status === "string" ? filters.status : ""}
     />
   );
 }

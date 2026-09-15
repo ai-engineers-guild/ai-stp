@@ -100,6 +100,10 @@ export function startCatalogResourceReads(
     query.resource === "setups" || query.resource === "all"
       ? deps.searchSetups(catalogSearchInput(query, "setups"))
       : Promise.resolve(null);
+  // Observe immediately: callers may await optional facets before search results.
+  // Keep the original rejected promises so failures still reach their error panel.
+  void components.catch(() => undefined);
+  void setups.catch(() => undefined);
   return { services, components, setups };
 }
 

@@ -97,6 +97,12 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   employee identity in the author position respectively. Tags display team
   technologies, project technologies, technology projects, or employee teams.
   Team action-menu placeholders are permitted; directory data is never fixture data.
+  Directory cards use the Catalog's compact typography, spacing and outlined
+  reference chips. They do not label teams, projects, employees or technologies
+  as active. Directory filter controls reuse the Catalog's responsive dialog,
+  focus handling, labeled two-column fields and Reset/Apply footer. Selection
+  changes remain a draft until Apply; dismissal discards the draft. Name sorting
+  supports ascending and descending order rather than a business status sort.
 - `REQ-8212`: Shared two-column detail composition shows Markdown description,
   links, catalog assignments, and named related objects. Team details show
   employees/projects; project details show technologies/teams and the owner team;
@@ -135,7 +141,7 @@ SaaS navigation. A green narrow directory test does not prove the entire extensi
 
 `GET /v1/corporate/organizations/{organization_id}/directory` initially serves
 `resource=teams|projects`. It returns named cards, complete readable facets and
-filtered total; query/state, lead_ids, team_ids and technology_ids use OR within
+filtered total; query, lead_ids, team_ids and technology_ids use OR within
 each selected dimension and AND across dimensions. Authorization precedes facets,
 filters, sorting and offset/limit pagination. Team team_ids matches other teams
 sharing a readable current project. Project team_ids matches its related teams.
@@ -144,6 +150,9 @@ readable current projects. Technology names require technology read and canonica
 relation read/list permissions. Archived roots retain identity/revision but do not
 manufacture active related links. No directory load fetches catalog assignments.
 This incremental endpoint does not replace employee/technology directory work.
+Directory item models and responses have no business status field; the directory
+query rejects the removed `state` filter. Archive retention and membership access
+controls remain separate domain operations, not an active/inactive directory state.
 
 Public-only route sources use build-gated Next page extensions: `content.tsx`
 and `content.ts` for editorial pages/layout/feed, `saas.tsx` for contact/legal,

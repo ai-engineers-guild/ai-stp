@@ -27,8 +27,8 @@ it("restores directory filters and carries them to the detail page", () => {
     <CorporateDirectory
       resource="teams"
       items={[
-        { id: "mobile", name: "Mobile", state: "active" },
-        { id: "old", name: "Mobile legacy", state: "archived" },
+        { id: "mobile", name: "Mobile" },
+        { id: "old", name: "Mobile legacy" },
       ]}
       organizationId="organization_fixture"
       authorizationRevision={1}
@@ -36,17 +36,16 @@ it("restores directory filters and carries them to the detail page", () => {
       canCreate={false}
       roles={[]}
       initialQuery="Mobile"
-      initialStatus="active"
     />,
   );
   expect(screen.getByLabelText("search")).toHaveValue("Mobile");
   fireEvent.click(screen.getByRole("button", { name: /filters/ }));
-  expect(screen.getByLabelText("status")).toHaveValue("active");
-  expect(screen.getByRole("link", { name: /Mobile/ })).toHaveAttribute(
+  expect(screen.queryByLabelText("status")).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Mobile" })).toHaveAttribute(
     "href",
-    "/corporate/teams/mobile?query=Mobile&status=active",
+    "/corporate/teams/mobile?query=Mobile",
   );
-  expect(screen.queryByRole("link", { name: /legacy/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /legacy/ })).toBeVisible();
 });
 
 it("restores visible rows on history navigation and preserves router history state", () => {
@@ -56,8 +55,8 @@ it("restores visible rows on history navigation and preserves router history sta
     <CorporateDirectory
       resource="teams"
       items={[
-        { id: "mobile", name: "Mobile", state: "active" },
-        { id: "web", name: "Web", state: "active" },
+        { id: "mobile", name: "Mobile" },
+        { id: "web", name: "Web" },
       ]}
       organizationId="organization_fixture"
       authorizationRevision={1}
@@ -69,15 +68,15 @@ it("restores visible rows on history navigation and preserves router history sta
   fireEvent.change(screen.getByLabelText("search"), { target: { value: "mobile" } });
   expect(window.history.state).toEqual(routerState);
   expect(window.location.search).toBe("?query=mobile");
-  window.history.replaceState(routerState, "", "/en/corporate/teams?query=Web&status=active");
+  window.history.replaceState(routerState, "", "/en/corporate/teams?query=Web");
   fireEvent(window, new PopStateEvent("popstate"));
   expect(screen.getByLabelText("search")).toHaveValue("Web");
   fireEvent.click(screen.getByRole("button", { name: /filters/ }));
-  expect(screen.getByLabelText("status")).toHaveValue("active");
+  expect(screen.queryByLabelText("status")).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: /Mobile/ })).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: /Web/ })).toHaveAttribute(
     "href",
-    "/corporate/teams/web?query=Web&status=active",
+    "/corporate/teams/web?query=Web",
   );
 });
 
@@ -87,8 +86,8 @@ it("searches projects and preserves a failed creation draft and receipt key on r
     <CorporateDirectory
       resource="projects"
       items={[
-        { id: "mobile", name: "Mobile", state: "active" },
-        { id: "web", name: "Web", state: "active" },
+        { id: "mobile", name: "Mobile" },
+        { id: "web", name: "Web" },
       ]}
       organizationId="organization_fixture"
       authorizationRevision={3}

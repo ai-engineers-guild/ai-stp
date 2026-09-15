@@ -36,6 +36,8 @@ function currentReturnFilters(seed: string): string {
   for (const [key, value] of initial) {
     if (!current.has(key)) current.append(key, value);
   }
+  current.delete("status");
+  current.delete("state");
   return current.toString();
 }
 
@@ -45,14 +47,13 @@ function restoreFilters(seed: string, resource: DirectoryResource) {
   const defaultView: "list" | "cards" = resource === "technologies" ? "list" : "cards";
   return {
     query: params.get("query") ?? initial.get("query") ?? "",
-    status: params.get("status") ?? initial.get("status") ?? "",
     view:
       params.get("view") === "list"
         ? ("list" as const)
         : params.get("view") === "cards"
           ? ("cards" as const)
           : defaultView,
-    sort: params.get("sort") === "state" ? ("state" as const) : ("name" as const),
+    sort: params.get("sort") === "name_desc" ? ("name_desc" as const) : ("name" as const),
     leadOnly: params.get("is_lead") === "true",
     selected: Object.fromEntries(
       directoryFacets[resource].map((facet) => [facet, params.getAll(directoryFacetParams[facet])]),
@@ -60,21 +61,19 @@ function restoreFilters(seed: string, resource: DirectoryResource) {
   };
 }
 
-function sortItems(items: readonly DirectoryItem[], sort: "name" | "state") {
+function sortItems(items: readonly DirectoryItem[], sort: "name" | "name_desc") {
   return [...items].sort((left, right) =>
-    sort === "state"
-      ? left.state.localeCompare(right.state) || left.name.localeCompare(right.name)
+    sort === "name_desc"
+      ? right.name.localeCompare(left.name)
       : left.name.localeCompare(right.name),
   );
 }
 
-// eslint-disable-next-line max-lines-per-function
 export function CorporateDirectoryResults({
   resource,
   items,
   filters = "",
   initialQuery = "",
-  initialStatus = "",
   addLabel,
   cancelLabel,
   adding = false,
@@ -84,7 +83,6 @@ export function CorporateDirectoryResults({
   items: readonly DirectoryItem[];
   filters?: string;
   initialQuery?: string;
-  initialStatus?: string;
   addLabel?: string | undefined;
   cancelLabel?: string | undefined;
   adding?: boolean | undefined;
@@ -92,11 +90,10 @@ export function CorporateDirectoryResults({
 }) {
   const t = useTranslations("hub");
   const [query, setQuery] = useState(initialQuery);
-  const [status, setStatus] = useState(initialStatus);
   const [view, setView] = useState<"list" | "cards">(
     resource === "technologies" ? "list" : "cards",
   );
-  const [sort, setSort] = useState<"name" | "state">("name");
+  const [sort, setSort] = useState<"name" | "name_desc">("name");
   const [selected, setSelected] = useState<CorporateDirectorySelectedFilters>({});
   const [leadOnly, setLeadOnly] = useState(false);
   const [returnFilters, setReturnFilters] = useState(filters);
@@ -105,7 +102,6 @@ export function CorporateDirectoryResults({
     function restore() {
       const next = restoreFilters(filters, resource);
       setQuery(next.query);
-      setStatus(next.status);
       setView(next.view);
       setSort(next.sort);
       setLeadOnly(next.leadOnly);
@@ -121,6 +117,8 @@ export function CorporateDirectoryResults({
 
   function persist(name: string, values: string[]) {
     const url = new URL(window.location.href);
+    url.searchParams.delete("status");
+    url.searchParams.delete("state");
     url.searchParams.delete(name);
     values.forEach((value) => {
       url.searchParams.append(name, value);
@@ -134,11 +132,6 @@ export function CorporateDirectoryResults({
     persist("query", value ? [value] : []);
   }
 
-  function changeStatus(value: string) {
-    setStatus(value);
-    persist("status", value ? [value] : []);
-  }
-
   function changeFacet(facet: DirectoryFacet, values: string[]) {
     setSelected((previous) => ({ ...previous, [facet]: values }));
     persist(directoryFacetParams[facet], values);
@@ -149,7 +142,7 @@ export function CorporateDirectoryResults({
     persist("view", [value]);
   }
 
-  function changeSort(value: "name" | "state") {
+  function changeSort(value: "name" | "name_desc") {
     setSort(value);
     persist("sort", [value]);
   }
@@ -166,18 +159,12 @@ export function CorporateDirectoryResults({
           `${item.name} ${item.description ?? ""}`
             .toLocaleLowerCase()
             .includes(query.toLocaleLowerCase())) &&
-        (!status || item.state === status) &&
         matchesDirectoryFilters(item, selected) &&
         (!leadOnly || item.is_lead),
     ),
     sort,
   );
   const labels = {
-    active: t("active"),
-    draft: t("draft"),
-    archived: t("archived"),
-    deprecated: t("deprecated"),
-    suspended: t("suspended"),
     lead: t("lead"),
     ownerTeam: t("owner"),
     teams: t("teams"),
@@ -199,13 +186,11 @@ export function CorporateDirectoryResults({
         resource={resource}
         items={items}
         query={query}
-        status={status}
         selected={selected}
         leadOnly={leadOnly}
         view={view}
         sort={sort}
         onQueryChange={changeQuery}
-        onStatusChange={changeStatus}
         onFacetChange={changeFacet}
         onLeadOnlyChange={changeLeadOnly}
         onViewChange={changeView}

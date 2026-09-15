@@ -1,5 +1,10 @@
 # Corporate mode for the existing development web service; no extra service.
 services:
+  api:
+    environment:
+      # SSR enrichment shares one Docker peer; retain bounded gates for local acceptance.
+      AI_STP_API_RATE_LIMIT_OVERALL_REQUESTS: "1000"
+      AI_STP_API_RATE_LIMIT_IP_REQUESTS: "10000"
   web:
     # Run the image's sources, not the Windows bind mount, for this acceptance deployment.
     volumes: !override

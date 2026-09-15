@@ -45,7 +45,6 @@ def test_filters_are_or_within_and_across_then_paginated() -> None:
             kind="team",
             id=new_id("operation"),
             name=name,
-            state="active",
             revision=1,
             leads=[lead],
             technologies=[technology],
@@ -54,9 +53,7 @@ def test_filters_are_or_within_and_across_then_paginated() -> None:
         for name, lead in zip(("A", "B"), leads, strict=True)
     ]
     items.append(
-        CorporateDirectoryItem(
-            kind="team", id=new_id("operation"), name="Archived", state="archived", revision=1
-        )
+        CorporateDirectoryItem(kind="team", id=new_id("operation"), name="Archived", revision=1)
     )
     source = CorporateDirectoryView(
         organization=organization(),
@@ -78,12 +75,8 @@ def test_filters_are_or_within_and_across_then_paginated() -> None:
     )
     assert result.total == 2 and [item.name for item in result.items] == ["B"]
     assert result.facets == source.facets
-    assert (
-        directory.select_directory(
-            source, CorporateDirectoryQuery(resource="teams", state="archived")
-        ).total
-        == 1
-    )
+    with pytest.raises(ValidationError):
+        CorporateDirectoryQuery.model_validate({"resource": "teams", "state": "active"})
     assert (
         directory.select_directory(
             source,
@@ -94,6 +87,8 @@ def test_filters_are_or_within_and_across_then_paginated() -> None:
 
 
 def test_directory_rejects_wrong_id_namespace_and_owner() -> None:
+    assert "state" not in CorporateDirectoryItem.model_fields
+    assert "state" not in CorporateDirectoryQuery.model_fields
     with pytest.raises(ValidationError):
         CorporateDirectoryQuery(resource="teams", team_ids=[new_id("remote_project")])
     team = CorporateDirectoryReference(kind="team", id=new_id("operation"), name="Core")
@@ -102,14 +97,11 @@ def test_directory_rejects_wrong_id_namespace_and_owner() -> None:
             kind="project",
             id=new_id("remote_project"),
             name="API",
-            state="active",
             revision=1,
             owner_team=team,
         )
     with pytest.raises(ValidationError):
-        CorporateDirectoryItem(
-            kind="team", id=team.id, name="Core", state="active", revision=1, leads=[team]
-        )
+        CorporateDirectoryItem(kind="team", id=team.id, name="Core", revision=1, leads=[team])
 
 
 @pytest.mark.asyncio
@@ -192,6 +184,7 @@ async def test_named_technology_relations_are_authorized_before_facets(
     assert graph_read.await_args is not None
     assert graph_read.await_args.kwargs["include_assignments"] is False
     assert result.total == 1
+    assert "state" not in result.items[0].model_dump()
     assert [ref.name for ref in result.items[0].technologies] == ["Python"]
     assert [ref.name for ref in result.facets.technologies] == ["Python"]
     assert [ref.name for ref in result.items[0].related_teams] == ["Mobile"]
@@ -247,4 +240,5 @@ async def test_project_lead_uses_directory_field_without_changing_graph_contract
     )
     assert [ref.name for ref in result.items[0].leads] == ["Alex Kim"]
     assert result.items[0].description == "Growth experiments"
+    assert "state" not in result.items[0].model_dump()
     assert graph.nodes[0].lead_account_ids == []

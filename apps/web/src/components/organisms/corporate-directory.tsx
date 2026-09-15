@@ -25,12 +25,10 @@ type Props = {
   canCreate: boolean;
   roles: string[];
   initialQuery?: string;
-  initialStatus?: string;
   showHeader?: boolean;
   customCreate?: ReactNode | undefined;
 };
 
-// eslint-disable-next-line max-lines-per-function
 export function CorporateDirectory({
   resource,
   items,
@@ -40,7 +38,6 @@ export function CorporateDirectory({
   canCreate,
   roles,
   initialQuery = "",
-  initialStatus = "",
   showHeader = true,
   customCreate,
 }: Props) {
@@ -119,7 +116,6 @@ export function CorporateDirectory({
         resource={resource}
         items={items}
         initialQuery={initialQuery}
-        initialStatus={initialStatus}
         addLabel={showHeader && canCreate ? addLabel : undefined}
         cancelLabel={t("cancel")}
         adding={adding}
@@ -132,7 +128,6 @@ export function CorporateDirectory({
         }
         filters={new URLSearchParams({
           ...(initialQuery ? { query: initialQuery } : {}),
-          ...(initialStatus ? { status: initialStatus } : {}),
         }).toString()}
       />
       {adding && customCreate ? customCreate : null}

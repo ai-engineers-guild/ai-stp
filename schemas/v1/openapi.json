@@ -5157,17 +5157,6 @@
             "default": null,
             "title": "Role"
           },
-          "state": {
-            "enum": [
-              "draft",
-              "active",
-              "deprecated",
-              "archived",
-              "suspended"
-            ],
-            "title": "State",
-            "type": "string"
-          },
           "teams": {
             "default": [],
             "items": {
@@ -5199,7 +5188,6 @@
           "related_teams",
           "revision",
           "role",
-          "state",
           "teams",
           "technologies"
         ],
@@ -5293,25 +5281,6 @@
             ],
             "title": "Resource",
             "type": "string"
-          },
-          "state": {
-            "anyOf": [
-              {
-                "enum": [
-                  "draft",
-                  "active",
-                  "deprecated",
-                  "archived",
-                  "suspended"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "State"
           },
           "team_ids": {
             "default": [],
@@ -34412,30 +34381,6 @@
               ],
               "title": "Resource",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "state",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "draft",
-                    "active",
-                    "deprecated",
-                    "archived",
-                    "suspended"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "State"
             }
           },
           {

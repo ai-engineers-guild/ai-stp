@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import { RefineSurface } from "@/components/molecules/filter-surface";
 import { cn } from "@/lib/cn";
 import { Icon } from "@/theme";
 import {
@@ -23,17 +24,17 @@ type Props = {
   resource: DirectoryResource;
   items: readonly DirectoryItem[];
   query: string;
-  status: string;
+
   selected: Selected;
   leadOnly: boolean;
   view: "list" | "cards";
-  sort: "name" | "state";
+  sort: "name" | "name_desc";
   onQueryChange: (value: string) => void;
-  onStatusChange: (value: string) => void;
+
   onFacetChange: (facet: DirectoryFacet, values: string[]) => void;
   onLeadOnlyChange: (value: boolean) => void;
   onViewChange: (value: "list" | "cards") => void;
-  onSortChange: (value: "name" | "state") => void;
+  onSortChange: (value: "name" | "name_desc") => void;
   addLabel?: string | undefined;
   cancelLabel?: string | undefined;
   adding?: boolean | undefined;
@@ -50,11 +51,9 @@ function optionsFor(items: readonly DirectoryItem[], facet: DirectoryFacet) {
   ];
 }
 
-function activeCount(selected: Selected, status: string, leadOnly: boolean) {
+function activeCount(selected: Selected, leadOnly: boolean) {
   return (
-    Object.values(selected).reduce((total, values) => total + values.length, 0) +
-    (status ? 1 : 0) +
-    (leadOnly ? 1 : 0)
+    Object.values(selected).reduce((total, values) => total + values.length, 0) + (leadOnly ? 1 : 0)
   );
 }
 
@@ -98,13 +97,11 @@ export function CorporateDirectoryToolbar({
   resource,
   items,
   query,
-  status,
   selected,
   leadOnly,
   view,
   sort,
   onQueryChange,
-  onStatusChange,
   onFacetChange,
   onLeadOnlyChange,
   onViewChange,
@@ -119,8 +116,10 @@ export function CorporateDirectoryToolbar({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(Boolean(query));
   const dialogId = useId();
-  const count = activeCount(selected, status, leadOnly);
-  const states = [...new Set(items.map((item) => item.state))];
+  const count = activeCount(selected, leadOnly);
+  const [draftSelected, setDraftSelected] = useState(selected);
+  const [draftLeadOnly, setDraftLeadOnly] = useState(leadOnly);
+  const [draftSort, setDraftSort] = useState(sort);
 
   useEffect(() => {
     if (!filtersOpen) return;
@@ -158,6 +157,9 @@ export function CorporateDirectoryToolbar({
           aria-label={`${t("filters")}${count ? ` (${count})` : ""}`}
           title={t("filters")}
           onClick={() => {
+            setDraftSelected(selected);
+            setDraftLeadOnly(leadOnly);
+            setDraftSort(sort);
             setFiltersOpen((open) => !open);
           }}
         >
@@ -187,7 +189,7 @@ export function CorporateDirectoryToolbar({
           aria-label={t("sortBy")}
           title={t("sortBy")}
           onClick={() => {
-            onSortChange(sort === "name" ? "state" : "name");
+            onSortChange(sort === "name" ? "name_desc" : "name");
           }}
         >
           <Icon name="sort" size="sm" />
@@ -203,126 +205,88 @@ export function CorporateDirectoryToolbar({
       </div>
       <SearchField query={query} open={searchOpen} onChange={onQueryChange} />
       {filtersOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label={t("closeFilters")}
-            className="bg-foreground/40 fixed inset-0 z-[60]"
-            onClick={() => {
-              setFiltersOpen(false);
-            }}
-          />
-          <section
-            id={dialogId}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`${dialogId}-title`}
-            className="border-border bg-card fixed inset-x-0 bottom-0 z-[70] max-h-[min(92dvh,calc(100vh-1rem))] overflow-y-auto rounded-t-lg border p-4 shadow-md md:inset-x-auto md:top-1/2 md:left-1/2 md:w-[min(42rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:p-6"
-          >
-            <div className="border-border mb-5 flex items-center justify-between gap-3 border-b pb-4">
-              <h2 id={`${dialogId}-title`} className="text-lg font-medium">
-                {t("filters")}
-              </h2>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={t("closeFilters")}
-                onClick={() => {
-                  setFiltersOpen(false);
-                }}
-              >
-                <Icon name="close" size="sm" />
-              </Button>
-            </div>
-            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-              <label className="min-w-0 space-y-2 text-sm">
-                <span className="font-medium">{t("status")}</span>
-                <select
-                  id="directory-status"
-                  value={status}
-                  onChange={(event) => {
-                    onStatusChange(event.target.value);
-                  }}
-                  className="border-input bg-background focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  <option value="">{t("all")}</option>
-                  {states.map((value) => (
-                    <option key={value} value={value}>
-                      {t(value)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {directoryFacets[resource].map((facet) => (
+        <RefineSurface
+          id={dialogId}
+          labels={{ filtersButton: catalog("refineButton"), closeFilters: t("closeFilters") }}
+          onClose={() => {
+            setFiltersOpen(false);
+          }}
+        >
+          {/* Shared catalog surface owns focus, scrolling, dismissal and responsive positioning. */}
+          <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
+            {directoryFacets[resource].map((facet) => (
+              <label key={facet} className="min-w-0 space-y-2 text-sm">
+                <span className="font-medium">{facet === "leads" ? t("teamLeads") : t(facet)}</span>
                 <SearchableMultiSelect
                   key={facet}
                   name={directoryFacetParams[facet]}
                   label={facet === "leads" ? t("teamLeads") : t(facet)}
                   searchLabel={`${t("search")}: ${facet === "leads" ? t("teamLeads") : t(facet)}`}
                   options={optionsFor(items, facet)}
-                  selected={selected[facet] ?? []}
+                  selected={draftSelected[facet] ?? []}
                   modal
                   closeLabel={t("closeFilters")}
                   onChange={(values) => {
-                    onFacetChange(facet, values);
+                    setDraftSelected((previous) => ({ ...previous, [facet]: values }));
                   }}
                 />
-              ))}
-              {resource === "members" ? (
-                <label className="flex min-h-11 items-center gap-2 text-sm sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={leadOnly}
-                    onChange={(event) => {
-                      onLeadOnlyChange(event.target.checked);
-                    }}
-                  />
-                  {t("lead")}
-                </label>
-              ) : null}
-              <label className="min-w-0 space-y-2 text-sm">
-                <span className="font-medium">{t("sortBy")}</span>
-                <select
-                  value={sort}
-                  onChange={(event) => {
-                    onSortChange(event.target.value as "name" | "state");
-                  }}
-                  className="border-input bg-background focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  <option value="name">{t("sortName")}</option>
-                  <option value="state">{t("sortState")}</option>
-                </select>
               </label>
-            </div>
-            <div className="border-border mt-6 flex flex-wrap justify-between gap-3 border-t pt-5">
-              {count ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="underline underline-offset-4"
-                  onClick={() => {
-                    onStatusChange("");
-                    onLeadOnlyChange(false);
-                    directoryFacets[resource].forEach((facet) => {
-                      onFacetChange(facet, []);
-                    });
+            ))}
+            {resource === "members" ? (
+              <label className="flex min-h-11 items-center gap-2 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={draftLeadOnly}
+                  onChange={(event) => {
+                    setDraftLeadOnly(event.target.checked);
                   }}
-                >
-                  {t("clearFilters")}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                onClick={() => {
-                  setFiltersOpen(false);
+                />
+                {t("lead")}
+              </label>
+            ) : null}
+            <label className="min-w-0 space-y-2 text-sm">
+              <span className="font-medium">{t("sortBy")}</span>
+              <select
+                value={draftSort}
+                onChange={(event) => {
+                  setDraftSort(event.target.value as "name" | "name_desc");
                 }}
+                className="border-input bg-background focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
               >
-                {t("closeFilters")}
-              </Button>
-            </div>
-          </section>
-        </>
+                <option value="name">{t("sortName")}</option>
+                <option value="name_desc">{catalog("sortDescending")}</option>
+              </select>
+            </label>
+          </div>
+          <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+            <Button
+              type="button"
+              variant="ghost"
+              className="underline underline-offset-4"
+              onClick={() => {
+                setDraftSelected({});
+                setDraftLeadOnly(false);
+                setDraftSort("name");
+              }}
+            >
+              {catalog("resetAll")}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                onLeadOnlyChange(draftLeadOnly);
+                onSortChange(draftSort);
+                directoryFacets[resource].forEach((facet) => {
+                  onFacetChange(facet, draftSelected[facet] ?? []);
+                });
+                setFiltersOpen(false);
+              }}
+            >
+              <Icon name="controls" size="sm" />
+              {catalog("applyFilters")}
+            </Button>
+          </div>
+        </RefineSurface>
       ) : null}
     </div>
   );

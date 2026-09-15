@@ -25,6 +25,7 @@ it.each(["teams", "projects", "members", "technologies"] as const)(
       if (path.endsWith("/context"))
         return { organization: { organization_id: "organization_fixture" }, capabilities: [] };
       if (path.endsWith("/directory")) {
+        expect(options?.query).not.toHaveProperty("state");
         expect(options?.query).toMatchObject({
           resource,
           include_archived: true,
@@ -62,7 +63,6 @@ it("preserves multiselect query values and reports incomplete pagination as an e
       resource: "projects",
       team_ids: ["team_a", "team_b"],
       query: undefined,
-      state: undefined,
       is_lead: undefined,
       offset: 0,
       limit: 256,

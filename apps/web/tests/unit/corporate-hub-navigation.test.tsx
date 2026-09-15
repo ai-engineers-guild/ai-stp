@@ -30,19 +30,14 @@ it("shows authorized directories and selects the team tab on its detail page", (
   expect(screen.getByRole("link", { name: "projects" })).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "employees" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "admins" })).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "organization" })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
+  expect(screen.queryByRole("link", { name: "organization" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "landscape" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "dashboard" })).not.toBeInTheDocument();
 });
 
 it("keeps the technology directory in the Organization section", () => {
   route.path = "/corporate/technologies";
   render(<CorporateHubNavigation capabilities={["technology.list"]} />);
-  expect(screen.getByRole("link", { name: "organization" })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
   expect(screen.getByRole("link", { name: "technologies" })).toHaveAttribute(
     "aria-current",
     "page",
@@ -53,25 +48,19 @@ it("keeps the technology directory in the Organization section", () => {
   );
 });
 
-it("retains the Admins entry for a read-only audit administrator", () => {
+it("keeps Admins out of the Organization subnavigation", () => {
   render(<CorporateHubNavigation capabilities={["audit.list"]} />);
-  expect(screen.getByRole("link", { name: "admins" })).toHaveAttribute(
-    "href",
-    "/corporate/organization/admins",
-  );
+  expect(screen.queryByRole("link", { name: "admins" })).not.toBeInTheDocument();
 });
 it("keeps member administration discoverable after separating profile and access", () => {
   render(<CorporateHubNavigation capabilities={["member.update"]} />);
-  expect(screen.getByRole("link", { name: "admins" })).toHaveAttribute(
-    "href",
-    "/corporate/organization/admins",
-  );
+  expect(screen.queryByRole("link", { name: "admins" })).not.toBeInTheDocument();
 });
 
 it("routes Landscape technologies to the technology landscape view", () => {
   route.path = "/corporate/technology-landscape";
   render(<CorporateHubNavigation capabilities={["technology.list"]} />);
-  expect(screen.getByRole("link", { name: "landscape" })).toHaveAttribute("aria-current", "page");
+  expect(screen.queryByRole("link", { name: "landscape" })).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "technologies" })).toHaveAttribute(
     "aria-current",
     "page",

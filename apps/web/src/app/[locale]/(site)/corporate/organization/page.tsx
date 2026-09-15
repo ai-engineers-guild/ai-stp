@@ -21,7 +21,7 @@ export default async function OrganizationPage({
     { key: "employees", href: "/corporate/members" },
     { key: "projects", href: "/corporate/projects" },
     { key: "teams", href: "/corporate/teams" },
-    { key: "admins", href: "/corporate/organization/admins" },
+    { key: "technologies", href: "/corporate/technologies" },
   ];
   return (
     <div className="space-y-6">

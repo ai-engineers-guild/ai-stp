@@ -64,7 +64,6 @@ export default async function TechnologyRegistryPage({
       canCreate={canCreate}
       roles={[]}
       initialQuery={query ?? ""}
-      initialStatus={typeof filters.status === "string" ? filters.status : ""}
       customCreate={
         canCreate ? <TechnologyRegistryCreate kind="technology" {...mutation} /> : undefined
       }
