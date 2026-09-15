@@ -86,6 +86,7 @@ it("shows export transport errors and permits retry without losing the journal",
   fireEvent.click(screen.getByRole("button", { name: "Export" }));
   await screen.findByText("Export failed");
   expect(screen.getByText("No events")).toBeInTheDocument();
+  await screen.findByRole("button", { name: "Export" });
   expect(screen.getByRole("button", { name: "Export" })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Export" }));
   await screen.findByText("Try again later");
