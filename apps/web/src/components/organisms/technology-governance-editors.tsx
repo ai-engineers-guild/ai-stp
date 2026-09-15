@@ -170,6 +170,9 @@ export function TechnologyTeamEditor({
   const t = useTranslations("technology");
   const h = useTranslations("hub");
   const revision = useRef(initial?.revision ?? 0);
+  const [selectedTeam, setSelectedTeam] = useState<string[]>(
+    initial?.team_id ? [initial.team_id] : [],
+  );
   const [acknowledged, setAcknowledged] = useState(initial !== undefined);
   const mutation = useGovernanceMutation(authority);
   const canSave = capabilities.includes(
@@ -220,11 +223,12 @@ export function TechnologyTeamEditor({
             label={h("teams")}
             searchLabel={h("search")}
             options={initial ? teams.filter((item) => item.value === initial.team_id) : teams}
-            selected={initial?.team_id ? [initial.team_id] : []}
+            selected={selectedTeam}
             multiple={false}
             closeLabel={h("cancel")}
             onChange={(values) => {
               if (initial) return;
+              setSelectedTeam(values);
               const relation = relations.find((item) => item.team_id === values[0]);
               revision.current = relation?.revision ?? 0;
               setAcknowledged(relation !== undefined);
