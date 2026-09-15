@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
 import { corporateMutationAction } from "@/actions/corporate";
@@ -26,6 +27,7 @@ type Props = {
   initialQuery?: string;
   initialStatus?: string;
   showHeader?: boolean;
+  customCreate?: ReactNode | undefined;
 };
 
 // eslint-disable-next-line max-lines-per-function
@@ -40,6 +42,7 @@ export function CorporateDirectory({
   initialQuery = "",
   initialStatus = "",
   showHeader = true,
+  customCreate,
 }: Props) {
   const t = useTranslations("hub");
   const c = useTranslations("corporate");
@@ -132,7 +135,8 @@ export function CorporateDirectory({
           ...(initialStatus ? { status: initialStatus } : {}),
         }).toString()}
       />
-      {adding ? (
+      {adding && customCreate ? customCreate : null}
+      {adding && !customCreate ? (
         <form
           className="border-border bg-card max-w-xl space-y-4 rounded-lg border p-5"
           onSubmit={(event) => {

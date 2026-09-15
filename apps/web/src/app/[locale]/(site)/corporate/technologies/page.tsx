@@ -7,7 +7,6 @@ import { ApiError } from "@/lib/api/errors";
 import { readTechnologyDirectory } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { Link } from "@/lib/i18n/navigation";
 
 export default async function TechnologyRegistryPage({
   params,
@@ -54,46 +53,21 @@ export default async function TechnologyRegistryPage({
     csrfToken: (await readCsrfToken()) ?? "",
     categories: categories?.items ?? null,
   };
+  const canCreate = permissions.capabilities.includes("technology.create");
   return (
-    <div className="min-w-0 space-y-6">
-      <header className="space-y-3">
-        <Link
-          href="/corporate"
-          className="inline-flex min-h-11 items-center underline underline-offset-4"
-        >
-          {t("back")}
-        </Link>
-        <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{h("technologies")}</h1>
-        <p className="text-muted-foreground max-w-prose">{t("registryDescription")}</p>
-        {permissions.capabilities.includes("landscape.read") && (
-          <Link
-            href="/corporate/technology-landscape"
-            className="inline-flex min-h-11 items-center underline underline-offset-4"
-          >
-            {t("title")}
-          </Link>
-        )}
-      </header>
-      {permissions.capabilities.includes("technology.create") && (
-        <details>
-          <summary className="min-h-11 cursor-pointer py-3 text-sm underline underline-offset-4">
-            {t("createTechnology")}
-          </summary>
-          <TechnologyRegistryCreate kind="technology" {...mutation} />
-        </details>
-      )}
-      <CorporateDirectory
-        resource="technologies"
-        items={directory.items}
-        organizationId={directory.organization.organization_id}
-        authorizationRevision={directory.organization.authorization_revision}
-        csrfToken={mutation.csrfToken}
-        canCreate={false}
-        roles={[]}
-        initialQuery={query ?? ""}
-        initialStatus={typeof filters.status === "string" ? filters.status : ""}
-        showHeader={false}
-      />
-    </div>
+    <CorporateDirectory
+      resource="technologies"
+      items={directory.items}
+      organizationId={directory.organization.organization_id}
+      authorizationRevision={directory.organization.authorization_revision}
+      csrfToken={mutation.csrfToken}
+      canCreate={canCreate}
+      roles={[]}
+      initialQuery={query ?? ""}
+      initialStatus={typeof filters.status === "string" ? filters.status : ""}
+      customCreate={
+        canCreate ? <TechnologyRegistryCreate kind="technology" {...mutation} /> : undefined
+      }
+    />
   );
 }

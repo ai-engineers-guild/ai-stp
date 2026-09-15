@@ -71,4 +71,30 @@ describe("corporate directory filters", () => {
     fireEvent.click(screen.getByRole("button", { name: "filters" }));
     expect(screen.getByRole("dialog")).toBeVisible();
   });
+
+  it("renders technology ownership and usage in the shared directory card", () => {
+    render(
+      <CorporateDirectoryResults
+        resource="technologies"
+        items={[
+          {
+            id: "claude-code",
+            name: "Claude Code",
+            state: "active",
+            description: "AI coding assistant",
+            owner: { id: "elena", name: "Elena Smirnova", kind: "employee" },
+            projects: [{ id: "growth", name: "Growth Experiments", kind: "project" }],
+            teams: [{ id: "product", name: "Product & Engineering", kind: "team" }],
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Elena Smirnova" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Growth Experiments" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Product & Engineering" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "listView" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });

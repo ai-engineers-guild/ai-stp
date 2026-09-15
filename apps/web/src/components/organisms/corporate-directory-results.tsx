@@ -42,10 +42,16 @@ function currentReturnFilters(seed: string): string {
 function restoreFilters(seed: string, resource: DirectoryResource) {
   const params = new URLSearchParams(window.location.search);
   const initial = new URLSearchParams(seed);
+  const defaultView: "list" | "cards" = resource === "technologies" ? "list" : "cards";
   return {
     query: params.get("query") ?? initial.get("query") ?? "",
     status: params.get("status") ?? initial.get("status") ?? "",
-    view: params.get("view") === "list" ? ("list" as const) : ("cards" as const),
+    view:
+      params.get("view") === "list"
+        ? ("list" as const)
+        : params.get("view") === "cards"
+          ? ("cards" as const)
+          : defaultView,
     sort: params.get("sort") === "state" ? ("state" as const) : ("name" as const),
     leadOnly: params.get("is_lead") === "true",
     selected: Object.fromEntries(
@@ -87,7 +93,9 @@ export function CorporateDirectoryResults({
   const t = useTranslations("hub");
   const [query, setQuery] = useState(initialQuery);
   const [status, setStatus] = useState(initialStatus);
-  const [view, setView] = useState<"list" | "cards">("cards");
+  const [view, setView] = useState<"list" | "cards">(
+    resource === "technologies" ? "list" : "cards",
+  );
   const [sort, setSort] = useState<"name" | "state">("name");
   const [selected, setSelected] = useState<CorporateDirectorySelectedFilters>({});
   const [leadOnly, setLeadOnly] = useState(false);

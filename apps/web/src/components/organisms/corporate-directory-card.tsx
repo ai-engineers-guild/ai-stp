@@ -129,8 +129,37 @@ function ComponentMetadata({ item, labels }: { item: DirectoryItem; labels: Labe
 function primaryReferences(resource: DirectoryResource, item: DirectoryItem) {
   if (resource === "projects" || resource === "teams") return item.technologies ?? [];
   if (resource === "members") return item.teams ?? [];
-  if (resource === "technologies") return item.categories ?? [];
   return [];
+}
+
+function RelationColumn({
+  icon,
+  label,
+  references,
+  returnFilters,
+}: {
+  icon: IconName;
+  label: string;
+  references: readonly DirectoryRef[];
+  returnFilters: string;
+}) {
+  return (
+    <div className="border-border min-w-0 space-y-1 border-l pl-4 first:border-l-0 first:pl-0">
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <Icon name={icon} size="sm" />
+        <span>{label}</span>
+      </div>
+      <div className="flex min-w-0 flex-wrap gap-2">
+        {references.length ? (
+          references.map((reference) => (
+            <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
+          ))
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function footerReferences(resource: DirectoryResource, item: DirectoryItem) {
@@ -143,9 +172,6 @@ function footerReferences(resource: DirectoryResource, item: DirectoryItem) {
   }
   if (resource === "teams") {
     return { label: "lead", icon: "user" as IconName, refs: item.leads ?? [] };
-  }
-  if (resource === "technologies") {
-    return { label: "owner", icon: "user" as IconName, refs: item.owner ? [item.owner] : [] };
   }
   return null;
 }
@@ -198,6 +224,29 @@ export function CorporateDirectoryCard({
   const href = directoryHref(resource, item.id, returnFilters);
   const title = item.name || (resource === "members" ? labels.unknownEmployee : item.name);
   const references = primaryReferences(resource, item);
+  const technologyRelations =
+    resource === "technologies" ? (
+      <div className="border-border mt-5 grid min-w-0 gap-4 border-t pt-4 sm:grid-cols-3">
+        <RelationColumn
+          icon="user"
+          label={labels.owner}
+          references={item.owner ? [item.owner] : []}
+          returnFilters={returnFilters}
+        />
+        <RelationColumn
+          icon="component"
+          label={labels.projects}
+          references={item.projects ?? []}
+          returnFilters={returnFilters}
+        />
+        <RelationColumn
+          icon="team"
+          label={labels.teams}
+          references={item.teams ?? []}
+          returnFilters={returnFilters}
+        />
+      </div>
+    ) : null;
   return (
     <li className="min-w-0">
       <article
@@ -249,6 +298,7 @@ export function CorporateDirectoryCard({
                 <ComponentMetadata item={item} labels={labels} />
               </div>
             ) : null}
+            {technologyRelations}
           </div>
         </div>
         <div className="absolute top-5 right-5 flex items-center gap-3">
