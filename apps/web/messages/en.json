@@ -12,6 +12,7 @@
     "collapseAll": "Collapse all",
     "expandAll": "Expand all",
     "author": "Author",
+    "type": "Type",
     "authorUnavailable": "Author unavailable",
     "aiComponents": "AI components",
     "technologyFilter": "Technology",
