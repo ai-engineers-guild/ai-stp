@@ -47,7 +47,7 @@ const props = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   mutation.mockResolvedValue({
     ok: true,
     data: props.ownership,
@@ -66,6 +66,9 @@ describe("corporate catalog owner editor", () => {
     fireEvent.change(screen.getByLabelText("operationalOwner"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
     await screen.findByText("Conflict");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "save" })).toBeEnabled();
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
     await waitFor(() => {
       expect(mutation).toHaveBeenCalledTimes(2);
