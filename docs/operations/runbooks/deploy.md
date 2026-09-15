@@ -151,7 +151,7 @@ Before the transition, verify that the new source is reachable from the host at 
 will fail once a minute without explanation:
 
 ```sh
-git ls-remote https://github.com/ai-engineers-guild/ai-stp.git refs/heads/deploy/prod
+git ls-remote https://github.com/ai-engineers-guild/ai-stp.git refs/tags/deploy/prod
 ```
 
 While `deploy/pull-deploy.sh` in the deployed tree still carries the old default

@@ -63,12 +63,12 @@ jobs:
           # silently widens what deploys.
           test "${BRANCH}" = "main"
           test "$(gh api "repos/${REPOSITORY}/commits/${HEAD_SHA}" --jq .sha)" = "${HEAD_SHA}"
-          if gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" >/dev/null 2>&1; then
-            gh api --method PATCH "repos/${REPOSITORY}/git/refs/heads/deploy/prod" \
+          if gh api "repos/${REPOSITORY}/git/ref/tags/deploy/prod" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${REPOSITORY}/git/refs/tags/deploy/prod" \
               -f sha="${HEAD_SHA}" -F force=false >/dev/null
           else
             gh api --method POST "repos/${REPOSITORY}/git/refs" \
-              -f ref=refs/heads/deploy/prod -f sha="${HEAD_SHA}" >/dev/null
+              -f ref=refs/tags/deploy/prod -f sha="${HEAD_SHA}" >/dev/null
           fi
           # Read back with a bounded retry rather than once. The write above
           # succeeded and this read disagreed with it on 2026-09-01: the job
@@ -83,7 +83,7 @@ jobs:
           # after that is a real disagreement and still fails.
           promoted=""
           for _ in 1 2 3 4 5; do
-            promoted="$(gh api "repos/${REPOSITORY}/git/ref/heads/deploy/prod" --jq .object.sha)"
+            promoted="$(gh api "repos/${REPOSITORY}/git/ref/tags/deploy/prod" --jq .object.sha)"
             if [ "${promoted}" = "${HEAD_SHA}" ]; then
               break
             fi
