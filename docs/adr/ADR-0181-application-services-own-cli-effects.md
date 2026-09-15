@@ -32,8 +32,8 @@ must mean the requested effect completed.
    model-choreographed.
 2. Add a task facade that shells out to `ai-stp` for each inner step. This
    duplicates the parser and cannot share a SQLite transaction.
-3. Extract in-process application services. Click handlers and a later task
-   dispatcher call the same functions. Envelope `ok` is reserved for a completed
+3. Extract in-process application services. Click handlers and the task
+   engine call the same functions. Envelope `ok` is reserved for a completed
    request; compensation and partial mutation are registered failures. Descriptor
    `next_actions` become scoped help, not copied mutation argv.
 
@@ -41,9 +41,10 @@ must mean the requested effect completed.
 
 Option 3 is selected.
 
-`apps/cli/src/ai_stp_cli/application/` owns in-process inspect and outcome
-helpers. Expert command modules call them. A later `task` dispatcher calls the
-same functions. Nothing in that layer spawns `ai-stp`.
+`apps/cli/src/ai_stp_cli/application/` owns in-process inspect, task, and
+outcome helpers. Expert command modules call them. The task engine calls the
+same functions for declared intents. Nothing in that layer starts another CLI
+process.
 
 Click remains the argv parser (`ADR-0057`). It does not decide envelope `ok`,
 error codes, or exit class.
@@ -52,28 +53,32 @@ error codes, or exit class.
 `AI_STP_COMPENSATED` (exit class 4, `reconcile_state`, HTTP 409) is a finished
 compensation of a mutation that did not complete. `AI_STP_PARTIAL_OPERATION`
 remains the recovery-required case. Diagnostic `doctor` stays `ok` with check
-results in the payload, because the request was inspection.
+results in the payload, because the request was inspection. Completing an
+`inspect` task is the same: envelope `ok` with a doctor report that may not be
+`ready`.
 
 Executable next steps are handler `continuations`. Machine-help descriptor
 `next_actions` are orientation toward `help --path <family> --json` and are not
 copied onto success envelopes as if they were bound argv.
 
-Task identifiers, when introduced, use a prefix other than `operation_`.
-Existing multi-root transaction ids remain `operation_…` because `SPEC-058`
-already mints them that way.
+Task identifiers use the `task_` prefix. Envelope `operation_id` remains an
+`operation_…` receipt or null. Existing multi-root transaction ids remain
+`operation_…` because `SPEC-058` already mints them that way. The first
+declared intent is `inspect`. Installation through this surface is a later
+vertical; the engine does not run arbitrary expert leaves.
 
 ## Consequences
 
-- `SPEC-080` owns the service boundary, capability inventory, and reserved task
-  paths. `SPEC-011` `REQ-1132` and `SPEC-058` `REQ-5809` own envelope mapping.
-- Everyday journeys stay callable as expert-shaped leaves until the task engine
-  lands. They are classified `task` so they cannot hide in the expert set.
+- `SPEC-080` owns the service boundary, capability inventory, and declared task
+  lifecycle. `SPEC-011` `REQ-1132` and `SPEC-058` `REQ-5809` own envelope mapping.
+- Everyday journeys stay callable as expert-shaped leaves until an intent owns
+  them. They are classified `task` so they cannot hide in the expert set.
 - A second continuation protocol beside `Continuation` is refused.
 - HTTP status for `AI_STP_COMPENSATED` follows exit class 4 as 409.
 
 ## Revisit conditions
 
-Revisit when the task engine needs a durable `task_…` identifier on the
-envelope, when a second runtime must consume the same service boundary without
-Python imports, or when descriptor `next_actions` must carry bound argv again
+Revisit when a second runtime must consume the same service boundary without
+Python imports, when installation must drain through `task` without remaining
+expert leaves, or when descriptor `next_actions` must carry bound argv again
 without becoming a second continuation channel.

@@ -1,0 +1,305 @@
+{
+  "$defs": {
+    "Capabilities": {
+      "additionalProperties": true,
+      "description": "What this installation can do right now.\n\nDeliberately not a copy of the registry: it carries the few facts that\ndecide whether a later call is even worth making. `command_paths` is the\nindex into `help --agent`, not a substitute for it.",
+      "properties": {
+        "catalog_enabled": {
+          "title": "Catalog Enabled",
+          "type": "boolean"
+        },
+        "cli_version": {
+          "minLength": 1,
+          "title": "Cli Version",
+          "type": "string"
+        },
+        "command_paths": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Command Paths",
+          "type": "array"
+        },
+        "installation": {
+          "enum": [
+            "distribution",
+            "source"
+          ],
+          "title": "Installation",
+          "type": "string"
+        },
+        "local_schema_version": {
+          "minimum": 1,
+          "title": "Local Schema Version",
+          "type": "integer"
+        },
+        "registry_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Registry Digest",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "supported_harnesses": {
+          "items": {
+            "$ref": "#/$defs/HarnessId"
+          },
+          "minItems": 1,
+          "title": "Supported Harnesses",
+          "type": "array"
+        },
+        "sync_enabled": {
+          "title": "Sync Enabled",
+          "type": "boolean"
+        },
+        "wire_schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Wire Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "catalog_enabled",
+        "cli_version",
+        "command_paths",
+        "installation",
+        "local_schema_version",
+        "registry_digest",
+        "schema_version",
+        "supported_harnesses",
+        "sync_enabled",
+        "wire_schema_version"
+      ],
+      "title": "Capabilities",
+      "type": "object"
+    },
+    "DoctorCheck": {
+      "additionalProperties": true,
+      "description": "One thing `doctor` looked at.",
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/SetupState"
+        }
+      },
+      "required": [
+        "detail",
+        "name",
+        "state"
+      ],
+      "title": "DoctorCheck",
+      "type": "object"
+    },
+    "DoctorReport": {
+      "additionalProperties": true,
+      "description": "What `doctor` found.\n\nA report, not a verdict. `state` is the worst state among the checks, so a\ncaller that reads one field still gets the truth.",
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/DoctorCheck"
+          },
+          "minItems": 1,
+          "title": "Checks",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/SetupState"
+        }
+      },
+      "required": [
+        "checks",
+        "schema_version",
+        "state"
+      ],
+      "title": "DoctorReport",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    },
+    "ParameterType": {
+      "enum": [
+        "string",
+        "boolean",
+        "integer"
+      ],
+      "type": "string"
+    },
+    "SetupState": {
+      "enum": [
+        "ready",
+        "needs_user_action",
+        "partial",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "TaskId": {
+      "pattern": "^task_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "type": "string"
+    },
+    "TaskInspectOutcome": {
+      "additionalProperties": true,
+      "description": "Inspection drained in-process by the inspect intent.",
+      "properties": {
+        "capabilities": {
+          "$ref": "#/$defs/Capabilities"
+        },
+        "doctor": {
+          "$ref": "#/$defs/DoctorReport"
+        }
+      },
+      "required": [
+        "capabilities",
+        "doctor"
+      ],
+      "title": "TaskInspectOutcome",
+      "type": "object"
+    },
+    "TaskIntent": {
+      "const": "inspect",
+      "type": "string"
+    },
+    "TaskQuestion": {
+      "additionalProperties": true,
+      "description": "One typed question the task engine still needs before it can continue.",
+      "properties": {
+        "choices": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Choices",
+          "type": "array"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "question_id": {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "title": "Question Id",
+          "type": "string"
+        },
+        "value_type": {
+          "$ref": "#/$defs/ParameterType"
+        }
+      },
+      "required": [
+        "choices",
+        "prompt",
+        "question_id",
+        "value_type"
+      ],
+      "title": "TaskQuestion",
+      "type": "object"
+    },
+    "TaskState": {
+      "enum": [
+        "planned",
+        "blocked",
+        "running",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-task",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One durable agent task. Envelope `ok` is independent of `state`.",
+  "properties": {
+    "child_operation_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Child Operation Ids",
+      "type": "array"
+    },
+    "goal_satisfied": {
+      "title": "Goal Satisfied",
+      "type": "boolean"
+    },
+    "intent": {
+      "$ref": "#/$defs/TaskIntent"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TaskInspectOutcome"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "questions": {
+      "items": {
+        "$ref": "#/$defs/TaskQuestion"
+      },
+      "title": "Questions",
+      "type": "array"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/TaskState"
+    },
+    "task_id": {
+      "$ref": "#/$defs/TaskId"
+    }
+  },
+  "required": [
+    "child_operation_ids",
+    "goal_satisfied",
+    "intent",
+    "outcome",
+    "questions",
+    "revision",
+    "schema_version",
+    "state",
+    "task_id"
+  ],
+  "title": "TaskView",
+  "type": "object"
+}

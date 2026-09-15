@@ -113,16 +113,17 @@ def test_every_declared_command_is_classified() -> None:
     leftover = declared - INSPECT - EXPERT
     assert leftover, "the task class must cover everyday journeys"
     assert leftover >= EVERYDAY_TASK
+    assert leftover >= TASK_LIFECYCLE
     for path in leftover:
         assert _kind(path) == "task"
 
 
-def test_task_lifecycle_paths_are_reserved_and_absent() -> None:
+def test_task_lifecycle_paths_are_declared() -> None:
     declared = {tuple(item.path) for item in DECLARATIONS}
-    assert TASK_LIFECYCLE.isdisjoint(declared)
+    assert declared >= TASK_LIFECYCLE
 
 
-def test_application_layer_does_not_spawn_the_cli() -> None:
+def test_application_layer_does_not_start_another_cli_process() -> None:
     root = (
         Path(__file__).resolve().parents[2] / "apps" / "cli" / "src" / "ai_stp_cli" / "application"
     )
@@ -131,3 +132,13 @@ def test_application_layer_does_not_spawn_the_cli() -> None:
         text = path.read_text(encoding="utf-8")
         for token in banned:
             assert token not in text, f"{path.name} mentions {token}"
+
+
+def test_application_layer_does_not_dispatch_registry_handlers() -> None:
+    root = (
+        Path(__file__).resolve().parents[2] / "apps" / "cli" / "src" / "ai_stp_cli" / "application"
+    )
+    banned = ("COMMANDS", "handler_ref", "importlib")
+    text = (root / "task.py").read_text(encoding="utf-8")
+    for token in banned:
+        assert token not in text, f"task.py mentions {token}"

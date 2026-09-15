@@ -296,6 +296,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("skill",): "Install this CLI's own agent skill into a harness.",
     ("sync",): "Move local revisions to and from the cloud registry.",
     ("target",): "The installed state on a harness: status, drift, backups, rollback.",
+    ("task",): "Start, continue, inspect, and cancel a durable agent task.",
     ("telemetry",): "The anonymous install ping, and whether it is on.",
     ("toolchain",): "Harnesses this machine can reach, and the tools they need.",
     ("update",): "Check, plan and apply a replacement of this CLI distribution.",
