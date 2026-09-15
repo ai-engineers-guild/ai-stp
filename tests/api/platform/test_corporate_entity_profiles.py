@@ -1,4 +1,4 @@
-"""PostgreSQL integration coverage for corporate entity profiles (SPEC-083)."""
+"""PostgreSQL integration coverage for corporate entity profiles (SPEC-084)."""
 
 from __future__ import annotations
 
