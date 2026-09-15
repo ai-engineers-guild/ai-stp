@@ -1,6 +1,6 @@
 ---
 description: "HTTP API versioning, authorization, idempotency, and concurrency."
-last_verified: "2026-09-04"
+last_verified: "2026-09-15"
 ---
 
 # HTTP API
@@ -79,7 +79,7 @@ The stable-code-to-status-code mapping is closed and derived from the completion
 | `401` | `AI_STP_AUTH_REQUIRED` |
 | `403` | `AI_STP_PERMISSION_DENIED`, `AI_STP_DEVICE_REVOKED` |
 | `404` | `AI_STP_NOT_FOUND` |
-| `409` | `AI_STP_CONFLICT`, `AI_STP_PLAN_STALE`, `AI_STP_USER_DECISION_REQUIRED`, `AI_STP_SEO_SOURCE_STALE` |
+| `409` | `AI_STP_CONFLICT`, `AI_STP_PLAN_STALE`, `AI_STP_USER_DECISION_REQUIRED`, `AI_STP_SEO_SOURCE_STALE`, `AI_STP_COMPENSATED` |
 | `412` | `AI_STP_PRECONDITION_FAILED` |
 | `429` | `AI_STP_RATE_LIMITED` |
 | `500` | `AI_STP_PARTIAL_OPERATION`, `AI_STP_CATALOG_INTEGRITY`, `AI_STP_INTERNAL`, `AI_STP_SEO_RENDER_FAILED` |

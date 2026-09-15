@@ -38,7 +38,7 @@ last_verified: "2026-08-03"
 | [fixture-corpus.md](fixture-corpus.md) | Shared /v1 fixture corpus: case kinds, invariants, and usage by both sides. | 2026-08-05 |
 | [github-archive-evidence.md](github-archive-evidence.md) | Machine contract for local GitHub archive evidence and observation history. | 2026-08-15 |
 | [harness-bundle.md](harness-bundle.md) | Bounded deterministic package for a public harness provider. | 2026-09-01 |
-| [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-09-04 |
+| [http-api.md](http-api.md) | HTTP API versioning, authorization, idempotency, and concurrency. | 2026-09-15 |
 | [native-component-discovery.md](native-component-discovery.md) | Machine contract for read-only discovery of native components in supported harnesses. | 2026-09-05 |
 | [offline-capability.md](offline-capability.md) | What works without the network after initial setup and what requires connectivity. | 2026-08-13 |
 | [operation.md](operation.md) | States, plan, journal, and recovery of a mutating operation. | 2026-08-09 |

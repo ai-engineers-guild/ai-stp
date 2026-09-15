@@ -178,6 +178,7 @@ last_verified: "2026-08-03"
 | [ADR-0178-project-identities-link-explicitly.md](ADR-0178-project-identities-link-explicitly.md) | Local, remote, and provider project identities remain distinct and are linked only by an explicit revisioned binding. | 2026-09-09 |
 | [ADR-0179-corporate-authorization-is-a-tenant-scoped-policy-table.md](ADR-0179-corporate-authorization-is-a-tenant-scoped-policy-table.md) | Corporate authorization uses persisted tenant-scoped role bindings, one server evaluator, and transactional audit. | 2026-09-12 |
 | [ADR-0180-permanent-dev-and-protected-main.md](ADR-0180-permanent-dev-and-protected-main.md) | Permanent dev integration and protected main promotion with administrator bypass. | 2026-09-12 |
+| [ADR-0181-application-services-own-cli-effects.md](ADR-0181-application-services-own-cli-effects.md) | Click remains a parser; in-process application services own effects; envelope ok means the requested effect completed. | 2026-09-15 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

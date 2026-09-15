@@ -1,6 +1,6 @@
 ---
 description: "SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots."
-last_verified: "2026-09-05"
+last_verified: "2026-09-15"
 ---
 
 # SPEC-058: Multi-root installation transactions
@@ -65,6 +65,11 @@ locks outside the selected roots, and automatic privilege expansion.
 - `REQ-5808`: Transaction records contain no target bytes, BackupRef bytes,
   credentials, environment values, or absolute paths in ordinary machine output.
   Providers remain the sole writers and backup owners.
+- `REQ-5809`: `install transaction apply` and `recover` answer `verified` and
+  `cancelled` as success with envelope `operation_id` equal to the transaction
+  id already minted as `operation_…`. `rolled_back` is `AI_STP_COMPENSATED`.
+  `recovery_required` is `AI_STP_PARTIAL_OPERATION`. Compensation of the
+  requested install is not `ok`.
 
 ## States and errors
 
@@ -100,6 +105,7 @@ transactions must be recovered before downgrade.
 | `REQ-5806` | Every interruption point reports only an accurate terminal or recovery state and names unsettled children. |
 | `REQ-5807` | Public child mutation commands and overlapping plans are rejected while status remains available. A second process cannot reserve a descendant of an active root. |
 | `REQ-5808` | Secret and path fixtures find neither bytes nor absolute paths in SQLite records, logs, or JSON output. |
+| `REQ-5809` | Unit tests of apply/recover completion raise `AI_STP_COMPENSATED` for `rolled_back` and `AI_STP_PARTIAL_OPERATION` for `recovery_required`, each with the transaction `operation_id`. |
 
 ## Required checks
 

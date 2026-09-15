@@ -25,6 +25,7 @@ from typing import Any, Final
 import click
 from pydantic import ValidationError
 
+from ai_stp_cli.application.outcome import envelope_actions, operation_id_of
 from ai_stp_cli.errors import (
     CliFailure,
     internal_failure,
@@ -118,7 +119,7 @@ def _callback_for(command: Command) -> Any:
             )
         except Exception:
             extra_warnings, extra_actions = (), ()
-        actions = list(command.descriptor.next_actions)
+        continuations, actions = envelope_actions(answer)
         for action in extra_actions:
             if action not in actions:
                 actions.append(action)
@@ -126,7 +127,9 @@ def _callback_for(command: Command) -> Any:
             answer.payload,
             machine=bool(state.get("machine")),
             request_id=str(state.get("request_id") or new_request_id()),
+            operation_id=operation_id_of(answer),
             next_actions=actions,
+            continuations=continuations,
             warnings=[*answer.warnings, *extra_warnings],
         )
 
