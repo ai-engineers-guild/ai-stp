@@ -34,6 +34,10 @@ type Props = {
   onLeadOnlyChange: (value: boolean) => void;
   onViewChange: (value: "list" | "cards") => void;
   onSortChange: (value: "name" | "state") => void;
+  addLabel?: string | undefined;
+  cancelLabel?: string | undefined;
+  adding?: boolean | undefined;
+  onAdd?: (() => void) | undefined;
 };
 
 function optionsFor(items: readonly DirectoryItem[], facet: DirectoryFacet) {
@@ -70,6 +74,10 @@ export function CorporateDirectoryToolbar({
   onLeadOnlyChange,
   onViewChange,
   onSortChange,
+  addLabel,
+  cancelLabel,
+  adding = false,
+  onAdd,
 }: Props) {
   const t = useTranslations("hub");
   const catalog = useTranslations("catalog");
@@ -91,30 +99,87 @@ export function CorporateDirectoryToolbar({
 
   return (
     <div className="space-y-3">
-      <div className="border-border bg-card flex min-w-0 flex-wrap items-center gap-2 rounded-lg border p-2">
-        <label htmlFor="directory-search" className="sr-only">
-          {t("search")}
+      <div className="border-border bg-card grid min-w-0 gap-3 rounded-lg border p-3 md:grid-cols-[minmax(0,1fr)_8rem_auto] md:items-end">
+        <label htmlFor="directory-search" className="min-w-0 space-y-1.5 text-sm font-medium">
+          <span>{t("search")}</span>
+          <span className="relative block">
+            <Icon
+              name="search"
+              size="sm"
+              className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2"
+            />
+            <Input
+              id="directory-search"
+              value={query}
+              onChange={(event) => {
+                onQueryChange(event.target.value);
+              }}
+              placeholder={t("search")}
+              className="h-11 pl-10"
+            />
+          </span>
         </label>
-        <div className="relative min-w-56 flex-1">
-          <Icon
-            name="search"
-            size="sm"
-            className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2"
-          />
-          <Input
-            id="directory-search"
-            value={query}
+        <label className="min-w-0 space-y-1.5 text-sm font-medium">
+          <span>{t("status")}</span>
+          <select
+            id="directory-status"
+            value={status}
             onChange={(event) => {
-              onQueryChange(event.target.value);
+              onStatusChange(event.target.value);
             }}
-            placeholder={t("search")}
-            className="h-11 pl-10"
-          />
+            className="border-input bg-background focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <option value="">{t("all")}</option>
+            {states.map((value) => (
+              <option key={value} value={value}>
+                {t(value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {onAdd && addLabel ? (
+          <Button type="button" size="lg" onClick={onAdd} className="md:self-end">
+            <span aria-hidden="true" className="text-xl leading-none">
+              {adding ? "×" : "+"}
+            </span>
+            {adding ? (cancelLabel ?? addLabel) : addLabel}
+          </Button>
+        ) : null}
+      </div>
+      <div className="border-border bg-card flex min-w-0 flex-wrap items-center gap-3 rounded-lg border p-3">
+        <div className="hidden min-w-0 flex-1 flex-wrap gap-3 md:flex">
+          {directoryFacets[resource].map((facet) => (
+            <SearchableMultiSelect
+              key={facet}
+              name={directoryFacetParams[facet]}
+              label={facet === "leads" ? t("teamLeads") : t(facet)}
+              searchLabel={`${t("search")}: ${facet === "leads" ? t("teamLeads") : t(facet)}`}
+              options={optionsFor(items, facet)}
+              selected={selected[facet] ?? []}
+              closeLabel={t("closeFilters")}
+              onChange={(values) => {
+                onFacetChange(facet, values);
+              }}
+            />
+          ))}
+          {resource === "members" ? (
+            <label className="border-border bg-background inline-flex min-h-11 items-center gap-2 rounded-sm border px-3 text-sm">
+              <input
+                type="checkbox"
+                checked={leadOnly}
+                onChange={(event) => {
+                  onLeadOnlyChange(event.target.checked);
+                }}
+              />
+              {t("lead")}
+            </label>
+          ) : null}
         </div>
         <Button
           type="button"
           variant={filtersOpen || count ? "default" : "outline"}
           size="icon"
+          className="md:hidden"
           aria-expanded={filtersOpen}
           aria-controls={dialogId}
           aria-label={`${t("filters")}${count ? ` (${count})` : ""}`}
@@ -204,24 +269,6 @@ export function CorporateDirectoryToolbar({
                   }}
                 />
               ))}
-              <label className="min-w-0 space-y-2 text-sm">
-                <span className="font-medium">{t("status")}</span>
-                <select
-                  id="directory-status"
-                  value={status}
-                  onChange={(event) => {
-                    onStatusChange(event.target.value);
-                  }}
-                  className="border-input bg-background focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
-                >
-                  <option value="">{t("all")}</option>
-                  {states.map((value) => (
-                    <option key={value} value={value}>
-                      {t(value)}
-                    </option>
-                  ))}
-                </select>
-              </label>
               {resource === "members" ? (
                 <label className="flex min-h-11 items-center gap-2 text-sm sm:col-span-2">
                   <input

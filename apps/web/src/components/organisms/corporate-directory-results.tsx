@@ -45,7 +45,7 @@ function restoreFilters(seed: string, resource: DirectoryResource) {
   return {
     query: params.get("query") ?? initial.get("query") ?? "",
     status: params.get("status") ?? initial.get("status") ?? "",
-    view: params.get("view") === "cards" ? ("cards" as const) : ("list" as const),
+    view: params.get("view") === "list" ? ("list" as const) : ("cards" as const),
     sort: params.get("sort") === "state" ? ("state" as const) : ("name" as const),
     leadOnly: params.get("is_lead") === "true",
     selected: Object.fromEntries(
@@ -62,23 +62,32 @@ function sortItems(items: readonly DirectoryItem[], sort: "name" | "state") {
   );
 }
 
+// eslint-disable-next-line max-lines-per-function
 export function CorporateDirectoryResults({
   resource,
   items,
   filters = "",
   initialQuery = "",
   initialStatus = "",
+  addLabel,
+  cancelLabel,
+  adding = false,
+  onAdd,
 }: {
   resource: DirectoryResource;
   items: readonly DirectoryItem[];
   filters?: string;
   initialQuery?: string;
   initialStatus?: string;
+  addLabel?: string | undefined;
+  cancelLabel?: string | undefined;
+  adding?: boolean | undefined;
+  onAdd?: (() => void) | undefined;
 }) {
   const t = useTranslations("hub");
   const [query, setQuery] = useState(initialQuery);
   const [status, setStatus] = useState(initialStatus);
-  const [view, setView] = useState<"list" | "cards">("list");
+  const [view, setView] = useState<"list" | "cards">("cards");
   const [sort, setSort] = useState<"name" | "state">("name");
   const [selected, setSelected] = useState<CorporateDirectorySelectedFilters>({});
   const [leadOnly, setLeadOnly] = useState(false);
@@ -193,8 +202,12 @@ export function CorporateDirectoryResults({
         onLeadOnlyChange={changeLeadOnly}
         onViewChange={changeView}
         onSortChange={changeSort}
+        addLabel={addLabel}
+        cancelLabel={cancelLabel}
+        adding={adding}
+        onAdd={onAdd}
       />
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-end gap-3">
         <p className="text-muted-foreground text-sm" aria-live="polite">
           {visible.length} {t(resource === "members" ? "employees" : resource)}
         </p>
