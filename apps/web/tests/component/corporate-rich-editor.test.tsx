@@ -66,6 +66,7 @@ it("keeps the draft and idempotency key across a failed save retry", async () =>
   await screen.findByRole("alert");
   expect(screen.getByLabelText("description")).toHaveValue("Updated **description**");
 
+  await screen.findByRole("button", { name: "profileSave" });
   fireEvent.click(screen.getByRole("button", { name: "profileSave" }));
   await screen.findByText("Conflict");
   expect(mutation).toHaveBeenCalledTimes(2);
