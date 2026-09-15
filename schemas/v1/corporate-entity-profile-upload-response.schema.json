@@ -1,0 +1,55 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-entity-profile-upload-response",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "avatar_asset_id": {
+      "title": "Avatar Asset Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "image",
+        "video"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "media_id": {
+      "title": "Media Id",
+      "type": "string"
+    },
+    "public_url": {
+      "title": "Public Url",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "size_bytes": {
+      "exclusiveMinimum": 0,
+      "title": "Size Bytes",
+      "type": "integer"
+    },
+    "state": {
+      "const": "ready",
+      "default": "ready",
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "avatar_asset_id",
+    "kind",
+    "media_id",
+    "public_url",
+    "schema_version",
+    "size_bytes",
+    "state"
+  ],
+  "title": "EntityProfileUploadResponse",
+  "type": "object"
+}

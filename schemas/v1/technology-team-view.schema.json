@@ -1,0 +1,50 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-team-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "relation_id": {
+      "pattern": "^relation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Relation Id",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "team_id": {
+      "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Team Id",
+      "type": "string"
+    },
+    "technology_id": {
+      "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Technology Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "organization_id",
+    "relation_id",
+    "revision",
+    "state",
+    "team_id",
+    "technology_id"
+  ],
+  "title": "TechnologyTeamView",
+  "type": "object"
+}

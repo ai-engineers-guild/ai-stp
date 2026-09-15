@@ -126,13 +126,15 @@ export async function apiRequestBinary<T>(
     if (options.headers) mockOptions.headers = options.headers;
     const mockHeaders = await buildHeaders(method, mockOptions, true);
     mockHeaders["Content-Type"] = options.contentType;
-    const mockInit: { headers: Record<string, string>; body?: string } = {
+    const mockInit: { headers: Record<string, string>; body?: BodyInit } = {
       headers: mockHeaders,
+      body: options.body,
     };
-    if (typeof options.body === "string") {
-      mockInit.body = options.body;
-    }
-    const result = mockFetch(method, path, mockInit);
+    const [mockPath, rawQuery] = path.split("?", 2);
+    const result = mockFetch(method, mockPath ?? path, {
+      ...mockInit,
+      ...(rawQuery ? { query: new URLSearchParams(rawQuery) } : {}),
+    });
     return mockResultToData<T>(result);
   }
 

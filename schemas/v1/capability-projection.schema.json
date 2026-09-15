@@ -64,6 +64,12 @@
       ],
       "title": "Organization Id"
     },
+    "registry_version": {
+      "const": 2,
+      "default": 2,
+      "title": "Registry Version",
+      "type": "integer"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -95,6 +101,7 @@
     "issued_at",
     "mode",
     "organization_id",
+    "registry_version",
     "schema_version",
     "unavailable"
   ],

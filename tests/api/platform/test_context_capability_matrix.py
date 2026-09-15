@@ -19,6 +19,7 @@ from ai_stp_platform.organization_models import (
     CorporateServicePrincipal,
     Organization,
     OrganizationMembership,
+    ProjectIdentity,
 )
 
 pytestmark = pytest.mark.platform
@@ -60,6 +61,19 @@ async def test_multiple_inherited_bindings_and_projection_fail_closed(
         other_project = CorporateProject(
             id=new_id("remote_project"), organization_id=organization_id, name="Unbound"
         )
+        db.add_all(
+            [
+                ProjectIdentity(
+                    id=row.id,
+                    organization_id=organization_id,
+                    namespace="remote",
+                    external_key=f"corporate:{row.id}",
+                    display_name=row.name,
+                )
+                for row in (project, other_project)
+            ]
+        )
+        await db.flush()
         db.add_all([project, other_project])
         db.add_all(
             [

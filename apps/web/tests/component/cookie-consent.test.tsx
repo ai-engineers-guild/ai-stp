@@ -17,6 +17,13 @@ const labels = {
   privacy: "Privacy policy",
 };
 describe("CookieConsent", () => {
+  it("keeps consent choices without a link to an unavailable legal page", async () => {
+    document.cookie = "ai_stp_consent=; Max-Age=0; Path=/";
+    render(<CookieConsent labels={labels} />);
+    expect(await screen.findByRole("dialog", { name: labels.title })).toBeVisible();
+    expect(screen.queryByRole("link", { name: labels.privacy })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: labels.reject })).toBeVisible();
+  });
   it("rejects optional categories and reopens only from the account settings event", async () => {
     document.cookie = "ai_stp_consent=; Max-Age=0; Path=/";
     const user = userEvent.setup();

@@ -1,0 +1,47 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { Link, usePathname } from "@/lib/i18n/navigation";
+import { canViewCorporateSection } from "@/lib/corporate-hub";
+
+const organization = [
+  { key: "employees", href: "/corporate/members" },
+  { key: "projects", href: "/corporate/projects" },
+  { key: "teams", href: "/corporate/teams" },
+  { key: "technologies", href: "/corporate/technologies" },
+] as const;
+const landscape = [
+  { key: "components", href: "/corporate/components" },
+  { key: "technologies", href: "/corporate/technology-landscape" },
+  { key: "categories", href: "/corporate/categories" },
+] as const;
+
+export function CorporateHubNavigation({ capabilities }: { capabilities: readonly string[] }) {
+  const t = useTranslations("hub");
+  const path = usePathname();
+  if (path === "/corporate" || path === "/corporate/overview") return null;
+  const inLandscape = /\/corporate\/(components|categories|technology-landscape)/.test(path);
+  const activeSection =
+    path === "/corporate/dashboard" ? "dashboard" : inLandscape ? "landscape" : "organization";
+  if (activeSection !== "organization" && activeSection !== "landscape") return null;
+  const items = inLandscape ? landscape : organization;
+
+  return (
+    <div className="border-border mb-6 space-y-2 border-b pb-4">
+      <nav aria-label={t(activeSection)} className="flex flex-wrap gap-2">
+        {items
+          .filter((item) => canViewCorporateSection(item.key, capabilities))
+          .map((item) => (
+            <Link
+              key={item.key}
+              href={item.href}
+              aria-current={path.startsWith(item.href) ? "page" : undefined}
+              className="text-muted-foreground hover:text-foreground aria-[current=page]:text-primary inline-flex min-h-11 items-center px-3 text-sm"
+            >
+              {t(item.key)}
+            </Link>
+          ))}
+      </nav>
+    </div>
+  );
+}

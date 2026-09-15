@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:employee-technology-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "default": "current",
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "technology_id": {
+      "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Technology Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "account_id",
+    "technology_id",
+    "expected_revision",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "EmployeeTechnologyRequest",
+  "type": "object"
+}

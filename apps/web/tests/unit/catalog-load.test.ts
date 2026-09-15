@@ -35,6 +35,19 @@ const emptyList = {
 };
 
 describe("catalog resource orchestration", () => {
+  it("observes early search failures while optional facets are still pending", async () => {
+    const services = deferred<{ schema_version: 1; items: never[] }>();
+    const reads = startCatalogResourceReads(defaultCatalogQuery("all"), {
+      listExternalProducts: () => services.promise,
+      searchComponents: () => Promise.reject(new Error("rate limited")),
+      searchSetups: () => Promise.reject(new Error("rate limited")),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    services.resolve({ schema_version: 1, items: [] });
+    await expect(reads.components).rejects.toThrow("rate limited");
+    await expect(reads.setups).rejects.toThrow("rate limited");
+    await expect(reads.services).resolves.toEqual([]);
+  });
   it("starts services, components, and setups before any of them resolve", async () => {
     const started: string[] = [];
     const services = deferred<{ schema_version: 1; items: never[] }>();

@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-mutation",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+          "type": "string"
+        }
+      ],
+      "title": "Authorization Revision"
+    },
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "expected_revision",
+    "idempotency_key"
+  ],
+  "title": "TechnologyMutation",
+  "type": "object"
+}

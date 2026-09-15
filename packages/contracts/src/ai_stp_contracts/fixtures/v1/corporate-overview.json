@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "readCorporateOverview.shared-team",
+      "operation_id": "readCorporateOverview",
+      "kind": "positive",
+      "why": "The authorized normalized graph retains typed identities and restricted assignment visibility.",
+      "request": {
+        "path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization": {
+          "schema_version": 1,
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "display_name": "Corporate engineering",
+          "state": "active",
+          "authorization_revision": 1
+        },
+        "nodes": [
+          {"kind": "project", "id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "name": "Platform", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "team", "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "name": "Core", "lead_account_ids": ["account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "name": "Team lead", "lead_account_ids": [], "assignments": [], "assignments_readable": false}
+        ],
+        "edges": [
+          {"parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "kind": "project_team", "role": "owner"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "kind": "team_employee", "role": "lead"}
+        ]
+      }
+    }
+  ]
+}

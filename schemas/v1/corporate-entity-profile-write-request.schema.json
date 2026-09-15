@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "EntityProfileFields": {
+      "additionalProperties": false,
+      "properties": {
+        "avatar_asset_id": {
+          "anyOf": [
+            {
+              "pattern": "^avatar_[a-f0-9]{24}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Avatar Asset Id"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 20000,
+          "title": "Description",
+          "type": "string"
+        },
+        "links": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProfileLink"
+          },
+          "maxItems": 8,
+          "title": "Links",
+          "type": "array"
+        },
+        "media": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EntityProfileMedia"
+          },
+          "maxItems": 5,
+          "title": "Media",
+          "type": "array"
+        }
+      },
+      "title": "EntityProfileFields",
+      "type": "object"
+    },
+    "EntityProfileMedia": {
+      "additionalProperties": false,
+      "properties": {
+        "alt": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Alt",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Caption",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "image",
+            "video",
+            "youtube"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "alt"
+      ],
+      "title": "EntityProfileMedia",
+      "type": "object"
+    },
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "ProfileLink": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2048,
+          "minLength": 8,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "url"
+      ],
+      "title": "ProfileLink",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-entity-profile-write-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+          "type": "string"
+        }
+      ],
+      "title": "Authorization Revision"
+    },
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "fields": {
+      "$ref": "#/$defs/EntityProfileFields"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "expected_revision",
+    "idempotency_key",
+    "fields"
+  ],
+  "title": "EntityProfileWriteRequest",
+  "type": "object"
+}

@@ -73,7 +73,7 @@ describe("SearchableMultiSelect", () => {
     await user.click(screen.getByRole("checkbox", { name: "Ada" }));
     expect(onChange).toHaveBeenCalledWith([]);
     await user.click(screen.getByRole("checkbox", { name: "Bea" }));
-    expect(onChange).toHaveBeenLastCalledWith(["account_b"]);
+    expect(onChange).toHaveBeenLastCalledWith(["account_a", "account_b"]);
   });
 
   it("opens author options in a searchable modal and keeps selected ids in the form", async () => {

@@ -13,7 +13,9 @@ import { ApiError } from "@/lib/api/errors";
 import { readCsrfToken } from "@/lib/auth/session";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
+import { corporateHref } from "@/lib/features/corporate-path";
 import { Icon } from "@/theme";
+import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -110,7 +112,7 @@ export default async function AccountPage({ params }: PageProps) {
           </div>
 
           <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
-            {corporateOrganization && (
+            {corporateOrganization && COMPILED_FEATURE_PROFILE !== "corporate_hub" && (
               <Button asChild className="min-h-11 w-full sm:w-auto">
                 <Link href="/corporate">{t("corporateWorkspace")}</Link>
               </Button>
@@ -134,7 +136,7 @@ export default async function AccountPage({ params }: PageProps) {
               <IdentityList
                 identities={profile.identities}
                 csrfToken={csrfToken}
-                returnTo={`/${locale}/account`}
+                returnTo={corporateHref(`/${locale}/account`)}
               />
             </div>
             <div className="border-border mt-6 space-y-3 border-t pt-5">

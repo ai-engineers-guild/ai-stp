@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { readSession, type WebSession, SESSION_COOKIE } from "@/lib/auth/session";
+import { corporateHref } from "@/lib/features/corporate-path";
 
 /**
  * Server-side session gate. Expired/invalid sessions redirect to login with a
@@ -13,10 +14,15 @@ import { readSession, type WebSession, SESSION_COOKIE } from "@/lib/auth/session
  * handler, which is allowed to modify cookies.
  */
 export async function requireSession(locale: string, returnTo: string): Promise<WebSession> {
+  const canonicalReturnTo = corporateHref(returnTo);
   const session = await readSession();
   if (session) {
     if (session.accountStatus === "onboarding_pending") {
-      redirect(`/${locale}/onboarding?${new URLSearchParams({ returnTo }).toString()}`);
+      redirect(
+        corporateHref(
+          `/${locale}/onboarding?${new URLSearchParams({ returnTo: canonicalReturnTo }).toString()}`,
+        ),
+      );
     }
     return session;
   }
@@ -25,10 +31,18 @@ export async function requireSession(locale: string, returnTo: string): Promise<
   if (hadCookie) {
     // Stale/invalid cookie: clear it in the logout route handler, then land on
     // login with the expiry reason preserved.
-    const params = new URLSearchParams({ locale, returnTo, reason: "session_expired" });
+    const params = new URLSearchParams({
+      locale,
+      returnTo: canonicalReturnTo,
+      reason: "session_expired",
+    });
     redirect(`/api/auth/logout?${params.toString()}`);
   }
-  redirect(`/${locale}/login?${new URLSearchParams({ returnTo }).toString()}`);
+  redirect(
+    corporateHref(
+      `/${locale}/login?${new URLSearchParams({ returnTo: canonicalReturnTo }).toString()}`,
+    ),
+  );
 }
 
 /** Session gate for the legal-onboarding screen itself. */
@@ -36,17 +50,26 @@ export async function requireOnboardingSession(
   locale: string,
   returnTo: string,
 ): Promise<WebSession> {
+  const canonicalReturnTo = corporateHref(returnTo);
   const session = await readSession();
   if (!session) {
     const jar = await cookies();
     if (jar.get(SESSION_COOKIE)?.value) {
-      const params = new URLSearchParams({ locale, returnTo, reason: "session_expired" });
+      const params = new URLSearchParams({
+        locale,
+        returnTo: canonicalReturnTo,
+        reason: "session_expired",
+      });
       redirect(`/api/auth/logout?${params.toString()}`);
     }
-    redirect(`/${locale}/login?${new URLSearchParams({ returnTo }).toString()}`);
+    redirect(
+      corporateHref(
+        `/${locale}/login?${new URLSearchParams({ returnTo: canonicalReturnTo }).toString()}`,
+      ),
+    );
   }
   if (session.accountStatus === "active") {
-    redirect(returnTo);
+    redirect(canonicalReturnTo);
   }
   return session;
 }

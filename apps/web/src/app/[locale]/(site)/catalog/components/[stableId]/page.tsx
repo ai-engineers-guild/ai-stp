@@ -25,6 +25,7 @@ import {
   targetMatrixLabels,
 } from "@/components/molecules/component-target-matrix";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
+import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ComponentContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
@@ -38,10 +39,12 @@ import {
   readComponentVersion,
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
+import { readCorporateCatalogOwnership } from "@/lib/api/corporate-catalog-ownership";
 import { readOwnerObject } from "@/lib/api/owner";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
+import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asVersionId, tryAsComponentId } from "@/lib/brands";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
 import { registryVersion } from "@/lib/cli-copy";
@@ -115,6 +118,17 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   const targetMatrix = (detail as unknown as { target_matrix?: typeof detail.target_matrix })
     .target_matrix;
   const author = await readAuthor(ownerId);
+  const corporateOwnership = token
+    ? await readCorporateCatalogOwnership(
+        token,
+        "component",
+        componentId,
+        asVersionId(summary.latest_version),
+      )
+    : null;
+  const corporateCsrfToken = corporateOwnership?.ownership.can_edit
+    ? ((await readCsrfToken()) ?? "")
+    : "";
   const isOwner = token ? await canEditComponent(token, stableId) : false;
   const initiallyLiked = token ? await isLiked(token, "component", stableId) : false;
   const metadata = await readComponentGithubMetadata(
@@ -295,6 +309,18 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               verifiedLabel={t("authorVerified")}
               authorLabel={t("author")}
             />
+            {corporateOwnership ? (
+              <CorporateCatalogOwnerEditor
+                ownership={corporateOwnership.ownership}
+                objectKind="component"
+                stableId={stableId}
+                version={summary.latest_version}
+                organizationId={corporateOwnership.ownership.organization_id}
+                authorizationRevision={corporateOwnership.authorizationRevision}
+                csrfToken={corporateCsrfToken}
+                members={corporateOwnership.members}
+              />
+            ) : null}
             <div className="border-border bg-card rounded-lg border p-4 shadow-sm">
               <CatalogUsageStats
                 metrics={summary.usage_metrics}

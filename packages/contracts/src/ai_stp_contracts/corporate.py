@@ -1,11 +1,14 @@
 """Corporate bootstrap, RBAC, project, and audit wire contracts (SPEC-079)."""
 
+import re
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import JsonSchemaValue
 
 from ai_stp_contracts.http import IdempotencyKey, Timestamp, open_wire_object, strict_request_object
 from ai_stp_foundation.ids import stable_id_pattern
+from ai_stp_foundation.versioning import VERSION_PATTERN
 
 OrganizationId = Annotated[str, Field(pattern=stable_id_pattern("organization"))]
 AccountId = Annotated[str, Field(pattern=stable_id_pattern("account"))]
@@ -20,9 +23,72 @@ CorporateRole = Annotated[
 ]
 CorporateState = Literal["active", "suspended"]
 ProjectState = Literal["active", "archived"]
+ProjectLifecycle = Literal["active", "deprecated", "archived", "deleted"]
 ScopeKind = Literal[
     "system", "organization", "team", "project", "technology", "catalog_object", "telemetry"
 ]
+
+
+class CorporateCatalogAssignmentRequest(BaseModel):
+    """Assign a readable exact catalog version without granting access or installing it."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    subject_kind: Literal["employee", "team", "project"]
+    subject_id: Annotated[str, Field(min_length=1, max_length=64)]
+    object_kind: Literal["setup", "component"]
+    stable_id: Annotated[str, Field(min_length=1, max_length=64)]
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    state: Literal["current", "retired"] = "current"
+    expected_revision: Annotated[int, Field(ge=0)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+    @model_validator(mode="after")
+    def typed_coordinates(self) -> Self:
+        subject_prefix = {"employee": "account", "team": "operation", "project": "remote_project"}[
+            self.subject_kind
+        ]
+        subject_pattern = stable_id_pattern(subject_prefix)
+        if not re.fullmatch(subject_pattern, self.subject_id):
+            raise ValueError("subject identity does not match its kind")
+        if not re.fullmatch(stable_id_pattern(self.object_kind), self.stable_id):
+            raise ValueError("catalog identity does not match its kind")
+        if self.state == "retired" and self.expected_revision == 0:
+            raise ValueError("retiring an assignment requires its current revision")
+        return self
+
+
+class CorporateCatalogAssignment(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
+    organization_id: OrganizationId
+    subject_kind: Literal["employee", "team", "project"]
+    subject_id: str
+    object_kind: Literal["setup", "component"]
+    stable_id: str
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    state: Literal["current", "retired"]
+    revision: Annotated[int, Field(ge=1)]
+    source_team_id: Annotated[str, Field(pattern=stable_id_pattern("operation"))] | None = None
+    display_name: str | None = None
+
+
+class CorporateCatalogAssignmentQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    subject_kind: Literal["employee", "team", "project"]
+    subject_id: Annotated[str, Field(min_length=1, max_length=64)]
+    include_retired: bool = False
+    offset: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=256)] = 128
+
+
+class CorporateCatalogAssignmentList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: list[CorporateCatalogAssignment]
+    total: Annotated[int, Field(ge=0)]
 
 
 class CorporateBootstrapRequest(BaseModel):
@@ -56,6 +122,21 @@ class CorporateMemberCreateRequest(BaseModel):
     def provisioned_identity_is_addressable(self) -> Self:
         if self.account_id is None and self.email is None:
             raise ValueError("email is required when account_id is omitted")
+        return self
+
+
+class CorporateMemberProfileRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    display_name: Annotated[str, Field(min_length=1, max_length=80)]
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+    @model_validator(mode="after")
+    def nonblank_name(self) -> Self:
+        if not self.display_name.strip():
+            raise ValueError("display name must not be blank")
         return self
 
 
@@ -195,14 +276,43 @@ class CorporateProjectUpdateRequest(BaseModel):
     idempotency_key: IdempotencyKey
 
 
+def _project_wire_object(schema: JsonSchemaValue) -> None:
+    open_wire_object(schema)
+    # ADR-0183: absence means an older writer, never an invented lifecycle.
+    schema["required"] = [
+        name for name in schema["required"] if name not in {"lifecycle", "restore_lifecycle"}
+    ]
+
+
 class CorporateProjectView(BaseModel):
-    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=_project_wire_object)
     schema_version: Literal[1] = 1
     project_id: str
     organization_id: OrganizationId
     name: str
     state: ProjectState
+    lifecycle: ProjectLifecycle | None = None
+    restore_lifecycle: Literal["active", "deprecated"] | None = None
     revision: Annotated[int, Field(ge=1)]
+
+
+class CorporateProjectLifecycleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    target: Literal["active", "deprecated", "archived", "restore"]
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: (
+        Annotated[int, Field(ge=1)]
+        | Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=128,
+                pattern=r"^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+            ),
+        ]
+    )
+    idempotency_key: IdempotencyKey
 
 
 class CorporateProjectList(BaseModel):
@@ -364,3 +474,70 @@ class CorporateAuditQuery(BaseModel):
     target_id: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     created_from: Timestamp | None = None
     created_to: Timestamp | None = None
+
+
+class CorporateOverviewNode(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    kind: Literal["project", "team", "employee"]
+    id: Annotated[str, Field(min_length=1, max_length=64)]
+    name: str
+    lead_account_ids: list[AccountId] = []
+    assignments: list[CorporateCatalogAssignment] = []
+    assignments_readable: bool = False
+
+    @model_validator(mode="after")
+    def typed_identity(self) -> Self:
+        prefix = {"project": "remote_project", "team": "operation", "employee": "account"}[
+            self.kind
+        ]
+        if not re.fullmatch(stable_id_pattern(prefix), self.id):
+            raise ValueError("overview identity does not match its kind")
+        if self.kind != "team" and self.lead_account_ids:
+            raise ValueError("only teams expose team leads")
+        return self
+
+
+class CorporateOverviewEdge(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    parent_id: str
+    child_id: str
+    kind: Literal["project_team", "team_employee"]
+    role: Literal["owner", "responsible", "contributor", "lead", "staff"]
+
+
+class CorporateOverview(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization: CorporateOrganization
+    nodes: list[CorporateOverviewNode]
+    edges: list[CorporateOverviewEdge]
+
+    @model_validator(mode="after")
+    def coherent_graph(self) -> Self:
+        nodes = {node.id: node for node in self.nodes}
+        if len(nodes) != len(self.nodes):
+            raise ValueError("overview nodes must have distinct identities")
+        seen: set[tuple[str, str]] = set()
+        for edge in self.edges:
+            parent, child = nodes.get(edge.parent_id), nodes.get(edge.child_id)
+            if parent is None or child is None:
+                raise ValueError("overview edges require visible anchors")
+            expected = ("project", "team") if edge.kind == "project_team" else ("team", "employee")
+            if (parent.kind, child.kind) != expected:
+                raise ValueError("overview edge kinds must preserve hierarchy")
+            roles = (
+                {"owner", "responsible", "contributor"}
+                if edge.kind == "project_team"
+                else {"lead", "staff"}
+            )
+            if edge.role not in roles or (edge.parent_id, edge.child_id) in seen:
+                raise ValueError("overview edge role or identity is invalid")
+            seen.add((edge.parent_id, edge.child_id))
+        for node in self.nodes:
+            if any(
+                assignment.organization_id != self.organization.organization_id
+                or assignment.subject_id != node.id
+                for assignment in node.assignments
+            ):
+                raise ValueError("overview assignments require the same tenant and subject")
+        return self

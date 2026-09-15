@@ -31,6 +31,6 @@ last_verified: "2026-08-03"
 | [seo-publication.md](seo-publication.md) | Runbook: server SEO revisions, sitemap, and optional LiteLLM enrichment. | 2026-08-29 |
 | [sync-conflict.md](sync-conflict.md) | Runbook: sync conflict. | 2026-08-03 |
 | [uninstall-purge.md](uninstall-purge.md) | Runbook: uninstall purge. | 2026-08-03 |
-| [web-feature-profiles.md](web-feature-profiles.md) | Building, verifying, and rolling back web deployment profiles. | 2026-08-29 |
+| [web-feature-profiles.md](web-feature-profiles.md) | Building, verifying, and rolling back web deployment profiles. | 2026-09-14 |
 
 <!-- END CONTENTS -->

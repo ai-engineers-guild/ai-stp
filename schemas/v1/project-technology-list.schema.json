@@ -1,0 +1,276 @@
+{
+  "$defs": {
+    "ProjectTechnologyView": {
+      "additionalProperties": true,
+      "properties": {
+        "facts": {
+          "items": {
+            "$ref": "#/$defs/UsageFactView"
+          },
+          "title": "Facts",
+          "type": "array"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "project_id": {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "relation_id": {
+          "pattern": "^relation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Relation Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "technology_id": {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Technology Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "facts",
+        "organization_id",
+        "project_id",
+        "relation_id",
+        "revision",
+        "state",
+        "technology_id"
+      ],
+      "title": "ProjectTechnologyView",
+      "type": "object"
+    },
+    "TechnologyEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "detector_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detector Version"
+        },
+        "mapping_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mapping Version"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "pattern": "^[A-Za-z0-9._:/+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "source": {
+          "enum": [
+            "manual",
+            "declared",
+            "configured",
+            "observed",
+            "forge_language"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "source_revision": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Revision"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at"
+      ],
+      "title": "TechnologyEvidence",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "UsageFactView": {
+      "additionalProperties": true,
+      "properties": {
+        "context": {
+          "enum": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ],
+          "title": "Context",
+          "type": "string"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TechnologyEvidence"
+          },
+          "maxItems": 64,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "freshness": {
+          "enum": [
+            "current",
+            "stale",
+            "absent",
+            "unknown"
+          ],
+          "title": "Freshness",
+          "type": "string"
+        },
+        "review": {
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected",
+            "overridden",
+            "retired"
+          ],
+          "title": "Review",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "version_kind": {
+          "default": "unknown",
+          "enum": [
+            "unknown",
+            "declared_range",
+            "observed_version"
+          ],
+          "title": "Version Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "context",
+        "evidence",
+        "freshness",
+        "review",
+        "version",
+        "version_kind"
+      ],
+      "title": "UsageFactView",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:project-technology-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/ProjectTechnologyView"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "total": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "total"
+  ],
+  "title": "ProjectTechnologyList",
+  "type": "object"
+}

@@ -26,6 +26,7 @@ from ai_stp_platform.organization_models import (
     CorporateTeam,
     CorporateTeamMember,
     Organization,
+    ProjectIdentity,
 )
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
@@ -449,6 +450,16 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         )
         await db.flush()
         foreign_project_id = new_id("remote_project")
+        db.add(
+            ProjectIdentity(
+                id=foreign_project_id,
+                organization_id=foreign_id,
+                namespace="remote",
+                external_key=f"corporate:{foreign_project_id}",
+                display_name="Hidden",
+            )
+        )
+        await db.flush()
         db.add(CorporateProject(id=foreign_project_id, organization_id=foreign_id, name="Hidden"))
         await db.commit()
     async with sessionmaker() as db:
