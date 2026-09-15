@@ -36,6 +36,23 @@ it("shows authorized directories and selects the team tab on its detail page", (
   );
 });
 
+it("keeps the technology directory in the Organization section", () => {
+  route.path = "/corporate/technologies";
+  render(<CorporateHubNavigation capabilities={["technology.list"]} />);
+  expect(screen.getByRole("link", { name: "organization" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(screen.getByRole("link", { name: "technologies" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(screen.getByRole("link", { name: "technologies" })).toHaveAttribute(
+    "href",
+    "/corporate/technologies",
+  );
+});
+
 it("retains the Admins entry for a read-only audit administrator", () => {
   render(<CorporateHubNavigation capabilities={["audit.list"]} />);
   expect(screen.getByRole("link", { name: "admins" })).toHaveAttribute(
@@ -48,5 +65,19 @@ it("keeps member administration discoverable after separating profile and access
   expect(screen.getByRole("link", { name: "admins" })).toHaveAttribute(
     "href",
     "/corporate/organization/admins",
+  );
+});
+
+it("routes Landscape technologies to the technology landscape view", () => {
+  route.path = "/corporate/technology-landscape";
+  render(<CorporateHubNavigation capabilities={["technology.list"]} />);
+  expect(screen.getByRole("link", { name: "landscape" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: "technologies" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(screen.getByRole("link", { name: "technologies" })).toHaveAttribute(
+    "href",
+    "/corporate/technology-landscape",
   );
 });

@@ -83,6 +83,7 @@
     "addTeam": "Add team",
     "addEmployee": "Add employee",
     "addTechnology": "Add technology",
+    "openSearch": "Open search",
     "search": "Search by name",
     "noMatches": "No matches. Try another name.",
     "empty": "No items yet.",
