@@ -68,8 +68,11 @@ targets or make source-provider access equivalent to organization authority.
   or known project ID alone grants no organization authority.
 - `REQ-7809`: Linked project synchronization is an explicit push/pull operation
   using content-addressed revisions, expected heads, idempotent receipts,
-  tombstones, and the organization-scoped ledger. Offline local edits remain
-  usable and queue no implicit network operation.
+  tombstones, and the organization-scoped ledger. The CLI publishes a local
+  passport projection with `project revision push` and reads the ledger with
+  `project revision pull` before `project sync plan` / `project sync apply`
+  move link pointers. Offline local edits remain usable and queue no implicit
+  network operation.
 - `REQ-7810`: Fast-forward accepts non-divergent history. Divergent local and
   remote heads produce a `ProjectLink` conflict with both heads and common
   ancestor; neither side performs last-write-wins or silently overwrites an
@@ -105,7 +108,9 @@ targets or make source-provider access equivalent to organization authority.
   a local write transaction is held. A confirmed remote effect with a stale
   local view, and an effect that was never confirmed, are reported as different
   outcomes; recovery from the unconfirmed one reuses the same key rather than
-  creating a second operation.
+  creating a second operation. A cached link or plan whose `link_id` is empty
+  is not a binding: the device re-observes the server link and stamps the id
+  only when the named local project matches, and otherwise refuses.
 
 ## States and errors
 
@@ -157,7 +162,7 @@ and immutable history so re-enabling cannot produce duplicate identities.
 | `REQ-7806` | Constraints reject a second active remote link for one local project and allow separate device-local links to one remote project. |
 | `REQ-7807` | High-similarity name/path/URL/technology fixtures produce only proposals and no persisted link or merge. |
 | `REQ-7808` | Owner/member/device/provider/cross-tenant authorization matrix permits only the exact authorized link. |
-| `REQ-7809` | Network-disabled edits remain local; explicit retries return the same receipt and create no duplicate revision. |
+| `REQ-7809` | Network-disabled edits remain local; CLI push of a passport projection and pull of the same node reuse one receipt even without re-deriving the passport; explicit retries create no duplicate revision. |
 | `REQ-7810` | Sequential heads fast-forward, while divergent heads return both heads/common ancestor and advance neither silently. |
 | `REQ-7811` | A two-parent explicit resolution advances once; retry is idempotent and stale resolution fails. |
 | `REQ-7812` | Confirmed unlink stops sync and preserves both projects, provider binding, revisions, and audit records. |
@@ -165,5 +170,5 @@ and immutable history so re-enabling cannot produce duplicate identities.
 | `REQ-7814` | Contract/privacy scans reject paths, source, environment values, credentials, unapproved observations, and foreign IDs. |
 | `REQ-7815` | Consumer contract tests reference the canonical remote ID/link status and contain no second matching implementation. |
 | `REQ-7816` | An API create → apply of the exact returned ready plan succeeds against PostgreSQL; mutating any bound field of the stored plan makes it stale. |
-| `REQ-7817` | An identical planning replay returns the original plan; the same key with changed revisions is refused; a plan applied from another device is refused. |
-| `REQ-7818` | Injected failures after the remote effect, during the link refresh, and on the response itself leave one remote effect, a durable receipt, and distinguishable states; a concurrent local writer is never held behind a request. |
+| `REQ-7817` | An identical planning replay returns the original plan; the same key with changed revisions is refused; a plan applied from another device is refused; an expired plan is refused. |
+| `REQ-7818` | Injected failures after the remote effect, during the link refresh, and on the response itself leave one remote effect, a durable receipt, and distinguishable states; a concurrent local writer is never held behind a request; an empty migrated `link_id` is rebound on plan, apply, and revision transport only after the server names the same local project. |

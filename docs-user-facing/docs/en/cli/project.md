@@ -22,9 +22,13 @@ target. They describe one tree so later selection has a place to stand.
 | `ai-stp project index` | `read` | `none` | Index one project root, bounded, skipping secrets and binary content. |
 | `ai-stp project symbols` | `read` | `none` | Read a project's public symbols, entry points and tests. No call graph. |
 | `ai-stp project passport` | `apply` | `none` | Record a project passport revision pinning the index, toolchain and config. |
+| `ai-stp project revision push` | `apply` | `explicit_flag` | Push one local passport projection into the organization project ledger. |
+| `ai-stp project revision pull` | `read` | `none` | Pull redacted organization project-ledger revisions for one link. |
 
-`--root` is required on every command in this group. There is no
-configured fallback and no “current directory” implied by silence.
+`--root` is required on discover, index, symbols, and passport. There is
+no configured fallback and no “current directory” implied by silence.
+Revision push and pull take the local project id and the organization
+link instead.
 
 ## Typical path
 
@@ -153,6 +157,27 @@ The facts pin what was observed, not what you wish were there. Changing
 the tree and recording again adds a revision. It does not edit the
 previous one.
 
+A local passport is not in the organization ledger. After the project is
+linked, the organization path is `project revision push`, then
+`project revision pull` when another device already published, then
+`project sync plan` and `project sync apply`. `--local-revision` on the
+plan is the ledger `revision_id` from the push receipt. The passport's
+own `revision_id` is a different digest domain; planning with it is
+refused as a revision the organization has not seen.
+
+## Organization ledger
+
+A local passport stays on the device until you publish an allowlisted
+projection of it. `project revision push` is that publication: digests,
+counts, and index state, never paths or source. `project revision pull`
+reads the redacted nodes another device already published. Neither
+command moves the `ProjectLink` pointers; that is `project sync plan`
+then `project sync apply`. A `local_to_remote` sync plan is refused until
+the revision is in the organization ledger.
+
+Flags, confirmation, and result schemas come from `ai-stp help --agent
+--json`. Do not copy them here.
+
 ## What a successful envelope contains
 
 Discover, index, and symbols each return the fields named in their
@@ -176,12 +201,15 @@ rendering is not a different directory on disk.
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `AI_STP_VALIDATION_ERROR` missing `--root` | every command in this group needs it | pass `--root <root>` |
+| `AI_STP_VALIDATION_ERROR` missing `--root` | discover, index, symbols, and passport need it | pass `--root <root>` |
 | `AI_STP_VALIDATION_ERROR` home directory | discovery refuses to scan home | name a project directory inside it |
 | `state: partial` on index or symbols | a size, depth, entry, or time bound was reached | read `stopped_by`; do not treat the answer as complete |
 | `complete: false` on discover | the scan stopped inside its bounds | read `diagnostics` |
 | `AI_STP_VALIDATION_ERROR` unreadable root | the path does not exist or cannot be read | pass an exact existing project root |
 | expecting `index` to record a passport | indexing is a read | `project passport --root <root> --json` |
+| `AI_STP_PRECONDITION_FAILED` no passport to publish | revision push projects the local passport | `project passport --root <root> --json` |
+| `AI_STP_PRECONDITION_FAILED` re-observe the project link | an empty migrated `link_id` is not a binding | `project link show`, then retry the same command |
+| `AI_STP_PRECONDITION_FAILED` revision is not in the organization ledger | the plan's `--local-revision` is not a ledger id | `project revision push`, then plan with the receipt's `revision_id` |
 
 ## Related pages
 
@@ -197,4 +225,5 @@ rendering is not a different directory on disk.
 !!! note "Flags from `ai-stp help --agent --json`"
     If `help --agent` disagrees with a flag on this page, the CLI wins.
     Optional flags are not listed here. Read them from the descriptor.
-    Every command here requires `--root`.
+    Discover, index, symbols, and passport require `--root`. Revision
+    push and pull do not.

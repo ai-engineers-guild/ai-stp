@@ -1865,7 +1865,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("organization-id", "string", "Explicit remote organization.", required=True),
             option("link-id", "string", "Explicit project link identifier.", required=True),
         ),
-        next_actions=("project unlink", "project sync plan"),
+        next_actions=("project link show", "project sync plan", "project revision push"),
     ),
     Declaration(
         path=["project", "unlink-plan", "create"],
@@ -1947,9 +1947,20 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Expected current link revision.",
                 required=True,
             ),
-            option("local-revision", "string", "Currently observed local revision.", required=True),
             option(
-                "remote-revision", "string", "Currently observed remote revision.", required=True
+                "local-revision",
+                "string",
+                "Organization ledger revision currently held locally. The "
+                "revision_id from project revision push, not the passport "
+                "revision_id.",
+                required=True,
+            ),
+            option(
+                "remote-revision",
+                "string",
+                "Organization ledger revision currently on the link. Read it "
+                "from project link show.",
+                required=True,
             ),
             option("provider-revision", "string", "Currently observed provider revision."),
             option(
@@ -1960,7 +1971,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("idempotency-key", "string", "Stable key for this exact plan.", required=True),
         ),
-        next_actions=("project sync apply", "project link show", "project unlink"),
+        next_actions=(
+            "project sync apply",
+            "project link show",
+            "project unlink",
+            "project revision push",
+        ),
     ),
     Declaration(
         path=["project", "sync", "apply"],
@@ -1990,7 +2006,65 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact apply.", required=True),
             option("confirm", "boolean", "Confirm applying this plan.", required=True),
         ),
-        next_actions=("project sync plan", "project link show"),
+        next_actions=("project sync plan", "project link show", "project revision push"),
+    ),
+    Declaration(
+        path=["project", "revision", "push"],
+        summary="Push one local passport projection into the organization project ledger.",
+        result_schema="urn:ai-stp:schema:v1:project-revision-push-response",
+        handler="project:revision_push",
+        mutability="apply",
+        confirmation="explicit_flag",
+        parameters=(
+            option("organization-id", "string", "Explicit remote organization.", required=True),
+            option("link-id", "string", "Explicit project link identifier.", required=True),
+            option("local-project-id", "string", "Stable local project identifier.", required=True),
+            option(
+                "parent-revision-id",
+                "string",
+                "Ledger parent of this revision. Repeatable. Defaults to the "
+                "current remote head when that is already a ledger revision.",
+                repeatable=True,
+            ),
+            option(
+                "expected-head-revision-id",
+                "string",
+                "Expected current ledger head. Defaults to the single parent.",
+            ),
+            option(
+                "event-id",
+                "string",
+                "Stable event identifier for this exact push.",
+                required=True,
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option("idempotency-key", "string", "Stable key for this exact push.", required=True),
+            option("confirm", "boolean", "Confirm publishing this projection.", required=True),
+        ),
+        next_actions=("project sync plan", "project revision pull", "project link show"),
+    ),
+    Declaration(
+        path=["project", "revision", "pull"],
+        summary="Pull redacted organization project-ledger revisions for one link.",
+        result_schema="urn:ai-stp:schema:v1:project-revision-pull-response",
+        handler="project:revision_pull",
+        parameters=(
+            option("organization-id", "string", "Explicit remote organization.", required=True),
+            option("link-id", "string", "Explicit project link identifier.", required=True),
+            option("local-project-id", "string", "Stable local project identifier.", required=True),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+        ),
+        next_actions=("project sync plan", "project revision push", "project link show"),
     ),
     Declaration(
         path=["harness", "install"],
@@ -2259,7 +2333,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # project adds nothing — but idempotent is not read-only.
         mutability="apply",
         parameters=(option("root", "string", "Exact project root to record.", required=True),),
-        next_actions=("project symbols",),
+        next_actions=("project symbols", "project revision push"),
     ),
     Declaration(
         path=["registry", "acquire"],

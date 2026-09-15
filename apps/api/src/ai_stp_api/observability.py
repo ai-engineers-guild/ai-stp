@@ -45,7 +45,7 @@ def configure_observability(
         FastAPIInstrumentor.instrument_app(app)
     except Exception as exc:
         # Observability must never break startup (SPEC-017 REQ-1710).
-        _log.warning("observability_init_failed", error=str(exc))
+        _log.warning("observability_init_failed", error_type=type(exc).__name__)
 
 
 def current_trace_id() -> str | None:

@@ -57,9 +57,9 @@ def _link(revision: int = 1) -> ProjectLinkResponse:
     )
 
 
-def _plan(state: str = "ready") -> ProjectSyncPlanResponse:
+def _plan(state: str = "ready", *, plan_id: str = PLAN) -> ProjectSyncPlanResponse:
     return ProjectSyncPlanResponse(
-        plan_id=PLAN,
+        plan_id=plan_id,
         link_id=LINK,
         state=state,  # pyright: ignore[reportArgumentType]
         action="noop",
@@ -354,6 +354,8 @@ def test_a_plan_this_device_never_cached_is_refused_without_a_request(
     with pytest.raises(CliFailure) as raised:
         project_commands.sync_apply({**_parameters(), "plan-id": new_id("sync_plan")})
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert "..." not in "".join(raised.value.next_actions)
+    assert any("help --path project" in action for action in raised.value.next_actions)
 
 
 def test_a_plan_from_another_link_is_refused_before_anything_is_sent(
@@ -379,3 +381,164 @@ def test_a_plan_from_another_link_is_refused_before_anything_is_sent(
     with pytest.raises(CliFailure) as other_organization:
         project_commands.sync_apply({**_parameters(), "organization-id": new_id("organization")})
     assert other_organization.value.code == "AI_STP_CONFLICT"
+
+
+def test_an_unbound_migrated_cache_row_is_rebound_from_the_server_before_apply(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty schema-40 default is not a binding, and inventing one would be.
+
+    The server still knows which local project the link names. Confirming that
+    and stamping the id is re-observation; guessing from the flags is not.
+    """
+    registry_path = tmp_path / "registry.sqlite"
+    _registry(registry_path)
+    with closing(open_registry(registry_path)) as connection, transaction(connection):
+        connection.execute("UPDATE project_link SET link_id = ''")
+        connection.execute("UPDATE project_sync_plan SET link_id = ''")
+    seen: list[str] = []
+
+    def route(request: httpx.Request) -> httpx.Response:
+        seen.append(f"{request.method} {request.url.path}")
+        if request.method == "GET" and request.url.path.endswith(f"/links/{LINK}"):
+            return httpx.Response(200, json=_link().model_dump(mode="json"))
+        if request.method == "POST":
+            return httpx.Response(200, json=_applied_body())
+        return httpx.Response(200, json=_link(revision=2).model_dump(mode="json"))
+
+    _wired(monkeypatch, registry_path, route)
+    answer = project_commands.sync_apply(_parameters())
+
+    assert answer.payload.state == "applied"
+    assert seen[0].startswith("GET ")
+    assert any(item.startswith("POST ") for item in seen)
+    stored = _stored(registry_path)
+    assert stored.link_id == LINK
+    with closing(open_registry(registry_path)) as connection:
+        held = project_links.cached_link(connection, local_project_id=LOCAL_PROJECT)
+    assert held is not None and held.link_id == LINK
+
+
+def test_an_unbound_row_is_refused_when_the_server_link_names_another_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    _registry(registry_path)
+    with closing(open_registry(registry_path)) as connection, transaction(connection):
+        connection.execute("UPDATE project_link SET link_id = ''")
+        connection.execute("UPDATE project_sync_plan SET link_id = ''")
+
+    def route(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            raise AssertionError("a mismatched re-observation must not apply")
+        foreign = _link().model_dump(mode="json")
+        foreign["local_project_id"] = new_id("project")
+        return httpx.Response(200, json=foreign)
+
+    _wired(monkeypatch, registry_path, route)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.sync_apply(_parameters())
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert "..." not in "".join(raised.value.next_actions)
+
+
+def _plan_parameters() -> dict[str, object]:
+    return {
+        "organization-id": ORGANIZATION,
+        "link-id": LINK,
+        "local-project-id": LOCAL_PROJECT,
+        "expected-link-revision": "1",
+        "local-revision": "initial",
+        "remote-revision": "initial",
+        "authorization-revision": f"personal:{ORGANIZATION}:1:1",
+        "idempotency-key": "sync-plan-idem-0002",
+    }
+
+
+def test_an_unbound_migrated_cache_row_is_rebound_from_the_server_before_plan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    _registry(registry_path)
+    with closing(open_registry(registry_path)) as connection, transaction(connection):
+        connection.execute("UPDATE project_link SET link_id = ''")
+        connection.execute("UPDATE project_sync_plan SET link_id = ''")
+    seen: list[str] = []
+    posted = _plan(plan_id=new_id("sync_plan"))
+
+    def route(request: httpx.Request) -> httpx.Response:
+        seen.append(f"{request.method} {request.url.path}")
+        if request.method == "GET" and request.url.path.endswith(f"/links/{LINK}"):
+            return httpx.Response(200, json=_link().model_dump(mode="json"))
+        if request.method == "POST":
+            return httpx.Response(200, json=posted.model_dump(mode="json"))
+        raise AssertionError(f"unexpected {request.method} {request.url.path}")
+
+    _wired(monkeypatch, registry_path, route)
+    answer = project_commands.sync_plan(_plan_parameters())
+
+    assert answer.payload.plan_id == posted.plan_id
+    assert seen[0].startswith("GET ")
+    assert any(item.startswith("POST ") for item in seen)
+    with closing(open_registry(registry_path)) as connection:
+        held = project_links.cached_link(connection, local_project_id=LOCAL_PROJECT)
+        planned = project_links.cached_sync_plan(
+            connection, local_project_id=LOCAL_PROJECT, plan_id=posted.plan_id
+        )
+    assert held is not None and held.link_id == LINK
+    assert planned is not None and planned.link_id == LINK
+
+
+def test_an_unbound_plan_is_refused_when_the_server_link_names_another_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    _registry(registry_path)
+    with closing(open_registry(registry_path)) as connection, transaction(connection):
+        connection.execute("UPDATE project_link SET link_id = ''")
+        connection.execute("UPDATE project_sync_plan SET link_id = ''")
+
+    def route(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            raise AssertionError("a mismatched re-observation must not plan")
+        foreign = _link().model_dump(mode="json")
+        foreign["local_project_id"] = new_id("project")
+        return httpx.Response(200, json=foreign)
+
+    _wired(monkeypatch, registry_path, route)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.sync_plan(_plan_parameters())
+    assert raised.value.code == "AI_STP_CONFLICT"
+    assert "..." not in "".join(raised.value.next_actions)
+
+
+def test_planning_refuses_a_local_project_id_that_is_not_a_project() -> None:
+    with pytest.raises(CliFailure) as raised:
+        project_commands.sync_plan({**_plan_parameters(), "local-project-id": "not-a-project"})
+    assert raised.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def test_no_plan_request_is_made_while_this_process_holds_the_local_write_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    _registry(registry_path)
+    contended: list[str] = []
+    posted = _plan(plan_id=new_id("sync_plan"))
+
+    def route(request: httpx.Request) -> httpx.Response:
+        other = sqlite3.connect(registry_path, timeout=0.1)
+        try:
+            other.execute("BEGIN IMMEDIATE")
+            other.rollback()
+            contended.append("free")
+        except sqlite3.OperationalError:
+            contended.append("locked")
+        finally:
+            other.close()
+        assert request.method == "POST"
+        return httpx.Response(200, json=posted.model_dump(mode="json"))
+
+    _wired(monkeypatch, registry_path, route)
+    project_commands.sync_plan(_plan_parameters())
+    assert contended == ["free"]

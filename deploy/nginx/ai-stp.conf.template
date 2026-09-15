@@ -40,6 +40,15 @@ server {
     proxy_read_timeout 300s;
     proxy_send_timeout 300s;
 
+    # Scanners POST a one-character `next-action` header (react2shell probes).
+    # Next.js action ids are long hashed references; 1-9 characters is never
+    # a real action from this build, and letting it through logs a server error
+    # for traffic that is not ours. An empty header is a normal POST and passes.
+    set $method_next_action "${request_method}:${http_next_action}";
+    if ($method_next_action ~ "^POST:.{1,9}$") {
+        return 400;
+    }
+
     # The API owns its versioned surface, the OpenAPI documents that describe it,
     # and the provider-protocol schemas whose $id points at this host.
     location /v1/ {

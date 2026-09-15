@@ -1539,6 +1539,7 @@ async def create_sync_plan(
             ctx=ctx,
             organization_id=organization_id,
             link_id=payload.link_id,
+            for_update=True,
         )
     )
     await require_capability(

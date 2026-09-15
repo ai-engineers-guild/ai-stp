@@ -6,6 +6,9 @@ from ai_stp_contracts.context import (
     ProjectLinkPlanResponse,
     ProjectLinkRequest,
     ProjectLinkResponse,
+    ProjectRevisionPullResponse,
+    ProjectRevisionPushRequest,
+    ProjectRevisionPushResponse,
     ProjectSyncApplyRequest,
     ProjectSyncPlanRequest,
     ProjectSyncPlanResponse,
@@ -158,5 +161,45 @@ def sync_apply(
             ProjectSyncPlanResponse,
             body=request,
             headers={"X-AI-STP-Organization-Id": organization_id},
+            attempts=endpoint.max_attempts,
+        )
+
+
+def revision_push(
+    endpoint: Endpoint,
+    access_token: str,
+    organization_id: str,
+    link_id: str,
+    request: ProjectRevisionPushRequest,
+) -> ProjectRevisionPushResponse:
+    with open_client(endpoint, access_token=access_token) as client:
+        return call(
+            client,
+            "POST",
+            f"/projects/links/{link_id}/revisions",
+            ProjectRevisionPushResponse,
+            body=request,
+            headers={"X-AI-STP-Organization-Id": organization_id},
+            attempts=endpoint.max_attempts,
+        )
+
+
+def revision_pull(
+    endpoint: Endpoint,
+    access_token: str,
+    organization_id: str,
+    link_id: str,
+    authorization_revision: str,
+) -> ProjectRevisionPullResponse:
+    with open_client(endpoint, access_token=access_token) as client:
+        return call(
+            client,
+            "GET",
+            f"/projects/links/{link_id}/revisions",
+            ProjectRevisionPullResponse,
+            headers={
+                "X-AI-STP-Organization-Id": organization_id,
+                "X-AI-STP-Authorization-Revision": authorization_revision,
+            },
             attempts=endpoint.max_attempts,
         )

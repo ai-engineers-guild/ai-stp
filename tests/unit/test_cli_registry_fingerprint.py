@@ -82,6 +82,11 @@ def test_a_scoped_read_returns_one_family_and_still_names_the_build() -> None:
         "project sync apply",
         "project sync plan",
     ]
+    revision = machine_help.registry({"path": "project revision"}).payload
+    assert [" ".join(command.path) for command in revision.commands] == [
+        "project revision pull",
+        "project revision push",
+    ]
     assert len(scoped.commands) < len(whole.commands)
     # A scoped read describes the same build as a full one, so what a caller
     # kept from either stays comparable.
