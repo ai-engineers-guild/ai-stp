@@ -51,7 +51,10 @@ change `ok` when that result was obtained in full. A partial or compensated
 mutating operation returns an error and `operation_id` rather than being
 masked as a warning or as a successful payload that names `rolled_back`.
 Diagnostic `doctor` remains `ok` with check results in the payload: the
-request was inspection.
+request was inspection. Completing `task continue` for intent `inspect` is
+the same: envelope `ok`, `data.task_id` is a `task_…` identifier, and
+`operation_id` stays null. A doctor report that is not `ready` does not make
+the task call a failure.
 
 `doctor` reports diagnostic results without applying registry migrations. Its
 `local_registry` check is `ready` when an existing readable registry only needs

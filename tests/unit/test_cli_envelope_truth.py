@@ -81,6 +81,13 @@ def test_capabilities_are_served_from_application_inspect() -> None:
     assert machine_help.capabilities({}).payload == inspect_capabilities()
 
 
+def test_doctor_is_served_from_application_inspect() -> None:
+    from ai_stp_cli.application.inspect import doctor as inspect_doctor
+    from ai_stp_cli.commands import doctor as doctor_command
+
+    assert doctor_command.run({}).payload == inspect_doctor()
+
+
 def test_envelope_actions_are_handler_continuations_only() -> None:
     held = Continuation(
         kind="advance",

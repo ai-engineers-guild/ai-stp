@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:68e506ac1d74acc151486bd5d531aed53c88c30908638006c8921abfb98759de",
+  "registry_digest": "sha256:606c3a4eac40514f4ea8973c76113f04ced4df71aab10cf6a74019671b624035",
   "global_options": [
     {
       "name": "json",
@@ -9222,6 +9222,187 @@
       "next_actions": [
         "help --path install --json",
         "help --path target --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "answer"
+      ],
+      "summary": "Supply one typed answer to an open task question.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "task",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Task stable id.",
+          "choices": []
+        },
+        {
+          "name": "revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision this answer is based on.",
+          "choices": []
+        },
+        {
+          "name": "question-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Open question this answer belongs to.",
+          "choices": []
+        },
+        {
+          "name": "value",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Answer value.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "cancel"
+      ],
+      "summary": "Abandon a durable task that has not settled.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "task",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Task stable id.",
+          "choices": []
+        },
+        {
+          "name": "revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision this cancel is based on.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "continue"
+      ],
+      "summary": "Advance a durable task by one in-process step.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "task",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Task stable id.",
+          "choices": []
+        },
+        {
+          "name": "revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision this step is based on.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "start"
+      ],
+      "summary": "Create a durable agent task for one closed intent.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "intent",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Closed intent this task will drain.",
+          "choices": [
+            "inspect"
+          ]
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact intent.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "status"
+      ],
+      "summary": "Read one durable task without changing it.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "task",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Task stable id.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
       ]
     },
     {
