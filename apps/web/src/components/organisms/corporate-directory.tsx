@@ -105,25 +105,11 @@ export function CorporateDirectory({
   return (
     <div className="min-w-0 space-y-6">
       {showHeader ? (
-        <header className="flex min-w-0 flex-wrap items-end justify-between gap-5">
+        <header className="min-w-0 space-y-2">
           <div className="min-w-0 space-y-2">
             <h1 className="text-4xl font-medium tracking-tight break-words">{t(titleKey)}</h1>
             <p className="text-muted-foreground text-lg">{description}</p>
           </div>
-          {canCreate ? (
-            <Button
-              type="button"
-              size="lg"
-              onClick={() => {
-                setAdding((open) => !open);
-              }}
-            >
-              <span aria-hidden="true" className="text-xl leading-none">
-                +
-              </span>
-              {adding ? t("cancel") : addLabel}
-            </Button>
-          ) : null}
         </header>
       ) : null}
       <CorporateDirectoryResults
@@ -131,6 +117,16 @@ export function CorporateDirectory({
         items={items}
         initialQuery={initialQuery}
         initialStatus={initialStatus}
+        addLabel={showHeader && canCreate ? addLabel : undefined}
+        cancelLabel={t("cancel")}
+        adding={adding}
+        onAdd={
+          showHeader && canCreate
+            ? () => {
+                setAdding((open) => !open);
+              }
+            : undefined
+        }
         filters={new URLSearchParams({
           ...(initialQuery ? { query: initialQuery } : {}),
           ...(initialStatus ? { status: initialStatus } : {}),

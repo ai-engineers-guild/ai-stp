@@ -48,13 +48,14 @@ function relationHref(ref: DirectoryRef, returnFilters: string) {
 }
 
 function EntityMark({ resource, item }: { resource: DirectoryResource; item: DirectoryItem }) {
-  if (resource === "components" && isComponentType(item.component_type)) {
-    return <ComponentTypeIcon type={item.component_type} compact />;
-  }
   const icon = resource === "components" ? "component" : resourceIcons[resource];
   return (
     <span className="bg-muted border-border text-foreground inline-flex size-14 shrink-0 items-center justify-center rounded-md border">
-      <Icon name={icon} size="lg" />
+      {resource === "components" && isComponentType(item.component_type) ? (
+        <ComponentTypeIcon type={item.component_type} compact />
+      ) : (
+        <Icon name={icon} size="lg" />
+      )}
     </span>
   );
 }
@@ -84,41 +85,20 @@ function StatusBadge({ state, labels }: { state: string; labels: Labels }) {
   );
 }
 
-function RelationBlock({
-  icon,
-  label,
-  refs,
-  labels,
+function ReferenceChip({
+  reference,
   returnFilters,
 }: {
-  icon: IconName;
-  label: string;
-  refs: readonly DirectoryRef[];
-  labels: Labels;
+  reference: DirectoryRef;
   returnFilters: string;
 }) {
   return (
-    <div className="md:border-border min-w-0 space-y-2 md:border-r md:pr-5 last:md:border-r-0 last:md:pr-0">
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Icon name={icon} size="sm" />
-        <span>{label}</span>
-      </div>
-      {refs.length ? (
-        <div className="flex min-w-0 flex-wrap gap-2">
-          {refs.map((ref) => (
-            <Link
-              key={ref.id}
-              href={relationHref(ref, returnFilters)}
-              className="bg-muted hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex max-w-full items-center rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-            >
-              <span className="max-w-full truncate">{ref.name}</span>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">{labels.notAvailable}</p>
-      )}
-    </div>
+    <Link
+      href={relationHref(reference, returnFilters)}
+      className="bg-muted hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex max-w-full items-center rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+    >
+      <span className="max-w-full truncate">{reference.name}</span>
+    </Link>
   );
 }
 
@@ -146,7 +126,31 @@ function ComponentMetadata({ item, labels }: { item: DirectoryItem; labels: Labe
   );
 }
 
-function CardRelations({
+function primaryReferences(resource: DirectoryResource, item: DirectoryItem) {
+  if (resource === "projects" || resource === "teams") return item.technologies ?? [];
+  if (resource === "members") return item.teams ?? [];
+  if (resource === "technologies") return item.categories ?? [];
+  return [];
+}
+
+function footerReferences(resource: DirectoryResource, item: DirectoryItem) {
+  if (resource === "projects") {
+    return {
+      label: "ownerTeam",
+      icon: "team" as IconName,
+      refs: item.owner_team ? [item.owner_team] : [],
+    };
+  }
+  if (resource === "teams") {
+    return { label: "lead", icon: "user" as IconName, refs: item.leads ?? [] };
+  }
+  if (resource === "technologies") {
+    return { label: "owner", icon: "user" as IconName, refs: item.owner ? [item.owner] : [] };
+  }
+  return null;
+}
+
+function CardFooter({
   resource,
   item,
   labels,
@@ -157,115 +161,25 @@ function CardRelations({
   labels: Labels;
   returnFilters: string;
 }) {
-  if (resource === "projects") {
-    return (
-      <div className="border-border grid min-w-0 gap-5 border-t pt-5 md:grid-cols-3">
-        <RelationBlock
-          icon="team"
-          label={labels.ownerTeam}
-          labels={labels}
-          refs={item.owner_team ? [item.owner_team] : []}
-          returnFilters={returnFilters}
-        />
-        <RelationBlock
-          icon="team"
-          label={labels.teams}
-          labels={labels}
-          refs={item.teams ?? []}
-          returnFilters={returnFilters}
-        />
-        <RelationBlock
-          icon="technology"
-          label={labels.technologies}
-          labels={labels}
-          refs={item.technologies ?? []}
-          returnFilters={returnFilters}
-        />
+  const footer = footerReferences(resource, item);
+  if (!footer) return null;
+  return (
+    <div className="border-border mt-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t pt-4">
+      <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
+        <Icon name={footer.icon} size="sm" />
+        <span>{labels[footer.label as keyof Labels]}</span>
       </div>
-    );
-  }
-  if (resource === "teams") {
-    return (
-      <div className="border-border grid min-w-0 gap-5 border-t pt-5 md:grid-cols-3">
-        <RelationBlock
-          icon="user"
-          label={labels.lead}
-          labels={labels}
-          refs={item.leads ?? []}
-          returnFilters={returnFilters}
-        />
-        <RelationBlock
-          icon="component"
-          label={labels.projects}
-          labels={labels}
-          refs={item.projects ?? []}
-          returnFilters={returnFilters}
-        />
-        <RelationBlock
-          icon="technology"
-          label={labels.technologies}
-          labels={labels}
-          refs={item.technologies ?? []}
-          returnFilters={returnFilters}
-        />
+      <div className="flex min-w-0 flex-wrap justify-end gap-2">
+        {footer.refs.length ? (
+          footer.refs.map((reference) => (
+            <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
+          ))
+        ) : (
+          <span className="text-muted-foreground text-sm">{labels.notAvailable}</span>
+        )}
       </div>
-    );
-  }
-  if (resource === "members") {
-    return (
-      <div className="border-border grid min-w-0 gap-5 border-t pt-5 md:grid-cols-3">
-        <RelationBlock
-          icon="team"
-          label={labels.team}
-          labels={labels}
-          refs={item.teams ?? []}
-          returnFilters={returnFilters}
-        />
-        <RelationBlock
-          icon="component"
-          label={labels.projects}
-          labels={labels}
-          refs={item.projects ?? []}
-          returnFilters={returnFilters}
-        />
-        <RelationBlock
-          icon="technology"
-          label={labels.technologies}
-          labels={labels}
-          refs={item.technologies ?? []}
-          returnFilters={returnFilters}
-        />
-      </div>
-    );
-  }
-  if (resource === "technologies") {
-    return (
-      <div className="border-border grid min-w-0 gap-5 border-t pt-5 md:grid-cols-3">
-        <RelationBlock
-          icon="user"
-          label={labels.author}
-          labels={labels}
-          refs={item.owner ? [item.owner] : []}
-          returnFilters={returnFilters}
-        />
-        <RelationBlock
-          icon="component"
-          label={labels.projects}
-          labels={labels}
-          refs={item.projects ?? []}
-          returnFilters={returnFilters}
-        />
-        <RelationBlock
-          icon="team"
-          label={labels.teams}
-          labels={labels}
-          refs={item.teams ?? []}
-          returnFilters={returnFilters}
-        />
-      </div>
-    );
-  }
-  return null;
+    </div>
+  );
 }
 
 export function CorporateDirectoryCard({
@@ -283,6 +197,7 @@ export function CorporateDirectoryCard({
 }) {
   const href = directoryHref(resource, item.id, returnFilters);
   const title = item.name || (resource === "members" ? labels.unknownEmployee : item.name);
+  const references = primaryReferences(resource, item);
   return (
     <li className="min-w-0">
       <article
@@ -292,7 +207,7 @@ export function CorporateDirectoryCard({
           view === "list" ? "p-4" : "p-5",
         )}
       >
-        <div className="flex min-w-0 items-start gap-4 pr-16">
+        <div className="flex min-w-0 items-start gap-4 pr-20">
           <EntityMark resource={resource} item={item} />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -313,13 +228,24 @@ export function CorporateDirectoryCard({
             {resource === "members" && item.role ? (
               <p className="text-muted-foreground mt-1 text-base">{item.role}</p>
             ) : null}
+            {references.length ? (
+              <div className="mt-4 flex min-w-0 flex-wrap gap-2">
+                {references.map((reference) => (
+                  <ReferenceChip
+                    key={reference.id}
+                    reference={reference}
+                    returnFilters={returnFilters}
+                  />
+                ))}
+              </div>
+            ) : null}
             {item.description ? (
-              <p className="text-muted-foreground mt-2 max-w-3xl text-sm leading-relaxed break-words">
+              <p className="text-muted-foreground mt-4 max-w-3xl text-sm leading-relaxed break-words">
                 {item.description}
               </p>
             ) : null}
             {resource === "components" ? (
-              <div className="mt-3">
+              <div className="mt-4">
                 <ComponentMetadata item={item} labels={labels} />
               </div>
             ) : null}
@@ -346,14 +272,7 @@ export function CorporateDirectoryCard({
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
         </div>
-        {resource !== "components" ? (
-          <CardRelations
-            resource={resource}
-            item={item}
-            labels={labels}
-            returnFilters={returnFilters}
-          />
-        ) : null}
+        <CardFooter resource={resource} item={item} labels={labels} returnFilters={returnFilters} />
       </article>
     </li>
   );
