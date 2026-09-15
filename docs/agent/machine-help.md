@@ -43,6 +43,13 @@ The machine-help shape is declared with the wire models rather than inside the a
 
 The command list belongs to the registry and grows with implemented tasks. It is not duplicated here: a copy in this document would diverge from the implementation on the first change, while the Skill reads the implementation.
 
+Durable agent journeys use `task start`, `task answer`, `task continue`,
+`task status`, and `task cancel`. Discovery is `help --path task --json`. The
+first intent is `inspect`; it calls the same in-process inspect services as
+`doctor` and `capabilities`. Installation through this surface is not declared
+as an intent yet. There is no machine-global current task: every call names
+`--task`.
+
 ## What Enters the Registry
 
 A command appears in machine help only when it works. A declared but unimplemented command is worse than an absent one: the Skill would plan around a step that cannot be performed.

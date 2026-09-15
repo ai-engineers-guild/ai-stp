@@ -105,7 +105,7 @@ def test_doctor_distinguishes_default_index_from_optional_github(
     def no_tool(_name: str) -> None:
         return None
 
-    monkeypatch.setattr("ai_stp_cli.commands.doctor.shutil.which", no_tool)
+    monkeypatch.setattr("ai_stp_cli.application.inspect.shutil.which", no_tool)
     report = doctor.run({}).payload
     check = next(item for item in report.checks if item.name == "provider_binding")
 

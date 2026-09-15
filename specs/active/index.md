@@ -88,6 +88,6 @@ last_verified: "2026-08-03"
 | [SPEC-077-shared-product-mode-web-ui.md](SPEC-077-shared-product-mode-web-ui.md) | SPEC-077: Shared Next.js SaaS UI with server-resolved product context. | 2026-09-11 |
 | [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-14 |
 | [SPEC-079-corporate-core.md](SPEC-079-corporate-core.md) | SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal. | 2026-09-12 |
-| [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the reserved agent task contract. | 2026-09-15 |
+| [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the agent task contract. | 2026-09-15 |
 
 <!-- END CONTENTS -->

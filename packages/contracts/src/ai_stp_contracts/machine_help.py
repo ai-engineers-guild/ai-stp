@@ -42,6 +42,7 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.errors import ErrorHandling, ExitClass
 from ai_stp_foundation.harnesses import HarnessId
+from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_passports.versions import ComponentType
 
 #: State effects are independent of task authority and the confirmation binding
@@ -325,6 +326,47 @@ class DoctorReport(BaseModel):
     schema_version: Literal[1] = 1
     state: SetupState
     checks: Annotated[list[DoctorCheck], Field(min_length=1)]
+
+
+type TaskState = Literal["planned", "blocked", "running", "completed", "failed", "cancelled"]
+type TaskIntent = Literal["inspect"]
+type TaskId = Annotated[str, Field(pattern=stable_id_pattern("task"))]
+
+
+class TaskQuestion(BaseModel):
+    """One typed question the task engine still needs before it can continue."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    question_id: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*$")]
+    prompt: Annotated[str, Field(min_length=1)]
+    value_type: ParameterType
+    choices: list[str]
+
+
+class TaskInspectOutcome(BaseModel):
+    """Inspection drained in-process by the inspect intent."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    doctor: DoctorReport
+    capabilities: Capabilities
+
+
+class TaskView(BaseModel):
+    """One durable agent task. Envelope `ok` is independent of `state`."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    task_id: TaskId
+    revision: Annotated[int, Field(ge=1)]
+    intent: TaskIntent
+    state: TaskState
+    goal_satisfied: bool
+    questions: list[TaskQuestion]
+    outcome: TaskInspectOutcome | None
+    child_operation_ids: list[str]
 
 
 class VersionReport(BaseModel):
