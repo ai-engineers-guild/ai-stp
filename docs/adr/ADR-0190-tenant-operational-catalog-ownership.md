@@ -9,7 +9,7 @@ Status: accepted.
 
 ## Context
 
-SPEC-083 REQ-8304 and the original Corporate Hub goal 9 require an employee to
+SPEC-083 REQ-8313 and the original Corporate Hub goal 9 require an employee to
 own a setup or component operationally while its author can be someone else.
 Catalog metadata ownership and ownership claims govern provenance and publication;
 neither represents a tenant's operational responsibility.

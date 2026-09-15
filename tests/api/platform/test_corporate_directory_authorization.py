@@ -1,4 +1,4 @@
-"""PostgreSQL directory/overview isolation (SPEC-082 REQ-8210/8211/8215)."""
+"""PostgreSQL directory/overview isolation (SPEC-083 REQ-8310/8311/8315)."""
 
 from __future__ import annotations
 

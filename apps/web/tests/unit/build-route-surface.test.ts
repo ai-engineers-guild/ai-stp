@@ -17,7 +17,7 @@ const publicPages = [
   "(content)/content/[type]/[slug]/page.content.tsx",
 ];
 
-describe("native build route isolation (REQ-8209)", () => {
+describe("native build route isolation (REQ-8309)", () => {
   it.each(["public_saas", "self_hosted", "corporate_hub"])(
     "only disables middleware URL normalization in %s",
     async (profile) => {

@@ -30,7 +30,7 @@ existing stable IDs and retained relations. Ownership does not rewrite authorshi
 competence, project use, verification, installation state, or visibility.
 
 Authorize presentation editing through current same-tenant administrator, team-lead,
-or technology-owner authority as specified by SPEC-082. Team-lead cross-entity
+or technology-owner authority as specified by SPEC-083. Team-lead cross-entity
 presentation editing does not imply cross-entity administration. Existing scoped
 RBAC remains authoritative for access/security changes. Every write still checks
 anchor access, current authorization/object revisions, and durable idempotency.

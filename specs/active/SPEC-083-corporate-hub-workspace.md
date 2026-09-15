@@ -68,7 +68,7 @@ It preserves the incumbent Catalog card/list and two-column detail composition,
 tokens, typography, locale controls, theme controls, and account drawer. It does
 not redesign administration or Technology Landscape. Dashboard is an empty route.
 
-- `REQ-8209`: Local context has no website deployment. Personal SaaS retains its
+- `REQ-8309`: Local context has no website deployment. Personal SaaS retains its
   existing routes and navigation. The corporate build excludes Articles, Regional
   Services, Company, and Legal pages from its route/build surface, not merely from
   navigation. Corporate routes use `/corporate/`; Overview is
@@ -77,7 +77,7 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   destinations are Overview, Catalog, Organization, Landscape, Dashboard, and
   For Admins; the last destination requires server-authorized administration
   capabilities. A Corporate Hub footer group links the four workspace destinations.
-- `REQ-8210`: Overview shows the organization name and quick-navigation cards for
+- `REQ-8310`: Overview shows the organization name and quick-navigation cards for
   teams, projects, employees, and technologies, with deduplicated counts from the
   authorized graph and directory relationships.
   Its expandable DAG/WBS projection
@@ -86,7 +86,7 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   parents without manufacturing additional membership records. Expansion-depth
   controls reach employees; filters support multiple selections. Team-derived
   projects are a labeled projection distinct from explicit employee/project links.
-- `REQ-8211`: Team, project, technology, and employee directories share Catalog
+- `REQ-8311`: Team, project, technology, and employee directories share Catalog
   search, filter, full-width list, and two-column card composition. Team filters
   include leads, technologies, and related teams; project filters include teams
   and technologies; technology filters include projects, teams, and categories;
@@ -103,13 +103,13 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   focus handling, labeled two-column fields and Reset/Apply footer. Selection
   changes remain a draft until Apply; dismissal discards the draft. Name sorting
   supports ascending and descending order rather than a business status sort.
-- `REQ-8212`: Shared two-column detail composition shows Markdown description,
+- `REQ-8312`: Shared two-column detail composition shows Markdown description,
   links, catalog assignments, and named related objects. Team details show
   employees/projects; project details show technologies/teams and the owner team;
   technology details show owner and reverse relations; employee details show their
   profile, teams, team-derived projects, and authored catalog components. Catalog
   authorship and designated ownership remain independent concepts.
-- `REQ-8213`: Add designated technology and catalog-object ownership independently
+- `REQ-8313`: Add designated technology and catalog-object ownership independently
   of authorship and competence. Administrators can edit project/team/technology
   presentation. Team leads can edit team presentation, owner-team projects, and
   other employee profiles. The brief's broader team-lead editing authority applies
@@ -117,14 +117,14 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   visibility, publication, installation, or security policy. Technology owners can
   edit their technology presentation. Enforce these authorities on endpoints, not
   only navigation, and keep tenant and revision checks mandatory.
-- `REQ-8214`: Shared presentation editors support Markdown description, replacement
+- `REQ-8314`: Shared presentation editors support Markdown description, replacement
   of the default avatar with an uploaded avatar, media uploads, and links. Corporate
   presentation and media remain tenant-scoped; public-description editing does not
   publish private organization content to the personal SaaS profile. Reuse existing
   profile controls and storage mechanisms where their authorization fits. Validate
   MIME type, size, links, and same-tenant media references mechanically. A failed
   upload/write preserves the draft; unused uploads have an explicit cleanup path.
-- `REQ-8215`: Add server-side authorized directory and Overview projections rather
+- `REQ-8315`: Add server-side authorized directory and Overview projections rather
   than fetching unrestricted collections and filtering in the browser. Preserve
   existing typed stable identities, including the historical `operation_` team
   namespace; do not replace IDs with a second UUID scheme. Additive migrations
