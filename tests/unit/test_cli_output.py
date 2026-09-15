@@ -11,6 +11,7 @@ from ai_stp_cli.output import (
     wants_machine_mode,
 )
 from ai_stp_contracts.machine_help import VersionReport
+from ai_stp_foundation.envelope import Continuation
 
 PAYLOAD = VersionReport(
     cli_version="1.2.3",
@@ -42,6 +43,7 @@ def test_a_success_is_one_json_line_with_the_payload_inside() -> None:
     assert envelope["request_id"] == REQUEST_ID
     assert envelope["data"]["cli_version"] == "1.2.3"
     assert envelope["next_actions"] == ["d"]
+    assert envelope["continuations"] == []
 
 
 def test_a_failure_is_one_json_line_and_returns_the_contract_exit_class() -> None:
@@ -120,6 +122,27 @@ def test_an_unknown_command_points_at_the_machine_registry() -> None:
     failure = unknown_command("No such command 'nope'.")
     assert failure.next_actions == ["help --agent --json"]
     assert failure.exit_code == 2
+
+
+def test_continuations_are_emitted_on_the_wire_and_derive_argv() -> None:
+    stream = io.StringIO()
+    failure = CliFailure(
+        "AI_STP_USER_DECISION_REQUIRED",
+        "need confirm",
+        continuations=[
+            Continuation(
+                kind="advance",
+                path=["harness", "remove"],
+                arguments={"harness": "codex", "prefix": "/p", "target": "/t", "confirm": ""},
+            )
+        ],
+    )
+    render_failure(failure, machine=True, request_id=REQUEST_ID, stream=stream)
+    envelope = json.loads(stream.getvalue())
+    assert envelope["continuations"][0]["path"] == ["harness", "remove"]
+    assert envelope["next_actions"] == [
+        "harness remove --harness codex --prefix /p --target /t --confirm --json"
+    ]
 
 
 class _Nested(VersionReport):

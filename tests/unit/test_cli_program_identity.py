@@ -6,6 +6,7 @@ import io
 import os
 import sqlite3
 import stat
+import sys
 import zipfile
 from contextlib import closing
 from pathlib import Path
@@ -23,7 +24,7 @@ from ai_stp_cli.local import cache, cli_program, revisions, versions
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_foundation.canonical import JsonValue
 
-SCRIPT = b"#!/bin/sh\nprintf 'ready\\n'\n"
+SCRIPT = f"#!{sys.executable}\nimport sys\nsys.stdout.write('ready\\n')\n".encode()
 
 
 def _component(connection: sqlite3.Connection, payload: bytes = SCRIPT) -> str:
@@ -91,10 +92,9 @@ def test_explicit_uninstalled_version_cannot_invoke_a_different_current_program(
         assert raised.value.code == "AI_STP_NOT_FOUND"
 
 
-@pytest.mark.skipif(
-    os.name == "nt", reason="POSIX shell invocation; Windows needs a native fixture"
-)
 def test_explicit_and_implicit_invocation_select_the_actual_program() -> None:
+    if " " in sys.executable:
+        pytest.skip("the shebang parser does not quote interpreter paths")
     with closing(open_registry(configured_path(), create=True)) as connection:
         stable_id = _component(connection)
         cli_program.install(connection, stable_id=stable_id, version="1.0")

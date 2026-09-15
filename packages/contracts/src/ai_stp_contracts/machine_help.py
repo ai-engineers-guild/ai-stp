@@ -208,6 +208,10 @@ class Capabilities(BaseModel):
     #: caller see the mismatch before a command hits it.
     local_schema_version: Annotated[int, Field(ge=1)]
 
+    #: Whether this process loaded the published distribution or this checkout.
+    #: A source tree and a released wheel can report one version string.
+    installation: Literal["distribution", "source"]
+
     supported_harnesses: Annotated[list[HarnessId], Field(min_length=1)]
     catalog_enabled: bool
     sync_enabled: bool

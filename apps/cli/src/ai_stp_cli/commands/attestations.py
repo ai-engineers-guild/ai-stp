@@ -26,6 +26,7 @@ from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home, write_private
 from ai_stp_contracts.machine_help import CliSignedAttestation
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.refs import ComponentRef
 
 MAX_ATTESTATION_BYTES = 256 * 1024
@@ -86,10 +87,48 @@ def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
     component_root = Path(str(selected_root)).expanduser() if selected_root else None
     output = Path(_required(parameters, "output")).expanduser()
     if parameters.get("confirm") is not True:
+        arguments: dict[str, str] = {}
+        missing: list[str] = []
+        for name in (
+            "id",
+            "version",
+            "output",
+            "check-id",
+            "policy-version",
+            "harness-id",
+            "harness-version",
+            "provider-version",
+            "result",
+        ):
+            text = str(parameters.get(name) or "")
+            if text:
+                arguments[name] = text
+            else:
+                missing.append(name)
+        cases = parameters.get("test-case-id")
+        values = (
+            tuple(cast(list[object] | tuple[object, ...], cases))
+            if isinstance(cases, list | tuple)
+            else ()
+        )
+        held = [str(item) for item in values]
+        if held:
+            arguments["test-case-id"] = held[0]
+        else:
+            missing.append("test-case-id")
+        if component_root is not None:
+            arguments["component-root"] = str(component_root)
         raise CliFailure(
             "AI_STP_USER_DECISION_REQUIRED",
             "attestation signing requires confirmation of the exact local evidence",
-            next_actions=["attestation sign ... --confirm --json"],
+            continuations=[
+                Continuation(
+                    kind="advance",
+                    path=["attestation", "sign"],
+                    arguments={**arguments, "confirm": ""},
+                    missing=missing,
+                )
+            ],
         )
     if output.exists() or output.is_symlink():
         raise CliFailure(

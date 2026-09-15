@@ -297,13 +297,24 @@ def sync_apply(parameters: Mapping[str, object]) -> Answer[ProjectSyncPlanRespon
                         state="unknown" if unknown else "failed",
                     )
                 raise _with_effect(failure, parameters, unknown=unknown) from failure
-            with transaction(connection):
-                project_links.record_sync_apply(
-                    connection,
-                    local_project_id=local_project_id,
-                    plan=response,
-                    idempotency_key=request.idempotency_key,
-                )
+            try:
+                with transaction(connection):
+                    project_links.record_sync_apply(
+                        connection,
+                        local_project_id=local_project_id,
+                        plan=response,
+                        idempotency_key=request.idempotency_key,
+                    )
+            except (OSError, sqlite3.Error) as error:
+                raise _with_effect(
+                    CliFailure(
+                        "AI_STP_DEPENDENCY_UNAVAILABLE",
+                        "the sync was applied; recording the receipt failed",
+                        retryable=True,
+                    ),
+                    parameters,
+                    unknown=True,
+                ) from error
         try:
             refreshed = cloud_context.show(endpoint(), held.access_token, organization_id, link_id)
         except CliFailure:
@@ -389,26 +400,38 @@ def revision_push(parameters: Mapping[str, object]) -> Answer[ProjectRevisionPus
                         state="unknown" if unknown else "failed",
                     )
                 raise _with_push_effect(failure, parameters, request, unknown=unknown) from failure
-            with transaction(connection):
-                project_ledger.record_push(
-                    connection,
-                    local_project_id=local_project_id,
-                    idempotency_key=request.idempotency_key,
-                    receipt=response,
-                )
-                if response.receipt.revision_id is not None:
-                    project_ledger.cache_revision(
+            try:
+                with transaction(connection):
+                    project_ledger.record_push(
                         connection,
                         local_project_id=local_project_id,
-                        link_id=link_id,
-                        item=_pushed_view(
-                            request,
-                            response,
-                            account_id=held.account_id,
-                            device_id=held.device_id,
-                        ),
-                        origin="pushed",
+                        idempotency_key=request.idempotency_key,
+                        receipt=response,
                     )
+                    if response.receipt.revision_id is not None:
+                        project_ledger.cache_revision(
+                            connection,
+                            local_project_id=local_project_id,
+                            link_id=link_id,
+                            item=_pushed_view(
+                                request,
+                                response,
+                                account_id=held.account_id,
+                                device_id=held.device_id,
+                            ),
+                            origin="pushed",
+                        )
+            except (OSError, sqlite3.Error) as error:
+                raise _with_push_effect(
+                    CliFailure(
+                        "AI_STP_DEPENDENCY_UNAVAILABLE",
+                        "the revision was pushed; recording the receipt failed",
+                        retryable=True,
+                    ),
+                    parameters,
+                    request,
+                    unknown=True,
+                ) from error
         try:
             refreshed = cloud_context.show(endpoint(), held.access_token, organization_id, link_id)
         except CliFailure:
@@ -1114,7 +1137,7 @@ def import_register(parameters: Mapping[str, object]) -> Answer[ImportedSetup]:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "the exact import plan digest is required",
-            next_actions=["setup import register ... --plan-digest <digest> --json"],
+            next_actions=["help --path setup --json"],
         )
     harness = _harness(parameters)
     root = _root(parameters)

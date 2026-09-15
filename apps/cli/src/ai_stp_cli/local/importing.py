@@ -796,7 +796,7 @@ def record_backup(
             # A command, not a sentence. `next_actions` is read by an agent that
             # runs what it finds there, and "run the provider's backup command"
             # is advice it has no way to follow.
-            next_actions=["setup import register ... --backup-ref <ref from the provider> --json"],
+            next_actions=["help --path setup --json"],
         )
     if not protocol_v3.BACKUP_REF_PATTERN.fullmatch(provider_ref):
         # The vendored kit's own shape. A reference is checked for form here
@@ -808,7 +808,7 @@ def record_backup(
             "AI_STP_VALIDATION_ERROR",
             "that is not the shape of a provider backup reference",
             details={"expected": protocol_v3.BACKUP_REF_PATTERN.pattern},
-            next_actions=["setup import register --backup-ref slot-<twelve digits> ... --json"],
+            next_actions=["help --path setup --json"],
         )
     backup_id = new_id("backup")
     connection.execute(
@@ -907,7 +907,8 @@ def register(
             details={"skipped": ", ".join(left_out)},
             next_actions=[
                 "setup import register --partial "
-                f"--root {inspection.root} --harness {inspection.harness_id} ... --json"
+                f"--root {inspection.root} --harness {inspection.harness_id} "
+                "--backup-ref <ref> --plan-digest <digest> --json"
             ],
         )
 

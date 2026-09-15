@@ -218,9 +218,18 @@ export async function readComponent(
     : publicApiGetLive<ComponentDetail>(path);
 }
 
-export async function readSetup(stableId: SetupId): Promise<SetupDetail> {
-  // An older server may omit the additive gallery field during a rolling upgrade.
-  const detail = await publicApiGet<SetupDetail>(`/v1/catalog/setups/${stableId}`);
+export async function readSetup(
+  stableId: SetupId,
+  sessionToken?: string | null,
+): Promise<SetupDetail> {
+  // Presentation bio is mutable overlay on an otherwise cacheable catalogue
+  // document. A force-cached GET kept a saved biography off the public page
+  // until the cache expired — the setup catalog path never opted into live
+  // reads the way the component path did.
+  const path = `/v1/catalog/setups/${stableId}`;
+  const detail = sessionToken
+    ? await catalogPrivateGet<SetupDetail>(path, sessionToken)
+    : await publicApiGetLive<SetupDetail>(path);
   const media = (detail as { media?: SetupDetail["media"] }).media;
   return { ...detail, media: media ?? [] };
 }

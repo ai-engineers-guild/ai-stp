@@ -3614,6 +3614,51 @@
         "title": "ContextDelta",
         "type": "object"
       },
+      "Continuation": {
+        "additionalProperties": false,
+        "description": "One next step with bound values, and the names still missing.\n\n``next_actions`` remains the argv an older caller runs. This object is the\ncanonical form: a path this build declares, arguments already known, and\n``missing`` for anything the caller must still supply. A command that still\nhas holes is not emitted as runnable-looking argv.",
+        "properties": {
+          "arguments": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Arguments",
+            "type": "object"
+          },
+          "kind": {
+            "enum": [
+              "retry",
+              "advance",
+              "inspect",
+              "blocked",
+              "terminal"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "path": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Path",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "path"
+        ],
+        "title": "Continuation",
+        "type": "object"
+      },
       "CorporateAuditEntry": {
         "additionalProperties": true,
         "properties": {
@@ -6063,6 +6108,13 @@
         "additionalProperties": true,
         "description": "The single JSON object of a failed or partial machine invocation.",
         "properties": {
+          "continuations": {
+            "items": {
+              "$ref": "#/components/schemas/Continuation"
+            },
+            "title": "Continuations",
+            "type": "array"
+          },
           "error": {
             "$ref": "#/components/schemas/CliError"
           },

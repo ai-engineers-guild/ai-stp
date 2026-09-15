@@ -96,10 +96,23 @@ for (const [objectKind, stableId] of [
       const bio = "A complete workspace with tools and instructions. ".repeat(12).trim();
       await page.goto(`/en/objects/${objectKind}/${stableId}/edit`);
       await page.locator("#presentation-bio").fill(bio);
-      await page.getByRole("button", { name: "Save presentation", exact: true }).click();
-      await expect(page.getByText("Presentation saved", { exact: true })).toBeVisible();
+      await page
+        .getByRole("button", {
+          name: /Save presentation|\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435/i,
+        })
+        .click();
+      await expect(
+        page
+          .getByText(
+            /Presentation saved|\u041f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e/i,
+          )
+          .first(),
+      ).toBeVisible();
       await page.goto(`/en/catalog/${objectKind}s/${stableId}`);
-      await expect(page.getByText(bio, { exact: true })).toBeVisible();
+      await expect(page.getByLabel(/Description|\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/i)).toContainText(
+        bio,
+        { timeout: 15_000 },
+      );
     });
 
     test("rejects unsupported client-side mime before upload", async ({ page }) => {
