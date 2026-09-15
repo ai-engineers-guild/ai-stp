@@ -25,12 +25,47 @@ from ai_stp_foundation.ids import stable_id_pattern
 type RequestId = Annotated[str, Field(pattern=stable_id_pattern("request"))]
 type OperationId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
 
+#: Additive envelope fields introduced after the 1.0 required set. An older
+#: producer omits them; the wire schema must still accept that document.
+_ADDITIVE_OPTIONAL_FIELDS: frozenset[str] = frozenset({"continuations"})
+
 
 def _open_wire_object(schema: JsonSchemaValue) -> None:
-    """Envelope wire policy: all declared fields present, additions tolerated."""
+    """Envelope wire policy: declared 1.0 fields present, additions tolerated."""
     properties = schema.get("properties", {})
-    schema["required"] = sorted(properties)
+    schema["required"] = sorted(
+        name for name in properties if name not in _ADDITIVE_OPTIONAL_FIELDS
+    )
     schema["additionalProperties"] = True
+
+
+class Continuation(BaseModel):
+    """One next step with bound values, and the names still missing.
+
+    ``next_actions`` remains the argv an older caller runs. This object is the
+    canonical form: a path this build declares, arguments already known, and
+    ``missing`` for anything the caller must still supply. A command that still
+    has holes is not emitted as runnable-looking argv.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["retry", "advance", "inspect", "blocked", "terminal"]
+    path: Annotated[list[str], Field(min_length=1)]
+    arguments: dict[str, str] = Field(default_factory=dict)
+    missing: list[str] = Field(default_factory=list)
+
+
+def continuation_command(item: Continuation) -> str:
+    """Argv for one continuation, or a scoped help read when values are missing."""
+    if item.missing:
+        return f"help --path {item.path[0]} --json"
+    tokens = list(item.path)
+    for name, value in item.arguments.items():
+        tokens.append(f"--{name}" if value == "" else f"--{name} {value}")
+    if "json" not in item.arguments:
+        tokens.append("--json")
+    return " ".join(tokens)
 
 
 class CliError(BaseModel):
@@ -56,6 +91,7 @@ class SuccessEnvelope(BaseModel):
     data: dict[str, JsonValue] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
     next_actions: list[str] = Field(default_factory=list)
+    continuations: list[Continuation] = Field(default_factory=list[Continuation])
 
 
 class ErrorEnvelope(BaseModel):
@@ -69,6 +105,7 @@ class ErrorEnvelope(BaseModel):
     operation_id: OperationId | None = None
     error: CliError
     next_actions: list[str] = Field(default_factory=list)
+    continuations: list[Continuation] = Field(default_factory=list[Continuation])
 
 
 class CliErrorReader(CliError):

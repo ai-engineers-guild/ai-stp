@@ -167,7 +167,7 @@ def _environment(passport: ComponentVersionPassport) -> dict[str, str]:
             "AI_STP_PRECONDITION_FAILED",
             "this program declares environment variables this process does not hold",
             details={"id": passport.stable_id, "variables": ", ".join(sorted(missing))},
-            next_actions=["environment inspect ..."],
+            next_actions=["help --path environment --json"],
         )
     return held
 

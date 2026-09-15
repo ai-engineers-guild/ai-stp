@@ -27,6 +27,7 @@ from ai_stp_cli.local import project_ledger, project_links, project_passport, re
 from ai_stp_cli.local.database import open_registry, transaction
 from ai_stp_contracts.context import (
     ProjectLinkResponse,
+    ProjectRevisionPushResponse,
     ProjectRevisionView,
 )
 from ai_stp_foundation.canonical import JsonValue
@@ -762,3 +763,85 @@ def test_no_pull_request_is_made_while_this_process_holds_the_local_write_lock(
         }
     )
     assert contended == ["free"]
+
+
+def test_a_receipt_write_failure_after_a_remote_success_is_unknown_and_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    local_project_id = _registry(registry_path, _project_root(tmp_path))
+    posts = 0
+    original = project_ledger.record_push
+
+    def boom(
+        connection: sqlite3.Connection,
+        *,
+        local_project_id: str,
+        idempotency_key: str,
+        receipt: ProjectRevisionPushResponse,
+    ) -> None:
+        if posts == 1:
+            raise sqlite3.OperationalError("disk I/O error")
+        original(
+            connection,
+            local_project_id=local_project_id,
+            idempotency_key=idempotency_key,
+            receipt=receipt,
+        )
+
+    def route(request: httpx.Request) -> httpx.Response:
+        nonlocal posts
+        if request.method == "POST":
+            posts += 1
+            body = json.loads(request.content.decode("utf-8"))
+            return httpx.Response(200, json=_accepted(body))
+        return httpx.Response(200, json=_link(local_project_id).model_dump(mode="json"))
+
+    _wired(monkeypatch, registry_path, route)
+    monkeypatch.setattr(project_ledger, "record_push", boom)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.revision_push(_parameters(local_project_id))
+    assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+    assert raised.value.details["effect"] == "unknown"
+    assert raised.value.retryable is True
+    with closing(open_registry(registry_path)) as connection:
+        cached = project_ledger.cached_push(
+            connection, local_project_id=local_project_id, idempotency_key=KEY
+        )
+    assert cached is not None
+    assert cached.state == "pending"
+    assert cached.receipt is None
+    assert KEY in "".join(raised.value.next_actions)
+
+    answer = project_commands.revision_push(_parameters(local_project_id))
+    assert answer.payload.receipt.state == "accepted"
+    assert posts == 2
+
+
+def test_a_pending_push_without_a_receipt_is_the_same_operation_after_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    registry_path = tmp_path / "registry.sqlite"
+    local_project_id = _registry(registry_path, _project_root(tmp_path))
+    posts = 0
+
+    def route(request: httpx.Request) -> httpx.Response:
+        nonlocal posts
+        if request.method == "POST":
+            posts += 1
+            body = json.loads(request.content.decode("utf-8"))
+            return httpx.Response(200, json=_accepted(body))
+        return httpx.Response(200, json=_link(local_project_id).model_dump(mode="json"))
+
+    _wired(monkeypatch, registry_path, route)
+    project_commands.revision_push(_parameters(local_project_id))
+    with closing(open_registry(registry_path)) as connection, transaction(connection):
+        connection.execute(
+            "UPDATE project_ledger_push SET state = 'pending', receipt_json = NULL "
+            "WHERE local_project_id = ? AND idempotency_key = ?",
+            (local_project_id, KEY),
+        )
+    posts = 0
+    answer = project_commands.revision_push(_parameters(local_project_id))
+    assert answer.payload.receipt.state == "accepted"
+    assert posts == 1

@@ -13,7 +13,7 @@ from ai_stp_cli.answer import Answer
 from ai_stp_cli.config import catalog_and_sync_enabled
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local.database import SCHEMA_VERSION
-from ai_stp_cli.runtime import cli_version
+from ai_stp_cli.runtime import cli_version, installation
 from ai_stp_contracts.machine_help import (
     Capabilities,
     CommandDescriptor,
@@ -48,6 +48,7 @@ def capabilities(_parameters: Mapping[str, object]) -> Answer[Capabilities]:
     return Answer(
         Capabilities(
             cli_version=cli_version(),
+            installation=installation(),
             registry_digest=registry_digest(),
             local_schema_version=SCHEMA_VERSION,
             supported_harnesses=sorted(HARNESS_IDS),

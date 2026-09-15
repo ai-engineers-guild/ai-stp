@@ -35,6 +35,14 @@
       "title": "Command Paths",
       "type": "array"
     },
+    "installation": {
+      "enum": [
+        "distribution",
+        "source"
+      ],
+      "title": "Installation",
+      "type": "string"
+    },
     "local_schema_version": {
       "minimum": 1,
       "title": "Local Schema Version",
@@ -74,6 +82,7 @@
     "catalog_enabled",
     "cli_version",
     "command_paths",
+    "installation",
     "local_schema_version",
     "registry_digest",
     "schema_version",

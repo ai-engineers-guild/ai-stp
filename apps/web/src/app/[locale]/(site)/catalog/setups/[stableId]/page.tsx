@@ -78,10 +78,11 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   setRequestLocale(locale);
   const setupId = tryAsSetupId(stableId);
   if (!setupId) notFound();
+  const token = await sessionCookieValue();
 
   let detail;
   try {
-    detail = await readSetup(setupId);
+    detail = await readSetup(setupId, token);
   } catch (error) {
     if (error instanceof ApiError && error.code === "AI_STP_NOT_FOUND") notFound();
     const tc = await getTranslations("common");
@@ -99,7 +100,6 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   const seo = await readSeoProfile("setup", stableId, locale);
   const summary = detail.summary;
   const media = detail.media;
-  const token = await sessionCookieValue();
   const initiallyLiked = token ? await isLiked(token, stableId) : false;
   let latest: Awaited<ReturnType<typeof readSetupVersion>> | null = null;
   try {

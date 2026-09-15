@@ -3,7 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from ai_stp_foundation import CliError, ErrorEnvelope, SuccessEnvelope, new_id
+from ai_stp_foundation import (
+    CliError,
+    Continuation,
+    ErrorEnvelope,
+    SuccessEnvelope,
+    continuation_command,
+    new_id,
+)
 
 
 def test_success_envelope_defaults() -> None:
@@ -12,6 +19,9 @@ def test_success_envelope_defaults() -> None:
     assert envelope.schema_version == 1
     assert envelope.operation_id is None
     assert envelope.data == {}
+    assert envelope.warnings == []
+    assert envelope.next_actions == []
+    assert envelope.continuations == []
 
 
 def test_error_envelope_carries_typed_error_and_operation() -> None:
@@ -38,3 +48,25 @@ def test_ok_literals_cannot_be_flipped() -> None:
 def test_unknown_fields_are_rejected() -> None:
     with pytest.raises(ValidationError):
         SuccessEnvelope.model_validate({"request_id": new_id("request"), "extra": 1})
+
+
+def test_a_complete_continuation_is_runnable_argv() -> None:
+    item = Continuation(
+        kind="advance",
+        path=["harness", "remove"],
+        arguments={"harness": "codex", "prefix": "/p", "target": "/t", "confirm": ""},
+    )
+    assert (
+        continuation_command(item)
+        == "harness remove --harness codex --prefix /p --target /t --confirm --json"
+    )
+
+
+def test_an_incomplete_continuation_points_at_scoped_help() -> None:
+    item = Continuation(
+        kind="advance",
+        path=["attestation", "sign"],
+        arguments={"confirm": ""},
+        missing=["component-root"],
+    )
+    assert continuation_command(item) == "help --path attestation --json"

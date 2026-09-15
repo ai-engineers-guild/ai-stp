@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue
-from ai_stp_foundation.envelope import CliError, ErrorEnvelope, SuccessEnvelope
+from ai_stp_foundation.envelope import CliError, Continuation, ErrorEnvelope, SuccessEnvelope
 from ai_stp_foundation.ids import new_id
 
 #: The flag that selects machine mode. Recognised before the parser runs as
@@ -50,6 +50,7 @@ def render_success(
     request_id: str,
     next_actions: list[str] | None = None,
     warnings: list[str] | None = None,
+    continuations: list[Continuation] | None = None,
     stream: TextIO | None = None,
 ) -> None:
     """Write a successful result in the requested mode.
@@ -69,6 +70,7 @@ def render_success(
             data=data,
             warnings=warnings or [],
             next_actions=next_actions or [],
+            continuations=continuations or [],
         )
         out.write(json.dumps(envelope.model_dump(mode="json"), ensure_ascii=False) + "\n")
         return
@@ -102,6 +104,7 @@ def render_failure(
                 details=dict(failure.details),
             ),
             next_actions=failure.next_actions,
+            continuations=failure.continuations,
         )
         out.write(json.dumps(envelope.model_dump(mode="json"), ensure_ascii=False) + "\n")
     else:

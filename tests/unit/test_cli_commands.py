@@ -40,6 +40,24 @@ def test_a_source_checkout_says_so_instead_of_inventing_a_number(
     assert runtime.cli_version() == runtime.UNKNOWN_VERSION
 
 
+def test_an_editable_checkout_is_named_source_not_a_published_wheel() -> None:
+    assert runtime.installation() == "source"
+
+
+def test_a_registry_wheel_without_direct_url_metadata_is_a_distribution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Wheel:
+        def read_text(self, _name: str) -> str | None:
+            return None
+
+    def wheel(_name: str) -> object:
+        return _Wheel()
+
+    monkeypatch.setattr(runtime, "distribution", wheel)
+    assert runtime.installation() == "distribution"
+
+
 def test_doctor_reports_a_fresh_installation_as_needing_action_not_as_broken() -> None:
     report = doctor.run({}).payload
     assert report.state == "needs_user_action"

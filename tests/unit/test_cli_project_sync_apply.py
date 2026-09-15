@@ -518,6 +518,88 @@ def test_planning_refuses_a_local_project_id_that_is_not_a_project() -> None:
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
 
 
+def test_a_receipt_write_failure_after_a_remote_success_is_unknown_and_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The server answered; a dying disk must not invent a second operation."""
+    registry_path = tmp_path / "registry.sqlite"
+    _registry(registry_path)
+    posts = 0
+    original = project_links.record_sync_apply
+
+    def boom(
+        connection: sqlite3.Connection,
+        *,
+        local_project_id: str,
+        plan: ProjectSyncPlanResponse,
+        idempotency_key: str,
+    ) -> None:
+        nonlocal posts
+        if posts == 1:
+            raise sqlite3.OperationalError("disk I/O error")
+        original(
+            connection,
+            local_project_id=local_project_id,
+            plan=plan,
+            idempotency_key=idempotency_key,
+        )
+
+    def route(request: httpx.Request) -> httpx.Response:
+        nonlocal posts
+        if request.method == "POST":
+            posts += 1
+            return httpx.Response(200, json=_applied_body())
+        return httpx.Response(200, json=_link(revision=2).model_dump(mode="json"))
+
+    _wired(monkeypatch, registry_path, route)
+    monkeypatch.setattr(project_links, "record_sync_apply", boom)
+    with pytest.raises(CliFailure) as raised:
+        project_commands.sync_apply(_parameters())
+    assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+    assert raised.value.details["effect"] == "unknown"
+    assert raised.value.retryable is True
+    stored = _stored(registry_path)
+    assert stored.apply_state == "pending"
+    assert stored.receipt is None
+    assert stored.apply_idempotency_key == KEY
+    assert any(KEY in action for action in raised.value.next_actions)
+
+    answer = project_commands.sync_apply(_parameters())
+    assert answer.payload.state == "applied"
+    assert _stored(registry_path).apply_state == "applied"
+    assert posts == 2
+
+
+def test_a_pending_apply_without_a_receipt_is_the_same_operation_after_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Crash between begin and receipt: retry sends the stored key again."""
+    registry_path = tmp_path / "registry.sqlite"
+    _registry(registry_path)
+    with closing(open_registry(registry_path)) as connection, transaction(connection):
+        project_links.begin_sync_apply(
+            connection,
+            local_project_id=LOCAL_PROJECT,
+            plan_id=PLAN,
+            idempotency_key=KEY,
+        )
+    posts = 0
+
+    def route(request: httpx.Request) -> httpx.Response:
+        nonlocal posts
+        if request.method == "POST":
+            posts += 1
+            return httpx.Response(200, json=_applied_body())
+        return httpx.Response(200, json=_link(revision=2).model_dump(mode="json"))
+
+    _wired(monkeypatch, registry_path, route)
+    assert _stored(registry_path).apply_state == "pending"
+    answer = project_commands.sync_apply(_parameters())
+    assert answer.payload.state == "applied"
+    assert posts == 1
+    assert _stored(registry_path).apply_state == "applied"
+
+
 def test_no_plan_request_is_made_while_this_process_holds_the_local_write_lock(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

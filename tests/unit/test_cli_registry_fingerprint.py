@@ -40,6 +40,14 @@ def test_capabilities_names_the_local_schema_this_build_reads() -> None:
     assert machine_help.capabilities({}).payload.local_schema_version == SCHEMA_VERSION
 
 
+def test_capabilities_names_whether_this_process_is_a_wheel_or_this_checkout() -> None:
+    from ai_stp_cli.runtime import installation
+
+    payload = machine_help.capabilities({}).payload
+    assert payload.installation == installation()
+    assert payload.installation in {"distribution", "source"}
+
+
 def test_a_changed_command_surface_changes_the_fingerprint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
