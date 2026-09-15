@@ -12,6 +12,7 @@
     "collapseAll": "Свернуть всё",
     "expandAll": "Развернуть всё",
     "author": "Автор",
+    "type": "Тип",
     "authorUnavailable": "Автор недоступен",
     "aiComponents": "ИИ-компоненты",
     "technologyFilter": "Технология",
