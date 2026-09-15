@@ -103,6 +103,8 @@ ai-stp help --agent --json
 | `ai-stp toolchain install` | `apply` | `none` | [toolchain.md](toolchain.md) | установить один закреплённый инструмент в управляемый каталог; из него ничего не запускает |
 | `ai-stp toolchain remove` | `destructive` | `explicit_flag` | [toolchain.md](toolchain.md) | удалить один управляемый инструмент, трогая только пути, которые создал этот CLI |
 | `ai-stp project passport` | `apply` | `none` | [project.md](project.md) | записать ревизию паспорта проекта, закрепляющую индекс, toolchain и конфигурацию |
+| `ai-stp project revision push` | `apply` | `explicit_flag` | [project.md](project.md) | опубликовать allowlisted-проекцию локального паспорта в ledger организации |
+| `ai-stp project revision pull` | `read` | `none` | [project.md](project.md) | прочитать redacted-узлы ledger организации для одной связи |
 | `ai-stp registry acquire` | `apply` | `none` | [registry.md](registry.md) | получить один точный опубликованный граф сетапа для локальной офлайн-компиляции |
 | `ai-stp registry port discover` | `read` | `none` | [registry.md](registry.md) | найти совместимые снапшоты SX и APM под одним явно названным локальным корнем |
 | `ai-stp registry port inspect` | `read` | `none` | [registry.md](registry.md) | инспектировать одно отображение setup-store без импорта и без запуска его CLI |

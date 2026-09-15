@@ -268,6 +268,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("project",): "Look inside a directory: projects, components and their index.",
     ("project", "link"): "Bind one local project to an authoritative remote project.",
     ("project", "link", "plan"): "Plan a project link without changing local or remote state.",
+    ("project", "revision"): "Publish and read organization project-ledger revisions.",
     ("project", "sync"): "Plan and apply one explicit project synchronization decision.",
     ("project", "unlink-plan"): "Plan removal of one project link without changing state.",
     ("provider",): "Inspect the setup manager that writes the harness.",

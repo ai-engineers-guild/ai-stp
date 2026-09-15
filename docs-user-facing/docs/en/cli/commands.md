@@ -103,6 +103,8 @@ The executable is `ai-stp`. The PyPI package is `ai-stp-cli`.
 | `ai-stp toolchain install` | `apply` | `none` | [toolchain.md](toolchain.md) | Install one pinned tool into the managed directory. Runs nothing from it. |
 | `ai-stp toolchain remove` | `destructive` | `explicit_flag` | [toolchain.md](toolchain.md) | Remove one managed tool, touching only paths this CLI created. |
 | `ai-stp project passport` | `apply` | `none` | [project.md](project.md) | Record a project passport revision pinning the index, toolchain and config. |
+| `ai-stp project revision push` | `apply` | `explicit_flag` | [project.md](project.md) | Push one local passport projection into the organization project ledger. |
+| `ai-stp project revision pull` | `read` | `none` | [project.md](project.md) | Pull redacted organization project-ledger revisions for one link. |
 | `ai-stp registry acquire` | `apply` | `none` | [registry.md](registry.md) | Acquire one exact published setup graph for local offline compilation. |
 | `ai-stp registry port discover` | `read` | `none` | [registry.md](registry.md) | Find compatible SX and APM snapshots under one explicit local root. |
 | `ai-stp registry port inspect` | `read` | `none` | [registry.md](registry.md) | Inspect one setup-store mapping without importing or running its CLI. |

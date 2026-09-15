@@ -124,13 +124,15 @@ class CachedLink:
     remote_project_id: str
     state: str
     link_revision: int
+    local_revision: str
+    remote_revision: str
 
 
 def cached_link(connection: sqlite3.Connection, *, local_project_id: str) -> CachedLink | None:
     """The link this device recorded for one local project."""
     row = connection.execute(
-        "SELECT link_id, organization_id, remote_project_id, state, link_revision "
-        "FROM project_link WHERE local_project_id = ?",
+        "SELECT link_id, organization_id, remote_project_id, state, link_revision, "
+        "local_revision, remote_revision FROM project_link WHERE local_project_id = ?",
         (local_project_id,),
     ).fetchone()
     if row is None:
@@ -141,6 +143,24 @@ def cached_link(connection: sqlite3.Connection, *, local_project_id: str) -> Cac
         remote_project_id=str(row[2]),
         state=str(row[3]),
         link_revision=int(row[4]),
+        local_revision=str(row[5]),
+        remote_revision=str(row[6]),
+    )
+
+
+def bind_empty_link_ids(
+    connection: sqlite3.Connection, *, local_project_id: str, link_id: str
+) -> None:
+    """Fill pre-schema-40 empty link ids after the server confirmed the binding."""
+    if not is_valid_id(local_project_id, "project"):
+        raise ValueError("local project id is not valid")
+    connection.execute(
+        "UPDATE project_link SET link_id = ? WHERE local_project_id = ? AND link_id = ''",
+        (link_id, local_project_id),
+    )
+    connection.execute(
+        "UPDATE project_sync_plan SET link_id = ? WHERE local_project_id = ? AND link_id = ''",
+        (link_id, local_project_id),
     )
 
 

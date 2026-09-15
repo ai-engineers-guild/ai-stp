@@ -1294,6 +1294,44 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "ALTER TABLE project_link DROP COLUMN link_id",
         ),
     ),
+    Migration(
+        version=41,
+        summary="cache organization project-ledger revisions and durable push attempts",
+        up=(
+            """
+            CREATE TABLE project_ledger_revision (
+                revision_id TEXT NOT NULL,
+                local_project_id TEXT NOT NULL,
+                link_id TEXT NOT NULL,
+                origin TEXT NOT NULL CHECK (origin IN ('pushed', 'pulled')),
+                view_json TEXT NOT NULL,
+                PRIMARY KEY (local_project_id, revision_id)
+            ) STRICT
+            """,
+            """
+            CREATE TABLE project_ledger_push (
+                local_project_id TEXT NOT NULL,
+                link_id TEXT NOT NULL,
+                organization_id TEXT NOT NULL,
+                event_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                request_json TEXT NOT NULL,
+                state TEXT NOT NULL CHECK (
+                    state IN (
+                        'pending', 'accepted', 'conflict', 'rejected',
+                        'superseded', 'failed', 'unknown'
+                    )
+                ),
+                receipt_json TEXT,
+                PRIMARY KEY (local_project_id, idempotency_key)
+            ) STRICT
+            """,
+        ),
+        down=(
+            "DROP TABLE project_ledger_push",
+            "DROP TABLE project_ledger_revision",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

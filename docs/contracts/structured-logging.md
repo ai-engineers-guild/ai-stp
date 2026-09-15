@@ -1,6 +1,6 @@
 ---
 description: "Closed event fields and redaction at the API and worker log sinks."
-last_verified: "2026-09-07"
+last_verified: "2026-09-14"
 ---
 
 # Structured logging
@@ -18,6 +18,8 @@ midnight with fourteen daily backups. Reconfiguration removes and closes the
 previous platform-owned handlers before installing the new pair. Third-party
 standard-library records become `external_log` with logger, level and optional
 exception class; their arbitrary message and arguments do not become a payload.
+httpx and httpcore INFO records are dropped before that boundary: they are
+outbound `HTTP Request:` lines whose URL would be redacted to an empty event.
 The API entry point disables Uvicorn's separate access log and logging configuration
 so raw callback URLs, client addresses and query strings do not bypass this sink.
 The implementation uses structlog's
