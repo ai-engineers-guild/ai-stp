@@ -106,7 +106,7 @@ def test_explicit_and_implicit_invocation_select_the_actual_program() -> None:
         assert explicit.version == "1.0"
         assert Path(explicit.executable).parent.name == "1.0"
         assert explicit.exit_code == 0
-        assert explicit.output == "ready\n"
+        assert explicit.output.splitlines() == ["ready"]
         assert cli_program.status(connection, stable_id=stable_id).version == "1.1"
 
 
