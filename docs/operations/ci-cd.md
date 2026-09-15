@@ -58,7 +58,7 @@ release work does not add mandatory human approvals.
 
 `.github/workflows/deploy.yml` accepts only a successful `check` raised by a push
 to `main`. Its `promote` job verifies the exact checked SHA and advances
-the lightweight tag `refs/tags/deploy/prod` without force. Promotion is serialized with
+`refs/heads/deploy/prod` without force. Promotion is serialized with
 `cancel-in-progress: false`; a stale ancestor cannot move the ref backwards.
 Only that job has `contents: write`.
 

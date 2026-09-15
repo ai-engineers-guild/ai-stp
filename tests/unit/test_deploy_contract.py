@@ -77,8 +77,7 @@ def test_the_deploy_workflow_keeps_the_guarantees_it_inherited() -> None:
     assert "github.event.workflow_run.event == 'push'" in workflow
     assert "github.event.workflow_run.head_branch == 'main'" in workflow
 
-    assert "refs/tags/deploy/prod" in workflow
-    assert "refs/heads/deploy/prod" not in workflow
+    assert "refs/heads/deploy/prod" in workflow
     assert "-F force=false" in workflow
 
     # The public route is proved from somewhere that is not the host, and

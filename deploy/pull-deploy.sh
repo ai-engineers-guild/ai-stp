@@ -12,7 +12,7 @@ umask 077
 root=${AI_STP_ROOT:-"${HOME}/ai_stp"}
 state_root=${AI_STP_PULL_STATE_ROOT:-"${HOME}/.local/state/ai-stp-deployer"}
 repository=${AI_STP_PULL_REPOSITORY:-https://github.com/ai-engineers-guild/ai-stp.git}
-deploy_ref=${AI_STP_PULL_REF:-refs/tags/deploy/prod}
+deploy_ref=${AI_STP_PULL_REF:-refs/heads/deploy/prod}
 mirror=${state_root}/repository.git
 release_root=${state_root}/releases
 lock_file=${state_root}/pull-deploy.lock

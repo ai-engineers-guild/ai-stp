@@ -10,8 +10,7 @@ last_verified: "2026-09-12"
 Before the first production release, the platform proves at an exact commit that
 its configuration, observability, data handling, abuse protection, and recovery
 are ready for operation. The evidence answers a question about the tree; the
-`ADR-0109` pipeline performs deployment—a green `check` advances the lightweight
-tag `refs/tags/deploy/prod` (`ADR-0191`),
+`ADR-0109` pipeline performs deployment—a green `check` advances `deploy/prod`,
 and the host fetches that ref.
 
 ## Scope
