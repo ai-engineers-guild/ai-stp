@@ -109,10 +109,9 @@ for (const [objectKind, stableId] of [
           .first(),
       ).toBeVisible();
       await page.goto(`/en/catalog/${objectKind}s/${stableId}`);
-      await expect(page.getByLabel(/Description|\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/i)).toContainText(
-        bio,
-        { timeout: 15_000 },
-      );
+      await expect(
+        page.getByLabel(/Description|\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/i),
+      ).toContainText(bio, { timeout: 15_000 });
     });
 
     test("rejects unsupported client-side mime before upload", async ({ page }) => {
