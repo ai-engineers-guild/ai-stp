@@ -1332,6 +1332,35 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
             "DROP TABLE project_ledger_revision",
         ),
     ),
+    Migration(
+        version=42,
+        summary="durable agent tasks for the inspect intent",
+        up=(
+            """
+            CREATE TABLE agent_task (
+                task_id TEXT PRIMARY KEY,
+                revision INTEGER NOT NULL CHECK (revision >= 1),
+                intent TEXT NOT NULL,
+                state TEXT NOT NULL CHECK (
+                    state IN (
+                        'planned', 'blocked', 'running',
+                        'completed', 'failed', 'cancelled'
+                    )
+                ),
+                goal_satisfied INTEGER NOT NULL CHECK (goal_satisfied IN (0, 1)),
+                idempotency_key TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                outcome_json TEXT,
+                questions_json TEXT NOT NULL,
+                child_operation_ids_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            ) STRICT
+            """,
+            "CREATE UNIQUE INDEX agent_task_by_idempotency_key ON agent_task(idempotency_key)",
+        ),
+        down=("DROP TABLE agent_task",),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

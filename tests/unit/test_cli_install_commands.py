@@ -3352,16 +3352,20 @@ def test_real_environment_installs_two_harnesses_in_one_project(
         "provider-for": [f"{harness}={executable}" for harness, executable in providers.items()],
         "unverified-provider": True,
     }
-    result = install_transaction.apply(options).payload
     if failure != "none":
-        assert result.state == "rolled_back"
+        with pytest.raises(CliFailure) as raised:
+            install_transaction.apply(options)
+        assert raised.value.code == "AI_STP_COMPENSATED"
+        assert raised.value.details["state"] == "rolled_back"
         assert (tmp_path / "CLAUDE.md").read_bytes() == b"original Claude instructions\n"
         assert (tmp_path / "AGENTS.md").read_bytes() == (
             b"changed after planning\n"
             if failure == "changed"
             else b"original Codex instructions\n"
         )
-        assert install_transaction.recover(options).payload.state == "rolled_back"
+        with pytest.raises(CliFailure) as recovered:
+            install_transaction.recover(options)
+        assert recovered.value.code == "AI_STP_COMPENSATED"
         if failure == "lost_response":
             assert calls == [
                 ("claude-code", "install"),
@@ -3372,6 +3376,7 @@ def test_real_environment_installs_two_harnesses_in_one_project(
             original = journal.get(registry, operations[1])
             assert original is not None and original.state == "partial"
     else:
+        result = install_transaction.apply(options).payload
         assert result.state == "verified"
         assert b"exact claude-code instruction" in (tmp_path / "CLAUDE.md").read_bytes()
         assert b"exact codex instruction" in (tmp_path / "AGENTS.md").read_bytes()

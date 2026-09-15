@@ -52,6 +52,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "snapshot": "validation snapshot",
         "setup": "setup logical entity",
         "sync_plan": "project synchronization plan",
+        "task": "durable agent task",
         "sub": "external provider subject",
         "variant": "native component realization",
     }

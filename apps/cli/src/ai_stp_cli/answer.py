@@ -9,6 +9,8 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
+from ai_stp_foundation.envelope import Continuation
+
 
 @dataclass(frozen=True)
 class Answer[T: BaseModel]:
@@ -20,10 +22,15 @@ class Answer[T: BaseModel]:
     where this type carries it. `ADR-0058` uses it to say that a secret went to
     a file rather than to the operating system store, a fact a caller on a
     shared machine has to be able to see.
+
+    Compensation, recovery-required and other unmet goals are `CliFailure`, not
+    this type: `ok` on the envelope means the requested effect completed.
     """
 
     payload: T
     warnings: tuple[str, ...] = ()
+    operation_id: str | None = None
+    continuations: tuple[Continuation, ...] = ()
 
 
 def with_warning[T: BaseModel](payload: T, warning: str | None) -> Answer[T]:

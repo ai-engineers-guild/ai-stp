@@ -68,6 +68,14 @@ Includes installation and initial setup, strict JSON, feature and schema help, p
   runnable-looking argv with `...`; it is either `help --path <family>` or a
   continuation whose `missing` is non-empty. Angle-bracket placeholders remain
   only for values the caller must name.
+- `REQ-1132`: Envelope `ok` is true only when the requested effect completed.
+  Compensation and recovery-required mutating outcomes are registered failures
+  (`AI_STP_COMPENSATED`, `AI_STP_PARTIAL_OPERATION`) and carry `operation_id`.
+  Static registry `next_actions` are not copied onto the envelope as runnable
+  mutations; handler `continuations` are. Diagnostic `doctor` remains `ok` with
+  check results in the payload, because the request was inspection. Application
+  services that produce those envelopes are shared with a later task engine
+  (`SPEC-080`, `ADR-0181`).
 - `REQ-1122`: The complaint command is declared in the machine help, collects only the mechanical fields of the allowed list `docs/contracts/report-case.md`, shows a full preview and submits the case only after the user's explicit consent.
 - `REQ-1124`: Diagnostics reports the preconditions for creating a setup with a separate check, the state of which remains `ready` in their absence, and `detail` names the exact commands for creating missing passports. The list of these commands has one owner and matches the list named by the corresponding command's refusal.
 - `REQ-1125`: Diagnostics names registered objects that hold no head revision, because every command reaches an object through its head and such an object is addressable by none of them; the check reports them and changes nothing, and the state remains `ready` because the installation is sound.
@@ -131,3 +139,4 @@ Machine JSON, help and skill projection have versions. Unknown optional fields a
 | `REQ-1129` | Both introspection answers report one fingerprint; removing a command or changing an error disposition changes it; capabilities reports the local schema version this build reads and whether the process loaded a published distribution or this checkout. |
 | `REQ-1130` | A scoped read returns one family and fewer commands than the full registry while carrying the same fingerprint, options and error codes; an unknown path is refused as not found. |
 | `REQ-1131` | Envelope unit and compatibility tests accept an old document without `continuations`; a live pointer never contains `...`; a continuation with `missing` renders as scoped help. |
+| `REQ-1132` | Compensated and recovery-required multi-root apply/recover raise registered failures with `operation_id`; a handler `Answer` without continuations emits empty envelope actions; `doctor` stays `ok`. |

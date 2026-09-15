@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:7822fcb1fe63c7659d600817f8495e0c1fab7a802ccc3fc570e573ab352f87c7",
+  "registry_digest": "sha256:606c3a4eac40514f4ea8973c76113f04ced4df71aab10cf6a74019671b624035",
   "global_options": [
     {
       "name": "json",
@@ -159,7 +159,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-signed-attestation",
       "next_actions": [
-        "publication plan"
+        "help --path publication --json"
       ]
     },
     {
@@ -184,7 +184,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-auth-status",
       "next_actions": [
-        "auth status"
+        "help --path auth --json"
       ]
     },
     {
@@ -221,8 +221,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-device-approval",
       "next_actions": [
-        "auth complete",
-        "auth status"
+        "help --path auth --json"
       ]
     },
     {
@@ -237,7 +236,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-auth-status",
       "next_actions": [
-        "auth status"
+        "help --path auth --json"
       ]
     },
     {
@@ -252,7 +251,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-auth-status",
       "next_actions": [
-        "device show"
+        "help --path device --json"
       ]
     },
     {
@@ -266,7 +265,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-capabilities",
       "next_actions": [
-        "doctor",
+        "help --path doctor --json",
         "help --agent"
       ]
     },
@@ -319,8 +318,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-scaffold",
       "next_actions": [
-        "component passport validate",
-        "component version release"
+        "help --path component --json"
       ]
     },
     {
@@ -372,8 +370,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "component passport show",
-        "component discover"
+        "help --path component --json"
       ]
     },
     {
@@ -407,8 +404,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-native-components",
       "next_actions": [
-        "component inventory",
-        "component adopt"
+        "help --path component --json"
       ]
     },
     {
@@ -478,7 +474,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-local-search",
       "next_actions": [
-        "component version list"
+        "help --path component --json"
       ]
     },
     {
@@ -512,7 +508,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "component discover"
+        "help --path component --json"
       ]
     },
     {
@@ -546,7 +542,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-version-line",
       "next_actions": [
-        "component version list"
+        "help --path component --json"
       ]
     },
     {
@@ -580,8 +576,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-path-inventory",
       "next_actions": [
-        "component discover",
-        "component adopt"
+        "help --path component --json"
       ]
     },
     {
@@ -695,9 +690,9 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-result",
       "next_actions": [
-        "eval component plan",
-        "select propose",
-        "setup compose plan"
+        "help --path eval --json",
+        "help --path select --json",
+        "help --path setup --json"
       ]
     },
     {
@@ -793,7 +788,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-plan",
       "next_actions": [
-        "component materialize apply"
+        "help --path component --json"
       ]
     },
     {
@@ -819,8 +814,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-quality-report",
       "next_actions": [
-        "component passport update",
-        "component passport validate"
+        "help --path component --json"
       ]
     },
     {
@@ -846,8 +840,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "component passport suggest",
-        "component passport update"
+        "help --path component --json"
       ]
     },
     {
@@ -873,8 +866,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-passport-suggestions",
       "next_actions": [
-        "component passport update",
-        "component passport validate"
+        "help --path component --json"
       ]
     },
     {
@@ -918,8 +910,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "component passport validate",
-        "component passport show"
+        "help --path component --json"
       ]
     },
     {
@@ -954,8 +945,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-passport-validation",
       "next_actions": [
-        "component passport update",
-        "component version release"
+        "help --path component --json"
       ]
     },
     {
@@ -1060,8 +1050,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-result",
       "next_actions": [
-        "select propose",
-        "install plan"
+        "help --path select --json",
+        "help --path install --json"
       ]
     },
     {
@@ -1148,7 +1138,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-materialize-plan",
       "next_actions": [
-        "component portability apply"
+        "help --path component --json"
       ]
     },
     {
@@ -1183,8 +1173,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-program",
       "next_actions": [
-        "component program invoke",
-        "component program status"
+        "help --path component --json"
       ]
     },
     {
@@ -1228,7 +1217,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-program",
       "next_actions": [
-        "component program status"
+        "help --path component --json"
       ]
     },
     {
@@ -1263,7 +1252,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-program",
       "next_actions": [
-        "component program status"
+        "help --path component --json"
       ]
     },
     {
@@ -1298,8 +1287,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-program",
       "next_actions": [
-        "component program install",
-        "component program remove"
+        "help --path component --json"
       ]
     },
     {
@@ -1351,8 +1339,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-promotion-plan",
       "next_actions": [
-        "publication confirm",
-        "publication status"
+        "help --path publication --json"
       ]
     },
     {
@@ -1450,8 +1437,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-scaffold-result",
       "next_actions": [
-        "component passport validate",
-        "component adopt"
+        "help --path component --json"
       ]
     },
     {
@@ -1540,7 +1526,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-scaffold-plan",
       "next_actions": [
-        "component scaffold apply"
+        "help --path component --json"
       ]
     },
     {
@@ -1566,8 +1552,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-skill-package",
       "next_actions": [
-        "component adopt",
-        "component passport validate"
+        "help --path component --json"
       ]
     },
     {
@@ -1612,7 +1597,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-github-archive-history",
       "next_actions": [
-        "component source evidence show"
+        "help --path component --json"
       ]
     },
     {
@@ -1648,8 +1633,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-github-archive-evidence",
       "next_actions": [
-        "component source evidence show",
-        "component source evidence history"
+        "help --path component --json"
       ]
     },
     {
@@ -1685,8 +1669,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-github-archive-evidence",
       "next_actions": [
-        "component source evidence refresh",
-        "component source evidence history"
+        "help --path component --json"
       ]
     },
     {
@@ -1721,8 +1704,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-external-source-identity",
       "next_actions": [
-        "component source resolve",
-        "component discover"
+        "help --path component --json"
       ]
     },
     {
@@ -1766,8 +1748,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-external-source-identity",
       "next_actions": [
-        "component discover",
-        "component adopt"
+        "help --path component --json"
       ]
     },
     {
@@ -1802,8 +1783,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-source-search",
       "next_actions": [
-        "setup update plan",
-        "component source resolve"
+        "help --path setup --json",
+        "help --path component --json"
       ]
     },
     {
@@ -1864,8 +1845,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-template",
       "next_actions": [
-        "component adopt",
-        "component scaffold plan"
+        "help --path component --json"
       ]
     },
     {
@@ -1891,7 +1871,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-version-line",
       "next_actions": [
-        "component version release"
+        "help --path component --json"
       ]
     },
     {
@@ -1938,7 +1918,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-version-line",
       "next_actions": [
-        "component version list"
+        "help --path component --json"
       ]
     },
     {
@@ -1953,7 +1933,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
       "next_actions": [
-        "config show"
+        "help --path config --json"
       ]
     },
     {
@@ -1978,7 +1958,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
       "next_actions": [
-        "config show"
+        "help --path config --json"
       ]
     },
     {
@@ -2003,7 +1983,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
       "next_actions": [
-        "doctor"
+        "help --path doctor --json"
       ]
     },
     {
@@ -2028,7 +2008,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
       "next_actions": [
-        "config show"
+        "help --path config --json"
       ]
     },
     {
@@ -2043,7 +2023,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-config-report",
       "next_actions": [
-        "config show"
+        "help --path config --json"
       ]
     },
     {
@@ -2077,7 +2057,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-consent-record",
       "next_actions": [
-        "consent list"
+        "help --path consent --json"
       ]
     },
     {
@@ -2092,7 +2072,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-consent-summary",
       "next_actions": [
-        "consent allow"
+        "help --path consent --json"
       ]
     },
     {
@@ -2126,7 +2106,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-consent-record",
       "next_actions": [
-        "consent list"
+        "help --path consent --json"
       ]
     },
     {
@@ -2141,7 +2121,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-standard-inventory",
       "next_actions": [
-        "version"
+        "help --path version --json"
       ]
     },
     {
@@ -2156,7 +2136,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-device-identity",
       "next_actions": [
-        "device show"
+        "help --path device --json"
       ]
     },
     {
@@ -2181,7 +2161,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-device-identity",
       "next_actions": [
-        "device show"
+        "help --path device --json"
       ]
     },
     {
@@ -2196,7 +2176,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-device-identity",
       "next_actions": [
-        "auth status"
+        "help --path auth --json"
       ]
     },
     {
@@ -2210,7 +2190,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-doctor-report",
       "next_actions": [
-        "config show"
+        "help --path config --json"
       ]
     },
     {
@@ -2280,10 +2260,10 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-environment-inspection",
       "next_actions": [
-        "harness install",
-        "toolchain install",
-        "component program install",
-        "install plan"
+        "help --path harness --json",
+        "help --path toolchain --json",
+        "help --path component --json",
+        "help --path install --json"
       ]
     },
     {
@@ -2308,8 +2288,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
       "next_actions": [
-        "install transaction approve",
-        "install transaction cancel"
+        "help --path install --json"
       ]
     },
     {
@@ -2371,7 +2350,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-plan",
       "next_actions": [
-        "eval component run"
+        "help --path eval --json"
       ]
     },
     {
@@ -2406,8 +2385,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-result",
       "next_actions": [
-        "eval component status",
-        "eval component show"
+        "help --path eval --json"
       ]
     },
     {
@@ -2457,7 +2435,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-component-eval-result",
       "next_actions": [
-        "eval component show"
+        "help --path eval --json"
       ]
     },
     {
@@ -2527,7 +2505,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-plan",
       "next_actions": [
-        "eval run"
+        "help --path eval --json"
       ]
     },
     {
@@ -2562,7 +2540,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-profile",
       "next_actions": [
-        "eval plan"
+        "help --path eval --json"
       ]
     },
     {
@@ -2596,8 +2574,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-result",
       "next_actions": [
-        "eval status",
-        "eval show"
+        "help --path eval --json"
       ]
     },
     {
@@ -2645,7 +2622,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-eval-result",
       "next_actions": [
-        "eval show"
+        "help --path eval --json"
       ]
     },
     {
@@ -2698,7 +2675,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:github-source-prepared",
       "next_actions": [
-        "publication plan"
+        "help --path publication --json"
       ]
     },
     {
@@ -2763,7 +2740,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-grant-access",
       "next_actions": [
-        "grant list"
+        "help --path grant --json"
       ]
     },
     {
@@ -2848,7 +2825,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-grant-access",
       "next_actions": [
-        "grant list"
+        "help --path grant --json"
       ]
     },
     {
@@ -2901,7 +2878,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-grant-revoke",
       "next_actions": [
-        "grant list"
+        "help --path grant --json"
       ]
     },
     {
@@ -2983,7 +2960,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-grant-invitation",
       "next_actions": [
-        "grant list"
+        "help --path grant --json"
       ]
     },
     {
@@ -2998,8 +2975,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-grant-list",
       "next_actions": [
-        "grant invite",
-        "grant direct"
+        "help --path grant --json"
       ]
     },
     {
@@ -3051,7 +3027,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-grant-revoke",
       "next_actions": [
-        "grant list"
+        "help --path grant --json"
       ]
     },
     {
@@ -3139,7 +3115,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
       "next_actions": [
-        "toolchain harnesses"
+        "help --path toolchain --json"
       ]
     },
     {
@@ -3236,7 +3212,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
       "next_actions": [
-        "harness status"
+        "help --path harness --json"
       ]
     },
     {
@@ -3324,7 +3300,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
       "next_actions": [
-        "harness status"
+        "help --path harness --json"
       ]
     },
     {
@@ -3358,8 +3334,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-program-status",
       "next_actions": [
-        "harness install",
-        "install recover"
+        "help --path harness --json",
+        "help --path install --json"
       ]
     },
     {
@@ -3447,7 +3423,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-program",
       "next_actions": [
-        "toolchain harnesses"
+        "help --path toolchain --json"
       ]
     },
     {
@@ -3480,7 +3456,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-machine-help",
       "next_actions": [
-        "capabilities"
+        "help --path capabilities --json"
       ]
     },
     {
@@ -3514,7 +3490,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation",
       "next_actions": [
-        "install status"
+        "help --path install --json"
       ]
     },
     {
@@ -3548,7 +3524,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation",
       "next_actions": [
-        "install apply"
+        "help --path install --json"
       ]
     },
     {
@@ -3582,7 +3558,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation",
       "next_actions": [
-        "install status"
+        "help --path install --json"
       ]
     },
     {
@@ -3802,7 +3778,7 @@
       ],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation",
       "next_actions": [
-        "install approve"
+        "help --path install --json"
       ]
     },
     {
@@ -3827,8 +3803,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-recovery-report",
       "next_actions": [
-        "install resume",
-        "install plan"
+        "help --path install --json"
       ]
     },
     {
@@ -3862,7 +3837,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation",
       "next_actions": [
-        "target status"
+        "help --path target --json"
       ]
     },
     {
@@ -3877,7 +3852,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation-status",
       "next_actions": [
-        "install recover"
+        "help --path install --json"
       ]
     },
     {
@@ -3966,7 +3941,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
       "next_actions": [
-        "install transaction status"
+        "help --path install --json"
       ]
     },
     {
@@ -4001,7 +3976,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
       "next_actions": [
-        "install transaction apply"
+        "help --path install --json"
       ]
     },
     {
@@ -4036,7 +4011,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
       "next_actions": [
-        "install transaction plan"
+        "help --path install --json"
       ]
     },
     {
@@ -4134,8 +4109,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
       "next_actions": [
-        "install transaction approve",
-        "install transaction cancel"
+        "help --path install --json"
       ]
     },
     {
@@ -4224,7 +4198,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
       "next_actions": [
-        "install transaction status"
+        "help --path install --json"
       ]
     },
     {
@@ -4250,7 +4224,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-multi-root-transaction",
       "next_actions": [
-        "install transaction recover"
+        "help --path install --json"
       ]
     },
     {
@@ -4347,7 +4321,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-owner-object-detail",
       "next_actions": [
-        "owner version show"
+        "help --path owner --json"
       ]
     },
     {
@@ -4393,7 +4367,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-owner-object-list",
       "next_actions": [
-        "owner object show"
+        "help --path owner --json"
       ]
     },
     {
@@ -4440,7 +4414,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-owner-version-detail",
       "next_actions": [
-        "publication plan"
+        "help --path publication --json"
       ]
     },
     {
@@ -4456,7 +4430,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "passport developer show"
+        "help --path passport --json"
       ]
     },
     {
@@ -4472,7 +4446,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "passport device show"
+        "help --path passport --json"
       ]
     },
     {
@@ -4498,7 +4472,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "passport developer show"
+        "help --path passport --json"
       ]
     },
     {
@@ -4514,7 +4488,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "passport device show"
+        "help --path passport --json"
       ]
     },
     {
@@ -4530,7 +4504,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "passport developer show"
+        "help --path passport --json"
       ]
     },
     {
@@ -4555,7 +4529,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-project-candidates",
       "next_actions": [
-        "doctor"
+        "help --path doctor --json"
       ]
     },
     {
@@ -4580,7 +4554,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-project-index",
       "next_actions": [
-        "project discover"
+        "help --path project --json"
       ]
     },
     {
@@ -4651,8 +4625,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-link-response",
       "next_actions": [
-        "project link show",
-        "project sync plan"
+        "help --path project --json"
       ]
     },
     {
@@ -4751,8 +4724,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-link-plan-response",
       "next_actions": [
-        "project link plan show",
-        "project link create"
+        "help --path project --json"
       ]
     },
     {
@@ -4788,7 +4760,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-link-plan-response",
       "next_actions": [
-        "project link create"
+        "help --path project --json"
       ]
     },
     {
@@ -4823,9 +4795,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-link-response",
       "next_actions": [
-        "project link show",
-        "project sync plan",
-        "project revision push"
+        "help --path project --json"
       ]
     },
     {
@@ -4850,8 +4820,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-passport-view",
       "next_actions": [
-        "project symbols",
-        "project revision push"
+        "help --path project --json"
       ]
     },
     {
@@ -4904,9 +4873,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-revision-pull-response",
       "next_actions": [
-        "project sync plan",
-        "project revision push",
-        "project link show"
+        "help --path project --json"
       ]
     },
     {
@@ -5004,9 +4971,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-revision-push-response",
       "next_actions": [
-        "project sync plan",
-        "project revision pull",
-        "project link show"
+        "help --path project --json"
       ]
     },
     {
@@ -5031,7 +4996,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-project-symbols",
       "next_actions": [
-        "project index"
+        "help --path project --json"
       ]
     },
     {
@@ -5129,9 +5094,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-sync-plan-response",
       "next_actions": [
-        "project sync plan",
-        "project link show",
-        "project revision push"
+        "help --path project --json"
       ]
     },
     {
@@ -5229,10 +5192,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-sync-plan-response",
       "next_actions": [
-        "project sync apply",
-        "project link show",
-        "project unlink",
-        "project revision push"
+        "help --path project --json"
       ]
     },
     {
@@ -5311,8 +5271,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-link-response",
       "next_actions": [
-        "project link create",
-        "project link show"
+        "help --path project --json"
       ]
     },
     {
@@ -5374,8 +5333,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-unlink-plan-response",
       "next_actions": [
-        "project unlink-plan show",
-        "project unlink"
+        "help --path project --json"
       ]
     },
     {
@@ -5410,7 +5368,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:project-unlink-plan-response",
       "next_actions": [
-        "project unlink"
+        "help --path project --json"
       ]
     },
     {
@@ -5452,8 +5410,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-installations",
       "next_actions": [
-        "provider fetch",
-        "provider trust"
+        "help --path provider --json"
       ]
     },
     {
@@ -5514,7 +5471,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-conformance-report",
       "next_actions": [
-        "toolchain harnesses"
+        "help --path toolchain --json"
       ]
     },
     {
@@ -5595,8 +5552,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-bound-release",
       "next_actions": [
-        "install plan",
-        "provider trust"
+        "help --path install --json",
+        "help --path provider --json"
       ]
     },
     {
@@ -5629,7 +5586,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-installations",
       "next_actions": [
-        "provider check"
+        "help --path provider --json"
       ]
     },
     {
@@ -5644,7 +5601,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-network-capability",
       "next_actions": [
-        "provider conformance"
+        "help --path provider --json"
       ]
     },
     {
@@ -5714,8 +5671,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-replacement-result",
       "next_actions": [
-        "provider check",
-        "provider conformance"
+        "help --path provider --json"
       ]
     },
     {
@@ -5776,8 +5732,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-replacement-plan",
       "next_actions": [
-        "provider reinstall apply",
-        "provider trust"
+        "help --path provider --json"
       ]
     },
     {
@@ -5802,7 +5757,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-trust",
       "next_actions": [
-        "provider conformance"
+        "help --path provider --json"
       ]
     },
     {
@@ -5863,8 +5818,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-replacement-result",
       "next_actions": [
-        "provider check",
-        "provider conformance"
+        "help --path provider --json"
       ]
     },
     {
@@ -5916,8 +5870,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-provider-replacement-plan",
       "next_actions": [
-        "provider update apply",
-        "provider trust"
+        "help --path provider --json"
       ]
     },
     {
@@ -5960,7 +5913,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-publication-plan",
       "next_actions": [
-        "publication status"
+        "help --path publication --json"
       ]
     },
     {
@@ -6021,8 +5974,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-publication-plan",
       "next_actions": [
-        "publication confirm",
-        "publication status"
+        "help --path publication --json"
       ]
     },
     {
@@ -6047,7 +5999,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-publication-plan",
       "next_actions": [
-        "publication confirm"
+        "help --path publication --json"
       ]
     },
     {
@@ -6091,7 +6043,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:visibility-plan-response",
       "next_actions": [
-        "publication visibility status"
+        "help --path publication --json"
       ]
     },
     {
@@ -6150,7 +6102,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:visibility-plan-response",
       "next_actions": [
-        "publication visibility confirm"
+        "help --path publication --json"
       ]
     },
     {
@@ -6176,7 +6128,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:visibility-plan-response",
       "next_actions": [
-        "publication visibility confirm"
+        "help --path publication --json"
       ]
     },
     {
@@ -6228,7 +6180,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-catalog-setup-acquisition",
       "next_actions": [
-        "install plan"
+        "help --path install --json"
       ]
     },
     {
@@ -6283,7 +6235,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-catalog-artifact",
       "next_actions": [
-        "registry version"
+        "help --path registry --json"
       ]
     },
     {
@@ -6309,7 +6261,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-store-port-discovery",
       "next_actions": [
-        "registry port inspect"
+        "help --path registry --json"
       ]
     },
     {
@@ -6356,7 +6308,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-store-port-import-result",
       "next_actions": [
-        "component passport validate"
+        "help --path component --json"
       ]
     },
     {
@@ -6394,7 +6346,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-store-port-inspection",
       "next_actions": [
-        "registry port plan"
+        "help --path registry --json"
       ]
     },
     {
@@ -6432,7 +6384,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-store-port-import-plan",
       "next_actions": [
-        "registry port import"
+        "help --path registry --json"
       ]
     },
     {
@@ -6496,7 +6448,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-catalog-search",
       "next_actions": [
-        "registry show"
+        "help --path registry --json"
       ]
     },
     {
@@ -6533,7 +6485,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-catalog-object",
       "next_actions": [
-        "registry search"
+        "help --path registry --json"
       ]
     },
     {
@@ -6588,7 +6540,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-catalog-version",
       "next_actions": [
-        "registry show"
+        "help --path registry --json"
       ]
     },
     {
@@ -6631,7 +6583,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-report-case",
       "next_actions": [
-        "report list"
+        "help --path report --json"
       ]
     },
     {
@@ -6646,7 +6598,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-report-list",
       "next_actions": [
-        "report preview"
+        "help --path report --json"
       ]
     },
     {
@@ -6929,7 +6881,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-report-preview",
       "next_actions": [
-        "report confirm"
+        "help --path report --json"
       ]
     },
     {
@@ -6954,7 +6906,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-report-case",
       "next_actions": [
-        "report list"
+        "help --path report --json"
       ]
     },
     {
@@ -7003,7 +6955,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-blast-radius-report",
       "next_actions": [
-        "select impact"
+        "help --path select --json"
       ]
     },
     {
@@ -7068,7 +7020,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-bundle",
       "next_actions": [
-        "select reports"
+        "help --path select --json"
       ]
     },
     {
@@ -7093,7 +7045,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-proposal-session",
       "next_actions": [
-        "select session"
+        "help --path select --json"
       ]
     },
     {
@@ -7118,7 +7070,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-confirmation",
       "next_actions": [
-        "select session"
+        "help --path select --json"
       ]
     },
     {
@@ -7170,7 +7122,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-eligibility-report",
       "next_actions": [
-        "component find"
+        "help --path component --json"
       ]
     },
     {
@@ -7222,7 +7174,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-eligibility-matrix",
       "next_actions": [
-        "select eligibility"
+        "help --path select --json"
       ]
     },
     {
@@ -7256,7 +7208,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-graph",
       "next_actions": [
-        "select propose"
+        "help --path select --json"
       ]
     },
     {
@@ -7338,7 +7290,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-selection-impact-report",
       "next_actions": [
-        "select blast-radius"
+        "help --path select --json"
       ]
     },
     {
@@ -7390,7 +7342,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-proposal-session",
       "next_actions": [
-        "select confirm"
+        "help --path select --json"
       ]
     },
     {
@@ -7433,7 +7385,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-composition-reports",
       "next_actions": [
-        "select confirm"
+        "help --path select --json"
       ]
     },
     {
@@ -7467,7 +7419,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-proposal-session",
       "next_actions": [
-        "select propose"
+        "help --path select --json"
       ]
     },
     {
@@ -7529,9 +7481,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-compose-result",
       "next_actions": [
-        "setup export",
-        "setup publish plan",
-        "select session"
+        "help --path setup --json",
+        "help --path select --json"
       ]
     },
     {
@@ -7575,7 +7526,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-compose-plan",
       "next_actions": [
-        "setup compose apply"
+        "help --path setup --json"
       ]
     },
     {
@@ -7618,8 +7569,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-export-result",
       "next_actions": [
-        "install plan",
-        "setup publish plan"
+        "help --path install --json",
+        "help --path setup --json"
       ]
     },
     {
@@ -7654,7 +7605,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-import-inspection",
       "next_actions": [
-        "setup import plan"
+        "help --path setup --json"
       ]
     },
     {
@@ -7689,7 +7640,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-import-plan",
       "next_actions": [
-        "setup import register"
+        "help --path setup --json"
       ]
     },
     {
@@ -7760,7 +7711,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-imported-setup",
       "next_actions": [
-        "component find"
+        "help --path component --json"
       ]
     },
     {
@@ -7879,9 +7830,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation",
       "next_actions": [
-        "install approve",
-        "install apply",
-        "setup preserved list"
+        "help --path install --json",
+        "help --path setup --json"
       ]
     },
     {
@@ -7961,8 +7911,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation",
       "next_actions": [
-        "setup preserved list",
-        "setup restore plan"
+        "help --path setup --json"
       ]
     },
     {
@@ -7996,8 +7945,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-preserved-setups",
       "next_actions": [
-        "setup preserved show",
-        "setup restore plan"
+        "help --path setup --json"
       ]
     },
     {
@@ -8077,7 +8025,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-preserved-setup",
       "next_actions": [
-        "setup restore plan"
+        "help --path setup --json"
       ]
     },
     {
@@ -8112,8 +8060,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-publication-set",
       "next_actions": [
-        "publication status",
-        "owner objects"
+        "help --path publication --json",
+        "help --path owner --json"
       ]
     },
     {
@@ -8160,8 +8108,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-publication-set",
       "next_actions": [
-        "setup publish confirm",
-        "publication status"
+        "help --path setup --json",
+        "help --path publication --json"
       ]
     },
     {
@@ -8240,9 +8188,9 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-recast-result",
       "next_actions": [
-        "setup export",
-        "install plan",
-        "select session"
+        "help --path setup --json",
+        "help --path install --json",
+        "help --path select --json"
       ]
     },
     {
@@ -8303,7 +8251,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-recast-plan",
       "next_actions": [
-        "setup recast apply"
+        "help --path setup --json"
       ]
     },
     {
@@ -8383,9 +8331,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-installation",
       "next_actions": [
-        "install approve",
-        "install apply",
-        "setup preserved show"
+        "help --path install --json",
+        "help --path setup --json"
       ]
     },
     {
@@ -8455,8 +8402,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-scaffold-result",
       "next_actions": [
-        "setup compose plan",
-        "component passport validate"
+        "help --path setup --json",
+        "help --path component --json"
       ]
     },
     {
@@ -8517,7 +8464,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-scaffold-plan",
       "next_actions": [
-        "setup scaffold apply"
+        "help --path setup --json"
       ]
     },
     {
@@ -8615,7 +8562,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-update-result",
       "next_actions": [
-        "select session"
+        "help --path select --json"
       ]
     },
     {
@@ -8704,7 +8651,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-setup-update-plan",
       "next_actions": [
-        "setup update apply"
+        "help --path setup --json"
       ]
     },
     {
@@ -8747,7 +8694,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-skill-delivery",
       "next_actions": [
-        "skill status"
+        "help --path skill --json"
       ]
     },
     {
@@ -8772,7 +8719,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-skill-delivery",
       "next_actions": [
-        "skill status"
+        "help --path skill --json"
       ]
     },
     {
@@ -8797,7 +8744,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-skill-delivery",
       "next_actions": [
-        "capabilities"
+        "help --path capabilities --json"
       ]
     },
     {
@@ -8831,8 +8778,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-sync-preview",
       "next_actions": [
-        "sync push",
-        "sync preview"
+        "help --path sync --json"
       ]
     },
     {
@@ -8857,7 +8803,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-sync-preview",
       "next_actions": [
-        "passport developer show"
+        "help --path passport --json"
       ]
     },
     {
@@ -8900,8 +8846,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-sync-pull",
       "next_actions": [
-        "sync pull",
-        "sync preview"
+        "help --path sync --json"
       ]
     },
     {
@@ -8935,8 +8880,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-sync-push",
       "next_actions": [
-        "sync pull",
-        "sync preview"
+        "help --path sync --json"
       ]
     },
     {
@@ -9023,7 +8967,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-target-backups",
       "next_actions": [
-        "install plan"
+        "help --path install --json"
       ]
     },
     {
@@ -9128,7 +9072,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-target-diff",
       "next_actions": [
-        "install plan"
+        "help --path install --json"
       ]
     },
     {
@@ -9170,8 +9114,8 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-rollback-target",
       "next_actions": [
-        "target backups",
-        "install plan"
+        "help --path target --json",
+        "help --path install --json"
       ]
     },
     {
@@ -9276,8 +9220,189 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-target-survey",
       "next_actions": [
-        "install plan",
-        "target rollback"
+        "help --path install --json",
+        "help --path target --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "answer"
+      ],
+      "summary": "Supply one typed answer to an open task question.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "task",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Task stable id.",
+          "choices": []
+        },
+        {
+          "name": "revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision this answer is based on.",
+          "choices": []
+        },
+        {
+          "name": "question-id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Open question this answer belongs to.",
+          "choices": []
+        },
+        {
+          "name": "value",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Answer value.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "cancel"
+      ],
+      "summary": "Abandon a durable task that has not settled.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "task",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Task stable id.",
+          "choices": []
+        },
+        {
+          "name": "revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision this cancel is based on.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "continue"
+      ],
+      "summary": "Advance a durable task by one in-process step.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "task",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Task stable id.",
+          "choices": []
+        },
+        {
+          "name": "revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Revision this step is based on.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "start"
+      ],
+      "summary": "Create a durable agent task for one closed intent.",
+      "mutability": "apply",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "intent",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Closed intent this task will drain.",
+          "choices": [
+            "inspect"
+          ]
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable key for this exact intent.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
+        "status"
+      ],
+      "summary": "Read one durable task without changing it.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "task",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Task stable id.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task",
+      "next_actions": [
+        "help --path task --json"
       ]
     },
     {
@@ -9320,7 +9445,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-telemetry-status",
       "next_actions": [
-        "telemetry show"
+        "help --path telemetry --json"
       ]
     },
     {
@@ -9335,7 +9460,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-telemetry-status",
       "next_actions": [
-        "telemetry consent"
+        "help --path telemetry --json"
       ]
     },
     {
@@ -9350,9 +9475,9 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-capability-table",
       "next_actions": [
-        "provider conformance",
-        "toolchain harnesses",
-        "component discover"
+        "help --path provider --json",
+        "help --path toolchain --json",
+        "help --path component --json"
       ]
     },
     {
@@ -9367,7 +9492,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-harness-survey",
       "next_actions": [
-        "toolchain profile"
+        "help --path toolchain --json"
       ]
     },
     {
@@ -9401,7 +9526,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-toolchain-installation",
       "next_actions": [
-        "toolchain profile"
+        "help --path toolchain --json"
       ]
     },
     {
@@ -9416,7 +9541,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-toolchain-profile",
       "next_actions": [
-        "doctor"
+        "help --path doctor --json"
       ]
     },
     {
@@ -9450,7 +9575,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-toolchain-installation",
       "next_actions": [
-        "toolchain profile"
+        "help --path toolchain --json"
       ]
     },
     {
@@ -9475,8 +9600,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-self-update-result",
       "next_actions": [
-        "update status",
-        "update rollback"
+        "help --path update --json"
       ]
     },
     {
@@ -9522,8 +9646,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-self-update-check",
       "next_actions": [
-        "update plan",
-        "update status"
+        "help --path update --json"
       ]
     },
     {
@@ -9560,8 +9683,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-self-update-plan",
       "next_actions": [
-        "update apply",
-        "update status"
+        "help --path update --json"
       ]
     },
     {
@@ -9576,7 +9698,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-self-update-result",
       "next_actions": [
-        "update status"
+        "help --path update --json"
       ]
     },
     {
@@ -9601,7 +9723,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-self-update-result",
       "next_actions": [
-        "update status"
+        "help --path update --json"
       ]
     },
     {
@@ -9616,8 +9738,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-self-update-status",
       "next_actions": [
-        "update recover",
-        "update rollback"
+        "help --path update --json"
       ]
     },
     {
@@ -9631,7 +9752,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-version-report",
       "next_actions": [
-        "doctor"
+        "help --path doctor --json"
       ]
     }
   ],
@@ -9677,6 +9798,12 @@
       "exit_class": 70,
       "handling": "report_bug",
       "description": "a stored catalog object failed integrity verification"
+    },
+    {
+      "code": "AI_STP_COMPENSATED",
+      "exit_class": 4,
+      "handling": "reconcile_state",
+      "description": "the requested mutation did not complete; compensation finished"
     },
     {
       "code": "AI_STP_CONFLICT",

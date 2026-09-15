@@ -189,7 +189,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=("public", "private"),
             ),
         ),
-        next_actions=("publication visibility confirm",),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["publication", "visibility", "status"],
@@ -197,7 +197,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:visibility-plan-response",
         handler="visibility:status",
         parameters=(option("plan-id", "string", "Visibility plan identifier.", required=True),),
-        next_actions=("publication visibility confirm",),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["publication", "visibility", "confirm"],
@@ -211,7 +211,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("plan-hash", "string", "Exact visibility plan hash.", required=True),
             option("confirm", "boolean", "Explicitly approve these access changes."),
         ),
-        next_actions=("publication visibility status",),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["setup", "preserve", "plan"],
@@ -237,7 +237,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             *_PRESERVED_PROVIDER_OPTIONS,
         ),
-        next_actions=("install approve", "install apply", "setup preserved list"),
+        next_actions=(
+            "help --path install --json",
+            "help --path setup --json",
+        ),
     ),
     Declaration(
         path=["setup", "preserve", "recover"],
@@ -249,7 +252,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("operation", "string", "Original capture operation id.", required=True),
             *_PRESERVED_PROVIDER_OPTIONS,
         ),
-        next_actions=("setup preserved list", "setup restore plan"),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "preserved", "list"],
@@ -264,7 +267,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=tuple(sorted(HARNESS_IDS)),
             ),
         ),
-        next_actions=("setup preserved show", "setup restore plan"),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "preserved", "show"],
@@ -275,7 +278,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("setup", "string", "Preserved setup stable id.", required=True),
             *_PRESERVED_PROVIDER_OPTIONS,
         ),
-        next_actions=("setup restore plan",),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "restore", "plan"],
@@ -287,7 +290,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("preserved-setup", "string", "Exact saved setup stable id.", required=True),
             *_PRESERVED_PROVIDER_OPTIONS,
         ),
-        next_actions=("install approve", "install apply", "setup preserved show"),
+        next_actions=(
+            "help --path install --json",
+            "help --path setup --json",
+        ),
     ),
     Declaration(
         path=["eval", "profile"],
@@ -302,7 +308,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=COMPONENT_TYPES,
             ),
         ),
-        next_actions=("eval plan",),
+        next_actions=("help --path eval --json",),
     ),
     Declaration(
         path=["eval", "plan"],
@@ -325,7 +331,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("runner-version", "string", "Exact evaluation runner version.", required=True),
         ),
-        next_actions=("eval run",),
+        next_actions=("help --path eval --json",),
     ),
     Declaration(
         path=["eval", "component", "plan"],
@@ -342,7 +348,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("runner-version", "string", "Exact evaluation runner version.", required=True),
         ),
-        next_actions=("eval component run",),
+        next_actions=("help --path eval --json",),
     ),
     Declaration(
         path=["eval", "run"],
@@ -360,7 +366,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("eval status", "eval show"),
+        next_actions=("help --path eval --json",),
     ),
     Declaration(
         path=["eval", "component", "run"],
@@ -383,7 +389,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("eval component status", "eval component show"),
+        next_actions=("help --path eval --json",),
     ),
     Declaration(
         path=["eval", "component", "status"],
@@ -391,7 +397,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-component-eval-result",
         handler="evaluation:component_status",
         parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
-        next_actions=("eval component show",),
+        next_actions=("help --path eval --json",),
     ),
     Declaration(
         path=["eval", "component", "show"],
@@ -406,7 +412,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-setup-eval-result",
         handler="evaluation:status",
         parameters=(option("run-id", "string", "Evaluation run identifier.", required=True),),
-        next_actions=("eval show",),
+        next_actions=("help --path eval --json",),
     ),
     Declaration(
         path=["eval", "show"],
@@ -433,7 +439,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("commit", "string", "Exact full commit SHA.", required=True),
             option("subpath", "string", "Component directory within the snapshot.", required=True),
         ),
-        next_actions=("publication plan",),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["publication", "plan"],
@@ -459,7 +465,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 repeatable=True,
             ),
         ),
-        next_actions=("publication confirm", "publication status"),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["attestation", "sign"],
@@ -503,7 +509,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "confirm", "boolean", "Confirm signing these exact observed facts.", required=True
             ),
         ),
-        next_actions=("publication plan",),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["publication", "status"],
@@ -511,7 +517,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-publication-plan",
         handler="publication:show",
         parameters=(option("plan-id", "string", "Publication plan identifier.", required=True),),
-        next_actions=("publication confirm",),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["publication", "confirm"],
@@ -530,14 +536,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("confirm", "boolean", "Confirm the exact plan and its listed effects."),
         ),
-        next_actions=("publication status",),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["grant", "list"],
         summary="List invitations and major-line grants owned by the current account.",
         result_schema="urn:ai-stp:schema:v1:cli-grant-list",
         handler="grants:list_all",
-        next_actions=("grant invite", "grant direct"),
+        next_actions=("help --path grant --json",),
     ),
     Declaration(
         path=["grant", "invite"],
@@ -555,7 +561,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
             option("confirm", "boolean", "Confirm creating this exact invitation.", required=True),
         ),
-        next_actions=("grant list",),
+        next_actions=("help --path grant --json",),
     ),
     Declaration(
         path=["grant", "direct"],
@@ -581,7 +587,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
             option("confirm", "boolean", "Confirm creating this exact grant.", required=True),
         ),
-        next_actions=("grant list",),
+        next_actions=("help --path grant --json",),
     ),
     Declaration(
         path=["grant", "accept"],
@@ -601,7 +607,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
             option("confirm", "boolean", "Confirm accepting this exact invitation.", required=True),
         ),
-        next_actions=("grant list",),
+        next_actions=("help --path grant --json",),
     ),
     Declaration(
         path=["grant", "invitation", "revoke"],
@@ -616,7 +622,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
             option("confirm", "boolean", "Confirm revoking this exact invitation.", required=True),
         ),
-        next_actions=("grant list",),
+        next_actions=("help --path grant --json",),
     ),
     Declaration(
         path=["grant", "revoke"],
@@ -631,7 +637,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
             option("confirm", "boolean", "Confirm revoking this exact grant.", required=True),
         ),
-        next_actions=("grant list",),
+        next_actions=("help --path grant --json",),
     ),
     Declaration(
         path=["report", "preview"],
@@ -688,7 +694,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("vulnerability", "boolean", "Mark a possible security vulnerability."),
             option("idempotency-key", "string", "Stable key for this exact report.", required=True),
         ),
-        next_actions=("report confirm",),
+        next_actions=("help --path report --json",),
     ),
     Declaration(
         path=["report", "confirm"],
@@ -706,14 +712,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "confirm", "boolean", "Confirm sending the exact previewed payload.", required=True
             ),
         ),
-        next_actions=("report list",),
+        next_actions=("help --path report --json",),
     ),
     Declaration(
         path=["report", "list"],
         summary="List the current account's closed report cases.",
         result_schema="urn:ai-stp:schema:v1:cli-report-list",
         handler="reports:list_all",
-        next_actions=("report preview",),
+        next_actions=("help --path report --json",),
     ),
     Declaration(
         path=["report", "status"],
@@ -721,7 +727,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-report-case",
         handler="reports:status",
         parameters=(option("case-id", "string", "Request case identifier.", required=True),),
-        next_actions=("report list",),
+        next_actions=("help --path report --json",),
     ),
     Declaration(
         path=["owner", "objects"],
@@ -735,7 +741,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("cursor", "string", "Opaque cursor returned by the previous page."),
             option("page-size", "integer", "Requested bounded page size; defaults to 20."),
         ),
-        next_actions=("owner object show",),
+        next_actions=("help --path owner --json",),
     ),
     Declaration(
         path=["owner", "object", "show"],
@@ -746,7 +752,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("kind", "string", "Object kind.", required=True, choices=("component", "setup")),
             option("id", "string", "Stable object identifier.", required=True),
         ),
-        next_actions=("owner version show",),
+        next_actions=("help --path owner --json",),
     ),
     Declaration(
         path=["owner", "version", "show"],
@@ -758,7 +764,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable object identifier.", required=True),
             option("version", "string", "Exact object version.", required=True),
         ),
-        next_actions=("publication plan",),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["auth", "complete"],
@@ -777,7 +783,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # flag: the decision is the user's approval in the browser, which is the
         # whole point of the flow.
         mutability="apply",
-        next_actions=("auth status",),
+        next_actions=("help --path auth --json",),
     ),
     Declaration(
         path=["auth", "login"],
@@ -800,7 +806,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Also open the approval page in the desktop default browser.",
             ),
         ),
-        next_actions=("auth complete", "auth status"),
+        next_actions=("help --path auth --json",),
     ),
     Declaration(
         path=["auth", "logout"],
@@ -808,28 +814,31 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-auth-status",
         handler="auth:logout",
         mutability="apply",
-        next_actions=("auth status",),
+        next_actions=("help --path auth --json",),
     ),
     Declaration(
         path=["auth", "status"],
         summary="Report the platform relationship: local-only, authenticated, expired or revoked.",
         result_schema="urn:ai-stp:schema:v1:cli-auth-status",
         handler="auth_status:run",
-        next_actions=("device show",),
+        next_actions=("help --path device --json",),
     ),
     Declaration(
         path=["capabilities"],
         summary="Report what this installation can do right now.",
         result_schema="urn:ai-stp:schema:v1:cli-capabilities",
         handler="machine_help:capabilities",
-        next_actions=("doctor", "help --agent"),
+        next_actions=(
+            "help --path doctor --json",
+            "help --agent",
+        ),
     ),
     Declaration(
         path=["contract", "inventory"],
         summary="List the coordinated standard family and every other contract axis.",
         result_schema="urn:ai-stp:schema:v1:cli-standard-inventory",
         handler="contract:inventory",
-        next_actions=("version",),
+        next_actions=("help --path version --json",),
     ),
     Declaration(
         path=["component", "discover"],
@@ -848,7 +857,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Opaque continuation from an incomplete discover --root.",
             ),
         ),
-        next_actions=("component inventory", "component adopt"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "inventory"],
@@ -868,7 +877,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Opaque continuation from an incomplete inventory --root.",
             ),
         ),
-        next_actions=("component discover", "component adopt"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "scaffold", "plan"],
@@ -909,7 +918,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("name", "string", "Lowercase component slug.", required=True),
             option("output", "string", "New scaffold directory to preview.", required=True),
         ),
-        next_actions=("component scaffold apply",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "scaffold", "apply"],
@@ -957,7 +966,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("component passport validate", "component adopt"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "adaptation", "add"],
@@ -979,7 +988,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Add every remaining concrete harness the type can project without loss.",
             ),
         ),
-        next_actions=("component passport validate", "component version release"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "materialize", "plan"],
@@ -1015,7 +1024,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Fork a private overlay instead of minting the next owner version.",
             ),
         ),
-        next_actions=("component materialize apply",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "materialize", "apply"],
@@ -1056,7 +1065,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
-        next_actions=("eval component plan", "select propose", "setup compose plan"),
+        next_actions=(
+            "help --path eval --json",
+            "help --path select --json",
+            "help --path setup --json",
+        ),
     ),
     Declaration(
         path=["component", "portability", "plan"],
@@ -1087,7 +1100,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("overlay-id", "string", "Overlay id returned by an earlier plan."),
         ),
-        next_actions=("component portability apply",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "portability", "apply"],
@@ -1123,7 +1136,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
-        next_actions=("select propose", "install plan"),
+        next_actions=(
+            "help --path select --json",
+            "help --path install --json",
+        ),
     ),
     Declaration(
         path=["component", "program", "install"],
@@ -1135,7 +1151,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable identifier of the cli component.", required=True),
             option("version", "string", "Exact X.Y version. Omitted, the newest recorded."),
         ),
-        next_actions=("component program invoke", "component program status"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "program", "invoke"],
@@ -1148,7 +1164,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("version", "string", "Exact X.Y version. Omitted, the newest recorded."),
             option("arg", "string", "Argument passed to the executable.", repeatable=True),
         ),
-        next_actions=("component program status",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "program", "status"],
@@ -1159,7 +1175,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable identifier of the cli component.", required=True),
             option("version", "string", "Inspect this exact installed version instead of current."),
         ),
-        next_actions=("component program install", "component program remove"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "program", "remove"],
@@ -1174,7 +1190,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "confirm", "boolean", "Required confirmation that the executable may be removed."
             ),
         ),
-        next_actions=("component program status",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "template", "render"],
@@ -1198,7 +1214,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("component adopt", "component scaffold plan"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "source", "parse"],
@@ -1216,7 +1232,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "root", "string", "Base directory used only to normalize a relative local path."
             ),
         ),
-        next_actions=("component source resolve", "component discover"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "source", "resolve"],
@@ -1235,7 +1251,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "root", "string", "Base directory used only to normalize a relative local path."
             ),
         ),
-        next_actions=("component discover", "component adopt"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "source", "search"],
@@ -1250,7 +1266,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Also search supported package names and known GitHub candidates.",
             ),
         ),
-        next_actions=("setup update plan", "component source resolve"),
+        next_actions=(
+            "help --path setup --json",
+            "help --path component --json",
+        ),
     ),
     Declaration(
         path=["component", "publish"],
@@ -1284,7 +1303,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 repeatable=True,
             ),
         ),
-        next_actions=("publication confirm", "publication status"),
+        next_actions=("help --path publication --json",),
     ),
     Declaration(
         path=["component", "source", "evidence", "refresh"],
@@ -1296,7 +1315,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable identifier of a local object.", required=True),
             option("version", "string", "Exact recorded X.Y version.", required=True),
         ),
-        next_actions=("component source evidence show", "component source evidence history"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "source", "evidence", "show"],
@@ -1307,7 +1326,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable identifier of a local object.", required=True),
             option("version", "string", "Exact recorded X.Y version.", required=True),
         ),
-        next_actions=("component source evidence refresh", "component source evidence history"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "source", "evidence", "history"],
@@ -1319,7 +1338,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("version", "string", "Exact recorded X.Y version.", required=True),
             option("limit", "integer", "Newest observations to return, from 1 to 100."),
         ),
-        next_actions=("component source evidence show",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "adopt"],
@@ -1345,7 +1364,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "for a file one harness claims as two kinds.",
             ),
         ),
-        next_actions=("component passport show", "component discover"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "passport", "show"],
@@ -1355,7 +1374,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("id", "string", "Stable identifier of an adopted component.", required=True),
         ),
-        next_actions=("component passport suggest", "component passport update"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "passport", "suggest"],
@@ -1365,7 +1384,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("id", "string", "Stable identifier of an adopted component.", required=True),
         ),
-        next_actions=("component passport update", "component passport validate"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "passport", "update"],
@@ -1396,7 +1415,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("component passport validate", "component passport show"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "passport", "validate"],
@@ -1412,7 +1431,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "command applies; accepted so an older caller's spelling still parses.",
             ),
         ),
-        next_actions=("component passport update", "component version release"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "passport", "quality"],
@@ -1422,7 +1441,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("id", "string", "Stable identifier of an adopted component.", required=True),
         ),
-        next_actions=("component passport update", "component passport validate"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "forget"],
@@ -1439,7 +1458,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("reason", "string", "Why it is being removed."),
         ),
-        next_actions=("component discover",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["consent", "allow"],
@@ -1463,7 +1482,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "The publisher, object major line, or full-auto task profile it covers.",
             ),
         ),
-        next_actions=("consent list",),
+        next_actions=("help --path consent --json",),
     ),
     Declaration(
         path=["consent", "revoke"],
@@ -1479,14 +1498,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "The publisher, object major line, or full-auto task profile it covers.",
             ),
         ),
-        next_actions=("consent list",),
+        next_actions=("help --path consent --json",),
     ),
     Declaration(
         path=["consent", "list"],
         summary="Every consent still in force, and what each covered when given.",
         result_schema="urn:ai-stp:schema:v1:cli-consent-summary",
         handler="component:consent_list",
-        next_actions=("consent allow",),
+        next_actions=("help --path consent --json",),
     ),
     Declaration(
         path=["component", "version", "list"],
@@ -1496,7 +1515,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("id", "string", "Stable identifier of a registered object.", required=True),
         ),
-        next_actions=("component version release",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "version", "release"],
@@ -1517,7 +1536,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=("public", "private"),
             ),
         ),
-        next_actions=("component version list",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "fork"],
@@ -1529,7 +1548,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable identifier of the object being forked.", required=True),
             option("version", "string", "The exact X.Y being forked.", required=True),
         ),
-        next_actions=("component version list",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["component", "find"],
@@ -1553,7 +1572,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Show unverified candidates for this command only. Never stored.",
             ),
         ),
-        next_actions=("component version list",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["config", "init"],
@@ -1563,7 +1582,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # Idempotent and never destructive: an existing file is validated rather
         # than replaced, so there is nothing for the user to decide.
         mutability="apply",
-        next_actions=("config show",),
+        next_actions=("help --path config --json",),
     ),
     Declaration(
         path=["config", "set"],
@@ -1579,7 +1598,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 repeatable=True,
             ),
         ),
-        next_actions=("config show",),
+        next_actions=("help --path config --json",),
     ),
     Declaration(
         path=["config", "unset"],
@@ -1595,14 +1614,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 repeatable=True,
             ),
         ),
-        next_actions=("config show",),
+        next_actions=("help --path config --json",),
     ),
     Declaration(
         path=["config", "validate"],
         summary="Read the configuration file and refuse it if it cannot be honoured.",
         result_schema="urn:ai-stp:schema:v1:cli-config-report",
         handler="config_show:validate",
-        next_actions=("config show",),
+        next_actions=("help --path config --json",),
     ),
     Declaration(
         path=["config", "show"],
@@ -1618,7 +1637,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 repeatable=True,
             ),
         ),
-        next_actions=("doctor",),
+        next_actions=("help --path doctor --json",),
     ),
     Declaration(
         path=["device", "reset"],
@@ -1638,7 +1657,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("device show",),
+        next_actions=("help --path device --json",),
     ),
     Declaration(
         path=["device", "init"],
@@ -1648,21 +1667,21 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # Idempotent, so there is nothing for the user to decide: a second run
         # returns the identity the first one made.
         mutability="apply",
-        next_actions=("device show",),
+        next_actions=("help --path device --json",),
     ),
     Declaration(
         path=["device", "show"],
         summary="Show this device identity and where its key is kept.",
         result_schema="urn:ai-stp:schema:v1:cli-device-identity",
         handler="device:show",
-        next_actions=("auth status",),
+        next_actions=("help --path auth --json",),
     ),
     Declaration(
         path=["doctor"],
         summary="Report the setup state of this installation without changing it.",
         result_schema="urn:ai-stp:schema:v1:cli-doctor-report",
         handler="doctor:run",
-        next_actions=("config show",),
+        next_actions=("help --path config --json",),
     ),
     Declaration(
         path=["help"],
@@ -1684,7 +1703,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "it describes, so a scoped read stays comparable to a full one.",
             ),
         ),
-        next_actions=("capabilities",),
+        next_actions=("help --path capabilities --json",),
     ),
     Declaration(
         path=["link", "web"],
@@ -1716,14 +1735,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # It creates durable state, and running it twice is a no-op rather than
         # a second passport, so it needs no decision from the user.
         mutability="apply",
-        next_actions=("passport developer show",),
+        next_actions=("help --path passport --json",),
     ),
     Declaration(
         path=["passport", "developer", "show"],
         summary="Show the developer passport at its current head.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
         handler="passport:developer_show",
-        next_actions=("passport device show",),
+        next_actions=("help --path passport --json",),
     ),
     Declaration(
         path=["passport", "developer", "update"],
@@ -1740,7 +1759,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 repeatable=True,
             ),
         ),
-        next_actions=("passport developer show",),
+        next_actions=("help --path passport --json",),
     ),
     Declaration(
         path=["passport", "device", "refresh"],
@@ -1750,14 +1769,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # Observing writes a revision only when something actually changed, but
         # it can add history, so the class is the honest one.
         mutability="apply",
-        next_actions=("passport device show",),
+        next_actions=("help --path passport --json",),
     ),
     Declaration(
         path=["passport", "device", "show"],
         summary="Show this device passport at its current head.",
         result_schema="urn:ai-stp:schema:v1:cli-passport-view",
         handler="passport:device_show",
-        next_actions=("passport developer show",),
+        next_actions=("help --path passport --json",),
     ),
     Declaration(
         path=["project", "discover"],
@@ -1772,7 +1791,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("doctor",),
+        next_actions=("help --path doctor --json",),
     ),
     Declaration(
         path=["project", "index"],
@@ -1780,7 +1799,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-project-index",
         handler="project:index",
         parameters=(option("root", "string", "Exact project root to index.", required=True),),
-        next_actions=("project discover",),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "symbols"],
@@ -1788,7 +1807,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-project-symbols",
         handler="project:symbol_index",
         parameters=(option("root", "string", "Exact project root to read.", required=True),),
-        next_actions=("project index",),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "link", "plan", "create"],
@@ -1814,7 +1833,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("idempotency-key", "string", "Stable key for this exact plan.", required=True),
         ),
-        next_actions=("project link plan show", "project link create"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "link", "plan", "show"],
@@ -1825,7 +1844,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("organization-id", "string", "Explicit remote organization.", required=True),
             option("plan-id", "string", "Exact project link plan identifier.", required=True),
         ),
-        next_actions=("project link create",),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "link", "create"],
@@ -1854,7 +1873,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("confirm", "boolean", "Confirm creating this link.", required=True),
         ),
-        next_actions=("project link show", "project sync plan"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "link", "show"],
@@ -1865,7 +1884,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("organization-id", "string", "Explicit remote organization.", required=True),
             option("link-id", "string", "Explicit project link identifier.", required=True),
         ),
-        next_actions=("project link show", "project sync plan", "project revision push"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "unlink-plan", "create"],
@@ -1890,7 +1909,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("idempotency-key", "string", "Stable key for this exact plan.", required=True),
         ),
-        next_actions=("project unlink-plan show", "project unlink"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "unlink-plan", "show"],
@@ -1901,7 +1920,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("organization-id", "string", "Explicit remote organization.", required=True),
             option("plan-id", "string", "Exact project unlink plan identifier.", required=True),
         ),
-        next_actions=("project unlink",),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "unlink"],
@@ -1929,7 +1948,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact unlink.", required=True),
             option("confirm", "boolean", "Confirm unlinking this pair.", required=True),
         ),
-        next_actions=("project link create", "project link show"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "sync", "plan"],
@@ -1971,12 +1990,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("idempotency-key", "string", "Stable key for this exact plan.", required=True),
         ),
-        next_actions=(
-            "project sync apply",
-            "project link show",
-            "project unlink",
-            "project revision push",
-        ),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "sync", "apply"],
@@ -2006,7 +2020,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact apply.", required=True),
             option("confirm", "boolean", "Confirm applying this plan.", required=True),
         ),
-        next_actions=("project sync plan", "project link show", "project revision push"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "revision", "push"],
@@ -2046,7 +2060,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("idempotency-key", "string", "Stable key for this exact push.", required=True),
             option("confirm", "boolean", "Confirm publishing this projection.", required=True),
         ),
-        next_actions=("project sync plan", "project revision pull", "project link show"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["project", "revision", "pull"],
@@ -2064,7 +2078,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("project sync plan", "project revision push", "project link show"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["harness", "install"],
@@ -2114,7 +2128,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Windows, sandbox-exec on macOS.",
             ),
         ),
-        next_actions=("toolchain harnesses",),
+        next_actions=("help --path toolchain --json",),
     ),
     Declaration(
         path=["harness", "update"],
@@ -2164,7 +2178,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Windows, sandbox-exec on macOS.",
             ),
         ),
-        next_actions=("toolchain harnesses",),
+        next_actions=("help --path toolchain --json",),
     ),
     Declaration(
         path=["harness", "remove"],
@@ -2221,7 +2235,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("harness status",),
+        next_actions=("help --path harness --json",),
     ),
     Declaration(
         path=["harness", "resume"],
@@ -2276,7 +2290,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Windows, sandbox-exec on macOS.",
             ),
         ),
-        next_actions=("harness status",),
+        next_actions=("help --path harness --json",),
     ),
     Declaration(
         path=["harness", "status"],
@@ -2292,7 +2306,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("harness install", "install recover"),
+        next_actions=(
+            "help --path harness --json",
+            "help --path install --json",
+        ),
     ),
     Declaration(
         path=["toolchain", "install"],
@@ -2304,7 +2321,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("tool", "string", "Identifier of a tool the profile pins.", required=True),
             option("offline", "boolean", "Use only the verified cache; never the network."),
         ),
-        next_actions=("toolchain profile",),
+        next_actions=("help --path toolchain --json",),
     ),
     Declaration(
         path=["toolchain", "remove"],
@@ -2322,7 +2339,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("toolchain profile",),
+        next_actions=("help --path toolchain --json",),
     ),
     Declaration(
         path=["project", "passport"],
@@ -2333,7 +2350,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # project adds nothing — but idempotent is not read-only.
         mutability="apply",
         parameters=(option("root", "string", "Exact project root to record.", required=True),),
-        next_actions=("project symbols", "project revision push"),
+        next_actions=("help --path project --json",),
     ),
     Declaration(
         path=["registry", "acquire"],
@@ -2351,7 +2368,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("version", "string", "Exact two-integer setup version.", required=True),
             option("offline", "boolean", "Use only verified cached passports and artifacts."),
         ),
-        next_actions=("install plan",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["registry", "port", "discover"],
@@ -2359,7 +2376,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-store-port-discovery",
         handler="registry:port_discover",
         parameters=(option("root", "string", "Exact local directory to inspect.", required=True),),
-        next_actions=("registry port inspect",),
+        next_actions=("help --path registry --json",),
     ),
     Declaration(
         path=["registry", "port", "inspect"],
@@ -2370,7 +2387,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("root", "string", "Exact local directory to inspect.", required=True),
             option("adapter", "string", "Store contract.", required=True, choices=("sx", "apm")),
         ),
-        next_actions=("registry port plan",),
+        next_actions=("help --path registry --json",),
     ),
     Declaration(
         path=["registry", "port", "plan"],
@@ -2382,7 +2399,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("root", "string", "Exact local directory to inspect.", required=True),
             option("adapter", "string", "Store contract.", required=True, choices=("sx", "apm")),
         ),
-        next_actions=("registry port import",),
+        next_actions=("help --path registry --json",),
     ),
     Declaration(
         path=["registry", "port", "import"],
@@ -2398,7 +2415,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
-        next_actions=("component passport validate",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["registry", "fetch"],
@@ -2423,7 +2440,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("registry version",),
+        next_actions=("help --path registry --json",),
     ),
     Declaration(
         path=["registry", "search"],
@@ -2447,7 +2464,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Also return the experimental lane, in its own section.",
             ),
         ),
-        next_actions=("registry show",),
+        next_actions=("help --path registry --json",),
     ),
     Declaration(
         path=["registry", "version"],
@@ -2470,7 +2487,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "The object's stable identifier.", required=True),
             option("version", "string", "The exact version, as X.Y.", required=True),
         ),
-        next_actions=("registry show",),
+        next_actions=("help --path registry --json",),
     ),
     Declaration(
         path=["registry", "show"],
@@ -2487,7 +2504,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("id", "string", "The object's stable identifier.", required=True),
         ),
-        next_actions=("registry search",),
+        next_actions=("help --path registry --json",),
     ),
     Declaration(
         path=["select", "eligibility"],
@@ -2509,7 +2526,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "The composition is meant to be redistributed, so redistribution rights apply.",
             ),
         ),
-        next_actions=("component find",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["select", "eligibility-matrix"],
@@ -2537,7 +2554,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "The composition is meant to be redistributed, so redistribution rights apply.",
             ),
         ),
-        next_actions=("select eligibility",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["select", "impact"],
@@ -2563,7 +2580,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("price-profile", "string", "Explicit local token-price profile JSON file."),
         ),
-        next_actions=("select blast-radius",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["select", "blast-radius"],
@@ -2580,7 +2597,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=("update", "deprecation", "blocked", "expired_evidence", "advisory"),
             ),
         ),
-        next_actions=("select impact",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["select", "propose"],
@@ -2605,7 +2622,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Compose a setup that projects no files. Refuses alongside --member.",
             ),
         ),
-        next_actions=("select confirm",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["select", "confirm"],
@@ -2618,7 +2635,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # verb was a second question about one answer (`ADR-0118`).
         mutability="apply",
         parameters=(option("proposal", "string", "The proposal being confirmed.", required=True),),
-        next_actions=("select session",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["select", "cancel"],
@@ -2627,7 +2644,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         handler="select:cancel",
         mutability="apply",
         parameters=(option("proposal", "string", "The proposal being cancelled.", required=True),),
-        next_actions=("select session",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["select", "graph"],
@@ -2643,7 +2660,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 repeatable=True,
             ),
         ),
-        next_actions=("select propose",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["select", "reports"],
@@ -2655,7 +2672,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("proposal", "string", "The composition being reported on.", required=True),
             option("project", "string", "Project root whose facts the target is built from."),
         ),
-        next_actions=("select confirm",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["select", "bundle"],
@@ -2684,7 +2701,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=("global", "project", "user_root"),
             ),
         ),
-        next_actions=("select reports",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["install", "plan"],
@@ -2812,7 +2829,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 when_values=["project", "user_root"],
             ),
         ),
-        next_actions=("install approve",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "approve"],
@@ -2825,7 +2842,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("operation", "string", "The operation whose plan is approved.", required=True),
             option("plan-digest", "string", "The exact plan digest the user saw.", required=True),
         ),
-        next_actions=("install apply",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["environment", "inspect"],
@@ -2855,10 +2872,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("offline", "boolean", "Report preparation using only cached artifacts."),
         ),
         next_actions=(
-            "harness install",
-            "toolchain install",
-            "component program install",
-            "install plan",
+            "help --path harness --json",
+            "help --path toolchain --json",
+            "help --path component --json",
+            "help --path install --json",
         ),
     ),
     Declaration(
@@ -2876,7 +2893,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 repeatable=True,
             ),
         ),
-        next_actions=("install transaction approve", "install transaction cancel"),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "transaction", "plan"],
@@ -2907,7 +2924,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider-release-recovery", "boolean", "Use a previously verified release."),
         ),
-        next_actions=("install transaction approve", "install transaction cancel"),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "transaction", "approve"],
@@ -2925,7 +2942,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("install transaction apply",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "transaction", "apply"],
@@ -2955,7 +2972,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider-release-recovery", "boolean", "Use a previously verified release."),
         ),
-        next_actions=("install transaction status",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "transaction", "recover"],
@@ -2984,7 +3001,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("provider-release-recovery", "boolean", "Use a previously verified release."),
         ),
-        next_actions=("install transaction status",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "transaction", "status"],
@@ -2992,7 +3009,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-multi-root-transaction",
         handler="install_transaction:status",
         parameters=(option("transaction", "string", "Transaction to read.", required=True),),
-        next_actions=("install transaction recover",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "transaction", "cancel"],
@@ -3004,7 +3021,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("transaction", "string", "Unapplied transaction to abandon.", required=True),
             option("reason", "string", "Why it is being abandoned."),
         ),
-        next_actions=("install transaction plan",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "apply"],
@@ -3022,7 +3039,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "or managed provider, or acquires the attested OpenNetwork release.",
             ),
         ),
-        next_actions=("install status",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "cancel"],
@@ -3034,7 +3051,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("operation", "string", "The operation being abandoned.", required=True),
             option("reason", "string", "Why it is being abandoned."),
         ),
-        next_actions=("install status",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["target", "status"],
@@ -3086,7 +3103,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("catalog-version", "string", "Newest known version, to report catalog drift."),
         ),
-        next_actions=("install plan", "target rollback"),
+        next_actions=(
+            "help --path install --json",
+            "help --path target --json",
+        ),
     ),
     Declaration(
         path=["sync", "preview"],
@@ -3101,7 +3121,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("passport developer show",),
+        next_actions=("help --path passport --json",),
     ),
     Declaration(
         path=["sync", "push"],
@@ -3114,7 +3134,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable identifier whose head is pushed.", required=True),
             option("confirm", "boolean", "Confirm the exact cloud write.", required=True),
         ),
-        next_actions=("sync pull", "sync preview"),
+        next_actions=("help --path sync --json",),
     ),
     Declaration(
         path=["sync", "merge"],
@@ -3127,7 +3147,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("id", "string", "Stable identifier with two local heads.", required=True),
             option("confirm", "boolean", "Confirm the exact merge candidate.", required=True),
         ),
-        next_actions=("sync push", "sync preview"),
+        next_actions=("help --path sync --json",),
     ),
     Declaration(
         path=["sync", "pull"],
@@ -3148,7 +3168,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("confirm", "boolean", "Confirm the local registry update.", required=True),
         ),
-        next_actions=("sync pull", "sync preview"),
+        next_actions=("help --path sync --json",),
     ),
     Declaration(
         path=["target", "diff"],
@@ -3200,14 +3220,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("catalog-version", "string", "Newest known version, to report catalog drift."),
         ),
-        next_actions=("install plan",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["telemetry", "show"],
         summary="What the anonymous install ping would carry, and whether it is on.",
         result_schema="urn:ai-stp:schema:v1:cli-telemetry-status",
         handler="telemetry:show",
-        next_actions=("telemetry consent",),
+        next_actions=("help --path telemetry --json",),
     ),
     Declaration(
         path=["telemetry", "consent"],
@@ -3221,7 +3241,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("decline", "boolean", "Refuse it. Nothing asks again."),
             option("confirm", "boolean", "Required by both answers.", required=True),
         ),
-        next_actions=("telemetry show",),
+        next_actions=("help --path telemetry --json",),
     ),
     Declaration(
         path=["target", "backups"],
@@ -3274,7 +3294,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Existing absolute provider target directory. Required by protocol v2 and v3.",
             ),
         ),
-        next_actions=("install plan",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["target", "rollback"],
@@ -3295,14 +3315,17 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # exactly what `REQ-814` protects: this names a previous *version*,
         # `target backups` names copies. Reaching a restore from here goes
         # through the copy list, not through this answer.
-        next_actions=("target backups", "install plan"),
+        next_actions=(
+            "help --path target --json",
+            "help --path install --json",
+        ),
     ),
     Declaration(
         path=["install", "status"],
         summary="Operations that stopped without a settled outcome. Changes nothing.",
         result_schema="urn:ai-stp:schema:v1:cli-installation-status",
         handler="install:status",
-        next_actions=("install recover",),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "recover"],
@@ -3310,7 +3333,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-recovery-report",
         handler="install:recover",
         parameters=(option("operation", "string", "The stopped operation.", required=True),),
-        next_actions=("install resume", "install plan"),
+        next_actions=("help --path install --json",),
     ),
     Declaration(
         path=["install", "resume"],
@@ -3326,7 +3349,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Provider executable. Omitted, the CLI uses the remembered or acquired provider.",
             ),
         ),
-        next_actions=("target status",),
+        next_actions=("help --path target --json",),
     ),
     Declaration(
         path=["setup", "scaffold", "plan"],
@@ -3350,7 +3373,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Optional nested members as type:name or type:name:language, comma-separated.",
             ),
         ),
-        next_actions=("setup scaffold apply",),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "scaffold", "apply"],
@@ -3381,7 +3404,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("setup compose plan", "component passport validate"),
+        next_actions=(
+            "help --path setup --json",
+            "help --path component --json",
+        ),
     ),
     Declaration(
         path=["setup", "compose", "plan"],
@@ -3396,7 +3422,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("root", "string", "Root that bounds path: sources."),
             option("id", "string", "Setup id returned by an earlier plan."),
         ),
-        next_actions=("setup compose apply",),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "compose", "apply"],
@@ -3414,7 +3440,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
-        next_actions=("setup export", "setup publish plan", "select session"),
+        next_actions=(
+            "help --path setup --json",
+            "help --path select --json",
+        ),
     ),
     Declaration(
         path=["setup", "recast", "plan"],
@@ -3434,7 +3463,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("version", "string", "Exact X.Y source version. Omitted, the newest recorded."),
             option("setup-id", "string", "Setup id returned by an earlier plan."),
         ),
-        next_actions=("setup recast apply",),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "recast", "apply"],
@@ -3459,7 +3488,11 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "expected-plan-digest", "string", "Exact digest returned by plan.", required=True
             ),
         ),
-        next_actions=("setup export", "install plan", "select session"),
+        next_actions=(
+            "help --path setup --json",
+            "help --path install --json",
+            "help --path select --json",
+        ),
     ),
     Declaration(
         path=["setup", "export"],
@@ -3479,7 +3512,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("install plan", "setup publish plan"),
+        next_actions=(
+            "help --path install --json",
+            "help --path setup --json",
+        ),
     ),
     Declaration(
         path=["setup", "import", "inspect"],
@@ -3492,7 +3528,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "harness", "string", "Which harness this configuration belongs to.", required=True
             ),
         ),
-        next_actions=("setup import plan",),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "import", "plan"],
@@ -3508,7 +3544,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "harness", "string", "Which harness this configuration belongs to.", required=True
             ),
         ),
-        next_actions=("setup import register",),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "publish", "plan"],
@@ -3530,7 +3566,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=("private", "public"),
             ),
         ),
-        next_actions=("setup publish confirm", "publication status"),
+        next_actions=(
+            "help --path setup --json",
+            "help --path publication --json",
+        ),
     ),
     Declaration(
         path=["setup", "publish", "confirm"],
@@ -3553,7 +3592,10 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("publication status", "owner objects"),
+        next_actions=(
+            "help --path publication --json",
+            "help --path owner --json",
+        ),
     ),
     Declaration(
         path=["setup", "update", "plan"],
@@ -3581,7 +3623,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("harness", "string", "Harness whose selected setup is checked.", required=True),
             option("project", "string", "Project root whose selected setup is checked."),
         ),
-        next_actions=("setup update apply",),
+        next_actions=("help --path setup --json",),
     ),
     Declaration(
         path=["setup", "update", "apply"],
@@ -3616,7 +3658,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("select session",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["setup", "import", "register"],
@@ -3652,7 +3694,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "the mode and the exact paths.",
             ),
         ),
-        next_actions=("component find",),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["provider", "conformance"],
@@ -3676,7 +3718,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "check still runs under the launcher its system proved.",
             ),
         ),
-        next_actions=("toolchain harnesses",),
+        next_actions=("help --path toolchain --json",),
     ),
     Declaration(
         path=["component", "skill", "validate"],
@@ -3687,7 +3729,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-skill-package",
         handler="component:skill_validate",
         parameters=(option("path", "string", "The skill package directory.", required=True),),
-        next_actions=("component adopt", "component passport validate"),
+        next_actions=("help --path component --json",),
     ),
     Declaration(
         path=["provider", "check"],
@@ -3712,7 +3754,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "failed request is not reported as 'no update'.",
             ),
         ),
-        next_actions=("provider fetch", "provider trust"),
+        next_actions=("help --path provider --json",),
     ),
     Declaration(
         path=["provider", "update", "plan"],
@@ -3723,7 +3765,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-plan",
         handler="provider:update_plan",
         parameters=_REPLACEMENT_OPTIONS,
-        next_actions=("provider update apply", "provider trust"),
+        next_actions=("help --path provider --json",),
     ),
     Declaration(
         path=["provider", "update", "apply"],
@@ -3733,7 +3775,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="apply",
         confirmation="plan_digest",
         parameters=_CONFIRMED_OPTIONS,
-        next_actions=("provider check", "provider conformance"),
+        next_actions=("help --path provider --json",),
     ),
     Declaration(
         path=["provider", "reinstall", "plan"],
@@ -3743,7 +3785,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-provider-replacement-plan",
         handler="provider:reinstall_plan",
         parameters=(*_REPLACEMENT_OPTIONS, _VERSION_OPTION),
-        next_actions=("provider reinstall apply", "provider trust"),
+        next_actions=("help --path provider --json",),
     ),
     Declaration(
         path=["provider", "reinstall", "apply"],
@@ -3753,7 +3795,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         mutability="apply",
         confirmation="plan_digest",
         parameters=(*_CONFIRMED_OPTIONS, _VERSION_OPTION),
-        next_actions=("provider check", "provider conformance"),
+        next_actions=("help --path provider --json",),
     ),
     Declaration(
         path=["provider", "forget"],
@@ -3770,7 +3812,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=tuple(sorted(HARNESS_IDS)),
             ),
         ),
-        next_actions=("provider check",),
+        next_actions=("help --path provider --json",),
     ),
     Declaration(
         path=["provider", "fetch"],
@@ -3817,14 +3859,17 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 choices=("github", "index"),
             ),
         ),
-        next_actions=("install plan", "provider trust"),
+        next_actions=(
+            "help --path install --json",
+            "help --path provider --json",
+        ),
     ),
     Declaration(
         path=["provider", "network"],
         summary="Report observed protocol-v2 network isolation on this machine.",
         result_schema="urn:ai-stp:schema:v1:cli-provider-network-capability",
         handler="select:provider_network",
-        next_actions=("provider conformance",),
+        next_actions=("help --path provider --json",),
     ),
     Declaration(
         path=["provider", "trust"],
@@ -3834,7 +3879,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         parameters=(
             option("manifest", "string", "Release manifest to check. Omit to report the policy."),
         ),
-        next_actions=("provider conformance",),
+        next_actions=("help --path provider --json",),
     ),
     Declaration(
         path=["select", "session"],
@@ -3845,7 +3890,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("harness", "string", "The harness being composed for.", required=True),
             option("project", "string", "Project root whose passport anchors the session."),
         ),
-        next_actions=("select propose",),
+        next_actions=("help --path select --json",),
     ),
     Declaration(
         path=["skill", "install"],
@@ -3880,7 +3925,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Install the English or Russian procedure (`en` or `ru`).",
             ),
         ),
-        next_actions=("skill status",),
+        next_actions=("help --path skill --json",),
     ),
     Declaration(
         path=["skill", "remove"],
@@ -3903,7 +3948,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("skill status",),
+        next_actions=("help --path skill --json",),
     ),
     Declaration(
         path=["skill", "status"],
@@ -3925,7 +3970,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("capabilities",),
+        next_actions=("help --path capabilities --json",),
     ),
     Declaration(
         path=["toolchain", "harness-capabilities"],
@@ -3946,21 +3991,25 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         # The third column is the provider's own declaration, which needs a
         # fetched provider and so is a different command rather than a field
         # this one could fill offline.
-        next_actions=("provider conformance", "toolchain harnesses", "component discover"),
+        next_actions=(
+            "help --path provider --json",
+            "help --path toolchain --json",
+            "help --path component --json",
+        ),
     ),
     Declaration(
         path=["toolchain", "harnesses"],
         summary="Report every supported harness and whether it is on this machine.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-survey",
         handler="toolchain:harnesses",
-        next_actions=("toolchain profile",),
+        next_actions=("help --path toolchain --json",),
     ),
     Declaration(
         path=["toolchain", "profile"],
         summary="Show the managed toolchain profile as it resolves on this machine.",
         result_schema="urn:ai-stp:schema:v1:cli-toolchain-profile",
         handler="toolchain:profile",
-        next_actions=("doctor",),
+        next_actions=("help --path doctor --json",),
     ),
     Declaration(
         path=["update", "check"],
@@ -3977,7 +4026,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("version", "string", "Exact PEP 440 version to inspect instead of newest."),
         ),
-        next_actions=("update plan", "update status"),
+        next_actions=("help --path update --json",),
     ),
     Declaration(
         path=["update", "plan"],
@@ -3994,7 +4043,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             ),
             option("version", "string", "Exact PEP 440 version to pin instead of newest."),
         ),
-        next_actions=("update apply", "update status"),
+        next_actions=("help --path update --json",),
     ),
     Declaration(
         path=["update", "apply"],
@@ -4011,14 +4060,14 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("update status", "update rollback"),
+        next_actions=("help --path update --json",),
     ),
     Declaration(
         path=["update", "status"],
         summary="Read the CLI update journal and the distribution a new process reports.",
         result_schema="urn:ai-stp:schema:v1:cli-self-update-status",
         handler="update:status",
-        next_actions=("update recover", "update rollback"),
+        next_actions=("help --path update --json",),
     ),
     Declaration(
         path=["update", "recover"],
@@ -4026,7 +4075,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         result_schema="urn:ai-stp:schema:v1:cli-self-update-result",
         handler="update:recover",
         mutability="apply",
-        next_actions=("update status",),
+        next_actions=("help --path update --json",),
     ),
     Declaration(
         path=["update", "rollback"],
@@ -4043,14 +4092,78 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 required=True,
             ),
         ),
-        next_actions=("update status",),
+        next_actions=("help --path update --json",),
+    ),
+    Declaration(
+        path=["task", "start"],
+        summary="Create a durable agent task for one closed intent.",
+        result_schema="urn:ai-stp:schema:v1:cli-task",
+        handler="task:start",
+        mutability="apply",
+        parameters=(
+            option(
+                "intent",
+                "string",
+                "Closed intent this task will drain.",
+                required=True,
+                choices=("inspect",),
+            ),
+            option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
+        ),
+        next_actions=("help --path task --json",),
+    ),
+    Declaration(
+        path=["task", "answer"],
+        summary="Supply one typed answer to an open task question.",
+        result_schema="urn:ai-stp:schema:v1:cli-task",
+        handler="task:answer",
+        mutability="apply",
+        parameters=(
+            option("task", "string", "Task stable id.", required=True),
+            option("revision", "integer", "Revision this answer is based on.", required=True),
+            option("question-id", "string", "Open question this answer belongs to.", required=True),
+            option("value", "string", "Answer value.", required=True),
+        ),
+        next_actions=("help --path task --json",),
+    ),
+    Declaration(
+        path=["task", "continue"],
+        summary="Advance a durable task by one in-process step.",
+        result_schema="urn:ai-stp:schema:v1:cli-task",
+        handler="task:continue_",
+        mutability="apply",
+        parameters=(
+            option("task", "string", "Task stable id.", required=True),
+            option("revision", "integer", "Revision this step is based on.", required=True),
+        ),
+        next_actions=("help --path task --json",),
+    ),
+    Declaration(
+        path=["task", "status"],
+        summary="Read one durable task without changing it.",
+        result_schema="urn:ai-stp:schema:v1:cli-task",
+        handler="task:status",
+        parameters=(option("task", "string", "Task stable id.", required=True),),
+        next_actions=("help --path task --json",),
+    ),
+    Declaration(
+        path=["task", "cancel"],
+        summary="Abandon a durable task that has not settled.",
+        result_schema="urn:ai-stp:schema:v1:cli-task",
+        handler="task:cancel",
+        mutability="apply",
+        parameters=(
+            option("task", "string", "Task stable id.", required=True),
+            option("revision", "integer", "Revision this cancel is based on.", required=True),
+        ),
+        next_actions=("help --path task --json",),
     ),
     Declaration(
         path=["version"],
         summary="Report the running build and the contract versions it speaks.",
         result_schema="urn:ai-stp:schema:v1:cli-version-report",
         handler="version:run",
-        next_actions=("doctor",),
+        next_actions=("help --path doctor --json",),
     ),
 )
 

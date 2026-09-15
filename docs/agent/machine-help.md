@@ -24,7 +24,7 @@ pointer. It is an inexpensive first call.
 
 `help --agent` answers **which commands, fields, and errors exist**. It is the full
 registry: for each command, it provides the path, purpose, mutability class,
-confirmation rule, parameters, result schema, and reasonable next actions; for
+confirmation rule, parameters, result schema, and family-orientation next actions; for
 each error code, it provides the exit class, a brief meaning, and initial Agent
 `handling`. The response is considerably larger.
 
@@ -43,6 +43,13 @@ The machine-help shape is declared with the wire models rather than inside the a
 
 The command list belongs to the registry and grows with implemented tasks. It is not duplicated here: a copy in this document would diverge from the implementation on the first change, while the Skill reads the implementation.
 
+Durable agent journeys use `task start`, `task answer`, `task continue`,
+`task status`, and `task cancel`. Discovery is `help --path task --json`. The
+first intent is `inspect`; it calls the same in-process inspect services as
+`doctor` and `capabilities`. Installation through this surface is not declared
+as an intent yet. There is no machine-global current task: every call names
+`--task`.
+
 ## What Enters the Registry
 
 A command appears in machine help only when it works. A declared but unimplemented command is worse than an absent one: the Skill would plan around a step that cannot be performed.
@@ -51,11 +58,16 @@ The mutability class (`read`, `plan`, `apply`, `destructive`) and confirmation r
 
 The CLI does not prompt in the terminal. A decision arrives through an explicit flag or the exact digest of a stored plan; its absence yields `needs_user_action`, not an input prompt. This keeps the execution path identical for people and agents and prevents hangs in CI or containers.
 
+Registry `next_actions` on a descriptor are orientation toward a command
+family (`help --path … --json`). They are not copied onto a success envelope.
+Executable next steps come from handler `continuations`.
+
 A process exit class is not an Agent action. For example, class `4` groups a
-conflict, a stale plan, and a request for a decision. The Agent matches the exact
-`error.code` to `error_codes`, then considers the specific response's `handling`,
-`retryable`, and `next_actions`. After a timeout with no confirmed effect, it first
-checks the status/recovery surface and does not blindly repeat a mutating call.
+conflict, a stale plan, a request for a decision, and a compensated mutation.
+The Agent matches the exact `error.code` to `error_codes`, then considers the
+specific response's `handling`, `retryable`, and `continuations`. After a
+timeout without a confirmed effect, it first checks the status/recovery
+surface and does not blindly repeat a mutating call.
 
 ## Why It Works This Way
 

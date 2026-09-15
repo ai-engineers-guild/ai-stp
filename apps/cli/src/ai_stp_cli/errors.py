@@ -39,6 +39,7 @@ class CliFailure(Exception):
         details: dict[str, str] | None = None,
         next_actions: list[str] | None = None,
         continuations: list[Continuation] | None = None,
+        operation_id: str | None = None,
     ) -> None:
         text = localize(message)
         super().__init__(text)
@@ -46,6 +47,7 @@ class CliFailure(Exception):
         self.message = text
         self.retryable = retryable
         self.details = details or {}
+        self.operation_id = operation_id
         self.continuations = list(continuations or [])
         derived = [continuation_command(item) for item in self.continuations]
         self.next_actions = list(next_actions) if next_actions is not None else derived
