@@ -132,7 +132,7 @@ def _problems(text: str) -> list[str]:
         # or a scoped `help --path`, not an ellipsis.
         given = {token[2:] for token in rest if token.startswith("--")}
         whole = not any(_placeholder(token) for token in tokens[: len(path)])
-        lacking = sorted(REQUIRED[path] - given) if given and whole else []
+        lacking = sorted(REQUIRED[path] - given) if whole else []
         if not unknown and not stray and not lacking:
             return []
         if unknown:

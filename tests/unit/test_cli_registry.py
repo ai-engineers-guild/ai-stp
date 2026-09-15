@@ -101,6 +101,7 @@ def test_machine_help_publishes_the_canonical_error_dispositions() -> None:
     by_code = {item.code: item.handling for item in published}
     assert by_code["AI_STP_USER_DECISION_REQUIRED"] == "ask_user"
     assert by_code["AI_STP_CONFLICT"] == "reconcile_state"
+    assert by_code["AI_STP_COMPENSATED"] == "reconcile_state"
 
 
 def test_command_paths_are_unique_and_ordered() -> None:
@@ -199,8 +200,15 @@ def test_next_actions_only_name_commands_that_exist() -> None:
     known = set(command_paths())
     for command in COMMANDS:
         for suggestion in command.descriptor.next_actions:
-            # Suggestions carry flags; the command is the leading path.
-            head = " ".join(word for word in suggestion.split() if not word.startswith("--"))
+            # Flags and their values are not path segments: `help --path
+            # publication --json` is `help`, not `help publication`.
+            tokens = suggestion.split()
+            path: list[str] = []
+            index = 0
+            while index < len(tokens) and not tokens[index].startswith("--"):
+                path.append(tokens[index])
+                index += 1
+            head = " ".join(path)
             assert head in known, f"{command.name} -> {suggestion}"
 
 

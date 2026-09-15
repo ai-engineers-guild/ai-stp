@@ -46,9 +46,12 @@ newline. Colors, control sequences, and additional text are prohibited. The
 error stream is used only for a failure before the envelope is constructed and
 contains no secrets.
 
-A warning does not change `ok` when the requested result was obtained in full.
-A partially completed mutating operation returns an error and `operation_id`
-rather than being masked as a warning.
+`ok` is true only when the requested effect completed. A warning does not
+change `ok` when that result was obtained in full. A partial or compensated
+mutating operation returns an error and `operation_id` rather than being
+masked as a warning or as a successful payload that names `rolled_back`.
+Diagnostic `doctor` remains `ok` with check results in the payload: the
+request was inspection.
 
 `doctor` reports diagnostic results without applying registry migrations. Its
 `local_registry` check is `ready` when an existing readable registry only needs
@@ -75,7 +78,7 @@ supply. `next_actions` remains the generated argv for older callers.
 | 0 | Success. |
 | 2 | Invalid input or schema. |
 | 3 | Authentication, authorization, or device revocation. |
-| 4 | Conflict, stale plan, or required user decision. |
+| 4 | Conflict, stale plan, required user decision, or compensated mutation. |
 | 5 | Unavailable dependency or timeout without a confirmed effect. |
 | 6 | Partial operation requiring recovery. |
 | 70 | Unexpected internal error. |

@@ -51,6 +51,7 @@ def render_success(
     next_actions: list[str] | None = None,
     warnings: list[str] | None = None,
     continuations: list[Continuation] | None = None,
+    operation_id: str | None = None,
     stream: TextIO | None = None,
 ) -> None:
     """Write a successful result in the requested mode.
@@ -67,6 +68,7 @@ def render_success(
     if machine:
         envelope = SuccessEnvelope(
             request_id=request_id,
+            operation_id=operation_id,
             data=data,
             warnings=warnings or [],
             next_actions=next_actions or [],
@@ -97,6 +99,7 @@ def render_failure(
     if machine:
         envelope = ErrorEnvelope(
             request_id=request_id,
+            operation_id=failure.operation_id,
             error=CliError(
                 code=failure.code,
                 message=failure.message,

@@ -18,6 +18,7 @@ from ai_stp_cli.local.passports import moment
 from ai_stp_cli.provider import operation_v3, protocol_v3
 from ai_stp_contracts.machine_help import MultiRootChildView, MultiRootTransactionView
 from ai_stp_foundation.digests import digest_canonical
+from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.ids import new_id
 
 _TRUST_PARAMETERS = (
@@ -204,7 +205,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
         coordinator = Coordinator(connection)
         before = multi_root.get(connection, transaction_id)
         if before.state == "verified":
-            return Answer(_view(before))
+            return _complete(_view(before))
         providers = _child_providers(before, parameters)
         held = coordinator.begin(transaction_id, at=moment())
         for child in held.children:
@@ -215,7 +216,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
                     ).payload
                 coordinator.observe_child(transaction_id, child.operation_id, at=moment())
                 if result.state != installation.STATE_VERIFIED:
-                    return Answer(
+                    return _complete(
                         _compensate(
                             coordinator,
                             transaction_id,
@@ -225,7 +226,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
                     )
             except Exception:
                 coordinator.observe_child(transaction_id, child.operation_id, at=moment())
-                return Answer(
+                return _complete(
                     _compensate(
                         coordinator,
                         transaction_id,
@@ -233,7 +234,7 @@ def apply(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
                         parameters=parameters,
                     )
                 )
-        return Answer(_view(coordinator.finish_verified(transaction_id, at=moment())))
+        return _complete(_view(coordinator.finish_verified(transaction_id, at=moment())))
 
 
 def recover(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
@@ -244,7 +245,7 @@ def recover(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView
         coordinator = Coordinator(connection)
         held = multi_root.get(connection, transaction_id)
         if held.state in multi_root.TERMINAL:
-            return Answer(_view(held))
+            return _complete(_view(held))
         providers = _child_providers(held, parameters)
         if held.state == "applying":
             for child in held.children:
@@ -266,8 +267,8 @@ def recover(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView
                 coordinator.observe_child(transaction_id, child.operation_id, at=moment())
             held = multi_root.get(connection, transaction_id)
             if all(child.state == installation.STATE_VERIFIED for child in held.children):
-                return Answer(_view(coordinator.finish_verified(transaction_id, at=moment())))
-        return Answer(
+                return _complete(_view(coordinator.finish_verified(transaction_id, at=moment())))
+        return _complete(
             _compensate(
                 coordinator,
                 transaction_id,
@@ -412,6 +413,41 @@ def _compensate(
             transaction_id, child.operation_id, backup_ref=backup_ref, at=moment()
         )
     return _view(coordinator.finish_rolled_back(transaction_id, at=moment()))
+
+
+def _complete(view: MultiRootTransactionView) -> Answer[MultiRootTransactionView]:
+    """Apply/recover answer: unmet install goals are errors, not `ok`."""
+    if view.state == "recovery_required":
+        raise CliFailure(
+            "AI_STP_PARTIAL_OPERATION",
+            "the multi-root install stopped and needs recovery",
+            details={"transaction_id": view.transaction_id, "state": view.state},
+            operation_id=view.transaction_id,
+            next_actions=list(view.next_actions),
+            continuations=[
+                Continuation(
+                    kind="retry",
+                    path=["install", "transaction", "recover"],
+                    arguments={"transaction": view.transaction_id},
+                    missing=["provider"],
+                )
+            ],
+        )
+    if view.state == "rolled_back":
+        raise CliFailure(
+            "AI_STP_COMPENSATED",
+            "the requested install did not complete; compensation finished",
+            details={"transaction_id": view.transaction_id, "state": view.state},
+            operation_id=view.transaction_id,
+            continuations=[
+                Continuation(
+                    kind="terminal",
+                    path=["install", "transaction", "status"],
+                    arguments={"transaction": view.transaction_id},
+                )
+            ],
+        )
+    return Answer(view, operation_id=view.transaction_id)
 
 
 def _ensure_compensation_undo(

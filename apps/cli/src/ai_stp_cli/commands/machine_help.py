@@ -10,10 +10,8 @@ same registry, so they cannot disagree about which commands exist.
 from collections.abc import Mapping
 
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.config import catalog_and_sync_enabled
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local.database import SCHEMA_VERSION
-from ai_stp_cli.runtime import cli_version, installation
+from ai_stp_cli.runtime import cli_version
 from ai_stp_contracts.machine_help import (
     Capabilities,
     CommandDescriptor,
@@ -21,7 +19,6 @@ from ai_stp_contracts.machine_help import (
     MachineHelp,
 )
 from ai_stp_foundation.errors import ERROR_CODES
-from ai_stp_foundation.harnesses import HARNESS_IDS
 
 
 def _scoped(commands: list[CommandDescriptor], requested: object) -> list[CommandDescriptor]:
@@ -42,21 +39,9 @@ def _scoped(commands: list[CommandDescriptor], requested: object) -> list[Comman
 
 def capabilities(_parameters: Mapping[str, object]) -> Answer[Capabilities]:
     """Report what this installation can do right now."""
-    from ai_stp_cli.registry import command_paths, registry_digest
+    from ai_stp_cli.application.inspect import capabilities as inspect_capabilities
 
-    catalog_enabled, sync_enabled = catalog_and_sync_enabled()
-    return Answer(
-        Capabilities(
-            cli_version=cli_version(),
-            installation=installation(),
-            registry_digest=registry_digest(),
-            local_schema_version=SCHEMA_VERSION,
-            supported_harnesses=sorted(HARNESS_IDS),
-            catalog_enabled=catalog_enabled,
-            sync_enabled=sync_enabled,
-            command_paths=command_paths(),
-        )
-    )
+    return Answer(inspect_capabilities())
 
 
 def registry(parameters: Mapping[str, object]) -> Answer[MachineHelp]:

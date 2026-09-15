@@ -33,6 +33,7 @@ EXPECTED_HANDLING = {
     "AI_STP_TIMEOUT_UNCONFIRMED": "inspect_effect",
     "AI_STP_PROTOCOL_VIOLATION": "inspect_effect",
     "AI_STP_PARTIAL_OPERATION": "recover_partial",
+    "AI_STP_COMPENSATED": "reconcile_state",
     "AI_STP_CATALOG_INTEGRITY": "report_bug",
     "AI_STP_SEO_FACTS_INVALID": "correct_request",
     "AI_STP_SEO_OUTPUT_INVALID": "correct_request",

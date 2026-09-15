@@ -152,6 +152,11 @@ ERROR_CODES: Final[Mapping[str, ErrorCodeEntry]] = MappingProxyType(
             "recover_partial",
             "a mutating operation stopped in a partial state",
         ),
+        "AI_STP_COMPENSATED": ErrorCodeEntry(
+            EXIT_CONFLICT_OR_DECISION,
+            "reconcile_state",
+            "the requested mutation did not complete; compensation finished",
+        ),
         # Distinct from AI_STP_INTERNAL on purpose. A stored catalog object that
         # fails its own integrity check is not an unexpected crash: it is a
         # diagnosable data defect with a known repair path, and an operator has
