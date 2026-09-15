@@ -1,0 +1,28 @@
+# Corporate mode for the existing development web service; no extra service.
+services:
+  api:
+    environment:
+      # SSR enrichment shares one Docker peer; retain bounded gates for local acceptance.
+      AI_STP_API_RATE_LIMIT_OVERALL_REQUESTS: "1000"
+      AI_STP_API_RATE_LIMIT_IP_REQUESTS: "10000"
+  web:
+    # Run the image's sources, not the Windows bind mount, for this acceptance deployment.
+    volumes: !override
+      - web_node_modules:/app/node_modules
+      - web_next:/app/.next
+      - ./docs-user-facing:/docs-user-facing:ro
+      - ./packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
+    # Corporate module exclusions use the incumbent webpack aliases.
+    command:
+      - node
+      - node_modules/next/dist/bin/next
+      - dev
+      - --hostname
+      - 0.0.0.0
+      - --port
+      - "3000"
+    environment:
+      AI_STP_WEB_PROFILE: corporate_hub
+      AI_STP_FEATURE_CONTENT_HUB: "false"
+      AI_STP_FEATURE_SAAS_PUBLIC_PAGES: "false"
+      AI_STP_FEATURE_CATALOG_USAGE_METRICS: "false"

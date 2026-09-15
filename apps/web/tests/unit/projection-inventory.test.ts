@@ -23,7 +23,7 @@ function listPageFiles(dir: string): string[] {
       out.push(...listPageFiles(full));
       continue;
     }
-    if (name === "page.tsx") {
+    if (/^page(?:\.(?:content|saas|regional))?\.tsx$/.test(name)) {
       out.push(full);
     }
   }

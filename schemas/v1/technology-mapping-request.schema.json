@@ -1,0 +1,103 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    },
+    "TechnologyMappingEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/@+*-]+$",
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "package",
+            "image",
+            "executable",
+            "configuration",
+            "alias"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._:/+-]+$",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "technology_id": {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Technology Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "coordinate",
+        "technology_id",
+        "provenance"
+      ],
+      "title": "TechnologyMappingEntry",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:technology-mapping-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^corporate:organization_[A-Za-z0-9_-]+:[1-9][0-9]*:[1-9][0-9]*$",
+          "type": "string"
+        }
+      ],
+      "title": "Authorization Revision"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/TechnologyMappingEntry"
+      },
+      "maxItems": 4096,
+      "minItems": 1,
+      "title": "Entries",
+      "type": "array"
+    },
+    "expected_revision": {
+      "default": 0,
+      "maximum": 0,
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "idempotency_key",
+    "entries"
+  ],
+  "title": "TechnologyMappingRequest",
+  "type": "object"
+}

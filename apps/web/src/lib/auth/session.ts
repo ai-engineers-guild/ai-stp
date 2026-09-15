@@ -110,13 +110,12 @@ export const readSession = cache(async (): Promise<WebSession | null> => {
   if (!raw) {
     return null;
   }
-  const parsed = parseSessionToken(raw);
-  if (parsed) {
-    return parsed;
-  }
-
   const env = getEnv();
   if (env.AI_STP_USE_MOCKS || env.AI_STP_MOCK_AUTH) {
+    const parsed = parseSessionToken(raw);
+    if (parsed) {
+      return parsed;
+    }
     // Unparseable cookie under mock auth is stale mock material.
     return null;
   }

@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { legalSourceUrl, readPublicLegalDocument } from "@/lib/api/legal";
+import { legalSourceUrl, readPublicLegalDocument } from "@/lib/api/public-legal";
 import { Link } from "@/lib/i18n/navigation";
 
 const POLICY_SLUGS = [

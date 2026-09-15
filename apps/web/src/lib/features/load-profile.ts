@@ -15,6 +15,37 @@ export type ResolvedFeatureProfile = {
   features: FeatureSet;
 };
 
+/** Native Next route discovery omits disabled public trees before compilation. */
+export function webPageExtensions({ profile, features }: ResolvedFeatureProfile): string[] {
+  return [
+    "tsx",
+    "ts",
+    "jsx",
+    "js",
+    ...(features.content_hub ? ["content.tsx", "content.ts"] : []),
+    ...(features.saas_public_pages ? ["saas.tsx"] : []),
+    ...(profile !== "corporate_hub" ? ["regional.tsx"] : []),
+  ];
+}
+
+export function disabledWebModuleAliases(
+  { profile, features }: ResolvedFeatureProfile,
+  disabledModule: string,
+): Record<string, string> {
+  const aliases: Record<string, string> = {};
+  if (!features.content_hub) {
+    aliases["@/lib/api/content$"] = disabledModule;
+    aliases["@/lib/content/presenter$"] = disabledModule;
+  }
+  if (!features.saas_public_pages) {
+    aliases["@/lib/api/public-legal$"] = disabledModule;
+  }
+  if (profile === "corporate_hub") {
+    aliases["@/lib/projection/regional-presenters$"] = disabledModule;
+  }
+  return aliases;
+}
+
 function configPath(root: string): string {
   return path.join(root, "config", "features.yaml");
 }
@@ -82,5 +113,8 @@ export function resolveFeatureProfile(
       ];
     }),
   ) as Record<FeatureKey, boolean>;
+  if (profile === "corporate_hub" && (features.content_hub || features.saas_public_pages)) {
+    throw new Error("Corporate builds cannot enable personal editorial or SaaS public pages");
+  }
   return { profile, features };
 }

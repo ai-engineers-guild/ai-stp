@@ -262,6 +262,7 @@ services:
       # .next on a Linux volume: avoid 9p/virtiofs latency for webpack/turbopack output.
       - web_next:/app/.next
       - ./docs-user-facing:/docs-user-facing:ro
+      - ./packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
     networks: [internal]
     depends_on:
       api:

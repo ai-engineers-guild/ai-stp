@@ -1,0 +1,57 @@
+{
+  "$id": "urn:ai-stp:schema:v1:employee-technology-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "relation_id": {
+      "pattern": "^relation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Relation Id",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "technology_id": {
+      "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Technology Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "account_id",
+    "organization_id",
+    "relation_id",
+    "revision",
+    "schema_version",
+    "state",
+    "technology_id"
+  ],
+  "title": "EmployeeTechnologyView",
+  "type": "object"
+}

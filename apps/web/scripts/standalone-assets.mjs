@@ -2,13 +2,11 @@
  * Mirror the production image layout into `.next/standalone`.
  *
  * `next build` with `output: "standalone"` emits `server.js` and the server
- * chunks, but not the static assets: `Dockerfile.prod` copies `public/` and
- * `.next/static` in as separate steps. Without the same copy locally the
- * standalone server cannot be started outside Docker, and the Playwright
- * regression suite has to fall back to `next start` — which serves a different
- * artifact from the one production runs (ADR-0040, REQ-2403).
+ * chunks, but not the static assets. This script mirrors `public/` and
+ * `.next/static` beside the standalone server so local Playwright exercises
+ * the same artifact shape as production (ADR-0040, REQ-2403).
  */
-import { cpSync, existsSync } from "node:fs";
+import { cpSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,21 +24,50 @@ if (!existsSync(staticSrc)) {
   console.error(`standalone-assets: ${distDir}/static is missing — the build did not complete`);
   process.exit(1);
 }
+
+// Read the artifact's baked features, never the invoking shell's runtime profile.
+const requiredServerFiles = path.join(root, distDir, "required-server-files.json");
+if (!existsSync(requiredServerFiles)) {
+  throw new Error(`standalone-assets: ${distDir}/required-server-files.json is missing`);
+}
+const compiled = JSON.parse(readFileSync(requiredServerFiles, "utf8")).config?.env;
+if (
+  typeof compiled?.AI_STP_COMPILED_FEATURE_PROFILE !== "string" ||
+  !["true", "false"].includes(compiled.AI_STP_COMPILED_FEATURE_CONTENT_HUB) ||
+  !["true", "false"].includes(compiled.AI_STP_COMPILED_FEATURE_SAAS_PUBLIC_PAGES)
+) {
+  throw new Error("standalone-assets: required-server-files.json has invalid baked feature values");
+}
+const contentEnabled = compiled.AI_STP_COMPILED_FEATURE_CONTENT_HUB === "true";
+const legalEnabled = compiled.AI_STP_COMPILED_FEATURE_SAAS_PUBLIC_PAGES === "true";
 cpSync(staticSrc, path.join(standalone, distDir, "static"), { recursive: true });
 
-// public/ is optional: the tree carries only the MSW worker today.
+// public/ is optional: profile-gated static assets are copied from the build source.
 const publicSrc = path.join(root, "public");
 if (existsSync(publicSrc)) {
-  cpSync(publicSrc, path.join(standalone, "public"), { recursive: true });
+  cpSync(publicSrc, path.join(standalone, "public"), {
+    recursive: true,
+    filter: (source) =>
+      contentEnabled || path.relative(publicSrc, source).split(path.sep)[0] !== "content",
+  });
 }
 
 // Fumadocs and the Content Hub resolve Markdown at runtime. Keep the single
-// repository-owned user-facing source tree beside the standalone server.
+// repository-owned enabled source trees beside the standalone server.
 const userFacingSrc = process.env.AI_STP_USER_FACING_ROOT
   ? path.resolve(process.env.AI_STP_USER_FACING_ROOT)
   : path.resolve(root, "..", "..", "docs-user-facing");
 if (existsSync(userFacingSrc)) {
-  cpSync(userFacingSrc, path.join(standalone, "docs-user-facing"), { recursive: true });
+  for (const tree of [
+    "docs",
+    ...(contentEnabled ? ["content"] : []),
+    ...(legalEnabled ? ["legal"] : []),
+  ]) {
+    const source = path.join(userFacingSrc, tree);
+    if (existsSync(source)) {
+      cpSync(source, path.join(standalone, "docs-user-facing", tree), { recursive: true });
+    }
+  }
 }
 
 // Next.js 15 can omit this statically required directory from the Windows

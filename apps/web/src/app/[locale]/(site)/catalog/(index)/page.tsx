@@ -87,7 +87,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   let componentTotalPages: number | null = null;
   let authorProfiles: Record<string, CatalogAuthor> = {};
   const started = startCatalogResourceReads(query);
-  const [services, catalogAuthors] = await Promise.all([
+  const auxiliaryReads = Promise.all([
     started.services,
     listCatalogAuthors()
       .then((result) => result.items)
@@ -95,7 +95,11 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   ]);
 
   try {
-    const [componentResult, setupResult] = await Promise.all([started.components, started.setups]);
+    const [componentResult, setupResult] = await Promise.all([
+      started.components,
+      started.setups,
+      auxiliaryReads,
+    ]);
     if (componentResult) {
       componentItems = componentResult.items;
       componentExperimental = componentResult.experimental;
@@ -128,6 +132,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
           : tc("error");
     }
   }
+  const [services, catalogAuthors] = await auxiliaryReads;
 
   if (!errorMessage) {
     authorProfiles = await loadPublisherProfiles(

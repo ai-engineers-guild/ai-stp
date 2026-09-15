@@ -77,14 +77,14 @@ docs = [
     "pytz==2026.3.post1",
     "PyYAML==6.0.2",
     "pyyaml-env-tag==1.1",
-    "regex==2026.7.19",
+    "regex==2026.9.3",
     "requests==2.34.2",
     "six==1.17.0",
     "smmap==5.0.3",
     "urllib3==2.7.0",
     "watchdog==6.0.0",
     "wcmatch==11.0.1",
-    "yamllint==1.35.1",
+    "yamllint==1.38.0",
 ]
 
 [tool.uv]

@@ -13,6 +13,9 @@ from ai_stp_platform import models as _platform_models  # noqa: F401  register S
 from ai_stp_platform import (
     organization_models as _organization_models,  # noqa: F401 register B2B-00 metadata
 )
+from ai_stp_platform import (
+    technology_models as _technology_models,  # noqa: F401 register B2B-02 metadata
+)
 from ai_stp_platform.content import orm as _content_orm  # noqa: F401  register article metadata
 from ai_stp_platform.db import Base
 from ai_stp_platform.queue import models as _models  # noqa: F401  register Job metadata

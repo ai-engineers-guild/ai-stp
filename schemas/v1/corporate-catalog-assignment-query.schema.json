@@ -1,0 +1,46 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-assignment-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "include_retired": {
+      "default": false,
+      "title": "Include Retired",
+      "type": "boolean"
+    },
+    "limit": {
+      "default": 128,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "subject_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_kind": {
+      "enum": [
+        "employee",
+        "team",
+        "project"
+      ],
+      "title": "Subject Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject_kind",
+    "subject_id"
+  ],
+  "title": "CorporateCatalogAssignmentQuery",
+  "type": "object"
+}

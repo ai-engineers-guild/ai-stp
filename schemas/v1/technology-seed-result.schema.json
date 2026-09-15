@@ -1,0 +1,61 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-seed-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "created_category_ids": {
+      "items": {
+        "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "title": "Created Category Ids",
+      "type": "array"
+    },
+    "created_technology_ids": {
+      "items": {
+        "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "title": "Created Technology Ids",
+      "type": "array"
+    },
+    "retained_category_ids": {
+      "items": {
+        "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "title": "Retained Category Ids",
+      "type": "array"
+    },
+    "retained_technology_ids": {
+      "items": {
+        "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "title": "Retained Technology Ids",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "seed_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Seed Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "created_category_ids",
+    "created_technology_ids",
+    "retained_category_ids",
+    "retained_technology_ids",
+    "schema_version",
+    "seed_version"
+  ],
+  "title": "TechnologySeedResult",
+  "type": "object"
+}

@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 
 import { MachineDocumentView } from "@/components/layouts/machine-document";
+import { requireSession } from "@/lib/auth/require-session";
 import { resolveMachineDocument } from "@/lib/projection/registry";
+import { parseProjectionRoute } from "@/lib/projection/route";
 
 type PageProps = {
   params: Promise<{ locale: string; path?: string[] }>;
@@ -18,6 +20,8 @@ export default async function MachineProjectionPage({ params, searchParams }: Pa
   const { locale, path } = await params;
   setRequestLocale(locale);
   const segments = path ?? [];
+  const pathname = `/${locale}/ai/${segments.join("/")}`;
+  if (parseProjectionRoute(pathname).isProtected) await requireSession(locale, pathname);
   const document = await resolveMachineDocument({
     locale,
     segments,

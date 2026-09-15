@@ -1,6 +1,6 @@
 ---
 description: "SPEC-076: Versioned context capability projection for FastAPI and Next.js."
-last_verified: "2026-09-09"
+last_verified: "2026-09-12"
 ---
 
 # SPEC-076: Context capability projection
@@ -84,6 +84,16 @@ or serialize the complete RBAC graph into the browser.
 - `REQ-7614`: Background jobs and service principals evaluate the same resource
   and organization permissions at execution time; they do not reuse the
   initiating browser's capability projection as authority.
+- `REQ-7615`: Remote projection reads may specify a known project, team or
+  technology scope. The server checks current access to that tenant's resource
+  and projects each capability through the shared evaluator for that scope.
+  The default remains the organization scope. No role graph or resource payload
+  is returned. B2B-02 adds `category`, `project_team`, `project_technology`,
+  `technology_team`, and `technology_decision` resource families and explicit
+  `approve`, `merge`, `responsibility`, and `scan_publish` actions to the closed
+  vocabulary. Technology/category and relationship CRUDL remain independent.
+  Unsupported operations remain unavailable until served by their owner.
+  Responses publish additive `registry_version: 2`; response schema major stays 1.
 
 ## States and errors
 
@@ -148,3 +158,4 @@ disables projection-driven corporate UI while API authorization remains active.
 | `REQ-7612` | Web shell tests prove there is no context selector or client-selected scope; API tests prove capability denial and request preconditions remain server-side. |
 | `REQ-7613` | The web-profile matrix proves build configuration cannot change the capability response or API verdict. |
 | `REQ-7614` | Delayed-job tests revoke permission after enqueue and observe denial at execution without cross-tenant effects. |
+| `REQ-7615` | Scoped projection API tests track canonical-link revocation, independent relation CRUDL, and unknown/foreign resource denial. |

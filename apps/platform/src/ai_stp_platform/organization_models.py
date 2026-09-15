@@ -13,6 +13,7 @@ from sqlalchemy import (
     JSON,
     CheckConstraint,
     DateTime,
+    FetchedValue,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -89,7 +90,18 @@ def _reject_organization_identity_change(  # pyright: ignore[reportUnusedFunctio
         raise ValueError("personal organization owner is immutable")
 
 
-class OrganizationMembership(Base):
+class EntityProfileColumns:
+    """Tenant presentation content has its own optimistic revision."""
+
+    profile: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict, server_default="{}"
+    )
+    profile_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+
+class OrganizationMembership(EntityProfileColumns, Base):
     """One account's active or suspended membership in one organization."""
 
     __tablename__ = "organization_membership"
@@ -102,6 +114,9 @@ class OrganizationMembership(Base):
             "state in ('active', 'suspended')", name="ck_organization_membership_state"
         ),
         CheckConstraint("revision >= 1", name="ck_organization_membership_revision"),
+        CheckConstraint(
+            "profile_revision >= 0", name="ck_organization_membership_profile_revision"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -113,6 +128,7 @@ class OrganizationMembership(Base):
         String(64), ForeignKey("account.id", ondelete="CASCADE"), nullable=False, index=True
     )
     role: Mapped[str] = mapped_column(String(64), nullable=False, default="member")
+    display_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -260,15 +276,47 @@ class CorporateRoleBinding(Base):
     )
 
 
-class CorporateProject(Base):
+class CorporateProject(EntityProfileColumns, Base):
     """A corporate project whose identity and ownership share one tenant key."""
 
     __tablename__ = "corporate_project"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "id", "identity_namespace"],
+            [
+                "project_identity.organization_id",
+                "project_identity.id",
+                "project_identity.namespace",
+            ],
+            ondelete="RESTRICT",
+            name="fk_corporate_project_identity",
+        ),
+        CheckConstraint("identity_namespace = 'remote'", name="ck_corporate_project_identity"),
+        CheckConstraint(
+            "activity_override IS NULL OR activity_override IN ('active','inactive')",
+            name="ck_corporate_project_activity_override",
+        ),
         UniqueConstraint("organization_id", "id", name="uq_corporate_project_tenant_id"),
         UniqueConstraint("organization_id", "name", name="uq_corporate_project_name"),
         CheckConstraint("state in ('active', 'archived')", name="ck_corporate_project_state"),
+        CheckConstraint(
+            "lifecycle IN ('active','deprecated','archived','deleted')",
+            name="ck_corporate_project_lifecycle",
+        ),
+        CheckConstraint(
+            "restore_lifecycle IN ('active','deprecated')",
+            name="ck_corporate_project_restore",
+        ),
+        CheckConstraint(
+            "state = CASE WHEN lifecycle = 'active' THEN 'active' ELSE 'archived' END",
+            name="ck_corporate_project_projection",
+        ),
         CheckConstraint("revision >= 1", name="ck_corporate_project_revision"),
+        CheckConstraint("profile_revision >= 0", name="ck_corporate_project_profile_revision"),
+        CheckConstraint(
+            "source_availability IN ('unknown','available','unavailable')",
+            name="ck_corporate_project_source_availability",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -276,6 +324,20 @@ class CorporateProject(Base):
         String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    identity_namespace: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="remote", server_default="remote"
+    )
+    repository_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_availability: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="unknown", server_default="unknown"
+    )
+    activity_override: Mapped[str | None] = mapped_column(String(16))
+    lifecycle: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default=FetchedValue()
+    )
+    restore_lifecycle: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="active", server_default="active"
+    )
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -284,7 +346,7 @@ class CorporateProject(Base):
     )
 
 
-class CorporateTeam(Base):
+class CorporateTeam(EntityProfileColumns, Base):
     """A minimal organization-owned team used by corporate bootstrap administration."""
 
     __tablename__ = "corporate_team"
@@ -292,6 +354,7 @@ class CorporateTeam(Base):
         UniqueConstraint("organization_id", "id", name="uq_corporate_team_tenant_id"),
         UniqueConstraint("organization_id", "name", name="uq_corporate_team_name"),
         CheckConstraint("state in ('active', 'archived')", name="ck_corporate_team_state"),
+        CheckConstraint("profile_revision >= 0", name="ck_corporate_team_profile_revision"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -441,6 +504,10 @@ class ProjectIdentity(Base):
 
     __tablename__ = "project_identity"
     __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "id", "namespace", name="uq_project_identity_tenant_namespace"
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_project_identity_tenant_id"),
         UniqueConstraint(
             "organization_id", "namespace", "external_key", name="uq_project_identity_external"
         ),
@@ -741,6 +808,92 @@ class ProjectRevisionReceipt(Base):
     request_fingerprint: Mapped[str] = mapped_column(String(71), nullable=False)
     response_body: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CorporateCatalogAssignment(Base):
+    """An exact catalog version assigned to one tenant-local operational subject."""
+
+    __tablename__ = "corporate_catalog_assignment"
+    __table_args__ = (
+        CheckConstraint(
+            "object_kind in ('setup','component')", name="ck_corporate_assignment_kind"
+        ),
+        CheckConstraint("state in ('current','retired')", name="ck_corporate_assignment_state"),
+        CheckConstraint("revision >= 1", name="ck_corporate_assignment_revision"),
+        CheckConstraint(
+            "(CASE WHEN account_id IS NULL THEN 0 ELSE 1 END + "
+            "CASE WHEN team_id IS NULL THEN 0 ELSE 1 END + "
+            "CASE WHEN project_id IS NULL THEN 0 ELSE 1 END) = 1",
+            name="ck_corporate_assignment_subject",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "account_id"],
+            ["organization_membership.organization_id", "organization_membership.account_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "team_id"],
+            ["corporate_team.organization_id", "corporate_team.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "project_id"],
+            ["corporate_project.organization_id", "corporate_project.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["object_kind", "stable_id", "version"],
+            [
+                "catalog_metadata.object_kind",
+                "catalog_metadata.stable_id",
+                "catalog_metadata.version",
+            ],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "account_id",
+            "object_kind",
+            "stable_id",
+            "version",
+            name="uq_corporate_assignment_account",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "team_id",
+            "object_kind",
+            "stable_id",
+            "version",
+            name="uq_corporate_assignment_team",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "project_id",
+            "object_kind",
+            "stable_id",
+            "version",
+            name="uq_corporate_assignment_project",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    team_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    project_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    object_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    stable_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="current", server_default="current"
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class ProjectLinkProposal(Base):
