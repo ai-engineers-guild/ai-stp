@@ -14,8 +14,12 @@ stale plan, or a request for a user decision.
 Retry only when `retryable: true`. After an unconfirmed timeout, first check the
 actual effect through the proposed status or recovery command.
 
-`next_actions` is an ordered hint, not permission. Resolve the next call against the cached
-descriptor for the installed version. Read a result schema only when its fields
-are unclear. A corrected input or a freshly computed plan is a new operation,
-not a blind retry of a permanent error. Honor server retry timing; retain
-completed work while waiting.
+`next_actions` is an ordered hint, not permission. Each entry is runnable argv
+of this CLI. It never contains an ellipsis standing in for the previous call.
+Unresolved values are angle-bracket placeholders, a scoped help read for that
+command family, or a typed continuation whose `missing` list is non-empty.
+`continuations` is additive: older builds omit it. Resolve the next call against
+the cached descriptor for the installed version. Read a result schema only when
+its fields are unclear. A corrected input or a freshly computed plan is a new
+operation, not a blind retry of a permanent error. Honor server retry timing;
+retain completed work while waiting.

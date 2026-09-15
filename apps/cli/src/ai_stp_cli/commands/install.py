@@ -202,7 +202,7 @@ def _prepared_setup_source(
             details={"stable_id": stable_id, "version": version},
             next_actions=[
                 "project passport --root <path> --json",
-                f"install plan --setup {reference} --project <path> ...",
+                f"install plan --setup {reference} --project <path> --json",
             ],
         )
     return selection.Proposal(
@@ -271,8 +271,8 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             "AI_STP_VALIDATION_ERROR",
             "name exactly one confirmed proposal or prepared exact SetupVersion",
             next_actions=[
-                "install plan --proposal <id> ...",
-                "install plan --setup <id>@<X.Y> ...",
+                "install plan --proposal <id> --json",
+                "install plan --setup <id>@<X.Y> --json",
             ],
         )
 
@@ -378,7 +378,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
                 "AI_STP_SCHEMA_UNSUPPORTED",
                 "this action without a named setup requires provider protocol v3",
                 details={"action": action, "protocol_version": str(protocol_version)},
-                next_actions=["install plan --protocol-version 3 ..."],
+                next_actions=["install plan --protocol-version 3 --json"],
             )
         # The installing machine's target, because a component contributing a
         # key to an owned file needs that file's current bytes and they exist
@@ -673,7 +673,7 @@ def _plan_v3(
                     "longest": overlong[-1],
                     "limit": str(windows_paths.MAX_PATH_CHARACTERS),
                 },
-                next_actions=["install plan ... --target <shorter path> --json"],
+                next_actions=["help --path install --json"],
             )
     arguments = operation_v3.plan_operation_arguments(
         operation=operation,
@@ -764,7 +764,7 @@ def approve(parameters: Mapping[str, object]) -> Answer[InstallationView]:
             "AI_STP_USER_DECISION_REQUIRED",
             "this plan is approved by its exact digest, which the plan answer carries",
             details={"operation_id": operation_id},
-            next_actions=["install plan --proposal <id> --provider <path>"],
+            next_actions=["install plan --proposal <id> --provider <path> --json"],
         )
 
     with closing(open_registry(configured_path(), create=True)) as connection:
@@ -2137,7 +2137,7 @@ def _provider_target(parameters: Mapping[str, object], logical: str, version: in
             "AI_STP_VALIDATION_ERROR",
             "provider protocol v2/v3 requires an existing absolute target directory",
             next_actions=[
-                "install plan ... --target <directory> --protocol-version 3 --json",
+                "install plan --target <directory> --protocol-version 3 --json",
                 "target status --project <id> --harness <id> --provider <path> "
                 "--target <directory> --json",
             ],
@@ -2788,7 +2788,7 @@ def _required(parameters: Mapping[str, object], name: str) -> str:
             "AI_STP_VALIDATION_ERROR",
             "a required option was not supplied",
             details={"option": f"--{name}"},
-            next_actions=[f"... --{name} <id>"],
+            next_actions=["help --path install --json"],
         )
     return given
 

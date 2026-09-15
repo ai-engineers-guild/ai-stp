@@ -1,6 +1,6 @@
 ---
 description: "CLI machine help as the source of available commands and schemas."
-last_verified: "2026-09-05"
+last_verified: "2026-09-15"
 ---
 
 # Machine help
@@ -16,7 +16,11 @@ ai-stp help --agent --json
 
 They answer different questions and intentionally do not replace each other.
 
-`capabilities` answers **what this installation can do right now**: versions, supported harnesses, whether catalog and synchronization are enabled, and a command-path list as a pointer. It is an inexpensive first call.
+`capabilities` answers **what this installation can do right now**: versions,
+whether this process loaded a published wheel or this checkout, the local
+registry schema it reads, the command-registry fingerprint, supported harnesses,
+whether catalog and synchronization are enabled, and a command-path list as a
+pointer. It is an inexpensive first call.
 
 `help --agent` answers **which commands, fields, and errors exist**. It is the full
 registry: for each command, it provides the path, purpose, mutability class,

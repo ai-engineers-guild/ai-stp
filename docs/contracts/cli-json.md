@@ -1,6 +1,6 @@
 ---
 description: "JSON envelope, error classes, and CLI machine-output rules."
-last_verified: "2026-09-01"
+last_verified: "2026-09-15"
 ---
 
 # JSON CLI
@@ -15,7 +15,8 @@ last_verified: "2026-09-01"
   "operation_id": null,
   "data": {},
   "warnings": [],
-  "next_actions": []
+  "next_actions": [],
+  "continuations": []
 }
 ```
 
@@ -33,7 +34,8 @@ last_verified: "2026-09-01"
     "retryable": false,
     "details": {}
   },
-  "next_actions": []
+  "next_actions": [],
+  "continuations": []
 }
 ```
 
@@ -56,9 +58,15 @@ schema newer than the installed reader remains `failed`.
 
 Each element of `next_actions` is a command of this CLI, runnable as written
 with `--json` and carrying every option the command requires. A value the
-caller must supply stands in angle brackets; `...` stands for the caller's own
-invocation, to be repeated with the options written beside it. A report never
-answers with state names or prose in that field.
+caller must supply stands in angle brackets. Unresolved steps are not written
+as argv with `...`: they are `help --path <family> --json`, or they live in
+`continuations` with a non-empty `missing` list. A report never answers with
+state names or prose in that field.
+
+`continuations` is additive inside major 1. An older producer omits the field;
+a reader treats absence as an empty list. Each item names a declared command
+`path`, arguments already bound, and `missing` for names the caller must still
+supply. `next_actions` remains the generated argv for older callers.
 
 ## Exit codes
 

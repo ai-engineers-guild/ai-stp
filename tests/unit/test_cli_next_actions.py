@@ -13,7 +13,8 @@ Templates are allowed exactly one placeholder shape: `<word>`. A placeholder
 segment matches any single argv token; a placeholder flag value is not a flag.
 A whole-command placeholder (an f-string interpolating the verb itself, e.g.
 `provider {operation} plan`) is validated against every command it can expand
-to by trying each declared path.
+to by trying each declared path. An ellipsis is not a placeholder: it is a
+command the caller cannot run.
 """
 
 from __future__ import annotations
@@ -70,10 +71,7 @@ def _consumed(tokens: list[str], path: tuple[str, ...]) -> int:
 
 
 def _tokens(text: str) -> list[str]:
-    """Shell-like tokens with a `<multi word hole>` kept as one placeholder.
-
-    An ellipsis stands for "whatever else the call took" and is not a token.
-    """
+    """Shell-like tokens with a `<multi word hole>` kept as one placeholder."""
     tokens: list[str] = []
     open_hole: list[str] = []
     for word in text.split():
@@ -82,8 +80,6 @@ def _tokens(text: str) -> list[str]:
             if ">" in word:
                 tokens.append(" ".join(open_hole))
                 open_hole = []
-            continue
-        if word == "...":
             continue
         if "<" in word and ">" not in word:
             open_hole = [word]
@@ -101,14 +97,10 @@ REQUIRED: dict[tuple[str, ...], frozenset[str]] = {
 
 
 def _problems(text: str) -> list[str]:
-    if text.startswith("..."):
-        # The caller's own invocation with these options added: nothing to
-        # resolve beyond the options being options.
-        return (
-            []
-            if all(t.startswith("--") or _placeholder(t) for t in _tokens(text))
-            else [f"a `...` pointer carries only options: {text!r}"]
-        )
+    if "..." in text.split() or text.startswith("..."):
+        return [
+            f"a pointer must not use `...`; name the command or `help --path <family>`: {text!r}"
+        ]
     tokens = _tokens(text)
     candidates = [path for path in PATHS if _matches(tokens, path)]
     if tokens and _placeholder(tokens[0]):
@@ -136,10 +128,11 @@ def _problems(text: str) -> list[str]:
             and (index == 0 or not rest[index - 1].startswith("--"))
         ]
         # A pointer that names its command whole must also carry what the
-        # command refuses to run without; `...` defers that to the caller's call.
+        # command refuses to run without; unresolved values are `<placeholders>`
+        # or a scoped `help --path`, not an ellipsis.
         given = {token[2:] for token in rest if token.startswith("--")}
         whole = not any(_placeholder(token) for token in tokens[: len(path)])
-        lacking = sorted(REQUIRED[path] - given) if "..." not in text and given and whole else []
+        lacking = sorted(REQUIRED[path] - given) if given and whole else []
         if not unknown and not stray and not lacking:
             return []
         if unknown:

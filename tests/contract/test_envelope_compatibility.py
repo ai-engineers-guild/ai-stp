@@ -70,3 +70,23 @@ def test_old_producer_new_reader_round_trip() -> None:
     parsed = ErrorEnvelopeReader.model_validate(wire)
     assert parsed.ok is False
     assert _schema_accepts("cli-envelope-error", wire)
+
+
+def test_an_old_success_without_continuations_still_matches_the_wire() -> None:
+    """`continuations` is additive: a 1.0 producer omitted it and still validates."""
+    wire = SuccessEnvelope(request_id=new_id("request")).model_dump()
+    wire.pop("continuations")
+    parsed = SuccessEnvelopeReader.model_validate(wire)
+    assert parsed.continuations == []
+    assert _schema_accepts("cli-envelope-success", wire)
+
+
+def test_an_old_error_without_continuations_still_matches_the_wire() -> None:
+    wire = ErrorEnvelope(
+        request_id=new_id("request"),
+        error=CliError(code="AI_STP_VALIDATION_ERROR", message="safe", retryable=False),
+    ).model_dump()
+    wire.pop("continuations")
+    parsed = ErrorEnvelopeReader.model_validate(wire)
+    assert parsed.continuations == []
+    assert _schema_accepts("cli-envelope-error", wire)

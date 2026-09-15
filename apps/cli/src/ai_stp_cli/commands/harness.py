@@ -57,6 +57,7 @@ from ai_stp_contracts.machine_help import (
     HarnessProgramStatus,
 )
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.ids import new_id
 
 #: How long a program plan stays applicable. The same short window a setup plan
@@ -120,11 +121,26 @@ def remove(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
     again.
     """
     if parameters.get("confirm") is not True:
+        arguments: dict[str, str] = {}
+        missing: list[str] = []
+        for name in ("harness", "prefix", "target"):
+            value = str(parameters.get(name) or "")
+            if value:
+                arguments[name] = value
+            else:
+                missing.append(name)
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "removing a harness program requires explicit confirmation",
             details={"prefix": str(parameters.get("prefix") or "")},
-            next_actions=["harness remove ... --confirm --json"],
+            continuations=[
+                Continuation(
+                    kind="advance",
+                    path=["harness", "remove"],
+                    arguments={**arguments, "confirm": ""},
+                    missing=missing,
+                )
+            ],
         )
     return _perform("remove", parameters)
 

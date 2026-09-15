@@ -1070,8 +1070,8 @@ def test_v3_refuses_to_install_a_provider_no_signed_release_covers(
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert raised.value.next_actions == [
         "provider fetch --harness <id> --json",
-        "install plan ... --provider-manifest <path> --json",
-        "install plan ... --unverified-provider --json",
+        "help --path install --json",
+        "install plan --unverified-provider --json",
     ]
 
 

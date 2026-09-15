@@ -22,10 +22,12 @@ from ai_stp_foundation.digests import (
 from ai_stp_foundation.envelope import (
     CliError,
     CliErrorReader,
+    Continuation,
     ErrorEnvelope,
     ErrorEnvelopeReader,
     SuccessEnvelope,
     SuccessEnvelopeReader,
+    continuation_command,
 )
 from ai_stp_foundation.errors import (
     ERROR_CODES,
@@ -91,6 +93,7 @@ __all__ = [
     "CliError",
     "CliErrorReader",
     "ComponentRef",
+    "Continuation",
     "DigestError",
     "ErrorEnvelope",
     "ErrorEnvelopeReader",
@@ -107,6 +110,7 @@ __all__ = [
     "compare_versions",
     "component_logical_digest",
     "component_logical_payload",
+    "continuation_command",
     "digest_bytes",
     "digest_canonical",
     "error_code_schema",
