@@ -86,6 +86,7 @@ export async function ObjectPresentationEditorPage({
           markdownWrite: t("markdownWrite"),
           markdownPreview: t("markdownPreview"),
           bio: t("bio"),
+          descriptionInvalid: t("descriptionInvalid"),
           media: t("media"),
           addMedia: t("addMedia"),
           remove: t("removeMedia"),

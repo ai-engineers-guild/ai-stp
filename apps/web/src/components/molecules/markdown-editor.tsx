@@ -70,11 +70,12 @@ export function MarkdownEditor({
       ) : (
         <Textarea
           id={id}
-          className="min-h-36 font-mono"
+          className={`min-h-36 font-mono ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
           value={value}
           maxLength={maxLength}
           disabled={disabled}
           aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
           onChange={(event) => {
             onChange(event.target.value);
           }}

@@ -104,9 +104,42 @@ export function EntityEditorField({
       {children}
       {hint ? <p className="text-muted-foreground text-xs leading-relaxed">{hint}</p> : null}
       {error ? (
-        <p className="text-destructive text-xs" role="alert">
+        <p
+          id={htmlFor ? `${htmlFor}-error` : undefined}
+          className="text-destructive text-xs"
+          role="alert"
+        >
           {error}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function EntityEditorErrorSummary({
+  error,
+  fieldErrors,
+  summary,
+  fieldLabel,
+}: {
+  error?: string | null;
+  fieldErrors: Record<string, string>;
+  summary: string;
+  fieldLabel: (path: string) => string;
+}) {
+  const entries = Object.entries(fieldErrors);
+  if (!error && !entries.length) return null;
+  return (
+    <div className="border-destructive/50 bg-destructive/10 rounded-md border p-3" role="alert">
+      <p className="text-destructive text-sm font-medium">{error ?? summary}</p>
+      {entries.length ? (
+        <ul className="text-destructive mt-2 list-disc space-y-1 pl-5 text-xs">
+          {entries.map(([path, message]) => (
+            <li key={path}>
+              <span className="font-medium">{fieldLabel(path)}</span>: {message}
+            </li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );

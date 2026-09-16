@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { updateObjectPresentationAction } from "@/actions/object-presentation";
+import { normalizeFieldPath } from "@/lib/api/field-errors";
 import {
   isGithubRawUrl,
   isExternalMediaUrl,
@@ -37,6 +38,7 @@ export type PresentationFormLabels = {
   saveFailed: string;
   uploadInProgress: string;
   uploadRequired: string;
+  fieldError?: ((path: string, message: string) => string) | undefined;
 };
 
 type UploadCtx = {
@@ -432,9 +434,19 @@ export function useObjectPresentationForm(input: {
           })),
         );
       } else {
-        setError(result.message || labels.saveFailed);
+        const localizedFieldErrors = Object.fromEntries(
+          Object.entries(result.fieldErrors).map(([path, message]) => [
+            normalizeFieldPath(path),
+            labels.fieldError?.(normalizeFieldPath(path), message) ?? message,
+          ]),
+        );
+        setError(
+          Object.keys(localizedFieldErrors).length
+            ? labels.saveFailed
+            : result.message || labels.saveFailed,
+        );
         setErrorCode(result.code);
-        setFieldErrors(result.fieldErrors);
+        setFieldErrors(localizedFieldErrors);
       }
     });
   }
@@ -468,6 +480,7 @@ export function useObjectPresentationForm(input: {
       setMedia((items) => (items.length >= 5 ? items : [...items, emptyPresentationMediaItem()]));
     },
     removeMedia: (index: number) => {
+      setFieldErrors({});
       setMedia((items) => {
         const target = items[index];
         if (target) {

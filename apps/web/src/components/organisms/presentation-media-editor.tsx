@@ -1,5 +1,7 @@
 "use client";
 
+import type { useTranslations } from "next-intl";
+
 import { Button } from "@/components/atoms/button";
 import { EntityEditorSection } from "@/components/molecules/entity-editor-layout";
 import {
@@ -56,6 +58,11 @@ export function PresentationMediaEditor({
           {labels.mediaCount.replace("{count}", String(media.length)).replace("{max}", String(max))}
         </p>
       </div>
+      {fieldErrors.media ? (
+        <p className="text-destructive text-xs" role="alert">
+          {fieldErrors.media}
+        </p>
+      ) : null}
       <ul className="space-y-4">
         {media.map((item, index) => (
           <li key={item.clientKey}>
@@ -127,4 +134,47 @@ export function PresentationMediaEditor({
       ) : null}
     </EntityEditorSection>
   );
+}
+
+export function mediaEditorLabels(
+  t: ReturnType<typeof useTranslations<"objects">>,
+): PresentationMediaEditorLabels {
+  return {
+    media: t("media"),
+    help: t("mediaHelp"),
+    requirements: t("mediaRequirements"),
+    mediaCount: "{count} / {max}",
+    addMedia: t("addMedia"),
+    moveUp: t("mediaMoveUp"),
+    moveDown: t("mediaMoveDown"),
+    remove: t("removeMedia"),
+    kind: t("mediaKind"),
+    alt: t("mediaAlt"),
+    caption: t("mediaCaption"),
+    upload: t("mediaUpload"),
+    uploading: t("mediaUploading"),
+    youtubeHint: t("mediaYoutubeHint"),
+    githubHint: t("mediaGithubHint"),
+    youtubePlaceholder: "dQw4w9WgXcQ",
+    githubPlaceholder: "https://raw.githubusercontent.com/owner/repo/commit/file.png",
+    preview: t("mediaPreview"),
+    retryUpload: t("mediaRetryUpload"),
+    replaceUpload: t("mediaReplaceUpload"),
+    sourceUpload: t("mediaSourceUpload"),
+    sourceGithub: t("mediaSourceGithub"),
+    sourceYoutube: t("mediaSourceYoutube"),
+    sourceChoice: t("mediaSourceChoice"),
+    sourceUrl: t("mediaSourceUrl"),
+    urlHint: t("mediaUrlHint"),
+    urlPlaceholder: t("mediaUrlPlaceholder"),
+    uploadedReady: t("mediaUploadedReady"),
+    itemStatusIdle: t("mediaItemStatusIdle"),
+    itemStatusUploading: t("mediaItemStatusUploading"),
+    itemStatusReady: t("mediaItemStatusReady"),
+    itemStatusError: t("mediaItemStatusError"),
+    altRequired: t("mediaAltRequired"),
+    invalid: t("mediaInvalid"),
+    kindImage: t("mediaKindImage"),
+    kindVideo: t("mediaKindVideo"),
+  };
 }

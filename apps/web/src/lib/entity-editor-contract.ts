@@ -17,6 +17,7 @@ export type EntityEditorConfig = {
 };
 
 export type EntityEditorLink = { label: string; url: string };
+export type EntityEditorFieldErrors = Record<string, string>;
 
 const STANDARD_LIMITS = {
   displayName: 200,
@@ -90,4 +91,41 @@ export function validateEntityLinks(
     seen.add(link.url);
   }
   return null;
+}
+
+export function validateEntityFieldErrors(
+  name: string,
+  links: readonly EntityEditorLink[],
+  limits: { displayName: number; links: number },
+  messages: {
+    displayNameRequired: string;
+    displayNameTooLong: string;
+    tooManyLinks: string;
+    linkLabelRequired: string;
+    linkLabelTooLong: string;
+    linkUrl: string;
+    duplicateLink: string;
+  },
+): EntityEditorFieldErrors {
+  const errors: EntityEditorFieldErrors = {};
+  const trimmedName = name.trim();
+  if (!trimmedName) errors.name = messages.displayNameRequired;
+  else if (trimmedName.length > limits.displayName) errors.name = messages.displayNameTooLong;
+  if (links.length > limits.links) errors.links = messages.tooManyLinks;
+  const seen = new Set<string>();
+  links.forEach((link, index) => {
+    const label = link.label.trim();
+    if (!label) errors[`links.${index}.label`] = messages.linkLabelRequired;
+    else if (label.length > 60) errors[`links.${index}.label`] = messages.linkLabelTooLong;
+    try {
+      const url = new URL(link.url);
+      if (url.protocol !== "https:" || url.username || url.password)
+        errors[`links.${index}.url`] = messages.linkUrl;
+    } catch {
+      errors[`links.${index}.url`] = messages.linkUrl;
+    }
+    if (seen.has(link.url)) errors[`links.${index}.url`] = messages.duplicateLink;
+    seen.add(link.url);
+  });
+  return errors;
 }

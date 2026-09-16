@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable max-lines -- coordinates shared upload and two mutation boundaries */
 /* eslint-disable max-lines-per-function */
 
 import { useRef, useState, useTransition } from "react";
@@ -9,12 +10,16 @@ import { corporateMutationAction } from "@/actions/corporate";
 import { updateCorporatePresentationAction } from "@/actions/corporate-detail";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
-import { EntityEditorField, EntityEditorLayout } from "@/components/molecules/entity-editor-layout";
+import {
+  EntityEditorErrorSummary,
+  EntityEditorField,
+  EntityEditorLayout,
+} from "@/components/molecules/entity-editor-layout";
 import { EntityLinksEditor } from "@/components/molecules/entity-links-editor";
 import { MarkdownEditor } from "@/components/molecules/markdown-editor";
 import {
   PresentationMediaEditor,
-  type PresentationMediaEditorLabels,
+  mediaEditorLabels,
 } from "@/components/organisms/presentation-media-editor";
 import {
   emptyPresentationMediaItem,
@@ -32,11 +37,14 @@ import {
   type CorporatePresentation,
 } from "@/lib/corporate-detail";
 import { uploadCorporateDetailMedia } from "@/lib/corporate-detail-upload";
+import { ENTITY_EDITOR_CONFIGS, validateEntityFieldErrors } from "@/lib/entity-editor-contract";
 import {
-  ENTITY_EDITOR_CONFIGS,
-  validateEntityDisplayName,
-  validateEntityLinks,
-} from "@/lib/entity-editor-contract";
+  fieldErrorsFromIssues,
+  formatCorporateFieldPath,
+  localizeCorporateFieldErrors,
+  withoutFieldErrors,
+  type FieldErrors,
+} from "@/lib/api/field-errors";
 import { useRouter } from "@/lib/i18n/navigation";
 
 export type CorporateEntityUpdate =
@@ -80,6 +88,7 @@ export function CorporateRichEditor({
   );
   const [descriptionMode, setDescriptionMode] = useState<"write" | "preview">("write");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [pending, startTransition] = useTransition();
   const saveReceipt = useRef<{ payload: string; key: string } | null>(null);
   const uploadReceipts = useRef(new Map<string, { file: File; key: string }>());
@@ -88,7 +97,14 @@ export function CorporateRichEditor({
   const config = ENTITY_EDITOR_CONFIGS[entityUpdate.kind];
   if (!initial.can_edit) return null;
 
+  const fieldErrorMessages = corporateFieldErrorMessages(account, corporate, objects);
+
+  function clearFieldErrors(prefixes: string[]) {
+    setFieldErrors((current) => withoutFieldErrors(current, prefixes));
+  }
+
   function patchMedia(index: number, patch: Partial<PresentationMediaDraft>) {
+    clearFieldErrors([`media.${index}`, `media[${index}]`]);
     setMedia((items) =>
       items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
     );
@@ -106,10 +122,12 @@ export function CorporateRichEditor({
     if (!item) return;
     const reason = validateComponentMediaFile(file);
     if (reason) {
+      const message = objects(reason === "size" ? "mediaSizeExceeded" : "mediaUnsupportedType");
       patchMedia(index, {
         uploadState: "error",
-        itemError: objects(reason === "size" ? "mediaSizeExceeded" : "mediaUnsupportedType"),
+        itemError: message,
       });
+      setFieldErrors((current) => ({ ...current, [`media.${index}.url`]: message }));
       return;
     }
     const kind = kindFromMime(file.type);
@@ -153,6 +171,7 @@ export function CorporateRichEditor({
         pendingFile: null,
         itemError: null,
       });
+      clearFieldErrors([`media.${index}`, `media[${index}]`]);
     } catch {
       if (uploadGeneration.current.get(clientKey) !== generation) return;
       patchMediaByKey(clientKey, {
@@ -160,6 +179,10 @@ export function CorporateRichEditor({
         pendingFile: file,
         itemError: objects("mediaUploadFailed"),
       });
+      setFieldErrors((current) => ({
+        ...current,
+        [`media.${index}.url`]: objects("mediaUploadFailed"),
+      }));
     }
   }
 
@@ -192,13 +215,27 @@ export function CorporateRichEditor({
   }
 
   function save() {
-    const nameError = validateEntityDisplayName(name, config.limits.displayName);
-    const linksError = validateEntityLinks(links, config.limits.links);
+    const validationErrors = validateEntityFieldErrors(name, links, config.limits, {
+      displayNameRequired: account("profileErrorDisplayNameRequired"),
+      displayNameTooLong: account("profileErrorDisplayNameTooLong"),
+      tooManyLinks: account("profileErrorTooManyLinks"),
+      linkLabelRequired: account("profileErrorLinkLabelRequired"),
+      linkLabelTooLong: account("profileErrorLinkLabelTooLong"),
+      linkUrl: account("profileErrorLinkUrl"),
+      duplicateLink: account("profileErrorDuplicateLink"),
+    });
     const activeMedia = media.filter(
       (item) => item.url || item.localPreview || item.pendingFile || item.alt || item.caption,
     );
-    if (nameError || linksError || activeMedia.some((item) => item.uploadState !== "ready")) {
-      setError(nameError ?? linksError ?? objects("mediaUploadRequired"));
+    activeMedia.forEach((item) => {
+      const index = media.indexOf(item);
+      if (item.uploadState !== "ready")
+        validationErrors[`media.${index}.url`] = objects("mediaUploadRequired");
+      if (!item.alt.trim()) validationErrors[`media.${index}.alt`] = objects("mediaAltRequired");
+    });
+    if (Object.keys(validationErrors).length) {
+      setFieldErrors(validationErrors);
+      setError(Object.values(validationErrors)[0] ?? objects("mediaInvalid"));
       return;
     }
     const presentationMedia = activeMedia.map(({ kind, url, alt, caption }) => ({
@@ -221,8 +258,14 @@ export function CorporateRichEditor({
         id: item.clientKey,
       })),
     };
-    if (!corporatePresentationSchema.safeParse(candidate).success) {
-      setError(objects("mediaInvalid"));
+    const parsedCandidate = corporatePresentationSchema.safeParse(candidate);
+    if (!parsedCandidate.success) {
+      const candidateErrors = localizeCorporateFieldErrors(
+        fieldErrorsFromIssues(parsedCandidate.error.issues),
+        fieldErrorMessages,
+      );
+      setFieldErrors(candidateErrors);
+      setError(Object.values(candidateErrors)[0] ?? objects("mediaInvalid"));
       return;
     }
     const payload = JSON.stringify({
@@ -235,11 +278,14 @@ export function CorporateRichEditor({
       saveReceipt.current = { payload, key: crypto.randomUUID() };
     const key = saveReceipt.current.key;
     setError(null);
+    setFieldErrors({});
     startTransition(async () => {
       try {
         const entityResult = await updateEntity(key);
         if (!entityResult.ok) {
-          setError(entityResult.message);
+          const errors = localizeCorporateFieldErrors(entityResult.fieldErrors, fieldErrorMessages);
+          setFieldErrors(errors);
+          setError(Object.values(errors)[0] ?? entityResult.message);
           return;
         }
         const result = await updateCorporatePresentationAction({
@@ -256,7 +302,13 @@ export function CorporateRichEditor({
           },
         });
         if (!result.ok || !entityProfileViewSchema.safeParse(result.data).success) {
-          setError(result.ok ? account("profileSaveFailed") : result.message);
+          const errors = result.ok
+            ? {}
+            : localizeCorporateFieldErrors(result.fieldErrors, fieldErrorMessages);
+          setFieldErrors(errors);
+          setError(
+            Object.values(errors)[0] ?? (result.ok ? account("profileSaveFailed") : result.message),
+          );
           return;
         }
         saveReceipt.current = null;
@@ -288,14 +340,23 @@ export function CorporateRichEditor({
                 label={account("profileDisplayName")}
                 htmlFor="entity-name"
                 required
+                error={fieldErrors.name}
               >
                 <Input
                   id="entity-name"
                   value={name}
                   required
                   maxLength={config.limits.displayName}
+                  className={
+                    fieldErrors.name
+                      ? "border-destructive focus-visible:ring-destructive"
+                      : undefined
+                  }
+                  aria-invalid={Boolean(fieldErrors.name)}
+                  aria-describedby={fieldErrors.name ? "entity-name-error" : undefined}
                   onChange={(event) => {
                     setName(event.target.value);
+                    clearFieldErrors(["name"]);
                   }}
                 />
               </EntityEditorField>
@@ -306,10 +367,14 @@ export function CorporateRichEditor({
                 label={corporate("description")}
                 value={description}
                 mode={descriptionMode}
-                onChange={setDescription}
+                onChange={(value) => {
+                  setDescription(value);
+                  clearFieldErrors(["description"]);
+                }}
                 onModeChange={setDescriptionMode}
                 maxLength={config.limits.description}
                 hint={account("profileBioHint")}
+                error={fieldErrors.description}
                 labels={{
                   write: account("profileBioPlain"),
                   preview: account("profileBioRender"),
@@ -327,9 +392,11 @@ export function CorporateRichEditor({
                 onFile={(index, file) => void upload(index, file)}
                 retryUpload={(index) => void upload(index, media[index]?.pendingFile ?? null)}
                 removeMedia={(index) => {
+                  clearFieldErrors(["media.", "media["]);
                   setMedia((items) => items.filter((_, itemIndex) => itemIndex !== index));
                 }}
                 moveMedia={(from, to) => {
+                  clearFieldErrors(["media."]);
                   setMedia((items) => {
                     const next = [...items];
                     const [item] = next.splice(from, 1);
@@ -345,6 +412,7 @@ export function CorporateRichEditor({
                       : [...items, emptyPresentationMediaItem()],
                   );
                 }}
+                fieldErrors={fieldErrors}
               />
             ),
             links: (
@@ -359,17 +427,22 @@ export function CorporateRichEditor({
                   url: account("linkUrl"),
                   remove: account("profileRemoveLink"),
                 }}
-                onChange={setLinks}
+                onChange={(value) => {
+                  setLinks(value);
+                  clearFieldErrors(["links"]);
+                }}
+                fieldErrors={fieldErrors}
               />
             ),
           }}
           afterBlocks={
             <>
-              {error ? (
-                <p role="alert" className="text-destructive text-sm">
-                  {error}
-                </p>
-              ) : null}
+              <EntityEditorErrorSummary
+                error={error}
+                fieldErrors={fieldErrors}
+                summary={account("profileErrorFieldSummary")}
+                fieldLabel={(path) => formatCorporateFieldPath(path, fieldErrorMessages.labels)}
+              />
               <div className="border-border flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
@@ -392,45 +465,28 @@ export function CorporateRichEditor({
   );
 }
 
-function mediaEditorLabels(
-  t: ReturnType<typeof useTranslations<"objects">>,
-): PresentationMediaEditorLabels {
+function corporateFieldErrorMessages(
+  account: ReturnType<typeof useTranslations<"account">>,
+  corporate: ReturnType<typeof useTranslations<"corporate">>,
+  objects: ReturnType<typeof useTranslations<"objects">>,
+) {
   return {
-    media: t("media"),
-    help: t("mediaHelp"),
-    requirements: t("mediaRequirements"),
-    mediaCount: "{count} / {max}",
-    addMedia: t("addMedia"),
-    moveUp: t("mediaMoveUp"),
-    moveDown: t("mediaMoveDown"),
-    remove: t("removeMedia"),
-    kind: t("mediaKind"),
-    alt: t("mediaAlt"),
-    caption: t("mediaCaption"),
-    upload: t("mediaUpload"),
-    uploading: t("mediaUploading"),
-    youtubeHint: t("mediaYoutubeHint"),
-    githubHint: t("mediaGithubHint"),
-    youtubePlaceholder: "dQw4w9WgXcQ",
-    githubPlaceholder: "https://raw.githubusercontent.com/owner/repo/commit/file.png",
-    preview: t("mediaPreview"),
-    retryUpload: t("mediaRetryUpload"),
-    replaceUpload: t("mediaReplaceUpload"),
-    sourceUpload: t("mediaSourceUpload"),
-    sourceGithub: t("mediaSourceGithub"),
-    sourceYoutube: t("mediaSourceYoutube"),
-    sourceChoice: t("mediaSourceChoice"),
-    sourceUrl: t("mediaSourceUrl"),
-    urlHint: t("mediaUrlHint"),
-    urlPlaceholder: t("mediaUrlPlaceholder"),
-    uploadedReady: t("mediaUploadedReady"),
-    itemStatusIdle: t("mediaItemStatusIdle"),
-    itemStatusUploading: t("mediaItemStatusUploading"),
-    itemStatusReady: t("mediaItemStatusReady"),
-    itemStatusError: t("mediaItemStatusError"),
-    altRequired: t("mediaAltRequired"),
-    invalid: t("mediaInvalid"),
-    kindImage: t("mediaKindImage"),
-    kindVideo: t("mediaKindVideo"),
+    displayName: account("profileErrorDisplayNameInvalid"),
+    description: account("profileErrorDescription"),
+    tooManyLinks: account("profileErrorTooManyLinks"),
+    linkLabel: account("profileErrorLinkLabelInvalid"),
+    linkUrl: account("profileErrorLinkUrl"),
+    mediaSource: account("profileErrorMediaSource"),
+    mediaAlt: objects("mediaAltRequired"),
+    labels: {
+      displayName: account("profileDisplayName"),
+      description: corporate("description"),
+      links: account("profileLinks"),
+      label: account("linkLabel"),
+      media: objects("media"),
+      url: account("linkUrl"),
+      alt: objects("mediaAlt"),
+      kind: objects("mediaKind"),
+    },
   };
 }

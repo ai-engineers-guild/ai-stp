@@ -5,7 +5,11 @@ import { useState } from "react";
 
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
-import { EntityEditorField, EntityEditorLayout } from "@/components/molecules/entity-editor-layout";
+import {
+  EntityEditorErrorSummary,
+  EntityEditorField,
+  EntityEditorLayout,
+} from "@/components/molecules/entity-editor-layout";
 import { MarkdownEditor } from "@/components/molecules/markdown-editor";
 import { PresentationMediaEditor } from "@/components/organisms/presentation-media-editor";
 import { useObjectPresentationForm } from "@/components/organisms/use-object-presentation-form";
@@ -20,6 +24,7 @@ type Labels = {
   markdownWrite?: string;
   markdownPreview?: string;
   bio: string;
+  descriptionInvalid: string;
   media: string;
   addMedia: string;
   remove: string;
@@ -107,6 +112,12 @@ export function ObjectPresentationForm({
       saveFailed: labels.saveFailed,
       uploadInProgress: labels.uploadInProgress,
       uploadRequired: labels.uploadRequired,
+      fieldError: (path, message) => {
+        if (path === "bio") return labels.descriptionInvalid;
+        if (path.endsWith(".alt")) return labels.altRequired;
+        if (path.startsWith("media.")) return labels.uploadRequired;
+        return message;
+      },
     },
   });
   const [bioMode, setBioMode] = useState<"write" | "preview">("write");
@@ -189,16 +200,14 @@ export function ObjectPresentationForm({
             role="region"
             aria-label={labels.save}
           >
-            {form.error ? (
-              <div
-                className="border-destructive/60 bg-destructive/10 rounded-md border p-3"
-                role="alert"
-              >
-                <p className="text-destructive text-sm font-medium">{form.error}</p>
-                {form.errorCode ? (
-                  <code className="text-muted-foreground mt-1 block text-xs">{form.errorCode}</code>
-                ) : null}
-              </div>
+            <EntityEditorErrorSummary
+              error={form.error}
+              fieldErrors={form.fieldErrors}
+              summary={labels.saveFailed}
+              fieldLabel={(path) => presentationFieldLabel(path, labels)}
+            />
+            {form.errorCode ? (
+              <code className="text-muted-foreground block text-xs">{form.errorCode}</code>
             ) : null}
             <div className="flex flex-wrap items-center gap-3">
               <Button
@@ -218,4 +227,15 @@ export function ObjectPresentationForm({
       />
     </form>
   );
+}
+
+function presentationFieldLabel(
+  path: string,
+  labels: Pick<Labels, "bio" | "media" | "url" | "alt" | "kind">,
+): string {
+  if (path === "bio") return labels.bio;
+  const match = path.match(/^media\.(\d+)\.(url|alt|kind)$/);
+  if (!match) return path;
+  const field = match[2] === "alt" ? labels.alt : match[2] === "kind" ? labels.kind : labels.url;
+  return `${labels.media} #${Number(match[1]) + 1} ${field}`;
 }

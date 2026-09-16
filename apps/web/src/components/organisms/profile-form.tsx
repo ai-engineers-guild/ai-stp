@@ -7,6 +7,7 @@ import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import {
+  EntityEditorErrorSummary,
   EntityEditorField,
   EntityEditorLayout,
   EntityEditorSection,
@@ -33,18 +34,20 @@ function AvatarControls(props: {
   onFile: (file: File | null) => void;
   onImport: (provider: "github" | "google") => void;
   onRemove: () => void;
+  error?: string | undefined;
 }) {
-  const { avatarUrl, pending, t, onFile, onImport, onRemove } = props;
+  const { avatarUrl, pending, t, onFile, onImport, onRemove, error } = props;
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <section className="flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:flex-wrap">
       <button
         type="button"
-        className="group bg-muted border-border focus-visible:ring-ring hover:border-foreground/40 relative flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border transition-[border-color,box-shadow] hover:shadow-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-wait"
+        className={`group bg-muted border-border focus-visible:ring-ring hover:border-foreground/40 relative flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border transition-[border-color,box-shadow] hover:shadow-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-wait ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
         onClick={() => inputRef.current?.click()}
         disabled={pending}
         aria-label={t("profileUpload")}
+        aria-describedby={error ? "profile-avatar-error" : undefined}
       >
         {avatarUrl ? (
           <img src={avatarUrl} alt="" className="h-20 w-20 object-cover" />
@@ -64,6 +67,8 @@ function AvatarControls(props: {
         type="file"
         accept="image/png,image/jpeg,image/webp"
         className="sr-only"
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? "profile-avatar-error" : undefined}
         onChange={(e) => {
           onFile(e.target.files?.[0] ?? null);
           e.target.value = "";
@@ -105,6 +110,11 @@ function AvatarControls(props: {
             </Button>
           ) : null}
         </div>
+        {error ? (
+          <p id="profile-avatar-error" className="text-destructive text-xs" role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
     </section>
   );
@@ -144,6 +154,7 @@ function GoogleMark() {
 /**
  * Public profile editor. Preview stays browser-only; save and publish remain explicit actions.
  */
+// eslint-disable-next-line max-lines-per-function -- profile editor composes the shared layout blocks and footer.
 export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
   const form = useProfileForm(initial, csrfToken);
   const statusVariant =
@@ -200,6 +211,7 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
               onFile={form.onFile}
               onImport={form.onImport}
               onRemove={form.onRemoveAvatar}
+              error={form.fieldErrors.avatar}
             />
           </EntityEditorSection>
         ),
@@ -208,6 +220,7 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
             label={form.t("profileDisplayName")}
             htmlFor="profile-display-name"
             required
+            error={form.fieldErrors.display_name}
           >
             <Input
               id="profile-display-name"
@@ -216,6 +229,15 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
                 form.setDisplayName(e.target.value);
               }}
               maxLength={80}
+              className={
+                form.fieldErrors.display_name
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : undefined
+              }
+              aria-invalid={Boolean(form.fieldErrors.display_name)}
+              aria-describedby={
+                form.fieldErrors.display_name ? "profile-display-name-error" : undefined
+              }
               autoComplete="nickname"
             />
           </EntityEditorField>
@@ -250,17 +272,19 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
             }}
             onChange={form.setLinks}
             disabled={form.pending}
+            fieldErrors={form.fieldErrors}
             idPrefix="profile-link"
           />
         ),
       }}
       afterBlocks={
         <>
-          {form.error ? (
-            <p className="text-destructive text-sm" role="alert">
-              {form.error}
-            </p>
-          ) : null}
+          <EntityEditorErrorSummary
+            error={form.error}
+            fieldErrors={form.fieldErrors}
+            summary={form.t("profileErrorFieldSummary")}
+            fieldLabel={(path) => profileFieldLabel(path, form.t)}
+          />
           {form.message ? (
             <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
               {form.message}
@@ -305,4 +329,14 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
       }
     />
   );
+}
+
+function profileFieldLabel(path: string, t: TAccount): string {
+  if (path === "display_name" || path === "name") return t("profileDisplayName");
+  if (path === "bio") return t("profileBio");
+  if (path === "avatar") return t("profileUpload");
+  const match = path.match(/^links\.(\d+)\.(label|url)$/);
+  if (match)
+    return `${t("profileLinks")} #${Number(match[1]) + 1} ${match[2] === "label" ? t("linkLabel") : t("linkUrl")}`;
+  return path;
 }

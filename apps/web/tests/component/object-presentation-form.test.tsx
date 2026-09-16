@@ -12,6 +12,7 @@ vi.mock("@/actions/object-presentation", () => ({
 
 const labels = {
   bio: "Catalog bio",
+  descriptionInvalid: "Catalog bio is invalid",
   media: "Media",
   addMedia: "Add media",
   remove: "Remove",
@@ -397,5 +398,28 @@ describe("ObjectPresentationForm media editor", () => {
     await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, file);
     expect((await screen.findAllByText("Could not upload media.")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Upload failed").length).toBeGreaterThan(0);
+  });
+
+  it("highlights the field named by an API validation response", async () => {
+    const user = userEvent.setup();
+    updateAction.mockResolvedValueOnce({
+      ok: false,
+      code: "AI_STP_VALIDATION_ERROR",
+      message: "request validation failed",
+      fieldErrors: { "body.fields.media.0.url": "request validation failed" },
+    });
+    renderForm([{ kind: "youtube", url: "dQw4w9WgXcQ", alt: "Demo", caption: "" }]);
+
+    await user.click(screen.getByRole("button", { name: "Save presentation" }));
+
+    const source = await screen.findByDisplayValue("dQw4w9WgXcQ");
+    expect(source).toHaveAttribute("aria-invalid", "true");
+    expect(source).toHaveClass("border-destructive");
+    expect(
+      await screen.findByText(
+        "Finish or fix each upload before saving. A local preview is not enough.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText("Media #1 Source")).toBeInTheDocument();
   });
 });

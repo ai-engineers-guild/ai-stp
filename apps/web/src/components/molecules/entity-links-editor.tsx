@@ -15,6 +15,7 @@ export function EntityLinksEditor({
   onChange,
   disabled = false,
   error,
+  fieldErrors = {},
   idPrefix = "entity-link",
 }: {
   links: EntityEditorLink[];
@@ -30,6 +31,7 @@ export function EntityLinksEditor({
   onChange: (links: EntityEditorLink[]) => void;
   disabled?: boolean;
   error?: string | null;
+  fieldErrors?: Record<string, string>;
   idPrefix?: string;
 }) {
   return (
@@ -58,17 +60,25 @@ export function EntityLinksEditor({
         {links.map((link, index) => {
           const labelId = `${idPrefix}-${index}-label`;
           const urlId = `${idPrefix}-${index}-url`;
+          const labelError =
+            fieldErrors[`links.${index}.label`] ?? fieldErrors[`links[${index}].label`];
+          const urlError = fieldErrors[`links.${index}.url`] ?? fieldErrors[`links[${index}].url`];
           return (
             <div
               key={`${idPrefix}-${index}`}
               className="grid min-w-0 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
             >
-              <EntityEditorField label={labels.label} htmlFor={labelId} required>
+              <EntityEditorField label={labels.label} htmlFor={labelId} required error={labelError}>
                 <Input
                   id={labelId}
                   value={link.label}
                   maxLength={60}
                   disabled={disabled}
+                  className={
+                    labelError ? "border-destructive focus-visible:ring-destructive" : undefined
+                  }
+                  aria-invalid={Boolean(labelError)}
+                  aria-describedby={labelError ? `${labelId}-error` : undefined}
                   onChange={(event) => {
                     onChange(
                       links.map((item, itemIndex) =>
@@ -78,13 +88,18 @@ export function EntityLinksEditor({
                   }}
                 />
               </EntityEditorField>
-              <EntityEditorField label={labels.url} htmlFor={urlId} required>
+              <EntityEditorField label={labels.url} htmlFor={urlId} required error={urlError}>
                 <Input
                   id={urlId}
                   type="url"
                   value={link.url}
                   maxLength={2048}
                   disabled={disabled}
+                  className={
+                    urlError ? "border-destructive focus-visible:ring-destructive" : undefined
+                  }
+                  aria-invalid={Boolean(urlError)}
+                  aria-describedby={urlError ? `${urlId}-error` : undefined}
                   onChange={(event) => {
                     onChange(
                       links.map((item, itemIndex) =>
@@ -109,9 +124,9 @@ export function EntityLinksEditor({
           );
         })}
       </div>
-      {error ? (
+      {(error ?? fieldErrors.links) ? (
         <p className="text-destructive text-xs" role="alert">
-          {error}
+          {error ?? fieldErrors.links}
         </p>
       ) : null}
     </EntityEditorSection>
