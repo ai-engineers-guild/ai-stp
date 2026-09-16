@@ -118,7 +118,7 @@ export default async function AccountPage({ params }: PageProps) {
               </Button>
             )}
             <Button asChild className="min-h-11 w-full sm:w-auto">
-              <Link href="/account/profile">{t("editProfile")}</Link>
+              <Link href="/account/profile/edit">{t("editProfile")}</Link>
             </Button>
             <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto">
               <Link href={`/publishers/${profile.account_id}`}>{t("viewPublicProfile")}</Link>

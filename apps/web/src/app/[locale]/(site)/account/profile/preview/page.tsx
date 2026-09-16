@@ -41,7 +41,7 @@ export default async function AccountProfilePreviewPage({ params }: PageProps) {
       <div className="border-border bg-muted flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
         <span>{t("profilePreviewBanner")}</span>
         <Button asChild variant="outline" size="sm">
-          <Link href="/account/profile">{t("profileEdit")}</Link>
+          <Link href="/account/profile/edit">{t("profileEdit")}</Link>
         </Button>
       </div>
       <ProfilePreview projection={p} copyLabel={tc("copy")} copiedLabel={tc("copied")} />

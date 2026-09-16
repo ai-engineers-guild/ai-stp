@@ -276,10 +276,8 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
       <CorporateEntityDetail
         presentation={presentation}
         description={displayDescription}
-        organizationId={workspace.organization.organization_id}
         resource={resource === "roles" ? "teams" : resource}
         resourceId={resourceId}
-        csrfToken={(await readCsrfToken()) ?? ""}
       >
         {resource === "teams" && team ? (
           <>

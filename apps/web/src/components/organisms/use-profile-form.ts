@@ -50,7 +50,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
   const [displayName, setDisplayName] = useState(initial.editable.fields.display_name ?? "");
   const [bio, setBio] = useState(initial.editable.fields.bio ?? "");
   const [bioMode, setBioMode] = useState<"plain" | "render">("plain");
-  const [links, setLinks] = useState<ProfileLink[]>([...initial.editable.fields.links]);
+  const [links, setLinks] = useState<ProfileLink[]>([...initial.editable.fields.links].slice(0, 5));
   const [avatarAssetId, setAvatarAssetId] = useState<string | null>(
     initial.editable.fields.avatar_asset_id,
   );
@@ -95,7 +95,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
     if (restored) {
       setDisplayName(restored.displayName);
       setBio(restored.bio);
-      setLinks(restored.links);
+      setLinks(restored.links.slice(0, 5));
       setAvatarAssetId(restored.avatarAssetId);
       setAvatarUrl(restored.avatarUrl);
     }
@@ -242,7 +242,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
     if (!initial.published) return;
     setDisplayName(initial.published.fields.display_name ?? "");
     setBio(initial.published.fields.bio ?? "");
-    setLinks([...initial.published.fields.links]);
+    setLinks([...initial.published.fields.links].slice(0, 5));
     setAvatarAssetId(initial.published.fields.avatar_asset_id);
     setAvatarUrl(initial.published.avatar_url);
     clearLocalPreview();

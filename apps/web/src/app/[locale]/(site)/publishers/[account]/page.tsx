@@ -297,7 +297,7 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
           <PublisherActions
             accountId={profile.account_id}
             cliCommand={publisherLink}
-            {...(isOwner ? { editHref: "/account/profile" } : {})}
+            {...(isOwner ? { editHref: "/account/profile/edit" } : {})}
             reportHref={`/reports?topic=author_complaint&author=${encodeURIComponent(profile.account_id)}`}
             labels={{
               more: tCatalog("moreActions"),

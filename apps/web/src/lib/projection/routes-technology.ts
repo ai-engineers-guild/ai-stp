@@ -303,6 +303,19 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
+    pattern: "corporate/technologies/:technologyId/edit",
+    resolve: async ({ segments }) => {
+      const technologyId = segments[2];
+      if (!technologyId) return null;
+      const objects = await getTranslations("objects");
+      const technology = await getTranslations("technology");
+      return presentPage({
+        title: objects("editPresentation"),
+        links: [[technology("backToTechnologies"), `/corporate/technologies/${technologyId}`]],
+      });
+    },
+  },
+  {
     pattern: "corporate/technology-landscape",
     resolve: async ({ searchParams }) => {
       const t = await getTranslations("technology");

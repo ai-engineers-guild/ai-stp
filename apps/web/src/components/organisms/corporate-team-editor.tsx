@@ -8,7 +8,9 @@ import { useRouter } from "@/lib/i18n/navigation";
 import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
-import { Label } from "@/components/atoms/label";
+import { EntityEditorField, EntityEditorLayout } from "@/components/molecules/entity-editor-layout";
+import { MarkdownEditor } from "@/components/molecules/markdown-editor";
+import { ENTITY_EDITOR_CONFIGS } from "@/lib/entity-editor-contract";
 import { Icon } from "@/theme";
 import type { CorporateTeamView } from "@/lib/api/generated/types.gen";
 
@@ -31,6 +33,7 @@ export function CorporateTeamEditor({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(team?.name ?? "");
   const [description, setDescription] = useState(team?.description ?? "");
+  const [descriptionMode, setDescriptionMode] = useState<"write" | "preview">("write");
   const [busy, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   if (!canManage) return null;
@@ -77,6 +80,7 @@ export function CorporateTeamEditor({
   function beginEdit() {
     setName(team?.name ?? "");
     setDescription(team?.description ?? "");
+    setDescriptionMode("write");
     setMessage(null);
     setEditing(true);
   }
@@ -126,59 +130,61 @@ export function CorporateTeamEditor({
         ))}
       {editing && (
         <form
-          className="border-border bg-card space-y-4 rounded-lg border p-5"
           onSubmit={(event) => {
             event.preventDefault();
             save();
           }}
         >
-          <h2 className="text-xl font-medium">{t(team ? "edit" : "createTeam")}</h2>
-          <div className="space-y-2">
-            <Label htmlFor="team-name">{t("name")}</Label>
-            <Input
-              id="team-name"
-              required
-              maxLength={200}
-              value={name}
-              disabled={busy}
-              onChange={(event) => {
-                setName(event.target.value);
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="team-description">{t("description")}</Label>
-            <textarea
-              id="team-description"
-              rows={3}
-              maxLength={2000}
-              value={description}
-              disabled={busy}
-              onChange={(event) => {
-                setDescription(event.target.value);
-              }}
-              aria-describedby="team-description-hint"
-              className="border-input bg-background focus-visible:ring-ring w-full rounded-sm border px-3 py-2 text-sm outline-none focus-visible:ring-2"
-            />
-            <p id="team-description-hint" className="text-muted-foreground text-sm">
-              {t("descriptionHint")}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={busy || !name.trim()}>
-              {t(busy ? "saving" : team ? "update" : "createTeam")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => {
-                setEditing(false);
-              }}
-            >
-              {t("cancel")}
-            </Button>
-          </div>
+          <EntityEditorLayout
+            config={ENTITY_EDITOR_CONFIGS.team}
+            title={t(team ? "edit" : "createTeam")}
+            description={t("descriptionHint")}
+            blocks={{
+              displayName: (
+                <EntityEditorField label={t("name")} htmlFor="team-name" required>
+                  <Input
+                    id="team-name"
+                    required
+                    maxLength={200}
+                    value={name}
+                    disabled={busy}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                    }}
+                  />
+                </EntityEditorField>
+              ),
+              description: (
+                <MarkdownEditor
+                  id="team-description"
+                  label={t("description")}
+                  value={description}
+                  mode={descriptionMode}
+                  onChange={setDescription}
+                  onModeChange={setDescriptionMode}
+                  maxLength={2000}
+                  labels={{ write: t("markdownWrite"), preview: t("markdownPreview") }}
+                />
+              ),
+            }}
+            afterBlocks={
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => {
+                    setEditing(false);
+                  }}
+                >
+                  {t("cancel")}
+                </Button>
+                <Button type="submit" disabled={busy || !name.trim()}>
+                  {t(busy ? "saving" : team ? "update" : "createTeam")}
+                </Button>
+              </div>
+            }
+          />
         </form>
       )}
       {message && (

@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { AvatarImage } from "@/components/atoms/avatar-image";
+import { Button } from "@/components/atoms/button";
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
-import { CorporateRichEditor } from "@/components/organisms/corporate-rich-editor";
 import {
   corporateReferenceHref,
   type CorporatePresentation,
@@ -17,19 +17,15 @@ export function CorporateEntityDetail({
   presentation,
   description,
   children,
-  organizationId,
   resource,
   resourceId,
-  csrfToken,
   rail,
 }: {
   presentation: CorporatePresentation | null;
   description: string;
   children: ReactNode;
-  organizationId: string;
   resource: CorporateDetailResource;
   resourceId: string;
-  csrfToken: string;
   rail?: ReactNode;
 }) {
   const t = useTranslations("account");
@@ -49,14 +45,12 @@ export function CorporateEntityDetail({
     : [];
   return (
     <>
-      {presentation?.can_edit ? (
-        <CorporateRichEditor
-          initial={presentation}
-          organizationId={organizationId}
-          resource={resource}
-          resourceId={resourceId}
-          csrfToken={csrfToken}
-        />
+      {presentation?.can_edit && resource !== "members" ? (
+        <Button asChild variant="outline" size="lg">
+          <Link href={`/corporate/${resource}/${resourceId}/edit`}>
+            {objects("editPresentation")}
+          </Link>
+        </Button>
       ) : null}
       <ObjectDetailFrame
         description={

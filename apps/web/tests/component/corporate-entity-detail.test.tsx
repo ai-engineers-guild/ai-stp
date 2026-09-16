@@ -54,15 +54,32 @@ const presentation = {
 afterEach(cleanup);
 
 describe("corporate entity owner labels", () => {
+  it("links editable entities to a separate edit page", () => {
+    render(
+      <CorporateEntityDetail
+        presentation={{ ...presentation, can_edit: true }}
+        description="Description"
+        resource="teams"
+        resourceId="operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+      >
+        <p>Main</p>
+      </CorporateEntityDetail>,
+    );
+
+    expect(screen.getByRole("link", { name: "objects.editPresentation" })).toHaveAttribute(
+      "href",
+      "/corporate/teams/operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z/edit",
+    );
+    expect(screen.queryByRole("form")).toBeNull();
+  });
+
   it("labels an employee owner as an operational owner", () => {
     render(
       <CorporateEntityDetail
         presentation={presentation}
         description="Description"
-        organizationId="organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
         resource="technologies"
         resourceId="technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-        csrfToken=""
       >
         <p>Main</p>
       </CorporateEntityDetail>,
@@ -80,10 +97,8 @@ describe("corporate entity owner labels", () => {
           owner: { kind: "team", id: "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", name: "Core" },
         }}
         description="Description"
-        organizationId="organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
         resource="teams"
         resourceId="operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-        csrfToken=""
       >
         <p>Main</p>
       </CorporateEntityDetail>,

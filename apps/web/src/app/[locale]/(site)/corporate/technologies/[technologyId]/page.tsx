@@ -92,10 +92,8 @@ export default async function TechnologyDetailPage({
       <CorporateEntityDetail
         presentation={presentation}
         description={technology.description}
-        organizationId={organizationId}
         resource="technologies"
         resourceId={technologyId}
-        csrfToken={mutation.csrfToken}
         rail={
           presentation && canAssignOwner && !technology.redirect_id ? (
             <CorporateTechnologyOwnerEditor

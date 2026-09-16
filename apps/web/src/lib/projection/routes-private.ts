@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- private route projections stay centralized for inventory parity. */
 import { getTranslations } from "next-intl/server";
 
 import { listDevices } from "@/lib/api/devices";
@@ -79,7 +80,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
           displayName: tm("displayName"),
         },
         links: [
-          [t("editProfile"), "/account/profile"],
+          [t("editProfile"), "/account/profile/edit"],
           [t("privacy"), "/account/privacy"],
           [t("viewPublicProfile"), "/account/profile/preview"],
         ],
@@ -120,6 +121,21 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
   },
   {
     pattern: "account/profile",
+    resolve: async () => {
+      const t = await getTranslations("account");
+      const tm = await getTranslations("machineDoc");
+      const profile = await readOwnerPublicProfile((await sessionCookieValue()) ?? "");
+      const facts = accountProfilePublicFacts(profile.editable.fields);
+      return presentAccountProfile({
+        title: t("profile"),
+        subtitle: t("profileSubtitle"),
+        ...facts,
+        labels: { displayName: tm("displayName"), bio: tm("bio") },
+      });
+    },
+  },
+  {
+    pattern: "account/profile/edit",
     resolve: async () => {
       const t = await getTranslations("account");
       const tm = await getTranslations("machineDoc");
@@ -304,6 +320,23 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
           links: [[backLabel, "/corporate/organization/admins"]],
         });
       return null;
+    },
+  },
+  {
+    pattern: "corporate/:resource/:resourceId/edit",
+    resolve: async ({ segments }) => {
+      const resource = segments[1];
+      const resourceId = segments[2];
+      if (
+        !resourceId ||
+        (resource !== "projects" && resource !== "teams" && resource !== "members")
+      )
+        return null;
+      const t = await getTranslations("objects");
+      return presentPage({
+        title: t("editPresentation"),
+        links: [[t("backToObject"), `/corporate/${resource}/${resourceId}`]],
+      });
     },
   },
   {
