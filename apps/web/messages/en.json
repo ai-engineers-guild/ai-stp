@@ -60,6 +60,7 @@
     "owner": "Owning team",
     "operationalOwner": "Operational owner",
     "ownerUnassigned": "No owner assigned",
+    "edit": "Edit",
     "responsible": "Responsible team",
     "contributor": "Participating team",
     "teamRole": "Team's role in the project",
@@ -435,6 +436,7 @@
     "accessDenied": "You do not have permission to view this resource. Ask your organization administrator for access.",
     "sessionExpired": "Your session expired. Please sign in again.",
     "login": "Sign in",
+    "edit": "Edit",
     "public": "Public",
     "private": "Private"
   },
