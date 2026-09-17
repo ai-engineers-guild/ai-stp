@@ -155,6 +155,17 @@ from ai_stp_contracts.corporate_catalog_ownership import (
     CorporateCatalogOwnershipRequest,
 )
 from ai_stp_contracts.corporate_directory import CorporateDirectoryView
+from ai_stp_contracts.corporate_governance import (
+    CorporateCatalogGovernanceQuery,
+    CorporateCatalogGovernanceView,
+    CorporateCatalogLifecycle,
+    CorporateCatalogLifecycleRequest,
+    CorporateCatalogMaintainer,
+    CorporateCatalogMaintainerRequest,
+    CorporateCatalogVerification,
+    CorporateCatalogVerificationRequest,
+    CorporatePermissionMatrix,
+)
 from ai_stp_contracts.corporate_profiles import (
     EntityProfileUploadResponse,
     EntityProfileView,
@@ -560,6 +571,15 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "corporate-catalog-ownership": CorporateCatalogOwnership,
     "corporate-catalog-ownership-query": CorporateCatalogOwnershipQuery,
     "corporate-catalog-ownership-request": CorporateCatalogOwnershipRequest,
+    "corporate-catalog-governance-query": CorporateCatalogGovernanceQuery,
+    "corporate-catalog-governance": CorporateCatalogGovernanceView,
+    "corporate-catalog-lifecycle": CorporateCatalogLifecycle,
+    "corporate-catalog-lifecycle-request": CorporateCatalogLifecycleRequest,
+    "corporate-catalog-maintainer": CorporateCatalogMaintainer,
+    "corporate-catalog-maintainer-request": CorporateCatalogMaintainerRequest,
+    "corporate-catalog-verification": CorporateCatalogVerification,
+    "corporate-catalog-verification-request": CorporateCatalogVerificationRequest,
+    "corporate-permission-matrix": CorporatePermissionMatrix,
     "corporate-entity-profile": EntityProfileView,
     "corporate-entity-profile-upload-response": EntityProfileUploadResponse,
     "corporate-entity-profile-write-request": EntityProfileWriteRequest,

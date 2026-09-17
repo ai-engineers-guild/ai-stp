@@ -35672,6 +35672,35 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readCorporateCatalogGovernance.corporate": {
+                    "summary": "Consolidated governance reads expose independent ownership, maintainership, verification, lifecycle, and audit state.",
+                    "value": {
+                      "available_actions": [],
+                      "history": [],
+                      "lifecycle": null,
+                      "maintainers": [],
+                      "object_kind": "setup",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "ownership": {
+                        "can_edit": true,
+                        "object_kind": "setup",
+                        "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "owner_account_id": null,
+                        "owner_display_name": "Acme",
+                        "owner_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "owner_kind": "organization",
+                        "revision": 1,
+                        "schema_version": 1,
+                        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                      },
+                      "schema_version": 1,
+                      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "verification": null,
+                      "version": "1.0"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/CorporateCatalogGovernanceView"
                 }
