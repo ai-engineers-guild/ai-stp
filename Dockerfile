@@ -75,24 +75,11 @@ COPY --chown=appuser:appuser alembic.ini ./
 EXPOSE 8000
 CMD ["python", "-m", "ai_stp_api"]
 
-# Bake the hub snapshot in a throwaway stage so the runtime image has no
-# checkout. The importer POSTs this file; it never reads Markdown on the host.
-# Bake fails closed on an empty COPY (a dockerignore miss would otherwise
-# unpublish every repository article) and on the zero SHA placeholder.
-FROM base AS content-snapshot
-USER root
-COPY docs-user-facing/content /hub
-ARG AI_STP_GIT_COMMIT=0000000000000000000000000000000000000000
-RUN python -m ai_stp_platform.content.snapshot_cli \
-      --hub /hub \
-      --commit "$AI_STP_GIT_COMMIT" \
-      --out /tmp/content-snapshot.json \
-    && rm -rf /hub
-
+# Content is mounted into the one-shot importer at runtime. Local Compose mounts
+# the checkout so it can resolve HEAD without a host-side build argument;
+# production deploy passes the exact recorded commit to the importer.
 FROM base AS content-import
-USER root
-COPY --from=content-snapshot /tmp/content-snapshot.json /app/content-snapshot.json
-RUN test -s /app/content-snapshot.json
 USER appuser
-ENV AI_STP_CONTENT_SNAPSHOT=/app/content-snapshot.json
+ENV AI_STP_CONTENT_SNAPSHOT=/tmp/content-snapshot.json \
+    AI_STP_CONTENT_HUB=/content
 CMD ["python", "-m", "ai_stp_platform.content.importer"]

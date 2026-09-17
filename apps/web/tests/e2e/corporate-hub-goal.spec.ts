@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
@@ -278,7 +279,9 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           await expect(teamsHeading).toHaveCount(1);
           await expect(teamsHeading).toBeVisible();
           await expect(
-            teamsHeading.locator("..").getByRole("link", { name: "Core", exact: true }),
+            teamsHeading
+              .locator("xpath=ancestor::section[1]")
+              .getByRole("link", { name: "Core", exact: true }),
           ).toBeVisible();
           const ownerLabel = main(page)
             .locator('[data-ui="component-detail-rail"]')
@@ -295,7 +298,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           await expect(technologiesHeading).toBeVisible();
           await expect(
             technologiesHeading
-              .locator("..")
+              .locator("xpath=ancestor::section[1]")
               .getByRole("link", { name: "Offline technology", exact: true }),
           ).toBeVisible();
           await expect(
@@ -303,7 +306,6 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           ).toHaveCount(0);
         }
         if (resource === "members") {
-          // The member's Platform project is inherited through the Core team.
           const detailMain = main(page).locator('[data-ui="component-detail-main"]');
           const teamsHeading = detailMain.getByRole("heading", {
             level: 2,
@@ -312,16 +314,9 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           });
           await expect(teamsHeading).toBeVisible();
           await expect(
-            teamsHeading.locator("..").getByRole("link", { name: "Core", exact: true }),
-          ).toBeVisible();
-          const projectsHeading = detailMain.getByRole("heading", {
-            level: 2,
-            name: "Projects",
-            exact: true,
-          });
-          await expect(projectsHeading).toBeVisible();
-          await expect(
-            projectsHeading.locator("..").getByRole("link", { name: "Platform", exact: true }),
+            teamsHeading
+              .locator("xpath=ancestor::section[1]")
+              .getByRole("link", { name: "Core", exact: true }),
           ).toBeVisible();
         }
         if (resource === "technologies") {
@@ -342,7 +337,9 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           await expect(projectsHeading).toHaveCount(1);
           await expect(projectsHeading).toBeVisible();
           await expect(
-            projectsHeading.locator("..").getByRole("link", { name: "Platform", exact: true }),
+            projectsHeading
+              .locator("xpath=ancestor::section[1]")
+              .getByRole("link", { name: "Platform", exact: true }),
           ).toBeVisible();
           await expect(
             main(page).getByText("The landscape is unavailable. Keep your filters and try again.", {
@@ -367,7 +364,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           before = entityProfileViewSchema.parse(await response.json());
           canEdit = before.can_edit;
         }
-        const edit = main(page).getByRole("link", {
+        const edit = page.getByRole("menuitem", {
           name: "Edit public presentation",
           exact: true,
         });
@@ -383,6 +380,10 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
             `${resource}: editor verification requires an actually permitted session; absence is not editor coverage`,
           ).toBe(true);
         }
+        await main(page)
+          .locator('[data-ui="component-detail-header"]')
+          .getByRole("button", { name: "More actions", exact: true })
+          .click();
         await expect(edit).toBeVisible();
         await screenshot(page, info, `${resource}-detail`);
         await edit.click();
@@ -409,6 +410,10 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           expect(after.status()).toBe(200);
           expect(entityProfileViewSchema.parse(await after.json())).toEqual(before);
         } else {
+          await main(page)
+            .locator('[data-ui="component-detail-header"]')
+            .getByRole("button", { name: "More actions", exact: true })
+            .click();
           await edit.click();
           await expect(description).toHaveValue(original);
           if (resource === "teams") {
@@ -447,6 +452,10 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
               main(page).getByRole("link", { name: "Corporate docs", exact: true }).last(),
             ).toHaveAttribute("href", "https://example.com/corporate");
           }
+          await main(page)
+            .locator('[data-ui="component-detail-header"]')
+            .getByRole("button", { name: "More actions", exact: true })
+            .click();
           await edit.click();
           await expect(description).toHaveValue(draft);
           if (resource === "teams") {

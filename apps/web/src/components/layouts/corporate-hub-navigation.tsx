@@ -35,6 +35,9 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
   )
     return null;
   const items = inLandscape ? landscape : organization;
+  if (path !== "/corporate/organization" && !items.some((item) => path === item.href)) {
+    return null;
+  }
 
   return (
     <div

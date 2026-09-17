@@ -1,3 +1,4 @@
+# pyright: reportUnusedFunction=false
 """Static deploy checks: safety-worker, OSV volume, RustFS auth wiring."""
 
 from __future__ import annotations
@@ -51,13 +52,13 @@ def test_compose_imports_repository_snapshot_before_web() -> None:
         assert "content-import:" in text
         assert "ai_stp_platform.content.importer" in text
         assert "target: content-import" in text
-        assert "AI_STP_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-" in text
+        assert "AI_STP_API_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-" in text
         web_block = text.split("\n  web:\n", 1)[1]
         assert "content-import:" in web_block
         assert "service_completed_successfully" in web_block
 
 
-def test_content_import_image_bakes_snapshot_then_drops_hub() -> None:
+def _legacy_content_import_image_bakes_snapshot_then_drops_hub() -> None:
     dockerfile = _read("Dockerfile")
     ignore = _read(".dockerignore")
     snapshot, remainder = dockerfile.split("FROM base AS content-snapshot", 1)
@@ -73,6 +74,16 @@ def test_content_import_image_bakes_snapshot_then_drops_hub() -> None:
     web_ignore = ignore.split("apps/web\n", 1)[1]
     assert "!docs-user-facing/**" in web_ignore
     assert ignore.find("docs-user-facing") < ignore.find("!docs-user-facing/**")
+
+
+def test_content_import_image_builds_snapshot_at_runtime() -> None:
+    dockerfile = _read("Dockerfile")
+    assert "FROM base AS content-snapshot" not in dockerfile
+    assert "COPY --from=content-snapshot" not in dockerfile
+    assert "AI_STP_CONTENT_SNAPSHOT=/tmp/content-snapshot.json" in dockerfile
+    assert "AI_STP_CONTENT_HUB=/content" in dockerfile
+    assert "ARG AI_STP_GIT_COMMIT=" not in dockerfile
+    assert "ai_stp_platform.content.importer" in dockerfile
 
 
 def test_deploy_scripts_always_rerun_content_import() -> None:

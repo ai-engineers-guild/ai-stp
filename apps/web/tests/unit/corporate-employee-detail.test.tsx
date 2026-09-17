@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { ApiError } from "@/lib/api/errors";
@@ -26,6 +26,7 @@ vi.mock("@/lib/i18n/navigation", () => ({
 import { CorporateEmployeeDetail } from "@/components/organisms/corporate-employee-detail";
 import {
   applyCorporateEmployeePresentation,
+  assembleCorporateEmployeePresentation,
   readCorporateEmployeeContent,
 } from "@/lib/api/corporate-employee";
 import type { CorporatePresentation } from "@/lib/corporate-detail";
@@ -87,6 +88,27 @@ it("keeps public profile, authored catalog, and tenant technologies as separate 
     status: "data",
     data: [{ id: "technology_1", name: "TypeScript" }],
   });
+  const merged = await assembleCorporateEmployeePresentation({
+    presentation: {
+      name: "Tenant Alice",
+      description: "Tenant bio",
+      avatar_url: null,
+      links: [],
+      teams: [],
+      projects: [],
+      technologies: [],
+      leads: [],
+      components: [],
+    } as unknown as CorporatePresentation,
+    sessionToken: "session",
+    organizationId: "organization_1",
+    member: { account_id: accountId, display_name: "Tenant Alice" },
+    teams: [],
+    projects: [],
+    content: result,
+    unknownName: "Unknown employee",
+  });
+  expect(merged).toMatchObject({ name: "Alice", description: "Bio" });
 });
 
 it("derives team-owned relations without using an account id as a display label", () => {
@@ -103,8 +125,11 @@ it("derives team-owned relations without using an account id as a display label"
       {
         team_id: "team_1",
         name: "Mobile",
-        lead_account_ids: [accountId],
-        members: [{ account_id: accountId }],
+        lead_account_ids: ["account_lead"],
+        members: [
+          { account_id: accountId },
+          { account_id: "account_lead", display_name: "Team Lead" },
+        ],
       } as never,
       {
         team_id: "team_2",
@@ -120,7 +145,7 @@ it("derives team-owned relations without using an account id as a display label"
   });
   expect(result.teams).toEqual([{ kind: "team", id: "team_1", name: "Mobile" }]);
   expect(result.projects).toEqual([{ kind: "project", id: "project_1", name: "App" }]);
-  expect(result.leads).toEqual([{ kind: "team", id: "team_1", name: "Mobile" }]);
+  expect(result.leads).toEqual([{ kind: "employee", id: "account_lead", name: "Team Lead" }]);
   expect(result.technologies).toEqual([
     { kind: "technology", id: "technology_1", name: "TypeScript" },
   ]);
@@ -140,10 +165,10 @@ it("renders authored setups as catalog links and does not expose a fallback acco
           data: [{ kind: "setup", id: "setup_1", name: "Frontend", version: "1.0" }],
         },
       }}
-      leadTeams={[{ id: "team_1", name: "Mobile" }]}
       labels={labels}
     />,
   );
+  fireEvent.click(screen.getByRole("button", { name: "Authored setups" }));
   expect(screen.getByRole("link", { name: /Frontend/ })).toHaveAttribute(
     "href",
     "/catalog/setups/setup_1",
@@ -151,7 +176,7 @@ it("renders authored setups as catalog links and does not expose a fallback acco
   expect(screen.queryByText(accountId)).not.toBeInTheDocument();
 });
 
-it("shows no-access and empty lead states without duplicating successful relation lists", () => {
+it("shows no-access and empty relation states without duplicating successful lists", () => {
   render(
     <CorporateEmployeeDetail
       content={{
@@ -160,10 +185,11 @@ it("shows no-access and empty lead states without duplicating successful relatio
         technologies: { status: "noaccess", data: null },
         setups: { status: "empty", data: null },
       }}
-      leadTeams={[]}
       labels={labels}
     />,
   );
+  fireEvent.click(screen.getByRole("button", { name: "Technologies" }));
+  fireEvent.click(screen.getByRole("button", { name: "Authored components" }));
   expect(screen.getByText("Not available")).toHaveAttribute("data-state", "noaccess");
-  expect(screen.getByText("Not a lead")).toHaveAttribute("data-state", "empty");
+  expect(screen.getByText("No components")).toHaveAttribute("data-state", "empty");
 });

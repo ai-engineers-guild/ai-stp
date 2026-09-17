@@ -1,8 +1,15 @@
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { AvatarImage } from "@/components/atoms/avatar-image";
-import { Button } from "@/components/atoms/button";
+import { Badge } from "@/components/atoms/badge";
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
+import { DetailAccordion } from "@/components/molecules/detail-accordion";
+import { EntityDetailHeader } from "@/components/organisms/entity-detail-header";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
+import {
+  CorporateRelationSection,
+  type CorporateRelationApi,
+} from "@/components/organisms/corporate-relation-section";
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
 import {
@@ -19,6 +26,8 @@ export function CorporateEntityDetail({
   children,
   resource,
   resourceId,
+  title,
+  state,
   rail,
 }: {
   presentation: CorporatePresentation | null;
@@ -26,6 +35,8 @@ export function CorporateEntityDetail({
   children: ReactNode;
   resource: CorporateDetailResource;
   resourceId: string;
+  title: string;
+  state?: string;
   rail?: ReactNode;
 }) {
   const t = useTranslations("account");
@@ -33,25 +44,47 @@ export function CorporateEntityDetail({
   const c = useTranslations("common");
   const catalog = useTranslations("catalog");
   const objects = useTranslations("objects");
+  const access = useTranslations("access");
   const corporate = useTranslations("corporate");
-  const relations = presentation
-    ? ([
+  type RelationRef = CorporatePresentation["teams"][number];
+  const relations: readonly (readonly [string, readonly RelationRef[]])[] = presentation
+    ? [
         [h("teams"), presentation.teams],
-        [h("projects"), presentation.projects],
         [h("technologies"), presentation.technologies],
-        [h("teamLeads"), presentation.leads],
-        [catalog("components"), presentation.components],
-      ] as const)
+        ...(resource === "members"
+          ? []
+          : ([[catalog("components"), presentation.components]] as const)),
+        ...(resource === "members"
+          ? []
+          : ([
+              [h("projects"), presentation.projects],
+              [h("teamLeads"), presentation.leads],
+            ] as const)),
+      ]
     : [];
   return (
     <>
-      {presentation?.can_edit && resource !== "members" ? (
-        <Button asChild variant="outline" size="lg">
-          <Link href={`/corporate/${resource}/${resourceId}/edit`}>
-            {objects("editPresentation")}
-          </Link>
-        </Button>
-      ) : null}
+      <EntityDetailHeader
+        icon={
+          <AvatarImage
+            src={presentation?.avatar_url ?? null}
+            width={80}
+            className="size-16 rounded-lg object-cover sm:size-20"
+            fallback={<Icon name={resource === "members" ? "user" : "objects"} size="lg" />}
+          />
+        }
+        title={presentation?.name ?? title}
+        meta={state ? <Badge variant="outline">{state}</Badge> : null}
+        menu={
+          presentation?.can_edit ? (
+            <EntityDetailMenu
+              moreLabel={access("more")}
+              editLabel={objects("editPresentation")}
+              editHref={`/corporate/${resource}/${resourceId}/edit`}
+            />
+          ) : null
+        }
+      />
       <ObjectDetailFrame
         description={
           <MarkdownDescription
@@ -63,95 +96,207 @@ export function CorporateEntityDetail({
           <>
             {relations.map(([title, refs]) =>
               refs.length ? (
-                <section key={title} className="space-y-3">
-                  <h2 className="text-xl font-medium">{title}</h2>
-                  <ul className="divide-border divide-y">
-                    {refs.map((ref) => (
-                      <li key={`${ref.kind}:${ref.id}`}>
-                        <Link
-                          className="inline-flex min-h-11 items-center underline underline-offset-4"
-                          href={corporateReferenceHref(ref)}
-                        >
-                          {ref.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+                <CorporateRelationSection
+                  key={title}
+                  title={title}
+                  resource={
+                    refs[0]?.kind === "employee"
+                      ? "members"
+                      : refs[0]?.kind === "component"
+                        ? "components"
+                        : refs[0]?.kind === "technology"
+                          ? "technologies"
+                          : refs[0]?.kind === "team"
+                            ? "teams"
+                            : "projects"
+                  }
+                  references={refs}
+                  api={relationApi(resource, resourceId, refs[0]?.kind)}
+                  labels={{
+                    filters: h("filters"),
+                    filterTitle: h("filterTitle"),
+                    filterHint: h("filterHint"),
+                    reset: h("clearFilters"),
+                    close: h("closeFilters"),
+                    search: h("search"),
+                    apply: h("applyFilters"),
+                    previous: h("previous"),
+                    next: h("next"),
+                    page: h("page"),
+                    noMatches: h("noMatches"),
+                    moreActions: h("moreActions"),
+                    owner: h("owner"),
+                    teams: h("teams"),
+                    projects: h("projects"),
+                    technologies: h("technologies"),
+                    categories: h("categories"),
+                    teamLeads: h("teamLeads"),
+                    team: h("team"),
+                    employee: h("employee"),
+                    author: catalog("author"),
+                    type: h("type"),
+                    lead: h("lead"),
+                    unknownEmployee: h("unknownEmployee"),
+                    notAvailable: h("notAvailable"),
+                  }}
+                />
               ) : null,
             )}
             {children}
           </>
         }
+        media={
+          presentation?.media.length ? (
+            <ComponentMediaGallery
+              items={presentation.media}
+              labels={{
+                gallery: catalog("gallery"),
+                open: t("profilePreview"),
+                source: objects("source"),
+                close: c("cancel"),
+              }}
+            />
+          ) : null
+        }
         rail={
-          <>
-            {presentation ? (
-              <section className="border-border bg-card space-y-4 rounded-lg border p-5">
-                <div className="flex items-center gap-3">
-                  <AvatarImage
-                    src={presentation.avatar_url}
-                    width={64}
-                    className="size-16 rounded-full object-cover"
-                    fallback={<Icon name="user" size="lg" />}
-                  />
-                  <span className="min-w-0 font-medium [overflow-wrap:anywhere]">
-                    {presentation.name}
-                  </span>
-                </div>
-                {(
-                  [
-                    [
-                      presentation.owner?.kind === "employee" ? h("operationalOwner") : h("owner"),
-                      presentation.owner,
-                    ],
-                    [catalog("author"), presentation.author],
-                  ] as const
-                ).map(([label, ref]) =>
-                  ref ? (
-                    <div key={label} className="space-y-1">
-                      <p className="text-muted-foreground text-xs">{label}</p>
-                      <Link
-                        href={corporateReferenceHref(ref)}
-                        className="inline-flex min-h-11 items-center underline underline-offset-4"
-                      >
-                        {ref.name}
-                      </Link>
-                    </div>
-                  ) : null,
-                )}
-                {presentation.links.length ? (
-                  <ul className="border-border space-y-2 border-t pt-4">
-                    {presentation.links.map((link) => (
-                      <li key={link.url}>
-                        <a
-                          href={link.url}
-                          rel="noopener noreferrer"
-                          target="_blank"
-                          className="inline-flex min-h-11 items-center break-all underline underline-offset-4"
-                        >
-                          {link.label}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </section>
-            ) : null}
-            {presentation?.media.length ? (
-              <ComponentMediaGallery
-                items={presentation.media}
-                labels={{
-                  gallery: catalog("gallery"),
-                  open: t("profilePreview"),
-                  source: objects("source"),
-                  close: c("cancel"),
-                }}
-              />
-            ) : null}
+          <CorporateIdentityRail
+            presentation={presentation}
+            resource={resource}
+            ownerLabel={h("owner")}
+            operationalOwnerLabel={h("operationalOwner")}
+            teamLeadsLabel={h("teamLeads")}
+            emptyLabel={h("notAvailable")}
+            contextBudgetLabel={catalog("contextBudgetTitle")}
+            contextBudgetUnavailable={catalog("contextBudgetError")}
+          >
             {rail}
-          </>
+          </CorporateIdentityRail>
         }
       />
+    </>
+  );
+}
+
+function relationApi(
+  resource: CorporateDetailResource,
+  resourceId: string,
+  relatedKind: "employee" | "component" | "technology" | "team" | "project" | "setup" | undefined,
+): CorporateRelationApi | undefined {
+  const relatedResource =
+    relatedKind === "employee"
+      ? "members"
+      : relatedKind === "technology"
+        ? "technologies"
+        : relatedKind === "team"
+          ? "teams"
+          : relatedKind === "project"
+            ? "projects"
+            : null;
+  if (!relatedResource) return undefined;
+  if (
+    resource === "projects" &&
+    (relatedResource === "teams" || relatedResource === "technologies")
+  ) {
+    return { resource: relatedResource, filters: { project_ids: [resourceId] } } as const;
+  }
+  if (resource === "teams") {
+    if (relatedResource === "members")
+      return {
+        resource: relatedResource,
+        filters: { team_ids: [resourceId] },
+        leadOnly: true,
+      } as const;
+    if (relatedResource === "projects" || relatedResource === "technologies") {
+      return { resource: relatedResource, filters: { team_ids: [resourceId] } } as const;
+    }
+  }
+  if (
+    resource === "technologies" &&
+    (relatedResource === "projects" || relatedResource === "teams")
+  ) {
+    return { resource: relatedResource, filters: { technology_ids: [resourceId] } } as const;
+  }
+  return undefined;
+}
+
+function CorporateIdentityRail({
+  presentation,
+  resource,
+  ownerLabel,
+  operationalOwnerLabel,
+  teamLeadsLabel,
+  emptyLabel,
+  contextBudgetLabel,
+  contextBudgetUnavailable,
+  children,
+}: {
+  presentation: CorporatePresentation | null;
+  resource: CorporateDetailResource;
+  ownerLabel: string;
+  operationalOwnerLabel: string;
+  teamLeadsLabel: string;
+  emptyLabel: string;
+  contextBudgetLabel: string;
+  contextBudgetUnavailable: string;
+  children?: ReactNode;
+}) {
+  const subjects =
+    resource === "teams" || resource === "members"
+      ? (presentation?.leads ?? [])
+      : presentation?.owner
+        ? [presentation.owner]
+        : [];
+  const subjectLabel =
+    resource === "projects"
+      ? ownerLabel
+      : resource === "technologies"
+        ? operationalOwnerLabel
+        : teamLeadsLabel;
+  return (
+    <>
+      {presentation ? (
+        <>
+          <section className="border-border bg-card rounded-lg border p-5">
+            <h2 className="text-sm font-medium">{subjectLabel}</h2>
+            {subjects.length ? (
+              <ul className="divide-border mt-2 divide-y">
+                {subjects.map((ref) => (
+                  <li key={`${ref.kind}:${ref.id}`}>
+                    <Link
+                      href={corporateReferenceHref(ref)}
+                      className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+                    >
+                      {ref.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground mt-2 text-sm">{emptyLabel}</p>
+            )}
+          </section>
+          <DetailAccordion title={contextBudgetLabel} summary={contextBudgetUnavailable}>
+            <p className="text-muted-foreground text-sm">{contextBudgetUnavailable}</p>
+          </DetailAccordion>
+          {presentation.links.length ? (
+            <ul className="border-border bg-card space-y-2 rounded-lg border p-5">
+              {presentation.links.map((link) => (
+                <li key={link.url}>
+                  <a
+                    href={link.url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    className="inline-flex min-h-11 items-center break-all underline underline-offset-4"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      ) : null}
+      {children}
     </>
   );
 }

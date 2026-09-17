@@ -13,7 +13,13 @@ from pathlib import Path
 from typing import cast
 
 from ai_stp_contracts.content import ContentRepositoryImportRequest
-from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.canonical import JsonValue, canonize
+from ai_stp_platform.content.errors import ContentError
+from ai_stp_platform.content.snapshot import (
+    build_repository_snapshot,
+    resolve_repository_commit,
+    snapshot_as_json,
+)
 
 _TRANSIENT_STATUS = frozenset({502, 503, 504})
 _DEFAULT_ATTEMPTS = 8
@@ -63,6 +69,27 @@ def _retry_seconds() -> float:
         return max(0.0, float(raw))
     except ValueError:
         return _DEFAULT_RETRY_SECONDS
+
+
+def _load_snapshot(snapshot_path: Path) -> ContentRepositoryImportRequest:
+    if snapshot_path.is_file():
+        return ContentRepositoryImportRequest.model_validate_json(
+            snapshot_path.read_text(encoding="utf-8")
+        )
+
+    hub_value = os.environ.get("AI_STP_CONTENT_HUB", "").strip()
+    if not hub_value:
+        raise ContentError("AI_STP_CONTENT_INVALID", "content hub is not configured")
+    repository_value = os.environ.get("AI_STP_CONTENT_REPOSITORY", "").strip()
+    commit = os.environ.get("AI_STP_API_GIT_COMMIT", "").strip()
+    if not commit:
+        if not repository_value:
+            raise ContentError("AI_STP_CONTENT_INVALID", "repository checkout is not configured")
+        commit = resolve_repository_commit(Path(repository_value))
+    snapshot = build_repository_snapshot(Path(hub_value), commit=commit)
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_path.write_bytes(canonize(dict(snapshot_as_json(snapshot))))
+    return snapshot
 
 
 def _request(
@@ -121,12 +148,11 @@ def main() -> int:
         return 1
     base = os.environ.get("AI_STP_API_BASE_URL", "http://api:8000").rstrip("/")
     snapshot_path = Path(os.environ.get("AI_STP_CONTENT_SNAPSHOT", "/app/content-snapshot.json"))
-    if not snapshot_path.is_file():
-        sys.stderr.write("snapshot file is missing\n")
+    try:
+        snapshot = _load_snapshot(snapshot_path)
+    except ContentError as error:
+        sys.stderr.write(f"{error.code}: {error.message}\n")
         return 1
-    snapshot = ContentRepositoryImportRequest.model_validate_json(
-        snapshot_path.read_text(encoding="utf-8")
-    )
     state_call = _with_retry(
         "state",
         lambda: _request("GET", f"{base}/v1/content/repository/state", token),
