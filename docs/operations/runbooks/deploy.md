@@ -219,9 +219,11 @@ docker compose -f docker-compose.dev.yml up -d --build
 # API:     http://localhost:8000  (also via Next rewrite: http://localhost:3000/v1/...)
 ```
 
-`AI_STP_API_GIT_COMMIT` is required for the `content-import` image: `.git` is not in the build
-context, and the bake rejects a zero placeholder. Web is bind-mounted in dev and
-waits for `content-import` with `service_completed_successfully`.
+The `content-import` image is generic and builds its snapshot at startup. Dev mounts the
+checkout, so the importer resolves the current `HEAD` without a commit variable. A
+release archive has no `.git`, so the deploy script passes its exact recorded commit to
+the importer. Web is bind-mounted in dev and waits for `content-import` with
+`service_completed_successfully`.
 
 The Compose defaults set `AI_STP_USE_MOCKS=false` (the real API). A purely offline frontend
 sets `AI_STP_USE_MOCKS=true` in `.env.dev`. Staging smoke always uses `false`.

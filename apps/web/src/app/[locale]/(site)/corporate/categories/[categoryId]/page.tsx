@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { CategoryLifecycleControls } from "@/components/organisms/corporate-governance-controls";
+import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { readCategoryDetail } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
@@ -34,9 +35,7 @@ export default async function CategoryDetailPage({
   };
   return (
     <article className="space-y-6">
-      <Link href="/corporate/categories" className="text-sm underline underline-offset-4">
-        {h("categories")}
-      </Link>
+      <HistoryBackButton label={h("backToCategories")} fallback="/corporate/categories" />
       <header className="space-y-2">
         <h1 className="text-3xl font-medium">{detail.category.name}</h1>
         <p className="text-muted-foreground max-w-prose">{detail.category.description}</p>

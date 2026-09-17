@@ -37239,10 +37239,112 @@
                           "role": "owner"
                         },
                         {
+                          "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "kind": "project_team",
+                          "parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "role": "owner"
+                        },
+                        {
+                          "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D",
+                          "kind": "project_team",
+                          "parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "role": "contributor"
+                        },
+                        {
+                          "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C",
+                          "kind": "project_team",
+                          "parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "role": "owner"
+                        },
+                        {
+                          "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "kind": "project_team",
+                          "parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "role": "contributor"
+                        },
+                        {
                           "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "kind": "team_employee",
                           "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "role": "lead"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "role": "lead"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y3C",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y4D",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "role": "lead"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YAK",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YBM",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y3C",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C",
+                          "role": "lead"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YCN",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YDP",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y6F",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D",
+                          "role": "staff"
+                        },
+                        {
+                          "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YEQ",
+                          "kind": "team_employee",
+                          "parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D",
+                          "role": "staff"
                         }
                       ],
                       "nodes": [
@@ -37257,6 +37359,22 @@
                         {
                           "assignments": [],
                           "assignments_readable": true,
+                          "id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "kind": "project",
+                          "lead_account_ids": [],
+                          "name": "Growth Experiments"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "kind": "project",
+                          "lead_account_ids": [],
+                          "name": "Twinby Dating Core"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
                           "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "kind": "team",
                           "lead_account_ids": [
@@ -37266,11 +37384,153 @@
                         },
                         {
                           "assignments": [],
-                          "assignments_readable": false,
+                          "assignments_readable": true,
+                          "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "kind": "team",
+                          "lead_account_ids": [
+                            "account_01JQZK7B8N4M6P2R9T5V0X3Y1A"
+                          ],
+                          "name": "Product & Engineering"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "kind": "team",
+                          "lead_account_ids": [
+                            "account_01JQZK7B8N4M6P2R9T5V0X3Y2B"
+                          ],
+                          "name": "Customer Success"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C",
+                          "kind": "team",
+                          "lead_account_ids": [
+                            "account_01JQZK7B8N4M6P2R9T5V0X3Y3C"
+                          ],
+                          "name": "Platform Engineering"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D",
+                          "kind": "team",
+                          "lead_account_ids": [],
+                          "name": "Data Platform"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
                           "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                           "kind": "employee",
                           "lead_account_ids": [],
                           "name": "Team lead"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y1A",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Alex Kim"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y2B",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Elena Smirnova"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y3C",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Maria Kolesnikova"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y4D",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Ivan Sokolov"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y5E",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Anna Morozova"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y6F",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Maksim Ryabov"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8H",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Natalia Petrova"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y9J",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Ilya Kuznetsov"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3YAK",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Daria Volkova"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3YBM",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Pavel Orlov"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3YCN",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Sofia Lebedeva"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3YDP",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Dmitry Fedorov"
+                        },
+                        {
+                          "assignments": [],
+                          "assignments_readable": true,
+                          "id": "account_01JQZK7B8N4M6P2R9T5V0X3YEQ",
+                          "kind": "employee",
+                          "lead_account_ids": [],
+                          "name": "Oleg Smirnov"
                         }
                       ],
                       "organization": {

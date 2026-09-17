@@ -8,13 +8,18 @@ import { corporateHref } from "@/lib/features/corporate-path";
 import { Button } from "@/components/atoms/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/atoms/dialog";
 import { KeyboardNavigation } from "@/components/molecules/keyboard-navigation";
+import { NavigationTabs } from "@/components/molecules/navigation-tabs";
 import { ThemeToggle } from "@/components/molecules/theme-toggle";
 import { AccountControl } from "@/components/organisms/account-drawer";
 import { Link, usePathname } from "@/lib/i18n/navigation";
 import { localeNeutralPathname } from "@/lib/i18n/locale-path";
 import type { AppLocale } from "@/lib/i18n/routing";
 import { isShellPrefetchHref } from "@/lib/prefetch-policy";
-import { siteNavigation, type NavItem } from "@/lib/projection/navigation";
+import {
+  isPrimaryNavigationActive,
+  siteNavigation,
+  type NavItem,
+} from "@/lib/projection/navigation";
 import { useSessionPresence } from "@/lib/auth/use-session-presence";
 import { useUiSlice } from "@/lib/stores/ui-slice";
 import { UI } from "@/lib/ui-selectors";
@@ -119,11 +124,7 @@ export function SiteHeader({ docsHref }: SiteHeaderProps) {
         contactEnabled={contactItem !== undefined}
       />
       <div className="mx-auto flex h-16 max-w-6xl min-w-0 items-center justify-between gap-2 px-4 sm:gap-4">
-        <nav
-          data-ui={UI.shell.primaryNav}
-          aria-label={t("primaryLabel")}
-          className="flex min-w-0 items-center gap-2 sm:gap-5"
-        >
+        <div className="flex min-w-0 items-center gap-2 sm:gap-5">
           <MobilePrimaryNav
             items={mobileItems}
             open={mobileNavOpen}
@@ -151,26 +152,22 @@ export function SiteHeader({ docsHref }: SiteHeaderProps) {
             />
             <span className="hidden min-[400px]:inline">{SITE_NAME}</span>
           </Link>
-          {primaryNavigation.slice(1).map((item) => {
-            const className =
-              "text-muted-foreground hover:text-foreground hidden shrink-0 text-sm transition-colors xl:inline";
-            return item.external ? (
-              <a key={item.ui} data-ui={item.ui} href={item.href} className={className}>
-                {t(item.labelKey)}
-              </a>
-            ) : (
-              <Link
-                key={item.ui}
-                data-ui={item.ui}
-                href={item.href}
-                className={className}
-                prefetch={isShellPrefetchHref(item.href)}
-              >
-                {t(item.labelKey)}
-              </Link>
-            );
-          })}
-        </nav>
+          <NavigationTabs
+            dataUi={UI.shell.primaryNav}
+            ariaLabel={t("primaryLabel")}
+            variant="primary"
+            className="hidden gap-2 sm:gap-5 xl:flex"
+            items={primaryNavigation.slice(1).map((item) => ({
+              key: item.ui,
+              ui: item.ui,
+              href: item.href,
+              label: t(item.labelKey),
+              active: isPrimaryNavigationActive(item, pathname),
+              prefetch: isShellPrefetchHref(item.href),
+              ...(item.external ? { external: true } : {}),
+            }))}
+          />
+        </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-3">
           {corporate && (
             <Link

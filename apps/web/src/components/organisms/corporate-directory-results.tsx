@@ -69,6 +69,13 @@ function sortItems(items: readonly DirectoryItem[], sort: "name" | "name_desc") 
   );
 }
 
+function cardItem(item: DirectoryItem, resource: DirectoryResource): DirectoryItem {
+  if (resource === "components") return item;
+  const withoutDescription = { ...item };
+  delete withoutDescription.description;
+  return withoutDescription;
+}
+
 export function CorporateDirectoryResults({
   resource,
   items,
@@ -155,10 +162,7 @@ export function CorporateDirectoryResults({
   const visible = sortItems(
     items.filter(
       (item) =>
-        (!query ||
-          `${item.name} ${item.description ?? ""}`
-            .toLocaleLowerCase()
-            .includes(query.toLocaleLowerCase())) &&
+        (!query || item.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())) &&
         matchesDirectoryFilters(item, selected) &&
         (!leadOnly || item.is_lead),
     ),
@@ -213,7 +217,7 @@ export function CorporateDirectoryResults({
             <CorporateDirectoryCard
               key={item.id}
               resource={resource}
-              item={item}
+              item={cardItem(item, resource)}
               labels={labels}
               returnFilters={returnFilters}
               view={view}

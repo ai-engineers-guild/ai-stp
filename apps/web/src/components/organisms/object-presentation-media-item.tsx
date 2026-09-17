@@ -5,11 +5,11 @@
 import { useId, useRef, useState } from "react";
 
 import { Button } from "@/components/atoms/button";
-import type { PresentationMediaDraft } from "@/components/organisms/use-object-presentation-form";
+import { type PresentationMediaDraft } from "@/components/organisms/use-object-presentation-form";
 import {
   COMPONENT_MEDIA_ACCEPT,
   isExternalMediaUrl,
-  isUploadedMediaUrl,
+  isStoredMediaUrl,
   kindFromMediaUrl,
   normalizeGithubUrl,
   normalizeYoutubeUrl,
@@ -82,8 +82,8 @@ function applySourceMode(
   return {
     sourceMode: "upload",
     kind: item.kind === "video" ? "video" : "image",
-    url: isUploadedMediaUrl(item.url) ? item.url : "",
-    uploadState: isUploadedMediaUrl(item.url) ? "ready" : "idle",
+    url: isStoredMediaUrl(item.url) ? item.url : "",
+    uploadState: isStoredMediaUrl(item.url) ? "ready" : "idle",
     itemError: null,
   };
 }
@@ -411,7 +411,7 @@ export function MediaItemEditor(props: {
   const isYoutube = item.kind === "youtube";
   const uploading = item.uploadState === "uploading";
   const uploadedReady =
-    sourceMode === "upload" && isUploadedMediaUrl(item.url) && item.uploadState === "ready";
+    sourceMode === "upload" && isStoredMediaUrl(item.url) && item.uploadState === "ready";
   const controlsDisabled = busy || uploading;
   const statusTone =
     item.uploadState === "error"

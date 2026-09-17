@@ -42,4 +42,30 @@ describe("real session boundary", () => {
     expect(readAuthMe).toHaveBeenCalledOnce();
     expect(session?.accountId).toBe("account_01JQZK7B8N4M6P2R9T5V0X3Y7Z");
   });
+
+  it("keeps transient auth failures unknown instead of signed out", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
+    vi.stubEnv("AI_STP_API_BASE_URL", "http://api.test:8000");
+    vi.stubEnv("AI_STP_SESSION_SECRET", "dev-only-change-me-to-a-long-random-string");
+    vi.stubEnv("AI_STP_USE_MOCKS", "false");
+    vi.stubEnv("AI_STP_MOCK_AUTH", "false");
+
+    const { asAccountId } = await import("@/lib/brands");
+    const { createSessionToken, readSessionPresence, SESSION_COOKIE } =
+      await import("@/lib/auth/session");
+    const { ApiError } = await import("@/lib/api/errors");
+    const { token } = createSessionToken(asAccountId("account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"));
+    cookieStore.get.mockImplementation((name: string) =>
+      name === SESSION_COOKIE ? { value: token } : undefined,
+    );
+    readAuthMe.mockRejectedValue(
+      new ApiError({
+        code: "AI_STP_RATE_LIMITED",
+        message: "rate limited",
+        status: 429,
+      }),
+    );
+
+    await expect(readSessionPresence()).resolves.toBe("unknown");
+  });
 });

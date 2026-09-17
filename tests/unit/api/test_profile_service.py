@@ -5,7 +5,7 @@ from ai_stp_api.slices.profile.service import _fields_from_revision
 from ai_stp_platform.models import ProfileRevision
 
 
-def test_legacy_published_profile_keeps_identity_and_avatar_when_bio_is_rejected() -> None:
+def test_legacy_published_profile_keeps_identity_avatar_and_safe_markdown() -> None:
     revision = ProfileRevision(
         id="prevision_legacy",
         account_id="account_legacy",
@@ -20,6 +20,6 @@ def test_legacy_published_profile_keeps_identity_and_avatar_when_bio_is_rejected
     fields = _fields_from_revision(revision)
 
     assert fields.display_name == "Artem Letyushev"
-    assert fields.bio is None
+    assert fields.bio == revision.bio
     assert fields.links[0].url == "https://example.com"
     assert fields.avatar_asset_id == "avatar_legacy"

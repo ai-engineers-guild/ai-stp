@@ -189,6 +189,7 @@ function paginatedList<T>(
 /** Test-only sentinel: offline e2e forces AI_STP_UNAVAILABLE without a real backend. */
 const FORCE_UNAVAILABLE_Q = "__ai_stp_force_unavailable__";
 
+// eslint-disable-next-line complexity -- catalog query validation mirrors the public filter surface.
 function searchComponents(query?: URLSearchParams): MockResult {
   const unknown = rejectUnknown(query, CATALOG_COMPONENT_KEYS);
   if (unknown.length > 0) {
@@ -203,6 +204,7 @@ function searchComponents(query?: URLSearchParams): MockResult {
   const range = readUpdatedRange(query, "searchComponents.updatedRange");
   if ("status" in range) return range;
   const tags = query?.getAll("tags") ?? [];
+  const authors = query?.getAll("authors") ?? [];
   const harnessId = query?.get("harness_id");
   const componentType = query?.get("component_type");
   const supportTier = query?.get("support_tier") as "primary" | "beta" | null;
@@ -217,12 +219,21 @@ function searchComponents(query?: URLSearchParams): MockResult {
     ...(componentType ? { componentType } : {}),
     ...(supportTier ? { supportTier } : {}),
     ...(supportState ? { supportState } : {}),
+    ...(authors.length ? { authors } : {}),
     ...range,
     includeExperimental,
   });
-  return paginatedList(filtered.experimental, query, cursor, pageSize);
+  const demoAuthor = authors.find((author) => /^account_01JQZK7B8N4M6P2R9T5V0X3Y/.test(author));
+  const authored = filtered.experimental.filter((item) => authors.includes(item.publisher_id));
+  const items = authored.length
+    ? authored
+    : demoAuthor
+      ? ALL_COMPONENT_SUMMARIES.slice(0, 3).map((item) => ({ ...item, publisher_id: demoAuthor }))
+      : filtered.experimental;
+  return paginatedList(items, query, cursor, pageSize);
 }
 
+// eslint-disable-next-line complexity -- setup query validation mirrors the public filter surface.
 function searchSetups(query?: URLSearchParams): MockResult {
   const unknown = rejectUnknown(query, CATALOG_SETUP_KEYS);
   if (unknown.length > 0) {
@@ -237,6 +248,7 @@ function searchSetups(query?: URLSearchParams): MockResult {
   const range = readUpdatedRange(query, "searchSetups.updatedRange");
   if ("status" in range) return range;
   const tags = query?.getAll("tags") ?? [];
+  const authors = query?.getAll("authors") ?? [];
   const harnessId = query?.get("harness_id");
   const supportTier = query?.get("support_tier") as "primary" | "beta" | null;
   const supportState = query?.get("support_state") as
@@ -249,10 +261,18 @@ function searchSetups(query?: URLSearchParams): MockResult {
     ...(harnessId ? { harnessId } : {}),
     ...(supportTier ? { supportTier } : {}),
     ...(supportState ? { supportState } : {}),
+    ...(authors.length ? { authors } : {}),
     ...range,
     includeExperimental,
   });
-  return paginatedList(filtered.experimental, query, cursor, pageSize);
+  const demoAuthor = authors.find((author) => /^account_01JQZK7B8N4M6P2R9T5V0X3Y/.test(author));
+  const authored = filtered.experimental.filter((item) => authors.includes(item.publisher_id));
+  const items = authored.length
+    ? authored
+    : demoAuthor
+      ? ALL_SETUP_SUMMARIES.slice(0, 2).map((item) => ({ ...item, publisher_id: demoAuthor }))
+      : filtered.experimental;
+  return paginatedList(items, query, cursor, pageSize);
 }
 
 function readUpdatedRange(

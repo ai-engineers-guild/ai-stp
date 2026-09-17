@@ -1,4 +1,4 @@
-"""Shared plain-text policy for public bios and descriptions."""
+"""Shared safety policy for public bios and descriptions."""
 
 import pytest
 from pydantic import ValidationError
@@ -64,12 +64,14 @@ def test_public_text_accepts_nonsexual_service_language(value: str) -> None:
     assert validate_public_text(value) == value
 
 
+@pytest.mark.parametrize("value", ["hello — world", "hello 🚀", "hello\u200bworld", "**bold**"])
+def test_public_text_accepts_markdown_punctuation_and_emoji(value: str) -> None:
+    assert validate_public_text(value) == value
+
+
 @pytest.mark.parametrize(
     "value",
     [
-        "hello — world",
-        "hello 🚀",
-        "hello\u200bworld",
         "porn site",
         "порнография",
         "секс",
@@ -92,18 +94,18 @@ def test_public_text_accepts_nonsexual_service_language(value: str) -> None:
         "military attack",
     ],
 )
-def test_public_text_rejects_typography_invisible_characters_and_prohibited_content(
-    value: str,
-) -> None:
+def test_public_text_rejects_prohibited_content(value: str) -> None:
     with pytest.raises(ValidationError):
         ProfileFields(bio=value)
 
 
-def test_public_text_rejects_markup_and_blank_descriptions() -> None:
-    with pytest.raises(ValidationError):
-        OwnerPresentationUpdateRequest(bio="**bold**", media=[])
-    with pytest.raises(ValidationError):
-        ComponentPassportPatch(description="**bold**")
+def test_public_text_rejects_raw_html_and_blank_descriptions() -> None:
+    assert OwnerPresentationUpdateRequest(bio="**bold**", media=[]).bio == "**bold**"
+    assert ComponentPassportPatch(description="**bold**").description == "**bold**"
+    with pytest.raises(ValidationError, match="raw HTML"):
+        OwnerPresentationUpdateRequest(bio="<script>alert(1)</script>", media=[])
+    with pytest.raises(ValidationError, match="unsafe URI"):
+        OwnerPresentationUpdateRequest(bio="[run](javascript:alert(1))", media=[])
     with pytest.raises(ValidationError):
         OwnerExternalProductCreateRequest(
             name="Service",

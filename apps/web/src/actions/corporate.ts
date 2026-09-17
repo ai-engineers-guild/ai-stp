@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
 import { ApiError } from "@/lib/api/errors";
+import { fieldErrorsFromDetails, type FieldErrors } from "@/lib/api/field-errors";
 import { privateApiRequest, type PrivateRequestOptions } from "@/lib/api/http";
 import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
 
@@ -26,7 +27,9 @@ type CorporateMutation = {
   body: unknown;
 };
 
-type MutationResult = { ok: true; data: unknown } | { ok: false; message: string };
+type MutationResult =
+  | { ok: true; data: unknown }
+  | { ok: false; message: string; code?: string; fieldErrors?: FieldErrors };
 
 type AuditExportResult = { ok: true; data: CorporateAuditExport } | { ok: false; message: string };
 
@@ -148,19 +151,26 @@ export async function corporateMutationAction(input: CorporateMutation): Promise
     !input.path.startsWith(`/v1/corporate/organizations/${input.organizationId}/`) ||
     input.path.includes("..")
   ) {
-    return { ok: false, message: "invalid corporate target" };
+    return { ok: false, message: "invalid corporate target", fieldErrors: {} };
   }
   try {
     assertCsrf(input.csrfToken, await readCsrfToken());
-    if (!(await readSession())) return { ok: false, message: "not signed in" };
+    if (!(await readSession())) return { ok: false, message: "not signed in", fieldErrors: {} };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!sessionToken) return { ok: false, message: "not signed in" };
+    if (!sessionToken) return { ok: false, message: "not signed in", fieldErrors: {} };
     const options: PrivateRequestOptions = { method: input.method, body: input.body, sessionToken };
     const data = await privateApiRequest<unknown>(input.path, options);
     revalidatePath("/[locale]/corporate", "layout");
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, message: error instanceof ApiError ? error.message : "request failed" };
+    return error instanceof ApiError
+      ? {
+          ok: false,
+          message: error.message,
+          code: error.code,
+          fieldErrors: fieldErrorsFromDetails(error.details, error.message),
+        }
+      : { ok: false, message: "request failed", fieldErrors: {} };
   }
 }
 

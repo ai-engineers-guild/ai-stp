@@ -4,6 +4,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 
 import { CSRF_COOKIE, SESSION_COOKIE } from "@/lib/auth/cookies";
+import { ApiError } from "@/lib/api/errors";
 import { asAccountId, asDeviceId, type AccountId, type DeviceId } from "@/lib/brands";
 import { getEnv } from "@/lib/env";
 
@@ -93,6 +94,38 @@ export function parseSessionToken(token: string): WebSession | null {
 export function createCsrfToken(): string {
   return randomBytes(24).toString("base64url");
 }
+
+export type SessionPresence = "signed_in" | "signed_out" | "unknown";
+
+/**
+ * Resolve only the presence needed by the static site header.
+ *
+ * Unlike readSession(), a transient API failure must not become "signed out":
+ * that would make a healthy authenticated browser render a misleading login
+ * control after a rate limit or brief outage.
+ */
+export const readSessionPresence = cache(async (): Promise<SessionPresence> => {
+  const jar = await cookies();
+  const raw = jar.get(SESSION_COOKIE)?.value;
+  if (!raw) {
+    return "signed_out";
+  }
+  const env = getEnv();
+  if (env.AI_STP_USE_MOCKS || env.AI_STP_MOCK_AUTH) {
+    return parseSessionToken(raw) ? "signed_in" : "signed_out";
+  }
+
+  try {
+    const { readAuthMe } = await import("@/lib/api/auth-me");
+    await readAuthMe();
+    return "signed_in";
+  } catch (error) {
+    if (error instanceof ApiError && [401, 403].includes(error.status)) {
+      return "signed_out";
+    }
+    return "unknown";
+  }
+});
 
 /**
  * Read the current web session.

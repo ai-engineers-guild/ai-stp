@@ -29,6 +29,22 @@ TABLES = [
     "project_team_relation",
     "technology_usage_fact",
 ]
+APPEND_ONLY_TABLES = ("technology_scan", "technology_coordinate_mapping")
+_ALLOWED_TABLES = frozenset(TABLES).union(APPEND_ONLY_TABLES)
+
+
+def _sql_table(name: str) -> str:
+    """Quote only the fixed table names declared by this migration."""
+    if name not in _ALLOWED_TABLES:
+        raise ValueError(f"unexpected migration table: {name}")
+    return '"' + name + '"'
+
+
+def _sql_object(table: str, suffix: str) -> str:
+    _sql_table(table)
+    return '"' + table + suffix + '"'
+
+
 DDL = (
     """CREATE TABLE technology (
 	id VARCHAR(64) NOT NULL,
@@ -316,19 +332,35 @@ def upgrade() -> None:
         "organization_id = current_setting('ai_stp.organization_id', true)"
     )
     for table in TABLES:
-        op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
-        op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
+        table_sql = _sql_table(table)
+        op.execute("ALTER TABLE " + table_sql + " ENABLE ROW LEVEL SECURITY")
+        op.execute("ALTER TABLE " + table_sql + " FORCE ROW LEVEL SECURITY")
         op.execute(
-            f"CREATE POLICY {table}_tenant_policy ON {table} USING ({tenant}) WITH CHECK ({tenant})"
+            "CREATE POLICY "
+            + _sql_object(table, "_tenant_policy")
+            + " ON "
+            + table_sql
+            + " USING ("
+            + tenant
+            + ") WITH CHECK ("
+            + tenant
+            + ")"
         )
         op.execute(
-            f"CREATE TRIGGER {table}_identity_immutable BEFORE INSERT OR UPDATE ON {table} "
-            "FOR EACH ROW EXECUTE FUNCTION ai_stp_technology_identity_immutable()"
+            "CREATE TRIGGER "
+            + _sql_object(table, "_identity_immutable")
+            + " BEFORE INSERT OR UPDATE ON "
+            + table_sql
+            + " FOR EACH ROW EXECUTE FUNCTION ai_stp_technology_identity_immutable()"
         )
-    for table in ("technology_scan", "technology_coordinate_mapping"):
+    for table in APPEND_ONLY_TABLES:
+        table_sql = _sql_table(table)
         op.execute(
-            f"CREATE TRIGGER {table}_append_only BEFORE UPDATE OR DELETE ON {table} "
-            "FOR EACH ROW EXECUTE FUNCTION reject_audit_event_mutation()"
+            "CREATE TRIGGER "
+            + _sql_object(table, "_append_only")
+            + " BEFORE UPDATE OR DELETE ON "
+            + table_sql
+            + " FOR EACH ROW EXECUTE FUNCTION reject_audit_event_mutation()"
         )
     op.execute("""
         INSERT INTO corporate_role_permission (organization_id, role, permission)

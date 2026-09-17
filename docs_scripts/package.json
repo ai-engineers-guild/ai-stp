@@ -6,5 +6,8 @@
   },
   "trustedDependencies": [
     "puppeteer"
-  ]
+  ],
+  "overrides": {
+    "smol-toml": "1.8.0"
+  }
 }

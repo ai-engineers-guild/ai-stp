@@ -70,11 +70,9 @@ function AssignmentList({ node }: { node: CorporateOverviewNode }) {
       ]),
     ).values(),
   ];
-  const direct =
-    node.kind === "employee" ? assignments.filter((item) => !item.source_team_id) : assignments;
   const technologies = nodeTechnologies(node);
-  const components = direct.filter((item) => item.object_kind === "component");
-  const setups = direct.filter((item) => item.object_kind === "setup");
+  const components = assignments.filter((item) => item.object_kind === "component");
+  const setups = assignments.filter((item) => item.object_kind === "setup");
   const toggleGroup = (group: keyof typeof openGroups) => {
     setOpenGroups((current) => ({ ...current, [group]: !current[group] }));
   };
@@ -82,7 +80,7 @@ function AssignmentList({ node }: { node: CorporateOverviewNode }) {
     "border-border bg-muted/40 text-foreground hover:border-primary hover:bg-muted hover:text-primary focus-visible:ring-ring inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border px-2 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none";
   const technologyChipClass =
     "border-border bg-background/40 text-foreground hover:border-primary hover:bg-muted hover:text-primary focus-visible:ring-ring inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border px-2 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none";
-  const renderAssignments = (items: typeof direct) => (
+  const renderAssignments = (items: typeof assignments) => (
     <div className="flex flex-wrap gap-2">
       {(all ? items : items.slice(0, 4)).map((item) => (
         <Link

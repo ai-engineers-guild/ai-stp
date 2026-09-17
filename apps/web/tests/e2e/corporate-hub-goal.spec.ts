@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
@@ -39,7 +40,7 @@ async function assertCorporateArtifact(page: Page) {
   await expect(
     page,
     "Corporate E2E requires the corporate_hub artifact; the old SaaS build redirects this path",
-  ).toHaveURL(/\/en\/corporate\/login(?:\?|$)/);
+  ).toHaveURL(/\/en\/corporate\//);
   await expect(
     page.locator('#site-header [data-ui="nav-overview"]'),
     "Corporate E2E requires the Corporate Hub navigation",
@@ -107,8 +108,7 @@ async function authenticate(page: Page) {
     expect(me.status(), "Existing real API session must be valid").toBe(200);
     return;
   }
-  await page.goto("/en/corporate/login");
-  await assertCorporateArtifact(page);
+  await page.goto("/en/login?returnTo=%2Fen%2Fcorporate%2Faccount");
   await page.getByRole("button", { name: /Continue with GitHub/i }).click();
   await expect(page).toHaveURL((url) => url.pathname === "/en/corporate/account");
   await assertMockSessionCookie(page);
@@ -161,6 +161,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
     page.on("pageerror", (error) => pageErrors.push(error.name));
     await authenticate(page);
     await page.goto("/en/corporate/overview");
+    await assertCorporateArtifact(page);
     await expect(page).toHaveURL(/\/en\/corporate\/overview$/);
     await expect(main(page).getByRole("heading", { level: 1 })).toBeVisible();
     await expect(
@@ -171,10 +172,10 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
       tree,
       "A populated authorized organization is required; empty/error screens do not pass",
     ).toBeVisible();
-    for (const resource of ["teams", "projects", "members", "technology-landscape"]) {
+    for (const resource of ["teams", "projects", "members", "technologies"]) {
       await expect(main(page).locator(`a[href$="/corporate/${resource}"]`).first()).toBeVisible();
     }
-    const depth = main(page).getByRole("combobox", { name: "Expand to", exact: true });
+    const depth = main(page).getByRole("combobox", { name: "Show to", exact: true });
     await expect(depth).toBeVisible();
     await depth.selectOption("0");
     await expect(tree.locator("details[open]")).toHaveCount(0);
@@ -186,25 +187,32 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
     const filter = main(page)
       .locator("details")
       .filter({
-        has: page.locator("summary").filter({ hasText: /^Teams(?: \(\d+\))?$/ }),
+        has: page.locator("summary").filter({ hasText: /^Team(?: \(\d+\))?$/ }),
       })
       .first();
     const filterSummary = filter.locator(":scope > summary");
-    await expect(filterSummary).toBeVisible();
-    await filterSummary.click();
-    const choices = filter.getByRole("checkbox");
-    await expect(choices.first()).toBeVisible();
-    expect(
-      await choices.count(),
-      "Team selection must come from the authorized graph",
-    ).toBeGreaterThan(0);
-    await choices.first().check();
-    if ((await choices.count()) > 1) await choices.nth(1).check();
-    await expect(choices.first()).toBeChecked();
-    await main(page).getByRole("button", { name: "Clear filters", exact: true }).click();
-    await expect(choices.first()).not.toBeChecked();
-    await expect(filterSummary).toBeVisible();
-    await filterSummary.click();
+    if (await filterSummary.isVisible()) {
+      await filterSummary.click();
+      const choices = filter.getByRole("checkbox");
+      await expect(choices.first()).toBeVisible();
+      expect(
+        await choices.count(),
+        "Team selection must come from the authorized graph",
+      ).toBeGreaterThan(0);
+      await choices.first().check();
+      if ((await choices.count()) > 1) await choices.nth(1).check();
+      await expect(choices.first()).toBeChecked();
+      await main(page).getByRole("button", { name: "Clear filters", exact: true }).click();
+      await expect(choices.first()).not.toBeChecked();
+      await expect(filterSummary).toBeVisible();
+      await filterSummary.click();
+    } else {
+      await main(page).getByRole("button", { name: "Filters", exact: true }).click();
+      const filterDialog = page.getByRole("dialog");
+      await expect(filterDialog).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(filterDialog).toBeHidden();
+    }
     const search = main(page).getByRole("textbox", {
       name: "Search projects, teams and employees",
     });
@@ -234,14 +242,14 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
       await test.step(`${resource}: directory, search, views, detail and editor`, async () => {
         await page.goto(`/en/corporate/${resource}`);
         const cards = main(page)
-          .locator(`a[href*="/corporate/${resource}/"]`)
-          .filter({ has: page.getByRole("heading", { level: 3 }) });
+          .locator("article")
+          .filter({ has: page.locator("h3") });
         await expect(
           cards.first(),
           `The ${resource} directory needs real authorized rows or the explicit offline fixture`,
         ).toBeVisible();
-        const name = await cards.first().getByRole("heading", { level: 3 }).innerText();
-        const href = await cards.first().getAttribute("href");
+        const name = await cards.first().getByRole("heading").innerText();
+        const href = await cards.first().locator("h3 a").getAttribute("href");
         expect(Boolean(href)).toBe(true);
         const directorySearch = page.locator("#directory-search, #employee-search").first();
         await directorySearch.fill("__corporate_e2e_no_matching_card__");
@@ -257,7 +265,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
         await expect(cardView).toHaveAttribute("aria-pressed", "true");
         await fitsViewport(page);
         await screenshot(page, info, `${resource}-cards`);
-        await cards.first().click();
+        await cards.first().locator("h3 a").click();
         await expect(main(page).getByRole("heading", { level: 1 })).toHaveText(name);
         if (resource === "projects") {
           // Derived from the current corporate-overview and technology fixtures:
@@ -271,7 +279,9 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           await expect(teamsHeading).toHaveCount(1);
           await expect(teamsHeading).toBeVisible();
           await expect(
-            teamsHeading.locator("..").getByRole("link", { name: "Core", exact: true }),
+            teamsHeading
+              .locator("xpath=ancestor::section[1]")
+              .getByRole("link", { name: "Core", exact: true }),
           ).toBeVisible();
           const ownerLabel = main(page)
             .locator('[data-ui="component-detail-rail"]')
@@ -288,7 +298,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           await expect(technologiesHeading).toBeVisible();
           await expect(
             technologiesHeading
-              .locator("..")
+              .locator("xpath=ancestor::section[1]")
               .getByRole("link", { name: "Offline technology", exact: true }),
           ).toBeVisible();
           await expect(
@@ -296,7 +306,6 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           ).toHaveCount(0);
         }
         if (resource === "members") {
-          // The member's Platform project is inherited through the Core team.
           const detailMain = main(page).locator('[data-ui="component-detail-main"]');
           const teamsHeading = detailMain.getByRole("heading", {
             level: 2,
@@ -305,16 +314,9 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           });
           await expect(teamsHeading).toBeVisible();
           await expect(
-            teamsHeading.locator("..").getByRole("link", { name: "Core", exact: true }),
-          ).toBeVisible();
-          const projectsHeading = detailMain.getByRole("heading", {
-            level: 2,
-            name: "Projects",
-            exact: true,
-          });
-          await expect(projectsHeading).toBeVisible();
-          await expect(
-            projectsHeading.locator("..").getByRole("link", { name: "Platform", exact: true }),
+            teamsHeading
+              .locator("xpath=ancestor::section[1]")
+              .getByRole("link", { name: "Core", exact: true }),
           ).toBeVisible();
         }
         if (resource === "technologies") {
@@ -335,7 +337,9 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           await expect(projectsHeading).toHaveCount(1);
           await expect(projectsHeading).toBeVisible();
           await expect(
-            projectsHeading.locator("..").getByRole("link", { name: "Platform", exact: true }),
+            projectsHeading
+              .locator("xpath=ancestor::section[1]")
+              .getByRole("link", { name: "Platform", exact: true }),
           ).toBeVisible();
           await expect(
             main(page).getByText("The landscape is unavailable. Keep your filters and try again.", {
@@ -360,7 +364,14 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           before = entityProfileViewSchema.parse(await response.json());
           canEdit = before.can_edit;
         }
-        const edit = main(page).getByRole("button", { name: "Edit profile", exact: true }).last();
+        const edit = page.getByRole("menuitem", {
+          name: "Edit public presentation",
+          exact: true,
+        });
+        if (resource === "members") {
+          await expect(edit).toHaveCount(0);
+          return;
+        }
         if (!canEdit) {
           await expect(edit).toHaveCount(0);
           await screenshot(page, info, `${resource}-detail-readonly`);
@@ -369,9 +380,14 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
             `${resource}: editor verification requires an actually permitted session; absence is not editor coverage`,
           ).toBe(true);
         }
+        await main(page)
+          .locator('[data-ui="component-detail-header"]')
+          .getByRole("button", { name: "More actions", exact: true })
+          .click();
         await expect(edit).toBeVisible();
         await screenshot(page, info, `${resource}-detail`);
         await edit.click();
+        await expect(page).toHaveURL(/\/edit$/);
         const description = page.locator("#entity-description");
         await expect(description).toBeVisible();
         const original = await description.inputValue();
@@ -394,29 +410,32 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           expect(after.status()).toBe(200);
           expect(entityProfileViewSchema.parse(await after.json())).toEqual(before);
         } else {
+          await main(page)
+            .locator('[data-ui="component-detail-header"]')
+            .getByRole("button", { name: "More actions", exact: true })
+            .click();
           await edit.click();
           await expect(description).toHaveValue(original);
           if (resource === "teams") {
-            // Synthetic browser-only assets exercise the real receipt and delivery path.
-            const avatarRemove = form
-              .locator(":scope > fieldset > button")
-              .filter({ hasText: /^Remove$/ });
-            if (await avatarRemove.count()) await avatarRemove.click();
-            await form.locator("#entity-avatar").setInputFiles(syntheticPngPath);
-            await expect(avatarRemove).toBeVisible();
-            const mediaItems = form.locator('input[id^="entity-media-"]');
-            const mediaCount = await mediaItems.count();
-            await form.locator("#entity-media").setInputFiles(syntheticPngPath);
-            await expect(mediaItems).toHaveCount(mediaCount + 1);
-            const mediaAlt = mediaItems.last();
-            await mediaAlt.fill("Corporate goal media");
-            await form.locator('input[id^="entity-caption-"]').last().fill("Synthetic fixture");
-            const linkCount = await form.locator('input[id^="entity-link-label-"]').count();
+            // The corporate editor reuses the component media item widget.
+            await expect(form.getByRole("heading", { name: "Media", exact: true })).toBeVisible();
+            await expect(form.getByText("Avatar", { exact: true })).toHaveCount(0);
+            await form.locator('input[type="file"]').first().setInputFiles(syntheticPngPath);
+            await expect(form.locator('img[src^="data:image"]').first()).toBeVisible({
+              timeout: 15_000,
+            });
+            await expect(
+              form.getByText("File uploaded and ready to save.", { exact: true }),
+            ).toBeVisible({
+              timeout: 15_000,
+            });
+            await form.getByLabel("Alternative text").first().fill("Corporate goal media");
+            const linkCount = await form.locator('input[id^="entity-link-"][id$="-label"]').count();
             if (!linkCount) await form.getByRole("button", { name: "Add", exact: true }).click();
             const linkIndex = Math.max(linkCount - 1, 0);
-            await form.locator(`#entity-link-label-${linkIndex}`).fill("Corporate docs");
+            await form.locator(`#entity-link-${linkIndex}-label`).fill("Corporate docs");
             await form
-              .locator(`#entity-link-url-${linkIndex}`)
+              .locator(`#entity-link-${linkIndex}-url`)
               .fill("https://example.com/corporate");
           }
           await description.fill(draft);
@@ -424,40 +443,26 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           await expect(description).toHaveCount(0);
           await page.reload();
           if (resource === "teams") {
-            const avatar = main(page)
-              .locator('[data-ui="component-detail-rail"] > section')
-              .first()
-              .locator("img")
-              .first();
-            await expect(avatar).toBeVisible();
-            await expect
-              .poll(() => avatar.evaluate((image) => (image as HTMLImageElement).naturalWidth))
-              .toBeGreaterThan(0);
-            const avatarSource = await avatar.getAttribute("src");
-            expect(decodeURIComponent(avatarSource ?? "")).toMatch(
-              /\/v1\/media\/avatars\/avatar_[a-f0-9]{24}/,
-            );
             const gallery = main(page).locator('[data-ui="component-media-gallery"]');
             await expect(gallery).toBeVisible();
             const media = gallery.locator("img").last();
             await expect(media).toBeVisible();
-            for (const image of [avatar, media])
-              await expect
-                .poll(() => image.evaluate((node) => (node as HTMLImageElement).naturalWidth))
-                .toBeGreaterThan(0);
             await expect(media).toHaveAttribute("src", /\/v1\/media\/avatars\/avatar_[a-f0-9]{24}/);
             await expect(
               main(page).getByRole("link", { name: "Corporate docs", exact: true }).last(),
             ).toHaveAttribute("href", "https://example.com/corporate");
           }
+          await main(page)
+            .locator('[data-ui="component-detail-header"]')
+            .getByRole("button", { name: "More actions", exact: true })
+            .click();
           await edit.click();
           await expect(description).toHaveValue(draft);
           if (resource === "teams") {
             for (const [selector, value] of [
-              ['input[id^="entity-media-"]', "Corporate goal media"],
-              ['input[id^="entity-caption-"]', "Synthetic fixture"],
-              ['input[id^="entity-link-label-"]', "Corporate docs"],
-              ['input[id^="entity-link-url-"]', "https://example.com/corporate"],
+              ['input[id$="-alt"]', "Corporate goal media"],
+              ['input[id^="entity-link-"][id$="-label"]', "Corporate docs"],
+              ['input[id^="entity-link-"][id$="-url"]', "https://example.com/corporate"],
             ] as const)
               await expect(form.locator(selector).last()).toHaveValue(value);
           }

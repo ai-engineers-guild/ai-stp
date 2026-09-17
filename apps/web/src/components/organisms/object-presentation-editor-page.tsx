@@ -5,7 +5,7 @@ import { ObjectPresentationForm } from "@/components/organisms/object-presentati
 import { ExternalProductManager } from "@/components/organisms/external-product-manager";
 import { listExternalProducts, type ExternalProduct } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
-import { readOwnerExternalProducts, readOwnerPresentation } from "@/lib/api/owner";
+import { readOwnerExternalProducts, readOwnerObject, readOwnerPresentation } from "@/lib/api/owner";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 export async function ObjectPresentationEditorPage({
@@ -23,6 +23,7 @@ export async function ObjectPresentationEditorPage({
   const tc = await getTranslations("common");
   const token = (await sessionCookieValue()) ?? "";
   let presentation;
+  let object;
   let allProducts: { schema_version: 1; items: ExternalProduct[] } = {
     schema_version: 1,
     items: [],
@@ -33,12 +34,16 @@ export async function ObjectPresentationEditorPage({
   };
   try {
     if (process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED === "false") {
-      presentation = await readOwnerPresentation(token, stableId, objectKind);
+      [presentation, object] = await Promise.all([
+        readOwnerPresentation(token, stableId, objectKind),
+        readOwnerObject(token, objectKind, stableId),
+      ]);
     } else {
-      [presentation, allProducts, attachedProducts] = await Promise.all([
+      [presentation, allProducts, attachedProducts, object] = await Promise.all([
         readOwnerPresentation(token, stableId, objectKind),
         listExternalProducts(),
         readOwnerExternalProducts(token, objectKind, stableId),
+        readOwnerObject(token, objectKind, stableId),
       ]);
     }
   } catch (error) {
@@ -53,10 +58,6 @@ export async function ObjectPresentationEditorPage({
         label={t("backToObjects")}
         fallback={`/objects/${objectKind}/${stableId}`}
       />
-      <header className="space-y-2">
-        <h1 className="text-3xl font-medium tracking-tight">{t("editPresentation")}</h1>
-        <p className="text-muted-foreground">{t("editPresentationNote")}</p>
-      </header>
       <ObjectPresentationForm
         objectKind={objectKind}
         locale={locale}
@@ -64,6 +65,7 @@ export async function ObjectPresentationEditorPage({
         csrfToken={(await readCsrfToken()) ?? ""}
         initialBio={presentation.bio}
         initialMedia={presentation.media}
+        initialDisplayName={object.name}
         beforeMedia={
           process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED !== "false" ? (
             <ExternalProductManager
@@ -77,7 +79,14 @@ export async function ObjectPresentationEditorPage({
           ) : undefined
         }
         labels={{
+          editorTitle: t("editPresentation"),
+          editorDescription: t("editPresentationNote"),
+          displayName: t("displayName"),
+          displayNameHint: t("displayNameImmutable"),
+          markdownWrite: t("markdownWrite"),
+          markdownPreview: t("markdownPreview"),
           bio: t("bio"),
+          descriptionInvalid: t("descriptionInvalid"),
           media: t("media"),
           addMedia: t("addMedia"),
           remove: t("removeMedia"),
@@ -124,6 +133,8 @@ export async function ObjectPresentationEditorPage({
           kindVideo: t("mediaKindVideo"),
           kindYoutube: t("mediaKindYoutube"),
           mediaCount: t("mediaCount", { count: "{count}", max: "{max}" }),
+          moveUp: t("mediaMoveUp"),
+          moveDown: t("mediaMoveDown"),
         }}
       />
     </div>

@@ -42,6 +42,7 @@ describe("prefetch policy", () => {
     const root = path.resolve(__dirname, "../../src");
     const allowedForced = new Set([
       path.normalize(path.join(root, "lib/prefetch-policy.ts")),
+      path.normalize(path.join(root, "components/molecules/navigation-tabs.tsx")),
       path.normalize(path.join(root, "components/layouts/site-header.tsx")),
       path.normalize(path.join(root, "components/organisms/account-drawer.tsx")),
     ]);

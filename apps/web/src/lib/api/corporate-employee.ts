@@ -4,7 +4,12 @@ import { readEmployeeTechnologies } from "@/lib/api/corporate";
 import { readTechnologyRegistry, readTeamProjects } from "@/lib/api/technology";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { asCursorToken, tryAsAccountId } from "@/lib/brands";
-import type { ComponentListResponse, SetupListResponse } from "@/lib/api/generated/types.gen";
+import type {
+  ComponentListResponse,
+  ComponentSummary,
+  SetupListResponse,
+  SetupSummary,
+} from "@/lib/api/generated/types.gen";
 import type { CorporatePresentation } from "@/lib/corporate-detail";
 import type { CorporateMember, CorporateTeamView } from "@/lib/api/generated/types.gen";
 
@@ -16,6 +21,7 @@ export type CorporateEmployeeCatalogItem = {
   kind: "component" | "setup";
   name: string;
   version: string | null;
+  summary?: ComponentSummary | SetupSummary;
 };
 
 export type CorporateEmployeeTechnology = { id: string; name: string };
@@ -71,6 +77,7 @@ async function readAuthorCatalog(
         kind,
         name: item.latest_name,
         version: item.latest_version,
+        summary: item,
       });
     }
     const next = page.page.next_cursor;
@@ -182,9 +189,28 @@ export function applyCorporateEmployeePresentation(
     id: team.team_id,
     name: team.name,
   }));
-  const leadRefs = memberTeams
-    .filter((team) => team.lead_account_ids.includes(input.member.account_id))
-    .map((team) => ({ kind: "team" as const, id: team.team_id, name: team.name }));
+  const leadRefs = [
+    ...new Map(
+      memberTeams.flatMap((team) =>
+        team.lead_account_ids.flatMap((leadId) => {
+          if (leadId === input.member.account_id) return [];
+          const lead = team.members.find((member) => member.account_id === leadId);
+          return lead
+            ? [
+                [
+                  lead.account_id,
+                  {
+                    kind: "employee" as const,
+                    id: lead.account_id,
+                    name: lead.display_name?.trim() || input.unknownName,
+                  },
+                ] as const,
+              ]
+            : [];
+        }),
+      ),
+    ).values(),
+  ];
   const projectRefs = [
     ...new Map(
       input.projects.map((project) => [
@@ -223,6 +249,19 @@ export async function assembleCorporateEmployeePresentation(input: {
   includeTechnologies?: boolean;
   unknownName: string;
 }): Promise<CorporatePresentation> {
+  const profile =
+    input.content.publicProfile.status === "data" ? input.content.publicProfile.data : null;
+  const presentation = profile
+    ? {
+        ...input.presentation,
+        // Corporate directory identity is canonical; the public profile enriches
+        // the same user and must not rename the entity shown in the hub.
+        name: input.member.display_name?.trim() || input.unknownName,
+        description: profile.bio?.trim() || input.presentation.description,
+        avatar_url: profile.avatar_url ?? input.presentation.avatar_url,
+        links: profile.links.length ? [...profile.links] : input.presentation.links,
+      }
+    : input.presentation;
   const memberTeams = input.teams.filter((team) =>
     team.members.some((member) => member.account_id === input.member.account_id),
   );
@@ -248,7 +287,7 @@ export async function assembleCorporateEmployeePresentation(input: {
       ),
     ).values(),
   ];
-  return applyCorporateEmployeePresentation(input.presentation, {
+  return applyCorporateEmployeePresentation(presentation, {
     member: input.member,
     teams: input.teams,
     projects,

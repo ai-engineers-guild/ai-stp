@@ -1,7 +1,9 @@
 import type { ComponentType, CorporateDirectoryReference } from "@/lib/api/generated/types.gen";
 
-export type DirectoryRef = Pick<CorporateDirectoryReference, "id" | "name"> &
-  Partial<Pick<CorporateDirectoryReference, "kind">>;
+export type DirectoryRef = Pick<CorporateDirectoryReference, "id" | "name"> & {
+  /** Catalog relations use the same card surface even though directory facets omit these kinds. */
+  kind?: CorporateDirectoryReference["kind"] | "component" | "setup";
+};
 
 export type DirectoryResource = "teams" | "projects" | "technologies" | "members" | "components";
 export type DirectoryFacet = "leads" | "teams" | "technologies" | "projects" | "categories";

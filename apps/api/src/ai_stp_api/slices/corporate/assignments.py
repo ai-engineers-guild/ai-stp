@@ -235,12 +235,16 @@ async def list_assignments(
             version=row.version,
             account_id=ctx.account_id,
         )
-        if (
-            catalog is None
-            or catalog.published_at is None
-            or catalog.lifecycle_state not in {"active", "deprecated"}
-        ):
-            continue
+        # Assignment metadata is tenant-scoped operational data. It remains
+        # visible to an authorized corporate reader even when the catalog
+        # object's content is outside that reader's catalog access.
+        display_name = (
+            catalog.name
+            if catalog is not None
+            and catalog.published_at is not None
+            and catalog.lifecycle_state in {"active", "deprecated"}
+            else None
+        )
         items.append(
             CorporateCatalogAssignment.model_validate(
                 {
@@ -254,7 +258,7 @@ async def list_assignments(
                     "state": row.state,
                     "revision": row.revision,
                     "source_team_id": row.team_id if kind == "employee" else None,
-                    "display_name": catalog.name,
+                    "display_name": display_name or row.stable_id,
                 }
             )
         )

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/atoms/button";
@@ -115,7 +115,7 @@ export function CorporateDirectoryToolbar({
   const catalog = useTranslations("catalog");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(Boolean(query));
-  const dialogId = useId();
+  const dialogId = `corporate-${resource}-filters`;
   const count = activeCount(selected, leadOnly);
   const [draftSelected, setDraftSelected] = useState(selected);
   const [draftLeadOnly, setDraftLeadOnly] = useState(leadOnly);

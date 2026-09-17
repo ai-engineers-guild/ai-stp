@@ -24,15 +24,22 @@ it("does not duplicate the primary navigation on Overview", () => {
   expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 });
 
-it("shows authorized directories and selects the team tab on its detail page", () => {
+it("hides secondary tabs on entity detail pages", () => {
   render(<CorporateHubNavigation capabilities={["team.list", "team.update", "project.list"]} />);
-  expect(screen.getByRole("link", { name: "teams" })).toHaveAttribute("aria-current", "page");
-  expect(screen.getByRole("link", { name: "projects" })).toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "employees" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "admins" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "organization" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "landscape" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "dashboard" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+});
+
+it("orders the Organization tabs as Projects, Teams, Employees, Technologies", () => {
+  route.path = "/corporate/organization";
+  render(
+    <CorporateHubNavigation
+      capabilities={["project.list", "team.list", "member.list", "technology.list"]}
+    />,
+  );
+  expect(screen.getByRole("navigation").querySelectorAll("a")).toHaveLength(4);
+  expect(
+    [...screen.getByRole("navigation").querySelectorAll("a")].map((link) => link.textContent),
+  ).toEqual(["projects", "teams", "employees", "technologies"]);
 });
 
 it("keeps the technology directory in the Organization section", () => {
