@@ -524,14 +524,7 @@ function corporateProfileHandler(
   const initial = initialProfile(item);
   const current = profiles.get(suffix) ?? initial;
   if (method === "GET") {
-    // Entity avatars are rendered by the detail header icon. Keep uploaded
-    // avatars for people only; stale hot-reload profile state must not turn a
-    // team, project, or technology into a person.
-    const profile =
-      item.kind === "employee"
-        ? current
-        : { ...current, avatar_url: null, fields: { ...current.fields, avatar_asset_id: null } };
-    return ok(hydrateProfileAvatar(profile));
+    return ok(hydrateProfileAvatar(current));
   }
   if (method !== "PUT") return error(405, "AI_STP_VALIDATION_ERROR");
   const parsed = writeSchema.safeParse(body);
@@ -546,6 +539,7 @@ function corporateProfileHandler(
   const result = hydrateProfileAvatar(
     entityProfileViewSchema.parse({
       ...current,
+      avatar_url: effect.fields.avatar_asset_id ? current.avatar_url : null,
       fields: effect.fields,
       revision: current.revision + 1,
     }),

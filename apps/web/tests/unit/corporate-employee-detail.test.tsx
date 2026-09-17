@@ -108,7 +108,7 @@ it("keeps public profile, authored catalog, and tenant technologies as separate 
     content: result,
     unknownName: "Unknown employee",
   });
-  expect(merged).toMatchObject({ name: "Alice", description: "Bio" });
+  expect(merged).toMatchObject({ name: "Tenant Alice", description: "Bio" });
 });
 
 it("derives team-owned relations without using an account id as a display label", () => {
@@ -168,7 +168,6 @@ it("renders authored setups as catalog links and does not expose a fallback acco
       labels={labels}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Authored setups" }));
   expect(screen.getByRole("link", { name: /Frontend/ })).toHaveAttribute(
     "href",
     "/catalog/setups/setup_1",

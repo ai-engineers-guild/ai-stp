@@ -225,10 +225,11 @@ function searchComponents(query?: URLSearchParams): MockResult {
   });
   const demoAuthor = authors.find((author) => /^account_01JQZK7B8N4M6P2R9T5V0X3Y/.test(author));
   const authored = filtered.experimental.filter((item) => authors.includes(item.publisher_id));
-  const items =
-    authored.length || !demoAuthor
-      ? authored
-      : ALL_COMPONENT_SUMMARIES.slice(0, 3).map((item) => ({ ...item, publisher_id: demoAuthor }));
+  const items = authored.length
+    ? authored
+    : demoAuthor
+      ? ALL_COMPONENT_SUMMARIES.slice(0, 3).map((item) => ({ ...item, publisher_id: demoAuthor }))
+      : filtered.experimental;
   return paginatedList(items, query, cursor, pageSize);
 }
 
@@ -266,10 +267,11 @@ function searchSetups(query?: URLSearchParams): MockResult {
   });
   const demoAuthor = authors.find((author) => /^account_01JQZK7B8N4M6P2R9T5V0X3Y/.test(author));
   const authored = filtered.experimental.filter((item) => authors.includes(item.publisher_id));
-  const items =
-    authored.length || !demoAuthor
-      ? authored
-      : ALL_SETUP_SUMMARIES.slice(0, 2).map((item) => ({ ...item, publisher_id: demoAuthor }));
+  const items = authored.length
+    ? authored
+    : demoAuthor
+      ? ALL_SETUP_SUMMARIES.slice(0, 2).map((item) => ({ ...item, publisher_id: demoAuthor }))
+      : filtered.experimental;
   return paginatedList(items, query, cursor, pageSize);
 }
 

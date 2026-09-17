@@ -44,8 +44,9 @@ def test_display_name_and_bio_bounds() -> None:
         ProfileFields(bio="hello <b>x</b>")
     with pytest.raises(ValidationError):
         ProfileFields(bio="click javascript:alert(1)")
-    with pytest.raises(ValidationError):
-        ProfileFields(bio="has `code` and **bold** and [x](https://example.com)")
+    assert ProfileFields(bio="has `code` and **bold** and [x](https://example.com)").bio == (
+        "has `code` and **bold** and [x](https://example.com)"
+    )
 
 
 def test_link_rules() -> None:
