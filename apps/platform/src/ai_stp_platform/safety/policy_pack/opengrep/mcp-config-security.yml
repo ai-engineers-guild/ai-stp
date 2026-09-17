@@ -11,6 +11,8 @@ rules:
     severity: ERROR
     languages: [json]
     # yamllint disable-line rule:line-length
+    # nosemgrep: repo-safety.opengrep.github-actions-curl-bash
+    # yamllint disable-line rule:line-length
     pattern-regex: '(curl.+\|\s*(bash|sh)|wget.+\|\s*(bash|sh)|powershell.+(iex|invoke-expression)|python\s+-c|node\s+-e)'
 
   - id: mcp-overprivileged-scope

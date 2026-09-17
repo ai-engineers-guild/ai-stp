@@ -58,6 +58,27 @@ it("retains personal SaaS navigation", async () => {
   ]);
 });
 
+it("highlights the corporate destination that owns the current route", async () => {
+  vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
+  const { isPrimaryNavigationActive, siteNavigation } = await import("@/lib/projection/navigation");
+  const items = siteNavigation({ signedIn: true, docsHref: "https://docs.test" });
+  const organization = items.find((item) => item.labelKey === "organization");
+  const landscape = items.find((item) => item.labelKey === "landscape");
+  const admins = siteNavigation({
+    signedIn: true,
+    docsHref: "https://docs.test",
+    corporateAdministration: true,
+  }).find((item) => item.labelKey === "admins");
+  expect(organization && isPrimaryNavigationActive(organization, "/corporate/teams/team_1")).toBe(
+    true,
+  );
+  expect(landscape && isPrimaryNavigationActive(landscape, "/corporate/categories")).toBe(true);
+  expect(
+    organization && isPrimaryNavigationActive(organization, "/corporate/organization/admins"),
+  ).toBe(false);
+  expect(admins && isPrimaryNavigationActive(admins, "/corporate/organization/admins")).toBe(true);
+});
+
 it("does not load corporate data for an unauthenticated visitor", async () => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
   mocks.session.mockResolvedValue(null);

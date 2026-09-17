@@ -12,7 +12,8 @@ test.describe("external catalog requests", () => {
 
     await page.goto(`/en/objects/component/${stableId}/edit`);
     await expect(page.getByRole("heading", { name: "Linked service" })).toBeVisible();
-    await expect(page.locator("main h2")).toHaveText(["Catalog bio", "Linked service", "Media"]);
+    await expect(page.locator("main h2")).toHaveText(["Edit public presentation"]);
+    await expect(page.locator("main h3")).toHaveText(["Linked service", "Media"]);
 
     await page.getByRole("button", { name: "Add a new service" }).click();
     const serviceDialog = page.getByRole("dialog", { name: "Request a new service" });

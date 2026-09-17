@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
 import { ApiError } from "@/lib/api/errors";
+import { fieldErrorsFromDetails, type FieldErrors } from "@/lib/api/field-errors";
 import type { OwnerPublicProfile, ProfileLink } from "@/lib/api/public-profile";
 import {
   importAvatarFromIdentity,
@@ -15,6 +16,7 @@ import {
   readLocalProfilePreview,
   type LocalProfilePreview,
 } from "@/lib/profile-preview-storage";
+import { validateEntityFieldErrors } from "@/lib/entity-editor-contract";
 
 export const PROFILE_BIO_MAX = 1500;
 
@@ -44,13 +46,14 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
   const t = useTranslations("account");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState(initial.state);
   const [baseRevisionId, setBaseRevisionId] = useState(initial.editable.base_revision_id);
   const [digest, setDigest] = useState(initial.editable.base_content_digest);
   const [displayName, setDisplayName] = useState(initial.editable.fields.display_name ?? "");
   const [bio, setBio] = useState(initial.editable.fields.bio ?? "");
   const [bioMode, setBioMode] = useState<"plain" | "render">("plain");
-  const [links, setLinks] = useState<ProfileLink[]>([...initial.editable.fields.links]);
+  const [links, setLinks] = useState<ProfileLink[]>([...initial.editable.fields.links].slice(0, 5));
   const [avatarAssetId, setAvatarAssetId] = useState<string | null>(
     initial.editable.fields.avatar_asset_id,
   );
@@ -66,6 +69,58 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
       : /<[^>\s]+[^>]*>|javascript:|data:/i.test(bio)
         ? t("profileErrorBioMd")
         : null;
+
+  function localizeFieldErrors(raw: FieldErrors): FieldErrors {
+    const generic = (message: string) =>
+      message === "request validation failed" || message === "invalid public profile";
+    return Object.fromEntries(
+      Object.entries(raw).map(([path, message]) => {
+        if (!generic(message)) return [path, message];
+        if (path === "display_name") return [path, t("profileErrorDisplayNameInvalid")];
+        if (path === "bio") return [path, t("profileErrorDescription")];
+        if (path === "links") return [path, t("profileErrorTooManyLinks")];
+        if (path.endsWith(".label")) return [path, t("profileErrorLinkLabelInvalid")];
+        if (path.startsWith("links.")) return [path, t("profileErrorLinkUrl")];
+        return [path, message];
+      }),
+    );
+  }
+
+  function validate() {
+    const errors = validateEntityFieldErrors(
+      displayName,
+      links,
+      { displayName: 80, links: 5 },
+      {
+        displayNameRequired: t("profileErrorDisplayNameRequired"),
+        displayNameTooLong: t("profileErrorDisplayNameTooLong"),
+        tooManyLinks: t("profileErrorTooManyLinks"),
+        linkLabelRequired: t("profileErrorLinkLabelRequired"),
+        linkLabelTooLong: t("profileErrorLinkLabelTooLong"),
+        linkUrl: t("profileErrorLinkUrl"),
+        duplicateLink: t("profileErrorDuplicateLink"),
+      },
+    );
+    if (bioError) errors.bio = bioError;
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      setError(t("profileErrorFieldSummary"));
+      return false;
+    }
+    return true;
+  }
+
+  function setMutationError(err: unknown, fallback: string, field?: string) {
+    if (err instanceof ApiError) {
+      const mapped = localizeFieldErrors(fieldErrorsFromDetails(err.details, err.message));
+      if (field && !Object.keys(mapped).length) mapped[field] = err.message;
+      setFieldErrors(mapped);
+      setError(fallback);
+      return;
+    }
+    if (field) setFieldErrors((current) => ({ ...current, [field]: errorMessage(err, fallback) }));
+    setError(errorMessage(err, fallback));
+  }
 
   useEffect(() => {
     return () => {
@@ -95,7 +150,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
     if (restored) {
       setDisplayName(restored.displayName);
       setBio(restored.bio);
-      setLinks(restored.links);
+      setLinks(restored.links.slice(0, 5));
       setAvatarAssetId(restored.avatarAssetId);
       setAvatarUrl(restored.avatarUrl);
     }
@@ -149,6 +204,11 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
 
   function applyAvatar(result: { avatar_asset_id: string; public_url: string | null }) {
     clearLocalPreview();
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.avatar;
+      return next;
+    });
     setAvatarAssetId(result.avatar_asset_id);
     if (result.public_url) setAvatarUrl(result.public_url);
     setMessage(t("profileAvatarReady"));
@@ -157,6 +217,8 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
   function saveDraft() {
     setError(null);
     setMessage(null);
+    setFieldErrors({});
+    if (!validate()) return;
     startTransition(async () => {
       try {
         const saved = await saveOwnerPublicProfileDraft(csrfToken, payload(), digest);
@@ -167,7 +229,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
         window.sessionStorage.removeItem(PROFILE_PREVIEW_STORAGE_KEY);
         setMessage(t("profileDraftSaved"));
       } catch (err) {
-        setError(errorMessage(err, t("profileSaveFailed")));
+        setMutationError(err, t("profileSaveFailed"));
       }
     });
   }
@@ -175,6 +237,8 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
   function publish() {
     setError(null);
     setMessage(null);
+    setFieldErrors({});
+    if (!validate()) return;
     startTransition(async () => {
       try {
         const saved = await saveOwnerPublicProfileDraft(csrfToken, payload(), null);
@@ -190,7 +254,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
         window.sessionStorage.removeItem(PROFILE_PREVIEW_STORAGE_KEY);
         setMessage(t("profilePublished"));
       } catch (err) {
-        setError(errorMessage(err, t("profilePublishFailed")));
+        setMutationError(err, t("profilePublishFailed"));
       }
     });
   }
@@ -204,6 +268,11 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
     reader.readAsDataURL(file);
     setError(null);
     setMessage(null);
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.avatar;
+      return next;
+    });
     startTransition(async () => {
       try {
         const response = await fetch("/api/account/avatar", {
@@ -213,7 +282,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
         });
         applyAvatar(await avatarUploadResult(response));
       } catch (err) {
-        setError(errorMessage(err, t("profileAvatarFailed")));
+        setMutationError(err, t("profileAvatarFailed"), "avatar");
       }
     });
   }
@@ -227,7 +296,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
         if (!result.ok) throw new ApiError(result);
         applyAvatar(result.avatar);
       } catch (err) {
-        setError(errorMessage(err, t("profileAvatarFailed")));
+        setMutationError(err, t("profileAvatarFailed"), "avatar");
       }
     });
   }
@@ -236,17 +305,23 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
     setAvatarAssetId(null);
     setAvatarUrl(null);
     clearLocalPreview();
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.avatar;
+      return next;
+    });
   }
 
   function restorePublished() {
     if (!initial.published) return;
     setDisplayName(initial.published.fields.display_name ?? "");
     setBio(initial.published.fields.bio ?? "");
-    setLinks([...initial.published.fields.links]);
+    setLinks([...initial.published.fields.links].slice(0, 5));
     setAvatarAssetId(initial.published.fields.avatar_asset_id);
     setAvatarUrl(initial.published.avatar_url);
     clearLocalPreview();
     setError(null);
+    setFieldErrors({});
     setMessage(t("profilePublishedRestored"));
   }
 
@@ -258,14 +333,35 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
     status,
     digest,
     displayName,
-    setDisplayName,
+    setDisplayName: (value: string) => {
+      setDisplayName(value);
+      setFieldErrors((current) => {
+        const next = { ...current };
+        delete next.display_name;
+        delete next.name;
+        return next;
+      });
+    },
     bio,
-    setBio,
+    setBio: (value: string) => {
+      setBio(value);
+      setFieldErrors((current) => {
+        const next = { ...current };
+        delete next.bio;
+        return next;
+      });
+    },
     bioMode,
     setBioMode,
     bioError,
     links,
-    setLinks,
+    setLinks: (value: ProfileLink[]) => {
+      setLinks(value);
+      setFieldErrors((current) =>
+        Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith("links"))),
+      );
+    },
+    fieldErrors,
     shownAvatar,
     saveDraft,
     publish,

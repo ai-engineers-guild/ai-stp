@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CorporatePresentation } from "@/lib/corporate-detail";
 
@@ -54,15 +55,35 @@ const presentation = {
 afterEach(cleanup);
 
 describe("corporate entity owner labels", () => {
+  it("links editable entities to a separate edit page", async () => {
+    render(
+      <CorporateEntityDetail
+        presentation={{ ...presentation, can_edit: true }}
+        description="Description"
+        title="Core"
+        resource="teams"
+        resourceId="operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+      >
+        <p>Main</p>
+      </CorporateEntityDetail>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "access.more" }));
+    expect(screen.getByRole("link", { name: "objects.editPresentation" })).toHaveAttribute(
+      "href",
+      "/corporate/teams/operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z/edit",
+    );
+    expect(screen.queryByRole("form")).toBeNull();
+  });
+
   it("labels an employee owner as an operational owner", () => {
     render(
       <CorporateEntityDetail
         presentation={presentation}
         description="Description"
-        organizationId="organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        title="TypeScript"
         resource="technologies"
         resourceId="technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-        csrfToken=""
       >
         <p>Main</p>
       </CorporateEntityDetail>,
@@ -72,7 +93,7 @@ describe("corporate entity owner labels", () => {
     expect(screen.queryByText("hub.owner")).toBeNull();
   });
 
-  it("keeps the team owner label for a team reference", () => {
+  it("uses the owning-team label for a project", () => {
     render(
       <CorporateEntityDetail
         presentation={{
@@ -80,10 +101,9 @@ describe("corporate entity owner labels", () => {
           owner: { kind: "team", id: "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", name: "Core" },
         }}
         description="Description"
-        organizationId="organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-        resource="teams"
-        resourceId="operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
-        csrfToken=""
+        title="Project"
+        resource="projects"
+        resourceId="remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
       >
         <p>Main</p>
       </CorporateEntityDetail>,

@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
-_ALLOWED_PUNCTUATION = frozenset(".,!?;:'\"()-/+&#%=\n\r ")
 _UNSAFE_URI = re.compile(r"(?i)(?<![\w])(?:javascript|data|vbscript):")
+_RAW_HTML = re.compile(r"(?is)<\s*/?\s*[a-z][^>]*>")
 _BLOCKED_WORDS: tuple[str, ...] = (
     # Profanity and slurs.
     "бля",
@@ -325,11 +325,10 @@ def validate_public_text(value: str, *, allow_empty: bool = False) -> str:
         normalized.encode("utf-8")
     except UnicodeEncodeError as error:
         raise ValueError("text must be valid UTF-8") from error
-    if any(
-        not character.isalnum() and character not in _ALLOWED_PUNCTUATION
-        for character in normalized
-    ):
-        raise ValueError("text contains forbidden characters")
+    # Public descriptions may contain Markdown punctuation and emoji. Keep the
+    # two actual trust-boundary checks here: no raw HTML and no executable URI.
+    if _RAW_HTML.search(normalized):
+        raise ValueError("text contains raw HTML")
     if _UNSAFE_URI.search(normalized):
         raise ValueError("text contains an unsafe URI")
 

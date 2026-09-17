@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { readSession } from "@/lib/auth/session";
+import { readSessionPresence } from "@/lib/auth/session";
 
 /**
  * Whether this browser has a session, asked at request time.
@@ -22,9 +22,18 @@ import { readSession } from "@/lib/auth/session";
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<NextResponse> {
-  const session = await readSession();
+  const presence = await readSessionPresence();
+  if (presence === "unknown") {
+    return NextResponse.json(
+      { signedIn: false },
+      {
+        status: 503,
+        headers: { "Cache-Control": "no-store, private" },
+      },
+    );
+  }
   return NextResponse.json(
-    { signedIn: session !== null },
+    { signedIn: presence === "signed_in" },
     // Never store this. A shared cache holding it is the exact leak the move
     // away from the static shell was made to prevent.
     { headers: { "Cache-Control": "no-store, private" } },

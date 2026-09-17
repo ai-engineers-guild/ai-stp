@@ -1,4 +1,6 @@
-@import "tailwindcss";
+/* Keep Tailwind's source scan inside the web source tree; scanning the whole
+ * Docker-mounted app directory can starve the PostCSS worker. */
+@import "tailwindcss" source("../");
 
 /* Sonner's default transition animates toast height and forces layout on every frame. */
 [data-sonner-toast] {

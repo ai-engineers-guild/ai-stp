@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { ApiError } from "@/lib/api/errors";
+import { fieldErrorsFromDetails, fieldErrorsFromIssues } from "@/lib/api/field-errors";
 import { updateOwnerPresentation } from "@/lib/api/owner";
 import {
   isExternalMediaUrl,
@@ -58,9 +59,7 @@ const inputSchema = z.object({
 export async function updateObjectPresentationAction(input: unknown) {
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) {
-    const fieldErrors = Object.fromEntries(
-      parsed.error.issues.map((issue) => [issue.path.join("."), issue.message]),
-    );
+    const fieldErrors = fieldErrorsFromIssues(parsed.error.issues);
     return {
       ok: false as const,
       code: "CLIENT_VALIDATION_ERROR",
@@ -98,21 +97,8 @@ export async function updateObjectPresentationAction(input: unknown) {
       parsed.data.objectKind,
     );
   } catch (error) {
-    const fieldErrors: Record<string, string> = {};
-    if (error instanceof ApiError) {
-      const fields = error.details.fields;
-      if (Array.isArray(fields)) {
-        for (const field of fields) {
-          if (typeof field === "string") fieldErrors[field] = error.message;
-          else if (field && typeof field === "object") {
-            const row = field as Record<string, unknown>;
-            if (typeof row.path === "string") {
-              fieldErrors[row.path] = typeof row.message === "string" ? row.message : error.message;
-            }
-          }
-        }
-      }
-    }
+    const fieldErrors =
+      error instanceof ApiError ? fieldErrorsFromDetails(error.details, error.message) : {};
     return {
       ok: false as const,
       code: error instanceof ApiError ? error.code : "PRESENTATION_SAVE_FAILED",

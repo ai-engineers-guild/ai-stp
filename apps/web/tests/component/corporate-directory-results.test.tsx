@@ -116,6 +116,7 @@ describe("corporate directory filters", () => {
     expect(screen.getByRole("link", { name: "Elena Smirnova" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Growth Experiments" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Product & Engineering" })).toBeVisible();
+    expect(screen.queryByText("AI coding assistant")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "listView" })).toHaveAttribute(
       "aria-pressed",
       "true",

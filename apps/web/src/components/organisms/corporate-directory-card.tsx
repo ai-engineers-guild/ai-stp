@@ -38,8 +38,17 @@ const resourceIcons: Record<Exclude<DirectoryResource, "components">, IconName> 
 };
 
 function relationHref(ref: DirectoryRef, returnFilters: string) {
-  const resource = ref.kind === "employee" ? "members" : ref.kind ? `${ref.kind}s` : "projects";
-  return directoryHref(resource as DirectoryResource, ref.id, returnFilters);
+  const resource =
+    ref.kind === "employee"
+      ? "members"
+      : ref.kind === "technology"
+        ? "technologies"
+        : ref.kind === "team"
+          ? "teams"
+          : ref.kind === "project"
+            ? "projects"
+            : "projects";
+  return directoryHref(resource, ref.id, returnFilters);
 }
 
 function EntityMark({ resource, item }: { resource: DirectoryResource; item: DirectoryItem }) {
@@ -257,7 +266,7 @@ export function CorporateDirectoryCard({
                 ))}
               </div>
             ) : null}
-            {item.description ? (
+            {resource === "components" && item.description ? (
               <p className="text-muted-foreground mt-4 max-w-3xl text-sm leading-relaxed break-words">
                 {item.description}
               </p>

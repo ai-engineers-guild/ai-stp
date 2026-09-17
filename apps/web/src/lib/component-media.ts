@@ -55,6 +55,10 @@ export function isUploadedMediaUrl(url: string): boolean {
   return Boolean(id) && !id.includes("/") && id.length <= 64;
 }
 
+export function isStoredMediaUrl(url: string): boolean {
+  return isUploadedMediaUrl(url) || /^\/v1\/media\/avatars\/avatar_[a-f0-9]{24}$/.test(url);
+}
+
 export function isGithubRawUrl(url: string): boolean {
   return url.startsWith("https://raw.githubusercontent.com/");
 }

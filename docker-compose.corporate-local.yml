@@ -12,7 +12,8 @@ services:
       - web_next:/app/.next
       - ./docs-user-facing:/docs-user-facing:ro
       - ./packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:/packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json:ro
-    # Corporate module exclusions use the incumbent webpack aliases.
+    # Corporate module exclusions use the incumbent webpack aliases. Keep the
+    # real API/auth transport in this stack; fixtures are opt-in for tests.
     command:
       - node
       - node_modules/next/dist/bin/next
@@ -23,6 +24,8 @@ services:
       - "3000"
     environment:
       AI_STP_WEB_PROFILE: corporate_hub
+      AI_STP_USE_MOCKS: "false"
+      AI_STP_MOCK_AUTH: "false"
       AI_STP_FEATURE_CONTENT_HUB: "false"
       AI_STP_FEATURE_SAAS_PUBLIC_PAGES: "false"
       AI_STP_FEATURE_CATALOG_USAGE_METRICS: "false"

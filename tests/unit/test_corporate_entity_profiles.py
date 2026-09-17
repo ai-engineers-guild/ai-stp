@@ -41,7 +41,10 @@ def test_profile_contracts_validate_identity_and_safe_content() -> None:
         )
         with pytest.raises(ValidationError):
             EntityProfileSubject.model_validate({"subject_kind": kind, "subject_id": "arbitrary"})
-    assert EntityProfileFields(description="# Markdown").description == "# Markdown"
+    markdown = (
+        "| Status | Task |\n| :--- | :--- |\n| 🚀 **In progress** | Launch a **new campaign** |"
+    )
+    assert EntityProfileFields(description=markdown).description == markdown
     for fields in [
         {"role": "superadmin"},
         {"links": [{"label": "Bad", "url": "http://bad"}]},

@@ -56,6 +56,7 @@ RUN groupadd --system --gid 10001 appuser \
 # The build packaging step already mirrors only profile-enabled public assets.
 COPY --from=builder --chown=appuser:appuser /app/.next/standalone ./
 COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
+COPY --from=builder --chown=appuser:appuser /packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json /packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overview.json
 
 USER appuser
 

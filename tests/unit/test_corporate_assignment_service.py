@@ -43,7 +43,7 @@ async def test_assignment_replay_rechecks_catalog_access(monkeypatch: pytest.Mon
 
 
 @pytest.mark.asyncio
-async def test_assignment_read_filters_catalog_and_marks_team_source(
+async def test_assignment_read_keeps_metadata_when_catalog_is_not_visible(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(service, "read_member", AsyncMock())
@@ -84,6 +84,7 @@ async def test_assignment_read_filters_catalog_and_marks_team_source(
         query=query,
         request_id=None,
     )  # type: ignore[arg-type]
-    assert result.total == 1
-    assert result.items[0].display_name == "Mobile Development"
-    assert result.items[0].source_team_id == "operation_00000000000000000000000001"
+    assert result.total == 2
+    assert result.items[0].display_name == rows[0].stable_id
+    assert result.items[1].display_name == "Mobile Development"
+    assert result.items[1].source_team_id == "operation_00000000000000000000000001"

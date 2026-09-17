@@ -8,11 +8,15 @@ FIXTURE = "packages/contracts/src/ai_stp_contracts/fixtures/v1/corporate-overvie
 
 def test_web_production_context_allows_and_copies_the_canonical_fixture() -> None:
     source = (ROOT / "apps/web/src/lib/api/mock-corporate.ts").read_text(encoding="utf-8")
+    fixture_source = (ROOT / "apps/web/src/mocks/corporate-overview-fixture.ts").read_text(
+        encoding="utf-8"
+    )
     dockerfile = (ROOT / "apps/web/Dockerfile.prod").read_text(encoding="utf-8")
     dockerignore = (ROOT / "apps/web/Dockerfile.prod.dockerignore").read_text(encoding="utf-8")
     compose = (ROOT / "docker-compose.dev.yml").read_text(encoding="utf-8")
 
-    assert f"../../../../../{FIXTURE}" in source
+    assert "@/mocks/corporate-overview-fixture" in source
+    assert f"../../../../{FIXTURE}" in fixture_source
     assert f"COPY {FIXTURE} /{FIXTURE}" in dockerfile
     rules = [line.strip() for line in dockerignore.splitlines() if line.strip()]
     assert [line for line in rules if line.startswith(("!apps/", "apps/**"))] == [

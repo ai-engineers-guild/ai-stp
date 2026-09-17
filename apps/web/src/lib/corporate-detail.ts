@@ -44,7 +44,7 @@ const profileMediaSchema = z
   .strict();
 const profileLinksSchema = z
   .array(profileLinkSchema)
-  .max(8)
+  .max(5)
   .refine((items) => new Set(items.map((item) => item.url)).size === items.length, {
     message: "duplicate link URL",
   });

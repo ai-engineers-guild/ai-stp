@@ -1,13 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Link, usePathname } from "@/lib/i18n/navigation";
+import { usePathname } from "@/lib/i18n/navigation";
 import { canViewCorporateSection } from "@/lib/corporate-hub";
+import { NavigationTabs } from "@/components/molecules/navigation-tabs";
+import { UI } from "@/lib/ui-selectors";
 
 const organization = [
-  { key: "employees", href: "/corporate/members" },
   { key: "projects", href: "/corporate/projects" },
   { key: "teams", href: "/corporate/teams" },
+  { key: "employees", href: "/corporate/members" },
   { key: "technologies", href: "/corporate/technologies" },
 ] as const;
 const landscape = [
@@ -20,28 +22,40 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
   const t = useTranslations("hub");
   const path = usePathname();
   if (path === "/corporate" || path === "/corporate/overview") return null;
-  const inLandscape = /\/corporate\/(components|categories|technology-landscape)/.test(path);
+  const inLandscape = /\/corporate\/(components|categories|technology-landscape)(?:\/|$)/.test(
+    path,
+  );
+  const inOrganization =
+    /\/corporate\/(organization|members|projects|teams|technologies)(?:\/|$)/.test(path);
   const activeSection =
     path === "/corporate/dashboard" ? "dashboard" : inLandscape ? "landscape" : "organization";
-  if (activeSection !== "organization" && activeSection !== "landscape") return null;
+  if (
+    (activeSection !== "organization" && activeSection !== "landscape") ||
+    (!inOrganization && !inLandscape)
+  )
+    return null;
   const items = inLandscape ? landscape : organization;
+  if (path !== "/corporate/organization" && !items.some((item) => path === item.href)) {
+    return null;
+  }
 
   return (
-    <div className="border-border mb-6 space-y-2 border-b pb-4">
-      <nav aria-label={t(activeSection)} className="flex flex-wrap gap-2">
-        {items
+    <div
+      data-ui={UI.navigation.secondaryNav}
+      className="border-border -mx-4 -mt-6 mb-6 border-b sm:-mx-6"
+    >
+      <NavigationTabs
+        ariaLabel={t(activeSection)}
+        className="mx-auto max-w-6xl px-4 sm:px-6"
+        items={items
           .filter((item) => canViewCorporateSection(item.key, capabilities))
-          .map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-              aria-current={path.startsWith(item.href) ? "page" : undefined}
-              className="text-muted-foreground hover:text-foreground aria-[current=page]:text-primary inline-flex min-h-11 items-center px-3 text-sm"
-            >
-              {t(item.key)}
-            </Link>
-          ))}
-      </nav>
+          .map((item) => ({
+            key: item.key,
+            href: item.href,
+            label: t(item.key),
+            active: path === item.href || path.startsWith(`${item.href}/`),
+          }))}
+      />
     </div>
   );
 }

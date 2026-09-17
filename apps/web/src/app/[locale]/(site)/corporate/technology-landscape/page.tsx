@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
+import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyLandscapeResults } from "@/components/organisms/technology-landscape-results";
 import { TechnologyLandscapeFilters } from "@/components/organisms/technology-landscape-filters";
@@ -43,9 +44,7 @@ export default async function TechnologyLandscapePage({ params, searchParams }: 
   return (
     <div className="min-w-0 space-y-8">
       <header className="space-y-3">
-        <Link href="/corporate" className="underline underline-offset-4">
-          {t("back")}
-        </Link>
+        <HistoryBackButton label={t("backToWorkspace")} fallback="/corporate/overview" />
         <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("title")}</h1>
         <p className="text-muted-foreground max-w-prose">{t("description")}</p>
       </header>

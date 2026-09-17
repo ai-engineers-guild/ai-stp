@@ -6,12 +6,18 @@ import type { useTranslations } from "next-intl";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
-import { Label } from "@/components/atoms/label";
-import { Textarea } from "@/components/atoms/textarea";
+import {
+  EntityEditorErrorSummary,
+  EntityEditorField,
+  EntityEditorLayout,
+  EntityEditorSection,
+} from "@/components/molecules/entity-editor-layout";
+import { EntityLinksEditor } from "@/components/molecules/entity-links-editor";
+import { MarkdownEditor } from "@/components/molecules/markdown-editor";
 import { Icon } from "@/theme/icons";
 import { Link } from "@/lib/i18n/navigation";
-import type { OwnerPublicProfile, ProfileLink } from "@/lib/api/public-profile";
-import { renderMarkdownOnServer } from "@/lib/markdown/render";
+import type { OwnerPublicProfile } from "@/lib/api/public-profile";
+import { ENTITY_EDITOR_CONFIGS } from "@/lib/entity-editor-contract";
 import { PROFILE_BIO_MAX, useProfileForm } from "@/components/organisms/use-profile-form";
 
 type ProfileFormProps = {
@@ -28,18 +34,20 @@ function AvatarControls(props: {
   onFile: (file: File | null) => void;
   onImport: (provider: "github" | "google") => void;
   onRemove: () => void;
+  error?: string | undefined;
 }) {
-  const { avatarUrl, pending, t, onFile, onImport, onRemove } = props;
+  const { avatarUrl, pending, t, onFile, onImport, onRemove, error } = props;
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <section className="flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:flex-wrap">
       <button
         type="button"
-        className="group bg-muted border-border focus-visible:ring-ring hover:border-foreground/40 relative flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border transition-[border-color,box-shadow] hover:shadow-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-wait"
+        className={`group bg-muted border-border focus-visible:ring-ring hover:border-foreground/40 relative flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border transition-[border-color,box-shadow] hover:shadow-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-wait ${error ? "border-destructive focus-visible:ring-destructive" : ""}`}
         onClick={() => inputRef.current?.click()}
         disabled={pending}
         aria-label={t("profileUpload")}
+        aria-describedby={error ? "profile-avatar-error" : undefined}
       >
         {avatarUrl ? (
           <img src={avatarUrl} alt="" className="h-20 w-20 object-cover" />
@@ -59,6 +67,8 @@ function AvatarControls(props: {
         type="file"
         accept="image/png,image/jpeg,image/webp"
         className="sr-only"
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? "profile-avatar-error" : undefined}
         onChange={(e) => {
           onFile(e.target.files?.[0] ?? null);
           e.target.value = "";
@@ -100,6 +110,11 @@ function AvatarControls(props: {
             </Button>
           ) : null}
         </div>
+        {error ? (
+          <p id="profile-avatar-error" className="text-destructive text-xs" role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
     </section>
   );
@@ -136,152 +151,10 @@ function GoogleMark() {
   );
 }
 
-function LinksEditor(props: {
-  links: ProfileLink[];
-  t: TAccount;
-  onChange: (links: ProfileLink[]) => void;
-}) {
-  const { links, t, onChange } = props;
-  return (
-    <section className="space-y-3">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium">{t("profileLinks")}</h2>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="min-h-11 sm:min-h-8"
-          onClick={() => {
-            onChange([...links, { label: "", url: "https://" }]);
-          }}
-          disabled={links.length >= 8}
-        >
-          {t("profileAddLink")}
-        </Button>
-      </div>
-      {links.length === 0 ? (
-        <p className="text-muted-foreground text-xs">{t("profileLinksEmpty")}</p>
-      ) : null}
-      {links.map((link, index) => (
-        <div key={index} className="grid min-w-0 items-end gap-2 sm:grid-cols-[1fr_2fr_auto]">
-          <div className="space-y-1.5">
-            <Label htmlFor={`profile-link-label-${index}`}>{t("linkLabel")}</Label>
-            <Input
-              id={`profile-link-label-${index}`}
-              value={link.label}
-              maxLength={60}
-              onChange={(e) => {
-                onChange(
-                  links.map((item, i) => (i === index ? { ...item, label: e.target.value } : item)),
-                );
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor={`profile-link-url-${index}`}>{t("linkUrl")}</Label>
-            <Input
-              id={`profile-link-url-${index}`}
-              className="font-mono"
-              value={link.url}
-              placeholder={t("urlPlaceholder")}
-              onChange={(e) => {
-                onChange(
-                  links.map((item, i) => (i === index ? { ...item, url: e.target.value } : item)),
-                );
-              }}
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="min-h-11 w-full sm:min-h-8 sm:w-auto"
-            onClick={() => {
-              onChange(links.filter((_, i) => i !== index));
-            }}
-          >
-            {t("profileRemoveLink")}
-          </Button>
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function BioEditor(props: {
-  bio: string;
-  mode: "plain" | "render";
-  error: string | null;
-  t: TAccount;
-  onBio: (value: string) => void;
-  onMode: (mode: "plain" | "render") => void;
-}) {
-  const { bio, mode, error, t, onBio, onMode } = props;
-  const rendered = mode === "render" ? renderMarkdownOnServer(bio || "") : null;
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label htmlFor="profile-bio">{t("profileBio")}</Label>
-        <div
-          className="border-border bg-muted/40 inline-flex rounded-sm border p-0.5"
-          role="group"
-          aria-label={t("profileBioMode")}
-        >
-          <Button
-            type="button"
-            size="sm"
-            variant={mode === "plain" ? "secondary" : "ghost"}
-            className="h-7 px-2.5 text-xs"
-            onClick={() => {
-              onMode("plain");
-            }}
-          >
-            {t("profileBioPlain")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={mode === "render" ? "secondary" : "ghost"}
-            className="h-7 px-2.5 text-xs"
-            onClick={() => {
-              onMode("render");
-            }}
-          >
-            {t("profileBioRender")}
-          </Button>
-        </div>
-      </div>
-      {mode === "plain" ? (
-        <Textarea
-          id="profile-bio"
-          className="min-h-28 font-mono"
-          value={bio}
-          onChange={(e) => {
-            onBio(e.target.value);
-          }}
-          maxLength={PROFILE_BIO_MAX}
-          aria-label={t("profileBio")}
-        />
-      ) : (
-        <div
-          className="border-input bg-background prose-sm min-h-28 w-full overflow-x-auto rounded-sm border px-3 py-2 text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-          dangerouslySetInnerHTML={{
-            __html:
-              rendered?.html || `<p class="text-muted-foreground">${t("profileBioEmpty")}</p>`,
-          }}
-        />
-      )}
-      <p className="text-muted-foreground font-mono text-xs">
-        {t("profileBioHint")} · {bio.length}/{PROFILE_BIO_MAX}
-      </p>
-      {error ? <p className="text-destructive text-xs">{error}</p> : null}
-    </div>
-  );
-}
-
 /**
  * Public profile editor. Preview stays browser-only; save and publish remain explicit actions.
  */
+// eslint-disable-next-line max-lines-per-function -- profile editor composes the shared layout blocks and footer.
 export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
   const form = useProfileForm(initial, csrfToken);
   const statusVariant =
@@ -294,114 +167,176 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
         : form.t("profileStatusEmpty");
 
   return (
-    <div className="border-border bg-card min-w-0 space-y-6 rounded-lg border p-5 shadow-sm sm:p-6">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <Badge variant={statusVariant}>{statusLabel}</Badge>
-          <p className="text-muted-foreground text-xs">{form.t("profileStatusHint")}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {initial.published ? (
-            <Button asChild variant="ghost" size="sm">
-              <Link href={`/publishers/${initial.account_id}`} prefetch={false}>
-                {form.t("viewPublicProfile")}
+    <EntityEditorLayout
+      config={ENTITY_EDITOR_CONFIGS.profile}
+      title={form.t("profile")}
+      description={form.t("profileSubtitle")}
+      beforeBlocks={
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <Badge variant={statusVariant}>{statusLabel}</Badge>
+            <p className="text-muted-foreground text-xs">{form.t("profileStatusHint")}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {initial.published ? (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/publishers/${initial.account_id}`} prefetch={false}>
+                  {form.t("viewPublicProfile")}
+                </Link>
+              </Button>
+            ) : null}
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href="/account/profile/preview"
+                prefetch={false}
+                onClick={(event) => {
+                  event.preventDefault();
+                  form.persistPreview();
+                  window.location.assign(event.currentTarget.href);
+                }}
+              >
+                {form.t("profilePreview")}
               </Link>
             </Button>
-          ) : null}
-          <Button asChild variant="outline" size="sm">
-            <Link
-              href="/account/profile/preview"
-              prefetch={false}
-              onClick={(event) => {
-                event.preventDefault();
-                form.persistPreview();
-                window.location.assign(event.currentTarget.href);
+          </div>
+        </div>
+      }
+      blocks={{
+        avatar: (
+          <EntityEditorSection title={form.t("profileUpload")}>
+            <AvatarControls
+              avatarUrl={form.shownAvatar}
+              pending={form.pending}
+              t={form.t}
+              onFile={form.onFile}
+              onImport={form.onImport}
+              onRemove={form.onRemoveAvatar}
+              error={form.fieldErrors.avatar}
+            />
+          </EntityEditorSection>
+        ),
+        displayName: (
+          <EntityEditorField
+            label={form.t("profileDisplayName")}
+            htmlFor="profile-display-name"
+            required
+            error={form.fieldErrors.display_name}
+          >
+            <Input
+              id="profile-display-name"
+              value={form.displayName}
+              onChange={(e) => {
+                form.setDisplayName(e.target.value);
               }}
-            >
-              {form.t("profilePreview")}
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <AvatarControls
-        avatarUrl={form.shownAvatar}
-        pending={form.pending}
-        t={form.t}
-        onFile={form.onFile}
-        onImport={form.onImport}
-        onRemove={form.onRemoveAvatar}
-      />
-
-      <div className="space-y-2">
-        <Label htmlFor="profile-display-name">{form.t("profileDisplayName")}</Label>
-        <Input
-          id="profile-display-name"
-          value={form.displayName}
-          onChange={(e) => {
-            form.setDisplayName(e.target.value);
-          }}
-          maxLength={80}
-          autoComplete="nickname"
-        />
-      </div>
-
-      <BioEditor
-        bio={form.bio}
-        mode={form.bioMode}
-        error={form.bioError}
-        t={form.t}
-        onBio={form.setBio}
-        onMode={form.setBioMode}
-      />
-
-      <LinksEditor links={form.links} t={form.t} onChange={form.setLinks} />
-
-      {form.error ? (
-        <p className="text-destructive text-sm" role="alert">
-          {form.error}
-        </p>
-      ) : null}
-      {form.message ? (
-        <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
-          {form.message}
-        </p>
-      ) : null}
-
-      <div className="border-border flex flex-col gap-3 border-t pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="max-w-sm space-y-1">
-          <p className="text-muted-foreground text-xs">{form.t("profilePreviewHint")}</p>
-          {form.canRestorePublished ? (
-            <button
-              type="button"
-              className="min-h-11 text-xs underline underline-offset-4 sm:min-h-0"
-              onClick={form.restorePublished}
-              disabled={form.pending}
-            >
-              {form.t("profileRestorePublished")}
-            </button>
+              maxLength={80}
+              className={
+                form.fieldErrors.display_name
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : undefined
+              }
+              aria-invalid={Boolean(form.fieldErrors.display_name)}
+              aria-describedby={
+                form.fieldErrors.display_name ? "profile-display-name-error" : undefined
+              }
+              autoComplete="nickname"
+            />
+          </EntityEditorField>
+        ),
+        description: (
+          <MarkdownEditor
+            id="profile-bio"
+            label={form.t("profileBio")}
+            value={form.bio}
+            mode={form.bioMode === "plain" ? "write" : "preview"}
+            onChange={form.setBio}
+            onModeChange={(mode) => {
+              form.setBioMode(mode === "write" ? "plain" : "render");
+            }}
+            maxLength={PROFILE_BIO_MAX}
+            hint={form.t("profileBioHint")}
+            error={form.bioError}
+            labels={{ write: form.t("profileBioPlain"), preview: form.t("profileBioRender") }}
+          />
+        ),
+        links: (
+          <EntityLinksEditor
+            links={form.links}
+            max={ENTITY_EDITOR_CONFIGS.profile.limits.links}
+            labels={{
+              title: form.t("profileLinks"),
+              add: form.t("profileAddLink"),
+              empty: form.t("profileLinksEmpty"),
+              label: form.t("linkLabel"),
+              url: form.t("linkUrl"),
+              remove: form.t("profileRemoveLink"),
+            }}
+            onChange={form.setLinks}
+            disabled={form.pending}
+            fieldErrors={form.fieldErrors}
+            idPrefix="profile-link"
+          />
+        ),
+      }}
+      afterBlocks={
+        <>
+          <EntityEditorErrorSummary
+            error={form.error}
+            fieldErrors={form.fieldErrors}
+            summary={form.t("profileErrorFieldSummary")}
+            fieldLabel={(path) => profileFieldLabel(path, form.t)}
+          />
+          {form.message ? (
+            <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
+              {form.message}
+            </p>
           ) : null}
-        </div>
-        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-11 w-full sm:w-auto"
-            disabled={form.pending || Boolean(form.bioError)}
-            onClick={form.saveDraft}
-          >
-            {form.t("profileSave")}
-          </Button>
-          <Button
-            type="button"
-            className="min-h-11 w-full sm:w-auto"
-            disabled={form.pending || Boolean(form.bioError)}
-            onClick={form.publish}
-          >
-            {form.t("profilePublish")}
-          </Button>
-        </div>
-      </div>
-    </div>
+
+          <div className="border-border flex flex-col gap-3 border-t pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="max-w-sm space-y-1">
+              <p className="text-muted-foreground text-xs">{form.t("profilePreviewHint")}</p>
+              {form.canRestorePublished ? (
+                <button
+                  type="button"
+                  className="min-h-11 text-xs underline underline-offset-4 sm:min-h-0"
+                  onClick={form.restorePublished}
+                  disabled={form.pending}
+                >
+                  {form.t("profileRestorePublished")}
+                </button>
+              ) : null}
+            </div>
+            <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full sm:w-auto"
+                disabled={form.pending || Boolean(form.bioError)}
+                onClick={form.saveDraft}
+              >
+                {form.t("profileSave")}
+              </Button>
+              <Button
+                type="button"
+                className="min-h-11 w-full sm:w-auto"
+                disabled={form.pending || Boolean(form.bioError)}
+                onClick={form.publish}
+              >
+                {form.t("profilePublish")}
+              </Button>
+            </div>
+          </div>
+        </>
+      }
+    />
   );
+}
+
+function profileFieldLabel(path: string, t: TAccount): string {
+  if (path === "display_name" || path === "name") return t("profileDisplayName");
+  if (path === "bio") return t("profileBio");
+  if (path === "avatar") return t("profileUpload");
+  const match = path.match(/^links\.(\d+)\.(label|url)$/);
+  if (match)
+    return `${t("profileLinks")} #${Number(match[1]) + 1} ${match[2] === "label" ? t("linkLabel") : t("linkUrl")}`;
+  return path;
 }

@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
+import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import type {
   CorporateCatalogAssignment,
@@ -128,8 +129,11 @@ export function CorporateCatalogAssignments({
     }
   }
   return (
-    <section className="space-y-4">
-      <h2 className="text-xl font-medium">{h("catalogAssignments")}</h2>
+    <DetailAccordion
+      title={h("catalogAssignments")}
+      summary={`${currentItems.length}`}
+      defaultOpen={canManage}
+    >
       <ul className="divide-border divide-y">
         {currentItems.map((item) => (
           <li
@@ -269,6 +273,6 @@ export function CorporateCatalogAssignments({
           {message}
         </p>
       )}
-    </section>
+    </DetailAccordion>
   );
 }

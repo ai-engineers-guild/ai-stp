@@ -33,6 +33,51 @@ _FRONTMATTER = re.compile(r"^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$")
 _KEY = re.compile(r"^([a-z_]+):\s*(.*)$")
 _LIST_ITEM = re.compile(r"^  - (.+)$")
 _LOCAL_IMAGE = re.compile(r"^/content/illustrations/[a-z0-9._-]+\.(?:svg|png|jpg|jpeg|webp|gif)$")
+
+
+def resolve_repository_commit(repository: Path) -> str:
+    """Resolve the checkout HEAD without requiring Git in the image."""
+    marker = repository / ".git"
+    if marker.is_dir():
+        git_dir = marker
+    elif marker.is_file():
+        contents = marker.read_text(encoding="utf-8").strip()
+        if not contents.startswith("gitdir:"):
+            raise ContentError("AI_STP_CONTENT_INVALID", "repository .git marker is invalid")
+        git_dir = Path(contents.removeprefix("gitdir:").strip())
+        if not git_dir.is_absolute():
+            git_dir = repository / git_dir
+    else:
+        raise ContentError("AI_STP_CONTENT_INVALID", "repository .git directory is missing")
+
+    try:
+        head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
+    except OSError as error:
+        raise ContentError("AI_STP_CONTENT_INVALID", "repository HEAD is missing") from error
+    if re.fullmatch(CONTENT_COMMIT_PATTERN, head):
+        return head
+    if not head.startswith("ref: "):
+        raise ContentError("AI_STP_CONTENT_INVALID", "repository HEAD is not an exact SHA")
+    ref = head.removeprefix("ref: ").strip()
+    if not ref or ref.startswith("/") or ".." in Path(ref).parts:
+        raise ContentError("AI_STP_CONTENT_INVALID", "repository HEAD ref is invalid")
+
+    loose_ref = git_dir / ref
+    if loose_ref.is_file():
+        value = loose_ref.read_text(encoding="utf-8").strip()
+        if re.fullmatch(CONTENT_COMMIT_PATTERN, value):
+            return value
+    packed_refs = git_dir / "packed-refs"
+    if packed_refs.is_file():
+        for line in packed_refs.read_text(encoding="utf-8").splitlines():
+            if line.startswith("#") or line.startswith("^"):
+                continue
+            value, separator, packed_ref = line.partition(" ")
+            if separator and packed_ref == ref and re.fullmatch(CONTENT_COMMIT_PATTERN, value):
+                return value
+    raise ContentError("AI_STP_CONTENT_INVALID", "repository HEAD ref is unresolved")
+
+
 _FIRST_IMAGE = re.compile(
     r"!\[([^\]]*)\]\((/content/illustrations/[a-z0-9._-]+\.(?:svg|png|jpg|jpeg|webp|gif))\)"
 )
