@@ -92,6 +92,16 @@ def test_audit_migration_defines_append_only_trigger() -> None:
     assert "BEFORE UPDATE OR DELETE ON audit_event" in source
 
 
+def test_technology_relation_migration_quotes_allowlisted_identifiers() -> None:
+    migration = importlib.import_module("migrations.versions.0067_technology_relations")
+    source = Path("migrations/versions/0067_technology_relations.py").read_text(encoding="utf-8")
+
+    assert migration._sql_table("technology") == '"technology"'  # pyright: ignore[reportPrivateUsage]
+    with pytest.raises(ValueError):
+        migration._sql_table("user_supplied")  # pyright: ignore[reportPrivateUsage]
+    assert 'op.execute(f"' not in source
+
+
 def test_project_links_keep_history_and_allow_remote_fan_in() -> None:
     model = Path("apps/platform/src/ai_stp_platform/organization_models.py").read_text(
         encoding="utf-8"
