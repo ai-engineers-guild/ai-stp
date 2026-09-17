@@ -137,7 +137,7 @@ export function CorporateCatalogAssignments({
       <ul className="divide-border divide-y">
         {currentItems.map((item) => (
           <li
-            key={`${item.assignment_id}/${item.source_team_id ?? "direct"}`}
+            key={`${item.assignment_id}/${item.subject_id}/${item.source_team_id ?? "direct"}`}
             className="flex flex-wrap items-center justify-between gap-3 py-3"
           >
             <div>

@@ -156,6 +156,17 @@ from ai_stp_contracts.corporate_catalog_ownership import (
     CorporateCatalogOwnershipRequest,
 )
 from ai_stp_contracts.corporate_directory import CorporateDirectoryQuery, CorporateDirectoryView
+from ai_stp_contracts.corporate_governance import (
+    CorporateCatalogGovernanceQuery,
+    CorporateCatalogGovernanceView,
+    CorporateCatalogLifecycle,
+    CorporateCatalogLifecycleRequest,
+    CorporateCatalogMaintainer,
+    CorporateCatalogMaintainerRequest,
+    CorporateCatalogVerification,
+    CorporateCatalogVerificationRequest,
+    CorporatePermissionMatrix,
+)
 from ai_stp_contracts.corporate_profiles import (
     EntityProfileUploadQuery,
     EntityProfileUploadResponse,
@@ -480,6 +491,15 @@ _TECHNOLOGY_ID = PathParam(
     "technology_id", "Stable technology ID.", stable_id_pattern("technology")
 )
 _CATEGORY_ID = PathParam("category_id", "Stable category ID.", stable_id_pattern("category"))
+_CATALOG_OBJECT_KIND = PathParam(
+    "object_kind", "Published catalog object kind.", "^(setup|component)$"
+)
+_CATALOG_STABLE_ID = PathParam(
+    "stable_id",
+    "Stable published catalog object identifier.",
+    r"^(?:setup|component)_[0-9A-HJKMNP-TV-Z]{26}$",
+)
+_CATALOG_VERSION = PathParam("version", "Exact published catalog version.", VERSION_PATTERN)
 
 OPERATIONS: Final[tuple[Operation, ...]] = (
     Operation(
@@ -502,6 +522,58 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
         idempotent_mutation=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/catalog-governance/{object_kind}/{stable_id}/versions/{version}",
+        operation_id="readCorporateCatalogGovernance",
+        summary="Read consolidated tenant governance for one exact catalog version.",
+        response=CorporateCatalogGovernanceView,
+        query=CorporateCatalogGovernanceQuery,
+        path_params=(_ORGANIZATION_ID, _CATALOG_OBJECT_KIND, _CATALOG_STABLE_ID, _CATALOG_VERSION),
+        authenticated=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/catalog-governance/maintainers",
+        operation_id="writeCorporateCatalogMaintainer",
+        summary="Add or retire a maintainer for an exact published catalog version.",
+        response=CorporateCatalogMaintainer,
+        body=CorporateCatalogMaintainerRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/catalog-governance/verification",
+        operation_id="writeCorporateCatalogVerification",
+        summary="Verify or revoke one exact catalog version for the tenant.",
+        response=CorporateCatalogVerification,
+        body=CorporateCatalogVerificationRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/catalog-governance/lifecycle",
+        operation_id="writeCorporateCatalogLifecycle",
+        summary="Change tenant visibility or lifecycle for an exact catalog version.",
+        response=CorporateCatalogLifecycle,
+        body=CorporateCatalogLifecycleRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/permissions/matrix",
+        operation_id="readCorporatePermissionMatrix",
+        summary="Read effective corporate permissions and their binding sources.",
+        response=CorporatePermissionMatrix,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
     ),
     Operation(
         method="post",

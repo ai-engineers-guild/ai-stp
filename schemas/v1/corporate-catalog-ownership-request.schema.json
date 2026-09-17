@@ -40,7 +40,34 @@
           "type": "null"
         }
       ],
+      "default": null,
       "title": "Owner Account Id"
+    },
+    "owner_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner Id"
+    },
+    "owner_kind": {
+      "default": "employee",
+      "enum": [
+        "organization",
+        "team",
+        "project",
+        "technology",
+        "employee"
+      ],
+      "title": "Owner Kind",
+      "type": "string"
     },
     "schema_version": {
       "const": 1,
@@ -64,7 +91,6 @@
     "object_kind",
     "stable_id",
     "version",
-    "owner_account_id",
     "expected_revision",
     "authorization_revision",
     "idempotency_key"

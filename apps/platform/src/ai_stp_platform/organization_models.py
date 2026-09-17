@@ -823,7 +823,8 @@ class CorporateCatalogAssignment(Base):
         CheckConstraint(
             "(CASE WHEN account_id IS NULL THEN 0 ELSE 1 END + "
             "CASE WHEN team_id IS NULL THEN 0 ELSE 1 END + "
-            "CASE WHEN project_id IS NULL THEN 0 ELSE 1 END) = 1",
+            "CASE WHEN project_id IS NULL THEN 0 ELSE 1 END + "
+            "CASE WHEN technology_id IS NULL THEN 0 ELSE 1 END) = 1",
             name="ck_corporate_assignment_subject",
         ),
         ForeignKeyConstraint(
@@ -839,6 +840,11 @@ class CorporateCatalogAssignment(Base):
         ForeignKeyConstraint(
             ["organization_id", "project_id"],
             ["corporate_project.organization_id", "corporate_project.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "technology_id"],
+            ["technology.organization_id", "technology.id"],
             ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
@@ -874,6 +880,14 @@ class CorporateCatalogAssignment(Base):
             "version",
             name="uq_corporate_assignment_project",
         ),
+        UniqueConstraint(
+            "organization_id",
+            "technology_id",
+            "object_kind",
+            "stable_id",
+            "version",
+            name="uq_corporate_assignment_technology",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -883,6 +897,7 @@ class CorporateCatalogAssignment(Base):
     account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     team_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     project_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    technology_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     object_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     stable_id: Mapped[str] = mapped_column(String(64), nullable=False)
     version: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -890,6 +905,104 @@ class CorporateCatalogAssignment(Base):
         String(16), nullable=False, default="current", server_default="current"
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporateCatalogMaintainer(Base):
+    """Retained employee/team maintainer relation for a stable catalog object."""
+
+    __tablename__ = "corporate_catalog_maintainer"
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "organization_id",
+            "object_kind",
+            "stable_id",
+            "version",
+            "subject_kind",
+            "subject_id",
+        ),
+        CheckConstraint("object_kind in ('setup','component')", name="ck_catalog_maintainer_kind"),
+        CheckConstraint(
+            "subject_kind in ('employee','team')", name="ck_catalog_maintainer_subject"
+        ),
+        CheckConstraint("state in ('current','retired')", name="ck_catalog_maintainer_state"),
+        CheckConstraint("revision >= 1", name="ck_catalog_maintainer_revision"),
+    )
+
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="RESTRICT"), primary_key=True
+    )
+    object_kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    stable_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version: Mapped[str] = mapped_column(String(32), primary_key=True)
+    subject_kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    subject_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="current")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    actor_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporateCatalogVerification(Base):
+    """Tenant verification, independent from global catalog verification flags."""
+
+    __tablename__ = "corporate_catalog_verification"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "object_kind", "stable_id", "version"),
+        CheckConstraint(
+            "object_kind in ('setup','component')", name="ck_corporate_verification_kind"
+        ),
+        CheckConstraint("state in ('verified','revoked')", name="ck_corporate_verification_state"),
+        CheckConstraint("revision >= 1", name="ck_corporate_verification_revision"),
+    )
+
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="RESTRICT"), primary_key=True
+    )
+    object_kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    stable_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version: Mapped[str] = mapped_column(String(32), primary_key=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="verified")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    verified_by_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CorporateCatalogLifecycle(Base):
+    """Tenant moderation state without changing immutable public lifecycle."""
+
+    __tablename__ = "corporate_catalog_lifecycle"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "object_kind", "stable_id", "version"),
+        CheckConstraint("object_kind in ('setup','component')", name="ck_corporate_lifecycle_kind"),
+        CheckConstraint(
+            "state in ('visible','hidden','deprecated','retired')",
+            name="ck_corporate_lifecycle_state",
+        ),
+        CheckConstraint("revision >= 1", name="ck_corporate_lifecycle_revision"),
+    )
+
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="RESTRICT"), primary_key=True
+    )
+    object_kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    stable_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version: Mapped[str] = mapped_column(String(32), primary_key=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="visible")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    actor_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

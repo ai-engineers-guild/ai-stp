@@ -11,6 +11,8 @@ import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
 import { CorporateDirectoryResults } from "@/components/organisms/corporate-directory-results";
 import type {
+  CorporateCatalogFacet,
+  CorporateCatalogFacetConfig,
   DirectoryItem,
   DirectoryResource,
 } from "@/components/organisms/corporate-directory-types";
@@ -27,6 +29,8 @@ type Props = {
   initialQuery?: string;
   showHeader?: boolean;
   customCreate?: ReactNode | undefined;
+  catalogFacets?: readonly CorporateCatalogFacetConfig[];
+  catalogFacetValues?: Partial<Record<CorporateCatalogFacet, string[]>>;
 };
 
 export function CorporateDirectory({
@@ -40,6 +44,8 @@ export function CorporateDirectory({
   initialQuery = "",
   showHeader = true,
   customCreate,
+  catalogFacets,
+  catalogFacetValues,
 }: Props) {
   const t = useTranslations("hub");
   const c = useTranslations("corporate");
@@ -126,6 +132,8 @@ export function CorporateDirectory({
               }
             : undefined
         }
+        {...(catalogFacets ? { catalogFacets } : {})}
+        {...(catalogFacetValues ? { initialCatalogSelected: catalogFacetValues } : {})}
         filters={new URLSearchParams({
           ...(initialQuery ? { query: initialQuery } : {}),
         }).toString()}

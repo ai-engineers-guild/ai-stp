@@ -16,6 +16,8 @@ import {
   type DirectoryFacet,
   type DirectoryItem,
   type DirectoryResource,
+  type CorporateCatalogFacet,
+  type CorporateCatalogFacetConfig,
 } from "./corporate-directory-types";
 
 type Selected = Partial<Record<DirectoryFacet, string[]>>;
@@ -35,6 +37,9 @@ type Props = {
   onLeadOnlyChange: (value: boolean) => void;
   onViewChange: (value: "list" | "cards") => void;
   onSortChange: (value: "name" | "name_desc") => void;
+  catalogFacets?: readonly CorporateCatalogFacetConfig[];
+  catalogSelected?: Partial<Record<CorporateCatalogFacet, string[]>>;
+  onCatalogApply?: (values: Partial<Record<CorporateCatalogFacet, string[]>>) => void;
   addLabel?: string | undefined;
   cancelLabel?: string | undefined;
   adding?: boolean | undefined;
@@ -51,9 +56,15 @@ function optionsFor(items: readonly DirectoryItem[], facet: DirectoryFacet) {
   ];
 }
 
-function activeCount(selected: Selected, leadOnly: boolean) {
+function activeCount(
+  selected: Selected,
+  leadOnly: boolean,
+  catalogSelected: Partial<Record<CorporateCatalogFacet, string[]>>,
+) {
   return (
-    Object.values(selected).reduce((total, values) => total + values.length, 0) + (leadOnly ? 1 : 0)
+    Object.values(selected).reduce((total, values) => total + (values?.length ?? 0), 0) +
+    Object.values(catalogSelected).reduce((total, values) => total + (values?.length ?? 0), 0) +
+    (leadOnly ? 1 : 0)
   );
 }
 
@@ -106,6 +117,9 @@ export function CorporateDirectoryToolbar({
   onLeadOnlyChange,
   onViewChange,
   onSortChange,
+  catalogFacets = [],
+  catalogSelected = {},
+  onCatalogApply,
   addLabel,
   cancelLabel,
   adding = false,
@@ -116,10 +130,11 @@ export function CorporateDirectoryToolbar({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(Boolean(query));
   const dialogId = `corporate-${resource}-filters`;
-  const count = activeCount(selected, leadOnly);
+  const count = activeCount(selected, leadOnly, catalogSelected);
   const [draftSelected, setDraftSelected] = useState(selected);
   const [draftLeadOnly, setDraftLeadOnly] = useState(leadOnly);
   const [draftSort, setDraftSort] = useState(sort);
+  const [draftCatalogSelected, setDraftCatalogSelected] = useState(catalogSelected);
 
   useEffect(() => {
     if (!filtersOpen) return;
@@ -160,6 +175,7 @@ export function CorporateDirectoryToolbar({
             setDraftSelected(selected);
             setDraftLeadOnly(leadOnly);
             setDraftSort(sort);
+            setDraftCatalogSelected(catalogSelected);
             setFiltersOpen((open) => !open);
           }}
         >
@@ -244,6 +260,34 @@ export function CorporateDirectoryToolbar({
                 {t("lead")}
               </label>
             ) : null}
+            {catalogFacets.length ? (
+              <div className="border-border bg-muted/30 min-w-0 space-y-4 rounded-lg border p-4 md:col-span-2">
+                <h3 className="font-medium">{t("catalogGovernanceFilters")}</h3>
+                <div className="grid min-w-0 gap-5 md:grid-cols-2">
+                  {catalogFacets.map((facet) => (
+                    <label key={facet.key} className="min-w-0 space-y-2 text-sm">
+                      <span className="font-medium">{facet.label}</span>
+                      <SearchableMultiSelect
+                        name={facet.key}
+                        label={facet.label}
+                        searchLabel={`${t("search")}: ${facet.label}`}
+                        options={facet.options}
+                        selected={draftCatalogSelected[facet.key] ?? []}
+                        multiple={facet.multiple ?? true}
+                        modal
+                        closeLabel={t("closeFilters")}
+                        onChange={(values) => {
+                          setDraftCatalogSelected((previous) => ({
+                            ...previous,
+                            [facet.key]: values,
+                          }));
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <label className="min-w-0 space-y-2 text-sm">
               <span className="font-medium">{t("sortBy")}</span>
               <select
@@ -267,6 +311,7 @@ export function CorporateDirectoryToolbar({
                 setDraftSelected({});
                 setDraftLeadOnly(false);
                 setDraftSort("name");
+                setDraftCatalogSelected({});
               }}
             >
               {catalog("resetAll")}
@@ -279,6 +324,7 @@ export function CorporateDirectoryToolbar({
                 directoryFacets[resource].forEach((facet) => {
                   onFacetChange(facet, draftSelected[facet] ?? []);
                 });
+                onCatalogApply?.(draftCatalogSelected);
                 setFiltersOpen(false);
               }}
             >

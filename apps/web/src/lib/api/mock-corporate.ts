@@ -101,6 +101,15 @@ const teamViews: CorporateTeamView[] = teamNodes.map((item) => ({
   revision: 1,
   lead_account_ids: item.lead_account_ids,
   members: teamMembers(item.id),
+  project_ids: [],
+  technology_ids: [],
+  assignments: [],
+  effective_assignments: [],
+  effective_permissions: [],
+  available_actions: [],
+  governance_history: [],
+  owned_catalog_objects: [],
+  maintained_catalog_objects: [],
 }));
 const projectViews: CorporateProjectView[] = projectNodes.map((item) => ({
   schema_version: 1,

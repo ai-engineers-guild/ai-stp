@@ -7,6 +7,20 @@ export type DirectoryRef = Pick<CorporateDirectoryReference, "id" | "name"> & {
 
 export type DirectoryResource = "teams" | "projects" | "technologies" | "members" | "components";
 export type DirectoryFacet = "leads" | "teams" | "technologies" | "projects" | "categories";
+export type CorporateCatalogFacet =
+  | "team_ids"
+  | "project_ids"
+  | "technology_ids"
+  | "owner_ids"
+  | "maintainer_ids"
+  | "assignment"
+  | "corporate_verified";
+export type CorporateCatalogFacetConfig = {
+  key: CorporateCatalogFacet;
+  label: string;
+  options: readonly { value: string; label: string }[];
+  multiple?: boolean;
+};
 
 export type DirectoryItem = {
   id: string;

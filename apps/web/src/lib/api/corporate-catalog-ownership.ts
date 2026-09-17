@@ -21,6 +21,8 @@ const corporateCatalogOwnershipSchema = z.object({
   can_edit: z.boolean(),
   object_kind: z.enum(["setup", "component"]),
   organization_id: z.string(),
+  owner_id: z.string().nullable(),
+  owner_kind: z.enum(["organization", "team", "project", "technology", "employee"]),
   owner_account_id: z
     .string()
     .refine((value) => tryAsAccountId(value) !== null, "invalid owner account id")

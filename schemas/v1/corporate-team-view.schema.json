@@ -1,5 +1,112 @@
 {
   "$defs": {
+    "CorporateCatalogAssignment": {
+      "additionalProperties": true,
+      "properties": {
+        "assignment_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Assignment Id",
+          "type": "string"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        },
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source_team_id": {
+          "anyOf": [
+            {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Team Id"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "subject_id": {
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_kind": {
+          "enum": [
+            "employee",
+            "team",
+            "project",
+            "technology"
+          ],
+          "title": "Subject Kind",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assignment_id",
+        "display_name",
+        "object_kind",
+        "organization_id",
+        "revision",
+        "schema_version",
+        "source_team_id",
+        "stable_id",
+        "state",
+        "subject_id",
+        "subject_kind",
+        "version"
+      ],
+      "title": "CorporateCatalogAssignment",
+      "type": "object"
+    },
     "CorporateMember": {
       "additionalProperties": true,
       "properties": {
@@ -57,17 +164,132 @@
       ],
       "title": "CorporateMember",
       "type": "object"
+    },
+    "CorporateTeamCatalogObject": {
+      "additionalProperties": true,
+      "properties": {
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "relation": {
+          "enum": [
+            "owner",
+            "maintainer"
+          ],
+          "title": "Relation",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "object_kind",
+        "organization_id",
+        "relation",
+        "revision",
+        "schema_version",
+        "stable_id",
+        "state",
+        "version"
+      ],
+      "title": "CorporateTeamCatalogObject",
+      "type": "object"
     }
   },
   "$id": "urn:ai-stp:schema:v1:corporate-team-view",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
+    "assignments": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateCatalogAssignment"
+      },
+      "maxItems": 256,
+      "title": "Assignments",
+      "type": "array"
+    },
+    "available_actions": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 128,
+      "title": "Available Actions",
+      "type": "array"
+    },
     "description": {
       "default": "",
       "maxLength": 2000,
       "title": "Description",
       "type": "string"
+    },
+    "effective_assignments": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateCatalogAssignment"
+      },
+      "maxItems": 256,
+      "title": "Effective Assignments",
+      "type": "array"
+    },
+    "effective_permissions": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Effective Permissions",
+      "type": "array"
+    },
+    "governance_history": {
+      "default": [],
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "maxItems": 256,
+      "title": "Governance History",
+      "type": "array"
     },
     "lead_account_ids": {
       "default": [],
@@ -77,6 +299,15 @@
       },
       "maxItems": 256,
       "title": "Lead Account Ids",
+      "type": "array"
+    },
+    "maintained_catalog_objects": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateTeamCatalogObject"
+      },
+      "maxItems": 256,
+      "title": "Maintained Catalog Objects",
       "type": "array"
     },
     "members": {
@@ -96,6 +327,24 @@
       "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "title": "Organization Id",
       "type": "string"
+    },
+    "owned_catalog_objects": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateTeamCatalogObject"
+      },
+      "maxItems": 256,
+      "title": "Owned Catalog Objects",
+      "type": "array"
+    },
+    "project_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Project Ids",
+      "type": "array"
     },
     "revision": {
       "minimum": 1,
@@ -119,18 +368,36 @@
     "team_id": {
       "title": "Team Id",
       "type": "string"
+    },
+    "technology_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Technology Ids",
+      "type": "array"
     }
   },
   "required": [
+    "assignments",
+    "available_actions",
     "description",
+    "effective_assignments",
+    "effective_permissions",
+    "governance_history",
     "lead_account_ids",
+    "maintained_catalog_objects",
     "members",
     "name",
     "organization_id",
+    "owned_catalog_objects",
+    "project_ids",
     "revision",
     "schema_version",
     "state",
-    "team_id"
+    "team_id",
+    "technology_ids"
   ],
   "title": "CorporateTeamView",
   "type": "object"

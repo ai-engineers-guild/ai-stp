@@ -27,6 +27,7 @@ from ai_stp_contracts.corporate import (
     CorporateBindingRequest,
     CorporateBindingUpdateRequest,
     CorporateBootstrapRequest,
+    CorporateCatalogAssignment,
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
@@ -51,6 +52,7 @@ from ai_stp_contracts.corporate import (
     CorporateServicePrincipalUpdateRequest,
     CorporateServicePrincipalView,
     CorporateState,
+    CorporateTeamCatalogObject,
     CorporateTeamCreateRequest,
     CorporateTeamList,
     CorporateTeamUpdateRequest,
@@ -61,6 +63,9 @@ from ai_stp_contracts.corporate import (
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
+from ai_stp_platform.catalog_ownership_models import (
+    CorporateCatalogOwnership as CorporateCatalogOwnershipRow,
+)
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account, AuditEvent
 from ai_stp_platform.organization_models import (
@@ -79,9 +84,19 @@ from ai_stp_platform.organization_models import (
     ProjectIdentity,
 )
 from ai_stp_platform.organization_models import (
+    CorporateCatalogAssignment as CorporateCatalogAssignmentRow,
+)
+from ai_stp_platform.organization_models import (
+    CorporateCatalogMaintainer as CorporateCatalogMaintainerRow,
+)
+from ai_stp_platform.organization_models import (
     CorporateRole as CorporateRoleRow,
 )
-from ai_stp_platform.technology_models import Technology
+from ai_stp_platform.technology_models import (
+    ProjectTeamRelation,
+    ProjectTechnologyRelation,
+    Technology,
+)
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
 TECHNOLOGY_PERMISSIONS = frozenset(
@@ -165,11 +180,29 @@ RELATION_PERMISSIONS = frozenset(
     for resource in ("project_team", "project_technology", "technology_team", "technology_decision")
     for action in ("create", "read", "update", "delete", "list")
 )
-ROLE_PERMISSIONS["superadmin"] |= TECHNOLOGY_PERMISSIONS | RELATION_PERMISSIONS
+GOVERNANCE_PERMISSIONS = frozenset(
+    {
+        "catalog_object.read",
+        "catalog_object.edit",
+        "catalog_object.publish",
+        "catalog_object.verify",
+        "catalog_object.assign",
+        "catalog_object.ownership_transfer",
+        "catalog_object.maintainer",
+        "catalog_object.lifecycle",
+        "catalog_object.audit",
+        "catalog_object.explain",
+    }
+)
+ROLE_PERMISSIONS["superadmin"] |= (
+    TECHNOLOGY_PERMISSIONS | RELATION_PERMISSIONS | GOVERNANCE_PERMISSIONS
+)
+ROLE_PERMISSIONS["lead"] |= {"catalog_object.read"}
+ROLE_PERMISSIONS["staff"] |= {"catalog_object.read"}
 
 _ROLE_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 _BUILT_IN_ROLES: frozenset[str] = frozenset(ROLE_PERMISSIONS)
-_KNOWN_PERMISSIONS: frozenset[str] = frozenset(
+KNOWN_PERMISSIONS: frozenset[str] = frozenset(
     permission for permissions in ROLE_PERMISSIONS.values() for permission in permissions
 )
 
@@ -253,7 +286,9 @@ async def team_lead_ids(db: AsyncSession, row: CorporateTeam) -> list[str]:
     return [account_id for account_id in leads if account_id is not None]
 
 
-async def team_view(db: AsyncSession, row: CorporateTeam, *, ctx: AuthContext) -> CorporateTeamView:
+async def team_view(
+    db: AsyncSession, row: CorporateTeam, *, ctx: AuthContext, profile: bool = False
+) -> CorporateTeamView:
     leads = await team_lead_ids(db, row)
     can_list = ctx.account_id in leads or await has_corporate_permission(
         db,
@@ -284,6 +319,209 @@ async def team_view(db: AsyncSession, row: CorporateTeam, *, ctx: AuthContext) -
     if not can_list:
         query = query.where(OrganizationMembership.account_id.in_([ctx.account_id, *leads]))
     pairs = (await db.execute(query.order_by(Account.id).limit(256))).all()
+    assignments: list[CorporateCatalogAssignment] = []
+    effective_assignments: list[CorporateCatalogAssignment] = []
+    project_ids: list[str] = []
+    technology_ids: list[str] = []
+    effective_permissions: list[str] = []
+    available_actions: list[str] = []
+    governance_history: list[dict[str, object]] = []
+    owned_catalog_objects: list[CorporateTeamCatalogObject] = []
+    maintained_catalog_objects: list[CorporateTeamCatalogObject] = []
+    if profile:
+        assignment_rows = (
+            await db.scalars(
+                select(CorporateCatalogAssignmentRow)
+                .where(
+                    CorporateCatalogAssignmentRow.organization_id == row.organization_id,
+                    CorporateCatalogAssignmentRow.team_id == row.id,
+                    CorporateCatalogAssignmentRow.state == "current",
+                )
+                .order_by(CorporateCatalogAssignmentRow.id)
+            )
+        ).all()
+        assignments = [
+            CorporateCatalogAssignment(
+                assignment_id=item.id,
+                organization_id=item.organization_id,
+                subject_kind="team",
+                subject_id=row.id,
+                object_kind=cast(Literal["setup", "component"], item.object_kind),
+                stable_id=item.stable_id,
+                version=item.version,
+                state=cast(Literal["current", "retired"], item.state),
+                revision=item.revision,
+            )
+            for item in assignment_rows
+        ]
+        owned_rows = (
+            await db.scalars(
+                select(CorporateCatalogOwnershipRow)
+                .where(
+                    CorporateCatalogOwnershipRow.organization_id == row.organization_id,
+                    CorporateCatalogOwnershipRow.owner_kind == "team",
+                    CorporateCatalogOwnershipRow.owner_id == row.id,
+                )
+                .order_by(CorporateCatalogOwnershipRow.stable_id)
+            )
+        ).all()
+        owned_catalog_objects = [
+            CorporateTeamCatalogObject(
+                organization_id=item.organization_id,
+                object_kind=cast(Literal["setup", "component"], item.object_kind),
+                stable_id=item.stable_id,
+                relation="owner",
+                state="current",
+                revision=item.revision,
+            )
+            for item in owned_rows
+        ]
+        maintained_rows = (
+            await db.scalars(
+                select(CorporateCatalogMaintainerRow)
+                .where(
+                    CorporateCatalogMaintainerRow.organization_id == row.organization_id,
+                    CorporateCatalogMaintainerRow.subject_kind == "team",
+                    CorporateCatalogMaintainerRow.subject_id == row.id,
+                    CorporateCatalogMaintainerRow.state == "current",
+                )
+                .order_by(CorporateCatalogMaintainerRow.stable_id)
+            )
+        ).all()
+        maintained_catalog_objects = [
+            CorporateTeamCatalogObject(
+                organization_id=item.organization_id,
+                object_kind=cast(Literal["setup", "component"], item.object_kind),
+                stable_id=item.stable_id,
+                version=item.version,
+                relation="maintainer",
+                state=item.state,
+                revision=item.revision,
+            )
+            for item in maintained_rows
+        ]
+        visible_member_ids = {
+            member.account_id for member, _account in pairs if member.state == "active"
+        }
+        team_member_ids = set(
+            (
+                await db.scalars(
+                    select(CorporateTeamMember.account_id).where(
+                        CorporateTeamMember.organization_id == row.organization_id,
+                        CorporateTeamMember.team_id == row.id,
+                    )
+                )
+            ).all()
+        )
+        member_ids = sorted(visible_member_ids & team_member_ids)
+        direct_rows = (
+            await db.scalars(
+                select(CorporateCatalogAssignmentRow)
+                .where(
+                    CorporateCatalogAssignmentRow.organization_id == row.organization_id,
+                    CorporateCatalogAssignmentRow.account_id.in_(member_ids),
+                    CorporateCatalogAssignmentRow.state == "current",
+                )
+                .order_by(CorporateCatalogAssignmentRow.id)
+            )
+        ).all()
+        direct_assignments = [
+            CorporateCatalogAssignment(
+                assignment_id=item.id,
+                organization_id=item.organization_id,
+                subject_kind="employee",
+                subject_id=item.account_id,
+                object_kind=cast(Literal["setup", "component"], item.object_kind),
+                stable_id=item.stable_id,
+                version=item.version,
+                state=cast(Literal["current", "retired"], item.state),
+                revision=item.revision,
+            )
+            for item in direct_rows
+            if item.account_id is not None
+        ]
+        derived_assignments = [
+            item.model_copy(
+                update={
+                    "subject_kind": "employee",
+                    "subject_id": member_id,
+                    "source_team_id": row.id,
+                }
+            )
+            for member_id in member_ids
+            for item in assignments
+        ]
+        effective_assignments = [*direct_assignments, *derived_assignments]
+        project_ids = list(
+            (
+                await db.scalars(
+                    select(ProjectTeamRelation.project_id).where(
+                        ProjectTeamRelation.organization_id == row.organization_id,
+                        ProjectTeamRelation.team_id == row.id,
+                        ProjectTeamRelation.state == "current",
+                    )
+                )
+            ).all()
+        )
+        if project_ids:
+            technology_ids = list(
+                (
+                    await db.scalars(
+                        select(ProjectTechnologyRelation.technology_id)
+                        .where(
+                            ProjectTechnologyRelation.organization_id == row.organization_id,
+                            ProjectTechnologyRelation.project_id.in_(project_ids),
+                            ProjectTechnologyRelation.state == "current",
+                        )
+                        .distinct()
+                    )
+                ).all()
+            )
+        for permission in sorted(KNOWN_PERMISSIONS):
+            if await has_corporate_permission(
+                db,
+                organization_id=row.organization_id,
+                principal_type="user",
+                principal_id=ctx.account_id,
+                permission=permission,
+                scope_kind="team",
+                scope_id=row.id,
+            ):
+                effective_permissions.append(permission)
+        available_actions = [
+            action
+            for action, permission in (
+                ("team.update", "team.update"),
+                ("assignment.manage", "catalog_object.assign"),
+                ("maintainer.manage", "catalog_object.maintainer"),
+                ("audit.explain", "catalog_object.explain"),
+            )
+            if permission in effective_permissions
+        ]
+        history_rows = list(
+            (
+                await db.scalars(
+                    select(AuditEvent)
+                    .where(
+                        AuditEvent.organization_id == row.organization_id,
+                        AuditEvent.target_table == "corporate_team",
+                        AuditEvent.target_id == row.id,
+                    )
+                    .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
+                    .limit(64)
+                )
+            ).all()
+        )
+        governance_history = [
+            {
+                "action": item.action,
+                "outcome": item.outcome,
+                "actor_account_id": item.actor_account_id,
+                "reason": item.reason,
+                "created_at": format_timestamp(item.created_at),
+            }
+            for item in history_rows
+        ]
     return CorporateTeamView(
         members=[member_view(member, account) for member, account in pairs],
         lead_account_ids=leads[:256],
@@ -293,6 +531,15 @@ async def team_view(db: AsyncSession, row: CorporateTeam, *, ctx: AuthContext) -
         description=row.description,
         state=cast("Literal['active', 'archived']", row.state),
         revision=row.revision,
+        project_ids=project_ids,
+        technology_ids=technology_ids,
+        assignments=assignments,
+        effective_assignments=effective_assignments,
+        effective_permissions=effective_permissions,
+        available_actions=available_actions,
+        governance_history=governance_history,
+        owned_catalog_objects=owned_catalog_objects,
+        maintained_catalog_objects=maintained_catalog_objects,
     )
 
 
@@ -319,7 +566,7 @@ async def _role_view(db: AsyncSession, row: CorporateRoleRow) -> CorporateRoleVi
 
 def _role_permissions(payload: list[str]) -> list[str]:
     permissions = sorted(set(payload))
-    if any(permission not in _KNOWN_PERMISSIONS for permission in permissions):
+    if any(permission not in KNOWN_PERMISSIONS for permission in permissions):
         raise ApiError(ErrorCategory.VALIDATION, "corporate permission is unavailable")
     return permissions
 
@@ -2244,7 +2491,7 @@ async def read_team(
         target_id=team_id,
         request_id=request_id,
     )
-    return await team_view(db, row, ctx=ctx)
+    return await team_view(db, row, ctx=ctx, profile=True)
 
 
 async def update_team(
@@ -2967,7 +3214,7 @@ async def read_context(
         ).all()
     )
     permissions: list[str] = []
-    for permission in sorted(_KNOWN_PERMISSIONS):
+    for permission in sorted(KNOWN_PERMISSIONS):
         if await has_corporate_permission(
             db,
             organization_id=organization_id,
@@ -3095,6 +3342,11 @@ def _audit_entry(row: AuditEvent) -> CorporateAuditEntry:
             else row.created_at.replace(tzinfo=UTC)
         ),
     )
+
+
+def audit_entry(row: AuditEvent) -> CorporateAuditEntry:
+    """Project an audit row for feature services that expose retained history."""
+    return _audit_entry(row)
 
 
 async def export_audit(

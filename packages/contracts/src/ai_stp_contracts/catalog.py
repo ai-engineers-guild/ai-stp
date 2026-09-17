@@ -44,6 +44,7 @@ from ai_stp_contracts.assurance import (
     AssuranceCounts,
     TargetMatrix,
 )
+from ai_stp_contracts.corporate import OrganizationId
 from ai_stp_contracts.families import (
     AlignmentState,
     FamilyId,
@@ -613,6 +614,14 @@ class ComponentSearchRequest(BaseModel):
     #: questions until 2026-08-30, when the catalogue's first page was 19
     #: deprecated setups and one active.
     include_deprecated: bool = False
+    organization_id: OrganizationId | None = None
+    team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    project_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    technology_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    owner_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    maintainer_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    assignment: Literal["direct", "effective"] | None = None
+    corporate_verified: bool | None = None
 
     @field_validator("q", mode="before")
     @classmethod
@@ -627,6 +636,11 @@ class ComponentSearchRequest(BaseModel):
         "verification",
         "service_domains",
         "country_codes",
+        "team_ids",
+        "project_ids",
+        "technology_ids",
+        "owner_ids",
+        "maintainer_ids",
         mode="after",
     )
     @classmethod
@@ -691,6 +705,14 @@ class SetupSearchRequest(BaseModel):
     #: questions until 2026-08-30, when the catalogue's first page was 19
     #: deprecated setups and one active.
     include_deprecated: bool = False
+    organization_id: OrganizationId | None = None
+    team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    project_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    technology_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    owner_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    maintainer_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    assignment: Literal["direct", "effective"] | None = None
+    corporate_verified: bool | None = None
     family_id: FamilyId | None = None
     family_alignment: AlignmentState | None = None
     member_harness_id: HarnessId | None = None
@@ -707,6 +729,11 @@ class SetupSearchRequest(BaseModel):
         "verification",
         "service_domains",
         "country_codes",
+        "team_ids",
+        "project_ids",
+        "technology_ids",
+        "owner_ids",
+        "maintainer_ids",
         mode="after",
     )
     @classmethod

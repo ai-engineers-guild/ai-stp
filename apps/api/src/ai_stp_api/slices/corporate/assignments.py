@@ -24,6 +24,7 @@ from ai_stp_platform.organization_models import (
     CorporateTeamMember,
     OrganizationMembership,
 )
+from ai_stp_platform.technology_models import Technology
 
 
 async def write_assignment(
@@ -74,6 +75,7 @@ async def write_assignment(
         "employee": OrganizationMembership,
         "team": CorporateTeam,
         "project": CorporateProject,
+        "technology": Technology,
     }[kind]
     identity = OrganizationMembership.account_id if kind == "employee" else model.id
     subject = await db.scalar(
@@ -81,12 +83,17 @@ async def write_assignment(
             model.organization_id == organization_id, identity == payload.subject_id
         )
     )
-    if subject is None or (payload.state == "current" and subject.state != "active"):
+    subject_active = subject is not None and (
+        getattr(subject, "state", None) == "active"
+        or getattr(subject, "lifecycle", None) in {"active", "deprecated"}
+    )
+    if subject is None or (payload.state == "current" and not subject_active):
         raise ApiError(ErrorCategory.PERMISSION, "assignment subject is unavailable")
     column = {
         "employee": AssignmentRow.account_id,
         "team": AssignmentRow.team_id,
         "project": AssignmentRow.project_id,
+        "technology": AssignmentRow.technology_id,
     }[kind]
     row = await db.scalar(
         select(AssignmentRow).where(
@@ -111,7 +118,12 @@ async def write_assignment(
         )
         setattr(
             row,
-            {"employee": "account_id", "team": "team_id", "project": "project_id"}[kind],
+            {
+                "employee": "account_id",
+                "team": "team_id",
+                "project": "project_id",
+                "technology": "technology_id",
+            }[kind],
             payload.subject_id,
         )
         db.add(row)
@@ -179,6 +191,23 @@ async def list_assignments(
             team_id=query.subject_id,
             request_id=request_id,
         )
+    elif kind == "technology":
+        await service.authorize(
+            db,
+            ctx=ctx,
+            organization_id=organization_id,
+            permission="technology.read",
+            scope_kind="technology",
+            scope_id=query.subject_id,
+        )
+        technology = await db.scalar(
+            select(Technology).where(
+                Technology.organization_id == organization_id,
+                Technology.id == query.subject_id,
+            )
+        )
+        if technology is None:
+            raise ApiError(ErrorCategory.PERMISSION, "technology access denied")
     else:
         await service.read_project(
             db,
@@ -191,6 +220,7 @@ async def list_assignments(
         "employee": AssignmentRow.account_id,
         "team": AssignmentRow.team_id,
         "project": AssignmentRow.project_id,
+        "technology": AssignmentRow.technology_id,
     }[kind]
     predicate = column == query.subject_id
     state_filter = AssignmentRow.state == "current"

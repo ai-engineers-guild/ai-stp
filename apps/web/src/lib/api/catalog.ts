@@ -1,6 +1,7 @@
 import type { ComponentId, CursorToken, SetupId, VersionId } from "@/lib/brands";
 import { CATALOG_DEFAULT_PAGE_SIZE } from "@/lib/catalog-query";
 import { ApiError } from "@/lib/api/errors";
+import { apiRequest } from "@/lib/api/http";
 import { publicApiGet, publicApiGetLive } from "@/lib/api/public-http";
 
 import { catalogPrivateGet } from "./catalog-private";
@@ -24,6 +25,7 @@ export type GitHubMetadata = {
 export type { ComponentContextBudget, SetupContextBudget } from "./generated/types.gen";
 
 type SearchParams = {
+  sessionToken?: string;
   q?: string;
   page_size?: number;
   page?: number;
@@ -51,6 +53,14 @@ type SearchParams = {
   family_id?: string;
   family_alignment?: "aligned" | "diverged" | "unknown" | "missing";
   member_harness_id?: string;
+  organization_id?: string;
+  team_ids?: ReadonlyArray<string>;
+  project_ids?: ReadonlyArray<string>;
+  technology_ids?: ReadonlyArray<string>;
+  owner_ids?: ReadonlyArray<string>;
+  maintainer_ids?: ReadonlyArray<string>;
+  assignment?: "direct" | "effective";
+  corporate_verified?: boolean;
 };
 
 export type ExternalProductObject = {
@@ -106,66 +116,90 @@ export async function readCountry(code: string): Promise<Country> {
 }
 
 export async function searchComponents(params: SearchParams = {}): Promise<ComponentListResponse> {
-  return publicApiGet<ComponentListResponse>("/v1/catalog/components", {
-    query: {
-      q: params.q,
-      page_size: params.page_size ?? CATALOG_DEFAULT_PAGE_SIZE,
-      page: params.page,
-      cursor: params.cursor,
-      include_experimental: params.include_experimental ?? true,
-      tags: params.tags && params.tags.length > 0 ? [...params.tags] : undefined,
-      harness_id: params.harness_id,
-      component_type: params.component_type,
-      harness_ids: params.harness_ids ? [...params.harness_ids] : undefined,
-      component_types: params.component_types ? [...params.component_types] : undefined,
-      authors: params.authors ? [...params.authors] : undefined,
-      verification: params.verification ? [...params.verification] : undefined,
-      verified_only: params.verified_only,
-      min_safety_percent: params.min_safety_percent,
-      sort: params.sort,
-      sort_direction: params.sort_direction,
-      support_tier: params.support_tier,
-      support_state: params.support_state,
-      service_domain: params.service_domain,
-      country_code: params.country_code,
-      service_domains: params.service_domains ? [...params.service_domains] : undefined,
-      country_codes: params.country_codes ? [...params.country_codes] : undefined,
-      updated_from: params.updated_from,
-      updated_to: params.updated_to,
-    },
-  });
+  const query = {
+    q: params.q,
+    page_size: params.page_size ?? CATALOG_DEFAULT_PAGE_SIZE,
+    page: params.page,
+    cursor: params.cursor,
+    include_experimental: params.include_experimental ?? true,
+    tags: params.tags && params.tags.length > 0 ? [...params.tags] : undefined,
+    harness_id: params.harness_id,
+    component_type: params.component_type,
+    harness_ids: params.harness_ids ? [...params.harness_ids] : undefined,
+    component_types: params.component_types ? [...params.component_types] : undefined,
+    authors: params.authors ? [...params.authors] : undefined,
+    verification: params.verification ? [...params.verification] : undefined,
+    verified_only: params.verified_only,
+    min_safety_percent: params.min_safety_percent,
+    sort: params.sort,
+    sort_direction: params.sort_direction,
+    support_tier: params.support_tier,
+    support_state: params.support_state,
+    service_domain: params.service_domain,
+    country_code: params.country_code,
+    service_domains: params.service_domains ? [...params.service_domains] : undefined,
+    country_codes: params.country_codes ? [...params.country_codes] : undefined,
+    updated_from: params.updated_from,
+    updated_to: params.updated_to,
+    organization_id: params.organization_id,
+    team_ids: params.team_ids ? [...params.team_ids] : undefined,
+    project_ids: params.project_ids ? [...params.project_ids] : undefined,
+    technology_ids: params.technology_ids ? [...params.technology_ids] : undefined,
+    owner_ids: params.owner_ids ? [...params.owner_ids] : undefined,
+    maintainer_ids: params.maintainer_ids ? [...params.maintainer_ids] : undefined,
+    assignment: params.assignment,
+    corporate_verified: params.corporate_verified,
+  };
+  return params.sessionToken
+    ? apiRequest<ComponentListResponse>("/v1/catalog/components", {
+        sessionToken: params.sessionToken,
+        query,
+      })
+    : publicApiGet<ComponentListResponse>("/v1/catalog/components", { query });
 }
 
 export async function searchSetups(params: SearchParams = {}): Promise<SetupListResponse> {
-  return publicApiGet<SetupListResponse>("/v1/catalog/setups", {
-    query: {
-      q: params.q,
-      page_size: params.page_size ?? CATALOG_DEFAULT_PAGE_SIZE,
-      page: params.page,
-      cursor: params.cursor,
-      include_experimental: params.include_experimental ?? true,
-      tags: params.tags && params.tags.length > 0 ? [...params.tags] : undefined,
-      harness_id: params.harness_id,
-      harness_ids: params.harness_ids ? [...params.harness_ids] : undefined,
-      authors: params.authors ? [...params.authors] : undefined,
-      verification: params.verification ? [...params.verification] : undefined,
-      verified_only: params.verified_only,
-      min_safety_percent: params.min_safety_percent,
-      sort: params.sort,
-      sort_direction: params.sort_direction,
-      support_tier: params.support_tier,
-      support_state: params.support_state,
-      service_domain: params.service_domain,
-      country_code: params.country_code,
-      service_domains: params.service_domains ? [...params.service_domains] : undefined,
-      country_codes: params.country_codes ? [...params.country_codes] : undefined,
-      updated_from: params.updated_from,
-      updated_to: params.updated_to,
-      family_id: params.family_id,
-      family_alignment: params.family_alignment,
-      member_harness_id: params.member_harness_id,
-    },
-  });
+  const query = {
+    q: params.q,
+    page_size: params.page_size ?? CATALOG_DEFAULT_PAGE_SIZE,
+    page: params.page,
+    cursor: params.cursor,
+    include_experimental: params.include_experimental ?? true,
+    tags: params.tags && params.tags.length > 0 ? [...params.tags] : undefined,
+    harness_id: params.harness_id,
+    harness_ids: params.harness_ids ? [...params.harness_ids] : undefined,
+    authors: params.authors ? [...params.authors] : undefined,
+    verification: params.verification ? [...params.verification] : undefined,
+    verified_only: params.verified_only,
+    min_safety_percent: params.min_safety_percent,
+    sort: params.sort,
+    sort_direction: params.sort_direction,
+    support_tier: params.support_tier,
+    support_state: params.support_state,
+    service_domain: params.service_domain,
+    country_code: params.country_code,
+    service_domains: params.service_domains ? [...params.service_domains] : undefined,
+    country_codes: params.country_codes ? [...params.country_codes] : undefined,
+    updated_from: params.updated_from,
+    updated_to: params.updated_to,
+    family_id: params.family_id,
+    family_alignment: params.family_alignment,
+    member_harness_id: params.member_harness_id,
+    organization_id: params.organization_id,
+    team_ids: params.team_ids ? [...params.team_ids] : undefined,
+    project_ids: params.project_ids ? [...params.project_ids] : undefined,
+    technology_ids: params.technology_ids ? [...params.technology_ids] : undefined,
+    owner_ids: params.owner_ids ? [...params.owner_ids] : undefined,
+    maintainer_ids: params.maintainer_ids ? [...params.maintainer_ids] : undefined,
+    assignment: params.assignment,
+    corporate_verified: params.corporate_verified,
+  };
+  return params.sessionToken
+    ? apiRequest<SetupListResponse>("/v1/catalog/setups", {
+        sessionToken: params.sessionToken,
+        query,
+      })
+    : publicApiGet<SetupListResponse>("/v1/catalog/setups", { query });
 }
 
 export type CatalogRelationService = {

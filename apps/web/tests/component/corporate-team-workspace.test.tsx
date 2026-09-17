@@ -48,6 +48,15 @@ const team: CorporateTeamView = {
   revision: 1,
   members: [employee],
   lead_account_ids: [employee.account_id],
+  assignments: [],
+  effective_assignments: [],
+  effective_permissions: [],
+  governance_history: [],
+  maintained_catalog_objects: [],
+  owned_catalog_objects: [],
+  project_ids: [],
+  technology_ids: [],
+  available_actions: [],
 };
 const second: CorporateTeamView = {
   ...team,

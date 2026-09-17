@@ -31,6 +31,8 @@ const props = {
     can_edit: true,
     object_kind: "component" as const,
     organization_id: organizationId,
+    owner_id: ownerId,
+    owner_kind: "employee" as const,
     owner_account_id: ownerId,
     owner_display_name: "Current owner",
     revision: 7,

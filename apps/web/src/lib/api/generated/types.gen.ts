@@ -1199,6 +1199,10 @@ export type ComponentRef = {
  */
 export type ComponentSearchRequest = {
   /**
+   * Assignment
+   */
+  assignment?: "direct" | "effective" | null;
+  /**
    * Authors
    */
   authors?: Array<string>;
@@ -1207,6 +1211,10 @@ export type ComponentSearchRequest = {
    * Component Types
    */
   component_types?: Array<ComponentType>;
+  /**
+   * Corporate Verified
+   */
+  corporate_verified?: boolean | null;
   country_code?: CountryCode | null;
   /**
    * Country Codes
@@ -1228,9 +1236,25 @@ export type ComponentSearchRequest = {
    * Include Experimental
    */
   include_experimental?: boolean;
+  /**
+   * Maintainer Ids
+   */
+  maintainer_ids?: Array<string>;
   min_safety_percent?: SafetyPercent | null;
+  /**
+   * Organization Id
+   */
+  organization_id?: string | null;
+  /**
+   * Owner Ids
+   */
+  owner_ids?: Array<string>;
   page?: PageNumber | null;
   page_size?: PageSize;
+  /**
+   * Project Ids
+   */
+  project_ids?: Array<string>;
   /**
    * Q
    */
@@ -1257,6 +1281,14 @@ export type ComponentSearchRequest = {
    * Tags
    */
   tags?: Array<TagId>;
+  /**
+   * Team Ids
+   */
+  team_ids?: Array<string>;
+  /**
+   * Technology Ids
+   */
+  technology_ids?: Array<string>;
   updated_from?: CatalogUpdatedDate | null;
   updated_to?: CatalogUpdatedDate | null;
   /**
@@ -1833,6 +1865,37 @@ export type ContextDelta = {
 };
 
 /**
+ * Continuation
+ *
+ * One next step with bound values, and the names still missing.
+ *
+ * ``next_actions`` remains the argv an older caller runs. This object is the
+ * canonical form: a path this build declares, arguments already known, and
+ * ``missing`` for anything the caller must still supply. A command that still
+ * has holes is not emitted as runnable-looking argv.
+ */
+export type Continuation = {
+  /**
+   * Arguments
+   */
+  arguments?: {
+    [key: string]: string;
+  };
+  /**
+   * Kind
+   */
+  kind: "retry" | "advance" | "inspect" | "blocked" | "terminal";
+  /**
+   * Missing
+   */
+  missing?: Array<string>;
+  /**
+   * Path
+   */
+  path: Array<string>;
+};
+
+/**
  * CorporateAuditEntry
  */
 export type CorporateAuditEntry = {
@@ -2164,7 +2227,7 @@ export type CorporateCatalogAssignment = {
   /**
    * Subject Kind
    */
-  subject_kind: "employee" | "team" | "project";
+  subject_kind: "employee" | "team" | "project" | "technology";
   /**
    * Version
    */
@@ -2214,7 +2277,7 @@ export type CorporateCatalogAssignmentQuery = {
   /**
    * Subject Kind
    */
-  subject_kind: "employee" | "team" | "project";
+  subject_kind: "employee" | "team" | "project" | "technology";
 };
 
 /**
@@ -2255,7 +2318,235 @@ export type CorporateCatalogAssignmentRequest = {
   /**
    * Subject Kind
    */
-  subject_kind: "employee" | "team" | "project";
+  subject_kind: "employee" | "team" | "project" | "technology";
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
+ * CorporateCatalogGovernanceQuery
+ */
+export type CorporateCatalogGovernanceQuery = {
+  /**
+   * Include History
+   */
+  include_history?: boolean;
+  /**
+   * Include Retired
+   */
+  include_retired?: boolean;
+};
+
+/**
+ * CorporateCatalogGovernanceView
+ */
+export type CorporateCatalogGovernanceView = {
+  /**
+   * Available Actions
+   */
+  available_actions: Array<string>;
+  /**
+   * History
+   */
+  history: Array<CorporateAuditEntry>;
+  lifecycle: CorporateCatalogLifecycle | null;
+  /**
+   * Maintainers
+   */
+  maintainers: Array<CorporateCatalogMaintainer>;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  ownership: CorporateCatalogOwnership;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  verification: CorporateCatalogVerification | null;
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateCatalogLifecycle
+ */
+export type CorporateCatalogLifecycle = {
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Reason
+   */
+  reason: string | null;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "visible" | "hidden" | "deprecated" | "retired";
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateCatalogLifecycleRequest
+ */
+export type CorporateCatalogLifecycleRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "visible" | "hidden" | "deprecated" | "retired";
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
+ * CorporateCatalogMaintainer
+ */
+export type CorporateCatalogMaintainer = {
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Reason
+   */
+  reason: string | null;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "current" | "retired";
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind: "employee" | "team";
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateCatalogMaintainerRequest
+ */
+export type CorporateCatalogMaintainerRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Reason
+   */
+  reason?: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state?: "current" | "retired";
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind: "employee" | "team";
   /**
    * Version
    */
@@ -2286,6 +2577,14 @@ export type CorporateCatalogOwnership = {
    * Owner Display Name
    */
   owner_display_name: string | null;
+  /**
+   * Owner Id
+   */
+  owner_id: string | null;
+  /**
+   * Owner Kind
+   */
+  owner_kind: "organization" | "team" | "project" | "technology" | "employee";
   /**
    * Revision
    */
@@ -2339,7 +2638,15 @@ export type CorporateCatalogOwnershipRequest = {
   /**
    * Owner Account Id
    */
-  owner_account_id: string | null;
+  owner_account_id?: string | null;
+  /**
+   * Owner Id
+   */
+  owner_id?: string | null;
+  /**
+   * Owner Kind
+   */
+  owner_kind?: "organization" | "team" | "project" | "technology" | "employee";
   /**
    * Schema Version
    */
@@ -2348,6 +2655,88 @@ export type CorporateCatalogOwnershipRequest = {
    * Stable Id
    */
   stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
+ * CorporateCatalogVerification
+ */
+export type CorporateCatalogVerification = {
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Reason
+   */
+  reason: string | null;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "verified" | "revoked";
+  /**
+   * Verified By Account Id
+   */
+  verified_by_account_id: string | null;
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateCatalogVerificationRequest
+ */
+export type CorporateCatalogVerificationRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "verified" | "revoked";
   /**
    * Version
    */
@@ -2596,6 +2985,29 @@ export type CorporateDirectoryView = {
    * Total
    */
   total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateEffectivePermission
+ */
+export type CorporateEffectivePermission = {
+  /**
+   * Permission
+   */
+  permission: string;
+  /**
+   * Scope Id
+   */
+  scope_id: string;
+  /**
+   * Scope Kind
+   */
+  scope_kind: "organization" | "team" | "project" | "technology" | "catalog_object";
+  /**
+   * Sources
+   */
+  sources: Array<string>;
   [key: string]: unknown;
 };
 
@@ -2900,6 +3312,52 @@ export type CorporateOverviewNode = {
    * Name
    */
   name: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporatePermissionDefinition
+ */
+export type CorporatePermissionDefinition = {
+  /**
+   * Group
+   */
+  group: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Scopes
+   */
+  scopes: Array<"organization" | "team" | "project" | "technology" | "catalog_object">;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporatePermissionMatrix
+ */
+export type CorporatePermissionMatrix = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Definitions
+   */
+  definitions: Array<CorporatePermissionDefinition>;
+  /**
+   * Effective
+   */
+  effective: Array<CorporateEffectivePermission>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
   [key: string]: unknown;
 };
 
@@ -3231,6 +3689,45 @@ export type CorporateServicePrincipalView = {
 };
 
 /**
+ * CorporateTeamCatalogObject
+ */
+export type CorporateTeamCatalogObject = {
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Relation
+   */
+  relation: "owner" | "maintainer";
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: string;
+  /**
+   * Version
+   */
+  version: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * CorporateTeamCreateRequest
  */
 export type CorporateTeamCreateRequest = {
@@ -3304,13 +3801,39 @@ export type CorporateTeamUpdateRequest = {
  */
 export type CorporateTeamView = {
   /**
+   * Assignments
+   */
+  assignments: Array<CorporateCatalogAssignment>;
+  /**
+   * Available Actions
+   */
+  available_actions: Array<string>;
+  /**
    * Description
    */
   description: string;
   /**
+   * Effective Assignments
+   */
+  effective_assignments: Array<CorporateCatalogAssignment>;
+  /**
+   * Effective Permissions
+   */
+  effective_permissions: Array<string>;
+  /**
+   * Governance History
+   */
+  governance_history: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
    * Lead Account Ids
    */
   lead_account_ids: Array<string>;
+  /**
+   * Maintained Catalog Objects
+   */
+  maintained_catalog_objects: Array<CorporateTeamCatalogObject>;
   /**
    * Members
    */
@@ -3323,6 +3846,14 @@ export type CorporateTeamView = {
    * Organization Id
    */
   organization_id: string;
+  /**
+   * Owned Catalog Objects
+   */
+  owned_catalog_objects: Array<CorporateTeamCatalogObject>;
+  /**
+   * Project Ids
+   */
+  project_ids: Array<string>;
   /**
    * Revision
    */
@@ -3339,6 +3870,10 @@ export type CorporateTeamView = {
    * Team Id
    */
   team_id: string;
+  /**
+   * Technology Ids
+   */
+  technology_ids: Array<string>;
   [key: string]: unknown;
 };
 
@@ -3997,6 +4532,10 @@ export type EnvVarRequirement = {
  * The single JSON object of a failed or partial machine invocation.
  */
 export type ErrorEnvelope = {
+  /**
+   * Continuations
+   */
+  continuations?: Array<Continuation>;
   error: CliError;
   /**
    * Next Actions
@@ -8199,9 +8738,17 @@ export type SetupRef = {
  */
 export type SetupSearchRequest = {
   /**
+   * Assignment
+   */
+  assignment?: "direct" | "effective" | null;
+  /**
    * Authors
    */
   authors?: Array<string>;
+  /**
+   * Corporate Verified
+   */
+  corporate_verified?: boolean | null;
   country_code?: CountryCode | null;
   /**
    * Country Codes
@@ -8225,10 +8772,26 @@ export type SetupSearchRequest = {
    * Include Experimental
    */
   include_experimental?: boolean;
+  /**
+   * Maintainer Ids
+   */
+  maintainer_ids?: Array<string>;
   member_harness_id?: HarnessId | null;
   min_safety_percent?: SafetyPercent | null;
+  /**
+   * Organization Id
+   */
+  organization_id?: string | null;
+  /**
+   * Owner Ids
+   */
+  owner_ids?: Array<string>;
   page?: PageNumber | null;
   page_size?: PageSize;
+  /**
+   * Project Ids
+   */
+  project_ids?: Array<string>;
   /**
    * Q
    */
@@ -8255,6 +8818,14 @@ export type SetupSearchRequest = {
    * Tags
    */
   tags?: Array<TagId>;
+  /**
+   * Team Ids
+   */
+  team_ids?: Array<string>;
+  /**
+   * Technology Ids
+   */
+  technology_ids?: Array<string>;
   updated_from?: CatalogUpdatedDate | null;
   updated_to?: CatalogUpdatedDate | null;
   /**
@@ -11656,6 +12227,10 @@ export type SearchComponentsData = {
   path?: never;
   query?: {
     /**
+     * Assignment
+     */
+    assignment?: "direct" | "effective" | null;
+    /**
      * Authors
      */
     authors?: Array<string>;
@@ -11664,6 +12239,10 @@ export type SearchComponentsData = {
      * Component Types
      */
     component_types?: Array<ComponentType>;
+    /**
+     * Corporate Verified
+     */
+    corporate_verified?: boolean | null;
     country_code?: CountryCode | null;
     /**
      * Country Codes
@@ -11685,9 +12264,25 @@ export type SearchComponentsData = {
      * Include Experimental
      */
     include_experimental?: boolean;
+    /**
+     * Maintainer Ids
+     */
+    maintainer_ids?: Array<string>;
     min_safety_percent?: SafetyPercent | null;
+    /**
+     * Organization Id
+     */
+    organization_id?: string | null;
+    /**
+     * Owner Ids
+     */
+    owner_ids?: Array<string>;
     page?: PageNumber | null;
     page_size?: PageSize;
+    /**
+     * Project Ids
+     */
+    project_ids?: Array<string>;
     /**
      * Q
      */
@@ -11710,6 +12305,14 @@ export type SearchComponentsData = {
      * Tags
      */
     tags?: Array<TagId>;
+    /**
+     * Team Ids
+     */
+    team_ids?: Array<string>;
+    /**
+     * Technology Ids
+     */
+    technology_ids?: Array<string>;
     updated_from?: CatalogUpdatedDate | null;
     updated_to?: CatalogUpdatedDate | null;
     /**
@@ -12172,9 +12775,17 @@ export type SearchSetupsData = {
   path?: never;
   query?: {
     /**
+     * Assignment
+     */
+    assignment?: "direct" | "effective" | null;
+    /**
      * Authors
      */
     authors?: Array<string>;
+    /**
+     * Corporate Verified
+     */
+    corporate_verified?: boolean | null;
     country_code?: CountryCode | null;
     /**
      * Country Codes
@@ -12198,10 +12809,26 @@ export type SearchSetupsData = {
      * Include Experimental
      */
     include_experimental?: boolean;
+    /**
+     * Maintainer Ids
+     */
+    maintainer_ids?: Array<string>;
     member_harness_id?: HarnessId | null;
     min_safety_percent?: SafetyPercent | null;
+    /**
+     * Organization Id
+     */
+    organization_id?: string | null;
+    /**
+     * Owner Ids
+     */
+    owner_ids?: Array<string>;
     page?: PageNumber | null;
     page_size?: PageSize;
+    /**
+     * Project Ids
+     */
+    project_ids?: Array<string>;
     /**
      * Q
      */
@@ -12224,6 +12851,14 @@ export type SearchSetupsData = {
      * Tags
      */
     tags?: Array<TagId>;
+    /**
+     * Team Ids
+     */
+    team_ids?: Array<string>;
+    /**
+     * Technology Ids
+     */
+    technology_ids?: Array<string>;
     updated_from?: CatalogUpdatedDate | null;
     updated_to?: CatalogUpdatedDate | null;
     /**
@@ -13918,7 +14553,7 @@ export type ListCorporateCatalogAssignmentsData = {
     /**
      * Subject Kind
      */
-    subject_kind: "employee" | "team" | "project";
+    subject_kind: "employee" | "team" | "project" | "technology";
   };
   url: "/v1/corporate/organizations/{organization_id}/catalog-assignments";
 };
@@ -14028,6 +14663,271 @@ export type WriteCorporateCatalogAssignmentResponses = {
 
 export type WriteCorporateCatalogAssignmentResponse =
   WriteCorporateCatalogAssignmentResponses[keyof WriteCorporateCatalogAssignmentResponses];
+
+export type WriteCorporateCatalogLifecycleData = {
+  body: CorporateCatalogLifecycleRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/catalog-governance/lifecycle";
+};
+
+export type WriteCorporateCatalogLifecycleErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteCorporateCatalogLifecycleError =
+  WriteCorporateCatalogLifecycleErrors[keyof WriteCorporateCatalogLifecycleErrors];
+
+export type WriteCorporateCatalogLifecycleResponses = {
+  /**
+   * Change tenant visibility or lifecycle for an exact catalog version.
+   */
+  200: CorporateCatalogLifecycle;
+};
+
+export type WriteCorporateCatalogLifecycleResponse =
+  WriteCorporateCatalogLifecycleResponses[keyof WriteCorporateCatalogLifecycleResponses];
+
+export type WriteCorporateCatalogMaintainerData = {
+  body: CorporateCatalogMaintainerRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/catalog-governance/maintainers";
+};
+
+export type WriteCorporateCatalogMaintainerErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteCorporateCatalogMaintainerError =
+  WriteCorporateCatalogMaintainerErrors[keyof WriteCorporateCatalogMaintainerErrors];
+
+export type WriteCorporateCatalogMaintainerResponses = {
+  /**
+   * Add or retire a maintainer for an exact published catalog version.
+   */
+  200: CorporateCatalogMaintainer;
+};
+
+export type WriteCorporateCatalogMaintainerResponse =
+  WriteCorporateCatalogMaintainerResponses[keyof WriteCorporateCatalogMaintainerResponses];
+
+export type WriteCorporateCatalogVerificationData = {
+  body: CorporateCatalogVerificationRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/catalog-governance/verification";
+};
+
+export type WriteCorporateCatalogVerificationErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type WriteCorporateCatalogVerificationError =
+  WriteCorporateCatalogVerificationErrors[keyof WriteCorporateCatalogVerificationErrors];
+
+export type WriteCorporateCatalogVerificationResponses = {
+  /**
+   * Verify or revoke one exact catalog version for the tenant.
+   */
+  200: CorporateCatalogVerification;
+};
+
+export type WriteCorporateCatalogVerificationResponse =
+  WriteCorporateCatalogVerificationResponses[keyof WriteCorporateCatalogVerificationResponses];
+
+export type ReadCorporateCatalogGovernanceData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Published catalog object kind.
+     */
+    object_kind: string;
+    /**
+     * Stable published catalog object identifier.
+     */
+    stable_id: string;
+    /**
+     * Exact published catalog version.
+     */
+    version: string;
+  };
+  query?: {
+    /**
+     * Include History
+     */
+    include_history?: boolean;
+    /**
+     * Include Retired
+     */
+    include_retired?: boolean;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/catalog-governance/{object_kind}/{stable_id}/versions/{version}";
+};
+
+export type ReadCorporateCatalogGovernanceErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateCatalogGovernanceError =
+  ReadCorporateCatalogGovernanceErrors[keyof ReadCorporateCatalogGovernanceErrors];
+
+export type ReadCorporateCatalogGovernanceResponses = {
+  /**
+   * Read consolidated tenant governance for one exact catalog version.
+   */
+  200: CorporateCatalogGovernanceView;
+};
+
+export type ReadCorporateCatalogGovernanceResponse =
+  ReadCorporateCatalogGovernanceResponses[keyof ReadCorporateCatalogGovernanceResponses];
 
 export type ReadCorporateCatalogOwnershipData = {
   body?: never;
@@ -15155,6 +16055,64 @@ export type ReadCorporateOverviewResponses = {
 
 export type ReadCorporateOverviewResponse =
   ReadCorporateOverviewResponses[keyof ReadCorporateOverviewResponses];
+
+export type ReadCorporatePermissionMatrixData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/permissions/matrix";
+};
+
+export type ReadCorporatePermissionMatrixErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporatePermissionMatrixError =
+  ReadCorporatePermissionMatrixErrors[keyof ReadCorporatePermissionMatrixErrors];
+
+export type ReadCorporatePermissionMatrixResponses = {
+  /**
+   * Read effective corporate permissions and their binding sources.
+   */
+  200: CorporatePermissionMatrix;
+};
+
+export type ReadCorporatePermissionMatrixResponse =
+  ReadCorporatePermissionMatrixResponses[keyof ReadCorporatePermissionMatrixResponses];
 
 export type UploadCorporateEntityProfileMediaData = {
   body: Blob | File;

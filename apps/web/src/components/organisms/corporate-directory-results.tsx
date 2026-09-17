@@ -15,9 +15,15 @@ import {
   type DirectoryFacet,
   type DirectoryItem,
   type DirectoryResource,
+  type CorporateCatalogFacet,
+  type CorporateCatalogFacetConfig,
 } from "./corporate-directory-types";
+import { useRouter } from "@/lib/i18n/navigation";
 
 export type { DirectoryItem, DirectoryResource } from "./corporate-directory-types";
+
+const EMPTY_CATALOG_FACETS: readonly CorporateCatalogFacetConfig[] = [];
+const EMPTY_CATALOG_SELECTION: Partial<Record<CorporateCatalogFacet, string[]>> = {};
 
 export function matchesDirectoryFilters(
   item: DirectoryItem,
@@ -85,6 +91,8 @@ export function CorporateDirectoryResults({
   cancelLabel,
   adding = false,
   onAdd,
+  catalogFacets = EMPTY_CATALOG_FACETS,
+  initialCatalogSelected = EMPTY_CATALOG_SELECTION,
 }: {
   resource: DirectoryResource;
   items: readonly DirectoryItem[];
@@ -94,6 +102,8 @@ export function CorporateDirectoryResults({
   cancelLabel?: string | undefined;
   adding?: boolean | undefined;
   onAdd?: (() => void) | undefined;
+  catalogFacets?: readonly CorporateCatalogFacetConfig[];
+  initialCatalogSelected?: Partial<Record<CorporateCatalogFacet, string[]>>;
 }) {
   const t = useTranslations("hub");
   const [query, setQuery] = useState(initialQuery);
@@ -104,6 +114,8 @@ export function CorporateDirectoryResults({
   const [selected, setSelected] = useState<CorporateDirectorySelectedFilters>({});
   const [leadOnly, setLeadOnly] = useState(false);
   const [returnFilters, setReturnFilters] = useState(filters);
+  const [catalogSelected, setCatalogSelected] = useState(initialCatalogSelected);
+  const router = useRouter();
 
   useEffect(() => {
     function restore() {
@@ -114,13 +126,23 @@ export function CorporateDirectoryResults({
       setLeadOnly(next.leadOnly);
       setSelected(next.selected);
       setReturnFilters(currentReturnFilters(filters));
+      setCatalogSelected(
+        Object.fromEntries(
+          catalogFacets.map((facet) => [
+            facet.key,
+            window.location.search
+              ? new URLSearchParams(window.location.search).getAll(facet.key)
+              : (initialCatalogSelected[facet.key] ?? []),
+          ]),
+        ) as Partial<Record<CorporateCatalogFacet, string[]>>,
+      );
     }
     restore();
     window.addEventListener("popstate", restore);
     return () => {
       window.removeEventListener("popstate", restore);
     };
-  }, [filters, resource]);
+  }, [catalogFacets, filters, initialCatalogSelected, resource]);
 
   function persist(name: string, values: string[]) {
     const url = new URL(window.location.href);
@@ -157,6 +179,17 @@ export function CorporateDirectoryResults({
   function changeLeadOnly(value: boolean) {
     setLeadOnly(value);
     persist("is_lead", value ? ["true"] : []);
+  }
+
+  function applyCatalogFacets(values: Partial<Record<CorporateCatalogFacet, string[]>>) {
+    const url = new URL(window.location.href);
+    for (const facet of catalogFacets) {
+      url.searchParams.delete(facet.key);
+      for (const value of values[facet.key] ?? []) url.searchParams.append(facet.key, value);
+    }
+    setCatalogSelected(values);
+    setReturnFilters(url.searchParams.toString());
+    router.push(`${url.pathname}${url.search ? url.search : ""}`);
   }
 
   const visible = sortItems(
@@ -199,6 +232,9 @@ export function CorporateDirectoryResults({
         onLeadOnlyChange={changeLeadOnly}
         onViewChange={changeView}
         onSortChange={changeSort}
+        catalogFacets={catalogFacets}
+        catalogSelected={catalogSelected}
+        onCatalogApply={applyCatalogFacets}
         addLabel={addLabel}
         cancelLabel={cancelLabel}
         adding={adding}

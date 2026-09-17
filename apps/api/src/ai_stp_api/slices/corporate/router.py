@@ -12,7 +12,15 @@ from ai_stp_api.deps import get_db, get_settings, require_auth
 from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.session import AuthContext
 from ai_stp_api.settings import Settings
-from ai_stp_api.slices.corporate import assignments, directory, overview, profiles, service
+from ai_stp_api.slices.corporate import (
+    assignments,
+    directory,
+    governance,
+    overview,
+    permissions,
+    profiles,
+    service,
+)
 from ai_stp_api.slices.corporate.profile_router import router as profile_router
 from ai_stp_contracts.corporate import (
     AccountId,
@@ -63,6 +71,8 @@ from ai_stp_contracts.http import Timestamp
 
 router = APIRouter(tags=["corporate"])
 router.include_router(profile_router)
+router.include_router(governance.router)
+router.include_router(permissions.router)
 
 
 @router.get(

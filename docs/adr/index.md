@@ -188,6 +188,7 @@ last_verified: "2026-08-03"
 | [ADR-0188-corporate-workspace-presentation-boundary.md](ADR-0188-corporate-workspace-presentation-boundary.md) | ADR-0188: Corporate build isolation and tenant-scoped presentation ownership. | 2026-09-13 |
 | [ADR-0189-corporate-entity-profile-authority.md](ADR-0189-corporate-entity-profile-authority.md) | ADR-0189: Independent tenant presentation and technology owner edit authority. | 2026-09-13 |
 | [ADR-0190-tenant-operational-catalog-ownership.md](ADR-0190-tenant-operational-catalog-ownership.md) | Separate tenant operational catalog ownership from authorship and ownership claims. | 2026-09-13 |
+| [ADR-0191-corporate-governance-and-search-context.md](ADR-0191-corporate-governance-and-search-context.md) | Use existing corporate authorization and catalog search for tenant governance context. | 2026-09-17 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

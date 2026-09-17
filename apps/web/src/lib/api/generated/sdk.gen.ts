@@ -332,6 +332,9 @@ import type {
   ReadCorporateBindingData,
   ReadCorporateBindingErrors,
   ReadCorporateBindingResponses,
+  ReadCorporateCatalogGovernanceData,
+  ReadCorporateCatalogGovernanceErrors,
+  ReadCorporateCatalogGovernanceResponses,
   ReadCorporateCatalogOwnershipData,
   ReadCorporateCatalogOwnershipErrors,
   ReadCorporateCatalogOwnershipResponses,
@@ -350,6 +353,9 @@ import type {
   ReadCorporateOverviewData,
   ReadCorporateOverviewErrors,
   ReadCorporateOverviewResponses,
+  ReadCorporatePermissionMatrixData,
+  ReadCorporatePermissionMatrixErrors,
+  ReadCorporatePermissionMatrixResponses,
   ReadCorporateProjectActivityData,
   ReadCorporateProjectActivityErrors,
   ReadCorporateProjectActivityResponses,
@@ -581,9 +587,18 @@ import type {
   WriteCorporateCatalogAssignmentData,
   WriteCorporateCatalogAssignmentErrors,
   WriteCorporateCatalogAssignmentResponses,
+  WriteCorporateCatalogLifecycleData,
+  WriteCorporateCatalogLifecycleErrors,
+  WriteCorporateCatalogLifecycleResponses,
+  WriteCorporateCatalogMaintainerData,
+  WriteCorporateCatalogMaintainerErrors,
+  WriteCorporateCatalogMaintainerResponses,
   WriteCorporateCatalogOwnershipData,
   WriteCorporateCatalogOwnershipErrors,
   WriteCorporateCatalogOwnershipResponses,
+  WriteCorporateCatalogVerificationData,
+  WriteCorporateCatalogVerificationErrors,
+  WriteCorporateCatalogVerificationResponses,
   WriteCorporateEntityProfileData,
   WriteCorporateEntityProfileErrors,
   WriteCorporateEntityProfileResponses,
@@ -1561,6 +1576,98 @@ export const writeCorporateCatalogAssignment = <ThrowOnError extends boolean = f
   });
 
 /**
+ * Change tenant visibility or lifecycle for an exact catalog version.
+ */
+export const writeCorporateCatalogLifecycle = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateCatalogLifecycleData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateCatalogLifecycleResponses,
+  WriteCorporateCatalogLifecycleErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateCatalogLifecycleResponses,
+    WriteCorporateCatalogLifecycleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-governance/lifecycle",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Add or retire a maintainer for an exact published catalog version.
+ */
+export const writeCorporateCatalogMaintainer = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateCatalogMaintainerData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateCatalogMaintainerResponses,
+  WriteCorporateCatalogMaintainerErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateCatalogMaintainerResponses,
+    WriteCorporateCatalogMaintainerErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-governance/maintainers",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Verify or revoke one exact catalog version for the tenant.
+ */
+export const writeCorporateCatalogVerification = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateCatalogVerificationData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateCatalogVerificationResponses,
+  WriteCorporateCatalogVerificationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateCatalogVerificationResponses,
+    WriteCorporateCatalogVerificationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-governance/verification",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read consolidated tenant governance for one exact catalog version.
+ */
+export const readCorporateCatalogGovernance = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateCatalogGovernanceData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateCatalogGovernanceResponses,
+  ReadCorporateCatalogGovernanceErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateCatalogGovernanceResponses,
+    ReadCorporateCatalogGovernanceErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-governance/{object_kind}/{stable_id}/versions/{version}",
+    ...options,
+  });
+
+/**
  * Read tenant operational ownership without changing catalog authorship.
  */
 export const readCorporateCatalogOwnership = <ThrowOnError extends boolean = false>(
@@ -1885,6 +1992,26 @@ export const readCorporateOverview = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/overview",
+    ...options,
+  });
+
+/**
+ * Read effective corporate permissions and their binding sources.
+ */
+export const readCorporatePermissionMatrix = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporatePermissionMatrixData, ThrowOnError>,
+): RequestResult<
+  ReadCorporatePermissionMatrixResponses,
+  ReadCorporatePermissionMatrixErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporatePermissionMatrixResponses,
+    ReadCorporatePermissionMatrixErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/permissions/matrix",
     ...options,
   });
 

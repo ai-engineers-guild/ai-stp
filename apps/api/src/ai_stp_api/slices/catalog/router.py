@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, Query, Request
@@ -21,6 +21,7 @@ from ai_stp_api.slices.catalog.artifact_service import (
     ArtifactNotFound,
     read_public_artifact,
 )
+from ai_stp_api.slices.corporate import service as corporate_service
 from ai_stp_contracts.catalog import (
     CATALOG_UNSPECIFIED_FILTER,
     ComponentSearchRequest,
@@ -153,6 +154,14 @@ _COMPONENT_SEARCH_KEYS = frozenset(
         "page",
         "include_experimental",
         "include_deprecated",
+        "organization_id",
+        "team_ids",
+        "project_ids",
+        "technology_ids",
+        "owner_ids",
+        "maintainer_ids",
+        "assignment",
+        "corporate_verified",
     }
 )
 _SETUP_SEARCH_KEYS = frozenset(
@@ -184,6 +193,14 @@ _SETUP_SEARCH_KEYS = frozenset(
         "family_id",
         "family_alignment",
         "member_harness_id",
+        "organization_id",
+        "team_ids",
+        "project_ids",
+        "technology_ids",
+        "owner_ids",
+        "maintainer_ids",
+        "assignment",
+        "corporate_verified",
     }
 )
 
@@ -312,6 +329,14 @@ def _component_search_request(
     page: Annotated[int | None, Query(ge=1, le=10_000)] = None,
     include_experimental: Annotated[bool, Query()] = False,
     include_deprecated: Annotated[bool, Query()] = False,
+    organization_id: Annotated[str | None, Query()] = None,
+    team_ids: Annotated[list[str] | None, Query()] = None,
+    project_ids: Annotated[list[str] | None, Query()] = None,
+    technology_ids: Annotated[list[str] | None, Query()] = None,
+    owner_ids: Annotated[list[str] | None, Query()] = None,
+    maintainer_ids: Annotated[list[str] | None, Query()] = None,
+    assignment: Annotated[Literal["direct", "effective"] | None, Query()] = None,
+    corporate_verified: Annotated[bool | None, Query()] = None,
 ) -> ComponentSearchRequest:
     _reject_unknown_query(request, _COMPONENT_SEARCH_KEYS)
     try:
@@ -341,6 +366,14 @@ def _component_search_request(
             page=page,
             include_experimental=include_experimental,
             include_deprecated=include_deprecated,
+            organization_id=organization_id,
+            team_ids=list(team_ids or []),
+            project_ids=list(project_ids or []),
+            technology_ids=list(technology_ids or []),
+            owner_ids=list(owner_ids or []),
+            maintainer_ids=list(maintainer_ids or []),
+            assignment=assignment,
+            corporate_verified=corporate_verified,
         )
     except ValidationError as exc:
         raise ApiError(
@@ -378,6 +411,14 @@ def _setup_search_request(
     family_id: Annotated[str | None, Query()] = None,
     family_alignment: Annotated[str | None, Query()] = None,
     member_harness_id: Annotated[str | None, Query()] = None,
+    organization_id: Annotated[str | None, Query()] = None,
+    team_ids: Annotated[list[str] | None, Query()] = None,
+    project_ids: Annotated[list[str] | None, Query()] = None,
+    technology_ids: Annotated[list[str] | None, Query()] = None,
+    owner_ids: Annotated[list[str] | None, Query()] = None,
+    maintainer_ids: Annotated[list[str] | None, Query()] = None,
+    assignment: Annotated[Literal["direct", "effective"] | None, Query()] = None,
+    corporate_verified: Annotated[bool | None, Query()] = None,
 ) -> SetupSearchRequest:
     _reject_unknown_query(request, _SETUP_SEARCH_KEYS)
     try:
@@ -408,6 +449,14 @@ def _setup_search_request(
             family_id=family_id,  # type: ignore[arg-type]
             family_alignment=family_alignment,  # type: ignore[arg-type]
             member_harness_id=member_harness_id,  # type: ignore[arg-type]
+            organization_id=organization_id,
+            team_ids=list(team_ids or []),
+            project_ids=list(project_ids or []),
+            technology_ids=list(technology_ids or []),
+            owner_ids=list(owner_ids or []),
+            maintainer_ids=list(maintainer_ids or []),
+            assignment=assignment,
+            corporate_verified=corporate_verified,
         )
     except ValidationError as exc:
         raise ApiError(
@@ -417,17 +466,53 @@ def _setup_search_request(
         ) from exc
 
 
+async def _corporate_search_account(
+    db: AsyncSession,
+    search: ComponentSearchRequest | SetupSearchRequest,
+    ctx: AuthContext | None,
+) -> str | None:
+    has_corporate_filter = bool(
+        search.team_ids
+        or search.project_ids
+        or search.technology_ids
+        or search.owner_ids
+        or search.maintainer_ids
+        or search.assignment is not None
+        or search.corporate_verified is not None
+    )
+    if search.organization_id is None:
+        if has_corporate_filter:
+            raise ApiError(
+                ErrorCategory.VALIDATION,
+                "organization_id is required for corporate filters",
+            )
+        return None
+    if ctx is None:
+        raise ApiError(ErrorCategory.PERMISSION, "corporate catalog access denied")
+    await corporate_service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=search.organization_id,
+        permission="catalog_object.read",
+    )
+    return ctx.account_id
+
+
 @router.get("/catalog/components", response_model=None)
 async def search_components(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
     search: Annotated[ComponentSearchRequest, Depends(_component_search_request)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     """GET /v1/catalog/components — anonymous component search."""
     try:
         result = await service.search_components(
-            db, search, cursor_secret=settings.catalog.cursor_signing_secret
+            db,
+            search,
+            cursor_secret=settings.catalog.cursor_signing_secret,
+            corporate_account_id=await _corporate_search_account(db, search, ctx),
         )
         result = await _publish_usage(request, db, result)
     except service.CatalogBadRequest as exc:
@@ -644,11 +729,15 @@ async def search_setups(
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
     search: Annotated[SetupSearchRequest, Depends(_setup_search_request)],
+    ctx: Annotated[AuthContext | None, Depends(optional_auth)],
 ) -> JSONResponse:
     """GET /v1/catalog/setups — anonymous setup search."""
     try:
         result = await service.search_setups(
-            db, search, cursor_secret=settings.catalog.cursor_signing_secret
+            db,
+            search,
+            cursor_secret=settings.catalog.cursor_signing_secret,
+            corporate_account_id=await _corporate_search_account(db, search, ctx),
         )
         result = await _publish_usage(request, db, result)
     except service.CatalogBadRequest as exc:
