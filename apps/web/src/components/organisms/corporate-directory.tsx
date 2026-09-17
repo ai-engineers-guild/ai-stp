@@ -18,6 +18,22 @@ import type {
 } from "@/components/organisms/corporate-directory-types";
 import { useRouter } from "@/lib/i18n/navigation";
 
+const DIRECTORY_DESCRIPTION_KEYS = {
+  projects: "browseProjects",
+  teams: "browseTeams",
+  members: "browseEmployees",
+  technologies: "browseTechnologies",
+  components: "browseComponents",
+} as const;
+
+const DIRECTORY_ADD_KEYS = {
+  projects: "addProject",
+  teams: "addTeam",
+  members: "addEmployee",
+  technologies: "addTechnology",
+  components: "components",
+} as const;
+
 type Props = {
   resource: DirectoryResource;
   items: readonly DirectoryItem[];
@@ -55,20 +71,8 @@ export function CorporateDirectory({
   const [message, setMessage] = useState<string | null>(null);
   const retry = useRef<{ effect: string; key: string } | null>(null);
   const titleKey = resource === "members" ? "employees" : resource;
-  const description = {
-    projects: t("browseProjects"),
-    teams: t("browseTeams"),
-    members: t("browseEmployees"),
-    technologies: t("browseTechnologies"),
-    components: t("browseComponents"),
-  }[resource];
-  const addLabel = {
-    projects: t("addProject"),
-    teams: t("addTeam"),
-    members: t("addEmployee"),
-    technologies: t("addTechnology"),
-    components: t("components"),
-  }[resource];
+  const description = t(DIRECTORY_DESCRIPTION_KEYS[resource]);
+  const addLabel = t(DIRECTORY_ADD_KEYS[resource]);
 
   async function create(form: HTMLFormElement) {
     const data = new FormData(form);

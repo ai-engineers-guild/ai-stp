@@ -13,6 +13,29 @@ import type {
   DirectoryItem,
 } from "@/components/organisms/corporate-directory-types";
 
+type CatalogSearchParams = Record<string, string | string[] | undefined>;
+
+function readCatalogFilters(raw: CatalogSearchParams) {
+  const query =
+    typeof raw.q === "string" ? raw.q : typeof raw.query === "string" ? raw.query : undefined;
+  const values = (key: string) => {
+    const value = raw[key];
+    return (Array.isArray(value) ? value : value ? [value] : [])
+      .flatMap((item) => item.split(","))
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+  const assignment: "direct" | "effective" | undefined =
+    raw.assignment === "direct" || raw.assignment === "effective" ? raw.assignment : undefined;
+  const corporateVerified =
+    raw.corporate_verified === "true"
+      ? true
+      : raw.corporate_verified === "false"
+        ? false
+        : undefined;
+  return { query, values, assignment, corporateVerified };
+}
+
 export default async function CorporateComponentsPage({
   params,
   searchParams,
@@ -29,24 +52,7 @@ export default async function CorporateComponentsPage({
   const token = (await sessionCookieValue()) ?? "";
   const context = await readCorporateContext(token);
   if (!context) return <StatePanel kind="empty" title={t("components")} description={t("empty")} />;
-  const raw = await searchParams;
-  const query =
-    typeof raw.q === "string" ? raw.q : typeof raw.query === "string" ? raw.query : undefined;
-  const values = (key: string) => {
-    const value = raw[key];
-    return (Array.isArray(value) ? value : value ? [value] : [])
-      .flatMap((item) => item.split(","))
-      .map((item) => item.trim())
-      .filter(Boolean);
-  };
-  const assignment =
-    raw.assignment === "direct" || raw.assignment === "effective" ? raw.assignment : undefined;
-  const corporateVerified =
-    raw.corporate_verified === "true"
-      ? true
-      : raw.corporate_verified === "false"
-        ? false
-        : undefined;
+  const { query, values, assignment, corporateVerified } = readCatalogFilters(await searchParams);
   const organizationId = context.organization.organization_id;
   const [memberDirectory, technologyDirectory] = await Promise.allSettled([
     readCorporateDirectoryPages(token, organizationId, {
@@ -70,7 +76,6 @@ export default async function CorporateComponentsPage({
   const projectOptions = optionList(
     context.projects.map((project) => ({ id: project.project_id, name: project.name })),
   );
-  const memberOptions = optionList(refs(memberDirectory));
   const technologyOptions = optionList(refs(technologyDirectory));
   const ownerOptions = optionList([
     { id: organizationId, name: context.organization.display_name },

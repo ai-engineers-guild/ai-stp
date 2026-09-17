@@ -117,7 +117,9 @@ describe("corporate directory filters", () => {
     fireEvent.click(screen.getByRole("button", { name: "filters" }));
     fireEvent.click(screen.getByRole("button", { name: "catalogTeams" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Mobile" }));
-    fireEvent.click(screen.getAllByRole("button", { name: "closeFilters" }).at(-1)!);
+    const closeButton = screen.getAllByRole("button", { name: "closeFilters" }).at(-1);
+    if (!closeButton) throw new Error("catalog facet close button is missing");
+    fireEvent.click(closeButton);
     fireEvent.click(screen.getByRole("button", { name: "applyFilters" }));
     expect(push).toHaveBeenCalledWith(
       "/en/corporate/components?organization_id=org&sort=name&team_ids=team_mobile",

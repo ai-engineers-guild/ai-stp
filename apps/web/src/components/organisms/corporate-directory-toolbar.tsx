@@ -62,8 +62,8 @@ function activeCount(
   catalogSelected: Partial<Record<CorporateCatalogFacet, string[]>>,
 ) {
   return (
-    Object.values(selected).reduce((total, values) => total + (values?.length ?? 0), 0) +
-    Object.values(catalogSelected).reduce((total, values) => total + (values?.length ?? 0), 0) +
+    Object.values(selected).reduce((total, values) => total + values.length, 0) +
+    Object.values(catalogSelected).reduce((total, values) => total + values.length, 0) +
     (leadOnly ? 1 : 0)
   );
 }

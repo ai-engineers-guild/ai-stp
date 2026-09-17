@@ -82,6 +82,37 @@ function cardItem(item: DirectoryItem, resource: DirectoryResource): DirectoryIt
   return withoutDescription;
 }
 
+function restoreCatalogSelection(
+  catalogFacets: readonly CorporateCatalogFacetConfig[],
+  initialCatalogSelected: Partial<Record<CorporateCatalogFacet, string[]>>,
+) {
+  const search = window.location.search ? new URLSearchParams(window.location.search) : null;
+  return Object.fromEntries(
+    catalogFacets.map((facet) => [
+      facet.key,
+      search ? search.getAll(facet.key) : (initialCatalogSelected[facet.key] ?? []),
+    ]),
+  ) as Partial<Record<CorporateCatalogFacet, string[]>>;
+}
+
+function directoryLabels(t: (key: string) => string) {
+  return {
+    lead: t("lead"),
+    ownerTeam: t("owner"),
+    teams: t("teams"),
+    projects: t("projects"),
+    technologies: t("technologies"),
+    team: t("team"),
+    employee: t("employee"),
+    author: t("author"),
+    owner: t("owner"),
+    type: t("type"),
+    moreActions: t("moreActions"),
+    unknownEmployee: t("unknownEmployee"),
+    notAvailable: t("notAvailable"),
+  };
+}
+
 export function CorporateDirectoryResults({
   resource,
   items,
@@ -126,16 +157,7 @@ export function CorporateDirectoryResults({
       setLeadOnly(next.leadOnly);
       setSelected(next.selected);
       setReturnFilters(currentReturnFilters(filters));
-      setCatalogSelected(
-        Object.fromEntries(
-          catalogFacets.map((facet) => [
-            facet.key,
-            window.location.search
-              ? new URLSearchParams(window.location.search).getAll(facet.key)
-              : (initialCatalogSelected[facet.key] ?? []),
-          ]),
-        ) as Partial<Record<CorporateCatalogFacet, string[]>>,
-      );
+      setCatalogSelected(restoreCatalogSelection(catalogFacets, initialCatalogSelected));
     }
     restore();
     window.addEventListener("popstate", restore);
@@ -201,21 +223,7 @@ export function CorporateDirectoryResults({
     ),
     sort,
   );
-  const labels = {
-    lead: t("lead"),
-    ownerTeam: t("owner"),
-    teams: t("teams"),
-    projects: t("projects"),
-    technologies: t("technologies"),
-    team: t("team"),
-    employee: t("employee"),
-    author: t("author"),
-    owner: t("owner"),
-    type: t("type"),
-    moreActions: t("moreActions"),
-    unknownEmployee: t("unknownEmployee"),
-    notAvailable: t("notAvailable"),
-  };
+  const labels = directoryLabels(t);
 
   return (
     <section className="min-w-0 space-y-5">
