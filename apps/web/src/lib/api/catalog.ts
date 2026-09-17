@@ -1,7 +1,6 @@
 import type { ComponentId, CursorToken, SetupId, VersionId } from "@/lib/brands";
 import { CATALOG_DEFAULT_PAGE_SIZE } from "@/lib/catalog-query";
 import { ApiError } from "@/lib/api/errors";
-import { apiRequest } from "@/lib/api/http";
 import { publicApiGet, publicApiGetLive } from "@/lib/api/public-http";
 
 import { catalogPrivateGet } from "./catalog-private";
@@ -151,10 +150,7 @@ export async function searchComponents(params: SearchParams = {}): Promise<Compo
     corporate_verified: params.corporate_verified,
   };
   return params.sessionToken
-    ? apiRequest<ComponentListResponse>("/v1/catalog/components", {
-        sessionToken: params.sessionToken,
-        query,
-      })
+    ? catalogPrivateGet<ComponentListResponse>("/v1/catalog/components", params.sessionToken, query)
     : publicApiGet<ComponentListResponse>("/v1/catalog/components", { query });
 }
 
@@ -195,10 +191,7 @@ export async function searchSetups(params: SearchParams = {}): Promise<SetupList
     corporate_verified: params.corporate_verified,
   };
   return params.sessionToken
-    ? apiRequest<SetupListResponse>("/v1/catalog/setups", {
-        sessionToken: params.sessionToken,
-        query,
-      })
+    ? catalogPrivateGet<SetupListResponse>("/v1/catalog/setups", params.sessionToken, query)
     : publicApiGet<SetupListResponse>("/v1/catalog/setups", { query });
 }
 
