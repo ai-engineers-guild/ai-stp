@@ -11,6 +11,7 @@ export function EntityEditorLayout({
   beforeBlocks,
   afterBlocks,
   footer,
+  hydrationReady,
   className = "",
 }: {
   config: EntityEditorConfig;
@@ -21,6 +22,7 @@ export function EntityEditorLayout({
   beforeBlocks?: ReactNode;
   afterBlocks?: ReactNode;
   footer?: ReactNode | undefined;
+  hydrationReady?: boolean | undefined;
   className?: string | undefined;
 }) {
   const content = blocks ? (
@@ -40,6 +42,7 @@ export function EntityEditorLayout({
     <div
       data-ui="entity-editor-layout"
       data-entity-kind={config.kind}
+      data-hydrated={hydrationReady === undefined ? undefined : String(hydrationReady)}
       className={`border-border bg-card w-full min-w-0 rounded-lg border p-5 shadow-sm sm:p-6 ${className}`}
     >
       <header className="border-border space-y-1 border-b pb-5">

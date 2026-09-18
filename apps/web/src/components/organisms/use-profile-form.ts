@@ -370,6 +370,7 @@ export function useProfileForm(initial: OwnerPublicProfile, csrfToken: string) {
     onRemoveAvatar,
     restorePublished,
     persistPreview,
+    storageReady,
     canRestorePublished: Boolean(initial.published),
   };
 }
