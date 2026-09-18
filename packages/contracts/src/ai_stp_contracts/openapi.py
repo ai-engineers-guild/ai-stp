@@ -120,6 +120,7 @@ from ai_stp_contracts.corporate import (
     CorporateCatalogAssignmentList,
     CorporateCatalogAssignmentQuery,
     CorporateCatalogAssignmentRequest,
+    CorporateCatalogUsage,
     CorporateCatalogUsageList,
     CorporateCatalogUsageQuery,
     CorporateContext,
@@ -3077,6 +3078,7 @@ NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
     ProjectLinkProposalRequest,
     ProviderProjectObservationRequest,
     CorporateAuditEntry,
+    CorporateCatalogUsage,
 )
 
 

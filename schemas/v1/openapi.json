@@ -36936,6 +36936,30 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "listCorporateCatalogUsage.corporate": {
+                    "summary": "Catalog usage is returned as a bounded, authorized projection for one exact version.",
+                    "value": {
+                      "items": [
+                        {
+                          "assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "object_kind": "setup",
+                          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "schema_version": 1,
+                          "source": "direct",
+                          "source_team_id": null,
+                          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "subject_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "subject_kind": "employee",
+                          "subject_name": "Platform Lead",
+                          "version": "1.0"
+                        }
+                      ],
+                      "schema_version": 1,
+                      "total": 1
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/CorporateCatalogUsageList"
                 }
@@ -37115,6 +37139,8 @@
                       "member": {
                         "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                         "display_name": "admin",
+                        "job_title_id": null,
+                        "job_title_name": null,
                         "revision": 1,
                         "role": "superadmin",
                         "schema_version": 1,
@@ -37496,6 +37522,7 @@
                     "value": {
                       "facets": {
                         "categories": [],
+                        "job_titles": [],
                         "leads": [],
                         "projects": [],
                         "teams": [],
@@ -38394,6 +38421,26 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "listCorporateJobTitles.corporate": {
+                    "summary": "Job titles are listed as a bounded organization-scoped collection.",
+                    "value": {
+                      "items": [
+                        {
+                          "description": "Owns platform delivery.",
+                          "job_title_id": "job_title_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "name": "Platform Lead",
+                          "normalized_name": "platform lead",
+                          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "revision": 1,
+                          "schema_version": 1,
+                          "state": "current"
+                        }
+                      ],
+                      "schema_version": 1
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/CorporateJobTitleList"
                 }
@@ -38568,6 +38615,18 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "createCorporateJobTitle.corporate": {
+                  "summary": "An organization can add a reusable job title with an idempotent mutation.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "description": "Owns platform delivery.",
+                    "idempotency_key": "corporate-job-title-0001",
+                    "name": "Platform Lead",
+                    "schema_version": 1
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/CorporateJobTitleCreateRequest"
               }
@@ -38579,6 +38638,21 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "createCorporateJobTitle.corporate": {
+                    "summary": "An organization can add a reusable job title with an idempotent mutation.",
+                    "value": {
+                      "description": "Owns platform delivery.",
+                      "job_title_id": "job_title_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "name": "Platform Lead",
+                      "normalized_name": "platform lead",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "revision": 1,
+                      "schema_version": 1,
+                      "state": "current"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/CorporateJobTitleView"
                 }
@@ -38781,6 +38855,20 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "updateCorporateJobTitle.corporate": {
+                  "summary": "A job title update is revision-checked and can retire the same identity.",
+                  "value": {
+                    "authorization_revision": 1,
+                    "description": "Owns platform delivery.",
+                    "expected_revision": 1,
+                    "idempotency_key": "corporate-job-title-update-0001",
+                    "name": "Platform Lead",
+                    "schema_version": 1,
+                    "state": "retired"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/CorporateJobTitleUpdateRequest"
               }
@@ -38792,6 +38880,21 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "updateCorporateJobTitle.corporate": {
+                    "summary": "A job title update is revision-checked and can retire the same identity.",
+                    "value": {
+                      "description": "Owns platform delivery.",
+                      "job_title_id": "job_title_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "name": "Platform Lead",
+                      "normalized_name": "platform lead",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "revision": 2,
+                      "schema_version": 1,
+                      "state": "retired"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/CorporateJobTitleView"
                 }
@@ -39187,6 +39290,8 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "display_name": "staff",
+                      "job_title_id": null,
+                      "job_title_name": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -39623,6 +39728,8 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "display_name": "staff",
+                      "job_title_id": null,
+                      "job_title_name": null,
                       "revision": 1,
                       "role": "staff",
                       "schema_version": 1,
@@ -39853,6 +39960,8 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "display_name": "staff",
+                      "job_title_id": null,
+                      "job_title_name": null,
                       "revision": 2,
                       "role": "staff",
                       "schema_version": 1,
@@ -40089,6 +40198,8 @@
                     "value": {
                       "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "display_name": "Mobile lead",
+                      "job_title_id": null,
+                      "job_title_name": null,
                       "revision": 2,
                       "role": "staff",
                       "schema_version": 1,
