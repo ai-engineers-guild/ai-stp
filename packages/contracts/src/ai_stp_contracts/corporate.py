@@ -172,7 +172,7 @@ class CorporateMemberCreateRequest(BaseModel):
     email: Annotated[str | None, Field(min_length=3, max_length=320)] = None
     display_name: Annotated[str, Field(min_length=1, max_length=80)]
     role: CorporateRole
-    team_ids: Annotated[list[str], Field(min_length=1, max_length=64)] = Field(default_factory=list)
+    team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
     job_title_id: JobTitleId | None = None
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
@@ -181,8 +181,6 @@ class CorporateMemberCreateRequest(BaseModel):
     def provisioned_identity_is_addressable(self) -> Self:
         if self.account_id is None and self.email is None:
             raise ValueError("email is required when account_id is omitted")
-        if not self.team_ids:
-            raise ValueError("at least one team is required")
         return self
 
 

@@ -6703,7 +6703,6 @@
               "type": "string"
             },
             "maxItems": 64,
-            "minItems": 1,
             "title": "Team Ids",
             "type": "array"
           }
