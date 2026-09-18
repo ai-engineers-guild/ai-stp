@@ -223,6 +223,7 @@ it("offers authorized organization projects rather than only the viewer's own pr
     if (path.endsWith("/members/account_alice"))
       return { account_id: "account_alice", display_name: "Alice" };
     if (path.endsWith("/members/account_alice/projects")) return { items: [] };
+    if (path.endsWith("/roles")) return { items: [] };
     if (path.endsWith("/projects"))
       return {
         items: [{ project_id: "remote_project_mobile", name: "Mobile app" }],
@@ -234,5 +235,5 @@ it("offers authorized organization projects rather than only the viewer's own pr
     { project_id: "remote_project_mobile", name: "Mobile app" },
   ]);
   expect(result?.projectMemberships?.items).toEqual([]);
-  expect(request.mock.calls.some(([path]) => path.endsWith("/roles"))).toBe(false);
+  expect(request.mock.calls.some(([path]) => path.endsWith("/roles"))).toBe(true);
 });

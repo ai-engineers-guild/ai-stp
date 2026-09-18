@@ -15,6 +15,8 @@ import type {
 } from "@/components/organisms/corporate-directory-types";
 
 type CatalogSearchParams = Record<string, string | string[] | undefined>;
+type CorporateCatalogContext = NonNullable<Awaited<ReturnType<typeof readCorporateContext>>>;
+type DirectoryResult = PromiseSettledResult<{ items: readonly DirectoryItem[] }>;
 
 function readCatalogFilters(raw: CatalogSearchParams) {
   const query =
@@ -42,6 +44,71 @@ function readCatalogFilters(raw: CatalogSearchParams) {
     corporateVerified,
     page: Number.isInteger(page) && page > 0 ? page : 1,
   };
+}
+
+function directoryItems(result: DirectoryResult) {
+  return result.status === "fulfilled" ? result.value.items : [];
+}
+
+function optionList(items: readonly { id: string; name: string }[]) {
+  return [
+    ...new Map(items.map((item) => [item.id, { value: item.id, label: item.name }])).values(),
+  ].sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function buildCatalogFacets(
+  t: (key: string) => string,
+  context: CorporateCatalogContext,
+  memberDirectory: DirectoryResult,
+  technologyDirectory: DirectoryResult,
+): CorporateCatalogFacetConfig[] {
+  const technologies = directoryItems(technologyDirectory);
+  const members = directoryItems(memberDirectory);
+  const teamOptions = optionList(
+    context.teams.map((team) => ({ id: team.team_id, name: team.name })),
+  );
+  const projectOptions = optionList(
+    context.projects.map((project) => ({ id: project.project_id, name: project.name })),
+  );
+  const technologyOptions = optionList(technologies);
+  const categoryOptions = optionList(technologies.flatMap((item) => item.categories ?? []));
+  const ownerOptions = optionList([
+    { id: context.organization.organization_id, name: context.organization.display_name },
+    ...context.teams.map((team) => ({ id: team.team_id, name: team.name })),
+    ...context.projects.map((project) => ({ id: project.project_id, name: project.name })),
+    ...technologies,
+    ...members,
+  ]);
+  const maintainerOptions = optionList([
+    ...context.teams.map((team) => ({ id: team.team_id, name: team.name })),
+    ...members,
+  ]);
+  return [
+    { key: "team_ids", label: t("teams"), options: teamOptions },
+    { key: "project_ids", label: t("projects"), options: projectOptions },
+    { key: "technology_ids", label: t("technologies"), options: technologyOptions },
+    { key: "category_ids", label: t("categories"), options: categoryOptions },
+    { key: "owner_ids", label: t("catalogOwner"), options: ownerOptions },
+    { key: "maintainer_ids", label: t("catalogMaintainer"), options: maintainerOptions },
+    {
+      key: "assignment",
+      label: t("catalogAssignment"),
+      multiple: false,
+      options: [
+        { value: "direct", label: t("directAssignment") },
+        { value: "effective", label: t("effectiveAssignment") },
+      ],
+    },
+    {
+      key: "corporate_verified",
+      label: t("corporateVerification"),
+      multiple: false,
+      options: [
+        { value: "true", label: t("verified") },
+        { value: "false", label: t("notVerified") },
+      ],
+    },
+  ];
 }
 
 export default async function CorporateCatalogPage({
@@ -74,59 +141,7 @@ export default async function CorporateCatalogPage({
       include_archived: false,
     }),
   ]);
-  const refs = (result: PromiseSettledResult<{ items: readonly DirectoryItem[] }>) =>
-    result.status === "fulfilled" ? result.value.items : [];
-  const optionList = (items: readonly { id: string; name: string }[]) =>
-    [
-      ...new Map(items.map((item) => [item.id, { value: item.id, label: item.name }])).values(),
-    ].sort((left, right) => left.label.localeCompare(right.label));
-  const teamOptions = optionList(
-    context.teams.map((team) => ({ id: team.team_id, name: team.name })),
-  );
-  const projectOptions = optionList(
-    context.projects.map((project) => ({ id: project.project_id, name: project.name })),
-  );
-  const technologyOptions = optionList(refs(technologyDirectory));
-  const categoryOptions = optionList(
-    refs(technologyDirectory).flatMap((item) => item.categories ?? []),
-  );
-  const ownerOptions = optionList([
-    { id: organizationId, name: context.organization.display_name },
-    ...context.teams.map((team) => ({ id: team.team_id, name: team.name })),
-    ...context.projects.map((project) => ({ id: project.project_id, name: project.name })),
-    ...refs(technologyDirectory),
-    ...refs(memberDirectory),
-  ]);
-  const maintainerOptions = optionList([
-    ...context.teams.map((team) => ({ id: team.team_id, name: team.name })),
-    ...refs(memberDirectory),
-  ]);
-  const catalogFacets: CorporateCatalogFacetConfig[] = [
-    { key: "team_ids", label: t("teams"), options: teamOptions },
-    { key: "project_ids", label: t("projects"), options: projectOptions },
-    { key: "technology_ids", label: t("technologies"), options: technologyOptions },
-    { key: "category_ids", label: t("categories"), options: categoryOptions },
-    { key: "owner_ids", label: t("catalogOwner"), options: ownerOptions },
-    { key: "maintainer_ids", label: t("catalogMaintainer"), options: maintainerOptions },
-    {
-      key: "assignment",
-      label: t("catalogAssignment"),
-      multiple: false,
-      options: [
-        { value: "direct", label: t("directAssignment") },
-        { value: "effective", label: t("effectiveAssignment") },
-      ],
-    },
-    {
-      key: "corporate_verified",
-      label: t("corporateVerification"),
-      multiple: false,
-      options: [
-        { value: "true", label: t("verified") },
-        { value: "false", label: t("notVerified") },
-      ],
-    },
-  ];
+  const catalogFacets = buildCatalogFacets(t, context, memberDirectory, technologyDirectory);
   let rows: Array<{
     id: string;
     name: string;

@@ -58,6 +58,78 @@ type Props = {
   facets?: CorporateDirectoryFacets;
 };
 
+function InlineCorporateCreate({
+  resource,
+  roles,
+  busy,
+  message,
+  onSubmit,
+}: {
+  resource: DirectoryResource;
+  roles: readonly string[];
+  busy: boolean;
+  message: string | null;
+  onSubmit: (form: HTMLFormElement) => void;
+}) {
+  const t = useTranslations("hub");
+  const c = useTranslations("corporate");
+  return (
+    <form
+      className="border-border bg-card max-w-xl space-y-4 rounded-lg border p-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit(event.currentTarget);
+      }}
+    >
+      <fieldset disabled={busy} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="create-name">{c(resource === "members" ? "displayName" : "name")}</Label>
+          <Input
+            id="create-name"
+            name="name"
+            required
+            maxLength={resource === "members" ? 80 : 200}
+          />
+        </div>
+        {resource === "teams" ? (
+          <div className="space-y-2">
+            <Label htmlFor="create-description">{c("description")}</Label>
+            <Textarea id="create-description" name="description" maxLength={2000} />
+          </div>
+        ) : null}
+        {resource === "members" ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="create-email">{c("email")}</Label>
+              <Input id="create-email" name="email" type="email" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-role">{c("organizationRole")}</Label>
+              <select
+                id="create-role"
+                name="role"
+                className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
+              >
+                {roles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        ) : null}
+        <Button type="submit">{t("save")}</Button>
+      </fieldset>
+      {message ? (
+        <p role="alert" className="text-sm">
+          {message}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
 export function CorporateDirectory({
   resource,
   items,
@@ -81,7 +153,6 @@ export function CorporateDirectory({
   facets,
 }: Props) {
   const t = useTranslations("hub");
-  const c = useTranslations("corporate");
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -174,61 +245,15 @@ export function CorporateDirectory({
       />
       {adding && customCreate ? customCreate : null}
       {adding && !customCreate ? (
-        <form
-          className="border-border bg-card max-w-xl space-y-4 rounded-lg border p-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void create(event.currentTarget);
+        <InlineCorporateCreate
+          resource={resource}
+          roles={roles}
+          busy={busy}
+          message={message}
+          onSubmit={(form) => {
+            void create(form);
           }}
-        >
-          <fieldset disabled={busy} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="create-name">
-                {c(resource === "members" ? "displayName" : "name")}
-              </Label>
-              <Input
-                id="create-name"
-                name="name"
-                required
-                maxLength={resource === "members" ? 80 : 200}
-              />
-            </div>
-            {resource === "teams" ? (
-              <div className="space-y-2">
-                <Label htmlFor="create-description">{c("description")}</Label>
-                <Textarea id="create-description" name="description" maxLength={2000} />
-              </div>
-            ) : null}
-            {resource === "members" ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="create-email">{c("email")}</Label>
-                  <Input id="create-email" name="email" type="email" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-role">{c("organizationRole")}</Label>
-                  <select
-                    id="create-role"
-                    name="role"
-                    className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-                  >
-                    {roles.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            ) : null}
-            <Button type="submit">{t("save")}</Button>
-          </fieldset>
-          {message ? (
-            <p role="alert" className="text-sm">
-              {message}
-            </p>
-          ) : null}
-        </form>
+        />
       ) : null}
     </div>
   );

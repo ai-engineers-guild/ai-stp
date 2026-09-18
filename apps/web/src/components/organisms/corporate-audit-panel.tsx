@@ -36,7 +36,6 @@ type Props = {
 type ExportFormat = "json" | "csv";
 type ExportRange = "current" | "today" | "last7" | "last30" | "all";
 
-// eslint-disable-next-line max-lines-per-function -- journal rendering and export controls share one action state.
 export function CorporateAuditPanel({
   organizationId,
   audit,

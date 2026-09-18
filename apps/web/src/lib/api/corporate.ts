@@ -79,16 +79,12 @@ export async function readCorporateDirectoryPage(
 ) {
   const context = await readCorporateContext(sessionToken);
   if (!context) return null;
-  const page = Math.max(1, options.page ?? 1);
-  const pageSize = Math.min(256, Math.max(1, options.pageSize ?? 24));
+  const requestedPage = Math.max(1, options.page ?? 1);
+  const requestedPageSize = Math.min(256, Math.max(1, options.pageSize ?? 24));
   const apiResource = resource === "employees" ? "members" : resource;
-  const {
-    page: _requestedPage,
-    pageSize: _requestedPageSize,
-    query: searchQuery,
-    is_lead: leadOnly,
-    ...filters
-  } = options;
+  const { query: searchQuery, is_lead: leadOnly, ...filters } = options;
+  delete filters.page;
+  delete filters.pageSize;
   const directory = await apiRequest<CorporateDirectoryView>(
     `/v1/corporate/organizations/${context.organization.organization_id}/directory`,
     {
@@ -96,8 +92,8 @@ export async function readCorporateDirectoryPage(
       query: {
         ...filters,
         resource: apiResource,
-        offset: (page - 1) * pageSize,
-        limit: pageSize,
+        offset: (requestedPage - 1) * requestedPageSize,
+        limit: requestedPageSize,
         ...(searchQuery ? { query: searchQuery } : {}),
         ...(leadOnly !== undefined && leadOnly !== null ? { is_lead: leadOnly } : {}),
       },
@@ -114,8 +110,8 @@ export async function readCorporateDirectoryPage(
     ...directory,
     context,
     roles,
-    page,
-    pageSize,
+    page: requestedPage,
+    pageSize: requestedPageSize,
   };
 }
 

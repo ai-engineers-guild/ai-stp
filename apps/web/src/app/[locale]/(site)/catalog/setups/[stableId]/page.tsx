@@ -156,15 +156,16 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   const corporateCsrfToken = corporateOwnership?.ownership.can_edit
     ? ((await readCsrfToken()) ?? "")
     : "";
-  const corporateUsage = corporateOwnership
-    ? await readCorporateCatalogUsage(
-        token!,
-        corporateOwnership.ownership.organization_id,
-        "setup",
-        setupId,
-        asVersionId(summary.latest_version),
-      )
-    : null;
+  const corporateUsage =
+    token && corporateOwnership
+      ? await readCorporateCatalogUsage(
+          token,
+          corporateOwnership.ownership.organization_id,
+          "setup",
+          setupId,
+          asVersionId(summary.latest_version),
+        )
+      : null;
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=setup&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
     : undefined;

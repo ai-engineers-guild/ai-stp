@@ -13,6 +13,112 @@ import { useRouter } from "@/lib/i18n/navigation";
 
 type Option = { value: string; label: string };
 type CreateResource = "members" | "teams" | "projects";
+type CreateOptions = {
+  teams: readonly Option[];
+  employees: readonly Option[];
+  projects: readonly Option[];
+  technologies: readonly Option[];
+  jobTitles: readonly Option[];
+};
+
+function CorporateCreateFields({
+  resource,
+  formId,
+  roles,
+  options,
+  values,
+  choose,
+}: {
+  resource: CreateResource;
+  formId: string;
+  roles: readonly string[];
+  options: CreateOptions;
+  values: (name: string) => string[];
+  choose: (name: string, values: string[]) => void;
+}) {
+  const c = useTranslations("corporate");
+  const h = useTranslations("hub");
+  const select = (name: string, label: string, valuesFor: readonly Option[], multiple = true) => (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <SearchableMultiSelect
+        name={name}
+        form={formId}
+        label={label}
+        searchLabel={`${h("search")}: ${label}`}
+        options={valuesFor}
+        selected={values(name)}
+        multiple={multiple}
+        modal
+        closeLabel={c("close")}
+        onChange={(next) => {
+          choose(name, next);
+        }}
+      />
+    </div>
+  );
+
+  return (
+    <div className="grid gap-5 md:grid-cols-2">
+      <div className="space-y-2 md:col-span-2">
+        <Label htmlFor={`${formId}-name`}>
+          {c(resource === "members" ? "displayName" : "name")}
+        </Label>
+        <Input
+          id={`${formId}-name`}
+          name={resource === "members" ? "display_name" : "name"}
+          required
+          maxLength={resource === "members" ? 80 : 200}
+        />
+      </div>
+      {resource !== "members" ? (
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor={`${formId}-description`}>{c("description")}</Label>
+          <Textarea id={`${formId}-description`} name="description" maxLength={2000} />
+        </div>
+      ) : null}
+      {resource === "members" ? (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor={`${formId}-email`}>{c("email")}</Label>
+            <Input id={`${formId}-email`} name="email" type="email" required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${formId}-role`}>{c("role")}</Label>
+            <select
+              id={`${formId}-role`}
+              name="role"
+              required
+              className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
+            >
+              {roles.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </div>
+          {select("team_ids", h("teams"), options.teams)}
+          {select("job_title_ids", h("job_titles"), options.jobTitles, false)}
+        </>
+      ) : null}
+      {resource === "teams" ? (
+        <>
+          {select("employee_ids", h("employees"), options.employees)}
+          {select("lead_account_id", h("teamLeads"), options.employees, false)}
+          {select("project_ids", h("projects"), options.projects)}
+          {select("technology_ids", h("technologies"), options.technologies)}
+        </>
+      ) : null}
+      {resource === "projects" ? (
+        <>
+          {select("owner_team_id", h("owner"), options.teams, false)}
+          {select("technology_ids", h("technologies"), options.technologies)}
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 export function CorporateCreateForm({
   resource,
@@ -38,7 +144,6 @@ export function CorporateCreateForm({
   jobTitles: readonly Option[];
 }) {
   const c = useTranslations("corporate");
-  const h = useTranslations("hub");
   const router = useRouter();
   const formId = useId();
   const [selected, setSelected] = useState<Record<string, string[]>>({});
@@ -104,95 +209,29 @@ export function CorporateCreateForm({
     router.push(`/corporate/${target}`);
   }
 
-  const options = {
+  const options: CreateOptions = {
     teams,
     employees,
     projects,
     technologies,
     jobTitles,
   };
-  const select = (name: string, label: string, valuesFor: readonly Option[], multiple = true) => (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <SearchableMultiSelect
-        name={name}
-        form={formId}
-        label={label}
-        searchLabel={`${h("search")}: ${label}`}
-        options={valuesFor}
-        selected={values(name)}
-        multiple={multiple}
-        modal
-        closeLabel={c("close")}
-        onChange={(next) => choose(name, next)}
-      />
-    </div>
-  );
-
   return (
     <form
       id={formId}
-      onSubmit={submit}
+      onSubmit={(event) => {
+        void submit(event);
+      }}
       className="bg-card border-border max-w-3xl space-y-6 rounded-lg border p-5"
     >
-      <div className="grid gap-5 md:grid-cols-2">
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor={`${formId}-name`}>
-            {c(resource === "members" ? "displayName" : "name")}
-          </Label>
-          <Input
-            id={`${formId}-name`}
-            name={resource === "members" ? "display_name" : "name"}
-            required
-            maxLength={resource === "members" ? 80 : 200}
-          />
-        </div>
-        {resource !== "members" ? (
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor={`${formId}-description`}>{c("description")}</Label>
-            <Textarea id={`${formId}-description`} name="description" maxLength={2000} />
-          </div>
-        ) : null}
-        {resource === "members" ? (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor={`${formId}-email`}>{c("email")}</Label>
-              <Input id={`${formId}-email`} name="email" type="email" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={`${formId}-role`}>{c("role")}</Label>
-              <select
-                id={`${formId}-role`}
-                name="role"
-                required
-                className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-              >
-                {roles.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {select("team_ids", h("teams"), options.teams)}
-            {select("job_title_ids", h("job_titles"), options.jobTitles, false)}
-          </>
-        ) : null}
-        {resource === "teams" ? (
-          <>
-            {select("employee_ids", h("employees"), options.employees)}
-            {select("lead_account_id", h("teamLeads"), options.employees, false)}
-            {select("project_ids", h("projects"), options.projects)}
-            {select("technology_ids", h("technologies"), options.technologies)}
-          </>
-        ) : null}
-        {resource === "projects" ? (
-          <>
-            {select("owner_team_id", h("owner"), options.teams, false)}
-            {select("technology_ids", h("technologies"), options.technologies)}
-          </>
-        ) : null}
-      </div>
+      <CorporateCreateFields
+        resource={resource}
+        formId={formId}
+        roles={roles}
+        options={options}
+        values={values}
+        choose={choose}
+      />
       {message ? (
         <p role="alert" className="text-destructive text-sm">
           {message}
@@ -202,7 +241,13 @@ export function CorporateCreateForm({
         <Button type="submit" disabled={busy}>
           {busy ? c("creating") : c("create")}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.push(`/corporate/${target}`)}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            router.push(`/corporate/${target}`);
+          }}
+        >
           {c("cancel")}
         </Button>
       </div>

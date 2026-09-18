@@ -65,7 +65,7 @@ it("links named actors and hides technical fields even for unknown events", () =
   );
   expect(screen.getByRole("link", { name: "Alice" })).toHaveAttribute(
     "href",
-    "/corporate/members/account_alice",
+    "/corporate/employees/account_alice",
   );
   expect(screen.getByText("otherEvent")).toBeInTheDocument();
   expect(screen.getByText("Localized date")).toHaveAttribute("dateTime", "2026-09-13T10:00:00Z");

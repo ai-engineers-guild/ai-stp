@@ -132,15 +132,16 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   const corporateCsrfToken = corporateOwnership?.ownership.can_edit
     ? ((await readCsrfToken()) ?? "")
     : "";
-  const corporateUsage = corporateOwnership
-    ? await readCorporateCatalogUsage(
-        token!,
-        corporateOwnership.ownership.organization_id,
-        "component",
-        componentId,
-        asVersionId(summary.latest_version),
-      )
-    : null;
+  const corporateUsage =
+    token && corporateOwnership
+      ? await readCorporateCatalogUsage(
+          token,
+          corporateOwnership.ownership.organization_id,
+          "component",
+          componentId,
+          asVersionId(summary.latest_version),
+        )
+      : null;
   const isOwner = token ? await canEditComponent(token, stableId) : false;
   const initiallyLiked = token ? await isLiked(token, "component", stableId) : false;
   const metadata = await readComponentGithubMetadata(

@@ -119,6 +119,90 @@ function directoryLabels(t: (key: string) => string) {
   };
 }
 
+function DirectoryItemList({
+  resource,
+  items,
+  labels,
+  returnFilters,
+  view,
+  emptyLabel,
+}: {
+  resource: DirectoryResource;
+  items: readonly DirectoryItem[];
+  labels: ReturnType<typeof directoryLabels>;
+  returnFilters: string;
+  view: "list" | "cards";
+  emptyLabel: string;
+}) {
+  if (!items.length) {
+    return (
+      <p className="text-muted-foreground border-border rounded-lg border border-dashed p-8 text-center text-sm">
+        {emptyLabel}
+      </p>
+    );
+  }
+  return (
+    <ul className={view === "cards" ? "grid min-w-0 gap-4 md:grid-cols-2" : "grid min-w-0 gap-3"}>
+      {items.map((item) => (
+        <CorporateDirectoryCard
+          key={item.id}
+          resource={resource}
+          item={cardItem(item, resource)}
+          labels={labels}
+          returnFilters={returnFilters}
+          view={view}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function DirectoryPagination({
+  filters,
+  label,
+  pageNumber,
+  pageSize,
+  total,
+}: {
+  filters: string;
+  label: string;
+  pageNumber: number;
+  pageSize: number;
+  total: number;
+}) {
+  if (total <= pageSize) return null;
+  return (
+    <PageNav
+      label={label}
+      pageNumber={pageNumber}
+      totalPages={Math.ceil(total / pageSize)}
+      hrefFor={(page) => {
+        const params = new URLSearchParams(filters);
+        params.set("page", String(page));
+        return `?${params.toString()}`;
+      }}
+    />
+  );
+}
+
+function visibleDirectoryItems(
+  items: readonly DirectoryItem[],
+  query: string,
+  selected: CorporateDirectorySelectedFilters,
+  leadOnly: boolean,
+  sort: "name" | "name_desc",
+) {
+  return sortItems(
+    items.filter(
+      (item) =>
+        (!query || item.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())) &&
+        matchesDirectoryFilters(item, selected) &&
+        (!leadOnly || item.is_lead),
+    ),
+    sort,
+  );
+}
+
 export function CorporateDirectoryResults({
   resource,
   items,
@@ -237,17 +321,7 @@ export function CorporateDirectoryResults({
     router.push(`${url.pathname}${url.search ? url.search : ""}`);
   }
 
-  const visible = sortItems(
-    items.filter(
-      (item) =>
-        (!query || item.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())) &&
-        matchesDirectoryFilters(item, selected) &&
-        (!leadOnly || item.is_lead),
-    ),
-    sort,
-  );
-  const labels = directoryLabels(t);
-
+  const visible = visibleDirectoryItems(items, query, selected, leadOnly, sort);
   return (
     <section className="min-w-0 space-y-5">
       <CorporateDirectoryToolbar
@@ -278,36 +352,21 @@ export function CorporateDirectoryResults({
           {t(resource === "members" ? "employees" : resource)}
         </p>
       </div>
-      {visible.length ? (
-        <ul
-          className={view === "cards" ? "grid min-w-0 gap-4 md:grid-cols-2" : "grid min-w-0 gap-3"}
-        >
-          {visible.map((item) => (
-            <CorporateDirectoryCard
-              key={item.id}
-              resource={resource}
-              item={cardItem(item, resource)}
-              labels={labels}
-              returnFilters={returnFilters}
-              view={view}
-            />
-          ))}
-        </ul>
-      ) : (
-        <p className="text-muted-foreground border-border rounded-lg border border-dashed p-8 text-center text-sm">
-          {t(items.length ? "noMatches" : "empty")}
-        </p>
-      )}
-      {serverPaginated && total && total > pageSize ? (
-        <PageNav
+      <DirectoryItemList
+        resource={resource}
+        items={visible}
+        labels={directoryLabels(t)}
+        returnFilters={returnFilters}
+        view={view}
+        emptyLabel={t(items.length ? "noMatches" : "empty")}
+      />
+      {serverPaginated && total ? (
+        <DirectoryPagination
+          filters={filters}
           label={paginationLabel}
           pageNumber={pageNumber}
-          totalPages={Math.ceil(total / pageSize)}
-          hrefFor={(page) => {
-            const params = new URLSearchParams(filters);
-            params.set("page", String(page));
-            return `?${params.toString()}`;
-          }}
+          pageSize={pageSize}
+          total={total}
         />
       ) : null}
     </section>
