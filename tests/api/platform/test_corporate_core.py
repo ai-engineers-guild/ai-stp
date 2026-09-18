@@ -96,6 +96,19 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     organization_id = organization["organization_id"]
     assert organization["authorization_revision"] == 1
 
+    initial_team = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/teams",
+        json={
+            "schema_version": 1,
+            "name": "Initial",
+            "authorization_revision": 1,
+            "idempotency_key": "create-initial-team-0001",
+        },
+        headers=auth,
+    )
+    assert initial_team.status_code == 200, initial_team.text
+    initial_team_id = initial_team.json()["team_id"]
+
     invalid_role_member = await client.post(
         f"/v1/corporate/organizations/{organization_id}/members",
         json={
@@ -103,7 +116,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "display_name": "Invalid Role",
             "email": "invalid.role@example.com",
             "role": "missing_role",
-            "authorization_revision": 1,
+            "team_ids": [initial_team_id],
+            "authorization_revision": 2,
             "idempotency_key": "create-invalid-role-0001",
         },
         headers={"Authorization": f"Bearer {owner_token}"},
@@ -130,7 +144,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "display_name": "Staff One",
             "email": "staff.one@example.com",
             "role": "staff",
-            "authorization_revision": 1,
+            "team_ids": [initial_team_id],
+            "authorization_revision": 2,
             "idempotency_key": "create-staff-0001",
         },
         headers=auth,
@@ -157,7 +172,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "email": "lead@example.com",
             "display_name": "Lead One",
             "role": "lead",
-            "authorization_revision": 2,
+            "team_ids": [initial_team_id],
+            "authorization_revision": 3,
             "idempotency_key": "create-lead-0001",
         },
         headers=auth,

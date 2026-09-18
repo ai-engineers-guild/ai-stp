@@ -11,6 +11,8 @@ import { Icon } from "@/theme";
 
 export function EntityDetailMenu({
   moreLabel,
+  openLabel,
+  openHref,
   editLabel,
   editHref,
   editPresentationLabel,
@@ -23,6 +25,8 @@ export function EntityDetailMenu({
   reportTarget,
 }: {
   moreLabel: string;
+  openLabel?: string | undefined;
+  openHref?: string | undefined;
   editLabel?: string | undefined;
   editHref?: string | undefined;
   editPresentationLabel?: string | undefined;
@@ -74,6 +78,17 @@ export function EntityDetailMenu({
             sideOffset={6}
             className="border-border bg-popover text-popover-foreground z-50 min-w-48 rounded-md border p-1 shadow-md"
           >
+            {openHref ? (
+              <DropdownMenu.Item asChild>
+                <Link
+                  href={openHref}
+                  className="hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
+                >
+                  <Icon name="eye" size="sm" />
+                  {openLabel ?? "Open details"}
+                </Link>
+              </DropdownMenu.Item>
+            ) : null}
             {editHref ? (
               <DropdownMenu.Item asChild>
                 <Link

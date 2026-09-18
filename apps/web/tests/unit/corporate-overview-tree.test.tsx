@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { CorporateOverview, CorporateOverviewNode } from "@/lib/api/generated/types.gen";
-import { overviewForest, overviewUsage } from "@/lib/corporate-overview";
+import { overviewAssignmentHref, overviewForest, overviewUsage } from "@/lib/corporate-overview";
 
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("@/lib/i18n/navigation", () => ({
@@ -53,6 +53,26 @@ const graph: CorporateOverview = {
   ],
 };
 const empty = () => ({ project: [], team: [], employee: [] });
+
+it("links overview assignments to their exact catalog versions", () => {
+  expect(
+    overviewAssignmentHref({
+      assignment_id: "assignment_1",
+      object_kind: "component",
+      organization_id: "organization_test",
+      revision: 1,
+      schema_version: 1,
+      stable_id: "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      state: "current",
+      subject_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      subject_kind: "employee",
+      version: "1.2",
+      display_name: "Worker",
+      source_team_id: null,
+      source_team_name: null,
+    }),
+  ).toBe("/catalog/components/component_01JQZK7B8N4M6P2R9T5V0X3Y7Z/versions/1.2");
+});
 
 it("preserves shared branches without changing graph identities", () => {
   const forest = overviewForest(graph, empty());

@@ -45,6 +45,7 @@ import {
   readCorporateCatalogUsage,
 } from "@/lib/api/corporate-catalog-ownership";
 import { readOwnerObject } from "@/lib/api/owner";
+import { readCorporateContext } from "@/lib/api/corporate";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
@@ -123,22 +124,24 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   const targetMatrix = (detail as unknown as { target_matrix?: typeof detail.target_matrix })
     .target_matrix;
   const author = await readAuthor(ownerId);
+  const corporateContext = token ? await readCorporateContext(token).catch(() => null) : null;
   const corporateOwnership = token
     ? await readCorporateCatalogOwnership(
         token,
         "component",
         componentId,
         asVersionId(summary.latest_version),
+        corporateContext,
       )
     : null;
   const corporateCsrfToken = corporateOwnership?.ownership.can_edit
     ? ((await readCsrfToken()) ?? "")
     : "";
   const corporateUsage =
-    token && corporateOwnership
+    token && corporateContext
       ? await readCorporateCatalogUsage(
           token,
-          corporateOwnership.ownership.organization_id,
+          corporateContext.organization.organization_id,
           "component",
           componentId,
           asVersionId(summary.latest_version),

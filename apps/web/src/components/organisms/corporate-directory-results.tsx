@@ -116,6 +116,7 @@ function directoryLabels(
     owner: t("owner"),
     type: t("type"),
     moreActions: t("moreActions"),
+    openDetails: t("openDetails"),
     edit: t("edit"),
     editPresentation,
     copyId: t("copyId"),

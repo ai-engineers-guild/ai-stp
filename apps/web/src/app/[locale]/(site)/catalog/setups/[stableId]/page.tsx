@@ -45,6 +45,7 @@ import {
   readCorporateCatalogUsage,
 } from "@/lib/api/corporate-catalog-ownership";
 import { listCatalogReactions } from "@/lib/api/reactions";
+import { readCorporateContext } from "@/lib/api/corporate";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -147,22 +148,24 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
     : null;
   const ownerId = summary.publisher_id || passport?.owner_id || "";
   const author = await readAuthor(ownerId);
+  const corporateContext = token ? await readCorporateContext(token).catch(() => null) : null;
   const corporateOwnership = token
     ? await readCorporateCatalogOwnership(
         token,
         "setup",
         setupId,
         asVersionId(summary.latest_version),
+        corporateContext,
       )
     : null;
   const corporateCsrfToken = corporateOwnership?.ownership.can_edit
     ? ((await readCsrfToken()) ?? "")
     : "";
   const corporateUsage =
-    token && corporateOwnership
+    token && corporateContext
       ? await readCorporateCatalogUsage(
           token,
-          corporateOwnership.ownership.organization_id,
+          corporateContext.organization.organization_id,
           "setup",
           setupId,
           asVersionId(summary.latest_version),

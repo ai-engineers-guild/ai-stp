@@ -175,7 +175,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
   const parentHref =
     resource === "roles"
       ? "/corporate/organization/admins"
-      : `/corporate/${resource}${directoryQuery ? `?${directoryQuery}` : ""}`;
+      : `/corporate/${resource === "members" ? "employees" : resource}${directoryQuery ? `?${directoryQuery}` : ""}`;
   const backLabel =
     resource === "roles"
       ? h("backToAdmins")

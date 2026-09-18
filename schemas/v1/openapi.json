@@ -6627,6 +6627,34 @@
         "title": "CorporateMember",
         "type": "object"
       },
+      "CorporateMemberCatalogAssignment": {
+        "additionalProperties": false,
+        "properties": {
+          "object_kind": {
+            "const": "component",
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_kind",
+          "stable_id",
+          "version"
+        ],
+        "title": "CorporateMemberCatalogAssignment",
+        "type": "object"
+      },
       "CorporateMemberCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -6647,6 +6675,15 @@
             "minimum": 1,
             "title": "Authorization Revision",
             "type": "integer"
+          },
+          "catalog_assignments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateMemberCatalogAssignment"
+            },
+            "maxItems": 64,
+            "title": "Catalog Assignments",
+            "type": "array"
           },
           "display_name": {
             "maxLength": 80,
@@ -6684,6 +6721,15 @@
             "default": null,
             "title": "Job Title Id"
           },
+          "project_ids": {
+            "items": {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Project Ids",
+            "type": "array"
+          },
           "role": {
             "description": "Tenant-local role name.",
             "maxLength": 64,
@@ -6703,6 +6749,7 @@
               "type": "string"
             },
             "maxItems": 64,
+            "minItems": 1,
             "title": "Team Ids",
             "type": "array"
           }
@@ -6710,6 +6757,7 @@
         "required": [
           "display_name",
           "role",
+          "team_ids",
           "authorization_revision",
           "idempotency_key"
         ],

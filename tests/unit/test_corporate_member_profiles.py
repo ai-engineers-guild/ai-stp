@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from ai_stp_api.slices.corporate.service import member_view
-from ai_stp_contracts.corporate import CorporateMemberProfileRequest
+from ai_stp_contracts.corporate import CorporateMemberCreateRequest, CorporateMemberProfileRequest
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import OrganizationMembership
@@ -51,3 +51,31 @@ def test_profile_boundary_rejects_blank_names_and_authority_fields() -> None:
     ]:
         with pytest.raises(ValidationError):
             CorporateMemberProfileRequest.model_validate(invalid)
+
+
+def test_member_creation_requires_team_and_keeps_catalog_assignment_exact() -> None:
+    assignment: dict[str, str] = {
+        "object_kind": "component",
+        "stable_id": new_id("component"),
+        "version": "1.0",
+    }
+    payload: dict[str, object] = {
+        "display_name": "Alice",
+        "email": "alice@example.com",
+        "role": "staff",
+        "team_ids": [new_id("operation")],
+        "project_ids": [new_id("remote_project")],
+        "catalog_assignments": [assignment],
+        "authorization_revision": 1,
+        "idempotency_key": "member-create-fixture",
+    }
+    request = CorporateMemberCreateRequest.model_validate(payload)
+    assert request.catalog_assignments[0].version == "1.0"
+    changes_list: tuple[dict[str, object], ...] = (
+        {"team_ids": []},
+        {"catalog_assignments": [{**assignment, "version": "latest"}]},
+        {"catalog_assignments": [{**assignment, "object_kind": "setup"}]},
+    )
+    for changes in changes_list:
+        with pytest.raises(ValidationError):
+            CorporateMemberCreateRequest.model_validate({**payload, **changes})

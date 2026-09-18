@@ -174,12 +174,9 @@ export function CorporateRelationSection({
   };
 
   return (
-    <DetailAccordion
-      title={title}
-      summary={`${total}`}
-      defaultOpen
-      headerAction={
-        <>
+    <DetailAccordion title={title} summary={`${total}`} defaultOpen>
+      <div className="min-w-0">
+        <div className="mb-4 flex justify-end">
           <Button
             type="button"
             variant={
@@ -199,80 +196,77 @@ export function CorporateRelationSection({
             <Icon name="controls" size="sm" />
             {labels.filters}
           </Button>
-          {filtersOpen ? (
-            <RefineSurface
-              id={`relation-filters-${resource}`}
-              labels={{
-                filtersButton: labels.filters,
-                refineButton: labels.filterTitle,
-                closeFilters: labels.close,
-              }}
-              onClose={() => {
-                setFiltersOpen(false);
-              }}
-            >
-              <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
-                {directoryFacets[resource].map((facet) => (
-                  <label key={facet} className="min-w-0 space-y-2 text-sm">
-                    <span className="font-medium">{facetLabel(labels, facet)}</span>
-                    <SearchableMultiSelect
-                      name={directoryFacetParams[facet]}
-                      label={facetLabel(labels, facet)}
-                      searchLabel={labels.search}
-                      options={relationOptions(remote?.items ?? [], remote?.facets ?? null, facet)}
-                      selected={draftSelected[facet] ?? []}
-                      modal
-                      closeLabel={labels.close}
-                      onChange={(values) => {
-                        setDraftSelected((previous) => ({ ...previous, [facet]: values }));
-                      }}
-                    />
-                  </label>
-                ))}
-                {resource === "members" ? (
-                  <label className="flex min-h-11 items-center gap-2 text-sm md:col-span-2">
-                    <input
-                      type="checkbox"
-                      checked={draftLeadOnly}
-                      onChange={(event) => {
-                        setDraftLeadOnly(event.target.checked);
-                      }}
-                    />
-                    {labels.lead}
-                  </label>
-                ) : null}
-              </div>
-              <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="underline underline-offset-4"
-                  onClick={() => {
-                    setDraftSelected({});
-                    setDraftLeadOnly(false);
-                  }}
-                >
-                  {labels.reset}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setSelected(draftSelected);
-                    setLeadOnly(draftLeadOnly);
-                    setPage(0);
-                    setFiltersOpen(false);
-                  }}
-                >
-                  <Icon name="controls" size="sm" />
-                  {labels.apply}
-                </Button>
-              </div>
-            </RefineSurface>
-          ) : null}
-        </>
-      }
-    >
-      <div className="min-w-0">
+        </div>
+        {filtersOpen ? (
+          <RefineSurface
+            id={`relation-filters-${resource}`}
+            labels={{
+              filtersButton: labels.filters,
+              refineButton: labels.filterTitle,
+              closeFilters: labels.close,
+            }}
+            onClose={() => {
+              setFiltersOpen(false);
+            }}
+          >
+            <div className="grid min-w-0 items-start gap-5 md:grid-cols-2">
+              {directoryFacets[resource].map((facet) => (
+                <label key={facet} className="min-w-0 space-y-2 text-sm">
+                  <span className="font-medium">{facetLabel(labels, facet)}</span>
+                  <SearchableMultiSelect
+                    name={directoryFacetParams[facet]}
+                    label={facetLabel(labels, facet)}
+                    searchLabel={labels.search}
+                    options={relationOptions(remote?.items ?? [], remote?.facets ?? null, facet)}
+                    selected={draftSelected[facet] ?? []}
+                    modal
+                    closeLabel={labels.close}
+                    onChange={(values) => {
+                      setDraftSelected((previous) => ({ ...previous, [facet]: values }));
+                    }}
+                  />
+                </label>
+              ))}
+              {resource === "members" ? (
+                <label className="flex min-h-11 items-center gap-2 text-sm md:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={draftLeadOnly}
+                    onChange={(event) => {
+                      setDraftLeadOnly(event.target.checked);
+                    }}
+                  />
+                  {labels.lead}
+                </label>
+              ) : null}
+            </div>
+            <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
+              <Button
+                type="button"
+                variant="ghost"
+                className="underline underline-offset-4"
+                onClick={() => {
+                  setDraftSelected({});
+                  setDraftLeadOnly(false);
+                }}
+              >
+                {labels.reset}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setSelected(draftSelected);
+                  setLeadOnly(draftLeadOnly);
+                  setPage(0);
+                  setFiltersOpen(false);
+                }}
+              >
+                <Icon name="controls" size="sm" />
+                {labels.apply}
+              </Button>
+            </div>
+          </RefineSurface>
+        ) : null}
         {items.length ? (
           <ul className="min-w-0 space-y-3">
             {items.map((item) => (

@@ -121,6 +121,9 @@ it("builds references for corporate and catalog targets with encoded IDs", () =>
   expect(corporateReferenceHref({ kind: "team", id: "team/a", name: "Core team" })).toBe(
     "/corporate/teams/team%2Fa",
   );
+  expect(corporateReferenceHref({ kind: "employee", id: "account_1", name: "Alice" })).toBe(
+    "/corporate/employees/account_1",
+  );
   expect(corporateReferenceHref({ kind: "component", id: "component_1", name: "Skill" })).toBe(
     "/catalog/components/component_1",
   );

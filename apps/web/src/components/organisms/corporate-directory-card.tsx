@@ -27,6 +27,7 @@ type Labels = {
   owner: string;
   type: string;
   moreActions: string;
+  openDetails?: string;
   edit?: string;
   editPresentation?: string;
   unknownEmployee: string;
@@ -223,6 +224,8 @@ function DirectoryActions({
   return (
     <EntityDetailMenu
       moreLabel={labels.moreActions}
+      openLabel={labels.openDetails}
+      openHref={href}
       editLabel={labels.edit}
       editHref={canUpdate ? href : undefined}
       editPresentationLabel={labels.editPresentation}

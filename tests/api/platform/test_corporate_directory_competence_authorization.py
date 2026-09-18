@@ -184,12 +184,24 @@ async def test_profile_omits_suspended_technology_owner(
     organization_id = bootstrap.json()["organization_id"]
     base = f"/v1/corporate/organizations/{organization_id}"
     context = await client.get(f"{base}/context", headers=admin_auth)
+    team = await client.post(
+        f"{base}/teams",
+        json={
+            "name": "Visibility team",
+            "authorization_revision": context.json()["organization"]["authorization_revision"],
+            "idempotency_key": str(uuid.uuid4()),
+        },
+        headers=admin_auth,
+    )
+    assert team.status_code == 200, team.text
+    context = await client.get(f"{base}/context", headers=admin_auth)
     member = await client.post(
         f"{base}/members",
         json={
             "display_name": "Soon suspended owner",
             "email": "suspended-owner@example.com",
             "role": "staff",
+            "team_ids": [team.json()["team_id"]],
             "authorization_revision": context.json()["organization"]["authorization_revision"],
             "idempotency_key": str(uuid.uuid4()),
         },

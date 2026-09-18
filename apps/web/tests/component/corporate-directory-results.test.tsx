@@ -80,6 +80,10 @@ describe("corporate directory filters", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "moreActions" }));
+    expect(screen.getByRole("menuitem", { name: "openDetails" })).toHaveAttribute(
+      "href",
+      "/corporate/projects/project",
+    );
     expect(screen.getByRole("menuitem", { name: "edit" })).toHaveAttribute(
       "href",
       "/corporate/projects/project",

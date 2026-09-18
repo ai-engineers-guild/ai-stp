@@ -146,7 +146,7 @@ export function corporateReferenceHref(ref: z.infer<typeof reference>) {
   const resources = {
     team: "teams",
     project: "projects",
-    employee: "members",
+    employee: "employees",
     technology: "technologies",
     component: "components",
     setup: "setups",
