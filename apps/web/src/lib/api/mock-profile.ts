@@ -38,6 +38,29 @@ let mockPublished: DraftState = {
   avatar_url: null,
 };
 
+let activeMockSession: string | null = null;
+
+function resetMockProfileState(): void {
+  mockDraft = {
+    revision_id: "prevision_mock_draft",
+    content_digest: "sha256:mock-draft",
+    display_name: seed.display_name,
+    bio: seed.bio,
+    links: [...seed.links],
+    avatar_asset_id: null,
+    avatar_url: null,
+  };
+  mockPublished = {
+    revision_id: "prevision_mock_pub",
+    content_digest: "sha256:mock-pub",
+    display_name: seed.display_name,
+    bio: seed.bio,
+    links: [...seed.links],
+    avatar_asset_id: null,
+    avatar_url: null,
+  };
+}
+
 function asString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
@@ -188,6 +211,10 @@ export function profileHandlers(
   auth: string | null,
   body?: unknown,
 ): MockResult | null {
+  if (auth && auth !== activeMockSession) {
+    resetMockProfileState();
+    activeMockSession = auth;
+  }
   if (method === "GET" && path === "/v1/account/public-profile") {
     return auth
       ? { status: 200, body: ownerBody("published") }

@@ -108,10 +108,16 @@ function validationError(caseId: string, fields: string): MockResult {
 
 function readAuth(headers?: HeadersInit): string | null {
   if (headers instanceof Headers) {
-    return headers.get("authorization");
+    return headers.get("x-ai-stp-mock-session") ?? headers.get("authorization");
   }
   if (headers && typeof headers === "object" && !Array.isArray(headers)) {
-    return headers["Authorization"] ?? headers["authorization"] ?? null;
+    return (
+      headers["X-AI-STP-Mock-Session"] ??
+      headers["x-ai-stp-mock-session"] ??
+      headers["Authorization"] ??
+      headers["authorization"] ??
+      null
+    );
   }
   return null;
 }
