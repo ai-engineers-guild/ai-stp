@@ -52,6 +52,7 @@ function buildMockHeaders(
   const token = options.sessionToken ?? jar.get(SESSION_COOKIE)?.value;
   if (token) {
     headers["Authorization"] = "Bearer mock-session";
+    headers["X-AI-STP-Mock-Session"] = `${token}:${jar.get(CSRF_COOKIE)?.value ?? ""}`;
     headers["Cookie"] = `${SESSION_COOKIE}=${token}`;
   }
   return headers;
