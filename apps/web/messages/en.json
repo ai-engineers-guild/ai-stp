@@ -1583,6 +1583,8 @@
     "employeeLeadStatus": "Lead status",
     "employeeNotLead": "This employee is not a team lead.",
     "noTeams": "No teams are assigned.",
+    "noMembers": "No members are available.",
+    "noProjects": "No projects are available.",
     "noRoles": "No roles are defined.",
     "id": "ID",
     "role": "Role",
@@ -1610,6 +1612,10 @@
     "auditUi": {
       "allEmployees": "All employees",
       "filterEvents": "Filter events",
+      "action": "Action",
+      "allActions": "All actions",
+      "from": "From",
+      "to": "To",
       "latestEvents": "Latest events",
       "olderEvents": "Earlier events",
       "event": "{entity}: {operation}",
@@ -1639,7 +1645,11 @@
         "bootstrap": "initialized",
         "replay": "request repeated"
       },
-      "outcomes": { "succeeded": "Completed", "denied": "Access denied", "failed": "Failed" },
+      "outcomes": {
+        "succeeded": "Completed",
+        "denied": "Access denied",
+        "failed": "Failed"
+      },
       "actors": {
         "user": "Employee action",
         "service_principal": "Service account action",
@@ -1648,6 +1658,15 @@
     },
     "exportAudit": "Export audit",
     "exportingAudit": "Exporting…",
+    "exportFormat": "Format",
+    "exportRange": "Time range",
+    "currentFilters": "Current filters",
+    "today": "Today",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "allEvents": "All matching events",
+    "json": "JSON",
+    "csv": "CSV",
     "noAudit": "No audit events.",
     "displayName": "Display name",
     "email": "Email",

@@ -114,13 +114,19 @@ export async function readCorporateWorkspace(
   });
   const [members, roles, bindings, servicePrincipals, audit] = await Promise.all([
     context.capabilities.includes("member.list")
-      ? apiRequest<CorporateMemberList>(`${organizationPath}/members`, { sessionToken })
+      ? apiRequest<CorporateMemberList>(`${organizationPath}/members`, {
+          sessionToken,
+        })
       : Promise.resolve(null),
     context.capabilities.includes("role.list")
-      ? apiRequest<CorporateRoleList>(`${organizationPath}/roles`, { sessionToken })
+      ? apiRequest<CorporateRoleList>(`${organizationPath}/roles`, {
+          sessionToken,
+        })
       : Promise.resolve(null),
     context.capabilities.includes("binding.list")
-      ? apiRequest<CorporateBindingList>(`${organizationPath}/bindings`, { sessionToken })
+      ? apiRequest<CorporateBindingList>(`${organizationPath}/bindings`, {
+          sessionToken,
+        })
       : Promise.resolve(null),
     context.capabilities.includes("service_principal.list")
       ? apiRequest<CorporateServicePrincipalList>(`${organizationPath}/service-principals`, {
@@ -128,10 +134,20 @@ export async function readCorporateWorkspace(
         })
       : Promise.resolve(null),
     includeAudit && context.capabilities.includes("audit.list")
-      ? apiRequest<CorporateAuditList>(`${organizationPath}/audit`, { sessionToken })
+      ? apiRequest<CorporateAuditList>(`${organizationPath}/audit`, {
+          sessionToken,
+        })
       : Promise.resolve(null),
   ]);
-  return { organization, context, members, roles, bindings, servicePrincipals, audit };
+  return {
+    organization,
+    context,
+    members,
+    roles,
+    bindings,
+    servicePrincipals,
+    audit,
+  };
 }
 
 export async function readCorporateAudit(
@@ -144,7 +160,10 @@ export async function readCorporateAudit(
   const [audit, members] = await Promise.all([
     apiRequest<CorporateAuditList>(`${path}/audit`, {
       sessionToken,
-      query: { ...corporateAuditCursor(cursor), ...corporateAuditFilters(cursor) },
+      query: {
+        ...corporateAuditCursor(cursor),
+        ...corporateAuditFilters(cursor),
+      },
     }),
     context.capabilities.includes("member.list")
       ? apiRequest<CorporateMemberList>(`${path}/members`, { sessionToken })
@@ -153,11 +172,61 @@ export async function readCorporateAudit(
   return { context, audit, members };
 }
 
+export type CorporateAuditFilterValues = {
+  actor_account_id?: string;
+  action?: string;
+  target_id?: string;
+  created_from?: string;
+  created_to?: string;
+};
+
+const AUDIT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const AUDIT_TEXT_PATTERN = /^[\u0020-\u007e]{1,128}$/;
+
+function scalarParam(
+  params: Record<string, string | string[] | undefined>,
+  key: string,
+): string | undefined {
+  const value = params[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function validDateInput(value: string | undefined): value is string {
+  if (!value || !AUDIT_DATE_PATTERN.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+function validAuditText(value: string | undefined): value is string {
+  return value !== undefined && AUDIT_TEXT_PATTERN.test(value);
+}
+
+export function corporateAuditFilterValues(
+  params: Record<string, string | string[] | undefined>,
+): CorporateAuditFilterValues {
+  const actor = scalarParam(params, "actor_account_id");
+  const action = scalarParam(params, "action");
+  const targetId = scalarParam(params, "target_id");
+  const createdFrom = scalarParam(params, "created_from");
+  const createdTo = scalarParam(params, "created_to");
+  return {
+    ...(actor && /^account_[0-9A-HJKMNP-TV-Z]{26}$/.test(actor) ? { actor_account_id: actor } : {}),
+    ...(validAuditText(action) ? { action } : {}),
+    ...(validAuditText(targetId) ? { target_id: targetId } : {}),
+    ...(validDateInput(createdFrom) ? { created_from: createdFrom } : {}),
+    ...(validDateInput(createdTo) ? { created_to: createdTo } : {}),
+  };
+}
+
 export function corporateAuditFilters(params: Record<string, string | string[] | undefined>) {
-  const actor = params.actor_account_id;
-  return typeof actor === "string" && /^account_[0-9A-HJKMNP-TV-Z]{26}$/.test(actor)
-    ? { actor_account_id: actor }
-    : {};
+  const filters = corporateAuditFilterValues(params);
+  return {
+    ...(filters.actor_account_id ? { actor_account_id: filters.actor_account_id } : {}),
+    ...(filters.action ? { action: filters.action } : {}),
+    ...(filters.target_id ? { target_id: filters.target_id } : {}),
+    ...(filters.created_from ? { created_from: `${filters.created_from}T00:00:00.000Z` } : {}),
+    ...(filters.created_to ? { created_to: `${filters.created_to}T23:59:59.999Z` } : {}),
+  };
 }
 
 export function corporateAuditCursor(cursor: Record<string, string | string[] | undefined>) {
@@ -183,13 +252,19 @@ export async function readCorporateResource(
   const path = `/v1/corporate/organizations/${context.organization.organization_id}`;
   const [team, member, role, teams, members, projects] = await Promise.all([
     resource === "teams"
-      ? apiRequest<CorporateTeamView>(`${path}/teams/${resourceId}`, { sessionToken })
+      ? apiRequest<CorporateTeamView>(`${path}/teams/${resourceId}`, {
+          sessionToken,
+        })
       : null,
     resource === "members"
-      ? apiRequest<CorporateMember>(`${path}/members/${resourceId}`, { sessionToken })
+      ? apiRequest<CorporateMember>(`${path}/members/${resourceId}`, {
+          sessionToken,
+        })
       : null,
     resource === "roles"
-      ? apiRequest<CorporateRoleView>(`${path}/roles/${resourceId}`, { sessionToken })
+      ? apiRequest<CorporateRoleView>(`${path}/roles/${resourceId}`, {
+          sessionToken,
+        })
       : null,
     (resource === "teams" || resource === "members") && context.capabilities.includes("team.list")
       ? apiRequest<CorporateTeamList>(`${path}/teams`, { sessionToken })
@@ -234,7 +309,9 @@ export async function readCorporateMemberAccess(sessionToken: string, accountId:
     return null;
   const path = `/v1/corporate/organizations/${context.organization.organization_id}`;
   const [member, roles] = await Promise.all([
-    apiRequest<CorporateMember>(`${path}/members/${accountId}`, { sessionToken }),
+    apiRequest<CorporateMember>(`${path}/members/${accountId}`, {
+      sessionToken,
+    }),
     context.capabilities.includes("role.list")
       ? apiRequest<CorporateRoleList>(`${path}/roles`, { sessionToken })
       : null,

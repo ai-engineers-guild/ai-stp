@@ -9,18 +9,26 @@ import {
   readCorporateAudit,
   corporateAuditCursor,
   corporateAuditFilters,
+  corporateAuditFilterValues,
   readCorporateMemberAccess,
 } from "@/lib/api/corporate";
 beforeEach(() => vi.clearAllMocks());
 it.each([
-  { capabilities: ["member.update", "role.list", "project.list", "team.list", "audit.list"] },
+  {
+    capabilities: ["member.update", "role.list", "project.list", "team.list", "audit.list"],
+  },
   { capabilities: ["member.read", "role.list"] },
 ])("loads member administration narrowly for $capabilities", async ({ capabilities }) => {
   request.mockImplementation((path) => {
     if (path === "/v1/organizations")
-      return { items: [{ organization_id: "organization_fixture", kind: "corporate" }] };
+      return {
+        items: [{ organization_id: "organization_fixture", kind: "corporate" }],
+      };
     if (path.endsWith("/context"))
-      return { organization: { organization_id: "organization_fixture" }, capabilities };
+      return {
+        organization: { organization_id: "organization_fixture" },
+        capabilities,
+      };
     if (path.endsWith("/members/account_alice"))
       return { account_id: "account_alice", display_name: "Alice" };
     if (path.endsWith("/roles")) return { items: [] };
@@ -47,6 +55,24 @@ it("accepts only a canonical employee identifier as an audit filter", () => {
   });
   for (const value of ["", "other", [actor_account_id], "account_" + "I".repeat(26)])
     expect(corporateAuditFilters({ actor_account_id: value })).toEqual({});
+});
+it("normalizes the complete audit filter surface for the API", () => {
+  const filters = {
+    actor_account_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    action: "member.profile.update",
+    target_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    created_from: "2026-09-01",
+    created_to: "2026-09-17",
+  };
+  expect(corporateAuditFilterValues(filters)).toEqual(filters);
+  expect(corporateAuditFilters(filters)).toEqual({
+    actor_account_id: filters.actor_account_id,
+    action: filters.action,
+    target_id: filters.target_id,
+    created_from: "2026-09-01T00:00:00.000Z",
+    created_to: "2026-09-17T23:59:59.999Z",
+  });
+  expect(corporateAuditFilterValues({ created_from: "2026-02-30" })).toEqual({});
 });
 it("passes only a complete valid journal cursor to the API", () => {
   const valid = { before_id: "23", before_created_at: "2026-09-13T10:00:00Z" };
@@ -77,13 +103,24 @@ it.each([
 ])("loads only authorized journal data for $capabilities", async ({ capabilities }) => {
   request.mockImplementation((path) => {
     if (path === "/v1/organizations")
-      return { items: [{ organization_id: "organization_fixture", kind: "corporate" }] };
+      return {
+        items: [{ organization_id: "organization_fixture", kind: "corporate" }],
+      };
     if (path.endsWith("/context"))
-      return { organization: { organization_id: "organization_fixture" }, capabilities };
+      return {
+        organization: { organization_id: "organization_fixture" },
+        capabilities,
+      };
     if (path.endsWith("/audit"))
-      return { items: [], next_before_created_at: null, next_before_id: null };
+      return {
+        items: [],
+        next_before_created_at: null,
+        next_before_id: null,
+      };
     if (path.endsWith("/members"))
-      return { items: [{ account_id: "account_alice", display_name: "Alice" }] };
+      return {
+        items: [{ account_id: "account_alice", display_name: "Alice" }],
+      };
     throw new Error(`Unexpected request ${path}`);
   });
   const result = await readCorporateAudit("session");
@@ -99,7 +136,9 @@ it.each([
 it("loads a team directly and never fetches administrative collections", async () => {
   request.mockImplementation((path: string) => {
     if (path === "/v1/organizations")
-      return { items: [{ organization_id: "organization_fixture", kind: "corporate" }] };
+      return {
+        items: [{ organization_id: "organization_fixture", kind: "corporate" }],
+      };
     if (path.endsWith("/context"))
       return {
         organization: { organization_id: "organization_fixture" },
@@ -115,7 +154,9 @@ it("loads a team directly and never fetches administrative collections", async (
     if (path.endsWith("/teams/team_mobile"))
       return { team_id: "team_mobile", name: "Mobile", members: [] };
     if (path.endsWith("/teams"))
-      return { items: [{ team_id: "team_mobile", name: "Mobile", members: [] }] };
+      return {
+        items: [{ team_id: "team_mobile", name: "Mobile", members: [] }],
+      };
     if (path.endsWith("/members")) return { items: [] };
     throw new Error(`Unexpected request ${path}`);
   });
@@ -163,7 +204,9 @@ it("loads assignment revision history across pages without truncating it", async
 it("offers authorized organization projects rather than only the viewer's own projects", async () => {
   request.mockImplementation((path) => {
     if (path === "/v1/organizations")
-      return { items: [{ organization_id: "organization_fixture", kind: "corporate" }] };
+      return {
+        items: [{ organization_id: "organization_fixture", kind: "corporate" }],
+      };
     if (path.endsWith("/context"))
       return {
         organization: { organization_id: "organization_fixture" },
@@ -181,7 +224,9 @@ it("offers authorized organization projects rather than only the viewer's own pr
       return { account_id: "account_alice", display_name: "Alice" };
     if (path.endsWith("/members/account_alice/projects")) return { items: [] };
     if (path.endsWith("/projects"))
-      return { items: [{ project_id: "remote_project_mobile", name: "Mobile app" }] };
+      return {
+        items: [{ project_id: "remote_project_mobile", name: "Mobile app" }],
+      };
     throw new Error(`Unexpected request ${path}`);
   });
   const result = await readCorporateResource("session", "members", "account_alice");

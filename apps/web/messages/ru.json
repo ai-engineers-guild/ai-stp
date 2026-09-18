@@ -1583,6 +1583,8 @@
     "employeeLeadStatus": "Статус лида",
     "employeeNotLead": "Сотрудник не является тимлидом.",
     "noTeams": "Нет назначенных команд.",
+    "noMembers": "Нет доступных сотрудников.",
+    "noProjects": "Нет доступных проектов.",
     "noRoles": "Роли не определены.",
     "id": "ID",
     "role": "Роль",
@@ -1610,6 +1612,10 @@
     "auditUi": {
       "allEmployees": "Все сотрудники",
       "filterEvents": "Показать события",
+      "action": "Действие",
+      "allActions": "Все действия",
+      "from": "С",
+      "to": "По",
       "latestEvents": "Последние события",
       "olderEvents": "Более ранние события",
       "event": "{entity}: {operation}",
@@ -1639,7 +1645,11 @@
         "bootstrap": "инициализация",
         "replay": "повтор запроса"
       },
-      "outcomes": { "succeeded": "Выполнено", "denied": "Доступ запрещён", "failed": "Ошибка" },
+      "outcomes": {
+        "succeeded": "Выполнено",
+        "denied": "Доступ запрещён",
+        "failed": "Ошибка"
+      },
       "actors": {
         "user": "Действие сотрудника",
         "service_principal": "Действие сервисного аккаунта",
@@ -1648,6 +1658,15 @@
     },
     "exportAudit": "Экспорт аудита",
     "exportingAudit": "Экспортируем…",
+    "exportFormat": "Формат",
+    "exportRange": "Период",
+    "currentFilters": "Текущие фильтры",
+    "today": "Сегодня",
+    "last7Days": "Последние 7 дней",
+    "last30Days": "Последние 30 дней",
+    "allEvents": "Все подходящие события",
+    "json": "JSON",
+    "csv": "CSV",
     "noAudit": "Нет событий аудита.",
     "displayName": "Отображаемое имя",
     "email": "Email",
