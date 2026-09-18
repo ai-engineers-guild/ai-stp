@@ -128,7 +128,6 @@
         "type": "string"
       },
       "maxItems": 64,
-      "minItems": 1,
       "title": "Team Ids",
       "type": "array"
     }
@@ -136,7 +135,6 @@
   "required": [
     "display_name",
     "role",
-    "team_ids",
     "authorization_revision",
     "idempotency_key"
   ],

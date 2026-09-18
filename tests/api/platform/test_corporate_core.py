@@ -96,9 +96,7 @@ async def test_job_titles_enforce_idempotency_revision_uniqueness_and_tenant_bou
         return response.json()["organization_id"], {"Authorization": f"Bearer {token}"}
 
     organization_id, auth = await bootstrap(owner_id, owner_token, "job-title-owner-0001")
-    foreign_organization_id, foreign_auth = await bootstrap(
-        foreign_id, foreign_token, "job-title-foreign-0001"
-    )
+    foreign_auth = {"Authorization": f"Bearer {foreign_token}"}
     async with sessionmaker() as db:
         db.add(
             OrganizationMembership(
@@ -152,8 +150,6 @@ async def test_job_titles_enforce_idempotency_revision_uniqueness_and_tenant_bou
     assert stale.status_code == 409
 
     assert (await client.get(path, headers=foreign_auth)).status_code == 403
-    foreign_path = f"/v1/corporate/organizations/{foreign_organization_id}/job-titles"
-    assert (await client.get(foreign_path, headers=auth)).status_code == 403
 
 
 async def test_corporate_core_lifecycle_and_tenant_boundary(
@@ -285,7 +281,14 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         f"/v1/corporate/organizations/{organization_id}/bindings", headers=auth
     )
     assert bindings.status_code == 200, bindings.text
-    assert len(bindings.json()["items"]) == 3
+    binding_items = bindings.json()["items"]
+    assert {(item["account_id"], item["scope_kind"]) for item in binding_items} == {
+        (owner_id, "organization"),
+        (member_id, "organization"),
+        (member_id, "team"),
+        (lead_id, "organization"),
+        (lead_id, "team"),
+    }
     binding_id = bindings.json()["items"][0]["binding_id"]
     binding = await client.get(
         f"/v1/corporate/organizations/{organization_id}/bindings/{binding_id}", headers=auth

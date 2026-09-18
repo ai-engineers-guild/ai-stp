@@ -179,7 +179,7 @@ class CorporateMemberCreateRequest(BaseModel):
     email: Annotated[str | None, Field(min_length=3, max_length=320)] = None
     display_name: Annotated[str, Field(min_length=1, max_length=80)]
     role: CorporateRole
-    team_ids: Annotated[list[str], Field(min_length=1, max_length=64)]
+    team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
     project_ids: Annotated[list[ProjectId], Field(max_length=64)] = Field(default_factory=list)
     catalog_assignments: Annotated[
         list[CorporateMemberCatalogAssignment], Field(max_length=64)

@@ -1,3 +1,5 @@
+/* eslint-disable max-lines -- canonical catalog route owns public and corporate projections. */
+
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 

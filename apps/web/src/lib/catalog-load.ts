@@ -68,12 +68,12 @@ export function catalogSearchInput(
   if (query.countryCodes?.length) input.country_codes = query.countryCodes;
   if (query.updatedFrom) input.updated_from = query.updatedFrom;
   if (query.updatedTo) input.updated_to = query.updatedTo;
-  if (query.teamIds?.length) input.team_ids = query.teamIds;
-  if (query.projectIds?.length) input.project_ids = query.projectIds;
-  if (query.technologyIds?.length) input.technology_ids = query.technologyIds;
-  if (query.categoryIds?.length) input.category_ids = query.categoryIds;
-  if (query.ownerIds?.length) input.owner_ids = query.ownerIds;
-  if (query.maintainerIds?.length) input.maintainer_ids = query.maintainerIds;
+  if (query.teamIds.length) input.team_ids = query.teamIds;
+  if (query.projectIds.length) input.project_ids = query.projectIds;
+  if (query.technologyIds.length) input.technology_ids = query.technologyIds;
+  if (query.categoryIds.length) input.category_ids = query.categoryIds;
+  if (query.ownerIds.length) input.owner_ids = query.ownerIds;
+  if (query.maintainerIds.length) input.maintainer_ids = query.maintainerIds;
   if (query.assignment) input.assignment = query.assignment;
   if (query.corporateVerified !== undefined) input.corporate_verified = query.corporateVerified;
   if (resource === "setups" && query.familyId) input.family_id = query.familyId;

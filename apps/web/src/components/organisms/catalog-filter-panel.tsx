@@ -283,12 +283,12 @@ function selectedCorporateValues(
   query: ParsedCatalogQuery,
   key: CorporateCatalogFacetConfig["key"],
 ): string[] {
-  if (key === "team_ids") return query.teamIds ?? [];
-  if (key === "project_ids") return query.projectIds ?? [];
-  if (key === "technology_ids") return query.technologyIds ?? [];
-  if (key === "category_ids") return query.categoryIds ?? [];
-  if (key === "owner_ids") return query.ownerIds ?? [];
-  if (key === "maintainer_ids") return query.maintainerIds ?? [];
+  if (key === "team_ids") return query.teamIds;
+  if (key === "project_ids") return query.projectIds;
+  if (key === "technology_ids") return query.technologyIds;
+  if (key === "category_ids") return query.categoryIds;
+  if (key === "owner_ids") return query.ownerIds;
+  if (key === "maintainer_ids") return query.maintainerIds;
   if (key === "assignment") return query.assignment ? [query.assignment] : [];
   return query.corporateVerified === undefined ? [] : [String(query.corporateVerified)];
 }

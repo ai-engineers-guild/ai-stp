@@ -126,7 +126,7 @@ describe("catalog resource orchestration", () => {
       {
         listExternalProducts: () => Promise.resolve({ schema_version: 1, items: [] }),
         searchComponents: (input) => {
-          received = input as Record<string, unknown>;
+          received = input;
           return Promise.resolve(emptyList);
         },
         searchSetups: () => Promise.resolve(emptyList),
