@@ -1,0 +1,54 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-decision-view",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "adoption": {
+      "enum": [
+        "none",
+        "assess",
+        "trial",
+        "adopt",
+        "hold"
+      ],
+      "title": "Adoption",
+      "type": "string"
+    },
+    "approved": {
+      "title": "Approved",
+      "type": "boolean"
+    },
+    "lead_account_id": {
+      "anyOf": [
+        {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lead Account Id"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "technology_id": {
+      "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Technology Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "adoption",
+    "approved",
+    "lead_account_id",
+    "revision",
+    "technology_id"
+  ],
+  "title": "TechnologyDecisionView",
+  "type": "object"
+}

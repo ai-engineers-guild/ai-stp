@@ -1,14 +1,30 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/atoms/button";
-import { MediaItemEditor } from "@/components/organisms/object-presentation-media-item";
+import { Input } from "@/components/atoms/input";
+import {
+  EntityEditorErrorSummary,
+  EntityEditorField,
+  EntityEditorLayout,
+} from "@/components/molecules/entity-editor-layout";
+import { MarkdownEditor } from "@/components/molecules/markdown-editor";
+import { PresentationMediaEditor } from "@/components/organisms/presentation-media-editor";
 import { useObjectPresentationForm } from "@/components/organisms/use-object-presentation-form";
 import type { OwnerPresentationMedia } from "@/lib/api/owner";
+import { ENTITY_EDITOR_CONFIGS } from "@/lib/entity-editor-contract";
 
 type Labels = {
+  editorTitle?: string;
+  editorDescription?: string;
+  displayName?: string;
+  displayNameHint?: string;
+  markdownWrite?: string;
+  markdownPreview?: string;
   bio: string;
+  descriptionInvalid: string;
   media: string;
   addMedia: string;
   remove: string;
@@ -55,12 +71,10 @@ type Labels = {
   kindVideo: string;
   kindYoutube: string;
   mediaCount: string;
+  moveUp?: string;
+  moveDown?: string;
 };
 
-const FIELD_CLASS =
-  "border-input bg-background focus-visible:ring-ring min-h-11 w-full rounded-sm border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60";
-
-// eslint-disable-next-line max-lines-per-function
 export function ObjectPresentationForm({
   locale,
   stableId,
@@ -68,6 +82,7 @@ export function ObjectPresentationForm({
   csrfToken,
   initialBio,
   initialMedia,
+  initialDisplayName,
   labels,
   beforeMedia,
 }: {
@@ -77,6 +92,7 @@ export function ObjectPresentationForm({
   csrfToken: string;
   initialBio: string;
   initialMedia: OwnerPresentationMedia[];
+  initialDisplayName?: string;
   labels: Labels;
   beforeMedia?: ReactNode;
 }) {
@@ -96,148 +112,130 @@ export function ObjectPresentationForm({
       saveFailed: labels.saveFailed,
       uploadInProgress: labels.uploadInProgress,
       uploadRequired: labels.uploadRequired,
+      fieldError: (path, message) => {
+        if (path === "bio") return labels.descriptionInvalid;
+        if (path.endsWith(".alt")) return labels.altRequired;
+        if (path.startsWith("media.")) return labels.uploadRequired;
+        return message;
+      },
     },
   });
+  const [bioMode, setBioMode] = useState<"write" | "preview">("write");
 
   const saveLabel = form.saving ? labels.saving : form.uploading ? labels.uploading : labels.save;
 
+  const config = ENTITY_EDITOR_CONFIGS[objectKind];
+
   return (
     <form
-      className="space-y-8"
+      className="min-w-0"
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
         form.save();
       }}
     >
-      <section className="space-y-2" aria-labelledby="presentation-bio-heading">
-        <h2 id="presentation-bio-heading" className="text-base font-medium">
-          {labels.bio}
-        </h2>
-        <label htmlFor="presentation-bio" className="sr-only">
-          {labels.bio}
-        </label>
-        <textarea
-          id="presentation-bio"
-          className={`${FIELD_CLASS} min-h-36 resize-y ${form.fieldErrors.bio ? "border-destructive focus-visible:ring-destructive" : ""}`}
-          maxLength={2000}
-          value={form.bio}
-          aria-invalid={Boolean(form.fieldErrors.bio)}
-          aria-describedby={form.fieldErrors.bio ? "presentation-bio-error" : undefined}
-          onChange={(event) => {
-            form.setBio(event.target.value);
-          }}
-        />
-        <p className="text-muted-foreground text-xs" aria-live="polite">
-          {form.bio.length}/2000
-        </p>
-        {form.fieldErrors.bio ? (
-          <p id="presentation-bio-error" className="text-destructive text-sm" role="alert">
-            {form.fieldErrors.bio}
-          </p>
-        ) : null}
-      </section>
-
-      {beforeMedia}
-
-      <section className="space-y-4" aria-labelledby="presentation-media-heading">
-        <header className="space-y-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="presentation-media-heading" className="text-base font-medium">
-              {labels.media}
-            </h2>
-            <p className="text-muted-foreground text-xs">
-              {labels.mediaCount
-                .replace("{count}", String(form.media.length))
-                .replace("{max}", "5")}
-            </p>
-          </div>
-          <p className="text-muted-foreground text-sm">{labels.help}</p>
-          <p className="text-muted-foreground text-xs leading-relaxed">{labels.requirements}</p>
-        </header>
-
-        <ul className="space-y-4">
-          {form.media.map((item, index) => (
-            <li key={item.clientKey}>
-              <MediaItemEditor
-                index={index}
-                item={item}
-                labels={labels}
-                fieldClass={FIELD_CLASS}
-                previewSrc={form.previewSrc(item)}
-                busy={form.pending}
-                onPatch={(patch) => {
-                  form.patchMedia(index, patch);
-                }}
-                onFile={(file) => {
-                  form.onFile(index, file);
-                }}
-                onRetry={() => {
-                  form.retryUpload(index);
-                }}
-                onRemove={() => {
-                  form.removeMedia(index);
-                }}
-                errors={{
-                  url:
-                    form.fieldErrors[`media.${index}.url`] ??
-                    form.fieldErrors[`media[${index}].url`],
-                  alt:
-                    form.fieldErrors[`media.${index}.alt`] ??
-                    form.fieldErrors[`media[${index}].alt`],
-                  item:
-                    form.fieldErrors[`media.${index}`] ??
-                    form.fieldErrors[`media[${index}]`] ??
-                    form.fieldErrors[`media.${index}.kind`],
-                }}
+      <EntityEditorLayout
+        config={config}
+        title={labels.editorTitle ?? labels.bio}
+        description={labels.editorDescription}
+        blocks={{
+          displayName: (
+            <EntityEditorField
+              label={labels.displayName ?? "Display name"}
+              htmlFor="presentation-display-name"
+              hint={labels.displayNameHint}
+            >
+              <Input
+                id="presentation-display-name"
+                value={initialDisplayName ?? ""}
+                readOnly
+                aria-readonly="true"
               />
-            </li>
-          ))}
-        </ul>
-
-        {form.canAdd ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={form.addMedia}
-            disabled={form.pending}
-          >
-            {labels.addMedia}
-          </Button>
-        ) : null}
-      </section>
-
-      <div
-        className="border-border bg-background/95 sticky bottom-0 z-10 -mx-1 space-y-3 border-t px-1 py-4 backdrop-blur-sm"
-        role="region"
-        aria-label={labels.save}
-      >
-        {form.error ? (
+            </EntityEditorField>
+          ),
+          description: (
+            <MarkdownEditor
+              id="presentation-bio"
+              label={labels.bio}
+              value={form.bio}
+              mode={bioMode}
+              onChange={form.setBio}
+              onModeChange={setBioMode}
+              maxLength={config.limits.description}
+              error={form.fieldErrors.bio}
+              labels={{
+                write: labels.markdownWrite ?? "Write",
+                preview: labels.markdownPreview ?? "Preview",
+              }}
+            />
+          ),
+          media: (
+            <>
+              {beforeMedia}
+              <PresentationMediaEditor
+                media={form.media}
+                labels={{
+                  ...labels,
+                  moveUp: labels.moveUp ?? "Move up",
+                  moveDown: labels.moveDown ?? "Move down",
+                }}
+                pending={form.pending}
+                max={config.limits.media}
+                previewSrc={form.previewSrc}
+                patchMedia={form.patchMedia}
+                onFile={form.onFile}
+                retryUpload={form.retryUpload}
+                removeMedia={form.removeMedia}
+                moveMedia={form.moveMedia}
+                addMedia={form.addMedia}
+                fieldErrors={form.fieldErrors}
+              />
+            </>
+          ),
+        }}
+        afterBlocks={
           <div
-            className="border-destructive/60 bg-destructive/10 rounded-md border p-3"
-            role="alert"
+            className="border-border bg-background/95 sticky bottom-0 z-10 -mx-1 space-y-3 border-t px-1 py-4 backdrop-blur-sm"
+            role="region"
+            aria-label={labels.save}
           >
-            <p className="text-destructive text-sm font-medium">{form.error}</p>
+            <EntityEditorErrorSummary
+              error={form.error}
+              fieldErrors={form.fieldErrors}
+              summary={labels.saveFailed}
+              fieldLabel={(path) => presentationFieldLabel(path, labels)}
+            />
             {form.errorCode ? (
-              <code className="text-muted-foreground mt-1 block text-xs">{form.errorCode}</code>
+              <code className="text-muted-foreground block text-xs">{form.errorCode}</code>
             ) : null}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="submit"
+                className="min-h-11 min-w-44"
+                disabled={form.pending}
+                aria-busy={form.pending}
+              >
+                {saveLabel}
+              </Button>
+              <p role="status" className="text-muted-foreground text-sm" aria-live="polite">
+                {form.message}
+              </p>
+            </div>
           </div>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="submit"
-            className="min-h-11 min-w-44"
-            disabled={form.pending}
-            aria-busy={form.pending}
-          >
-            {saveLabel}
-          </Button>
-          <p role="status" className="text-muted-foreground text-sm" aria-live="polite">
-            {form.message}
-          </p>
-        </div>
-      </div>
+        }
+      />
     </form>
   );
+}
+
+function presentationFieldLabel(
+  path: string,
+  labels: Pick<Labels, "bio" | "media" | "url" | "alt" | "kind">,
+): string {
+  if (path === "bio") return labels.bio;
+  const match = path.match(/^media\.(\d+)\.(url|alt|kind)$/);
+  if (!match) return path;
+  const field = match[2] === "alt" ? labels.alt : match[2] === "kind" ? labels.kind : labels.url;
+  return `${labels.media} #${Number(match[1]) + 1} ${field}`;
 }

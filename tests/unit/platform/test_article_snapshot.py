@@ -10,7 +10,11 @@ from tests.unit.platform.article_fixtures import COMMIT
 
 from ai_stp_foundation.canonical import canonize
 from ai_stp_platform.content.errors import ContentError
-from ai_stp_platform.content.snapshot import build_repository_snapshot, parse_frontmatter
+from ai_stp_platform.content.snapshot import (
+    build_repository_snapshot,
+    parse_frontmatter,
+    resolve_repository_commit,
+)
 from ai_stp_platform.content.snapshot_cli import main as snapshot_cli_main
 
 pytestmark = pytest.mark.platform
@@ -157,6 +161,16 @@ def test_snapshot_rejects_missing_hub(tmp_path: Path) -> None:
         build_repository_snapshot(missing, commit=COMMIT, now=NOW)
     assert error.value.code == "AI_STP_CONTENT_INVALID"
     assert "missing" in error.value.message
+
+
+def test_resolve_repository_commit_reads_head_ref(tmp_path: Path) -> None:
+    git_dir = tmp_path / ".git"
+    (git_dir / "refs" / "heads").mkdir(parents=True)
+    commit = "b" * 40
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    (git_dir / "refs" / "heads" / "main").write_text(f"{commit}\n", encoding="utf-8")
+
+    assert resolve_repository_commit(tmp_path) == commit
 
 
 def test_snapshot_rejects_zero_commit_placeholder(tmp_path: Path) -> None:

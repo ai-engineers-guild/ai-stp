@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 """One-shot deploy importer talks only to the API (SPEC-054 REQ-5404)."""
 
 from __future__ import annotations
@@ -75,6 +76,36 @@ def test_importer_posts_expected_generation_from_state(
     assert calls[1][2] is not None
     assert calls[1][2]["expected_generation"] == 3
     assert "entries" in (calls[1][2] or {})
+
+
+def test_importer_builds_missing_snapshot_from_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = tmp_path / "repo"
+    git_dir = repository / ".git"
+    (git_dir / "refs" / "heads").mkdir(parents=True)
+    commit = "c" * 40
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    (git_dir / "refs" / "heads" / "main").write_text(f"{commit}\n", encoding="utf-8")
+    snapshot_path = tmp_path / "runtime" / "snapshot.json"
+    expected = pair_snapshot()
+    resolved: list[str] = []
+
+    monkeypatch.setenv("AI_STP_CONTENT_HUB", str(repository))
+    monkeypatch.setenv("AI_STP_CONTENT_REPOSITORY", str(repository))
+    monkeypatch.delenv("AI_STP_API_GIT_COMMIT", raising=False)
+
+    def fake_build(_hub: Path, *, commit: str) -> object:
+        resolved.append(commit)
+        return expected
+
+    monkeypatch.setattr(importer, "build_repository_snapshot", fake_build)
+
+    loaded = importer._load_snapshot(snapshot_path)
+
+    assert loaded is expected
+    assert resolved == [commit]
+    assert snapshot_path.is_file()
 
 
 def test_importer_fails_closed_without_token(monkeypatch: pytest.MonkeyPatch) -> None:

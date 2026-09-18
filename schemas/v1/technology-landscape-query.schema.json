@@ -1,0 +1,267 @@
+{
+  "$id": "urn:ai-stp:schema:v1:technology-landscape-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activity": {
+      "anyOf": [
+        {
+          "enum": [
+            "active",
+            "inactive",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Activity"
+    },
+    "adoption": {
+      "anyOf": [
+        {
+          "enum": [
+            "none",
+            "assess",
+            "trial",
+            "adopt",
+            "hold"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Adoption"
+    },
+    "category_id": {
+      "anyOf": [
+        {
+          "pattern": "^category_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Category Id"
+    },
+    "context": {
+      "anyOf": [
+        {
+          "enum": [
+            "production",
+            "development",
+            "testing",
+            "browser_support"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Context"
+    },
+    "freshness": {
+      "anyOf": [
+        {
+          "enum": [
+            "current",
+            "stale",
+            "absent",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Freshness"
+    },
+    "include_history": {
+      "default": false,
+      "title": "Include History",
+      "type": "boolean"
+    },
+    "include_inactive": {
+      "default": false,
+      "title": "Include Inactive",
+      "type": "boolean"
+    },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "enum": [
+            "draft",
+            "active",
+            "deprecated",
+            "archived"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lifecycle"
+    },
+    "limit": {
+      "default": 128,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "project_lifecycle": {
+      "anyOf": [
+        {
+          "enum": [
+            "active",
+            "deprecated",
+            "archived",
+            "deleted"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Lifecycle"
+    },
+    "project_limit": {
+      "default": 128,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Project Limit",
+      "type": "integer"
+    },
+    "project_offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Project Offset",
+      "type": "integer"
+    },
+    "query": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": ".*\\S.*",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Query"
+    },
+    "review": {
+      "anyOf": [
+        {
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected",
+            "overridden",
+            "retired"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Review"
+    },
+    "source_availability": {
+      "anyOf": [
+        {
+          "enum": [
+            "unknown",
+            "available",
+            "unavailable"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Availability"
+    },
+    "team_id": {
+      "anyOf": [
+        {
+          "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Team Id"
+    },
+    "technology_id": {
+      "anyOf": [
+        {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Technology Id"
+    },
+    "view": {
+      "default": "table",
+      "enum": [
+        "table",
+        "grouped",
+        "radar",
+        "relationships"
+      ],
+      "title": "View",
+      "type": "string"
+    }
+  },
+  "title": "TechnologyLandscapeQuery",
+  "type": "object"
+}

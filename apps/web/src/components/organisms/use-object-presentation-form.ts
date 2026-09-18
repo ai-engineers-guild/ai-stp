@@ -1,12 +1,16 @@
 "use client";
 
+/* eslint-disable max-lines -- media upload state machine stays in one hook to preserve item identity. */
+
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { updateObjectPresentationAction } from "@/actions/object-presentation";
+import { normalizeFieldPath } from "@/lib/api/field-errors";
 import {
   isGithubRawUrl,
   isExternalMediaUrl,
   isUploadedMediaUrl,
+  isStoredMediaUrl,
   isYoutubeVideoId,
   kindFromMime,
   kindFromMediaUrl,
@@ -34,6 +38,7 @@ export type PresentationFormLabels = {
   saveFailed: string;
   uploadInProgress: string;
   uploadRequired: string;
+  fieldError?: ((path: string, message: string) => string) | undefined;
 };
 
 type UploadCtx = {
@@ -55,7 +60,7 @@ function newClientKey(): string {
   return `media_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function emptyItem(): PresentationMediaDraft {
+export function emptyPresentationMediaItem(): PresentationMediaDraft {
   return {
     clientKey: newClientKey(),
     sourceMode: "upload",
@@ -70,13 +75,15 @@ function emptyItem(): PresentationMediaDraft {
   };
 }
 
-function fromInitial(item: OwnerPresentationMedia): PresentationMediaDraft {
+export function presentationMediaItemFromInitial(
+  item: OwnerPresentationMedia,
+): PresentationMediaDraft {
   const inferredKind =
     item.kind === "youtube" ? item.kind : (kindFromMediaUrl(item.url) ?? item.kind);
   const hasSource =
     inferredKind === "youtube"
       ? isYoutubeVideoId(item.url)
-      : isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url);
+      : isStoredMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url);
   return {
     ...item,
     kind: inferredKind,
@@ -84,7 +91,7 @@ function fromInitial(item: OwnerPresentationMedia): PresentationMediaDraft {
     sourceMode:
       inferredKind === "youtube" ||
       isGithubRawUrl(item.url) ||
-      (isExternalMediaUrl(item.url) && !isUploadedMediaUrl(item.url))
+      (isExternalMediaUrl(item.url) && !isStoredMediaUrl(item.url))
         ? "url"
         : "upload",
     localPreview: null,
@@ -107,7 +114,7 @@ export function previewSrc(item: PresentationMediaDraft): string | null {
   }
   if (
     item.url &&
-    (isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url))
+    (isStoredMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url))
   ) {
     return item.url;
   }
@@ -119,7 +126,7 @@ function mediaValid(item: PresentationMediaDraft): boolean {
   if (item.itemError) return false;
   if (item.kind === "youtube") return isYoutubeVideoId(item.url) && item.uploadState === "ready";
   return (
-    (isUploadedMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url)) &&
+    (isStoredMediaUrl(item.url) || isGithubRawUrl(item.url) || isExternalMediaUrl(item.url)) &&
     item.uploadState === "ready"
   );
 }
@@ -155,7 +162,7 @@ async function readUploadResponse(
   return { public_url: body.public_url };
 }
 
-function readLocalPreview(file: File): Promise<string | null> {
+export function readLocalMediaPreview(file: File): Promise<string | null> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.addEventListener("load", () => {
@@ -194,7 +201,7 @@ function validationMessage(
   const missingUpload = items.some(
     (item) =>
       item.kind !== "youtube" &&
-      !isUploadedMediaUrl(item.url) &&
+      !isStoredMediaUrl(item.url) &&
       !isGithubRawUrl(item.url) &&
       !isExternalMediaUrl(item.url) &&
       (item.localPreview || item.uploadState === "idle"),
@@ -226,7 +233,7 @@ async function runUpload(
 ): Promise<void> {
   const nextGen = (ctx.uploadGeneration.current.get(clientKey) ?? 0) + 1;
   ctx.uploadGeneration.current.set(clientKey, nextGen);
-  const localPreview = await readLocalPreview(file);
+  const localPreview = await readLocalMediaPreview(file);
   if (ctx.uploadGeneration.current.get(clientKey) !== nextGen) return;
 
   ctx.patchMediaByKey(clientKey, {
@@ -291,7 +298,9 @@ export function useObjectPresentationForm(input: {
   const objectKind = input.objectKind ?? "component";
   const [bio, setBio] = useState(initialBio);
   const [media, setMedia] = useState<PresentationMediaDraft[]>(() =>
-    initialMedia.length > 0 ? initialMedia.map(fromInitial) : [emptyItem()],
+    initialMedia.length > 0
+      ? initialMedia.map(presentationMediaItemFromInitial)
+      : [emptyPresentationMediaItem()],
   );
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -425,9 +434,19 @@ export function useObjectPresentationForm(input: {
           })),
         );
       } else {
-        setError(result.message || labels.saveFailed);
+        const localizedFieldErrors = Object.fromEntries(
+          Object.entries(result.fieldErrors).map(([path, message]) => [
+            normalizeFieldPath(path),
+            labels.fieldError?.(normalizeFieldPath(path), message) ?? message,
+          ]),
+        );
+        setError(
+          Object.keys(localizedFieldErrors).length
+            ? labels.saveFailed
+            : result.message || labels.saveFailed,
+        );
         setErrorCode(result.code);
-        setFieldErrors(result.fieldErrors);
+        setFieldErrors(localizedFieldErrors);
       }
     });
   }
@@ -458,9 +477,10 @@ export function useObjectPresentationForm(input: {
     previewSrc,
     patchMedia,
     addMedia: () => {
-      setMedia((items) => (items.length >= 5 ? items : [...items, emptyItem()]));
+      setMedia((items) => (items.length >= 5 ? items : [...items, emptyPresentationMediaItem()]));
     },
     removeMedia: (index: number) => {
+      setFieldErrors({});
       setMedia((items) => {
         const target = items[index];
         if (target) {
@@ -468,6 +488,18 @@ export function useObjectPresentationForm(input: {
           uploadGeneration.current.delete(target.clientKey);
         }
         return items.filter((_, itemIndex) => itemIndex !== index);
+      });
+    },
+    moveMedia: (from: number, to: number) => {
+      if (from === to) return;
+      setFieldErrors({});
+      setMedia((items) => {
+        if (from < 0 || to < 0 || from >= items.length || to >= items.length) return items;
+        const next = [...items];
+        const [item] = next.splice(from, 1);
+        if (!item) return items;
+        next.splice(to, 0, item);
+        return next;
       });
     },
     onFile,

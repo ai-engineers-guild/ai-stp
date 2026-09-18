@@ -1,0 +1,74 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-ownership",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "can_edit": {
+      "title": "Can Edit",
+      "type": "boolean"
+    },
+    "object_kind": {
+      "enum": [
+        "setup",
+        "component"
+      ],
+      "title": "Object Kind",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "owner_account_id": {
+      "anyOf": [
+        {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owner Account Id"
+    },
+    "owner_display_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owner Display Name"
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "can_edit",
+    "object_kind",
+    "organization_id",
+    "owner_account_id",
+    "owner_display_name",
+    "revision",
+    "schema_version",
+    "stable_id"
+  ],
+  "title": "CorporateCatalogOwnership",
+  "type": "object"
+}

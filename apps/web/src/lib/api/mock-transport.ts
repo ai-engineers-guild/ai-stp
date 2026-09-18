@@ -20,6 +20,8 @@ import { componentVersionResponse, setupVersionResponse } from "@/mocks/passport
 
 import { mapHttpError, ApiError } from "./errors";
 import { profileHandlers } from "./mock-profile";
+import { corporateHandlers } from "./mock-corporate";
+import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import { readMockPresentation, workspaceHandlers } from "./mock-workspace";
 
 type MockResult = { status: number; body: unknown; headers?: Record<string, string> };
@@ -187,6 +189,7 @@ function paginatedList<T>(
 /** Test-only sentinel: offline e2e forces AI_STP_UNAVAILABLE without a real backend. */
 const FORCE_UNAVAILABLE_Q = "__ai_stp_force_unavailable__";
 
+// eslint-disable-next-line complexity -- catalog query validation mirrors the public filter surface.
 function searchComponents(query?: URLSearchParams): MockResult {
   const unknown = rejectUnknown(query, CATALOG_COMPONENT_KEYS);
   if (unknown.length > 0) {
@@ -201,6 +204,7 @@ function searchComponents(query?: URLSearchParams): MockResult {
   const range = readUpdatedRange(query, "searchComponents.updatedRange");
   if ("status" in range) return range;
   const tags = query?.getAll("tags") ?? [];
+  const authors = query?.getAll("authors") ?? [];
   const harnessId = query?.get("harness_id");
   const componentType = query?.get("component_type");
   const supportTier = query?.get("support_tier") as "primary" | "beta" | null;
@@ -215,12 +219,21 @@ function searchComponents(query?: URLSearchParams): MockResult {
     ...(componentType ? { componentType } : {}),
     ...(supportTier ? { supportTier } : {}),
     ...(supportState ? { supportState } : {}),
+    ...(authors.length ? { authors } : {}),
     ...range,
     includeExperimental,
   });
-  return paginatedList(filtered.experimental, query, cursor, pageSize);
+  const demoAuthor = authors.find((author) => /^account_01JQZK7B8N4M6P2R9T5V0X3Y/.test(author));
+  const authored = filtered.experimental.filter((item) => authors.includes(item.publisher_id));
+  const items = authored.length
+    ? authored
+    : demoAuthor
+      ? ALL_COMPONENT_SUMMARIES.slice(0, 3).map((item) => ({ ...item, publisher_id: demoAuthor }))
+      : filtered.experimental;
+  return paginatedList(items, query, cursor, pageSize);
 }
 
+// eslint-disable-next-line complexity -- setup query validation mirrors the public filter surface.
 function searchSetups(query?: URLSearchParams): MockResult {
   const unknown = rejectUnknown(query, CATALOG_SETUP_KEYS);
   if (unknown.length > 0) {
@@ -235,6 +248,7 @@ function searchSetups(query?: URLSearchParams): MockResult {
   const range = readUpdatedRange(query, "searchSetups.updatedRange");
   if ("status" in range) return range;
   const tags = query?.getAll("tags") ?? [];
+  const authors = query?.getAll("authors") ?? [];
   const harnessId = query?.get("harness_id");
   const supportTier = query?.get("support_tier") as "primary" | "beta" | null;
   const supportState = query?.get("support_state") as
@@ -247,10 +261,18 @@ function searchSetups(query?: URLSearchParams): MockResult {
     ...(harnessId ? { harnessId } : {}),
     ...(supportTier ? { supportTier } : {}),
     ...(supportState ? { supportState } : {}),
+    ...(authors.length ? { authors } : {}),
     ...range,
     includeExperimental,
   });
-  return paginatedList(filtered.experimental, query, cursor, pageSize);
+  const demoAuthor = authors.find((author) => /^account_01JQZK7B8N4M6P2R9T5V0X3Y/.test(author));
+  const authored = filtered.experimental.filter((item) => authors.includes(item.publisher_id));
+  const items = authored.length
+    ? authored
+    : demoAuthor
+      ? ALL_SETUP_SUMMARIES.slice(0, 2).map((item) => ({ ...item, publisher_id: demoAuthor }))
+      : filtered.experimental;
+  return paginatedList(items, query, cursor, pageSize);
 }
 
 function readUpdatedRange(
@@ -819,13 +841,21 @@ function contextHandler(
   if (localSession) return localSession;
   if (method !== "GET") return null;
   if (path === "/v1/context") return contextResponse(fixture, auth, headers);
-  if (path === "/v1/organizations") return organizationsResponse(fixture, auth);
+  if (path === "/v1/organizations") {
+    if (!fixture && COMPILED_FEATURE_PROFILE === "corporate_hub") {
+      return corporateHandlers(method, path, Boolean(auth), undefined);
+    }
+    return organizationsResponse(fixture, auth);
+  }
   return null;
 }
 
-function parseMockBody(raw: string | undefined): unknown {
+function parseMockBody(raw: BodyInit | undefined): unknown {
   if (!raw) {
     return undefined;
+  }
+  if (typeof raw !== "string") {
+    return raw;
   }
   try {
     return JSON.parse(raw) as unknown;
@@ -840,7 +870,7 @@ export function mockFetch(
   init?: {
     query?: URLSearchParams;
     headers?: HeadersInit;
-    body?: string;
+    body?: BodyInit;
   },
 ): MockResult {
   const auth = readAuth(init?.headers);
@@ -869,6 +899,11 @@ export function mockFetch(
   if (identity) {
     return identity;
   }
+  const corporate =
+    path.startsWith("/v1/corporate/") || COMPILED_FEATURE_PROFILE === "corporate_hub"
+      ? corporateHandlers(method, path, Boolean(auth), body, init?.query, init?.headers)
+      : null;
+  if (corporate) return corporate;
   const workspace = workspaceHandlers(method, path, auth, body);
   if (workspace) {
     return workspace;

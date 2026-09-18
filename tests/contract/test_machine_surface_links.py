@@ -20,20 +20,45 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import yaml
+
 REPO = Path(__file__).resolve().parents[2]
 APP = REPO / "apps/web/src/app"
 EDGE_TEMPLATE = REPO / "deploy/nginx/ai-stp.conf.template"
+WEB_PROFILES = yaml.safe_load((REPO / "apps/web/config/features.yaml").read_text(encoding="utf-8"))[
+    "profiles"
+]
+
+# Keep this in lockstep with webPageExtensions(). The contract test must model
+# the native build profile, not treat every source file as a served route.
+PAGE_EXTENSIONS_BY_PROFILE = {
+    "public_saas": (
+        "tsx",
+        "ts",
+        "jsx",
+        "js",
+        "content.tsx",
+        "content.ts",
+        "saas.tsx",
+        "regional.tsx",
+    ),
+    "self_hosted": ("tsx", "ts", "jsx", "js", "regional.tsx"),
+    "corporate_hub": ("tsx", "ts", "jsx", "js"),
+}
 
 #: The surfaces an agent is told to read first.
 MACHINE_SURFACES = ("llms.txt/route.ts", "llms-full.txt/route.ts", "agents.md/route.ts")
 
 
-def _advertised() -> dict[str, list[str]]:
+def _advertised(profile: str = "public_saas") -> dict[str, list[str]]:
     """Same-origin paths each surface publishes, by surface."""
     found: dict[str, list[str]] = {}
     for surface in MACHINE_SURFACES:
         source = (APP / surface).read_text(encoding="utf-8")
-        found[surface] = sorted(set(re.findall(r'absolute\("([^"]+)"\)', source)))
+        paths = set(re.findall(r'absolute\("([^"]+)"\)', source))
+        if not WEB_PROFILES[profile]["content_hub"]:
+            paths.discard("/en/content")
+        found[surface] = sorted(paths)
     return found
 
 
@@ -60,8 +85,12 @@ def _route_pattern(route: Path) -> re.Pattern[str]:
     return re.compile(f"^{expression or '/'}$")
 
 
-def _next_routes() -> list[re.Pattern[str]]:
-    handlers = [*APP.rglob("route.ts"), *APP.rglob("page.tsx")]
+def _next_routes(profile: str = "public_saas") -> list[re.Pattern[str]]:
+    handlers = [
+        path
+        for extension in PAGE_EXTENSIONS_BY_PROFILE[profile]
+        for path in (*APP.rglob(f"route.{extension}"), *APP.rglob(f"page.{extension}"))
+    ]
     return [_route_pattern(route) for route in handlers]
 
 
@@ -81,18 +110,28 @@ def _is_served(path: str, routes: list[re.Pattern[str]], edges: list[str]) -> bo
 
 
 def test_every_machine_surface_link_names_a_path_something_serves() -> None:
-    routes, edges = _next_routes(), _edge_prefixes()
-    dead = [
-        f"{surface} -> {path}"
-        for surface, paths in _advertised().items()
-        for path in paths
-        if not _is_served(path, routes, edges)
-    ]
-    assert not dead, (
-        f"Advertised but served by nothing: {dead}. Neither the Next.js route tree nor "
-        f"the edge answers these, so an agent that follows the link gets a 404. "
-        f"Edge prefixes: {edges}."
-    )
+    edges = _edge_prefixes()
+    for profile in WEB_PROFILES:
+        routes = _next_routes(profile)
+        dead = [
+            f"{surface} -> {path}"
+            for surface, paths in _advertised(profile).items()
+            for path in paths
+            if not _is_served(path, routes, edges)
+        ]
+        assert not dead, (
+            f"{profile}: advertised but served by nothing: {dead}. Neither the Next.js route tree "
+            f"nor the edge answers these, so an agent that follows the link gets a 404. "
+            f"Edge prefixes: {edges}."
+        )
+
+
+def test_feature_gated_machine_surface_keeps_saas_content_only() -> None:
+    source = (APP / "llms.txt/route.ts").read_text(encoding="utf-8")
+    assert 'isFeatureEnabled("content_hub")' in source
+    assert "/en/content" in _advertised("public_saas")["llms.txt/route.ts"]
+    for profile in ("self_hosted", "corporate_hub"):
+        assert "/en/content" not in _advertised(profile)["llms.txt/route.ts"]
 
 
 def test_the_index_surface_still_publishes_links() -> None:
@@ -106,6 +145,6 @@ def test_the_index_surface_still_publishes_links() -> None:
     advertised = _advertised()
     assert set(advertised) == set(MACHINE_SURFACES)
     assert len(advertised["llms.txt/route.ts"]) >= 5
-    assert any(pattern.match("/en/catalog") for pattern in _next_routes())
+    assert any(pattern.match("/en/catalog") for pattern in _next_routes("public_saas"))
     assert "/openapi.json" in _edge_prefixes()
     assert any("/schemas/provider-protocol" in prefix for prefix in _edge_prefixes())

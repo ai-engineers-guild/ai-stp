@@ -32,6 +32,7 @@ from ai_stp_contracts.context import (
     ProjectUnlinkPlanResponse,
     ProjectUnlinkRequest,
     ProviderProjectObservationRequest,
+    context_authorization_revision,
     validate_public_project_data,
 )
 from ai_stp_contracts.context import (
@@ -44,7 +45,9 @@ from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account, Device
 from ai_stp_platform.organization_models import (
+    CorporateProject,
     CorporateRole,
+    CorporateTeam,
     Organization,
     OrganizationMembership,
     ProjectIdentity,
@@ -59,6 +62,7 @@ from ai_stp_platform.organization_models import (
 from ai_stp_platform.organization_models import (
     ProjectRevisionReceipt as ProjectRevisionReceiptRow,
 )
+from ai_stp_platform.technology_models import Technology
 
 CAPABILITY_TTL_SECONDS = 60
 
@@ -80,6 +84,29 @@ PERSONAL_CAPABILITIES: tuple[str, ...] = (
     "project.link",
     "project.unlink",
     "project.update",
+)
+_B2B_CAPABILITIES = frozenset(
+    {
+        *(
+            f"{resource}.{action}"
+            for resource in (
+                "category",
+                "project_team",
+                "project_technology",
+                "technology_team",
+                "technology_decision",
+            )
+            for action in ("create", "read", "update", "delete", "list")
+        ),
+        "technology.create",
+        "technology.update",
+        "technology.delete",
+        "technology.approve",
+        "technology.merge",
+        "technology.responsibility",
+        "technology.scan_publish",
+        "landscape.manage",
+    }
 )
 CORPORATE_CAPABILITIES: tuple[str, ...] = (
     *PERSONAL_CAPABILITIES,
@@ -103,6 +130,7 @@ CORPORATE_CAPABILITIES: tuple[str, ...] = (
     "team.update",
     "team.list",
     "telemetry.read",
+    *sorted(_B2B_CAPABILITIES),
 )
 
 _MODE_CAPABILITIES: dict[str, tuple[str, ...]] = {
@@ -128,6 +156,12 @@ _IMPLEMENTED_CAPABILITIES = frozenset(
         "team.read",
         "team.update",
         "team.list",
+    }
+) | (
+    _B2B_CAPABILITIES
+    - {
+        "technology.responsibility",
+        "technology_decision.list",
     }
 )
 _CORPORATE_ADMIN_ONLY = frozenset(
@@ -247,9 +281,12 @@ async def organizations_for_account(db: AsyncSession, *, account_id: str) -> lis
     result = await db.execute(
         select(Organization)
         .join(OrganizationMembership, OrganizationMembership.organization_id == Organization.id)
+        .join(Account, Account.id == OrganizationMembership.account_id)
         .where(
             OrganizationMembership.account_id == account_id,
             OrganizationMembership.state == "active",
+            Organization.state == "active",
+            Account.status == "active",
         )
         .order_by(Organization.kind.asc(), Organization.display_name.asc(), Organization.id.asc())
     )
@@ -281,10 +318,13 @@ async def _membership(
     result = await db.execute(
         select(Organization, OrganizationMembership)
         .join(OrganizationMembership, OrganizationMembership.organization_id == Organization.id)
+        .join(Account, Account.id == OrganizationMembership.account_id)
         .where(
             Organization.id == organization_id,
             OrganizationMembership.account_id == ctx.account_id,
             OrganizationMembership.state == "active",
+            Organization.state == "active",
+            Account.status == "active",
         )
     )
     pair = result.one_or_none()
@@ -330,12 +370,12 @@ def projection_for(
         )
         for capability in sorted(_ALL_CAPABILITIES - set(available))
     }
-    revision = (
-        f"{policy_revision}:{membership_revision}"
-        if membership_revision is not None
-        else str(policy_revision)
+    authorization_revision = context_authorization_revision(
+        mode,
+        organization_id,
+        policy_revision,
+        membership_revision,
     )
-    authorization_revision = f"{mode}:{organization_id or 'local'}:{revision}"
     return CapabilityProjection(
         mode=mode,  # type: ignore[arg-type]
         context_kind=mode,  # type: ignore[arg-type]
@@ -350,10 +390,44 @@ def projection_for(
 
 
 async def remote_projection(
-    db: AsyncSession, *, ctx: AuthContext, organization_id: str
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    scope_kind: str = "organization",
+    scope_id: str | None = None,
 ) -> CapabilityProjection:
     """Authorize and project one remote organization."""
     organization, membership = await _membership(db, ctx=ctx, organization_id=organization_id)
+    if scope_kind == "organization":
+        if scope_id not in {None, organization_id}:
+            raise ApiError(ErrorCategory.PERMISSION, "organization scope is unavailable")
+    else:
+        if organization.kind != "corporate" or scope_id is None:
+            raise ApiError(ErrorCategory.PERMISSION, "resource scope is unavailable")
+        queries = {
+            "project": select(CorporateProject.id).where(
+                CorporateProject.organization_id == organization_id, CorporateProject.id == scope_id
+            ),
+            "team": select(CorporateTeam.id).where(
+                CorporateTeam.organization_id == organization_id, CorporateTeam.id == scope_id
+            ),
+            "technology": select(Technology.id).where(
+                Technology.organization_id == organization_id, Technology.id == scope_id
+            ),
+        }
+        if scope_kind not in queries or await db.scalar(queries[scope_kind]) is None:
+            raise ApiError(ErrorCategory.PERMISSION, "resource scope is unavailable")
+        if not await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            permission=f"{scope_kind}.read",
+            scope_kind=scope_kind,
+            scope_id=scope_id,
+        ):
+            raise ApiError(ErrorCategory.PERMISSION, "resource scope is unavailable")
     effective: set[str] | None = None
     if organization.kind == "corporate":
         effective = set(PERSONAL_CAPABILITIES)
@@ -373,7 +447,11 @@ async def remote_projection(
                 organization_id=organization.id,
                 principal_type="user",
                 principal_id=ctx.account_id,
-                permission=capability,
+                permission="technology.scan.publish"
+                if capability == "technology.scan_publish"
+                else capability,
+                scope_kind=scope_kind,
+                scope_id=scope_id,
             ):
                 effective.add(capability)
     return projection_for(

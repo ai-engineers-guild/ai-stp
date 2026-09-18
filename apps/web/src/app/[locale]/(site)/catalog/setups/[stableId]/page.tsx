@@ -5,7 +5,6 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
-import { Button } from "@/components/atoms/button";
 import { ObjectAuthorRail } from "@/components/molecules/catalog-author-link";
 import { CatalogUsageStats } from "@/components/molecules/catalog-usage-stats";
 import { CliCopyBlock } from "@/components/molecules/cli-copy-block";
@@ -22,11 +21,13 @@ import {
   RequirementsSummary,
 } from "@/components/molecules/requirements-summary";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
+import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
 import {
@@ -38,20 +39,20 @@ import {
   readSetupVersion,
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
+import { readCorporateCatalogOwnership } from "@/lib/api/corporate-catalog-ownership";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
+import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
 import { installStart, registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
-import { Link } from "@/lib/i18n/navigation";
 import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
 import { UI } from "@/lib/ui-selectors";
 import { sourceLinksFor } from "@/lib/source-url";
-import { Icon } from "@/theme/icons";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string }>;
@@ -139,6 +140,17 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
     : null;
   const ownerId = summary.publisher_id || passport?.owner_id || "";
   const author = await readAuthor(ownerId);
+  const corporateOwnership = token
+    ? await readCorporateCatalogOwnership(
+        token,
+        "setup",
+        setupId,
+        asVersionId(summary.latest_version),
+      )
+    : null;
+  const corporateCsrfToken = corporateOwnership?.ownership.can_edit
+    ? ((await readCsrfToken()) ?? "")
+    : "";
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=setup&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
     : undefined;
@@ -163,11 +175,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   return (
     <article className="mx-auto max-w-6xl min-w-0 space-y-8 overflow-x-clip">
       {seo ? <SeoJsonLd jsonLd={seo.profile.json_ld} /> : null}
-      <Button asChild variant="ghost" size="sm">
-        <Link href={backHref}>
-          <Icon name="arrowLeft" size="sm" /> {t("backToCatalog")}
-        </Link>
-      </Button>
+      <HistoryBackButton label={t("backToCatalog")} fallback={backHref} />
 
       <ObjectDetailHeader
         icon={
@@ -313,6 +321,18 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
               authorLabel={t("author")}
               headingId="setup-author-heading"
             />
+            {corporateOwnership ? (
+              <CorporateCatalogOwnerEditor
+                ownership={corporateOwnership.ownership}
+                objectKind="setup"
+                stableId={stableId}
+                version={summary.latest_version}
+                organizationId={corporateOwnership.ownership.organization_id}
+                authorizationRevision={corporateOwnership.authorizationRevision}
+                csrfToken={corporateCsrfToken}
+                members={corporateOwnership.members}
+              />
+            ) : null}
             <div className="border-border bg-card rounded-lg border p-4 shadow-sm">
               <CatalogUsageStats
                 metrics={summary.usage_metrics}

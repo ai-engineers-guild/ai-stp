@@ -3,6 +3,24 @@
     "CorporateProjectView": {
       "additionalProperties": true,
       "properties": {
+        "lifecycle": {
+          "anyOf": [
+            {
+              "enum": [
+                "active",
+                "deprecated",
+                "archived",
+                "deleted"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lifecycle"
+        },
         "name": {
           "title": "Name",
           "type": "string"
@@ -15,6 +33,22 @@
         "project_id": {
           "title": "Project Id",
           "type": "string"
+        },
+        "restore_lifecycle": {
+          "anyOf": [
+            {
+              "enum": [
+                "active",
+                "deprecated"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Restore Lifecycle"
         },
         "revision": {
           "minimum": 1,

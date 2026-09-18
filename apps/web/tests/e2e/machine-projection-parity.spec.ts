@@ -65,6 +65,24 @@ test.describe("machine projection parity (REQ-3624, REQ-3626)", () => {
     }
   });
 
+  test("technology registry, details and landscape pairs deny anonymous access", async ({
+    page,
+  }) => {
+    for (const path of [
+      "corporate/technologies",
+      "corporate/technologies/technology_00000000000000000000000001",
+      "corporate/technology-landscape?query=React.js&context=testing",
+    ]) {
+      for (const projection of ["", "ai/"]) {
+        await page.goto(`/en/${projection}${path}`);
+        await expect(page).toHaveURL(/\/login/);
+        await expect(
+          page.getByText("Manual project technology usage", { exact: true }),
+        ).toHaveCount(0);
+      }
+    }
+  });
+
   test("every component type keeps an addressable catalog machine pair", async ({ page }) => {
     for (const type of COMPONENT_TYPES) {
       const human = `/en/catalog?component_type=${type}&include_experimental=1`;

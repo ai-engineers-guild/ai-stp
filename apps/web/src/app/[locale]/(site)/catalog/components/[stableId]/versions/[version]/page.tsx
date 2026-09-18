@@ -17,6 +17,7 @@ import {
 } from "@/components/molecules/component-target-matrix";
 import { OsBadgeList } from "@/components/molecules/os-badge-list";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { SupportSummary, supportLabels } from "@/components/molecules/support-summary";
 import {
   readComponent,
@@ -113,11 +114,7 @@ export default async function ComponentVersionPage({ params }: PageProps) {
 
   return (
     <article className="relative min-w-0 space-y-6 overflow-x-clip">
-      <p className="text-sm">
-        <Link href={`/catalog/components/${stableId}`} className="underline">
-          {t("backToObject")}
-        </Link>
-      </p>
+      <HistoryBackButton label={t("backToObject")} fallback={`/catalog/components/${stableId}`} />
       <h1 className="text-2xl font-medium tracking-tight break-words sm:text-3xl">
         {passport.name}@{passport.version}
       </h1>

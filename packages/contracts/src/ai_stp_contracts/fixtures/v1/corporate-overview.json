@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "readCorporateOverview.shared-team",
+      "operation_id": "readCorporateOverview",
+      "kind": "positive",
+      "why": "The authorized normalized graph retains typed identities and restricted assignment visibility.",
+      "request": {
+        "path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}
+      },
+      "status": 200,
+      "body": {
+        "schema_version": 1,
+        "organization": {
+          "schema_version": 1,
+          "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          "display_name": "Corporate engineering",
+          "state": "active",
+          "authorization_revision": 1
+        },
+        "nodes": [
+          {"kind": "project", "id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "name": "Platform", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "project", "id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y1A", "name": "Growth Experiments", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "project", "id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y2B", "name": "Twinby Dating Core", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "team", "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "name": "Core", "lead_account_ids": ["account_01JQZK7B8N4M6P2R9T5V0X3Y7Z"], "assignments": [], "assignments_readable": true},
+          {"kind": "team", "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A", "name": "Product & Engineering", "lead_account_ids": ["account_01JQZK7B8N4M6P2R9T5V0X3Y1A"], "assignments": [], "assignments_readable": true},
+          {"kind": "team", "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B", "name": "Customer Success", "lead_account_ids": ["account_01JQZK7B8N4M6P2R9T5V0X3Y2B"], "assignments": [], "assignments_readable": true},
+          {"kind": "team", "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C", "name": "Platform Engineering", "lead_account_ids": ["account_01JQZK7B8N4M6P2R9T5V0X3Y3C"], "assignments": [], "assignments_readable": true},
+          {"kind": "team", "id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D", "name": "Data Platform", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "name": "Team lead", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y1A", "name": "Alex Kim", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y2B", "name": "Elena Smirnova", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y3C", "name": "Maria Kolesnikova", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y4D", "name": "Ivan Sokolov", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y5E", "name": "Anna Morozova", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y6F", "name": "Maksim Ryabov", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y8H", "name": "Natalia Petrova", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3Y9J", "name": "Ilya Kuznetsov", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3YAK", "name": "Daria Volkova", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3YBM", "name": "Pavel Orlov", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3YCN", "name": "Sofia Lebedeva", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3YDP", "name": "Dmitry Fedorov", "lead_account_ids": [], "assignments": [], "assignments_readable": true},
+          {"kind": "employee", "id": "account_01JQZK7B8N4M6P2R9T5V0X3YEQ", "name": "Oleg Smirnov", "lead_account_ids": [], "assignments": [], "assignments_readable": true}
+        ],
+        "edges": [
+          {"parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "kind": "project_team", "role": "owner"},
+          {"parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y1A", "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A", "kind": "project_team", "role": "owner"},
+          {"parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y1A", "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D", "kind": "project_team", "role": "contributor"},
+          {"parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y2B", "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C", "kind": "project_team", "role": "owner"},
+          {"parent_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y2B", "child_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B", "kind": "project_team", "role": "contributor"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "kind": "team_employee", "role": "lead"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y1A", "kind": "team_employee", "role": "lead"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y2B", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y3C", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y1A", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y4D", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y2B", "kind": "team_employee", "role": "lead"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YAK", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y2B", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YBM", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y3C", "kind": "team_employee", "role": "lead"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YCN", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y3C", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YDP", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y6F", "kind": "team_employee", "role": "staff"},
+          {"parent_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y4D", "child_id": "account_01JQZK7B8N4M6P2R9T5V0X3YEQ", "kind": "team_employee", "role": "staff"}
+        ]
+      }
+    }
+  ]
+}

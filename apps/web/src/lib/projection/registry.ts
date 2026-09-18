@@ -13,7 +13,7 @@ import {
   readSetupVersion,
 } from "@/lib/api/catalog";
 import { readPublisherProfile } from "@/lib/api/public-profile";
-import { readPublicLegalDocument } from "@/lib/api/legal";
+import { readPublicLegalDocument } from "@/lib/api/public-legal";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
 import { startCatalogResourceReads } from "@/lib/catalog-load";
 import { INSTALL_CLI } from "@/lib/cli-copy";
@@ -39,23 +39,13 @@ import {
   presentSetupVersion,
   presentSignedOutAccount,
 } from "@/lib/projection/presenters";
-import {
-  presentCountry,
-  presentService,
-  presentServicesIndex,
-} from "@/lib/projection/regional-presenters";
-import {
-  componentFactsFromLoaders,
-  componentPassportFactsInput,
-  countryPublicFacts,
-  servicePublicFacts,
-  summaryFactsFromComponentPassport,
-  summaryWithPresentation,
-} from "@/lib/projection/page-facts";
+import * as regionalPresenters from "@/lib/projection/regional-presenters";
+import * as pageFacts from "@/lib/projection/page-facts";
 import { isExternalCatalogEnabled } from "@/lib/projection/inventory";
 import { orNotFound } from "@/lib/projection/not-found";
 import { listPublishedContent, readPublishedContent } from "@/lib/api/content";
 import { presentContentEntry, presentContentIndex } from "@/lib/content/presenter";
+import { COMPILED_FEATURE_PROFILE } from "@/lib/features/compiled";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { componentPassportPrimary } from "@/lib/catalog-harnesses";
 
@@ -174,8 +164,8 @@ const PUBLIC_ROUTES: MachineRoute[] = [
           ).catch(() => ({ stars: null, archived: null }))
         : { stars: null, archived: null };
       return presentComponentDetail({
-        facts: componentFactsFromLoaders({
-          summary: summaryWithPresentation(detail.summary, detail.presentation_bio),
+        facts: pageFacts.componentFactsFromLoaders({
+          summary: pageFacts.summaryWithPresentation(detail.summary, detail.presentation_bio),
           digest:
             latest?.passport_digest ??
             detail.versions.find((item) => item.version === detail.summary.latest_version)
@@ -185,7 +175,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
             countryCodes: relations.country_codes,
             services: relations.services.map((item) => item.canonical_domain),
           },
-          passport: latest == null ? null : componentPassportFactsInput(latest.passport),
+          passport: latest == null ? null : pageFacts.componentPassportFactsInput(latest.passport),
           publishedAt: latest?.published_at ?? detail.summary.latest_published_at,
           versions: detail.versions.map((item) => item.version),
           github,
@@ -213,14 +203,14 @@ const PUBLIC_ROUTES: MachineRoute[] = [
         asVersionId(segments[4] ?? ""),
       ).catch(() => ({ stars: null, archived: null }));
       return presentComponentVersion({
-        facts: componentFactsFromLoaders({
-          summary: summaryFactsFromComponentPassport(passport, {
+        facts: pageFacts.componentFactsFromLoaders({
+          summary: pageFacts.summaryFactsFromComponentPassport(passport, {
             componentId,
             lifecycle: response.lifecycle,
             trust: response.trust,
           }),
           digest: response.passport_digest,
-          passport: componentPassportFactsInput(passport),
+          passport: pageFacts.componentPassportFactsInput(passport),
           publishedAt: response.published_at,
           versions: [passport.version],
           github,
@@ -245,7 +235,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       ).catch(() => null);
       return presentSetupDetail({
         ...(latest ? { lineage: latest.passport } : {}),
-        summary: summaryWithPresentation(detail.summary, detail.presentation_bio),
+        summary: pageFacts.summaryWithPresentation(detail.summary, detail.presentation_bio),
         // The digest of the version the summary names, not the first row.
         // `versions` arrives ascending, so `[0]` is the *oldest*: the page said
         // "version: 1.1" beside 1.0's digest the moment any object gained a
@@ -380,7 +370,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       const services = await listExternalProducts()
         .then((result) => result.items)
         .catch(() => []);
-      return presentServicesIndex({
+      return regionalPresenters.presentServicesIndex({
         title: t("title"),
         subtitle: t("subtitle"),
         emptyMessage: t("empty"),
@@ -394,7 +384,7 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       if (!isExternalCatalogEnabled()) return null;
       const service = await readExternalProduct(segments[1] ?? "").catch(() => null);
       if (!service) return null;
-      return presentService(servicePublicFacts(service));
+      return regionalPresenters.presentService(pageFacts.servicePublicFacts(service));
     },
   },
   {
@@ -403,10 +393,10 @@ const PUBLIC_ROUTES: MachineRoute[] = [
       if (!isExternalCatalogEnabled()) return null;
       const country = await readCountry(segments[1] ?? "").catch(() => null);
       if (!country) return null;
-      const facts = countryPublicFacts(country);
+      const facts = pageFacts.countryPublicFacts(country);
       const display =
         new Intl.DisplayNames([locale], { type: "region" }).of(facts.code) ?? facts.code;
-      return presentCountry({
+      return regionalPresenters.presentCountry({
         title: display,
         code: facts.code,
         services: facts.services,
@@ -442,15 +432,19 @@ const PUBLIC_ROUTES: MachineRoute[] = [
 ];
 
 const ROUTES: MachineRoute[] = [...PUBLIC_ROUTES, ...PRIVATE_ROUTES];
+const DISPATCH_ROUTES = ROUTES.filter(
+  (route) =>
+    (route.feature === undefined || isFeatureEnabled(route.feature)) &&
+    (COMPILED_FEATURE_PROFILE !== "corporate_hub" ||
+      !["services", "services/:domain", "countries/:code"].includes(route.pattern)),
+);
 
 /** The machine document for a page path, or null when no route matches. */
 export async function resolveMachineDocument(
   ctx: MachineRouteContext,
 ): Promise<MachineDocument | null> {
-  const route = ROUTES.find(
-    (candidate) =>
-      matchesPattern(candidate.pattern, ctx.segments) &&
-      (candidate.feature === undefined || isFeatureEnabled(candidate.feature)),
+  const route = DISPATCH_ROUTES.find((candidate) =>
+    matchesPattern(candidate.pattern, ctx.segments),
   );
   if (!route) return null;
   return route.resolve(ctx);
@@ -458,3 +452,6 @@ export async function resolveMachineDocument(
 
 /** Route patterns covered by the machine tree, for coverage tests. */
 export const MACHINE_ROUTE_PATTERNS = ROUTES.map((route) => route.pattern);
+
+/** Route patterns that are eligible for dispatch in this compiled artifact. */
+export const MACHINE_DISPATCH_PATTERNS = DISPATCH_ROUTES.map((route) => route.pattern);

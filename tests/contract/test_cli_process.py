@@ -845,7 +845,10 @@ def test_no_command_puts_key_material_on_either_stream(home: Path) -> None:
         result = run(*argv, "--json", home=home)
         assert material not in result.stdout, argv
         assert material not in result.stderr, argv
-        assert "seed" not in result.stdout, argv
+        # Registry imports legitimately contain "technology-seed" schema names.
+        # A private-key field, unlike that name, must never appear on either stream.
+        assert re.search(r'"seed"\s*:', result.stdout) is None, argv
+        assert re.search(r'"seed"\s*:', result.stderr) is None, argv
 
 
 def test_output_carries_no_home_path_material(home: Path) -> None:

@@ -39,6 +39,7 @@ const PAGE_SEGMENTS = new Set([
   "catalog",
   "contact",
   "content",
+  "corporate",
   "device-login",
   "devices",
   "docs",

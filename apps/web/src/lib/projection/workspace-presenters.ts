@@ -256,7 +256,7 @@ export function presentAccountPreview(input: {
     heading(1, input.displayName ?? input.title),
     paragraph(input.banner),
     link("Account", "/account"),
-    link("Edit", "/account/profile"),
+    link("Edit", "/account/profile/edit"),
   ];
   if (input.bio) {
     doc.push(paragraph(input.bio));

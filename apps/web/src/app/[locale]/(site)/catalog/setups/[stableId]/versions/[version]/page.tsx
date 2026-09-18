@@ -12,6 +12,7 @@ import { contextBudgetLabels } from "@/components/organisms/context-budget-label
 import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import { StatePanel } from "@/components/molecules/state-panel";
+import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { SupportSummary, supportLabels } from "@/components/molecules/support-summary";
 import {
   readSetup,
@@ -86,11 +87,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
 
   return (
     <article className="relative min-w-0 space-y-6 overflow-x-clip">
-      <p className="text-sm">
-        <Link href={`/catalog/setups/${stableId}`} className="underline">
-          {t("backToObject")}
-        </Link>
-      </p>
+      <HistoryBackButton label={t("backToObject")} fallback={`/catalog/setups/${stableId}`} />
       <h1 className="text-2xl font-medium tracking-tight break-words sm:text-3xl">
         {passport.name}@{passport.version}
       </h1>

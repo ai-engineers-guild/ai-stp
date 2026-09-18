@@ -1,4 +1,6 @@
-@import "tailwindcss";
+/* Keep Tailwind's source scan inside the web source tree; scanning the whole
+ * Docker-mounted app directory can starve the PostCSS worker. */
+@import "tailwindcss" source("../");
 
 /* Sonner's default transition animates toast height and forces layout on every frame. */
 [data-sonner-toast] {
@@ -313,6 +315,27 @@ a {
 :focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
+}
+
+.corporate-header-label {
+  text-shadow: 0 0 0.35rem hsl(var(--primary) / 0.18);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .corporate-header-label {
+    animation: corporate-header-label-shine 3s ease-in-out infinite;
+  }
+}
+
+@keyframes corporate-header-label-shine {
+  0%,
+  100% {
+    text-shadow: 0 0 0.3rem hsl(var(--primary) / 0.14);
+  }
+
+  50% {
+    text-shadow: 0 0 0.55rem hsl(var(--primary) / 0.28);
+  }
 }
 
 /* Fixed projection dock: outside document flow, centered, translucent (REQ-3604). */

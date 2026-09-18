@@ -57,6 +57,11 @@ describe("removed projection cosmetics (REQ-3613)", () => {
     expect(existsSync(path.join(webRoot, "src/app/[locale]/ai/[[...path]]/page.tsx"))).toBe(true);
     expect(existsSync(path.join(webRoot, "src/app/[locale]/(site)/layout.tsx"))).toBe(true);
     const middleware = readFileSync(path.join(webRoot, "src/middleware.ts"), "utf8");
-    expect(middleware).not.toContain("NextResponse.rewrite");
+    // Corporate keeps its public /corporate URLs while shared pages retain one
+    // physical implementation. The rewrite is scoped to that compatibility
+    // branch; the machine projection still has its own route segment above.
+    expect(middleware).toContain("corporateSharedPath");
+    expect(middleware).toContain("if (sharedPath)");
+    expect(middleware).toContain("NextResponse.rewrite");
   });
 });

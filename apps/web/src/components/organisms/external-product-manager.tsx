@@ -72,7 +72,7 @@ export function ExternalProductManager(props: Props) {
   return (
     <section className="border-border min-w-0 space-y-4 rounded-lg border p-4">
       <header className="space-y-1">
-        <h2 className="text-lg font-medium">{t("servicesEditorTitle")}</h2>
+        <h3 className="text-lg font-medium">{t("servicesEditorTitle")}</h3>
         <p className="text-muted-foreground text-sm">{t("servicesEditorHint")}</p>
       </header>
 

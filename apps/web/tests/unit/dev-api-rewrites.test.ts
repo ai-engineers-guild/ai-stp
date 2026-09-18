@@ -1,10 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import nextConfig from "../../next.config";
 
 import {
   buildDevApiRewrites,
   resolveDevApiRewrites,
   shouldEnableDevApiRewrites,
 } from "@/lib/dev-api-rewrites";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("dev API rewrites (same-origin hop without a host proxy)", () => {
   it("enables rewrites only in development", () => {
@@ -45,5 +51,27 @@ describe("dev API rewrites (same-origin hop without a host proxy)", () => {
   it("defaults API base when env is unset in development", () => {
     const rules = resolveDevApiRewrites("development", undefined);
     expect(rules.some((r) => r.destination.startsWith("http://localhost:8000/v1"))).toBe(true);
+  });
+
+  it("places development API rewrites before filesystem fixture routes", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("AI_STP_API_BASE_URL", "http://api:8000");
+    const rewrites: unknown = await nextConfig.rewrites?.();
+    if (!rewrites || typeof rewrites !== "object" || !("beforeFiles" in rewrites))
+      throw new Error("development rewrites should use phases");
+    expect(rewrites.beforeFiles).toContainEqual({
+      source: "/v1/:path*",
+      destination: "http://api:8000/v1/:path*",
+    });
+  });
+
+  it("leaves mock-dev fixture routes reachable and production rewrites unchanged", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("AI_STP_USE_MOCKS", "true");
+    vi.stubEnv("AI_STP_API_BASE_URL", "http://api:8000");
+    expect(await nextConfig.rewrites?.()).toEqual(buildDevApiRewrites("http://api:8000"));
+
+    vi.stubEnv("NODE_ENV", "production");
+    expect(await nextConfig.rewrites?.()).toEqual([]);
   });
 });
