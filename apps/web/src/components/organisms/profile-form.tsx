@@ -168,6 +168,7 @@ export function ProfileForm({ initial, csrfToken }: ProfileFormProps) {
 
   return (
     <EntityEditorLayout
+      hydrationReady={form.storageReady}
       config={ENTITY_EDITOR_CONFIGS.profile}
       title={form.t("profile")}
       description={form.t("profileSubtitle")}
