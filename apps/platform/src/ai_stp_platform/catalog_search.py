@@ -35,6 +35,7 @@ from ai_stp_contracts.catalog import (
 from ai_stp_contracts.tag_vocabulary import search_terms_for_tags
 from ai_stp_passports.versions import ComponentVersionPassport
 from ai_stp_platform.catalog_cursor import CursorKey
+from ai_stp_platform.catalog_ownership_models import CorporateCatalogOwnership
 from ai_stp_platform.catalog_query_language import (
     Binary,
     Expression,
@@ -64,6 +65,14 @@ from ai_stp_platform.models import (
     ExternalProduct,
     ExternalProductCountry,
 )
+from ai_stp_platform.organization_models import (
+    CorporateCatalogAssignment,
+    CorporateCatalogLifecycle,
+    CorporateCatalogMaintainer,
+    CorporateCatalogVerification,
+    CorporateTeamMember,
+)
+from ai_stp_platform.technology_models import TechnologyClassification
 
 _log = structlog.get_logger("catalog_search")
 
@@ -687,6 +696,16 @@ async def search_catalog(
     family_id: str | None = None,
     family_alignment: str | None = None,
     member_harness_id: str | None = None,
+    corporate_organization_id: str | None = None,
+    corporate_account_id: str | None = None,
+    corporate_team_ids: Sequence[str] = (),
+    corporate_project_ids: Sequence[str] = (),
+    corporate_technology_ids: Sequence[str] = (),
+    corporate_category_ids: Sequence[str] = (),
+    corporate_owner_ids: Sequence[str] = (),
+    corporate_maintainer_ids: Sequence[str] = (),
+    corporate_assignment: str | None = None,
+    corporate_verified: bool | None = None,
 ) -> CatalogSearchHits:
     """Execute listing, ranking, totals, and keyset pagination in SQL."""
     q = normalize_search_text(q)
@@ -735,6 +754,207 @@ async def search_catalog(
                 or_(author_verified.is_(False), ~_current_component_verified(projection))
             )
         stmt = stmt.where(or_(*verification_clauses))
+    if corporate_organization_id is not None:
+        # Corporate context is a tenant projection over the same public object
+        # rows.  Assignments and maintainers are exact-version facts, but the
+        # stable catalog card must remain discoverable when a newer public
+        # version supersedes the governed version.
+        def object_coordinates(model: Any) -> ColumnElement[bool]:
+            return and_(
+                model.organization_id == corporate_organization_id,
+                model.object_kind == projection.object_kind,
+                model.stable_id == projection.stable_id,
+            )
+
+        def exact_coordinates(model: Any) -> ColumnElement[bool]:
+            return and_(object_coordinates(model), model.version == projection.version)
+
+        relation_clauses: list[ColumnElement[bool]] = []
+        assignment_exists = exists(
+            select(1).where(
+                object_coordinates(CorporateCatalogAssignment),
+                CorporateCatalogAssignment.state == "current",
+            )
+        )
+        owner_exists = exists(
+            select(1).where(
+                CorporateCatalogOwnership.organization_id == corporate_organization_id,
+                CorporateCatalogOwnership.object_kind == projection.object_kind,
+                CorporateCatalogOwnership.stable_id == projection.stable_id,
+                CorporateCatalogOwnership.owner_id.is_not(None),
+            )
+        )
+        maintainer_exists = exists(
+            select(1).where(
+                object_coordinates(CorporateCatalogMaintainer),
+                CorporateCatalogMaintainer.state == "current",
+            )
+        )
+        verification_exists = exists(
+            select(1).where(
+                object_coordinates(CorporateCatalogVerification),
+                CorporateCatalogVerification.state == "verified",
+            )
+        )
+        lifecycle_visible_exists = exists(
+            select(1).where(
+                exact_coordinates(CorporateCatalogLifecycle),
+                CorporateCatalogLifecycle.state.in_(("visible", "deprecated")),
+            )
+        )
+        lifecycle_hidden_exists = exists(
+            select(1).where(
+                exact_coordinates(CorporateCatalogLifecycle),
+                CorporateCatalogLifecycle.state.in_(("hidden", "retired")),
+            )
+        )
+        stmt = stmt.where(
+            ~lifecycle_hidden_exists,
+            or_(
+                assignment_exists,
+                owner_exists,
+                maintainer_exists,
+                verification_exists,
+                lifecycle_visible_exists,
+            ),
+        )
+        if corporate_team_ids:
+            relation_clauses.append(
+                exists(
+                    select(1).where(
+                        object_coordinates(CorporateCatalogAssignment),
+                        CorporateCatalogAssignment.team_id.in_(list(corporate_team_ids)),
+                        CorporateCatalogAssignment.state == "current",
+                    )
+                )
+            )
+        if corporate_project_ids:
+            relation_clauses.append(
+                exists(
+                    select(1).where(
+                        object_coordinates(CorporateCatalogAssignment),
+                        CorporateCatalogAssignment.project_id.in_(list(corporate_project_ids)),
+                        CorporateCatalogAssignment.state == "current",
+                    )
+                )
+            )
+        if corporate_technology_ids:
+            relation_clauses.append(
+                exists(
+                    select(1).where(
+                        object_coordinates(CorporateCatalogAssignment),
+                        CorporateCatalogAssignment.technology_id.in_(
+                            list(corporate_technology_ids)
+                        ),
+                        CorporateCatalogAssignment.state == "current",
+                    )
+                )
+            )
+        if corporate_category_ids:
+            relation_clauses.append(
+                exists(
+                    select(1)
+                    .select_from(CorporateCatalogAssignment)
+                    .join(
+                        TechnologyClassification,
+                        and_(
+                            TechnologyClassification.organization_id
+                            == CorporateCatalogAssignment.organization_id,
+                            TechnologyClassification.technology_id
+                            == CorporateCatalogAssignment.technology_id,
+                        ),
+                    )
+                    .where(
+                        object_coordinates(CorporateCatalogAssignment),
+                        CorporateCatalogAssignment.state == "current",
+                        CorporateCatalogAssignment.technology_id.is_not(None),
+                        TechnologyClassification.category_id.in_(list(corporate_category_ids)),
+                    )
+                )
+            )
+        if corporate_owner_ids:
+            relation_clauses.append(
+                exists(
+                    select(1).where(
+                        CorporateCatalogOwnership.organization_id == corporate_organization_id,
+                        CorporateCatalogOwnership.object_kind == projection.object_kind,
+                        CorporateCatalogOwnership.stable_id == projection.stable_id,
+                        CorporateCatalogOwnership.owner_id.is_not(None),
+                        or_(
+                            CorporateCatalogOwnership.owner_id.in_(list(corporate_owner_ids)),
+                            CorporateCatalogOwnership.owner_account_id.in_(
+                                list(corporate_owner_ids)
+                            ),
+                        ),
+                    )
+                )
+            )
+        if corporate_maintainer_ids:
+            relation_clauses.append(
+                exists(
+                    select(1).where(
+                        object_coordinates(CorporateCatalogMaintainer),
+                        CorporateCatalogMaintainer.subject_id.in_(list(corporate_maintainer_ids)),
+                        CorporateCatalogMaintainer.state == "current",
+                    )
+                )
+            )
+        if corporate_assignment == "direct":
+            if corporate_account_id is None:
+                stmt = stmt.where(false())
+            else:
+                relation_clauses.append(
+                    exists(
+                        select(1).where(
+                            object_coordinates(CorporateCatalogAssignment),
+                            CorporateCatalogAssignment.account_id == corporate_account_id,
+                            CorporateCatalogAssignment.state == "current",
+                        )
+                    )
+                )
+        elif corporate_assignment == "effective":
+            if corporate_account_id is None:
+                stmt = stmt.where(false())
+            else:
+                relation_clauses.append(
+                    or_(
+                        exists(
+                            select(1).where(
+                                object_coordinates(CorporateCatalogAssignment),
+                                CorporateCatalogAssignment.account_id == corporate_account_id,
+                                CorporateCatalogAssignment.state == "current",
+                            )
+                        ),
+                        exists(
+                            select(1)
+                            .select_from(CorporateCatalogAssignment)
+                            .join(
+                                CorporateTeamMember,
+                                and_(
+                                    CorporateTeamMember.organization_id
+                                    == CorporateCatalogAssignment.organization_id,
+                                    CorporateTeamMember.team_id
+                                    == CorporateCatalogAssignment.team_id,
+                                    CorporateTeamMember.account_id == corporate_account_id,
+                                ),
+                            )
+                            .where(
+                                object_coordinates(CorporateCatalogAssignment),
+                                CorporateCatalogAssignment.state == "current",
+                            )
+                        ),
+                    )
+                )
+        if corporate_verified is not None:
+            verified = exists(
+                select(1).where(
+                    exact_coordinates(CorporateCatalogVerification),
+                    CorporateCatalogVerification.state == "verified",
+                )
+            )
+            relation_clauses.append(verified if corporate_verified else ~verified)
+        if relation_clauses:
+            stmt = stmt.where(and_(*relation_clauses))
     if min_safety_percent is not None:
         stmt = stmt.where(projection.safety_percent >= min_safety_percent)
     if tag_filter:

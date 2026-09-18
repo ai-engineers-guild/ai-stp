@@ -1,13 +1,14 @@
 ---
 description: "ADR-0188: Corporate build isolation and tenant-scoped presentation ownership."
-last_verified: "2026-09-13"
+last_verified: "2026-09-18"
 ---
 
 # ADR-0188: Corporate workspace presentation boundary
 
 ## Status
 
-Accepted.
+Accepted. Clarified by ADR-0192 for account-backed employee identity and ADR-0193
+for the canonical catalog and directory projection.
 
 ## Context
 
@@ -47,3 +48,7 @@ and hostile-tenant reads/writes, owner/lead editing, media references, and build
 exclusion. Application rollback disables new operations and preserves presentation,
 media, owners, receipts, identities, and audit history; it does not drop volumes.
 Administration and Landscape retain their incumbent implementation and visual world.
+
+Normal lifecycle values are retained as domain facts but are not required decoration
+on ordinary cards and headers. SPEC-086 owns the shared detail frame, exceptional-state
+presentation, Markdown table, gallery, and responsive acceptance behavior.

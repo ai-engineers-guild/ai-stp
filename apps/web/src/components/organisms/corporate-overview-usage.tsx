@@ -118,7 +118,7 @@ function ComponentUsageRow({
               {typeof row.assignment.owner_name === "string" &&
               typeof row.assignment.owner_id === "string" ? (
                 <Link
-                  href={`/corporate/members/${encodeURIComponent(row.assignment.owner_id)}`}
+                  href={`/corporate/employees/${encodeURIComponent(row.assignment.owner_id)}`}
                   className="hover:underline"
                 >
                   {row.assignment.owner_name}

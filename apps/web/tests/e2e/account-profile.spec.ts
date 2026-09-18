@@ -1,10 +1,17 @@
 import { SESSION_COOKIE } from "../../src/lib/auth/cookies";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 /**
  * SPEC-028: owner profile editor (draft/publish) under mock auth for e2e.
  */
 test.describe("account profile (SPEC-028)", () => {
+  async function waitForProfileHydration(page: Page) {
+    await expect(page.locator('[data-entity-kind="profile"]')).toHaveAttribute(
+      "data-hydrated",
+      "true",
+    );
+  }
+
   test.beforeEach(async ({ page }) => {
     await page.goto("/en/login");
     await page
@@ -17,6 +24,7 @@ test.describe("account profile (SPEC-028)", () => {
 
   test("opens editor with save draft, publish, preview and avatar controls", async ({ page }) => {
     await page.goto("/en/account/profile");
+    await waitForProfileHydration(page);
     await expect(
       page.getByRole("heading", {
         name: /Public profile|\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0439 \u043f\u0440\u043e\u0444\u0438\u043b\u044c/i,
@@ -62,6 +70,7 @@ test.describe("account profile (SPEC-028)", () => {
 
   test("saves draft and opens the routed preview", async ({ page }) => {
     await page.goto("/en/account/profile");
+    await waitForProfileHydration(page);
     const name = page.getByLabel(/Display name/i);
     await name.fill("E2E Profile Name");
     await page
@@ -135,6 +144,7 @@ test.describe("account profile (SPEC-028)", () => {
 
   test("uploads an avatar and includes its binding in the saved draft", async ({ page }) => {
     await page.goto("/en/account/profile");
+    await waitForProfileHydration(page);
     const uploaded = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
@@ -164,6 +174,7 @@ test.describe("account profile (SPEC-028)", () => {
       context,
     }) => {
       await page.goto("/en/account/profile");
+      await waitForProfileHydration(page);
       await page.getByRole("button", { name: `Use from ${provider}`, exact: true }).click();
       await expect(page.getByText("Avatar ready", { exact: true })).toBeVisible();
       const image = page.getByRole("button", { name: "Upload photo", exact: true }).locator("img");
@@ -187,6 +198,7 @@ test.describe("account profile (SPEC-028)", () => {
     page,
   }) => {
     await page.goto("/en/account/profile");
+    await waitForProfileHydration(page);
     await page.getByLabel(/Display name/i).fill("Unsaved Preview Name");
     await page
       .getByRole("link", {
@@ -204,6 +216,7 @@ test.describe("account profile (SPEC-028)", () => {
 
   test("keeps unsaved fields after returning from preview", async ({ page }) => {
     await page.goto("/en/account/profile");
+    await waitForProfileHydration(page);
     await page.getByLabel(/Display name/i).fill("Unsaved Round Trip");
     await page
       .getByRole("textbox", {
@@ -246,6 +259,7 @@ test.describe("account profile (SPEC-028)", () => {
 
   test("publishes current fields and keeps them after reload", async ({ page }) => {
     await page.goto("/en/account/profile");
+    await waitForProfileHydration(page);
     await page.getByLabel(/Display name/i).fill("Published E2E Profile");
     await page
       .getByRole("button", {
@@ -263,6 +277,7 @@ test.describe("account profile (SPEC-028)", () => {
     page,
   }) => {
     await page.goto("/en/account/profile");
+    await waitForProfileHydration(page);
     await page
       .getByRole("textbox", {
         name: /Short bio|\u041a\u0440\u0430\u0442\u043a\u043e\u0435 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/i,

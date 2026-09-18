@@ -73,7 +73,7 @@ export function CorporateProjectMemberships({
         {assigned.map((item) => (
           <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
             <Link
-              href={`/corporate/${employees ? "members" : "projects"}/${item.id}`}
+              href={`/corporate/${employees ? "employees" : "projects"}/${item.id}`}
               className="inline-flex min-h-11 items-center underline underline-offset-4"
             >
               {item.name}

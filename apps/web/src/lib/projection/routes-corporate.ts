@@ -6,7 +6,7 @@ import type { MachineRoute } from "@/lib/projection/route-table";
 
 export const CORPORATE_ROUTES: MachineRoute[] = [
   {
-    pattern: "corporate/components",
+    pattern: "corporate/catalog",
     resolve: async () => {
       const t = await getTranslations("hub");
       const result = await searchComponents({ page_size: 100, include_experimental: true }).catch(
@@ -21,6 +21,29 @@ export const CORPORATE_ROUTES: MachineRoute[] = [
                 item.latest_name,
                 `/catalog/components/${encodeURIComponent(item.stable_id)}`,
               ]),
+      });
+    },
+  },
+  ...(
+    [
+      ["corporate/employees/new", "addEmployee"],
+      ["corporate/teams/new", "addTeam"],
+      ["corporate/projects/new", "addProject"],
+    ] as const
+  ).map(([pattern, titleKey]): MachineRoute => ({
+    pattern,
+    resolve: async () => {
+      const t = await getTranslations("hub");
+      return presentPage({ title: t(titleKey), links: [[t("organization"), "/corporate"]] });
+    },
+  })),
+  {
+    pattern: "corporate/components",
+    resolve: async () => {
+      const t = await getTranslations("hub");
+      return presentPage({
+        title: t("components"),
+        links: [[t("components"), "/corporate/catalog"]],
       });
     },
   },

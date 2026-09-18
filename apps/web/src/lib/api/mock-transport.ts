@@ -52,6 +52,14 @@ const CATALOG_COMPONENT_KEYS = new Set([
   "country_codes",
   "updated_from",
   "updated_to",
+  "organization_id",
+  "team_ids",
+  "project_ids",
+  "technology_ids",
+  "owner_ids",
+  "maintainer_ids",
+  "assignment",
+  "corporate_verified",
 ]);
 
 const CATALOG_SETUP_KEYS = new Set([
@@ -78,6 +86,14 @@ const CATALOG_SETUP_KEYS = new Set([
   "country_codes",
   "updated_from",
   "updated_to",
+  "organization_id",
+  "team_ids",
+  "project_ids",
+  "technology_ids",
+  "owner_ids",
+  "maintainer_ids",
+  "assignment",
+  "corporate_verified",
 ]);
 
 function notFound(caseId: string): MockResult {
@@ -92,10 +108,16 @@ function validationError(caseId: string, fields: string): MockResult {
 
 function readAuth(headers?: HeadersInit): string | null {
   if (headers instanceof Headers) {
-    return headers.get("authorization");
+    return headers.get("x-ai-stp-mock-session") ?? headers.get("authorization");
   }
   if (headers && typeof headers === "object" && !Array.isArray(headers)) {
-    return headers["Authorization"] ?? headers["authorization"] ?? null;
+    return (
+      headers["X-AI-STP-Mock-Session"] ??
+      headers["x-ai-stp-mock-session"] ??
+      headers["Authorization"] ??
+      headers["authorization"] ??
+      null
+    );
   }
   return null;
 }

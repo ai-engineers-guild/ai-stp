@@ -52,7 +52,7 @@ export function ComponentMediaGallery({
       <h2 id="component-gallery-heading" className="sr-only">
         {labels.gallery}
       </h2>
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="flex snap-x snap-mandatory [scrollbar-width:none] gap-3 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
         {localizedItems.map((item, index) => (
           <button
             key={item.id}
@@ -61,7 +61,7 @@ export function ComponentMediaGallery({
               setSelectedIndex(index);
             }}
             aria-label={`${labels.open}: ${item.alt}`}
-            className={`bg-muted focus-visible:ring-ring relative aspect-video min-h-11 shrink-0 overflow-hidden rounded-lg text-left focus-visible:ring-2 focus-visible:outline-none ${items.length === 1 ? "w-full" : "w-44 sm:w-52"}`}
+            className={`bg-muted focus-visible:ring-ring relative aspect-video min-h-11 shrink-0 snap-start overflow-hidden rounded-lg text-left focus-visible:ring-2 focus-visible:outline-none ${items.length === 1 ? "w-full" : "w-44 sm:w-52"}`}
           >
             <Media item={item} />
             {item.caption ? (

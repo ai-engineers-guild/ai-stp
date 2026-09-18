@@ -44,6 +44,21 @@ function requestOriginUrl(request: NextRequest) {
   return url;
 }
 
+function isBlockedPath(pathname: string, sharedPath: string | null): boolean {
+  const contentMatch = pathname.match(/^\/(?:ru|en)\/(?:ai\/)?content(?:\/|$)/);
+  const disabledSaasPage =
+    !COMPILED_FEATURES.saas_public_pages &&
+    /^\/(?:ru|en)\/(?:ai\/)?(?:contact|legal(?:\/|$))/.test(pathname);
+  return (
+    (COMPILED_FEATURE_PROFILE === "corporate_hub" &&
+      /^\/(?:ru|en)\/(?:ai\/)?(?:services|countries)(?:\/|$)/.test(pathname)) ||
+    (contentMatch && !COMPILED_FEATURES.content_hub) ||
+    disabledSaasPage ||
+    isImpossibleCatalogObjectPath(sharedPath ?? pathname) ||
+    isImpossibleCountryPath(pathname)
+  );
+}
+
 /**
  * Edge middleware: locale routing and coarse cookie presence for private
  * routes. The projection is a real route segment (ADR-0076); only the explicit
@@ -53,6 +68,12 @@ function requestOriginUrl(request: NextRequest) {
  */
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const legacyCorporateCatalog = pathname.match(/^(\/(?:en|ru)(?:\/ai)?)\/corporate\/components$/);
+  if (legacyCorporateCatalog) {
+    const url = requestOriginUrl(request);
+    url.pathname = `${legacyCorporateCatalog[1]}/corporate/catalog`;
+    return NextResponse.redirect(url, 308);
+  }
   const sharedPath =
     COMPILED_FEATURE_PROFILE === "corporate_hub" ? corporateSharedPath(pathname) : null;
   if (COMPILED_FEATURE_PROFILE === "corporate_hub" && !sharedPath) {
@@ -73,18 +94,7 @@ export default function middleware(request: NextRequest) {
     url.pathname = docsMarkdown;
     return NextResponse.redirect(url);
   }
-  const contentMatch = pathname.match(/^\/(?:ru|en)\/(?:ai\/)?content(?:\/|$)/);
-  const disabledSaasPage =
-    !COMPILED_FEATURES.saas_public_pages &&
-    /^\/(?:ru|en)\/(?:ai\/)?(?:contact|legal(?:\/|$))/.test(pathname);
-  if (
-    (COMPILED_FEATURE_PROFILE === "corporate_hub" &&
-      /^\/(?:ru|en)\/(?:ai\/)?(?:services|countries)(?:\/|$)/.test(pathname)) ||
-    (contentMatch && !COMPILED_FEATURES.content_hub) ||
-    disabledSaasPage ||
-    isImpossibleCatalogObjectPath(sharedPath ?? pathname) ||
-    isImpossibleCountryPath(pathname)
-  ) {
+  if (isBlockedPath(pathname, sharedPath)) {
     const language = pathname.startsWith("/ru/") ? "ru" : "en";
     const messages = language === "ru" ? ruMessages : enMessages;
     const title = messages.errors.notFoundTitle;

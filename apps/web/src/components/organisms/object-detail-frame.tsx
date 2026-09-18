@@ -18,7 +18,7 @@ export function ObjectDetailFrame({
   return (
     <div
       data-ui={UI.component.detailLower}
-      className="grid min-w-0 items-start gap-8 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_22rem]"
+      className="grid min-w-0 items-start gap-8 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_26rem]"
     >
       <div className="order-2 min-w-0 space-y-8 lg:order-1">
         <div

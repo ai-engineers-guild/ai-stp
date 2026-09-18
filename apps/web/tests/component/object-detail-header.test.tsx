@@ -157,7 +157,7 @@ describe("object detail header and frame", () => {
       "lg:grid-cols-[minmax(0,1fr)_16rem]",
     );
     expect(container.querySelector('[data-ui="component-detail-lower"]')?.className).toContain(
-      "lg:grid-cols-[minmax(0,1fr)_22rem]",
+      "lg:grid-cols-[minmax(0,1fr)_26rem]",
     );
     expect(container.querySelector('[data-ui="component-detail-main"]')).toHaveTextContent("Main");
     expect(container.querySelector('[data-ui="component-detail-rail"]')).toHaveTextContent(

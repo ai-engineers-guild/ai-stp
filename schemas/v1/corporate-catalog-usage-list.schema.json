@@ -1,0 +1,127 @@
+{
+  "$defs": {
+    "CorporateCatalogUsage": {
+      "additionalProperties": true,
+      "properties": {
+        "assignment_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Assignment Id",
+          "type": "string"
+        },
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "enum": [
+            "direct",
+            "effective"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "source_team_id": {
+          "anyOf": [
+            {
+              "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Team Id"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "subject_id": {
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_kind": {
+          "enum": [
+            "employee",
+            "team",
+            "project",
+            "technology"
+          ],
+          "title": "Subject Kind",
+          "type": "string"
+        },
+        "subject_name": {
+          "title": "Subject Name",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assignment_id",
+        "object_kind",
+        "organization_id",
+        "schema_version",
+        "source",
+        "source_team_id",
+        "stable_id",
+        "subject_id",
+        "subject_kind",
+        "subject_name",
+        "version"
+      ],
+      "title": "CorporateCatalogUsage",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-usage-list",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CorporateCatalogUsage"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "total": {
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "schema_version",
+    "total"
+  ],
+  "title": "CorporateCatalogUsageList",
+  "type": "object"
+}

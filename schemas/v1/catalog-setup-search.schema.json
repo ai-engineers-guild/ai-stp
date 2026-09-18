@@ -110,6 +110,22 @@
   "additionalProperties": false,
   "description": "Query for `/v1/catalog/setups`.",
   "properties": {
+    "assignment": {
+      "anyOf": [
+        {
+          "enum": [
+            "direct",
+            "effective"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Assignment"
+    },
     "authors": {
       "items": {
         "type": "string"
@@ -117,6 +133,26 @@
       "maxItems": 20,
       "title": "Authors",
       "type": "array"
+    },
+    "category_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Category Ids",
+      "type": "array"
+    },
+    "corporate_verified": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Corporate Verified"
     },
     "country_code": {
       "anyOf": [
@@ -200,6 +236,14 @@
       "title": "Include Experimental",
       "type": "boolean"
     },
+    "maintainer_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Maintainer Ids",
+      "type": "array"
+    },
     "member_harness_id": {
       "anyOf": [
         {
@@ -222,6 +266,27 @@
       ],
       "default": null
     },
+    "organization_id": {
+      "anyOf": [
+        {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Organization Id"
+    },
+    "owner_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Owner Ids",
+      "type": "array"
+    },
     "page": {
       "anyOf": [
         {
@@ -236,6 +301,14 @@
     "page_size": {
       "$ref": "#/$defs/PageSize",
       "default": 20
+    },
+    "project_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Project Ids",
+      "type": "array"
     },
     "q": {
       "anyOf": [
@@ -316,6 +389,22 @@
       },
       "maxItems": 10,
       "title": "Tags",
+      "type": "array"
+    },
+    "team_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Team Ids",
+      "type": "array"
+    },
+    "technology_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Technology Ids",
       "type": "array"
     },
     "updated_from": {

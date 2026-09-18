@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { ApiError } from "@/lib/api/errors";
 import { fieldErrorsFromDetails, type FieldErrors } from "@/lib/api/field-errors";
 import { privateApiRequest, type PrivateRequestOptions } from "@/lib/api/http";
+import { corporateAuditFilters, type CorporateAuditFilterValues } from "@/lib/api/corporate";
 import { assertCsrf, readCsrfToken, readSession, SESSION_COOKIE } from "@/lib/auth/session";
 
 import type {
@@ -60,7 +61,10 @@ export async function corporateCatalogSearchAction(input: {
       })),
     };
   } catch (error) {
-    return { ok: false, message: error instanceof ApiError ? error.message : "request failed" };
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : "request failed",
+    };
   }
 }
 
@@ -88,7 +92,10 @@ export async function corporateCatalogVersionsAction(input: {
         .map((item) => item.version),
     };
   } catch (error) {
-    return { ok: false, message: error instanceof ApiError ? error.message : "request failed" };
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : "request failed",
+    };
   }
 }
 
@@ -115,7 +122,10 @@ export async function corporateProjectUsageAction(input: {
     );
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, message: error instanceof ApiError ? error.message : "request failed" };
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : "request failed",
+    };
   }
 }
 
@@ -141,7 +151,10 @@ export async function corporateTechnologyMergePlanAction(input: {
     );
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, message: error instanceof ApiError ? error.message : "request failed" };
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : "request failed",
+    };
   }
 }
 
@@ -158,7 +171,11 @@ export async function corporateMutationAction(input: CorporateMutation): Promise
     if (!(await readSession())) return { ok: false, message: "not signed in", fieldErrors: {} };
     const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
     if (!sessionToken) return { ok: false, message: "not signed in", fieldErrors: {} };
-    const options: PrivateRequestOptions = { method: input.method, body: input.body, sessionToken };
+    const options: PrivateRequestOptions = {
+      method: input.method,
+      body: input.body,
+      sessionToken,
+    };
     const data = await privateApiRequest<unknown>(input.path, options);
     revalidatePath("/[locale]/corporate", "layout");
     return { ok: true, data };
@@ -220,7 +237,10 @@ export async function corporateTeamAssignmentsAction(input: {
     }
     return { completed };
   } catch (error) {
-    return { completed, message: error instanceof ApiError ? error.message : "request failed" };
+    return {
+      completed,
+      message: error instanceof ApiError ? error.message : "request failed",
+    };
   } finally {
     revalidatePath("/[locale]/corporate", "layout");
   }
@@ -228,6 +248,7 @@ export async function corporateTeamAssignmentsAction(input: {
 
 export async function corporateAuditExportAction(
   organizationId: string,
+  filters: CorporateAuditFilterValues = {},
 ): Promise<AuditExportResult> {
   if (!/^organization_[A-Za-z0-9_-]{20,80}$/.test(organizationId)) {
     return { ok: false, message: "invalid corporate target" };
@@ -238,10 +259,13 @@ export async function corporateAuditExportAction(
     if (!sessionToken) return { ok: false, message: "not signed in" };
     const data = await privateApiRequest<CorporateAuditExport>(
       `/v1/corporate/organizations/${organizationId}/audit/export`,
-      { sessionToken },
+      { sessionToken, query: corporateAuditFilters(filters) },
     );
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, message: error instanceof ApiError ? error.message : "request failed" };
+    return {
+      ok: false,
+      message: error instanceof ApiError ? error.message : "request failed",
+    };
   }
 }

@@ -29,6 +29,13 @@ describe("technology directory loader", () => {
           capabilities: ["technology.list", "category.list", "category.read"],
           authorization_revision: "opaque-revision",
         };
+      if (path.endsWith("/context"))
+        return {
+          organization: { organization_id: organizationId, authorization_revision: 3 },
+          capabilities: ["technology.list", "category.list", "category.read"],
+          teams: [],
+          projects: [],
+        };
       if (path.endsWith("/directory"))
         return {
           organization: { organization_id: organizationId, authorization_revision: 3 },

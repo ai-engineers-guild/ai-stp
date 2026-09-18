@@ -4,7 +4,11 @@ import { readCorporateContext, readCorporateDirectoryPages } from "./corporate";
 import { z } from "zod";
 
 import { tryAsAccountId, tryAsComponentId, tryAsSetupId } from "@/lib/brands";
-import type { CorporateCatalogOwnership, CorporateDirectoryItem } from "./generated/types.gen";
+import type {
+  CorporateCatalogOwnership,
+  CorporateCatalogUsageList,
+  CorporateDirectoryItem,
+} from "./generated/types.gen";
 import type { ComponentId, SetupId, VersionId } from "@/lib/brands";
 
 export type CorporateCatalogObjectKind = "component" | "setup";
@@ -21,6 +25,8 @@ const corporateCatalogOwnershipSchema = z.object({
   can_edit: z.boolean(),
   object_kind: z.enum(["setup", "component"]),
   organization_id: z.string(),
+  owner_id: z.string().nullable(),
+  owner_kind: z.enum(["organization", "team", "project", "technology", "employee"]),
   owner_account_id: z
     .string()
     .refine((value) => tryAsAccountId(value) !== null, "invalid owner account id")
@@ -102,6 +108,30 @@ export async function readCorporateCatalogOwnership(
     if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
       return null;
     }
+    throw error;
+  }
+}
+
+export async function readCorporateCatalogUsage(
+  sessionToken: string,
+  organizationId: string,
+  objectKind: CorporateCatalogObjectKind,
+  stableId: ComponentId | SetupId,
+  version: VersionId,
+): Promise<CorporateCatalogUsageList | null> {
+  const validStableId =
+    objectKind === "component" ? tryAsComponentId(stableId) : tryAsSetupId(stableId);
+  if (!validStableId) throw new Error("invalid catalog usage target");
+  try {
+    return await privateApiRequest<CorporateCatalogUsageList>(
+      `/v1/corporate/organizations/${organizationId}/catalog-usage`,
+      {
+        sessionToken,
+        query: { object_kind: objectKind, stable_id: stableId, version, limit: 100 },
+      },
+    );
+  } catch (error) {
+    if (error instanceof ApiError && [401, 403, 404].includes(error.status)) return null;
     throw error;
   }
 }

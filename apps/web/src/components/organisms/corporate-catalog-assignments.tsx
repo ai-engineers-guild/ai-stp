@@ -14,7 +14,33 @@ import { Link, useRouter } from "@/lib/i18n/navigation";
 import type {
   CorporateCatalogAssignment,
   CorporateCatalogAssignmentRequest,
+  OwnerObjectSummary,
 } from "@/lib/api/generated/types.gen";
+import { ObjectCard } from "@/components/organisms/object-card";
+
+const assignmentCardLabels = {
+  harness: "",
+  tags: "",
+  publicVisibility: "Public",
+  privateVisibility: "Private",
+} satisfies Parameters<typeof ObjectCard>[0]["labels"];
+
+function assignmentCardItem(item: CorporateCatalogAssignment): OwnerObjectSummary {
+  return {
+    schema_version: 1,
+    author_verified: false,
+    component_verified: false,
+    catalog_item: null,
+    latest_version: item.version,
+    lifecycle_state: "active",
+    name: item.display_name ?? item.stable_id,
+    object_kind: item.object_kind,
+    stable_id: item.stable_id,
+    trust_lane: null,
+    updated_at: "1970-01-01T00:00:00Z",
+    visibility: "private",
+  };
+}
 
 // eslint-disable-next-line max-lines-per-function
 export function CorporateCatalogAssignments({
@@ -137,16 +163,30 @@ export function CorporateCatalogAssignments({
       <ul className="divide-border divide-y">
         {currentItems.map((item) => (
           <li
-            key={`${item.assignment_id}/${item.source_team_id ?? "direct"}`}
+            key={`${item.assignment_id}/${item.subject_id}/${item.source_team_id ?? "direct"}`}
             className="flex flex-wrap items-center justify-between gap-3 py-3"
           >
-            <div>
-              <Link
-                href={`/catalog/${item.object_kind === "setup" ? "setups" : "components"}/${item.stable_id}/versions/${item.version}`}
-                className="inline-flex min-h-11 items-center underline underline-offset-4"
-              >
-                {item.display_name ?? h(item.object_kind)} · {item.version}
-              </Link>
+            <ObjectCard
+              kind={item.object_kind}
+              item={assignmentCardItem(item)}
+              href={`/catalog/${item.object_kind === "setup" ? "setups" : "components"}/${item.stable_id}`}
+              labels={assignmentCardLabels}
+              view="list"
+              ownerActions={
+                canManage && !item.source_team_id ? (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      void save(item);
+                    }}
+                  >
+                    {h("unlink")}
+                  </Button>
+                ) : null
+              }
+            />
+            <div className="mt-2">
               {item.source_team_id ? (
                 <p className="text-muted-foreground text-sm">
                   <Link
@@ -160,17 +200,6 @@ export function CorporateCatalogAssignments({
                 <p className="text-muted-foreground text-sm">{h("directAssignment")}</p>
               )}
             </div>
-            {canManage && !item.source_team_id && (
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => {
-                  void save(item);
-                }}
-              >
-                {h("unlink")}
-              </Button>
-            )}
           </li>
         ))}
       </ul>

@@ -17,7 +17,7 @@ ProjectId = Annotated[str, Field(pattern=stable_id_pattern("remote_project"))]
 
 class CorporateDirectoryReference(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
-    kind: Literal["project", "team", "employee", "technology", "category"]
+    kind: Literal["project", "team", "employee", "technology", "category", "job_title"]
     id: Annotated[str, Field(min_length=1, max_length=64)]
     name: str
 
@@ -29,6 +29,7 @@ class CorporateDirectoryReference(BaseModel):
             "employee": "account",
             "technology": "technology",
             "category": "category",
+            "job_title": "job_title",
         }[self.kind]
         if not re.fullmatch(stable_id_pattern(prefix), self.id):
             raise ValueError("directory identity does not match its kind")
@@ -45,7 +46,9 @@ class CorporateDirectoryItem(CorporateDirectoryReference):
     related_teams: list[CorporateDirectoryReference] = []
     owner_team: CorporateDirectoryReference | None = None
     owner: CorporateDirectoryReference | None = None
+    job_title: CorporateDirectoryReference | None = None
     categories: Annotated[list[CorporateDirectoryReference], Field(max_length=32)] = []
+    available_actions: Annotated[list[str], Field(max_length=32)] = []
     is_lead: bool = False
     role: str | None = None
 
@@ -75,12 +78,14 @@ class CorporateDirectoryItem(CorporateDirectoryReference):
             raise ValueError("project owner must be a visible related team")
         if self.owner and (self.kind != "technology" or self.owner.kind != "employee"):
             raise ValueError("technology owner must be an employee")
+        if self.job_title and (self.kind != "employee" or self.job_title.kind != "job_title"):
+            raise ValueError("job title must belong to an employee")
         return self
 
 
 class CorporateDirectoryQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
-    resource: Literal["projects", "teams", "members", "technologies"]
+    resource: Literal["projects", "teams", "members", "employees", "technologies"]
     query: Annotated[str | None, Field(min_length=1, max_length=200, pattern=r".*\S.*")] = None
     include_archived: bool = False
     lead_ids: Annotated[list[AccountId], Field(max_length=64)] = []
@@ -88,7 +93,9 @@ class CorporateDirectoryQuery(BaseModel):
     technology_ids: Annotated[list[TechnologyId], Field(max_length=64)] = []
     project_ids: Annotated[list[ProjectId], Field(max_length=64)] = []
     category_ids: Annotated[list[CategoryId], Field(max_length=32)] = []
+    job_title_ids: Annotated[list[str], Field(max_length=64)] = []
     is_lead: bool | None = None
+    sort: Literal["name", "name_desc"] = "name"
     offset: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=256)] = 128
 
@@ -100,13 +107,14 @@ class CorporateDirectoryFacets(BaseModel):
     technologies: list[CorporateDirectoryReference]
     projects: list[CorporateDirectoryReference] = []
     categories: list[CorporateDirectoryReference] = []
+    job_titles: list[CorporateDirectoryReference] = []
 
 
 class CorporateDirectoryView(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     organization: CorporateOrganization
-    resource: Literal["projects", "teams", "members", "technologies"]
+    resource: Literal["projects", "teams", "members", "employees", "technologies"]
     items: list[CorporateDirectoryItem]
     total: Annotated[int, Field(ge=0)]
     facets: CorporateDirectoryFacets

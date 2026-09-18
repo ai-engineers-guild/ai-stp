@@ -25,6 +25,7 @@ import {
   targetMatrixLabels,
 } from "@/components/molecules/component-target-matrix";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
+import { CorporateCatalogUsage } from "@/components/organisms/corporate-catalog-usage";
 import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
 import { contextBudgetLabels } from "@/components/organisms/context-budget-labels";
 import { ComponentContextBudgetPanel } from "@/components/organisms/context-budget-panel";
@@ -39,7 +40,10 @@ import {
   readComponentVersion,
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
-import { readCorporateCatalogOwnership } from "@/lib/api/corporate-catalog-ownership";
+import {
+  readCorporateCatalogOwnership,
+  readCorporateCatalogUsage,
+} from "@/lib/api/corporate-catalog-ownership";
 import { readOwnerObject } from "@/lib/api/owner";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile } from "@/lib/api/public-profile";
@@ -95,6 +99,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   }
 
   const t = await getTranslations("catalog");
+  const th = await getTranslations("hub");
   const to = await getTranslations("objects");
   const tc = await getTranslations("common");
   const tCli = await getTranslations("cli");
@@ -127,6 +132,16 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   const corporateCsrfToken = corporateOwnership?.ownership.can_edit
     ? ((await readCsrfToken()) ?? "")
     : "";
+  const corporateUsage =
+    token && corporateOwnership
+      ? await readCorporateCatalogUsage(
+          token,
+          corporateOwnership.ownership.organization_id,
+          "component",
+          componentId,
+          asVersionId(summary.latest_version),
+        )
+      : null;
   const isOwner = token ? await canEditComponent(token, stableId) : false;
   const initiallyLiked = token ? await isLiked(token, "component", stableId) : false;
   const metadata = await readComponentGithubMetadata(
@@ -313,6 +328,24 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
                 authorizationRevision={corporateOwnership.authorizationRevision}
                 csrfToken={corporateCsrfToken}
                 members={corporateOwnership.members}
+              />
+            ) : null}
+            {corporateUsage ? (
+              <CorporateCatalogUsage
+                items={corporateUsage.items}
+                total={corporateUsage.total}
+                labels={{
+                  title: th("catalogUsageTitle"),
+                  summary: th("catalogUsageSummary"),
+                  direct: th("directAssignment"),
+                  effective: th("effectiveAssignment"),
+                  subjectKinds: {
+                    employee: th("employee"),
+                    team: th("team"),
+                    project: th("project"),
+                    technology: th("technologies"),
+                  },
+                }}
               />
             ) : null}
             <div className="border-border bg-card rounded-lg border p-4 shadow-sm">

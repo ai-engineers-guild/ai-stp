@@ -57,33 +57,77 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </header>
 
-      {(context.capabilities.includes("technology.list") ||
-        context.capabilities.includes("technology.create") ||
-        context.capabilities.includes("category.create")) && (
-        <Link
-          href="/corporate/technologies"
-          className="inline-flex min-h-11 items-center underline underline-offset-4"
-        >
-          {technology("registry")}
-        </Link>
-      )}
-      {context.capabilities.includes("landscape.read") && (
-        <Link
-          href="/corporate/technology-landscape"
-          className="inline-flex min-h-11 items-center underline underline-offset-4"
-        >
-          {technology("title")}
-        </Link>
-      )}
-      {context.capabilities.includes("landscape.manage") && (
-        <Link
-          href="/corporate/organization/admins/settings"
-          className="inline-flex min-h-11 items-center underline underline-offset-4"
-        >
-          {technology("activityPolicy")}
-        </Link>
-      )}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label={t("administration")}>
+        {(context.capabilities.includes("technology.list") ||
+          context.capabilities.includes("technology.create") ||
+          context.capabilities.includes("category.create")) && (
+          <Link
+            href="/corporate/technologies"
+            className="inline-flex min-h-11 items-center underline underline-offset-4"
+          >
+            {technology("registry")}
+          </Link>
+        )}
+        {context.capabilities.includes("landscape.read") && (
+          <Link
+            href="/corporate/technology-landscape"
+            className="inline-flex min-h-11 items-center underline underline-offset-4"
+          >
+            {technology("title")}
+          </Link>
+        )}
+        {context.capabilities.includes("landscape.manage") && (
+          <Link
+            href="/corporate/organization/admins/settings"
+            className="inline-flex min-h-11 items-center underline underline-offset-4"
+          >
+            {technology("activityPolicy")}
+          </Link>
+        )}
+      </nav>
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        {members ? (
+          <CorporateList
+            title={t("members")}
+            empty={t("noMembers")}
+            items={members.items.map((item) => ({
+              id: item.account_id,
+              name: item.display_name ?? item.account_id,
+              state: item.role,
+              revision: item.revision,
+            }))}
+            kind="members"
+            openLabel={t("open")}
+          />
+        ) : null}
+        {context.capabilities.includes("project.list") ? (
+          <CorporateList
+            title={t("projects")}
+            empty={t("noProjects")}
+            items={context.projects.map((item) => ({
+              id: item.project_id,
+              name: item.name,
+              state: item.state,
+              revision: item.revision,
+            }))}
+            kind="projects"
+            openLabel={t("open")}
+          />
+        ) : null}
+        {context.capabilities.includes("team.list") ? (
+          <CorporateList
+            title={t("teams")}
+            empty={t("noTeams")}
+            items={context.teams.map((item) => ({
+              id: item.team_id,
+              name: item.name,
+              state: item.state,
+              revision: item.revision,
+            }))}
+            kind="teams"
+            openLabel={t("open")}
+          />
+        ) : null}
         {roles ? (
           <CorporateList
             title={t("roles")}
@@ -101,7 +145,7 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
       </div>
 
       {canManageRoles && (
-        <details className="border-border border-t pt-4">
+        <details open className="border-border border-t pt-4">
           <summary className="cursor-pointer font-medium">{t("administration")}</summary>
           <div className="mt-4">
             <CorporateAdminPanel
@@ -139,7 +183,7 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
       {(context.capabilities.includes("member.manage") ||
         context.capabilities.includes("binding.create") ||
         context.capabilities.includes("service_principal.manage")) && (
-        <details className="border-border border-t pt-4">
+        <details open className="border-border border-t pt-4">
           <summary className="cursor-pointer font-medium">{t("accessAdministration")}</summary>
           <div className="mt-4">
             <CorporateAccessPanel
@@ -211,8 +255,13 @@ function CorporateList({
 }: {
   title: string;
   empty: string;
-  items: ReadonlyArray<{ id: string; name: string; state: string; revision: number }>;
-  kind: "projects" | "teams" | "roles";
+  items: ReadonlyArray<{
+    id: string;
+    name: string;
+    state: string;
+    revision: number;
+  }>;
+  kind: "members" | "projects" | "teams" | "roles";
   openLabel: string;
 }) {
   return (
