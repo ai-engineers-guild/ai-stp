@@ -157,9 +157,7 @@ def native_platform(*, system: str | None = None, machine: str | None = None) ->
     return None
 
 
-def native_config_root(
-    harness_id: str, environment: Mapping[str, str] | None = None
-) -> Path:
+def native_config_root(harness_id: str, environment: Mapping[str, str] | None = None) -> Path:
     """Catalogued user-config root for one harness in this environment."""
     if harness_id not in HARNESS_ID_ORDER:
         raise ValueError(harness_id)

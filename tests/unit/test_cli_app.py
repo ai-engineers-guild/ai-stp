@@ -1,3 +1,4 @@
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportIndexIssue=false, reportOperatorIssue=false, reportPrivateUsage=false
 """Dispatch: every way an invocation ends maps to a registered code and exit class."""
 
 import io

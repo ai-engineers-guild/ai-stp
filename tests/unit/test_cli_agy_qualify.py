@@ -1,3 +1,4 @@
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownLambdaType=false
 """Isolated agy qualify workspace and scoring. Live model runs stay in agy_qualify.main."""
 
 from __future__ import annotations

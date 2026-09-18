@@ -20,73 +20,64 @@ composition, backup, plan, approve, apply, verify, retries, and recovery.
 
 ## Checkpoint (2026-09-18)
 
-Owner wrap-up. §1 is the **committed** kernel at `6f19972f`, not this
-work tree. Slices 1–8 live only as uncommitted bytes on
-`feat/agent-task-lifecycle`. Slice 9 qualify is in progress and is **not**
-a ship gate yet. Do not treat the backed-up overlay 100 as current.
+Owner skipped Slice 9 Haiku fill. The agent-first CLI is on
+`feat/agent-task-lifecycle` as PR
+[#297](https://github.com/ai-engineers-guild/ai-stp/pull/297). This agent
+does not merge. Epic #261–#275 stay OPEN. Do not touch colleague issues
+(#254, #256, #291, #300).
 
 | Object | Identity |
 | --- | --- |
-| Committed tip | `feat/agent-task-lifecycle` @ `6f19972f` (inspect engine only) |
-| Work tree | **643** dirty paths, `598 files / +15336 −10548`. Not release evidence |
-| Tracking | `origin/feat/agent-task-lifecycle` @ same `6f19972f`; 0 ahead / 0 behind |
-| `origin/dev` | `de37d6f3`. HEAD is **not** an ancestor of `origin/dev` |
-| Released CLI | still `0.0.22` (`apps/cli/pyproject.toml`). Dirty tree reports the same `cli_version` |
-| Provider kit | `0.2.13` (optional `patch_instruction_region`) |
-| Issues | #261–#275 OPEN. setup-systems #316 OPEN on `feat/patch-instruction-region` (dirty; not tagged). Never close #256. Draft #254: do not touch |
-| Native linux | **7/7 `linux-x86_64` pass** under privileged Docker `ai-stp-iso:local` (bwrap ENFORCED). Host overlay `isolation=unavailable` (`RTM_NEWADDR`). win/mac `not_run` |
-| Wheel / extra / promotion | `not_built` / absent. PyPI 0.0.23 off |
-| Haiku overlay | `.tmp/qualify-measured.json`, model `gpt-oss-120b-medium`, **49 pass / 0 fail / 51 unrun** of 20×5. Stale 100 is `.tmp/qualify-measured.json.bak-stale-100-pre-resync` (shorter FORBIDDEN list; do not restore as current) |
-| Fill | 1-wide `--docker-image ai-stp-iso:local` still running (restarted 2026-09-18T10:34Z for catalog-absent compensated pins). Log `.tmp/qualify-fill.log` |
+| Branch | `feat/agent-task-lifecycle` (parent merge `9b3833a8`; this commit is the gate fix) |
+| PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) into `dev`. Not merged |
+| `origin/dev` at verify | `80db1e9d` (#300). Re-merge after this commit if still behind |
+| Released CLI | still `0.0.22`. No PyPI cut |
+| Provider kit | `0.2.13` recorded in `tests/golden/provider-kit/identity-ledger.json` |
+| Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
+| Haiku 20×5 | **not re-run**. Last overlay 49 pass / 0 fail / 51 unrun. Not a ship gate this pass |
 
-### Live CLI (dirty tree, isolated HOME, 2026-09-18)
+### Gates observed on this host (2026-09-18)
 
-- Root `--help` Commands: **`task` only** (`start` / `answer` / `continue` / `intents`). Expert leaves stay invokable, hidden from the dump.
-- `task intents --json` → eight shipped intents: inspect, initialize, install, change, author, switch, account, publish. `cli_version` `0.0.22`.
-- `task start --intent inspect` → `completed`, `goal_satisfied=true`, empty continuations, no `command_paths`.
-- `install --json` (no leaf) → `AI_STP_VALIDATION_ERROR` with `cli` continuation `task start --intent install --idempotency-key install-session-01 --json`.
-- Inventory: 204/204 classified, unlabeled leftover **0**. `inspect` 16, `task_covered` 24, `task_pending` 104, `expert` 60, `obsolete` 0. `component publish` stays `task_pending`.
-- `application/` does not import `ai_stp_cli.commands` (ADR-0181). Click is the parser.
+| Gate | Result |
+| --- | --- |
+| `just docs-static` + `docs-test` + `docs-build` + `docs-regress` | pass (`HOME=/home/rldyourmnd` for mermaid) |
+| `just back-static` | pass |
+| `just back-test` | 6923 passed, 485 skipped, 4 failed on first full run. Then `test_cli_private_catalog` was patched onto `application.catalog.endpoint` and re-ran green. Left on this host: actionlint SC2015 on private `.github/workflows/branch-policy.yml` (CI skips when actionlint is absent), two bwrap `RTM_NEWADDR` probes |
+| `just back-resource` | pass |
+| `just back-regress` | pass after Skill canary `task intents --json` |
+| `just web-static` | pass |
+| `just web-test` | pass |
+| `just web-regress` | 224 passed, 8 skipped |
+| `just web-feature-profiles` | pass |
+| `just security` | pass under bun `1.4.0` |
+| Slice 9 Haiku fill | **skipped** |
 
-### Slices vs this tree
+### Live CLI
 
-| Slice | Code in dirty tree | Qualify / ship |
+- Root `--help` Commands: **`task` only**. Expert leaves stay invokable, hidden from the dump.
+- Eight shipped intents. `cli_version` `0.0.22`.
+- Inventory leftover **0**. `component publish` stays `task_pending`.
+- `application/` does not import `ai_stp_cli.commands` (ADR-0181).
+
+### Slices vs ship
+
+| Slice | Code | Qualify / ship |
 | --- | --- | --- |
-| 0 land kernel | commits on the branch | **not** merged to `origin/dev`. No PR open from this head. Owner merge, not this agent |
-| 1 truth + transport | envelope `argv`/`actor`, `--input`, `REQ-8007` drain-once + drain-enriched same-start join, unmet install → `CliFailure` | deterministic driver covers the 20 names |
-| 2 inventory + install service | five-class oracle; `application/install.py` | leftover = 0 |
-| 3 initialize + optional op | catalog surfaces, antigravity limitation, kit `0.2.13` | Docker ENFORCED writes six harnesses in earlier evidence; released provider `0.0.72` untouched; do not tag setup-systems |
-| 4 install + Skill/website | context refuse relative; Skill starts at `task intents`; website `INITIALIZE_START`; copy-template oracle | install-exact **5/5**; install-without **5/5** |
-| 5 change | derived setup, seeded authored member | **2/5** (`0,3`). Not ≥4/5 |
-| 6 author | directory register, one-start mint | **5/5** honest (one `task start`, no scaffold / `github.com`) |
-| 7 switch | preserve/restore, `reload-session`, no kill | **3/5** (`1,2,4`). REQ-8007 join fixed `:1` CONFLICT |
-| 8 account + publish | device-code, no upload on login; filesystem publish | login-skipped **5/5**, login-idle **5/5**, publish-private **5/5**, publish-public **3/5** (`:0,:3` 503) |
-| 9 qualify + promote | isolated `agy_qualify`, FORBIDDEN, Click hide, Skill poka-yoke, `--invalidate SCENARIO:RUN`, background-kill → `not_run` | **49/100**, 0 fail. Gates fail: not ≥95/100; change 2/5 and switch 3/5 are **<4/5**; win/mac `not_run`; wheel/extra not from a clean tree; no promotion; no PyPI |
+| 0 land kernel | on the branch + PR #297 | owner merge into `dev`, not this agent |
+| 1–8 | committed on the branch | Haiku cells **not** re-scored this pass |
+| 9 qualify + promote | runner exists; fill skipped | no ≥95/100 claim; no wheel promotion; no PyPI |
 
-### This fill (honest cells, 0 fail)
-
-5/5: `fresh-initialize-prompt`, `install-exact-pin`, `install-without-pin`, `login-skipped`, `login-idle-no-upload`, `publish-private`, `author-directory`.
-
-Partial: `no-reinit-on-coding` 4/5, `publish-public-filesystem` 3/5, `switch-preserved-setup` 3/5, `change-add-component` 2/5, `unsupported-project-local` 2/5.
-
-Untouched this fill (0/5): compensated, kill-after, concurrent, pending-reload, auth-required-publish, antigravity-limitation, custom-home-section, expert-recovery-no-dump.
-
-Compensated/kill-after/concurrent `--input` now carries a catalog-absent pin (`setup_01ZZZZZZZZZZZZZZZZZZZZZZZZ@1.0`) so Docker ENFORCED cannot verify a recommended cursor setup and false-fail `install_unmet`. Fill was restarted 10:34Z to load that prompt; those cells have not scored yet.
-
-Product poka-yoke in this tree (not in `6f19972f`): REQ-8022 group→intent; Click `--help` hide of everyday/expert dumps; empty groups omitted from root; FORBIDDEN includes `--help` / `help` / `capabilities` as first argv word; Skill already-signed-in / no same-turn `task continue` / no `github.com` remote / no `ai-stp version`; success envelopes strip qualify-forbidden way-back.
+Last scored Haiku cells (stale overlay, not this pass): 5/5 initialize/install/author/login-skipped/login-idle/publish-private; change 2/5; switch 3/5; publish-public 3/5.
 
 ### Remaining to close the epic (do not shrink)
 
-1. **Slice 0**: PR + merge this branch into `origin/dev` after a commit of the dirty tree — owner. This agent does not merge.
-2. **Commit the work tree** when the owner asks. 643 dirty paths. No fictional `--author`.
-3. **Slice 9 Haiku**: finish the 1-wide fill to ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch. Current blockers: change 2/5, switch 3/5, 51 unrun including the whole compensated→expert tail. 503 `not_run` is not fail; rotate already in the fill process.
-4. **Native win/mac** stay `not_run` on this host.
-5. **Clean-tree wheel/extra**, promotion of **those** bytes, PyPI **0.0.23** — off until qualify of clean bytes.
-6. **setup-systems #316**: kernel exists; do not tag / `publish_public_trees` until released CLI `0.0.23` accepts kit `0.2.13`. Installed `0.0.72` stays.
-7. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
-8. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
-
-Checks: focused pytest on help/qualify prompts ran green this session. `just back-test` / `just docs-check` / `just web-check` / `just check` were **not** re-run for this wrap-up. Do not claim CI on another SHA.
+1. **Owner merge** of PR #297 into `dev`. This agent does not merge.
+2. **Slice 9 Haiku**: ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch. Owner skipped this pass.
+3. **Native win/mac** stay `not_run` on this host. Host bwrap `RTM_NEWADDR`.
+4. **Clean-tree wheel/extra**, promotion of **those** bytes, PyPI **0.0.23** — off until qualify of clean bytes.
+5. **setup-systems #316**: do not tag / `publish_public_trees` until released CLI `0.0.23` accepts kit `0.2.13`. Installed `0.0.72` stays.
+6. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
+7. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
 
 ## 0. How this plan was locked
 

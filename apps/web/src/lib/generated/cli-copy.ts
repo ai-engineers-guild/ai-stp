@@ -44,7 +44,8 @@ export function installStart(): string {
   return SETUP_NEXT_STEP;
 }
 
-export function login(_provider: LoginProvider): string {
+export function login(provider: LoginProvider): string {
+  void provider;
   return LOGIN;
 }
 

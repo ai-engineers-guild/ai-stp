@@ -24,6 +24,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "backup": "provider backup reference",
         "complaint": "public complaint intake",
         "component": "component logical entity",
+        "category": "technology classification",
         "developer": "developer passport",
         "device": "device passport",
         "family": "setup family grouping",
@@ -42,6 +43,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "link_plan": "server-authored project link plan",
         "unlink_plan": "server-authored project unlink plan",
         "report": "private report case",
+        "relation": "canonical organization relationship",
         # Valid only inside one recommendation session (`ADR-0027`). Typed and
         # never reused like the rest, but naming no durable object: a proposal
         # has no entity, no revision and no head, and confirming it is what

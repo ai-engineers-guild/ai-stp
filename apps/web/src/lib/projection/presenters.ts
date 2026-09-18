@@ -105,12 +105,7 @@ function yesNo(value: boolean, labels: Labels): string {
 
 function catalogCliBlocks(inspect: string, labels: Labels): MachineBlock[] {
   const install = installStart();
-  return [
-    field(labels.install, install),
-    code(install),
-    field("inspect", inspect),
-    code(inspect),
-  ];
+  return [field(labels.install, install), code(install), field("inspect", inspect), code(inspect)];
 }
 
 export function presentLanding(input: {

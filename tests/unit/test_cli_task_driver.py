@@ -1,3 +1,4 @@
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportIndexIssue=false
 """Deterministic argv driver for the Haiku corpus. No LLM. Native cells stay not_run."""
 
 from __future__ import annotations

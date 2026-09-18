@@ -1104,7 +1104,12 @@ def test_completing_a_sign_in_that_was_never_started_is_typed(home: Path) -> Non
 def test_a_sign_in_needs_a_provider(home: Path) -> None:
     result = run("auth", "login", "--json", home=home)
     assert result.returncode == 2
-    assert "provider" in json.loads(result.stdout)["error"]["message"]
+    envelope = json.loads(result.stdout)
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+    assert envelope["error"]["details"]["intent"] == "account"
+    assert envelope["next_actions"] == [
+        "task start --intent account --idempotency-key account-session-01 --json"
+    ]
 
 
 def test_a_catalogue_read_without_a_platform_is_typed_and_writes_nothing(home: Path) -> None:
@@ -1123,7 +1128,12 @@ def test_a_catalogue_read_without_a_platform_is_typed_and_writes_nothing(home: P
 def test_a_catalogue_read_needs_a_kind(home: Path) -> None:
     result = run("registry", "search", "--json", home=home)
     assert result.returncode == 2
-    assert "kind" in json.loads(result.stdout)["error"]["message"]
+    envelope = json.loads(result.stdout)
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"
+    assert envelope["error"]["details"]["intent"] == "install"
+    assert envelope["next_actions"] == [
+        "task start --intent install --idempotency-key install-session-01 --json"
+    ]
 
 
 def test_switching_the_catalogue_off_is_reported_not_worked_around(home: Path) -> None:

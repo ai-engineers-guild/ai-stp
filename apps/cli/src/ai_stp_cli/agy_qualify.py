@@ -33,6 +33,14 @@ from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
 
 ROOT: Final[Path] = Path(__file__).resolve().parents[4]
+
+
+def _json_map(value: object) -> dict[str, object] | None:
+    if not isinstance(value, dict):
+        return None
+    return {str(key): inner for key, inner in cast(dict[object, object], value).items()}
+
+
 DOCKER_IMAGE_ENV: Final[str] = "AI_STP_QUALIFY_DOCKER_IMAGE"
 PROVIDERS_ENV: Final[str] = "AI_STP_QUALIFY_PROVIDERS"
 TOOLCHAINS_ENV: Final[str] = "AI_STP_QUALIFY_TOOLCHAINS"
@@ -481,11 +489,8 @@ def task_snapshots(home: Path) -> tuple[dict[str, object], ...]:
                         parsed: object = json.loads(raw)
                     except json.JSONDecodeError:
                         parsed = None
-                    if isinstance(parsed, dict):
-                        outcome = {
-                            str(key): value
-                            for key, value in cast(dict[object, object], parsed).items()
-                        }
+                    outcome = _json_map(parsed)
+                    if outcome is not None:
                         item["outcome"] = outcome
                         item["verified"] = outcome.get("verified")
                         item["wrote"] = outcome.get("wrote")
@@ -499,14 +504,12 @@ def task_snapshots(home: Path) -> tuple[dict[str, object], ...]:
                     except json.JSONDecodeError:
                         parsed_questions = None
                     if isinstance(parsed_questions, list):
-                        item["questions"] = [
-                            {
-                                str(key): value
-                                for key, value in cast(dict[object, object], entry).items()
-                            }
-                            for entry in parsed_questions
-                            if isinstance(entry, dict)
-                        ]
+                        questions: list[dict[str, object]] = []
+                        for entry in cast(list[object], parsed_questions):
+                            mapped = _json_map(entry)
+                            if mapped is not None:
+                                questions.append(mapped)
+                        item["questions"] = questions
             held.append(item)
         return tuple(held)
 
@@ -545,10 +548,11 @@ def question_ids_of(item: Mapping[str, object]) -> tuple[str, ...]:
     if not isinstance(raw, list):
         return ()
     held: list[str] = []
-    for entry in raw:
-        if not isinstance(entry, dict):
+    for entry in cast(list[object], raw):
+        mapped = _json_map(entry)
+        if mapped is None:
             continue
-        question_id = entry.get("question_id")
+        question_id = mapped.get("question_id")
         if question_id:
             held.append(str(question_id))
     return tuple(held)
@@ -573,8 +577,8 @@ def author_minted(home: Path) -> bool:
             continue
         if item.get("goal_satisfied") not in (True, 1, "1"):
             continue
-        outcome = item.get("outcome")
-        if not isinstance(outcome, dict):
+        outcome = _json_map(item.get("outcome"))
+        if outcome is None:
             continue
         if outcome.get("minted") is not True:
             continue
@@ -594,9 +598,9 @@ def account_idle_honest(home: Path) -> bool:
         if item.get("state") == "blocked" and "authorization" in question_ids_of(item):
             saw_block = True
         if item.get("state") == "completed":
-            outcome = item.get("outcome")
+            outcome = _json_map(item.get("outcome"))
             if (
-                isinstance(outcome, dict)
+                outcome is not None
                 and outcome.get("action") == "login"
                 and outcome.get("login_uploaded") is False
             ):
@@ -617,8 +621,8 @@ def publish_honest(home: Path, *, visibility: str | None = None) -> bool:
             saw_block = True
         if item.get("state") != "completed":
             continue
-        outcome = item.get("outcome")
-        if not isinstance(outcome, dict):
+        outcome = _json_map(item.get("outcome"))
+        if outcome is None:
             continue
         if not outcome.get("object_id"):
             continue
@@ -640,9 +644,7 @@ def switch_not_loaded(home: Path) -> bool:
             continue
         if item.get("state") == "failed":
             return False
-        outcome = item.get("outcome") if isinstance(item.get("outcome"), dict) else {}
-        if not isinstance(outcome, dict):
-            outcome = {}
+        outcome = _json_map(item.get("outcome")) or {}
         if outcome.get("session_loaded") is True:
             return False
         if outcome.get("process_killed") is True:
@@ -758,8 +760,8 @@ def initialize_wrote_codex(home: Path) -> bool:
             continue
         if item.get("wrote") is not True:
             continue
-        outcome = item.get("outcome")
-        harness = outcome.get("harness_id") if isinstance(outcome, dict) else None
+        outcome = _json_map(item.get("outcome"))
+        harness = None if outcome is None else outcome.get("harness_id")
         if harness == "codex":
             return True
     return False
@@ -806,8 +808,8 @@ def initialize_antigravity_limitation(home: Path) -> bool:
             continue
         if item.get("limitation") != ANTIGRAVITY_LIMITATION:
             continue
-        outcome = item.get("outcome")
-        harness = outcome.get("harness_id") if isinstance(outcome, dict) else None
+        outcome = _json_map(item.get("outcome"))
+        harness = None if outcome is None else outcome.get("harness_id")
         if harness == "antigravity":
             return True
     return False
@@ -1241,6 +1243,8 @@ def incomplete_capacity_hit(
         return False
     if followed_through(workspace):
         return False
+    if capacity_miss(stdout, stderr, workspace):
+        return True
     if scenario is not None and drove_cli(workspace):
         try:
             if score(scenario, workspace) == "pass":
@@ -1283,7 +1287,7 @@ def score(scenario: str, workspace: Workspace) -> MeasuredStatus:
         if not initialize_honest(workspace.home):
             return "fail"
         wrote = initialize_wrote(workspace.home)
-        allowed = marked_instruction_files(workspace) if wrote else frozenset()
+        allowed = marked_instruction_files(workspace) if wrote else frozenset[Path]()
         if wrote and not allowed:
             return "fail"
         if invented_instruction_files(workspace, allowed=allowed):

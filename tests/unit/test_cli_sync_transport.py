@@ -937,7 +937,9 @@ def test_a_server_reported_revocation_offers_the_same_recovery_as_a_local_one(
     assert refused.value.code == "AI_STP_DEVICE_REVOKED"
     assert refused.value.retryable is False
     assert refused.value.next_actions, "a revoked device was given no way back"
-    assert any("auth login" in action for action in refused.value.next_actions)
+    assert refused.value.next_actions[0] == "device reset --confirm --json"
+    assert any("task start --intent account" in action for action in refused.value.next_actions)
+    assert all("auth login" not in action for action in refused.value.next_actions)
 
 
 def _component_content(

@@ -134,16 +134,18 @@ def same_start_payload(held_payload: str, incoming: str) -> bool:
         return False
     if not isinstance(held_body, dict) or not isinstance(incoming_body, dict):
         return False
-    if held_body.get("intent") != incoming_body.get("intent"):
+    held_map = cast(dict[str, object], held_body)
+    incoming_map = cast(dict[str, object], incoming_body)
+    if held_map.get("intent") != incoming_map.get("intent"):
         return False
-    incoming_input = incoming_body.get("input")
-    held_input = held_body.get("input")
+    incoming_input = incoming_map.get("input")
+    held_input = held_map.get("input")
     if incoming_input is None:
         return held_input is None
     if not isinstance(incoming_input, dict) or not isinstance(held_input, dict):
         return False
     held_facts = input_facts(held_payload)
-    incoming_items = cast(dict[object, object], incoming_input)
+    incoming_items = cast(dict[str, object], incoming_input)
     return all(
         held_facts.get(str(key)) == cast(JsonValue, value) for key, value in incoming_items.items()
     )

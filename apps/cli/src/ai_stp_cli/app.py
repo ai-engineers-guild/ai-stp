@@ -365,9 +365,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
 
 #: Groups worth showing by example rather than by sentence alone.
 _GROUP_EXAMPLES: Final[dict[tuple[str, ...], tuple[str, ...]]] = {
-    ("auth",): (
-        "ai-stp task start --intent account --idempotency-key account-session-01 --json",
-    ),
+    ("auth",): ("ai-stp task start --intent account --idempotency-key account-session-01 --json",),
     ("install",): (
         "ai-stp task start --intent install --idempotency-key install-session-01 --json",
     ),
@@ -390,9 +388,7 @@ _GROUP_EXAMPLES: Final[dict[tuple[str, ...], tuple[str, ...]]] = {
         "ai-stp task start --intent change --idempotency-key change-session-01 --json",
         "ai-stp task start --intent install --idempotency-key install-session-01 --json",
     ),
-    ("eval",): (
-        "ai-stp task intents --json",
-    ),
+    ("eval",): ("ai-stp task intents --json",),
     ("environment",): (
         "ai-stp task start --intent install --idempotency-key install-session-01 --json",
     ),
@@ -408,12 +404,8 @@ _GROUP_EXAMPLES: Final[dict[tuple[str, ...], tuple[str, ...]]] = {
     ("project", "link"): (
         "ai-stp task start --intent install --idempotency-key install-session-01 --json",
     ),
-    ("update",): (
-        "ai-stp task intents --json",
-    ),
-    ("provider",): (
-        "ai-stp task intents --json",
-    ),
+    ("update",): ("ai-stp task intents --json",),
+    ("provider",): ("ai-stp task intents --json",),
     ("publication", "visibility"): (
         "ai-stp task start --intent publish --idempotency-key publish-session-01 --json",
     ),

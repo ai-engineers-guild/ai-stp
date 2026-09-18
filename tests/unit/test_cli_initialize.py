@@ -1,3 +1,4 @@
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportPrivateUsage=false
 """Initialize intent: catalog surfaces, provider region patch, no Python writes."""
 
 from __future__ import annotations
