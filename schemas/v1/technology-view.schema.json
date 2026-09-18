@@ -74,6 +74,19 @@
       "title": "Organization Id",
       "type": "string"
     },
+    "owner_account_id": {
+      "anyOf": [
+        {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner Account Id"
+    },
     "provenance": {
       "maxLength": 256,
       "title": "Provenance",
@@ -128,6 +141,7 @@
     "name",
     "official_urls",
     "organization_id",
+    "owner_account_id",
     "provenance",
     "redirect_id",
     "restore_lifecycle",

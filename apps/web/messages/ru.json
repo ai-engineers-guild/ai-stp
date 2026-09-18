@@ -130,7 +130,8 @@
     "unknownEmployee": "Сотрудник без имени",
     "notAvailable": "Нет данных",
     "deleted": "Удалён",
-    "pagination": "Страницы"
+    "pagination": "Страницы",
+    "pageSize": "На странице"
   },
   "technology": {
     "mergeTitle": "Явное объединение технологий",
@@ -1604,7 +1605,15 @@
     "permissions": "Разрешения через запятую",
     "state": "Состояние",
     "administration": "Администрирование",
-    "administrationBody": "Создавайте участников, проекты и команды, если это разрешено вашими capabilities.",
+    "administrationBody": "Создавайте участников, проекты, команды и должности, если это разрешено вашими capabilities.",
+    "jobTitles": "Должности",
+    "jobTitleName": "Название должности",
+    "jobTitleDescription": "Описание",
+    "jobTitleState": "Состояние",
+    "jobTitleCurrent": "Текущая",
+    "jobTitleRetired": "Архивная",
+    "jobTitleSave": "Сохранить должность",
+    "jobTitleNoItems": "Должности ещё не созданы.",
     "accessAdministration": "Управление доступом",
     "assignments": "Назначения",
     "bindings": "Привязки ролей",

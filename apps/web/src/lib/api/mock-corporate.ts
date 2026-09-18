@@ -155,6 +155,7 @@ const technologies: TechnologyView[] = technologySpecs.map(([id, name, category]
   schema_version: 1,
   technology_id: id,
   organization_id: organization.organization_id,
+  owner_account_id: member.account_id,
   name,
   description: descriptions.get(name) ?? `${name} used across the corporate engineering fixture.`,
   aliases: [],

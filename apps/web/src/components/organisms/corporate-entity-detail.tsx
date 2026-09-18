@@ -136,6 +136,7 @@ export function CorporateEntityDetail({
                     noMatches: h("noMatches"),
                     moreActions: h("moreActions"),
                     owner: h("owner"),
+                    operationalOwner: h("operationalOwner"),
                     teams: h("teams"),
                     projects: h("projects"),
                     technologies: h("technologies"),

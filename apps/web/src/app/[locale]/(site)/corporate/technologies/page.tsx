@@ -45,7 +45,7 @@ export default async function TechnologyRegistryPage({
       sort: filters.sort === "name_desc" ? "name_desc" : "name",
       page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
       pageSize:
-        Number.isInteger(pageSizeValue) && pageSizeValue > 0 ? Math.min(64, pageSizeValue) : 24,
+        Number.isInteger(pageSizeValue) && pageSizeValue > 0 ? Math.min(64, pageSizeValue) : 10,
     });
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;

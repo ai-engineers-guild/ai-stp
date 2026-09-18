@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { CorporateRoleView } from "@/lib/api/generated/types.gen";
+import type { CorporateJobTitleView, CorporateRoleView } from "@/lib/api/generated/types.gen";
 
 import { corporateMutationAction } from "@/actions/corporate";
 import { Button } from "@/components/atoms/button";
@@ -15,6 +15,7 @@ type Props = {
   authorizationRevision: number;
   permissions: readonly string[];
   roles?: readonly CorporateRoleView[];
+  jobTitles?: readonly CorporateJobTitleView[];
   labels: {
     title: string;
     description: string;
@@ -34,6 +35,14 @@ type Props = {
     creating: string;
     saved: string;
     failed: string;
+    jobTitles: string;
+    jobTitleName: string;
+    jobTitleDescription: string;
+    jobTitleState: string;
+    jobTitleCurrent: string;
+    jobTitleRetired: string;
+    jobTitleSave: string;
+    jobTitleNoItems: string;
   };
 };
 
@@ -46,6 +55,7 @@ export function CorporateAdminPanel({
   authorizationRevision,
   permissions,
   roles = [],
+  jobTitles = [],
   labels,
 }: Props) {
   const router = useRouter();
@@ -56,6 +66,10 @@ export function CorporateAdminPanel({
   const [roleName, setRoleName] = useState("");
   const [parentRole, setParentRole] = useState("");
   const [rolePermissions, setRolePermissions] = useState("");
+  const [jobTitle, setJobTitle] = useState({ name: "", description: "" });
+  const [jobTitleDrafts, setJobTitleDrafts] = useState<
+    Record<string, { name: string; description: string; state: "current" | "retired" }>
+  >({});
   const [message, setMessage] = useState<string | null>(null);
   const can = (permission: string) => permissions.includes(permission);
 
@@ -79,6 +93,7 @@ export function CorporateAdminPanel({
       setRoleName("");
       setParentRole("");
       setRolePermissions("");
+      setJobTitle({ name: "", description: "" });
       setMessage(labels.saved);
       router.refresh();
     });
@@ -253,6 +268,150 @@ export function CorporateAdminPanel({
           </form>
         ) : null}
       </div>
+      {can("job_title.create") || can("job_title.update") ? (
+        <div className="border-border space-y-5 border-t pt-6">
+          <div>
+            <h3 className="font-medium">{labels.jobTitles}</h3>
+            {!jobTitles.length ? (
+              <p className="text-muted-foreground mt-2 text-sm">{labels.jobTitleNoItems}</p>
+            ) : null}
+          </div>
+          {can("job_title.create") ? (
+            <form
+              className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-end"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submit(`/v1/corporate/organizations/${organizationId}/job-titles`, {
+                  schema_version: 1,
+                  name: jobTitle.name,
+                  description: jobTitle.description,
+                  authorization_revision: authorizationRevision,
+                  idempotency_key: crypto.randomUUID(),
+                });
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="corporate-job-title-name">{labels.jobTitleName}</Label>
+                <Input
+                  id="corporate-job-title-name"
+                  required
+                  value={jobTitle.name}
+                  onChange={(event) => {
+                    setJobTitle({ ...jobTitle, name: event.target.value });
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="corporate-job-title-description">
+                  {labels.jobTitleDescription}
+                </Label>
+                <Input
+                  id="corporate-job-title-description"
+                  value={jobTitle.description}
+                  onChange={(event) => {
+                    setJobTitle({ ...jobTitle, description: event.target.value });
+                  }}
+                />
+              </div>
+              <Button type="submit" disabled={busy}>
+                {labels.create}
+              </Button>
+            </form>
+          ) : null}
+          {can("job_title.update") ? (
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {jobTitles.map((item) => {
+                const draft = jobTitleDrafts[item.job_title_id] ?? {
+                  name: item.name,
+                  description: item.description,
+                  state: item.state,
+                };
+                return (
+                  <li key={item.job_title_id} className="border-border rounded-md border p-4">
+                    <form
+                      className="space-y-3"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        setMessage(null);
+                        startTransition(async () => {
+                          const result = await corporateMutationAction({
+                            csrfToken,
+                            organizationId,
+                            method: "PATCH",
+                            path: `/v1/corporate/organizations/${organizationId}/job-titles/${item.job_title_id}`,
+                            body: {
+                              schema_version: 1,
+                              name: draft.name,
+                              description: draft.description,
+                              state: draft.state,
+                              expected_revision: item.revision,
+                              authorization_revision: authorizationRevision,
+                              idempotency_key: crypto.randomUUID(),
+                            },
+                          });
+                          setMessage(result.ok ? labels.saved : result.message);
+                          if (result.ok) router.refresh();
+                        });
+                      }}
+                    >
+                      <Label htmlFor={`corporate-job-title-${item.job_title_id}-name`}>
+                        {labels.jobTitleName}
+                      </Label>
+                      <Input
+                        id={`corporate-job-title-${item.job_title_id}-name`}
+                        required
+                        value={draft.name}
+                        onChange={(event) => {
+                          setJobTitleDrafts((previous) => ({
+                            ...previous,
+                            [item.job_title_id]: { ...draft, name: event.target.value },
+                          }));
+                        }}
+                      />
+                      <Label htmlFor={`corporate-job-title-${item.job_title_id}-description`}>
+                        {labels.jobTitleDescription}
+                      </Label>
+                      <Input
+                        id={`corporate-job-title-${item.job_title_id}-description`}
+                        value={draft.description}
+                        onChange={(event) => {
+                          setJobTitleDrafts((previous) => ({
+                            ...previous,
+                            [item.job_title_id]: { ...draft, description: event.target.value },
+                          }));
+                        }}
+                      />
+                      <Label htmlFor={`corporate-job-title-${item.job_title_id}-state`}>
+                        {labels.jobTitleState}
+                      </Label>
+                      <select
+                        id={`corporate-job-title-${item.job_title_id}-state`}
+                        value={draft.state}
+                        onChange={(event) => {
+                          setJobTitleDrafts((previous) => ({
+                            ...previous,
+                            [item.job_title_id]: {
+                              ...draft,
+                              state: event.target.value as "current" | "retired",
+                            },
+                          }));
+                        }}
+                        className="border-border bg-background h-9 w-full rounded-sm border px-3 text-sm"
+                      >
+                        <option value="current">{labels.jobTitleCurrent}</option>
+                        <option value="retired">{labels.jobTitleRetired}</option>
+                      </select>
+                      <Button type="submit" disabled={busy}>
+                        {labels.jobTitleSave}
+                      </Button>
+                    </form>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
       {message ? (
         <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
           {message}

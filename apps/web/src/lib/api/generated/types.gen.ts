@@ -11087,6 +11087,10 @@ export type TechnologyView = {
    */
   organization_id: string;
   /**
+   * Owner Account Id
+   */
+  owner_account_id: string | null;
+  /**
    * Provenance
    */
   provenance: string;

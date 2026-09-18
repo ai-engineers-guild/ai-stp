@@ -130,7 +130,8 @@
     "unknownEmployee": "Unknown employee",
     "notAvailable": "Not available",
     "deleted": "Deleted",
-    "pagination": "Pagination"
+    "pagination": "Pagination",
+    "pageSize": "Per page"
   },
   "technology": {
     "mergeTitle": "Deliberate technology merge",
@@ -1604,7 +1605,15 @@
     "permissions": "Permissions (comma-separated)",
     "state": "State",
     "administration": "Administration",
-    "administrationBody": "Create organization members, projects, and teams when your capabilities allow it.",
+    "administrationBody": "Create organization members, projects, teams, and job titles when your capabilities allow it.",
+    "jobTitles": "Job titles",
+    "jobTitleName": "Job title",
+    "jobTitleDescription": "Description",
+    "jobTitleState": "State",
+    "jobTitleCurrent": "Current",
+    "jobTitleRetired": "Retired",
+    "jobTitleSave": "Save job title",
+    "jobTitleNoItems": "No job titles have been created yet.",
     "accessAdministration": "Access administration",
     "assignments": "Assignments",
     "bindings": "Role bindings",

@@ -44,8 +44,11 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
     return <StatePanel kind="empty" title={t("emptyTitle")} description={t("emptyBody")} />;
   }
 
-  const { context, members, roles, bindings, servicePrincipals } = workspace;
+  const { context, members, roles, bindings, servicePrincipals, jobTitles } = workspace;
   const canManageRoles = context.capabilities.includes("role.create");
+  const canManageJobTitles = context.capabilities.some((permission) =>
+    ["job_title.create", "job_title.update"].includes(permission),
+  );
 
   return (
     <div className="min-w-0 space-y-8">
@@ -144,7 +147,7 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
         ) : null}
       </div>
 
-      {canManageRoles && (
+      {(canManageRoles || canManageJobTitles) && (
         <details open className="border-border border-t pt-4">
           <summary className="cursor-pointer font-medium">{t("administration")}</summary>
           <div className="mt-4">
@@ -153,9 +156,8 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
               organizationId={context.organization.organization_id}
               authorizationRevision={context.organization.authorization_revision}
               roles={roles?.items ?? []}
-              permissions={context.capabilities.filter((permission) =>
-                permission.startsWith("role."),
-              )}
+              permissions={context.capabilities}
+              jobTitles={jobTitles?.items ?? []}
               labels={{
                 title: t("administration"),
                 description: t("administrationBody"),
@@ -175,6 +177,14 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
                 failed: t("failed"),
                 staff: t("staff"),
                 lead: t("lead"),
+                jobTitles: t("jobTitles"),
+                jobTitleName: t("jobTitleName"),
+                jobTitleDescription: t("jobTitleDescription"),
+                jobTitleState: t("jobTitleState"),
+                jobTitleCurrent: t("jobTitleCurrent"),
+                jobTitleRetired: t("jobTitleRetired"),
+                jobTitleSave: t("jobTitleSave"),
+                jobTitleNoItems: t("jobTitleNoItems"),
               }}
             />
           </div>
@@ -272,7 +282,7 @@ function CorporateList({
           {items.map((item) => (
             <li key={item.id} className="border-border rounded border">
               <Link
-                href={`/corporate/${kind}/${encodeURIComponent(item.id)}`}
+                href={`/corporate/${kind === "members" ? "employees" : kind}/${encodeURIComponent(item.id)}`}
                 className="focus-visible:ring-ring group flex min-h-14 items-center justify-between gap-3 rounded p-3 outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 <span className="min-w-0 truncate">{item.name}</span>

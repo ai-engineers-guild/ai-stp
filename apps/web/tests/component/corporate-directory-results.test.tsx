@@ -174,7 +174,7 @@ describe("corporate directory filters", () => {
     fireEvent.click(closeButton);
     fireEvent.click(screen.getByRole("button", { name: "applyFilters" }));
     expect(push).toHaveBeenCalledWith(
-      "/en/corporate/components?organization_id=org&sort=name&team_ids=team_mobile",
+      "/en/corporate/components?organization_id=org&sort=name&page=1&team_ids=team_mobile",
     );
   });
 
@@ -202,5 +202,6 @@ describe("corporate directory filters", () => {
       "aria-pressed",
       "true",
     );
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 });

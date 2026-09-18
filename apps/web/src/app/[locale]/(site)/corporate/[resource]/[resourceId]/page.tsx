@@ -399,6 +399,7 @@ function relationLabels(h: (key: string) => string) {
     noMatches: h("noMatches"),
     moreActions: h("moreActions"),
     owner: h("owner"),
+    operationalOwner: h("operationalOwner"),
     teams: h("teams"),
     projects: h("projects"),
     technologies: h("technologies"),

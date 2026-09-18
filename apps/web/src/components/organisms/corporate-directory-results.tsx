@@ -106,6 +106,7 @@ function directoryLabels(
   return {
     lead: t("lead"),
     ownerTeam: t("owner"),
+    operationalOwner: t("operationalOwner"),
     teams: t("teams"),
     projects: t("projects"),
     technologies: t("technologies"),
@@ -193,6 +194,35 @@ function DirectoryPagination({
   );
 }
 
+function DirectoryPageSize({
+  pageSize,
+  onChange,
+  label,
+}: {
+  pageSize: number;
+  onChange: (value: number) => void;
+  label: string;
+}) {
+  return (
+    <label className="text-muted-foreground flex items-center gap-2 text-sm">
+      <span>{label}</span>
+      <select
+        value={pageSize}
+        onChange={(event) => {
+          onChange(Number(event.target.value));
+        }}
+        className="border-input bg-background text-foreground h-9 rounded-sm border px-2 text-sm"
+      >
+        {[10, 24, 48, 64].map((size) => (
+          <option key={size} value={size}>
+            {size}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function visibleDirectoryItems(
   items: readonly DirectoryItem[],
   query: string,
@@ -251,7 +281,7 @@ export function CorporateDirectoryResults({
   facets,
 }: CorporateDirectoryResultsProps) {
   const t = useTranslations("hub");
-  const catalog = useTranslations("catalog");
+  const objects = useTranslations("objects");
   const [query, setQuery] = useState(initialQuery);
   const [view, setView] = useState<"list" | "cards">(
     resource === "technologies" ? "list" : "cards",
@@ -323,8 +353,17 @@ export function CorporateDirectoryResults({
     persist("is_lead", value ? ["true"] : []);
   }
 
+  function changePageSize(value: number) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("page_size", String(value));
+    url.searchParams.set("page", "1");
+    setReturnFilters(url.searchParams.toString());
+    if (serverPaginated) router.push(`${url.pathname}${url.search}`);
+  }
+
   function applyCatalogFacets(values: Partial<Record<CorporateCatalogFacet, string[]>>) {
     const url = new URL(window.location.href);
+    url.searchParams.set("page", "1");
     for (const facet of catalogFacets) {
       url.searchParams.delete(facet.key);
       for (const value of values[facet.key] ?? []) url.searchParams.append(facet.key, value);
@@ -360,16 +399,19 @@ export function CorporateDirectoryResults({
         addHref={addHref}
         {...(facets ? { facets } : {})}
       />
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm" aria-live="polite">
           {serverPaginated ? (total ?? visible.length) : visible.length}{" "}
           {t(resource === "members" ? "employees" : resource)}
         </p>
+        {serverPaginated ? (
+          <DirectoryPageSize pageSize={pageSize} onChange={changePageSize} label={t("pageSize")} />
+        ) : null}
       </div>
       <DirectoryItemList
         resource={resource}
         items={visible}
-        labels={directoryLabels(t, catalog("editPresentation"), t("share"), t("report"))}
+        labels={directoryLabels(t, objects("editPresentation"), t("share"), t("report"))}
         returnFilters={returnFilters}
         view={view}
         emptyLabel={t(items.length ? "noMatches" : "empty")}

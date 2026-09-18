@@ -44,9 +44,8 @@ export default async function TechnologyDetailPage({
     workspace.organization.authorization_revision,
   );
   if (presentation) {
-    const owner = detail.members.find(
-      (member) => member.account_id === presentation.owner_account_id,
-    );
+    const ownerAccountId = presentation.owner_account_id ?? technology.owner_account_id;
+    const owner = detail.members.find((member) => member.account_id === ownerAccountId);
     presentation.owner = owner
       ? { kind: "employee", id: owner.account_id, name: owner.display_name ?? h("employees") }
       : null;
@@ -203,6 +202,7 @@ function technologyRelationLabels(h: (key: string) => string) {
     noMatches: h("noMatches"),
     moreActions: h("moreActions"),
     owner: h("owner"),
+    operationalOwner: h("operationalOwner"),
     teams: h("teams"),
     projects: h("projects"),
     technologies: h("technologies"),

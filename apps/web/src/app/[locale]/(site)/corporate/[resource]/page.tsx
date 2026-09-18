@@ -56,7 +56,7 @@ export default async function CorporateDirectoryPage({
       ...(filters.is_lead === "true" ? { is_lead: true } : {}),
       sort: filters.sort === "name_desc" ? "name_desc" : "name",
       page: number("page", 1),
-      pageSize: Math.min(64, number("page_size", 24)),
+      pageSize: Math.min(64, number("page_size", 10)),
     };
     directory = await readCorporateDirectoryPage(session, apiResource, directoryFilters);
   } catch (error) {

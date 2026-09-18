@@ -17,6 +17,7 @@ import {
 type Labels = {
   lead: string;
   ownerTeam: string;
+  operationalOwner: string;
   teams: string;
   projects: string;
   technologies: string;
@@ -129,6 +130,7 @@ function RelationColumn({
   references: readonly DirectoryRef[];
   returnFilters: string;
 }) {
+  if (!references.length) return null;
   return (
     <div className="border-border min-w-0 space-y-1 border-l pl-4 first:border-l-0 first:pl-0">
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -136,13 +138,9 @@ function RelationColumn({
         <span>{label}</span>
       </div>
       <div className="flex min-w-0 flex-wrap gap-2">
-        {references.length ? (
-          references.map((reference) => (
-            <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
-          ))
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        )}
+        {references.map((reference) => (
+          <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
+        ))}
       </div>
     </div>
   );
@@ -174,7 +172,7 @@ function CardFooter({
   returnFilters: string;
 }) {
   const footer = footerReferences(resource, item);
-  if (!footer) return null;
+  if (!footer || !footer.refs.length) return null;
   return (
     <div className="border-border mt-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t pt-4">
       <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
@@ -182,13 +180,9 @@ function CardFooter({
         <span>{labels[footer.label as keyof Labels]}</span>
       </div>
       <div className="flex min-w-0 flex-wrap justify-end gap-2">
-        {footer.refs.length ? (
-          footer.refs.map((reference) => (
-            <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
-          ))
-        ) : (
-          <span className="text-muted-foreground text-sm">{labels.notAvailable}</span>
-        )}
+        {footer.refs.map((reference) => (
+          <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
+        ))}
       </div>
     </div>
   );
@@ -260,7 +254,7 @@ export function CorporateDirectoryCard({
       <div className="border-border mt-5 grid min-w-0 gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-4">
         <RelationColumn
           icon="user"
-          label={labels.owner}
+          label={labels.operationalOwner}
           references={item.owner ? [item.owner] : []}
           returnFilters={returnFilters}
         />

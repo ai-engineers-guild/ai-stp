@@ -39,6 +39,7 @@ type Labels = {
   noMatches: string;
   moreActions: string;
   owner: string;
+  operationalOwner: string;
   teams: string;
   projects: string;
   technologies: string;
@@ -171,6 +172,7 @@ export function CorporateRelationSection({
   const cardLabels = {
     ...labels,
     ownerTeam: labels.owner,
+    operationalOwner: labels.operationalOwner,
   };
 
   return (

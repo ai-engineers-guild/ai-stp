@@ -20,6 +20,7 @@ import type {
   OrganizationListResponse,
   OrganizationSummary,
   EmployeeTechnologyList,
+  CorporateJobTitleList,
 } from "./generated/types.gen";
 
 export async function readCorporateContext(sessionToken: string): Promise<CorporateContext | null> {
@@ -157,6 +158,7 @@ export async function readCorporateWorkspace(
   members: CorporateMemberList | null;
   roles: CorporateRoleList | null;
   bindings: CorporateBindingList | null;
+  jobTitles: CorporateJobTitleList | null;
   servicePrincipals: CorporateServicePrincipalList | null;
   audit: CorporateAuditList | null;
 } | null> {
@@ -166,7 +168,7 @@ export async function readCorporateWorkspace(
   const context = await apiRequest<CorporateContext>(`${organizationPath}/context`, {
     sessionToken,
   });
-  const [members, roles, bindings, servicePrincipals, audit] = await Promise.all([
+  const [members, roles, bindings, servicePrincipals, audit, jobTitles] = await Promise.all([
     context.capabilities.includes("member.list")
       ? apiRequest<CorporateMemberList>(`${organizationPath}/members`, {
           sessionToken,
@@ -192,6 +194,9 @@ export async function readCorporateWorkspace(
           sessionToken,
         })
       : Promise.resolve(null),
+    context.capabilities.includes("job_title.list")
+      ? apiRequest<CorporateJobTitleList>(`${organizationPath}/job-titles`, { sessionToken })
+      : Promise.resolve(null),
   ]);
   return {
     organization,
@@ -199,6 +204,7 @@ export async function readCorporateWorkspace(
     members,
     roles,
     bindings,
+    jobTitles,
     servicePrincipals,
     audit,
   };
