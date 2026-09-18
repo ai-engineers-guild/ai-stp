@@ -1,11 +1,12 @@
 ---
 description: "Use existing corporate authorization and catalog search for tenant governance context."
-last_verified: "2026-09-17"
+last_verified: "2026-09-18"
 ---
 
 # ADR-0191: Corporate governance and catalog search context
 
-Status: accepted.
+Status: accepted. Extended by ADR-0193 for canonical corporate routing, bounded card
+projections, technology-category filtering, and organization usage.
 
 ## Decision
 
@@ -23,6 +24,11 @@ Corporate catalog search is an optional context on the existing component/setup
 search routes. It joins only authorized tenant projections and applies those
 predicates before facet counts and page boundaries. Anonymous/public requests do
 not load or infer corporate relations.
+
+Technology category is an additional corporate facet sourced from the canonical
+technology registry. Stable component/setup details expose readable related teams,
+projects, and technologies as an organization-usage projection; the projection does
+not create another assignment or governance store.
 
 ## Consequences
 

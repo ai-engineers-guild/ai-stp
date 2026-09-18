@@ -1,6 +1,6 @@
 ---
 description: "SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments."
-last_verified: "2026-09-13"
+last_verified: "2026-09-18"
 ---
 
 # SPEC-083: Corporate Hub workspace
@@ -18,6 +18,11 @@ and details, technology/category CRUD, bidirectional relationships, exact catalo
 assignments, and separated administration. Preserve the incumbent Catalog, footer
 documentation, theme, locale, and complete profile drawer. Public SaaS navigation
 continues to use its own feature profile.
+
+SPEC-086 consolidates the shipped workspace into canonical employee and catalog
+routes, bounded directories, transactional create flows, shared actions, and shared
+detail composition. Its requirements refine the user-facing route and rendering
+details below without changing this specification's relation semantics.
 
 ## Terms
 
@@ -96,7 +101,8 @@ not redesign administration or Technology Landscape. Dashboard is an empty route
   Cards display team leads, project owner team, technology owner employee, or
   employee identity in the author position respectively. Tags display team
   technologies, project technologies, technology projects, or employee teams.
-  Team action-menu placeholders are permitted; directory data is never fixture data.
+  Directory action menus expose only server-authorized implemented actions; directory
+  data is never fixture data.
   Directory cards use the Catalog's compact typography, spacing and outlined
   reference chips. They do not label teams, projects, employees or technologies
   as active. Directory filter controls reuse the Catalog's responsive dialog,

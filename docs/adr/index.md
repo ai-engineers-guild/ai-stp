@@ -185,10 +185,12 @@ last_verified: "2026-08-03"
 | [ADR-0185-corporate-catalog-assignments.md](ADR-0185-corporate-catalog-assignments.md) | Separate corporate catalog assignments from authorization and harness installation. | 2026-09-13 |
 | [ADR-0186-tenant-member-display-names.md](ADR-0186-tenant-member-display-names.md) | ADR-0186: Employee display names are organization-scoped profile data. | 2026-09-13 |
 | [ADR-0187-retained-employee-technology-competences.md](ADR-0187-retained-employee-technology-competences.md) | ADR-0187: Tenant-scoped retained employee technology competence links. | 2026-09-13 |
-| [ADR-0188-corporate-workspace-presentation-boundary.md](ADR-0188-corporate-workspace-presentation-boundary.md) | ADR-0188: Corporate build isolation and tenant-scoped presentation ownership. | 2026-09-13 |
-| [ADR-0189-corporate-entity-profile-authority.md](ADR-0189-corporate-entity-profile-authority.md) | ADR-0189: Independent tenant presentation and technology owner edit authority. | 2026-09-13 |
-| [ADR-0190-tenant-operational-catalog-ownership.md](ADR-0190-tenant-operational-catalog-ownership.md) | Separate tenant operational catalog ownership from authorship and ownership claims. | 2026-09-13 |
-| [ADR-0191-corporate-governance-and-search-context.md](ADR-0191-corporate-governance-and-search-context.md) | Use existing corporate authorization and catalog search for tenant governance context. | 2026-09-17 |
+| [ADR-0188-corporate-workspace-presentation-boundary.md](ADR-0188-corporate-workspace-presentation-boundary.md) | ADR-0188: Corporate build isolation and tenant-scoped presentation ownership. | 2026-09-18 |
+| [ADR-0189-corporate-entity-profile-authority.md](ADR-0189-corporate-entity-profile-authority.md) | ADR-0189: Independent tenant presentation and technology owner edit authority. | 2026-09-18 |
+| [ADR-0190-tenant-operational-catalog-ownership.md](ADR-0190-tenant-operational-catalog-ownership.md) | Separate tenant operational catalog ownership from authorship and ownership claims. | 2026-09-18 |
+| [ADR-0191-corporate-governance-and-search-context.md](ADR-0191-corporate-governance-and-search-context.md) | Use existing corporate authorization and catalog search for tenant governance context. | 2026-09-18 |
+| [ADR-0192-one-account-identity-in-corporate-ui.md](ADR-0192-one-account-identity-in-corporate-ui.md) | One account identity owns corporate employee and public publisher projections. | 2026-09-18 |
+| [ADR-0193-one-corporate-catalog-and-directory-projection.md](ADR-0193-one-corporate-catalog-and-directory-projection.md) | The Corporate Hub extends one catalog and one authorized directory projection. | 2026-09-18 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->
