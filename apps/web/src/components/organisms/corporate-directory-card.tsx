@@ -1,10 +1,7 @@
 "use client";
 
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { toast } from "sonner";
-
 import { Badge } from "@/components/atoms/badge";
-import { Button } from "@/components/atoms/button";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import { Link } from "@/lib/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/theme";
@@ -30,11 +27,13 @@ type Labels = {
   owner: string;
   type: string;
   moreActions: string;
+  edit?: string;
+  editPresentation?: string;
   unknownEmployee: string;
   notAvailable: string;
   copyId?: string;
-  copyUrl?: string;
-  copied?: string;
+  share?: string;
+  report?: string;
 };
 
 const resourceIcons: Record<Exclude<DirectoryResource, "components">, IconName> = {
@@ -195,53 +194,46 @@ function CardFooter({
 }
 
 function DirectoryActions({
+  resource,
   item,
   href,
   labels,
 }: {
+  resource: DirectoryResource;
   item: DirectoryItem;
   href: string;
   labels: Labels;
 }) {
-  async function copy(value: string) {
-    await navigator.clipboard.writeText(value);
-    toast.success(labels.copied ?? "Copied");
-  }
+  const actionKind =
+    resource === "members"
+      ? "member"
+      : resource === "teams"
+        ? "team"
+        : resource === "projects"
+          ? "project"
+          : resource === "technologies"
+            ? "technology"
+            : null;
+  const canUpdate = actionKind
+    ? item.available_actions?.includes(`${actionKind}.update`) === true
+    : false;
+  const canEditPresentation = item.available_actions?.includes("entity_profile.update") === true;
+  const baseHref = href.replace(/([?#].*)?$/, "");
+  const presentationHref = `${baseHref}/edit${href.includes("?") ? href.slice(href.indexOf("?")) : ""}`;
   return (
-    <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger asChild>
-        <Button variant="ghost" size="icon" aria-label={labels.moreActions}>
-          <Icon name="moreVertical" size="sm" />
-        </Button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={4}
-          className="border-border bg-popover text-popover-foreground z-50 min-w-48 rounded-lg border p-1 shadow-md"
-        >
-          <DropdownMenu.Item
-            className="hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
-            onSelect={() => {
-              const locale = window.location.pathname.match(/^\/(en|ru)(?=\/|$)/)?.[1] ?? "ru";
-              void copy(`${window.location.origin}/${locale}${href}`);
-            }}
-          >
-            <Icon name="link" size="sm" />
-            {labels.copyUrl ?? "Copy URL"}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className="hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
-            onSelect={() => {
-              void copy(item.id);
-            }}
-          >
-            <Icon name="copy" size="sm" />
-            {labels.copyId ?? "Copy ID"}
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <EntityDetailMenu
+      moreLabel={labels.moreActions}
+      editLabel={labels.edit}
+      editHref={canUpdate ? href : undefined}
+      editPresentationLabel={labels.editPresentation}
+      editPresentationHref={canEditPresentation ? presentationHref : undefined}
+      entityId={item.id}
+      shareHref={baseHref}
+      copyIdLabel={labels.copyId}
+      shareLabel={labels.share}
+      reportLabel={labels.report}
+      reportTarget={`corporate:${resource}:${item.id}`}
+    />
   );
 }
 
@@ -347,7 +339,7 @@ export function CorporateDirectoryCard({
           </div>
         </div>
         <div className="absolute top-5 right-5 flex items-center gap-3">
-          <DirectoryActions item={item} href={href} labels={labels} />
+          <DirectoryActions resource={resource} item={item} href={href} labels={labels} />
         </div>
         <CardFooter resource={resource} item={item} labels={labels} returnFilters={returnFilters} />
       </article>

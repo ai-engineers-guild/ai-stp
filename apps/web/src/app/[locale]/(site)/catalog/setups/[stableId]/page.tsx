@@ -57,6 +57,7 @@ import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
 import { UI } from "@/lib/ui-selectors";
 import { sourceLinksFor } from "@/lib/source-url";
+import { visibleCorporateState } from "@/lib/corporate-detail";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string }>;
@@ -105,6 +106,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
 
   const seo = await readSeoProfile("setup", stableId, locale);
   const summary = detail.summary;
+  const visibleLifecycle = visibleCorporateState(summary.latest_lifecycle);
   const media = detail.media;
   const initiallyLiked = token ? await isLiked(token, stableId) : false;
   let latest: Awaited<ReturnType<typeof readSetupVersion>> | null = null;
@@ -282,6 +284,9 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
                 close: t("closeMedia"),
                 previous: t("previousMedia"),
                 next: t("nextMedia"),
+                typeImage: t("mediaKindImage"),
+                typeVideo: t("mediaKindVideo"),
+                typeYoutube: t("mediaKindYoutube"),
               }}
             />
           ) : undefined
@@ -297,9 +302,9 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
             {passport ? (
               <ObjectTechnicalDetails
                 title={t("technicalDetails")}
-                summary={summary.latest_lifecycle}
+                {...(visibleLifecycle ? { summary: visibleLifecycle } : {})}
                 facts={[
-                  { label: t("lifecycle"), value: summary.latest_lifecycle },
+                  ...(visibleLifecycle ? [{ label: t("lifecycle"), value: visibleLifecycle }] : []),
                   { label: t("publishedAt"), value: summary.latest_published_at },
                   { label: t("harness"), value: summary.latest_harness_id },
                 ]}

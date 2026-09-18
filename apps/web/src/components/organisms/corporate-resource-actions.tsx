@@ -120,7 +120,7 @@ export function CorporateResourceActions({
   return (
     <section className="space-y-4">
       {!editing && (canUpdate || canDelete) && (
-        <DropdownMenu.Root>
+        <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
             <Button variant="outline" size="icon" aria-label={labels.title}>
               <Icon name="more" />

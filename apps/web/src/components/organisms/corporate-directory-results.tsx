@@ -97,7 +97,12 @@ function restoreCatalogSelection(
   ) as Partial<Record<CorporateCatalogFacet, string[]>>;
 }
 
-function directoryLabels(t: (key: string) => string) {
+function directoryLabels(
+  t: (key: string) => string,
+  editPresentation: string,
+  share: string,
+  report: string,
+) {
   return {
     lead: t("lead"),
     ownerTeam: t("owner"),
@@ -111,9 +116,11 @@ function directoryLabels(t: (key: string) => string) {
     owner: t("owner"),
     type: t("type"),
     moreActions: t("moreActions"),
+    edit: t("edit"),
+    editPresentation,
     copyId: t("copyId"),
-    copyUrl: t("copyUrl"),
-    copied: t("copied"),
+    share,
+    report,
     unknownEmployee: t("unknownEmployee"),
     notAvailable: t("notAvailable"),
   };
@@ -203,6 +210,26 @@ function visibleDirectoryItems(
   );
 }
 
+type CorporateDirectoryResultsProps = {
+  resource: DirectoryResource;
+  items: readonly DirectoryItem[];
+  filters?: string;
+  initialQuery?: string;
+  addLabel?: string | undefined;
+  cancelLabel?: string | undefined;
+  adding?: boolean | undefined;
+  onAdd?: (() => void) | undefined;
+  addHref?: string | undefined;
+  catalogFacets?: readonly CorporateCatalogFacetConfig[];
+  initialCatalogSelected?: Partial<Record<CorporateCatalogFacet, string[]>>;
+  serverPaginated?: boolean;
+  pageNumber?: number;
+  pageSize?: number;
+  total?: number | undefined;
+  paginationLabel?: string | undefined;
+  facets?: CorporateDirectoryFacets;
+};
+
 export function CorporateDirectoryResults({
   resource,
   items,
@@ -212,6 +239,7 @@ export function CorporateDirectoryResults({
   cancelLabel,
   adding = false,
   onAdd,
+  addHref,
   catalogFacets = EMPTY_CATALOG_FACETS,
   initialCatalogSelected = EMPTY_CATALOG_SELECTION,
   serverPaginated = false,
@@ -220,25 +248,9 @@ export function CorporateDirectoryResults({
   total,
   paginationLabel = "Pagination",
   facets,
-}: {
-  resource: DirectoryResource;
-  items: readonly DirectoryItem[];
-  filters?: string;
-  initialQuery?: string;
-  addLabel?: string | undefined;
-  cancelLabel?: string | undefined;
-  adding?: boolean | undefined;
-  onAdd?: (() => void) | undefined;
-  catalogFacets?: readonly CorporateCatalogFacetConfig[];
-  initialCatalogSelected?: Partial<Record<CorporateCatalogFacet, string[]>>;
-  serverPaginated?: boolean;
-  pageNumber?: number;
-  pageSize?: number;
-  total?: number | undefined;
-  paginationLabel?: string | undefined;
-  facets?: CorporateDirectoryFacets;
-}) {
+}: CorporateDirectoryResultsProps) {
   const t = useTranslations("hub");
+  const catalog = useTranslations("catalog");
   const [query, setQuery] = useState(initialQuery);
   const [view, setView] = useState<"list" | "cards">(
     resource === "technologies" ? "list" : "cards",
@@ -344,6 +356,7 @@ export function CorporateDirectoryResults({
         cancelLabel={cancelLabel}
         adding={adding}
         onAdd={onAdd}
+        addHref={addHref}
         {...(facets ? { facets } : {})}
       />
       <div className="flex items-center justify-end gap-3">
@@ -355,7 +368,7 @@ export function CorporateDirectoryResults({
       <DirectoryItemList
         resource={resource}
         items={visible}
-        labels={directoryLabels(t)}
+        labels={directoryLabels(t, catalog("editPresentation"), t("share"), t("report"))}
         returnFilters={returnFilters}
         view={view}
         emptyLabel={t(items.length ? "noMatches" : "empty")}

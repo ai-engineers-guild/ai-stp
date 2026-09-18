@@ -4,6 +4,11 @@ import { corporateHref } from "@/lib/features/corporate-path";
 
 export type CorporateDetailResource = "teams" | "projects" | "members" | "technologies";
 
+export function visibleCorporateState(state?: string | null): string | undefined {
+  const value = state?.trim();
+  return value && value !== "active" ? value : undefined;
+}
+
 const CORPORATE_ID_SUFFIX = "[0-7][0-9A-HJKMNP-TV-Z]{25}";
 const CORPORATE_RESOURCE_ID_PATTERN: Record<CorporateDetailResource, RegExp> = {
   teams: new RegExp(`^operation_${CORPORATE_ID_SUFFIX}$`),

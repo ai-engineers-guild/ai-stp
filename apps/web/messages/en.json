@@ -117,6 +117,8 @@
     "moreActions": "More actions",
     "copyId": "Copy ID",
     "copyUrl": "Copy URL",
+    "share": "Share",
+    "report": "Report",
     "copied": "Copied",
     "filterTitle": "Filter this list",
     "filterHint": "Search within the expanded section.",
@@ -126,7 +128,8 @@
     "page": "Page",
     "unknownEmployee": "Unknown employee",
     "notAvailable": "Not available",
-    "deleted": "Deleted"
+    "deleted": "Deleted",
+    "pagination": "Pagination"
   },
   "technology": {
     "mergeTitle": "Deliberate technology merge",
@@ -1167,6 +1170,7 @@
     "reportComponentType": "Report a component",
     "reportSetupType": "Report a setup",
     "reportAuthorType": "Report an author",
+    "reportEntityType": "Report a corporate entity",
     "reportDialogHint": "Describe the problem. The object or author reference is stored with the complaint.",
     "title": "Talk to the people building ai_stp",
     "subtitle": "Ask about the catalog, publishing, providers or safe setup installation. The form stores your message so we can reply.",

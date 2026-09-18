@@ -16,10 +16,12 @@ import {
   corporateReferenceHref,
   type CorporatePresentation,
   type CorporateDetailResource,
+  visibleCorporateState,
 } from "@/lib/corporate-detail";
 import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 
+// eslint-disable-next-line max-lines-per-function
 export function CorporateEntityDetail({
   presentation,
   description,
@@ -47,6 +49,9 @@ export function CorporateEntityDetail({
   const access = useTranslations("access");
   const corporate = useTranslations("corporate");
   const cli = useTranslations("cli");
+  const canonicalResource = resource === "members" ? "employees" : resource;
+  const detailHref = `/corporate/${canonicalResource}/${encodeURIComponent(resourceId)}`;
+  const visibleState = visibleCorporateState(state);
   type RelationRef = CorporatePresentation["teams"][number];
   const relations: readonly (readonly [string, readonly RelationRef[]])[] = presentation
     ? [
@@ -75,15 +80,19 @@ export function CorporateEntityDetail({
           />
         }
         title={presentation?.name ?? title}
-        meta={state ? <Badge variant="outline">{state}</Badge> : null}
+        meta={visibleState ? <Badge variant="outline">{visibleState}</Badge> : null}
         menu={
-          presentation?.can_edit ? (
-            <EntityDetailMenu
-              moreLabel={access("more")}
-              editLabel={objects("editPresentation")}
-              editHref={`/corporate/${resource}/${resourceId}/edit`}
-            />
-          ) : null
+          <EntityDetailMenu
+            moreLabel={access("more")}
+            editPresentationLabel={objects("editPresentation")}
+            editPresentationHref={presentation?.can_edit ? `${detailHref}/edit` : undefined}
+            entityId={resourceId}
+            shareHref={detailHref}
+            copyIdLabel={h("copyId")}
+            shareLabel={h("share")}
+            reportLabel={h("report")}
+            reportTarget={`corporate:${canonicalResource}:${resourceId}`}
+          />
         }
       />
       <ObjectDetailFrame
@@ -155,6 +164,11 @@ export function CorporateEntityDetail({
                 open: t("profilePreview"),
                 source: objects("source"),
                 close: c("cancel"),
+                previous: catalog("previousMedia"),
+                next: catalog("nextMedia"),
+                typeImage: catalog("mediaKindImage"),
+                typeVideo: catalog("mediaKindVideo"),
+                typeYoutube: catalog("mediaKindYoutube"),
               }}
             />
           ) : null

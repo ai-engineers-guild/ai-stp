@@ -33,6 +33,9 @@ export function ComponentMediaGallery({
     close: string;
     previous?: string;
     next?: string;
+    typeImage?: string;
+    typeVideo?: string;
+    typeYoutube?: string;
   };
 }) {
   const localizedItems = items.map((item) => ({
@@ -40,8 +43,21 @@ export function ComponentMediaGallery({
     alt: localizedAlt(item.alt, locale, fallbackAlt ?? labels.gallery),
   }));
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
   const selected = selectedIndex === null ? null : localizedItems[selectedIndex];
   if (items.length === 0) return null;
+
+  function selectCarouselSlide(index: number) {
+    const nextIndex = Math.max(0, Math.min(localizedItems.length - 1, index));
+    setCarouselIndex(nextIndex);
+    const slide = carouselRef.current?.children[nextIndex] as HTMLElement | undefined;
+    slide?.scrollIntoView({
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+      block: "nearest",
+      inline: "start",
+    });
+  }
 
   return (
     <section
@@ -52,25 +68,70 @@ export function ComponentMediaGallery({
       <h2 id="component-gallery-heading" className="sr-only">
         {labels.gallery}
       </h2>
-      <div className="flex snap-x snap-mandatory [scrollbar-width:none] gap-3 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
-        {localizedItems.map((item, index) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => {
-              setSelectedIndex(index);
-            }}
-            aria-label={`${labels.open}: ${item.alt}`}
-            className={`bg-muted focus-visible:ring-ring relative aspect-video min-h-11 shrink-0 snap-start overflow-hidden rounded-lg text-left focus-visible:ring-2 focus-visible:outline-none ${items.length === 1 ? "w-full" : "w-44 sm:w-52"}`}
-          >
-            <Media item={item} />
-            {item.caption ? (
-              <span className="bg-background/80 text-foreground absolute inset-x-0 bottom-0 px-2 py-1 text-xs">
-                {item.caption}
-              </span>
-            ) : null}
-          </button>
-        ))}
+      <div className="relative">
+        <div
+          ref={carouselRef}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label={labels.gallery}
+          onScroll={() => {
+            const node = carouselRef.current;
+            const width = node?.clientWidth ?? 0;
+            if (width) setCarouselIndex(Math.round((node?.scrollLeft ?? 0) / width));
+          }}
+          className="flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        >
+          {localizedItems.map((item, index) => (
+            <div key={item.id} className="min-w-full snap-start px-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedIndex(index);
+                }}
+                aria-label={`${labels.open}: ${item.alt}`}
+                className="bg-muted focus-visible:ring-ring relative aspect-video min-h-11 w-full overflow-hidden rounded-lg text-left focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <Media item={item} />
+                <MediaTypeBadge item={item} labels={labels} />
+                {item.caption ? (
+                  <span className="bg-background/80 text-foreground absolute inset-x-0 bottom-0 px-2 py-1 text-xs">
+                    {item.caption}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          ))}
+        </div>
+        {localizedItems.length > 1 ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="bg-background/90 absolute top-1/2 left-2 size-11 -translate-y-1/2"
+              disabled={carouselIndex === 0}
+              aria-label={labels.previous ?? "Previous"}
+              onClick={() => {
+                selectCarouselSlide(carouselIndex - 1);
+              }}
+            >
+              <Icon name="chevronLeft" size="sm" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="bg-background/90 absolute top-1/2 right-2 size-11 -translate-y-1/2"
+              disabled={carouselIndex === localizedItems.length - 1}
+              aria-label={labels.next ?? "Next"}
+              onClick={() => {
+                selectCarouselSlide(carouselIndex + 1);
+              }}
+            >
+              <Icon name="chevronRight" size="sm" />
+            </Button>
+          </>
+        ) : null}
       </div>
       <MediaLightbox
         items={localizedItems}
@@ -114,6 +175,9 @@ function MediaLightbox({
     close: string;
     previous?: string;
     next?: string;
+    typeImage?: string;
+    typeVideo?: string;
+    typeYoutube?: string;
   };
   onClose: () => void;
   onSelect: (index: number) => void;
@@ -188,6 +252,7 @@ function MediaLightbox({
                 </Button>
               </>
             ) : null}
+            <MediaTypeBadge item={selected} labels={labels} />
             <Media
               item={selected}
               expanded
@@ -349,5 +414,29 @@ function Media({
       }}
       className={`${expanded ? "mx-auto max-h-[70vh] object-contain" : "h-full object-cover"} w-full`}
     />
+  );
+}
+
+function mediaTypeLabel(
+  item: ComponentMediaItem,
+  labels: { typeImage?: string; typeVideo?: string; typeYoutube?: string },
+) {
+  if (item.kind === "youtube") return labels.typeYoutube ?? "YouTube";
+  if (item.kind === "video") return labels.typeVideo ?? "Video";
+  return labels.typeImage ?? "Image";
+}
+
+function MediaTypeBadge({
+  item,
+  labels,
+}: {
+  item: ComponentMediaItem;
+  labels: { typeImage?: string; typeVideo?: string; typeYoutube?: string };
+}) {
+  return (
+    <span className="bg-background/90 text-foreground absolute top-2 left-2 inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium shadow-sm">
+      <Icon name={item.kind === "image" ? "camera" : "play"} size="sm" aria-hidden="true" />
+      {mediaTypeLabel(item, labels)}
+    </span>
   );
 }

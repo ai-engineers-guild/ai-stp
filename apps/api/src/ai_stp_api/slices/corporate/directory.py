@@ -118,7 +118,7 @@ async def read_directory(
     ) -> list[str]:
         scope = scope_kind or kind
         scope_id = organization_id if scope == "organization" else identity
-        return [
+        actions = [
             action
             for action, permission in (
                 (f"{kind}.update", f"{kind}.update"),
@@ -126,6 +126,9 @@ async def read_directory(
             )
             if await permitted(permission, scope, scope_id)
         ]
+        if kind in {"team", "project", "member"} and profile_editable:
+            actions.append("entity_profile.update")
+        return actions
 
     technologies = (
         await db.scalars(
@@ -189,6 +192,9 @@ async def read_directory(
             project_technologies.get(edge.parent_id, set())
         )
     leads = {node.id: set(node.lead_account_ids) for node in graph.nodes if node.kind == "team"}
+    profile_editable = await permitted("member.update", "organization", organization_id) or any(
+        ctx.account_id in account_ids for account_ids in leads.values()
+    )
 
     def references(identities: set[str]) -> list[CorporateDirectoryReference]:
         return sorted(

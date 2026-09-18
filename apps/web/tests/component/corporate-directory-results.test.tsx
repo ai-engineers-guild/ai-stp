@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("@/lib/i18n/navigation", () => ({ Link: "a", useRouter: () => ({ push }) }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
@@ -62,6 +63,53 @@ describe("corporate directory filters", () => {
     expect(screen.getByRole("button", { name: "listView" })).toHaveAttribute(
       "aria-pressed",
       "true",
+    );
+  });
+
+  it("uses the server action projection for card actions", async () => {
+    const user = userEvent.setup();
+    render(
+      <CorporateDirectoryResults
+        resource="projects"
+        items={[
+          {
+            ...item,
+            available_actions: ["project.update", "entity_profile.update"],
+          },
+        ]}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "moreActions" }));
+    expect(screen.getByRole("menuitem", { name: "edit" })).toHaveAttribute(
+      "href",
+      "/corporate/projects/project",
+    );
+    expect(screen.getByRole("menuitem", { name: "editPresentation" })).toHaveAttribute(
+      "href",
+      "/corporate/projects/project/edit",
+    );
+  });
+
+  it("does not invent privileged actions when the server projection is empty", async () => {
+    const user = userEvent.setup();
+    render(<CorporateDirectoryResults resource="teams" items={[{ id: "team", name: "Team" }]} />);
+    await user.click(screen.getByRole("button", { name: "moreActions" }));
+    expect(screen.queryByRole("menuitem", { name: "edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "editPresentation" })).not.toBeInTheDocument();
+  });
+
+  it("renders a normal create link when a dedicated create route is provided", () => {
+    render(
+      <CorporateDirectoryResults
+        resource="teams"
+        items={[]}
+        addLabel="addTeam"
+        addHref="/corporate/teams/new"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "addTeam" })).toHaveAttribute(
+      "href",
+      "/corporate/teams/new",
     );
   });
 
