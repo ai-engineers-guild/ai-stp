@@ -1,0 +1,85 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-maintainer",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "object_kind": {
+      "enum": [
+        "setup",
+        "component"
+      ],
+      "title": "Object Kind",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "subject_id": {
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_kind": {
+      "enum": [
+        "employee",
+        "team"
+      ],
+      "title": "Subject Kind",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "object_kind",
+    "organization_id",
+    "reason",
+    "revision",
+    "schema_version",
+    "stable_id",
+    "state",
+    "subject_id",
+    "subject_kind",
+    "version"
+  ],
+  "title": "CorporateCatalogMaintainer",
+  "type": "object"
+}

@@ -60,7 +60,9 @@ export default async function TechnologyDetailPage({
         resource="technologies"
         resourceId={technologyId}
         title={technology.name}
-        state={t(`values.${technology.lifecycle}`)}
+        {...(technology.lifecycle === "active"
+          ? {}
+          : { state: t(`values.${technology.lifecycle}`) })}
       >
         <DetailAccordion title={t("technicalDetails")}>
           <dl className="grid gap-4 text-sm sm:grid-cols-2">
@@ -255,7 +257,7 @@ async function TechnologyGovernancePanel({
                 <dd>
                   {decision.data.lead_account_id ? (
                     <Link
-                      href={`/corporate/members/${decision.data.lead_account_id}`}
+                      href={`/corporate/employees/${decision.data.lead_account_id}`}
                       className="inline-flex min-h-11 items-center underline underline-offset-4"
                     >
                       {members.find((item) => item.account_id === decision.data.lead_account_id)

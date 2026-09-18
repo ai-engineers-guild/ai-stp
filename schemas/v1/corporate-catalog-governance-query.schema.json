@@ -1,0 +1,19 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-governance-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "include_history": {
+      "default": false,
+      "title": "Include History",
+      "type": "boolean"
+    },
+    "include_retired": {
+      "default": false,
+      "title": "Include Retired",
+      "type": "boolean"
+    }
+  },
+  "title": "CorporateCatalogGovernanceQuery",
+  "type": "object"
+}

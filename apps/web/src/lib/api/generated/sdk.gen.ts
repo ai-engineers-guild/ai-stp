@@ -56,6 +56,9 @@ import type {
   CreateCorporateBindingData,
   CreateCorporateBindingErrors,
   CreateCorporateBindingResponses,
+  CreateCorporateJobTitleData,
+  CreateCorporateJobTitleErrors,
+  CreateCorporateJobTitleResponses,
   CreateCorporateMemberData,
   CreateCorporateMemberErrors,
   CreateCorporateMemberResponses,
@@ -182,6 +185,12 @@ import type {
   ListCorporateCatalogAssignmentsData,
   ListCorporateCatalogAssignmentsErrors,
   ListCorporateCatalogAssignmentsResponses,
+  ListCorporateCatalogUsageData,
+  ListCorporateCatalogUsageErrors,
+  ListCorporateCatalogUsageResponses,
+  ListCorporateJobTitlesData,
+  ListCorporateJobTitlesErrors,
+  ListCorporateJobTitlesResponses,
   ListCorporateMemberProjectsData,
   ListCorporateMemberProjectsErrors,
   ListCorporateMemberProjectsResponses,
@@ -332,6 +341,9 @@ import type {
   ReadCorporateBindingData,
   ReadCorporateBindingErrors,
   ReadCorporateBindingResponses,
+  ReadCorporateCatalogGovernanceData,
+  ReadCorporateCatalogGovernanceErrors,
+  ReadCorporateCatalogGovernanceResponses,
   ReadCorporateCatalogOwnershipData,
   ReadCorporateCatalogOwnershipErrors,
   ReadCorporateCatalogOwnershipResponses,
@@ -350,6 +362,9 @@ import type {
   ReadCorporateOverviewData,
   ReadCorporateOverviewErrors,
   ReadCorporateOverviewResponses,
+  ReadCorporatePermissionMatrixData,
+  ReadCorporatePermissionMatrixErrors,
+  ReadCorporatePermissionMatrixResponses,
   ReadCorporateProjectActivityData,
   ReadCorporateProjectActivityErrors,
   ReadCorporateProjectActivityResponses,
@@ -551,6 +566,9 @@ import type {
   UpdateCorporateBindingData,
   UpdateCorporateBindingErrors,
   UpdateCorporateBindingResponses,
+  UpdateCorporateJobTitleData,
+  UpdateCorporateJobTitleErrors,
+  UpdateCorporateJobTitleResponses,
   UpdateCorporateMemberData,
   UpdateCorporateMemberErrors,
   UpdateCorporateMemberProfileData,
@@ -581,9 +599,18 @@ import type {
   WriteCorporateCatalogAssignmentData,
   WriteCorporateCatalogAssignmentErrors,
   WriteCorporateCatalogAssignmentResponses,
+  WriteCorporateCatalogLifecycleData,
+  WriteCorporateCatalogLifecycleErrors,
+  WriteCorporateCatalogLifecycleResponses,
+  WriteCorporateCatalogMaintainerData,
+  WriteCorporateCatalogMaintainerErrors,
+  WriteCorporateCatalogMaintainerResponses,
   WriteCorporateCatalogOwnershipData,
   WriteCorporateCatalogOwnershipErrors,
   WriteCorporateCatalogOwnershipResponses,
+  WriteCorporateCatalogVerificationData,
+  WriteCorporateCatalogVerificationErrors,
+  WriteCorporateCatalogVerificationResponses,
   WriteCorporateEntityProfileData,
   WriteCorporateEntityProfileErrors,
   WriteCorporateEntityProfileResponses,
@@ -1561,6 +1588,98 @@ export const writeCorporateCatalogAssignment = <ThrowOnError extends boolean = f
   });
 
 /**
+ * Change tenant visibility or lifecycle for an exact catalog version.
+ */
+export const writeCorporateCatalogLifecycle = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateCatalogLifecycleData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateCatalogLifecycleResponses,
+  WriteCorporateCatalogLifecycleErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateCatalogLifecycleResponses,
+    WriteCorporateCatalogLifecycleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-governance/lifecycle",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Add or retire a maintainer for an exact published catalog version.
+ */
+export const writeCorporateCatalogMaintainer = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateCatalogMaintainerData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateCatalogMaintainerResponses,
+  WriteCorporateCatalogMaintainerErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateCatalogMaintainerResponses,
+    WriteCorporateCatalogMaintainerErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-governance/maintainers",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Verify or revoke one exact catalog version for the tenant.
+ */
+export const writeCorporateCatalogVerification = <ThrowOnError extends boolean = false>(
+  options: Options<WriteCorporateCatalogVerificationData, ThrowOnError>,
+): RequestResult<
+  WriteCorporateCatalogVerificationResponses,
+  WriteCorporateCatalogVerificationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    WriteCorporateCatalogVerificationResponses,
+    WriteCorporateCatalogVerificationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-governance/verification",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read consolidated tenant governance for one exact catalog version.
+ */
+export const readCorporateCatalogGovernance = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateCatalogGovernanceData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateCatalogGovernanceResponses,
+  ReadCorporateCatalogGovernanceErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateCatalogGovernanceResponses,
+    ReadCorporateCatalogGovernanceErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-governance/{object_kind}/{stable_id}/versions/{version}",
+    ...options,
+  });
+
+/**
  * Read tenant operational ownership without changing catalog authorship.
  */
 export const readCorporateCatalogOwnership = <ThrowOnError extends boolean = false>(
@@ -1602,6 +1721,26 @@ export const writeCorporateCatalogOwnership = <ThrowOnError extends boolean = fa
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Read authorized direct and effective organization usage for an exact catalog version.
+ */
+export const listCorporateCatalogUsage = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateCatalogUsageData, ThrowOnError>,
+): RequestResult<
+  ListCorporateCatalogUsageResponses,
+  ListCorporateCatalogUsageErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCorporateCatalogUsageResponses,
+    ListCorporateCatalogUsageErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-usage",
+    ...options,
   });
 
 /**
@@ -1693,6 +1832,62 @@ export const writeCorporateEntityProfile = <ThrowOnError extends boolean = false
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/entity-profiles/{subject_kind}/{subject_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List organization job titles.
+ */
+export const listCorporateJobTitles = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateJobTitlesData, ThrowOnError>,
+): RequestResult<ListCorporateJobTitlesResponses, ListCorporateJobTitlesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListCorporateJobTitlesResponses,
+    ListCorporateJobTitlesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/job-titles",
+    ...options,
+  });
+
+/**
+ * Create an organization job title.
+ */
+export const createCorporateJobTitle = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporateJobTitleData, ThrowOnError>,
+): RequestResult<CreateCorporateJobTitleResponses, CreateCorporateJobTitleErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateCorporateJobTitleResponses,
+    CreateCorporateJobTitleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/job-titles",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Update or retire an organization job title.
+ */
+export const updateCorporateJobTitle = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateCorporateJobTitleData, ThrowOnError>,
+): RequestResult<UpdateCorporateJobTitleResponses, UpdateCorporateJobTitleErrors, ThrowOnError> =>
+  (options.client ?? client).patch<
+    UpdateCorporateJobTitleResponses,
+    UpdateCorporateJobTitleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/job-titles/{job_title_id}",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -1885,6 +2080,26 @@ export const readCorporateOverview = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/overview",
+    ...options,
+  });
+
+/**
+ * Read effective corporate permissions and their binding sources.
+ */
+export const readCorporatePermissionMatrix = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporatePermissionMatrixData, ThrowOnError>,
+): RequestResult<
+  ReadCorporatePermissionMatrixResponses,
+  ReadCorporatePermissionMatrixErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporatePermissionMatrixResponses,
+    ReadCorporatePermissionMatrixErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/permissions/matrix",
     ...options,
   });
 

@@ -1,11 +1,12 @@
 ---
 description: "Separate tenant operational catalog ownership from authorship and ownership claims."
-last_verified: "2026-09-13"
+last_verified: "2026-09-18"
 ---
 
 # ADR-0190: Tenant operational catalog ownership
 
-Status: accepted.
+Status: accepted. Presentation and organization-usage consequences are clarified by
+ADR-0193 and SPEC-086.
 
 ## Context
 
@@ -54,3 +55,5 @@ registered by the integrating worker. Application rollback hides the endpoints
 and retains rows, receipts, and audit. An explicit schema downgrade drops the new
 table and is not an application rollback. Operational ownership grants no catalog
 editing authority; those existing authorization boundaries remain in force.
+The detail rail presents one read-only operational-owner card; owner mutation remains
+an authorized action and does not turn the read card into an inline administration form.

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections."
-last_verified: "2026-09-12"
+last_verified: "2026-09-18"
 ---
 
 # SPEC-081: Technology registry and landscape
@@ -18,6 +18,8 @@ SPEC-082 owns all team/project/technology links and responsibility. A technology
 usage is evidence and a review decision attached to SPEC-082's single canonical
 project–technology relation, not a second independently editable relationship.
 Detector execution and forge enrichment remain #222/#208 responsibilities.
+SPEC-086 owns consistent owner/category presentation and corporate catalog category
+filtering without changing these registry and relation semantics.
 
 ## Terms
 

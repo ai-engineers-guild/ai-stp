@@ -15,9 +15,17 @@ import {
   type DirectoryFacet,
   type DirectoryItem,
   type DirectoryResource,
+  type CorporateCatalogFacet,
+  type CorporateCatalogFacetConfig,
 } from "./corporate-directory-types";
+import { useRouter } from "@/lib/i18n/navigation";
+import { PageNav } from "@/components/organisms/catalog-page-nav";
+import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
 export type { DirectoryItem, DirectoryResource } from "./corporate-directory-types";
+
+const EMPTY_CATALOG_FACETS: readonly CorporateCatalogFacetConfig[] = [];
+const EMPTY_CATALOG_SELECTION: Partial<Record<CorporateCatalogFacet, string[]>> = {};
 
 export function matchesDirectoryFilters(
   item: DirectoryItem,
@@ -76,6 +84,125 @@ function cardItem(item: DirectoryItem, resource: DirectoryResource): DirectoryIt
   return withoutDescription;
 }
 
+function restoreCatalogSelection(
+  catalogFacets: readonly CorporateCatalogFacetConfig[],
+  initialCatalogSelected: Partial<Record<CorporateCatalogFacet, string[]>>,
+) {
+  const search = window.location.search ? new URLSearchParams(window.location.search) : null;
+  return Object.fromEntries(
+    catalogFacets.map((facet) => [
+      facet.key,
+      search ? search.getAll(facet.key) : (initialCatalogSelected[facet.key] ?? []),
+    ]),
+  ) as Partial<Record<CorporateCatalogFacet, string[]>>;
+}
+
+function directoryLabels(t: (key: string) => string) {
+  return {
+    lead: t("lead"),
+    ownerTeam: t("owner"),
+    teams: t("teams"),
+    projects: t("projects"),
+    technologies: t("technologies"),
+    categories: t("categories"),
+    team: t("team"),
+    employee: t("employee"),
+    author: t("author"),
+    owner: t("owner"),
+    type: t("type"),
+    moreActions: t("moreActions"),
+    copyId: t("copyId"),
+    copyUrl: t("copyUrl"),
+    copied: t("copied"),
+    unknownEmployee: t("unknownEmployee"),
+    notAvailable: t("notAvailable"),
+  };
+}
+
+function DirectoryItemList({
+  resource,
+  items,
+  labels,
+  returnFilters,
+  view,
+  emptyLabel,
+}: {
+  resource: DirectoryResource;
+  items: readonly DirectoryItem[];
+  labels: ReturnType<typeof directoryLabels>;
+  returnFilters: string;
+  view: "list" | "cards";
+  emptyLabel: string;
+}) {
+  if (!items.length) {
+    return (
+      <p className="text-muted-foreground border-border rounded-lg border border-dashed p-8 text-center text-sm">
+        {emptyLabel}
+      </p>
+    );
+  }
+  return (
+    <ul className={view === "cards" ? "grid min-w-0 gap-4 md:grid-cols-2" : "grid min-w-0 gap-3"}>
+      {items.map((item) => (
+        <CorporateDirectoryCard
+          key={item.id}
+          resource={resource}
+          item={cardItem(item, resource)}
+          labels={labels}
+          returnFilters={returnFilters}
+          view={view}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function DirectoryPagination({
+  filters,
+  label,
+  pageNumber,
+  pageSize,
+  total,
+}: {
+  filters: string;
+  label: string;
+  pageNumber: number;
+  pageSize: number;
+  total: number;
+}) {
+  if (total <= pageSize) return null;
+  return (
+    <PageNav
+      label={label}
+      pageNumber={pageNumber}
+      totalPages={Math.ceil(total / pageSize)}
+      hrefFor={(page) => {
+        const params = new URLSearchParams(filters);
+        params.set("page", String(page));
+        return `?${params.toString()}`;
+      }}
+    />
+  );
+}
+
+function visibleDirectoryItems(
+  items: readonly DirectoryItem[],
+  query: string,
+  selected: CorporateDirectorySelectedFilters,
+  leadOnly: boolean,
+  sort: "name" | "name_desc",
+) {
+  return sortItems(
+    items.filter(
+      (item) =>
+        (!query || item.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())) &&
+        matchesDirectoryFilters(item, selected) &&
+        (!leadOnly || item.is_lead),
+    ),
+    sort,
+  );
+}
+
 export function CorporateDirectoryResults({
   resource,
   items,
@@ -85,6 +212,14 @@ export function CorporateDirectoryResults({
   cancelLabel,
   adding = false,
   onAdd,
+  catalogFacets = EMPTY_CATALOG_FACETS,
+  initialCatalogSelected = EMPTY_CATALOG_SELECTION,
+  serverPaginated = false,
+  pageNumber = 1,
+  pageSize = 24,
+  total,
+  paginationLabel = "Pagination",
+  facets,
 }: {
   resource: DirectoryResource;
   items: readonly DirectoryItem[];
@@ -94,6 +229,14 @@ export function CorporateDirectoryResults({
   cancelLabel?: string | undefined;
   adding?: boolean | undefined;
   onAdd?: (() => void) | undefined;
+  catalogFacets?: readonly CorporateCatalogFacetConfig[];
+  initialCatalogSelected?: Partial<Record<CorporateCatalogFacet, string[]>>;
+  serverPaginated?: boolean;
+  pageNumber?: number;
+  pageSize?: number;
+  total?: number | undefined;
+  paginationLabel?: string | undefined;
+  facets?: CorporateDirectoryFacets;
 }) {
   const t = useTranslations("hub");
   const [query, setQuery] = useState(initialQuery);
@@ -104,6 +247,8 @@ export function CorporateDirectoryResults({
   const [selected, setSelected] = useState<CorporateDirectorySelectedFilters>({});
   const [leadOnly, setLeadOnly] = useState(false);
   const [returnFilters, setReturnFilters] = useState(filters);
+  const [catalogSelected, setCatalogSelected] = useState(initialCatalogSelected);
+  const router = useRouter();
 
   useEffect(() => {
     function restore() {
@@ -114,13 +259,14 @@ export function CorporateDirectoryResults({
       setLeadOnly(next.leadOnly);
       setSelected(next.selected);
       setReturnFilters(currentReturnFilters(filters));
+      setCatalogSelected(restoreCatalogSelection(catalogFacets, initialCatalogSelected));
     }
     restore();
     window.addEventListener("popstate", restore);
     return () => {
       window.removeEventListener("popstate", restore);
     };
-  }, [filters, resource]);
+  }, [catalogFacets, filters, initialCatalogSelected, resource]);
 
   function persist(name: string, values: string[]) {
     const url = new URL(window.location.href);
@@ -130,7 +276,12 @@ export function CorporateDirectoryResults({
     values.forEach((value) => {
       url.searchParams.append(name, value);
     });
-    window.history.replaceState(window.history.state, "", url);
+    if (serverPaginated && name !== "view") {
+      url.searchParams.set("page", "1");
+      router.push(`${url.pathname}${url.search}`);
+    } else {
+      window.history.replaceState(window.history.state, "", url);
+    }
     setReturnFilters(url.searchParams.toString());
   }
 
@@ -159,31 +310,18 @@ export function CorporateDirectoryResults({
     persist("is_lead", value ? ["true"] : []);
   }
 
-  const visible = sortItems(
-    items.filter(
-      (item) =>
-        (!query || item.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())) &&
-        matchesDirectoryFilters(item, selected) &&
-        (!leadOnly || item.is_lead),
-    ),
-    sort,
-  );
-  const labels = {
-    lead: t("lead"),
-    ownerTeam: t("owner"),
-    teams: t("teams"),
-    projects: t("projects"),
-    technologies: t("technologies"),
-    team: t("team"),
-    employee: t("employee"),
-    author: t("author"),
-    owner: t("owner"),
-    type: t("type"),
-    moreActions: t("moreActions"),
-    unknownEmployee: t("unknownEmployee"),
-    notAvailable: t("notAvailable"),
-  };
+  function applyCatalogFacets(values: Partial<Record<CorporateCatalogFacet, string[]>>) {
+    const url = new URL(window.location.href);
+    for (const facet of catalogFacets) {
+      url.searchParams.delete(facet.key);
+      for (const value of values[facet.key] ?? []) url.searchParams.append(facet.key, value);
+    }
+    setCatalogSelected(values);
+    setReturnFilters(url.searchParams.toString());
+    router.push(`${url.pathname}${url.search ? url.search : ""}`);
+  }
 
+  const visible = visibleDirectoryItems(items, query, selected, leadOnly, sort);
   return (
     <section className="min-w-0 space-y-5">
       <CorporateDirectoryToolbar
@@ -199,36 +337,38 @@ export function CorporateDirectoryResults({
         onLeadOnlyChange={changeLeadOnly}
         onViewChange={changeView}
         onSortChange={changeSort}
+        catalogFacets={catalogFacets}
+        catalogSelected={catalogSelected}
+        onCatalogApply={applyCatalogFacets}
         addLabel={addLabel}
         cancelLabel={cancelLabel}
         adding={adding}
         onAdd={onAdd}
+        {...(facets ? { facets } : {})}
       />
       <div className="flex items-center justify-end gap-3">
         <p className="text-muted-foreground text-sm" aria-live="polite">
-          {visible.length} {t(resource === "members" ? "employees" : resource)}
+          {serverPaginated ? (total ?? visible.length) : visible.length}{" "}
+          {t(resource === "members" ? "employees" : resource)}
         </p>
       </div>
-      {visible.length ? (
-        <ul
-          className={view === "cards" ? "grid min-w-0 gap-4 md:grid-cols-2" : "grid min-w-0 gap-3"}
-        >
-          {visible.map((item) => (
-            <CorporateDirectoryCard
-              key={item.id}
-              resource={resource}
-              item={cardItem(item, resource)}
-              labels={labels}
-              returnFilters={returnFilters}
-              view={view}
-            />
-          ))}
-        </ul>
-      ) : (
-        <p className="text-muted-foreground border-border rounded-lg border border-dashed p-8 text-center text-sm">
-          {t(items.length ? "noMatches" : "empty")}
-        </p>
-      )}
+      <DirectoryItemList
+        resource={resource}
+        items={visible}
+        labels={directoryLabels(t)}
+        returnFilters={returnFilters}
+        view={view}
+        emptyLabel={t(items.length ? "noMatches" : "empty")}
+      />
+      {serverPaginated && total ? (
+        <DirectoryPagination
+          filters={filters}
+          label={paginationLabel}
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          total={total}
+        />
+      ) : null}
     </section>
   );
 }

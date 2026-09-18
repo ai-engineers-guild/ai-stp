@@ -6,7 +6,23 @@ export type DirectoryRef = Pick<CorporateDirectoryReference, "id" | "name"> & {
 };
 
 export type DirectoryResource = "teams" | "projects" | "technologies" | "members" | "components";
-export type DirectoryFacet = "leads" | "teams" | "technologies" | "projects" | "categories";
+export type DirectoryFacet =
+  "leads" | "teams" | "technologies" | "projects" | "categories" | "job_titles";
+export type CorporateCatalogFacet =
+  | "team_ids"
+  | "project_ids"
+  | "technology_ids"
+  | "category_ids"
+  | "owner_ids"
+  | "maintainer_ids"
+  | "assignment"
+  | "corporate_verified";
+export type CorporateCatalogFacetConfig = {
+  key: CorporateCatalogFacet;
+  label: string;
+  options: readonly { value: string; label: string }[];
+  multiple?: boolean;
+};
 
 export type DirectoryItem = {
   id: string;
@@ -20,7 +36,9 @@ export type DirectoryItem = {
   technologies?: readonly DirectoryRef[];
   owner_team?: DirectoryRef | null;
   owner?: DirectoryRef | null;
+  job_title?: DirectoryRef | null;
   categories?: readonly DirectoryRef[];
+  available_actions?: readonly string[];
   is_lead?: boolean;
   component_type?: ComponentType;
   author_name?: string | null;
@@ -33,7 +51,7 @@ export const directoryFacets: Record<DirectoryResource, DirectoryFacet[]> = {
   teams: ["leads", "technologies", "teams"],
   projects: ["teams", "technologies"],
   technologies: ["projects", "teams", "categories"],
-  members: ["projects", "teams", "technologies"],
+  members: ["projects", "teams", "technologies", "job_titles"],
   components: [],
 };
 
@@ -43,6 +61,7 @@ export const directoryFacetParams: Record<DirectoryFacet, string> = {
   technologies: "technology_ids",
   projects: "project_ids",
   categories: "category_ids",
+  job_titles: "job_title_ids",
 };
 
 export function directoryReferences(
@@ -56,15 +75,17 @@ export function directoryReferences(
       ...(item.owner_team ? [item.owner_team] : []),
     ];
   }
+  if (facet === "job_titles") return item.job_title ? [item.job_title] : [];
   return item[facet] ?? [];
 }
 
 export function directoryHref(resource: DirectoryResource, id: string, returnFilters = "") {
   if (resource === "components") {
-    const returnTo = `/corporate/components${returnFilters ? `?${returnFilters}` : ""}`;
+    const returnTo = `/corporate/catalog${returnFilters ? `?${returnFilters}` : ""}`;
     return `/catalog/components/${encodeURIComponent(id)}?return_to=${encodeURIComponent(returnTo)}`;
   }
-  return `/corporate/${resource}/${encodeURIComponent(id)}${returnFilters ? `?${returnFilters}` : ""}`;
+  const routeResource = resource === "members" ? "employees" : resource;
+  return `/corporate/${routeResource}/${encodeURIComponent(id)}${returnFilters ? `?${returnFilters}` : ""}`;
 }
 
 export function isComponentType(value: string | undefined): value is ComponentType {

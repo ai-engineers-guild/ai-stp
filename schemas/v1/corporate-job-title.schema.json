@@ -1,0 +1,61 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-job-title",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "job_title_id": {
+      "pattern": "^job_title_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Job Title Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "normalized_name": {
+      "title": "Normalized Name",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "current",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "description",
+    "job_title_id",
+    "name",
+    "normalized_name",
+    "organization_id",
+    "revision",
+    "schema_version",
+    "state"
+  ],
+  "title": "CorporateJobTitleView",
+  "type": "object"
+}

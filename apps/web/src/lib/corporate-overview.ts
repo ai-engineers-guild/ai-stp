@@ -90,7 +90,7 @@ export function overviewForest(
 }
 
 export function corporateNodeHref(node: CorporateOverviewNode): string {
-  const resource = node.kind === "employee" ? "members" : `${node.kind}s`;
+  const resource = node.kind === "employee" ? "employees" : `${node.kind}s`;
   return `/corporate/${resource}/${encodeURIComponent(node.id)}`;
 }
 

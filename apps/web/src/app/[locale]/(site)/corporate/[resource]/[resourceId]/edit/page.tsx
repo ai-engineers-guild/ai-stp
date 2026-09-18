@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -17,6 +17,9 @@ type PageProps = {
 
 export default async function CorporatePresentationEditPage({ params }: PageProps) {
   const { locale, resource, resourceId } = await params;
+  if (resource === "members") {
+    permanentRedirect(`/${locale}/corporate/employees/${encodeURIComponent(resourceId)}`);
+  }
   if (resource !== "projects" && resource !== "teams") notFound();
   setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/${resource}/${resourceId}/edit`);

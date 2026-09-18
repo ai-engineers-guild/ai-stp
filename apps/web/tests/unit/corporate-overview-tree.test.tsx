@@ -88,7 +88,7 @@ it("changes depth, filters employees, and restores the full graph", () => {
   fireEvent.click(screen.getByRole("button", { name: "clearFilters" }));
   expect(screen.getByRole("link", { name: "Bob" })).toHaveAttribute(
     "href",
-    "/corporate/members/e2",
+    "/corporate/employees/e2",
   );
 });
 
@@ -192,7 +192,7 @@ it("previews three employees and expands the remainder without losing identity",
   fireEvent.click(screen.getByRole("button", { name: "+1 employees" }));
   expect(screen.getByRole("link", { name: "Pavel" })).toHaveAttribute(
     "href",
-    "/corporate/members/preview-3",
+    "/corporate/employees/preview-3",
   );
   fireEvent.click(screen.getByRole("button", { name: "showLess" }));
   expect(screen.queryByRole("link", { name: "Pavel" })).not.toBeInTheDocument();

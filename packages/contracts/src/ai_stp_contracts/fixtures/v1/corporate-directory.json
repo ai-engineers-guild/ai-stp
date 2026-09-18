@@ -7,6 +7,6 @@
     "why": "An authorized empty directory exposes no fabricated cards or facets.",
     "request": {"path_params": {"organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z"}, "query": {"resource": "teams"}},
     "status": 200,
-    "body": {"schema_version": 1, "organization": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "display_name": "Corporate engineering", "state": "active", "authorization_revision": 1}, "resource": "teams", "items": [], "total": 0, "facets": {"leads": [], "teams": [], "technologies": [], "projects": [], "categories": []}}
+    "body": {"schema_version": 1, "organization": {"schema_version": 1, "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z", "display_name": "Corporate engineering", "state": "active", "authorization_revision": 1}, "resource": "teams", "items": [], "total": 0, "facets": {"leads": [], "teams": [], "technologies": [], "projects": [], "categories": [], "job_titles": []}}
   }]
 }

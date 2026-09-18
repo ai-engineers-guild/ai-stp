@@ -17,6 +17,7 @@ from ai_stp_contracts.corporate_directory import (
 )
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.organization_models import (
+    CorporateJobTitle,
     CorporateProject,
     CorporateRoleBinding,
     CorporateTeam,
@@ -57,10 +58,18 @@ def select_directory(
                 not query.category_ids
                 or any(ref.id in query.category_ids for ref in item.categories)
             )
+            and (
+                not query.job_title_ids
+                or (item.job_title is not None and item.job_title.id in query.job_title_ids)
+            )
             and (query.is_lead is None or item.is_lead == query.is_lead)
         )
 
     items = [item for item in organization.items if matches(item)]
+    items.sort(
+        key=lambda item: (item.name.casefold(), item.id),
+        reverse=query.sort == "name_desc",
+    )
     return organization.model_copy(
         update={"items": items[query.offset : query.offset + query.limit], "total": len(items)}
     )
@@ -74,6 +83,9 @@ async def read_directory(
     query: CorporateDirectoryQuery,
     request_id: str | None,
 ) -> CorporateDirectoryView:
+    requested_resource = query.resource
+    if query.resource == "employees":
+        query = query.model_copy(update={"resource": "members"})
     graph = await overview.read_overview(
         db,
         ctx=ctx,
@@ -100,6 +112,20 @@ async def read_directory(
                 scope_id=identity,
             )
         return permission_cache[key]
+
+    async def available_actions(
+        kind: str, identity: str, *, scope_kind: str | None = None
+    ) -> list[str]:
+        scope = scope_kind or kind
+        scope_id = organization_id if scope == "organization" else identity
+        return [
+            action
+            for action, permission in (
+                (f"{kind}.update", f"{kind}.update"),
+                (f"{kind}.delete", f"{kind}.delete"),
+            )
+            if await permitted(permission, scope, scope_id)
+        ]
 
     technologies = (
         await db.scalars(
@@ -176,6 +202,7 @@ async def read_directory(
             if edge.kind == "team_employee":
                 employee_teams.setdefault(edge.child_id, set()).add(edge.parent_id)
         extended: list[CorporateDirectoryItem] = []
+        job_title_refs: dict[str, CorporateDirectoryReference] = {}
         if query.resource == "members":
             member_read = await permitted("member.read", "organization", organization_id)
             competences: Sequence[EmployeeTechnology] = []
@@ -195,6 +222,24 @@ async def read_directory(
                     )
                 )
             ).all()
+            job_title_ids = {
+                getattr(member, "job_title_id", None)
+                for member in members
+                if getattr(member, "job_title_id", None)
+            }
+            if job_title_ids:
+                job_titles = (
+                    await db.scalars(
+                        select(CorporateJobTitle).where(
+                            CorporateJobTitle.organization_id == organization_id,
+                            CorporateJobTitle.id.in_(job_title_ids),
+                        )
+                    )
+                ).all()
+                job_title_refs = {
+                    row.id: CorporateDirectoryReference(kind="job_title", id=row.id, name=row.name)
+                    for row in job_titles
+                }
             for member in members:
                 # The overview applies incumbent member/roster visibility, including team leads.
                 if member.account_id not in nodes:
@@ -227,6 +272,10 @@ async def read_directory(
                                 if relation.account_id == member.account_id
                                 and relation.technology_id in nodes
                             }
+                        ),
+                        job_title=job_title_refs.get(getattr(member, "job_title_id", None) or ""),
+                        available_actions=await available_actions(
+                            "member", member.account_id, scope_kind="organization"
                         ),
                         is_lead=any(member.account_id in ids for ids in leads.values()),
                     )
@@ -282,6 +331,7 @@ async def read_directory(
                                 if relation.technology_id == technology.id
                             }
                         ),
+                        available_actions=await available_actions("technology", technology.id),
                     )
                 )
         extended.sort(key=lambda item: (item.name.casefold(), item.id))
@@ -302,10 +352,13 @@ async def read_directory(
                     technologies=extended_facet("technologies"),
                     projects=extended_facet("projects"),
                     categories=extended_facet("categories"),
+                    job_titles=sorted(
+                        job_title_refs.values(), key=lambda ref: (ref.name.casefold(), ref.id)
+                    ),
                 ),
             ),
             query,
-        )
+        ).model_copy(update={"resource": requested_resource})
 
     project_leads: dict[str, set[str]] = {}
     if query.resource == "projects":
@@ -391,6 +444,7 @@ async def read_directory(
                     )
                 ),
                 "owner_team": nodes.get(owners.get(row.id, "")),
+                "available_actions": await available_actions(kind, row.id),
             }
         )
         items.append(item)
@@ -410,7 +464,8 @@ async def read_directory(
                 leads=facet("leads"),
                 teams=facet("teams" if kind == "project" else "related_teams"),
                 technologies=facet("technologies"),
+                job_titles=[],
             ),
         ),
         query,
-    )
+    ).model_copy(update={"resource": requested_resource})

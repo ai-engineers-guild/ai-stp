@@ -379,6 +379,9 @@ describe("manual registry creation", () => {
     if (!form) throw new Error("creation form is missing");
     fireEvent.submit(form);
     await screen.findByText("revision conflict");
+    await waitFor(() => {
+      expect(form.getAttribute("aria-busy")).toBe("false");
+    });
     expect((name as HTMLInputElement).value).toBe("Framework");
     const first = mutation.mock.calls[0]?.[0];
     if (!first) throw new Error("creation request is missing");

@@ -1,7 +1,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 const { exportAudit } = vi.hoisted(() => ({ exportAudit: vi.fn() }));
-vi.mock("@/actions/corporate", () => ({ corporateAuditExportAction: exportAudit }));
+vi.mock("@/actions/corporate", () => ({
+  corporateAuditExportAction: exportAudit,
+}));
 vi.mock("@/lib/i18n/navigation", () => ({
   Link: ({ children, ...props }: React.ComponentProps<"a">) => <a {...props}>{children}</a>,
 }));
@@ -10,7 +12,7 @@ vi.mock("next-intl", () => ({
     values ? `${values.entity}: ${values.operation}` : key,
   useFormatter: () => ({ dateTime: () => "Localized date" }),
 }));
-import { CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
+import { auditExportCsv, CorporateAuditPanel } from "@/components/organisms/corporate-audit-panel";
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -47,6 +49,15 @@ it("links named actors and hides technical fields even for unknown events", () =
         title: "Journal",
         export: "Export",
         exporting: "Exporting",
+        exportFormat: "Format",
+        exportRange: "Time range",
+        currentFilters: "Current filters",
+        today: "Today",
+        last7Days: "Last 7 days",
+        last30Days: "Last 30 days",
+        allEvents: "All events",
+        json: "JSON",
+        csv: "CSV",
         noAudit: "No events",
         failed: "Export failed",
       }}
@@ -54,7 +65,7 @@ it("links named actors and hides technical fields even for unknown events", () =
   );
   expect(screen.getByRole("link", { name: "Alice" })).toHaveAttribute(
     "href",
-    "/corporate/members/account_alice",
+    "/corporate/employees/account_alice",
   );
   expect(screen.getByText("otherEvent")).toBeInTheDocument();
   expect(screen.getByText("Localized date")).toHaveAttribute("dateTime", "2026-09-13T10:00:00Z");
@@ -73,11 +84,25 @@ it("shows export transport errors and permits retry without losing the journal",
   render(
     <CorporateAuditPanel
       organizationId="organization_fixture"
-      audit={{ schema_version: 1, items: [], next_before_created_at: null, next_before_id: null }}
+      audit={{
+        schema_version: 1,
+        items: [],
+        next_before_created_at: null,
+        next_before_id: null,
+      }}
       labels={{
         title: "Journal",
         export: "Export",
         exporting: "Exporting",
+        exportFormat: "Format",
+        exportRange: "Time range",
+        currentFilters: "Current filters",
+        today: "Today",
+        last7Days: "Last 7 days",
+        last30Days: "Last 30 days",
+        allEvents: "All events",
+        json: "JSON",
+        csv: "CSV",
         noAudit: "No events",
         failed: "Export failed",
       }}
@@ -91,4 +116,31 @@ it("shows export transport errors and permits retry without losing the journal",
   fireEvent.click(screen.getByRole("button", { name: "Export" }));
   await screen.findByText("Try again later");
   expect(exportAudit).toHaveBeenCalledTimes(2);
+});
+it("creates a quoted CSV without exposing extra audit fields in the UI", () => {
+  const csv = auditExportCsv({
+    schema_version: 1,
+    organization_id: "organization_fixture",
+    exported_at: "2026-09-13T10:00:00Z",
+    items: [
+      {
+        schema_version: 1,
+        audit_id: 1,
+        action: "member.profile.update",
+        actor_type: "user",
+        actor_account_id: "account_alice",
+        actor_id: "account_alice",
+        created_at: "2026-09-13T10:00:00Z",
+        outcome: "succeeded",
+        target_table: "member",
+        target_id: "account_alice",
+        request_id: "request-1",
+        reason: 'name contains "quotes"',
+        payload: { name: "Alice" },
+        effective_role_bindings: [],
+      },
+    ],
+  });
+  expect(csv).toContain('"name contains ""quotes"""');
+  expect(csv).toContain('"{""name"":""Alice""}"');
 });

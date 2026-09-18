@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-lifecycle-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "expected_revision": {
+      "minimum": 0,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "object_kind": {
+      "enum": [
+        "setup",
+        "component"
+      ],
+      "title": "Object Kind",
+      "type": "string"
+    },
+    "reason": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "visible",
+        "hidden",
+        "deprecated",
+        "retired"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "object_kind",
+    "stable_id",
+    "version",
+    "state",
+    "expected_revision",
+    "authorization_revision",
+    "reason",
+    "idempotency_key"
+  ],
+  "title": "CorporateCatalogLifecycleRequest",
+  "type": "object"
+}

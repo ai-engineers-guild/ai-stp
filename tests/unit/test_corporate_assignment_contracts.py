@@ -30,3 +30,17 @@ def test_assignment_requires_typed_subject_and_exact_version() -> None:
     ):
         with pytest.raises(ValidationError):
             CorporateCatalogAssignmentRequest.model_validate({**payload, **changes})
+
+
+def test_technology_is_a_typed_assignment_subject() -> None:
+    payload = {
+        "subject_kind": "technology",
+        "subject_id": new_id("technology"),
+        "object_kind": "component",
+        "stable_id": new_id("component"),
+        "version": "2.0",
+        "expected_revision": 0,
+        "authorization_revision": 1,
+        "idempotency_key": "technology-assignment-fixture",
+    }
+    assert CorporateCatalogAssignmentRequest.model_validate(payload).subject_kind == "technology"

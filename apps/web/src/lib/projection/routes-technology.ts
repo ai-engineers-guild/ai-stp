@@ -32,7 +32,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
         title: context.organization.display_name,
         summary: t("organizationBody"),
         links: [
-          { key: "employees", href: "/corporate/members" },
+          { key: "employees", href: "/corporate/employees" },
           { key: "projects", href: "/corporate/projects" },
           { key: "teams", href: "/corporate/teams" },
           { key: "admins", href: "/corporate/organization/admins" },
@@ -64,7 +64,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
           [t("organizationRole"), result.member.role],
           [t("state"), result.member.state],
         ],
-        links: [[t("member"), `/corporate/members/${accountId}`]],
+        links: [[t("member"), `/corporate/employees/${accountId}`]],
       });
     },
   },

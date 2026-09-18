@@ -597,6 +597,7 @@ async def search_components(
     request: ComponentSearchRequest,
     *,
     cursor_secret: str,
+    corporate_account_id: str | None = None,
 ) -> ComponentListResponse:
     page = await _search(
         session,
@@ -627,6 +628,16 @@ async def search_components(
         page_size=request.page_size,
         page_number=request.page,
         cursor_secret=cursor_secret,
+        corporate_organization_id=request.organization_id,
+        corporate_account_id=corporate_account_id,
+        corporate_team_ids=list(request.team_ids),
+        corporate_project_ids=list(request.project_ids),
+        corporate_technology_ids=list(request.technology_ids),
+        corporate_category_ids=list(request.category_ids),
+        corporate_owner_ids=list(request.owner_ids),
+        corporate_maintainer_ids=list(request.maintainer_ids),
+        corporate_assignment=request.assignment,
+        corporate_verified=request.corporate_verified,
     )
 
     listed = (*page.authoritative, *page.experimental)
@@ -665,6 +676,7 @@ async def search_setups(
     request: SetupSearchRequest,
     *,
     cursor_secret: str,
+    corporate_account_id: str | None = None,
 ) -> SetupListResponse:
     page = await _search(
         session,
@@ -698,6 +710,16 @@ async def search_setups(
         family_id=request.family_id,
         family_alignment=request.family_alignment,
         member_harness_id=request.member_harness_id,
+        corporate_organization_id=request.organization_id,
+        corporate_account_id=corporate_account_id,
+        corporate_team_ids=list(request.team_ids),
+        corporate_project_ids=list(request.project_ids),
+        corporate_technology_ids=list(request.technology_ids),
+        corporate_category_ids=list(request.category_ids),
+        corporate_owner_ids=list(request.owner_ids),
+        corporate_maintainer_ids=list(request.maintainer_ids),
+        corporate_assignment=request.assignment,
+        corporate_verified=request.corporate_verified,
     )
     match_kind = (
         "family"
@@ -1141,6 +1163,16 @@ async def _search(
     family_id: str | None = None,
     family_alignment: str | None = None,
     member_harness_id: str | None = None,
+    corporate_organization_id: str | None = None,
+    corporate_account_id: str | None = None,
+    corporate_team_ids: list[str] | None = None,
+    corporate_project_ids: list[str] | None = None,
+    corporate_technology_ids: list[str] | None = None,
+    corporate_category_ids: list[str] | None = None,
+    corporate_owner_ids: list[str] | None = None,
+    corporate_maintainer_ids: list[str] | None = None,
+    corporate_assignment: str | None = None,
+    corporate_verified: bool | None = None,
 ) -> SearchPage:
     if cursor is not None and page_number is not None:
         raise CatalogBadRequest("cursor and page modes are mutually exclusive")
@@ -1175,6 +1207,15 @@ async def _search(
         family_id=family_id,
         family_alignment=family_alignment,
         member_harness_id=member_harness_id,
+        organization_id=corporate_organization_id,
+        team_ids=corporate_team_ids,
+        project_ids=corporate_project_ids,
+        technology_ids=corporate_technology_ids,
+        category_ids=corporate_category_ids,
+        owner_ids=corporate_owner_ids,
+        maintainer_ids=corporate_maintainer_ids,
+        assignment=corporate_assignment,
+        corporate_verified=corporate_verified,
     )
     after: CursorKey | None = None
     if cursor is not None:
@@ -1222,6 +1263,16 @@ async def _search(
         family_id=family_id,
         family_alignment=family_alignment,
         member_harness_id=member_harness_id,
+        corporate_organization_id=corporate_organization_id,
+        corporate_account_id=corporate_account_id,
+        corporate_team_ids=corporate_team_ids or [],
+        corporate_project_ids=corporate_project_ids or [],
+        corporate_technology_ids=corporate_technology_ids or [],
+        corporate_category_ids=corporate_category_ids or [],
+        corporate_owner_ids=corporate_owner_ids or [],
+        corporate_maintainer_ids=corporate_maintainer_ids or [],
+        corporate_assignment=corporate_assignment,
+        corporate_verified=corporate_verified,
     )
     next_cursor = None
     if hits.next_cursor_key is not None:

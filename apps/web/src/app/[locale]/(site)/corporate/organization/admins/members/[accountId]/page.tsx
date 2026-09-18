@@ -31,7 +31,7 @@ export default async function MemberAccessPage({
     <div className="space-y-6">
       <HistoryBackButton label={t("backToWorkspace")} fallback="/corporate/organization/admins" />
       <h1 className="text-3xl font-medium tracking-tight">{t("accessAdministration")}</h1>
-      <Link href={`/corporate/members/${accountId}`} className="underline underline-offset-4">
+      <Link href={`/corporate/employees/${accountId}`} className="underline underline-offset-4">
         {member.display_name ?? t("member")}
       </Link>
       <LocalizedResourceActions
@@ -46,6 +46,7 @@ export default async function MemberAccessPage({
         csrfToken={(await readCsrfToken()) ?? ""}
         roles={result.roles?.items ?? []}
         permissions={result.context.capabilities}
+        availableActions={result.context.capabilities}
       />
     </div>
   );

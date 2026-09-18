@@ -11,10 +11,29 @@ import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
 import { CorporateDirectoryResults } from "@/components/organisms/corporate-directory-results";
 import type {
+  CorporateCatalogFacet,
+  CorporateCatalogFacetConfig,
   DirectoryItem,
   DirectoryResource,
 } from "@/components/organisms/corporate-directory-types";
 import { useRouter } from "@/lib/i18n/navigation";
+import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
+
+const DIRECTORY_DESCRIPTION_KEYS = {
+  projects: "browseProjects",
+  teams: "browseTeams",
+  members: "browseEmployees",
+  technologies: "browseTechnologies",
+  components: "browseComponents",
+} as const;
+
+const DIRECTORY_ADD_KEYS = {
+  projects: "addProject",
+  teams: "addTeam",
+  members: "addEmployee",
+  technologies: "addTechnology",
+  components: "components",
+} as const;
 
 type Props = {
   resource: DirectoryResource;
@@ -27,7 +46,89 @@ type Props = {
   initialQuery?: string;
   showHeader?: boolean;
   customCreate?: ReactNode | undefined;
+  catalogFacets?: readonly CorporateCatalogFacetConfig[];
+  catalogFacetValues?: Partial<Record<CorporateCatalogFacet, string[]>>;
+  filters?: string;
+  serverPaginated?: boolean;
+  pageNumber?: number;
+  pageSize?: number;
+  total?: number;
+  paginationLabel?: string;
+  createHref?: string;
+  facets?: CorporateDirectoryFacets;
 };
+
+function InlineCorporateCreate({
+  resource,
+  roles,
+  busy,
+  message,
+  onSubmit,
+}: {
+  resource: DirectoryResource;
+  roles: readonly string[];
+  busy: boolean;
+  message: string | null;
+  onSubmit: (form: HTMLFormElement) => void;
+}) {
+  const t = useTranslations("hub");
+  const c = useTranslations("corporate");
+  return (
+    <form
+      className="border-border bg-card max-w-xl space-y-4 rounded-lg border p-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit(event.currentTarget);
+      }}
+    >
+      <fieldset disabled={busy} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="create-name">{c(resource === "members" ? "displayName" : "name")}</Label>
+          <Input
+            id="create-name"
+            name="name"
+            required
+            maxLength={resource === "members" ? 80 : 200}
+          />
+        </div>
+        {resource === "teams" ? (
+          <div className="space-y-2">
+            <Label htmlFor="create-description">{c("description")}</Label>
+            <Textarea id="create-description" name="description" maxLength={2000} />
+          </div>
+        ) : null}
+        {resource === "members" ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="create-email">{c("email")}</Label>
+              <Input id="create-email" name="email" type="email" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-role">{c("organizationRole")}</Label>
+              <select
+                id="create-role"
+                name="role"
+                className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
+              >
+                {roles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        ) : null}
+        <Button type="submit">{t("save")}</Button>
+      </fieldset>
+      {message ? (
+        <p role="alert" className="text-sm">
+          {message}
+        </p>
+      ) : null}
+    </form>
+  );
+}
 
 export function CorporateDirectory({
   resource,
@@ -40,29 +141,26 @@ export function CorporateDirectory({
   initialQuery = "",
   showHeader = true,
   customCreate,
+  catalogFacets,
+  catalogFacetValues,
+  filters,
+  serverPaginated = false,
+  pageNumber = 1,
+  pageSize = 24,
+  total,
+  paginationLabel,
+  createHref,
+  facets,
 }: Props) {
   const t = useTranslations("hub");
-  const c = useTranslations("corporate");
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const retry = useRef<{ effect: string; key: string } | null>(null);
   const titleKey = resource === "members" ? "employees" : resource;
-  const description = {
-    projects: t("browseProjects"),
-    teams: t("browseTeams"),
-    members: t("browseEmployees"),
-    technologies: t("browseTechnologies"),
-    components: t("browseComponents"),
-  }[resource];
-  const addLabel = {
-    projects: t("addProject"),
-    teams: t("addTeam"),
-    members: t("addEmployee"),
-    technologies: t("addTechnology"),
-    components: t("components"),
-  }[resource];
+  const description = t(DIRECTORY_DESCRIPTION_KEYS[resource]);
+  const addLabel = t(DIRECTORY_ADD_KEYS[resource]);
 
   async function create(form: HTMLFormElement) {
     const data = new FormData(form);
@@ -122,71 +220,40 @@ export function CorporateDirectory({
         onAdd={
           showHeader && canCreate
             ? () => {
+                if (createHref) {
+                  router.push(createHref);
+                  return;
+                }
                 setAdding((open) => !open);
               }
             : undefined
         }
-        filters={new URLSearchParams({
-          ...(initialQuery ? { query: initialQuery } : {}),
-        }).toString()}
+        {...(catalogFacets ? { catalogFacets } : {})}
+        {...(catalogFacetValues ? { initialCatalogSelected: catalogFacetValues } : {})}
+        filters={
+          filters ??
+          new URLSearchParams({
+            ...(initialQuery ? { query: initialQuery } : {}),
+          }).toString()
+        }
+        serverPaginated={serverPaginated}
+        pageNumber={pageNumber}
+        pageSize={pageSize}
+        total={total}
+        paginationLabel={paginationLabel}
+        {...(facets ? { facets } : {})}
       />
       {adding && customCreate ? customCreate : null}
       {adding && !customCreate ? (
-        <form
-          className="border-border bg-card max-w-xl space-y-4 rounded-lg border p-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void create(event.currentTarget);
+        <InlineCorporateCreate
+          resource={resource}
+          roles={roles}
+          busy={busy}
+          message={message}
+          onSubmit={(form) => {
+            void create(form);
           }}
-        >
-          <fieldset disabled={busy} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="create-name">
-                {c(resource === "members" ? "displayName" : "name")}
-              </Label>
-              <Input
-                id="create-name"
-                name="name"
-                required
-                maxLength={resource === "members" ? 80 : 200}
-              />
-            </div>
-            {resource === "teams" ? (
-              <div className="space-y-2">
-                <Label htmlFor="create-description">{c("description")}</Label>
-                <Textarea id="create-description" name="description" maxLength={2000} />
-              </div>
-            ) : null}
-            {resource === "members" ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="create-email">{c("email")}</Label>
-                  <Input id="create-email" name="email" type="email" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-role">{c("organizationRole")}</Label>
-                  <select
-                    id="create-role"
-                    name="role"
-                    className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-                  >
-                    {roles.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            ) : null}
-            <Button type="submit">{t("save")}</Button>
-          </fieldset>
-          {message ? (
-            <p role="alert" className="text-sm">
-              {message}
-            </p>
-          ) : null}
-        </form>
+        />
       ) : null}
     </div>
   );

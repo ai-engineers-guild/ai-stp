@@ -74,7 +74,7 @@ export async function CorporateOverview({
           },
           {
             key: "employees",
-            href: "/corporate/members",
+            href: "/corporate/employees",
             icon: "user",
             count: graph.nodes.filter((node) => node.kind === "employee").length,
             caption: t("acrossTeams"),
@@ -159,9 +159,26 @@ async function enrichOverview(
   try {
     const usage = overviewUsage(directoryGraph);
     const [componentCatalog, componentCatalogSecondPage, setupCatalog] = await Promise.all([
-      searchComponents({ page_size: 100, include_experimental: true, page: 1 }),
-      searchComponents({ page_size: 100, include_experimental: true, page: 2 }),
-      searchSetups({ page_size: 100, include_experimental: true }),
+      searchComponents({
+        sessionToken: token,
+        organization_id: organizationId,
+        page_size: 100,
+        include_experimental: true,
+        page: 1,
+      }),
+      searchComponents({
+        sessionToken: token,
+        organization_id: organizationId,
+        page_size: 100,
+        include_experimental: true,
+        page: 2,
+      }),
+      searchSetups({
+        sessionToken: token,
+        organization_id: organizationId,
+        page_size: 100,
+        include_experimental: true,
+      }),
     ]);
     const catalogDetails = new Map(
       [

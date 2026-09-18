@@ -33,13 +33,13 @@ export function isPrimaryNavigationActive(item: NavItem, pathname: string): bool
           "/corporate/organization",
           "/corporate/projects",
           "/corporate/teams",
-          "/corporate/members",
+          "/corporate/employees",
           "/corporate/technologies",
         ].some((base) => matchesPath(pathname, base))
       );
     case UI.navigation.landscape:
       return [
-        "/corporate/components",
+        "/corporate/catalog",
         "/corporate/technology-landscape",
         "/corporate/categories",
       ].some((base) => matchesPath(pathname, base));

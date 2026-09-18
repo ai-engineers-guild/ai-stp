@@ -25,6 +25,7 @@ type Props = {
   state: string;
   revision: number;
   permissions: readonly string[];
+  availableActions?: readonly string[];
   roles?: readonly CorporateRoleView[];
   labels: {
     title: string;
@@ -63,6 +64,7 @@ export function CorporateResourceActions({
   state,
   revision,
   permissions,
+  availableActions,
   roles = [],
   labels,
 }: Props) {
@@ -79,10 +81,11 @@ export function CorporateResourceActions({
   const [message, setMessage] = useState<string | null>(null);
   const retry = useRef<{ effect: string; key: string } | null>(null);
   const endpoint = `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`;
-  const canUpdate = permissions.includes(
+  const actionSet = availableActions ?? permissions;
+  const canUpdate = actionSet.includes(
     `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.update`,
   );
-  const canDelete = permissions.includes(
+  const canDelete = actionSet.includes(
     `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.delete`,
   );
 

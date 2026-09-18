@@ -251,21 +251,16 @@ export function TreeBranch({
           >
             {node.name}
           </Link>
-          {!employee && typeof node.description === "string" && node.description && (
-            <p className="text-muted-foreground mt-0.5 text-xs">{node.description}</p>
-          )}
         </div>
       </div>
       <div className="min-w-0 text-xs">
         {employee ? (
           <p className="text-muted-foreground">
-            {typeof node.description === "string" && node.description
-              ? node.description
-              : typeof node.role === "string"
-                ? node.role
-                : branch.role === "lead"
-                  ? t("lead")
-                  : t("staff")}
+            {typeof node.role === "string"
+              ? node.role
+              : branch.role === "lead"
+                ? t("lead")
+                : t("staff")}
           </p>
         ) : (
           leads.length > 0 && (

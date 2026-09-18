@@ -1,0 +1,121 @@
+{
+  "$defs": {
+    "CorporateEffectivePermission": {
+      "additionalProperties": true,
+      "properties": {
+        "permission": {
+          "title": "Permission",
+          "type": "string"
+        },
+        "scope_id": {
+          "title": "Scope Id",
+          "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "organization",
+            "team",
+            "project",
+            "technology",
+            "catalog_object"
+          ],
+          "title": "Scope Kind",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "permission",
+        "scope_id",
+        "scope_kind",
+        "sources"
+      ],
+      "title": "CorporateEffectivePermission",
+      "type": "object"
+    },
+    "CorporatePermissionDefinition": {
+      "additionalProperties": true,
+      "properties": {
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "scopes": {
+          "items": {
+            "enum": [
+              "organization",
+              "team",
+              "project",
+              "technology",
+              "catalog_object"
+            ],
+            "type": "string"
+          },
+          "title": "Scopes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "group",
+        "name",
+        "scopes"
+      ],
+      "title": "CorporatePermissionDefinition",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-permission-matrix",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "definitions": {
+      "items": {
+        "$ref": "#/$defs/CorporatePermissionDefinition"
+      },
+      "title": "Definitions",
+      "type": "array"
+    },
+    "effective": {
+      "items": {
+        "$ref": "#/$defs/CorporateEffectivePermission"
+      },
+      "title": "Effective",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "authorization_revision",
+    "definitions",
+    "effective",
+    "organization_id",
+    "schema_version"
+  ],
+  "title": "CorporatePermissionMatrix",
+  "type": "object"
+}

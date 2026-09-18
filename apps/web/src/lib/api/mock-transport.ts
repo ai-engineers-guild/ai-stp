@@ -52,6 +52,14 @@ const CATALOG_COMPONENT_KEYS = new Set([
   "country_codes",
   "updated_from",
   "updated_to",
+  "organization_id",
+  "team_ids",
+  "project_ids",
+  "technology_ids",
+  "owner_ids",
+  "maintainer_ids",
+  "assignment",
+  "corporate_verified",
 ]);
 
 const CATALOG_SETUP_KEYS = new Set([
@@ -78,6 +86,14 @@ const CATALOG_SETUP_KEYS = new Set([
   "country_codes",
   "updated_from",
   "updated_to",
+  "organization_id",
+  "team_ids",
+  "project_ids",
+  "technology_ids",
+  "owner_ids",
+  "maintainer_ids",
+  "assignment",
+  "corporate_verified",
 ]);
 
 function notFound(caseId: string): MockResult {

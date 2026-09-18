@@ -87,11 +87,13 @@ last_verified: "2026-08-03"
 | [SPEC-076-context-capability-projection.md](SPEC-076-context-capability-projection.md) | SPEC-076: Versioned context capability projection for FastAPI and Next.js. | 2026-09-12 |
 | [SPEC-077-shared-product-mode-web-ui.md](SPEC-077-shared-product-mode-web-ui.md) | SPEC-077: Shared Next.js SaaS UI with server-resolved product context. | 2026-09-11 |
 | [SPEC-078-project-identity-linking-and-sync.md](SPEC-078-project-identity-linking-and-sync.md) | SPEC-078: Distinct local, remote, and provider project identities with explicit linking and deterministic synchronization. | 2026-09-14 |
-| [SPEC-079-corporate-core.md](SPEC-079-corporate-core.md) | SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal. | 2026-09-12 |
+| [SPEC-079-corporate-core.md](SPEC-079-corporate-core.md) | SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal. | 2026-09-18 |
 | [SPEC-080-cli-agent-task-contract.md](SPEC-080-cli-agent-task-contract.md) | SPEC-080: Headless CLI application services, capability inventory, and the agent task contract. | 2026-09-18 |
-| [SPEC-081-technology-registry-and-landscape.md](SPEC-081-technology-registry-and-landscape.md) | SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-12 |
+| [SPEC-081-technology-registry-and-landscape.md](SPEC-081-technology-registry-and-landscape.md) | SPEC-081: Governed technology metadata, usage facts, detection handoff, and authorized landscape projections. | 2026-09-18 |
 | [SPEC-082-canonical-corporate-relations.md](SPEC-082-canonical-corporate-relations.md) | SPEC-082: Single canonical team/project/technology relationships, responsibility, and current assignment scopes. | 2026-09-12 |
-| [SPEC-083-corporate-hub-workspace.md](SPEC-083-corporate-hub-workspace.md) | SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-09-13 |
-| [SPEC-084-corporate-entity-profiles.md](SPEC-084-corporate-entity-profiles.md) | SPEC-084: Persistent tenant presentation and independent technology ownership. | 2026-09-13 |
+| [SPEC-083-corporate-hub-workspace.md](SPEC-083-corporate-hub-workspace.md) | SPEC-083: Corporate Hub directories, relationship editing, and catalog assignments. | 2026-09-18 |
+| [SPEC-084-corporate-entity-profiles.md](SPEC-084-corporate-entity-profiles.md) | SPEC-084: Persistent tenant presentation and independent technology ownership. | 2026-09-18 |
+| [SPEC-085-milestone-5-corporate-governance-and-catalog.md](SPEC-085-milestone-5-corporate-governance-and-catalog.md) | SPEC-085: Corporate governance lifecycle, team profile, and catalog context. | 2026-09-18 |
+| [SPEC-086-corporate-workspace-consolidation.md](SPEC-086-corporate-workspace-consolidation.md) | SPEC-086: Corporate workspace identity, directory, catalog, and detail consolidation. | 2026-09-18 |
 
 <!-- END CONTENTS -->

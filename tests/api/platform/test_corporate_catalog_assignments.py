@@ -299,6 +299,108 @@ async def test_exact_catalog_assignment_http(
     )
     assert derived.status_code == 200, derived.text
     assert any(item["source_team_id"] == team_id for item in derived.json()["items"])
+    team_view = await client.get(f"{organization_base}/teams/{team_id}", headers=auth)
+    assert team_view.status_code == 200, team_view.text
+    effective = team_view.json()["effective_assignments"]
+    assert any(
+        item["subject_id"] == account_id and item["source_team_id"] is None for item in effective
+    )
+    assert any(
+        item["subject_id"] == account_id and item["source_team_id"] == team_id for item in effective
+    )
+    context = (await client.get(f"{organization_base}/context", headers=auth)).json()
+    governance = f"{organization_base}/catalog-governance"
+    maintainer_payload = {
+        "object_kind": "setup",
+        "stable_id": setup_id,
+        "version": "1.0",
+        "subject_kind": "employee",
+        "subject_id": account_id,
+        "state": "current",
+        "expected_revision": 0,
+        "authorization_revision": context["organization"]["authorization_revision"],
+        "reason": "acceptance maintainer",
+        "idempotency_key": "governance-maintainer-fixture",
+    }
+    maintainer = await client.put(
+        f"{governance}/maintainers", json=maintainer_payload, headers=auth
+    )
+    assert maintainer.status_code == 200, maintainer.text
+    assert (
+        await client.put(f"{governance}/maintainers", json=maintainer_payload, headers=auth)
+    ).json() == maintainer.json()
+    verification = await client.put(
+        f"{governance}/verification",
+        json={
+            "object_kind": "setup",
+            "stable_id": setup_id,
+            "version": "1.0",
+            "state": "verified",
+            "expected_revision": 0,
+            "authorization_revision": context["organization"]["authorization_revision"],
+            "reason": "acceptance verification",
+            "idempotency_key": "governance-verification-fixture",
+        },
+        headers=auth,
+    )
+    assert verification.status_code == 200, verification.text
+    lifecycle = await client.put(
+        f"{governance}/lifecycle",
+        json={
+            "object_kind": "setup",
+            "stable_id": setup_id,
+            "version": "1.0",
+            "state": "visible",
+            "expected_revision": 0,
+            "authorization_revision": context["organization"]["authorization_revision"],
+            "reason": "acceptance visibility",
+            "idempotency_key": "governance-lifecycle-visible-fixture",
+        },
+        headers=auth,
+    )
+    assert lifecycle.status_code == 200, lifecycle.text
+    hidden = await client.put(
+        f"{governance}/lifecycle",
+        json={
+            "object_kind": "setup",
+            "stable_id": setup_id,
+            "version": "1.0",
+            "state": "hidden",
+            "expected_revision": 1,
+            "authorization_revision": context["organization"]["authorization_revision"],
+            "reason": "acceptance moderation",
+            "idempotency_key": "governance-lifecycle-hidden-fixture",
+        },
+        headers=auth,
+    )
+    assert hidden.status_code == 200, hidden.text
+    consolidated = await client.get(
+        f"{governance}/setup/{setup_id}/versions/1.0",
+        params={"include_history": "true"},
+        headers=auth,
+    )
+    assert consolidated.status_code == 200, consolidated.text
+    assert consolidated.json()["maintainers"][0]["subject_id"] == account_id
+    assert consolidated.json()["verification"]["state"] == "verified"
+    assert consolidated.json()["lifecycle"]["state"] == "hidden"
+    assert any(
+        item["action"] == "catalog_lifecycle.write" for item in consolidated.json()["history"]
+    )
+    restored_lifecycle = await client.put(
+        f"{governance}/lifecycle",
+        json={
+            "object_kind": "setup",
+            "stable_id": setup_id,
+            "version": "1.0",
+            "state": "visible",
+            "expected_revision": 2,
+            "authorization_revision": context["organization"]["authorization_revision"],
+            "reason": "acceptance restore",
+            "idempotency_key": "governance-lifecycle-restore-fixture",
+        },
+        headers=auth,
+    )
+    assert restored_lifecycle.status_code == 200, restored_lifecycle.text
     retired_team = await client.put(
         base,
         headers=auth,
