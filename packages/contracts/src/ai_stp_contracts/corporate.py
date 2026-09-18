@@ -12,6 +12,10 @@ from ai_stp_foundation.versioning import VERSION_PATTERN
 
 OrganizationId = Annotated[str, Field(pattern=stable_id_pattern("organization"))]
 AccountId = Annotated[str, Field(pattern=stable_id_pattern("account"))]
+JobTitleId = Annotated[str, Field(pattern=stable_id_pattern("job_title"))]
+TeamId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
+ProjectId = Annotated[str, Field(pattern=stable_id_pattern("remote_project"))]
+TechnologyId = Annotated[str, Field(pattern=stable_id_pattern("technology"))]
 CorporateRole = Annotated[
     str,
     Field(
@@ -22,6 +26,7 @@ CorporateRole = Annotated[
     ),
 ]
 CorporateState = Literal["active", "suspended"]
+JobTitleState = Literal["current", "retired"]
 ProjectState = Literal["active", "archived"]
 ProjectLifecycle = Literal["active", "deprecated", "archived", "deleted"]
 ScopeKind = Literal[
@@ -34,7 +39,7 @@ class CorporateCatalogAssignmentRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
-    subject_kind: Literal["employee", "team", "project"]
+    subject_kind: Literal["employee", "team", "project", "technology"]
     subject_id: Annotated[str, Field(min_length=1, max_length=64)]
     object_kind: Literal["setup", "component"]
     stable_id: Annotated[str, Field(min_length=1, max_length=64)]
@@ -46,9 +51,12 @@ class CorporateCatalogAssignmentRequest(BaseModel):
 
     @model_validator(mode="after")
     def typed_coordinates(self) -> Self:
-        subject_prefix = {"employee": "account", "team": "operation", "project": "remote_project"}[
-            self.subject_kind
-        ]
+        subject_prefix = {
+            "employee": "account",
+            "team": "operation",
+            "project": "remote_project",
+            "technology": "technology",
+        }[self.subject_kind]
         subject_pattern = stable_id_pattern(subject_prefix)
         if not re.fullmatch(subject_pattern, self.subject_id):
             raise ValueError("subject identity does not match its kind")
@@ -64,7 +72,7 @@ class CorporateCatalogAssignment(BaseModel):
     schema_version: Literal[1] = 1
     assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
     organization_id: OrganizationId
-    subject_kind: Literal["employee", "team", "project"]
+    subject_kind: Literal["employee", "team", "project", "technology"]
     subject_id: str
     object_kind: Literal["setup", "component"]
     stable_id: str
@@ -75,9 +83,21 @@ class CorporateCatalogAssignment(BaseModel):
     display_name: str | None = None
 
 
+class CorporateTeamCatalogObject(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    object_kind: Literal["setup", "component"]
+    stable_id: str
+    version: str | None = None
+    relation: Literal["owner", "maintainer"]
+    state: str
+    revision: Annotated[int, Field(ge=1)]
+
+
 class CorporateCatalogAssignmentQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
-    subject_kind: Literal["employee", "team", "project"]
+    subject_kind: Literal["employee", "team", "project", "technology"]
     subject_id: Annotated[str, Field(min_length=1, max_length=64)]
     include_retired: bool = False
     offset: Annotated[int, Field(ge=0)] = 0
@@ -88,6 +108,43 @@ class CorporateCatalogAssignmentList(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: list[CorporateCatalogAssignment]
+    total: Annotated[int, Field(ge=0)]
+
+
+class CorporateCatalogUsageQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    object_kind: Literal["setup", "component"]
+    stable_id: Annotated[str, Field(min_length=1, max_length=64)]
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    offset: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=256)] = 128
+
+    @model_validator(mode="after")
+    def typed_catalog_identity(self) -> Self:
+        if not re.fullmatch(stable_id_pattern(self.object_kind), self.stable_id):
+            raise ValueError("catalog identity does not match its kind")
+        return self
+
+
+class CorporateCatalogUsage(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
+    object_kind: Literal["setup", "component"]
+    stable_id: str
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    subject_kind: Literal["employee", "team", "project", "technology"]
+    subject_id: str
+    subject_name: str
+    source: Literal["direct", "effective"]
+    source_team_id: Annotated[str, Field(pattern=stable_id_pattern("operation"))] | None = None
+
+
+class CorporateCatalogUsageList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: list[CorporateCatalogUsage]
     total: Annotated[int, Field(ge=0)]
 
 
@@ -115,6 +172,8 @@ class CorporateMemberCreateRequest(BaseModel):
     email: Annotated[str | None, Field(min_length=3, max_length=320)] = None
     display_name: Annotated[str, Field(min_length=1, max_length=80)]
     role: CorporateRole
+    team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
+    job_title_id: JobTitleId | None = None
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
 
@@ -145,6 +204,7 @@ class CorporateMemberUpdateRequest(BaseModel):
     schema_version: Literal[1] = 1
     role: CorporateRole
     state: CorporateState
+    job_title_id: JobTitleId | None = None
     expected_revision: Annotated[int, Field(ge=1)]
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
@@ -172,12 +232,52 @@ class CorporateMember(BaseModel):
     role: CorporateRole
     state: CorporateState
     revision: Annotated[int, Field(ge=1)]
+    job_title_id: JobTitleId | None = None
+    job_title_name: str | None = None
 
 
 class CorporateMemberList(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
     schema_version: Literal[1] = 1
     items: Annotated[list[CorporateMember], Field(max_length=256)]
+
+
+class CorporateJobTitleCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    name: Annotated[str, Field(min_length=1, max_length=120)]
+    description: Annotated[str, Field(max_length=2000)] = ""
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateJobTitleUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    name: Annotated[str, Field(min_length=1, max_length=120)]
+    description: Annotated[str, Field(max_length=2000)] = ""
+    state: JobTitleState
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateJobTitleView(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    job_title_id: JobTitleId
+    organization_id: OrganizationId
+    name: str
+    normalized_name: str
+    description: str = ""
+    state: JobTitleState
+    revision: Annotated[int, Field(ge=1)]
+
+
+class CorporateJobTitleList(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    items: Annotated[list[CorporateJobTitleView], Field(max_length=256)]
 
 
 class CorporateBindingRequest(BaseModel):
@@ -262,6 +362,11 @@ class CorporateProjectCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
+    description: Annotated[str, Field(max_length=2000)] = ""
+    owner_team_id: TeamId | None = None
+    technology_ids: Annotated[list[TechnologyId], Field(max_length=64)] = Field(
+        default_factory=list
+    )
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
 
@@ -326,6 +431,12 @@ class CorporateTeamCreateRequest(BaseModel):
     schema_version: Literal[1] = 1
     name: Annotated[str, Field(min_length=1, max_length=200)]
     description: Annotated[str, Field(max_length=2000)] = ""
+    lead_account_id: AccountId | None = None
+    employee_ids: Annotated[list[AccountId], Field(max_length=256)] = Field(default_factory=list)
+    project_ids: Annotated[list[ProjectId], Field(max_length=64)] = Field(default_factory=list)
+    technology_ids: Annotated[list[TechnologyId], Field(max_length=64)] = Field(
+        default_factory=list
+    )
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey
 
@@ -341,6 +452,17 @@ class CorporateTeamView(BaseModel):
     revision: Annotated[int, Field(ge=1)]
     members: Annotated[list[CorporateMember], Field(max_length=256)] = []
     lead_account_ids: Annotated[list[AccountId], Field(max_length=256)] = []
+    project_ids: Annotated[list[str], Field(max_length=256)] = []
+    technology_ids: Annotated[list[str], Field(max_length=256)] = []
+    assignments: Annotated[list[CorporateCatalogAssignment], Field(max_length=256)] = []
+    effective_assignments: Annotated[list[CorporateCatalogAssignment], Field(max_length=256)] = []
+    effective_permissions: Annotated[list[str], Field(max_length=256)] = []
+    available_actions: Annotated[list[str], Field(max_length=128)] = []
+    governance_history: Annotated[list[dict[str, object]], Field(max_length=256)] = []
+    owned_catalog_objects: Annotated[list[CorporateTeamCatalogObject], Field(max_length=256)] = []
+    maintained_catalog_objects: Annotated[
+        list[CorporateTeamCatalogObject], Field(max_length=256)
+    ] = []
 
 
 class CorporateTeamUpdateRequest(BaseModel):

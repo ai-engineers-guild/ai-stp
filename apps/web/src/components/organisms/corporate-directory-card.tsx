@@ -1,4 +1,7 @@
+"use client";
+
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
@@ -20,6 +23,7 @@ type Labels = {
   teams: string;
   projects: string;
   technologies: string;
+  categories: string;
   team: string;
   employee: string;
   author: string;
@@ -28,6 +32,9 @@ type Labels = {
   moreActions: string;
   unknownEmployee: string;
   notAvailable: string;
+  copyId?: string;
+  copyUrl?: string;
+  copied?: string;
 };
 
 const resourceIcons: Record<Exclude<DirectoryResource, "components">, IconName> = {
@@ -187,6 +194,57 @@ function CardFooter({
   );
 }
 
+function DirectoryActions({
+  item,
+  href,
+  labels,
+}: {
+  item: DirectoryItem;
+  href: string;
+  labels: Labels;
+}) {
+  async function copy(value: string) {
+    await navigator.clipboard.writeText(value);
+    toast.success(labels.copied ?? "Copied");
+  }
+  return (
+    <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger asChild>
+        <Button variant="ghost" size="icon" aria-label={labels.moreActions}>
+          <Icon name="moreVertical" size="sm" />
+        </Button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={4}
+          className="border-border bg-popover text-popover-foreground z-50 min-w-48 rounded-lg border p-1 shadow-md"
+        >
+          <DropdownMenu.Item
+            className="hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
+            onSelect={() => {
+              const locale = window.location.pathname.match(/^\/(en|ru)(?=\/|$)/)?.[1] ?? "ru";
+              void copy(`${window.location.origin}/${locale}${href}`);
+            }}
+          >
+            <Icon name="link" size="sm" />
+            {labels.copyUrl ?? "Copy URL"}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
+            onSelect={() => {
+              void copy(item.id);
+            }}
+          >
+            <Icon name="copy" size="sm" />
+            {labels.copyId ?? "Copy ID"}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
 export function CorporateDirectoryCard({
   resource,
   item,
@@ -204,7 +262,7 @@ export function CorporateDirectoryCard({
   const references = primaryReferences(resource, item);
   const technologyRelations =
     resource === "technologies" ? (
-      <div className="border-border mt-5 grid min-w-0 gap-4 border-t pt-4 sm:grid-cols-3">
+      <div className="border-border mt-5 grid min-w-0 gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-4">
         <RelationColumn
           icon="user"
           label={labels.owner}
@@ -221,6 +279,12 @@ export function CorporateDirectoryCard({
           icon="team"
           label={labels.teams}
           references={item.teams ?? []}
+          returnFilters={returnFilters}
+        />
+        <RelationColumn
+          icon="controls"
+          label={labels.categories}
+          references={item.categories ?? []}
           returnFilters={returnFilters}
         />
       </div>
@@ -252,8 +316,11 @@ export function CorporateDirectoryCard({
                 </Badge>
               ) : null}
             </div>
-            {resource === "members" && item.role ? (
-              <p className="text-muted-foreground mt-1 text-sm">{item.role}</p>
+            {resource === "members" && (item.job_title || item.role) ? (
+              <p className="text-muted-foreground mt-1 text-sm">
+                {item.job_title?.name ?? item.role}
+                {item.job_title && item.role ? ` · ${item.role}` : ""}
+              </p>
             ) : null}
             {references.length ? (
               <div className="mt-4 flex min-w-0 flex-wrap gap-2">
@@ -280,24 +347,7 @@ export function CorporateDirectoryCard({
           </div>
         </div>
         <div className="absolute top-5 right-5 flex items-center gap-3">
-          <DropdownMenu.Root modal={false}>
-            <DropdownMenu.Trigger asChild>
-              <Button variant="ghost" size="icon" aria-label={`${labels.moreActions}: ${title}`}>
-                <Icon name="moreVertical" size="sm" />
-              </Button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                align="end"
-                sideOffset={4}
-                className="border-border bg-popover text-popover-foreground z-50 rounded-lg border p-2 shadow-md"
-              >
-                <DropdownMenu.Item disabled className="text-muted-foreground px-3 py-2 text-sm">
-                  {labels.moreActions}
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
+          <DirectoryActions item={item} href={href} labels={labels} />
         </div>
         <CardFooter resource={resource} item={item} labels={labels} returnFilters={returnFilters} />
       </article>

@@ -9,11 +9,11 @@ import { UI } from "@/lib/ui-selectors";
 const organization = [
   { key: "projects", href: "/corporate/projects" },
   { key: "teams", href: "/corporate/teams" },
-  { key: "employees", href: "/corporate/members" },
+  { key: "employees", href: "/corporate/employees" },
   { key: "technologies", href: "/corporate/technologies" },
 ] as const;
 const landscape = [
-  { key: "components", href: "/corporate/components" },
+  { key: "components", href: "/corporate/catalog" },
   { key: "technologies", href: "/corporate/technology-landscape" },
   { key: "categories", href: "/corporate/categories" },
 ] as const;
@@ -22,11 +22,9 @@ export function CorporateHubNavigation({ capabilities }: { capabilities: readonl
   const t = useTranslations("hub");
   const path = usePathname();
   if (path === "/corporate" || path === "/corporate/overview") return null;
-  const inLandscape = /\/corporate\/(components|categories|technology-landscape)(?:\/|$)/.test(
-    path,
-  );
+  const inLandscape = /\/corporate\/(catalog|categories|technology-landscape)(?:\/|$)/.test(path);
   const inOrganization =
-    /\/corporate\/(organization|members|projects|teams|technologies)(?:\/|$)/.test(path);
+    /\/corporate\/(organization|employees|projects|teams|technologies)(?:\/|$)/.test(path);
   const activeSection =
     path === "/corporate/dashboard" ? "dashboard" : inLandscape ? "landscape" : "organization";
   if (

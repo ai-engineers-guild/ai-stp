@@ -1,13 +1,14 @@
 ---
 description: "ADR-0189: Independent tenant presentation and technology owner edit authority."
-last_verified: "2026-09-13"
+last_verified: "2026-09-18"
 ---
 
 # ADR-0189: Corporate entity profile authority
 
 ## Status
 
-Accepted.
+Accepted. Supplemented by ADR-0192; employee presentation remains membership content
+on the account-backed corporate employee projection.
 
 ## Context
 
@@ -33,3 +34,5 @@ use its current edit capability; writes use its revision rather than legacy enti
 revisions. Migration is additive; application rollback retains all new data.
 SPEC-084 owns wire behavior. Gallery uploads reuse processed asset records and
 byte delivery, with incumbent media validation and bounded video normalization.
+Read views render owner and presentation facts without embedding mutation controls;
+authorized editing is entered through the shared available-action policy in SPEC-086.

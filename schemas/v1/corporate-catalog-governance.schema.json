@@ -1,0 +1,562 @@
+{
+  "$defs": {
+    "CorporateAuditEntry": {
+      "additionalProperties": true,
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "actor_account_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Actor Account Id"
+        },
+        "actor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Actor Id"
+        },
+        "actor_type": {
+          "enum": [
+            "user",
+            "service_principal",
+            "system"
+          ],
+          "title": "Actor Type",
+          "type": "string"
+        },
+        "audit_id": {
+          "title": "Audit Id",
+          "type": "integer"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "effective_role_bindings": {
+          "items": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": "Effective Role Bindings",
+          "type": "array"
+        },
+        "outcome": {
+          "enum": [
+            "succeeded",
+            "denied",
+            "failed"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_table": {
+          "title": "Target Table",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "actor_account_id",
+        "actor_id",
+        "actor_type",
+        "audit_id",
+        "created_at",
+        "effective_role_bindings",
+        "outcome",
+        "payload",
+        "reason",
+        "request_id",
+        "schema_version",
+        "target_id",
+        "target_table"
+      ],
+      "title": "CorporateAuditEntry",
+      "type": "object"
+    },
+    "CorporateCatalogLifecycle": {
+      "additionalProperties": true,
+      "properties": {
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "visible",
+            "hidden",
+            "deprecated",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_kind",
+        "organization_id",
+        "reason",
+        "revision",
+        "schema_version",
+        "stable_id",
+        "state",
+        "version"
+      ],
+      "title": "CorporateCatalogLifecycle",
+      "type": "object"
+    },
+    "CorporateCatalogMaintainer": {
+      "additionalProperties": true,
+      "properties": {
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "subject_id": {
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_kind": {
+          "enum": [
+            "employee",
+            "team"
+          ],
+          "title": "Subject Kind",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_kind",
+        "organization_id",
+        "reason",
+        "revision",
+        "schema_version",
+        "stable_id",
+        "state",
+        "subject_id",
+        "subject_kind",
+        "version"
+      ],
+      "title": "CorporateCatalogMaintainer",
+      "type": "object"
+    },
+    "CorporateCatalogOwnership": {
+      "additionalProperties": true,
+      "properties": {
+        "can_edit": {
+          "title": "Can Edit",
+          "type": "boolean"
+        },
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "owner_account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Owner Account Id"
+        },
+        "owner_display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Owner Display Name"
+        },
+        "owner_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Owner Id"
+        },
+        "owner_kind": {
+          "default": "employee",
+          "enum": [
+            "organization",
+            "team",
+            "project",
+            "technology",
+            "employee"
+          ],
+          "title": "Owner Kind",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "can_edit",
+        "object_kind",
+        "organization_id",
+        "owner_account_id",
+        "owner_display_name",
+        "owner_id",
+        "owner_kind",
+        "revision",
+        "schema_version",
+        "stable_id"
+      ],
+      "title": "CorporateCatalogOwnership",
+      "type": "object"
+    },
+    "CorporateCatalogVerification": {
+      "additionalProperties": true,
+      "properties": {
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "organization_id": {
+          "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "verified",
+            "revoked"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "verified_by_account_id": {
+          "anyOf": [
+            {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verified By Account Id"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_kind",
+        "organization_id",
+        "reason",
+        "revision",
+        "schema_version",
+        "stable_id",
+        "state",
+        "verified_by_account_id",
+        "version"
+      ],
+      "title": "CorporateCatalogVerification",
+      "type": "object"
+    },
+    "Timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-catalog-governance",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "available_actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Available Actions",
+      "type": "array"
+    },
+    "history": {
+      "items": {
+        "$ref": "#/$defs/CorporateAuditEntry"
+      },
+      "title": "History",
+      "type": "array"
+    },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CorporateCatalogLifecycle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "maintainers": {
+      "items": {
+        "$ref": "#/$defs/CorporateCatalogMaintainer"
+      },
+      "title": "Maintainers",
+      "type": "array"
+    },
+    "object_kind": {
+      "enum": [
+        "setup",
+        "component"
+      ],
+      "title": "Object Kind",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "ownership": {
+      "$ref": "#/$defs/CorporateCatalogOwnership"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "verification": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CorporateCatalogVerification"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "available_actions",
+    "history",
+    "lifecycle",
+    "maintainers",
+    "object_kind",
+    "organization_id",
+    "ownership",
+    "schema_version",
+    "stable_id",
+    "verification",
+    "version"
+  ],
+  "title": "CorporateCatalogGovernanceView",
+  "type": "object"
+}

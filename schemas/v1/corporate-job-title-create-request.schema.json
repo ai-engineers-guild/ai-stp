@@ -1,0 +1,46 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-job-title-create-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "description": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Description",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "name": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateJobTitleCreateRequest",
+  "type": "object"
+}

@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { readTechnologyDirectory } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
+import { safeCorporateQuery } from "@/lib/corporate-routes";
 
 export default async function TechnologyRegistryPage({
   params,
@@ -25,9 +26,27 @@ export default async function TechnologyRegistryPage({
   const filters = await searchParams;
   const search = filters.query;
   const query = typeof search === "string" ? search : undefined;
+  const list = (key: string) => {
+    const value = filters[key];
+    return (Array.isArray(value) ? value : value ? [value] : [])
+      .flatMap((item) => item.split(","))
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+  const pageValue = Number(filters.page);
+  const pageSizeValue = Number(filters.page_size);
   let registry;
   try {
-    registry = await readTechnologyDirectory(session);
+    registry = await readTechnologyDirectory(session, {
+      ...(query ? { query } : {}),
+      team_ids: list("team_ids"),
+      project_ids: list("project_ids"),
+      category_ids: list("category_ids"),
+      sort: filters.sort === "name_desc" ? "name_desc" : "name",
+      page: Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1,
+      pageSize:
+        Number.isInteger(pageSizeValue) && pageSizeValue > 0 ? Math.min(64, pageSizeValue) : 24,
+    });
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
     return (
@@ -64,6 +83,13 @@ export default async function TechnologyRegistryPage({
       canCreate={canCreate}
       roles={[]}
       initialQuery={query ?? ""}
+      filters={safeCorporateQuery(filters).slice(1)}
+      serverPaginated
+      pageNumber={directory.page}
+      pageSize={directory.pageSize}
+      total={directory.total}
+      facets={directory.facets}
+      paginationLabel={h("pagination")}
       customCreate={
         canCreate ? <TechnologyRegistryCreate kind="technology" {...mutation} /> : undefined
       }

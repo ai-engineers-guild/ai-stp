@@ -43,6 +43,30 @@
       ],
       "title": "Owner Display Name"
     },
+    "owner_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner Id"
+    },
+    "owner_kind": {
+      "default": "employee",
+      "enum": [
+        "organization",
+        "team",
+        "project",
+        "technology",
+        "employee"
+      ],
+      "title": "Owner Kind",
+      "type": "string"
+    },
     "revision": {
       "minimum": 0,
       "title": "Revision",
@@ -65,6 +89,8 @@
     "organization_id",
     "owner_account_id",
     "owner_display_name",
+    "owner_id",
+    "owner_kind",
     "revision",
     "schema_version",
     "stable_id"

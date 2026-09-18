@@ -18,6 +18,8 @@ const props = {
     account_id: "account_fixture",
     display_name: "Alice",
     role: "staff",
+    job_title_id: null,
+    job_title_name: null,
     state: "active" as const,
     revision: 4,
   },

@@ -228,7 +228,8 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
   {
     pattern: "corporate/:resource",
     resolve: async ({ segments }) => {
-      const resource = segments[1];
+      const requestedResource = segments[1];
+      const resource = requestedResource === "employees" ? "members" : requestedResource;
       if (resource !== "projects" && resource !== "teams" && resource !== "members") return null;
       const t = await getTranslations("hub");
       const directory = await readCorporateDirectory((await sessionCookieValue()) ?? "", resource);
@@ -237,7 +238,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
         links:
           directory?.items.map((item) => [
             item.name,
-            `/corporate/${resource}/${encodeURIComponent(item.id)}`,
+            `/corporate/${resource === "members" ? "employees" : resource}/${encodeURIComponent(item.id)}`,
           ]) ?? [],
       });
     },
@@ -247,7 +248,8 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
     resolve: async ({ segments }) => {
       const t = await getTranslations("corporate");
       const h = await getTranslations("hub");
-      const resource = segments[1];
+      const requestedResource = segments[1];
+      const resource = requestedResource === "employees" ? "members" : requestedResource;
       const resourceId = segments[2];
       if (
         !resourceId ||
@@ -310,7 +312,7 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
           title: member.display_name ?? t("member"),
           summary: t("memberDetailsBody"),
           fields: [[t("state"), member.state]],
-          links: [[backLabel, "/corporate/members"]],
+          links: [[backLabel, "/corporate/employees"]],
         });
       }
       if (resource === "roles" && workspace.role)
@@ -325,7 +327,8 @@ const ACCOUNT_ROUTES: MachineRoute[] = [
   {
     pattern: "corporate/:resource/:resourceId/edit",
     resolve: async ({ segments }) => {
-      const resource = segments[1];
+      const requestedResource = segments[1];
+      const resource = requestedResource === "employees" ? "members" : requestedResource;
       const resourceId = segments[2];
       if (
         !resourceId ||

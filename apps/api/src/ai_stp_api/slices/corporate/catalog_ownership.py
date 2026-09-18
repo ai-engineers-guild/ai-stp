@@ -1,6 +1,6 @@
 """Independent operational ownership, with a separately registered router."""
 
-from typing import Annotated
+from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
@@ -20,10 +20,17 @@ from ai_stp_contracts.corporate_catalog_ownership import (
 from ai_stp_platform.catalog_ownership_models import CorporateCatalogOwnership as OwnershipRow
 from ai_stp_platform.catalog_read import get_visible_metadata
 from ai_stp_platform.models import Account
-from ai_stp_platform.organization_models import OrganizationMembership
+from ai_stp_platform.organization_models import (
+    CorporateProject,
+    CorporateTeam,
+    Organization,
+    OrganizationMembership,
+)
+from ai_stp_platform.technology_models import Technology
 
 router = APIRouter(tags=["corporate"])
 PATH = "/corporate/organizations/{organization_id}/catalog-ownership"
+OwnerKind = Literal["organization", "team", "project", "technology", "employee"]
 
 
 async def _catalog(
@@ -54,24 +61,54 @@ async def _owner(
     ctx: AuthContext,
     organization_id: str,
     subject: CorporateCatalogOwnershipQuery,
-    account_id: str,
+    owner_kind: OwnerKind,
+    owner_id: str,
     request_id: str | None,
     can_edit: bool = False,
 ) -> str | None:
+    if owner_kind != "employee":
+        if owner_kind == "organization":
+            target = await db.scalar(
+                select(Organization).where(
+                    Organization.id == organization_id,
+                    Organization.id == owner_id,
+                    Organization.state == "active",
+                )
+            )
+        else:
+            model = {
+                "team": CorporateTeam,
+                "project": CorporateProject,
+                "technology": Technology,
+            }[owner_kind]
+            target = await db.scalar(
+                select(model).where(
+                    model.organization_id == organization_id,
+                    model.id == owner_id,
+                )
+            )
+        active = target is not None and (
+            getattr(target, "state", None) == "active"
+            or getattr(target, "lifecycle", None) in {"active", "deprecated"}
+        )
+        if not active:
+            raise ApiError(ErrorCategory.PERMISSION, "owner subject is unavailable")
+        await _catalog(db, subject, ctx.account_id)
+        return getattr(target, "display_name", None) or getattr(target, "name", owner_id)
     employee = None
     if not can_edit:
         employee = await service.read_member(
             db,
             ctx=ctx,
             organization_id=organization_id,
-            account_id=account_id,
+            account_id=owner_id,
             request_id=request_id,
         )
     member = await db.scalar(
         select(OrganizationMembership)
         .where(
             OrganizationMembership.organization_id == organization_id,
-            OrganizationMembership.account_id == account_id,
+            OrganizationMembership.account_id == owner_id,
             OrganizationMembership.state == "active",
         )
         .with_for_update()
@@ -79,10 +116,10 @@ async def _owner(
     )
     if member is None:
         raise ApiError(ErrorCategory.PERMISSION, "owner employee is unavailable")
-    await _catalog(db, subject, account_id)
+    await _catalog(db, subject, ctx.account_id)
     if employee is not None:
         return employee.display_name
-    account = await db.get(Account, account_id)
+    account = await db.get(Account, owner_id)
     if account is None:
         raise ApiError(ErrorCategory.PERMISSION, "owner employee is unavailable")
     return service.member_view(member, account).display_name
@@ -93,14 +130,20 @@ def _view(
     subject: CorporateCatalogOwnershipQuery,
     row: OwnershipRow | None,
     *,
+    owner_kind: OwnerKind,
+    owner_id: str | None,
     owner_display_name: str | None,
     can_edit: bool,
 ) -> CorporateCatalogOwnership:
     return CorporateCatalogOwnership(
         organization_id=organization_id,
         object_kind=subject.object_kind,
+        owner_kind=owner_kind,
+        owner_id=owner_id,
         stable_id=subject.stable_id,
-        owner_account_id=row.owner_account_id if row else None,
+        owner_account_id=(
+            row.owner_account_id if row else owner_id if owner_kind == "employee" else None
+        ),
         revision=row.revision if row else 0,
         owner_display_name=owner_display_name,
         can_edit=can_edit,
@@ -129,18 +172,27 @@ async def read_ownership(
     )
     row = await db.get(OwnershipRow, (organization_id, subject.object_kind, subject.stable_id))
     owner_display_name = None
-    if row is not None and row.owner_account_id is not None:
+    owner_kind = cast(OwnerKind, row.owner_kind) if row is not None else "employee"
+    owner_id = (row.owner_id or row.owner_account_id) if row is not None else None
+    if owner_id is not None:
         owner_display_name = await _owner(
             db,
             ctx=ctx,
             organization_id=organization_id,
             subject=subject,
-            account_id=row.owner_account_id,
+            owner_kind=owner_kind,
+            owner_id=owner_id,
             request_id=request_id,
             can_edit=can_edit,
         )
     return _view(
-        organization_id, subject, row, owner_display_name=owner_display_name, can_edit=can_edit
+        organization_id,
+        subject,
+        row,
+        owner_kind=owner_kind,
+        owner_id=owner_id,
+        owner_display_name=owner_display_name,
+        can_edit=can_edit,
     )
 
 
@@ -169,14 +221,17 @@ async def write_ownership(
         request_id=request_id,
     )
     await _catalog(db, payload, ctx.account_id)
+    owner_kind = payload.owner_kind
+    owner_id = payload.owner_id or payload.owner_account_id
     owner_display_name = None
-    if payload.owner_account_id is not None:
+    if owner_id is not None:
         owner_display_name = await _owner(
             db,
             ctx=ctx,
             organization_id=organization_id,
             subject=payload,
-            account_id=payload.owner_account_id,
+            owner_kind=owner_kind,
+            owner_id=owner_id,
             request_id=request_id,
             can_edit=True,
         )
@@ -192,16 +247,26 @@ async def write_ownership(
             organization_id=organization_id,
             object_kind=payload.object_kind,
             stable_id=payload.stable_id,
-            owner_account_id=payload.owner_account_id,
+            owner_account_id=owner_id if owner_kind == "employee" else None,
+            owner_kind=owner_kind,
+            owner_id=owner_id,
             revision=1,
         )
         db.add(row)
     else:
-        row.owner_account_id = payload.owner_account_id
+        row.owner_kind = owner_kind
+        row.owner_id = owner_id
+        row.owner_account_id = owner_id if owner_kind == "employee" else None
         row.revision += 1
     await db.flush()
     response = _view(
-        organization_id, payload, row, owner_display_name=owner_display_name, can_edit=True
+        organization_id,
+        payload,
+        row,
+        owner_kind=owner_kind,
+        owner_id=owner_id,
+        owner_display_name=owner_display_name,
+        can_edit=True,
     )
     await service.store_mutation_receipt(
         db,
@@ -221,7 +286,8 @@ async def write_ownership(
         request_id=request_id,
         payload={
             "object_kind": payload.object_kind,
-            "owner_account_id": payload.owner_account_id,
+            "owner_kind": owner_kind,
+            "owner_id": owner_id,
             "revision": row.revision,
         },
     )

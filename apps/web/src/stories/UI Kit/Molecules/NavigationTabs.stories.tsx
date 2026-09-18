@@ -5,7 +5,7 @@ import { NavigationTabs } from "@/components/molecules/navigation-tabs";
 const organizationTabs = [
   { key: "projects", href: "/corporate/projects", label: "Projects", active: true },
   { key: "teams", href: "/corporate/teams", label: "Teams", active: false },
-  { key: "employees", href: "/corporate/members", label: "Employees", active: false },
+  { key: "employees", href: "/corporate/employees", label: "Employees", active: false },
   {
     key: "technologies",
     href: "/corporate/technologies",

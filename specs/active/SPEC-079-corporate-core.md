@@ -1,6 +1,6 @@
 ---
 description: "SPEC-079: Corporate bootstrap, scoped RBAC, tenant isolation, and audit journal."
-last_verified: "2026-09-12"
+last_verified: "2026-09-18"
 ---
 
 # SPEC-079: Corporate core
@@ -129,6 +129,10 @@ are follow-up scope.
 - `REQ-7914`: Bootstrap, authorization, tenant ownership, and audit behavior is
   available through the generated `/v1` contract and uses stable error categories and
   idempotency keys.
+- `REQ-7922`: Organization-governed job titles classify employee memberships without
+  changing account identity, organization RBAC role, team role, competence, or access.
+  Job-title administration and employee filtering follow SPEC-086; authorization,
+  revision, idempotency, audit, and tenant isolation follow this specification.
 
 ## States and errors
 
@@ -197,6 +201,7 @@ stored with PostgreSQL microsecond precision.
 | `REQ-7912` | Append-only, pagination, access-control, self-audit, and forbidden-field tests pass. |
 | `REQ-7913` | API and Web tests expose only effective implemented capabilities and reject forged or stale mutations. |
 | `REQ-7914` | OpenAPI drift, generated-client, contract-lint, and stable-error tests pass. |
+| `REQ-7922` | Job-title API and PostgreSQL tests prove administrator-only mutation, same-tenant uniqueness, role independence, retirement behavior, audit, and non-enumeration. |
 
 ## Team hierarchy (#204)
 

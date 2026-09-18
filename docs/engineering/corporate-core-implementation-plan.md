@@ -1,9 +1,13 @@
 ---
 description: "Implementation and verification sequence for B2B-01 Corporate core."
-last_verified: "2026-09-12"
+last_verified: "2026-09-18"
 ---
 
 # Corporate core implementation plan
+
+Status: completed foundation. Corporate workspace consolidation continues in
+`corporate-workspace-consolidation-plan.md`; this record remains the historical
+delivery contract for B2B-01 and is not an active execution queue.
 
 ## Objective
 

@@ -58,6 +58,15 @@ def filter_signature(
     family_id: str | None = None,
     family_alignment: str | None = None,
     member_harness_id: str | None = None,
+    organization_id: str | None = None,
+    team_ids: list[str] | None = None,
+    project_ids: list[str] | None = None,
+    technology_ids: list[str] | None = None,
+    category_ids: list[str] | None = None,
+    owner_ids: list[str] | None = None,
+    maintainer_ids: list[str] | None = None,
+    assignment: str | None = None,
+    corporate_verified: bool | None = None,
 ) -> str:
     """Hash the active filter so a cursor cannot migrate across queries."""
     payload = {
@@ -93,6 +102,23 @@ def filter_signature(
         payload["family_alignment"] = family_alignment
     if member_harness_id:
         payload["member_harness_id"] = member_harness_id
+    if organization_id:
+        payload["organization_id"] = organization_id
+    for name, values in (
+        ("team_ids", team_ids),
+        ("project_ids", project_ids),
+        ("technology_ids", technology_ids),
+        ("category_ids", category_ids),
+        ("owner_ids", owner_ids),
+        ("maintainer_ids", maintainer_ids),
+    ):
+        normalized = unique_sorted(values or [])
+        if normalized:
+            payload[name] = normalized
+    if assignment:
+        payload["assignment"] = assignment
+    if corporate_verified is not None:
+        payload["corporate_verified"] = corporate_verified
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()[:32]
 

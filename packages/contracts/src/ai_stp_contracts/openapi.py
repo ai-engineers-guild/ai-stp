@@ -120,9 +120,16 @@ from ai_stp_contracts.corporate import (
     CorporateCatalogAssignmentList,
     CorporateCatalogAssignmentQuery,
     CorporateCatalogAssignmentRequest,
+    CorporateCatalogUsage,
+    CorporateCatalogUsageList,
+    CorporateCatalogUsageQuery,
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateJobTitleCreateRequest,
+    CorporateJobTitleList,
+    CorporateJobTitleUpdateRequest,
+    CorporateJobTitleView,
     CorporateMember,
     CorporateMemberCreateRequest,
     CorporateMemberList,
@@ -156,6 +163,17 @@ from ai_stp_contracts.corporate_catalog_ownership import (
     CorporateCatalogOwnershipRequest,
 )
 from ai_stp_contracts.corporate_directory import CorporateDirectoryQuery, CorporateDirectoryView
+from ai_stp_contracts.corporate_governance import (
+    CorporateCatalogGovernanceQuery,
+    CorporateCatalogGovernanceView,
+    CorporateCatalogLifecycle,
+    CorporateCatalogLifecycleRequest,
+    CorporateCatalogMaintainer,
+    CorporateCatalogMaintainerRequest,
+    CorporateCatalogVerification,
+    CorporateCatalogVerificationRequest,
+    CorporatePermissionMatrix,
+)
 from ai_stp_contracts.corporate_profiles import (
     EntityProfileUploadQuery,
     EntityProfileUploadResponse,
@@ -445,6 +463,11 @@ _ACCOUNT_ID = PathParam(
     description="Typed account identifier.",
     pattern=stable_id_pattern("account"),
 )
+_JOB_TITLE_ID = PathParam(
+    name="job_title_id",
+    description="Typed corporate job title identifier.",
+    pattern=stable_id_pattern("job_title"),
+)
 _CORPORATE_PROJECT_ID = PathParam(
     name="project_id",
     description="Typed corporate project identifier.",
@@ -480,6 +503,15 @@ _TECHNOLOGY_ID = PathParam(
     "technology_id", "Stable technology ID.", stable_id_pattern("technology")
 )
 _CATEGORY_ID = PathParam("category_id", "Stable category ID.", stable_id_pattern("category"))
+_CATALOG_OBJECT_KIND = PathParam(
+    "object_kind", "Published catalog object kind.", "^(setup|component)$"
+)
+_CATALOG_STABLE_ID = PathParam(
+    "stable_id",
+    "Stable published catalog object identifier.",
+    r"^(?:setup|component)_[0-9A-HJKMNP-TV-Z]{26}$",
+)
+_CATALOG_VERSION = PathParam("version", "Exact published catalog version.", VERSION_PATTERN)
 
 OPERATIONS: Final[tuple[Operation, ...]] = (
     Operation(
@@ -502,6 +534,58 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
         idempotent_mutation=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/catalog-governance/{object_kind}/{stable_id}/versions/{version}",
+        operation_id="readCorporateCatalogGovernance",
+        summary="Read consolidated tenant governance for one exact catalog version.",
+        response=CorporateCatalogGovernanceView,
+        query=CorporateCatalogGovernanceQuery,
+        path_params=(_ORGANIZATION_ID, _CATALOG_OBJECT_KIND, _CATALOG_STABLE_ID, _CATALOG_VERSION),
+        authenticated=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/catalog-governance/maintainers",
+        operation_id="writeCorporateCatalogMaintainer",
+        summary="Add or retire a maintainer for an exact published catalog version.",
+        response=CorporateCatalogMaintainer,
+        body=CorporateCatalogMaintainerRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/catalog-governance/verification",
+        operation_id="writeCorporateCatalogVerification",
+        summary="Verify or revoke one exact catalog version for the tenant.",
+        response=CorporateCatalogVerification,
+        body=CorporateCatalogVerificationRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="put",
+        path="/corporate/organizations/{organization_id}/catalog-governance/lifecycle",
+        operation_id="writeCorporateCatalogLifecycle",
+        summary="Change tenant visibility or lifecycle for an exact catalog version.",
+        response=CorporateCatalogLifecycle,
+        body=CorporateCatalogLifecycleRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/permissions/matrix",
+        operation_id="readCorporatePermissionMatrix",
+        summary="Read effective corporate permissions and their binding sources.",
+        response=CorporatePermissionMatrix,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
     ),
     Operation(
         method="post",
@@ -618,6 +702,38 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         response=CategoryView,
         body=TechnologyMutation,
         path_params=(_ORGANIZATION_ID, _CATEGORY_ID),
+        authenticated=True,
+        idempotent_mutation=True,
+        requires_precondition=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/job-titles",
+        operation_id="createCorporateJobTitle",
+        summary="Create an organization job title.",
+        response=CorporateJobTitleView,
+        body=CorporateJobTitleCreateRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/job-titles",
+        operation_id="listCorporateJobTitles",
+        summary="List organization job titles.",
+        response=CorporateJobTitleList,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="patch",
+        path="/corporate/organizations/{organization_id}/job-titles/{job_title_id}",
+        operation_id="updateCorporateJobTitle",
+        summary="Update or retire an organization job title.",
+        response=CorporateJobTitleView,
+        body=CorporateJobTitleUpdateRequest,
+        path_params=(_ORGANIZATION_ID, _JOB_TITLE_ID),
         authenticated=True,
         idempotent_mutation=True,
         requires_precondition=True,
@@ -1252,6 +1368,18 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         summary="Read direct and team-derived assignments visible to the caller.",
         response=CorporateCatalogAssignmentList,
         query=CorporateCatalogAssignmentQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/catalog-usage",
+        operation_id="listCorporateCatalogUsage",
+        summary=(
+            "Read authorized direct and effective organization usage for an exact catalog version."
+        ),
+        response=CorporateCatalogUsageList,
+        query=CorporateCatalogUsageQuery,
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
     ),
@@ -2950,6 +3078,7 @@ NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
     ProjectLinkProposalRequest,
     ProviderProjectObservationRequest,
     CorporateAuditEntry,
+    CorporateCatalogUsage,
 )
 
 

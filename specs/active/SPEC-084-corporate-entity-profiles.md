@@ -1,9 +1,12 @@
 ---
 description: "SPEC-084: Persistent tenant presentation and independent technology ownership."
-last_verified: "2026-09-13"
+last_verified: "2026-09-18"
 ---
 
 # SPEC-084: Corporate entity profiles
+
+SPEC-086 and ADR-0192 reuse this presentation authority in one account-backed employee
+detail. They do not introduce a separate employee identity or broaden edit authority.
 
 ## Purpose
 

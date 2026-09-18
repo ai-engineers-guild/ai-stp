@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -19,6 +19,7 @@ import { readCorporateResource, readCorporateCatalogAssignments } from "@/lib/ap
 import { readProjectTechnologyDetail, readTeamProjects } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
+import { safeCorporateQuery } from "@/lib/corporate-routes";
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string; resourceId: string }>;
@@ -27,8 +28,14 @@ type PageProps = {
 
 // eslint-disable-next-line complexity, max-lines-per-function
 export default async function CorporateResourcePage({ params, searchParams }: PageProps) {
-  const { locale, resource, resourceId } = await params;
+  const { locale, resource: rawResource, resourceId } = await params;
   const filters = await searchParams;
+  if (rawResource === "members") {
+    permanentRedirect(
+      `/${locale}/corporate/employees/${encodeURIComponent(resourceId)}${safeCorporateQuery(filters)}`,
+    );
+  }
+  const resource = rawResource === "employees" ? "members" : rawResource;
   const directoryQuery = new URLSearchParams({
     ...(typeof filters.query === "string" ? { query: filters.query } : {}),
     ...(typeof filters.status === "string" ? { status: filters.status } : {}),
@@ -266,7 +273,9 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         resource={resource === "roles" ? "teams" : resource}
         resourceId={resourceId}
         title={detail.name}
-        state={detail.role ?? detail.state}
+        {...(detail.role || detail.state !== "active"
+          ? { state: detail.role ?? detail.state }
+          : {})}
       >
         {resource === "teams" && team ? (
           <>
@@ -320,7 +329,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
             labels={corporateEmployeeDetailLabels(t)}
           />
         ) : null}
-        {assignments && subjectKind && resource !== "members" && (
+        {assignments && subjectKind && (
           <CorporateCatalogAssignments
             items={assignments.items}
             organizationId={workspace.organization.organization_id}
@@ -328,7 +337,30 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
             subjectId={resourceId}
             authorizationRevision={workspace.organization.authorization_revision}
             csrfToken={(await readCsrfToken()) ?? ""}
-            canManage={false}
+            canManage={
+              resource === "teams"
+                ? Boolean(team?.available_actions.includes("assignment.manage"))
+                : workspace.context.capabilities.includes("catalog_object.assign")
+            }
+          />
+        )}
+        {(resource === "members" || resource === "projects" || resource === "teams") && (
+          <LocalizedResourceActions
+            csrfToken={(await readCsrfToken()) ?? ""}
+            organizationId={workspace.context.organization.organization_id}
+            authorizationRevision={workspace.context.organization.authorization_revision}
+            resource={resource}
+            resourceId={detail.id}
+            name={detail.name}
+            {...(workspace.roles ? { roles: workspace.roles.items } : {})}
+            availableActions={
+              resource === "teams"
+                ? (team?.available_actions ?? [])
+                : workspace.context.capabilities
+            }
+            state={detail.state}
+            revision={detail.revision}
+            permissions={workspace.context.capabilities}
           />
         )}
         {resource === "roles" && (

@@ -62,7 +62,8 @@
       "enum": [
         "employee",
         "team",
-        "project"
+        "project",
+        "technology"
       ],
       "title": "Subject Kind",
       "type": "string"

@@ -46,6 +46,7 @@ export function CorporateEntityDetail({
   const objects = useTranslations("objects");
   const access = useTranslations("access");
   const corporate = useTranslations("corporate");
+  const cli = useTranslations("cli");
   type RelationRef = CorporatePresentation["teams"][number];
   const relations: readonly (readonly [string, readonly RelationRef[]])[] = presentation
     ? [
@@ -168,6 +169,8 @@ export function CorporateEntityDetail({
             emptyLabel={h("notAvailable")}
             contextBudgetLabel={catalog("contextBudgetTitle")}
             contextBudgetUnavailable={catalog("contextBudgetError")}
+            cliTitle={cli("useTitle")}
+            cliUnavailable={cli("cliUnavailable")}
           >
             {rail}
           </CorporateIdentityRail>
@@ -228,6 +231,8 @@ function CorporateIdentityRail({
   emptyLabel,
   contextBudgetLabel,
   contextBudgetUnavailable,
+  cliTitle,
+  cliUnavailable,
   children,
 }: {
   presentation: CorporatePresentation | null;
@@ -238,6 +243,8 @@ function CorporateIdentityRail({
   emptyLabel: string;
   contextBudgetLabel: string;
   contextBudgetUnavailable: string;
+  cliTitle: string;
+  cliUnavailable: string;
   children?: ReactNode;
 }) {
   const subjects =
@@ -277,6 +284,9 @@ function CorporateIdentityRail({
           </section>
           <DetailAccordion title={contextBudgetLabel} summary={contextBudgetUnavailable}>
             <p className="text-muted-foreground text-sm">{contextBudgetUnavailable}</p>
+          </DetailAccordion>
+          <DetailAccordion title={cliTitle} summary={cliUnavailable}>
+            <p className="text-muted-foreground text-sm">{cliUnavailable}</p>
           </DetailAccordion>
           {presentation.links.length ? (
             <ul className="border-border bg-card space-y-2 rounded-lg border p-5">

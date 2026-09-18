@@ -11,6 +11,14 @@
           "title": "Categories",
           "type": "array"
         },
+        "job_titles": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateDirectoryReference"
+          },
+          "title": "Job Titles",
+          "type": "array"
+        },
         "leads": {
           "items": {
             "$ref": "#/$defs/CorporateDirectoryReference"
@@ -43,6 +51,7 @@
       },
       "required": [
         "categories",
+        "job_titles",
         "leads",
         "projects",
         "teams",
@@ -54,6 +63,15 @@
     "CorporateDirectoryItem": {
       "additionalProperties": true,
       "properties": {
+        "available_actions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Available Actions",
+          "type": "array"
+        },
         "categories": {
           "default": [],
           "items": {
@@ -79,13 +97,25 @@
           "title": "Is Lead",
           "type": "boolean"
         },
+        "job_title": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CorporateDirectoryReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "kind": {
           "enum": [
             "project",
             "team",
             "employee",
             "technology",
-            "category"
+            "category",
+            "job_title"
           ],
           "title": "Kind",
           "type": "string"
@@ -175,10 +205,12 @@
         }
       },
       "required": [
+        "available_actions",
         "categories",
         "description",
         "id",
         "is_lead",
+        "job_title",
         "kind",
         "leads",
         "name",
@@ -209,7 +241,8 @@
             "team",
             "employee",
             "technology",
-            "category"
+            "category",
+            "job_title"
           ],
           "title": "Kind",
           "type": "string"
@@ -292,6 +325,7 @@
         "projects",
         "teams",
         "members",
+        "employees",
         "technologies"
       ],
       "title": "Resource",

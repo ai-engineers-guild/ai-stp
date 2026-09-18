@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-vi.mock("@/lib/i18n/navigation", () => ({ Link: "a" }));
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("@/lib/i18n/navigation", () => ({ Link: "a", useRouter: () => ({ push }) }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 import {
   CorporateDirectoryResults,
@@ -8,6 +9,7 @@ import {
 } from "@/components/organisms/corporate-directory-results";
 describe("corporate directory filters", () => {
   beforeEach(() => {
+    push.mockClear();
     window.history.replaceState(null, "", "/en/corporate/projects");
   });
   const item = {
@@ -83,7 +85,7 @@ describe("corporate directory filters", () => {
     );
     expect(screen.getByRole("link", { name: "Agent Gateway" })).toHaveAttribute(
       "href",
-      "/catalog/components/agent-gateway?return_to=%2Fcorporate%2Fcomponents",
+      "/catalog/components/agent-gateway?return_to=%2Fcorporate%2Fcatalog",
     );
     expect(screen.getByText("skill")).toBeVisible();
     expect(screen.getByText("Ada Lovelace")).toBeVisible();
@@ -95,6 +97,33 @@ describe("corporate directory filters", () => {
     expect(screen.getByRole("button", { name: "resetAll" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "applyFilters" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("writes corporate catalog facets to the URL and router", () => {
+    window.history.replaceState(null, "", "/en/corporate/components?organization_id=org");
+    render(
+      <CorporateDirectoryResults
+        resource="components"
+        items={[]}
+        catalogFacets={[
+          {
+            key: "team_ids",
+            label: "catalogTeams",
+            options: [{ value: "team_mobile", label: "Mobile" }],
+          },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "catalogTeams" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Mobile" }));
+    const closeButton = screen.getAllByRole("button", { name: "closeFilters" }).at(-1);
+    if (!closeButton) throw new Error("catalog facet close button is missing");
+    fireEvent.click(closeButton);
+    fireEvent.click(screen.getByRole("button", { name: "applyFilters" }));
+    expect(push).toHaveBeenCalledWith(
+      "/en/corporate/components?organization_id=org&sort=name&team_ids=team_mobile",
+    );
   });
 
   it("renders technology ownership and usage in the shared directory card", () => {
