@@ -17,6 +17,7 @@ import type {
   DirectoryResource,
 } from "@/components/organisms/corporate-directory-types";
 import { useRouter } from "@/lib/i18n/navigation";
+import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
 const DIRECTORY_DESCRIPTION_KEYS = {
   projects: "browseProjects",
@@ -47,6 +48,14 @@ type Props = {
   customCreate?: ReactNode | undefined;
   catalogFacets?: readonly CorporateCatalogFacetConfig[];
   catalogFacetValues?: Partial<Record<CorporateCatalogFacet, string[]>>;
+  filters?: string;
+  serverPaginated?: boolean;
+  pageNumber?: number;
+  pageSize?: number;
+  total?: number;
+  paginationLabel?: string;
+  createHref?: string;
+  facets?: CorporateDirectoryFacets;
 };
 
 export function CorporateDirectory({
@@ -62,6 +71,14 @@ export function CorporateDirectory({
   customCreate,
   catalogFacets,
   catalogFacetValues,
+  filters,
+  serverPaginated = false,
+  pageNumber = 1,
+  pageSize = 24,
+  total,
+  paginationLabel,
+  createHref,
+  facets,
 }: Props) {
   const t = useTranslations("hub");
   const c = useTranslations("corporate");
@@ -132,15 +149,28 @@ export function CorporateDirectory({
         onAdd={
           showHeader && canCreate
             ? () => {
+                if (createHref) {
+                  router.push(createHref);
+                  return;
+                }
                 setAdding((open) => !open);
               }
             : undefined
         }
         {...(catalogFacets ? { catalogFacets } : {})}
         {...(catalogFacetValues ? { initialCatalogSelected: catalogFacetValues } : {})}
-        filters={new URLSearchParams({
-          ...(initialQuery ? { query: initialQuery } : {}),
-        }).toString()}
+        filters={
+          filters ??
+          new URLSearchParams({
+            ...(initialQuery ? { query: initialQuery } : {}),
+          }).toString()
+        }
+        serverPaginated={serverPaginated}
+        pageNumber={pageNumber}
+        pageSize={pageSize}
+        total={total}
+        paginationLabel={paginationLabel}
+        {...(facets ? { facets } : {})}
       />
       {adding && customCreate ? customCreate : null}
       {adding && !customCreate ? (

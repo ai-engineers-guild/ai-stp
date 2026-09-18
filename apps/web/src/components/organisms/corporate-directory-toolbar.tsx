@@ -19,6 +19,7 @@ import {
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
 } from "./corporate-directory-types";
+import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
 type Selected = Partial<Record<DirectoryFacet, string[]>>;
 
@@ -44,14 +45,20 @@ type Props = {
   cancelLabel?: string | undefined;
   adding?: boolean | undefined;
   onAdd?: (() => void) | undefined;
+  facets?: CorporateDirectoryFacets;
 };
 
-function optionsFor(items: readonly DirectoryItem[], facet: DirectoryFacet) {
+function optionsFor(
+  items: readonly DirectoryItem[],
+  facet: DirectoryFacet,
+  facets?: CorporateDirectoryFacets,
+) {
   return [
     ...new Map(
-      items
-        .flatMap((item) => directoryReferences(item, facet))
-        .map((ref) => [ref.id, { value: ref.id, label: ref.name }]),
+      [
+        ...(facets?.[facet] ?? []),
+        ...items.flatMap((item) => directoryReferences(item, facet)),
+      ].map((ref) => [ref.id, { value: ref.id, label: ref.name }]),
     ).values(),
   ];
 }
@@ -124,6 +131,7 @@ export function CorporateDirectoryToolbar({
   cancelLabel,
   adding = false,
   onAdd,
+  facets,
 }: Props) {
   const t = useTranslations("hub");
   const catalog = useTranslations("catalog");
@@ -238,7 +246,7 @@ export function CorporateDirectoryToolbar({
                   name={directoryFacetParams[facet]}
                   label={facet === "leads" ? t("teamLeads") : t(facet)}
                   searchLabel={`${t("search")}: ${facet === "leads" ? t("teamLeads") : t(facet)}`}
-                  options={optionsFor(items, facet)}
+                  options={optionsFor(items, facet, facets)}
                   selected={draftSelected[facet] ?? []}
                   modal
                   closeLabel={t("closeFilters")}

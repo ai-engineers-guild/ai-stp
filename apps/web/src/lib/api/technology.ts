@@ -1,6 +1,10 @@
 import { privateApiRequest } from "@/lib/api/http";
 import { ApiError, mapHttpError, type ReadState } from "@/lib/api/errors";
-import { readCorporateDirectoryPages, readCorporateOrganization } from "./corporate";
+import {
+  readCorporateDirectoryPage,
+  readCorporateOrganization,
+  type CorporateDirectoryPageOptions,
+} from "./corporate";
 
 import type {
   CapabilityProjection,
@@ -70,15 +74,18 @@ export async function readTechnologyRegistry(
   return { permissions, technologies, categories };
 }
 
-export async function readTechnologyDirectory(sessionToken: string) {
+export async function readTechnologyDirectory(
+  sessionToken: string,
+  options: CorporateDirectoryPageOptions = {},
+) {
   const organization = await readCorporateOrganization(sessionToken);
   if (!organization) return null;
   const permissions = await readTechnologyCapabilities(sessionToken, organization.organization_id);
   const [directory, categories] = await Promise.all([
     permissions.capabilities.includes("technology.list")
-      ? readCorporateDirectoryPages(sessionToken, organization.organization_id, {
-          resource: "technologies",
+      ? readCorporateDirectoryPage(sessionToken, "technologies", {
           include_archived: true,
+          ...options,
         })
       : null,
     permissions.capabilities.includes("category.list") &&

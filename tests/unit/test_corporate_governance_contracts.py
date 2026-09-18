@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from ai_stp_api.errors import ApiError
 from ai_stp_api.slices.corporate.governance import validate_lifecycle_transition
+from ai_stp_contracts.corporate import CorporateCatalogUsageQuery
 from ai_stp_contracts.corporate_catalog_ownership import CorporateCatalogOwnershipRequest
 from ai_stp_foundation.ids import new_id
 
@@ -50,3 +51,18 @@ def test_corporate_lifecycle_transitions_support_hide_restore_and_retire() -> No
         validate_lifecycle_transition(previous, next_state)
     with pytest.raises(ApiError):
         validate_lifecycle_transition("retired", "hidden")
+
+
+def test_catalog_usage_query_keeps_object_identity_typed() -> None:
+    query = CorporateCatalogUsageQuery(
+        object_kind="component",
+        stable_id=new_id("component"),
+        version="1.0",
+    )
+    assert query.limit == 128
+    with pytest.raises(ValidationError):
+        CorporateCatalogUsageQuery(
+            object_kind="setup",
+            stable_id=new_id("component"),
+            version="1.0",
+        )

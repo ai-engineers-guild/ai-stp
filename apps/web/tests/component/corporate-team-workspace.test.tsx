@@ -34,6 +34,8 @@ const employee: CorporateMember = {
   account_id: "account_A",
   display_name: "Alice",
   role: "staff",
+  job_title_id: null,
+  job_title_name: null,
   state: "active",
   revision: 1,
 };

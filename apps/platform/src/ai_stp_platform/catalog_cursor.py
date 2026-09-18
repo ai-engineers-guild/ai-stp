@@ -62,6 +62,7 @@ def filter_signature(
     team_ids: list[str] | None = None,
     project_ids: list[str] | None = None,
     technology_ids: list[str] | None = None,
+    category_ids: list[str] | None = None,
     owner_ids: list[str] | None = None,
     maintainer_ids: list[str] | None = None,
     assignment: str | None = None,
@@ -107,6 +108,7 @@ def filter_signature(
         ("team_ids", team_ids),
         ("project_ids", project_ids),
         ("technology_ids", technology_ids),
+        ("category_ids", category_ids),
         ("owner_ids", owner_ids),
         ("maintainer_ids", maintainer_ids),
     ):

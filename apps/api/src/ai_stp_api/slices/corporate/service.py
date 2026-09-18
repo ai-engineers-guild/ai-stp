@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
@@ -31,6 +32,10 @@ from ai_stp_contracts.corporate import (
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateJobTitleCreateRequest,
+    CorporateJobTitleList,
+    CorporateJobTitleUpdateRequest,
+    CorporateJobTitleView,
     CorporateMember,
     CorporateMemberCreateRequest,
     CorporateMemberList,
@@ -70,6 +75,7 @@ from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account, AuditEvent
 from ai_stp_platform.organization_models import (
     CorporateBootstrapReceipt,
+    CorporateJobTitle,
     CorporateMutationReceipt,
     CorporateProject,
     CorporateProjectMember,
@@ -96,6 +102,7 @@ from ai_stp_platform.technology_models import (
     ProjectTeamRelation,
     ProjectTechnologyRelation,
     Technology,
+    TechnologyTeamResponsibility,
 )
 from ai_stp_platform.tenant_scope import set_tenant_scope
 
@@ -158,6 +165,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "role.update",
             "role.delete",
             "role.list",
+            "job_title.create",
+            "job_title.read",
+            "job_title.update",
+            "job_title.list",
         }
     ),
     "lead": frozenset(
@@ -221,12 +232,32 @@ def organization_view(row: Organization) -> CorporateOrganization:
     )
 
 
-def member_view(row: OrganizationMembership, account: Account) -> CorporateMember:
+def member_view(
+    row: OrganizationMembership, account: Account, job_title_name: str | None = None
+) -> CorporateMember:
     return CorporateMember(
         account_id=row.account_id,
         display_name=row.display_name if row.display_name is not None else account.display_name,
         role=row.role,
         state=cast(CorporateState, row.state),
+        revision=row.revision,
+        job_title_id=row.job_title_id,
+        job_title_name=job_title_name,
+    )
+
+
+def _normalize_job_title(value: str) -> str:
+    return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
+
+
+def job_title_view(row: CorporateJobTitle) -> CorporateJobTitleView:
+    return CorporateJobTitleView(
+        job_title_id=row.id,
+        organization_id=row.organization_id,
+        name=row.name,
+        normalized_name=row.normalized_name,
+        description=row.description,
+        state=cast(Literal["current", "retired"], row.state),
         revision=row.revision,
     )
 
@@ -844,6 +875,102 @@ async def _ensure_role_exists(db: AsyncSession, *, organization_id: str, role: s
         raise ApiError(ErrorCategory.VALIDATION, "corporate role is unavailable")
 
 
+async def _ensure_current_job_title(
+    db: AsyncSession, *, organization_id: str, job_title_id: str | None
+) -> None:
+    if job_title_id is None:
+        return
+    if (
+        await db.scalar(
+            select(CorporateJobTitle.id).where(
+                CorporateJobTitle.organization_id == organization_id,
+                CorporateJobTitle.id == job_title_id,
+                CorporateJobTitle.state == "current",
+            )
+        )
+        is None
+    ):
+        raise ApiError(ErrorCategory.VALIDATION, "job title is unavailable")
+
+
+async def _ensure_active_teams(
+    db: AsyncSession, *, organization_id: str, team_ids: list[str]
+) -> None:
+    unique_ids = list(dict.fromkeys(team_ids))
+    rows = list(
+        (
+            await db.scalars(
+                select(CorporateTeam).where(
+                    CorporateTeam.organization_id == organization_id,
+                    CorporateTeam.id.in_(unique_ids),
+                    CorporateTeam.state == "active",
+                )
+            )
+        ).all()
+    )
+    if len(rows) != len(unique_ids):
+        raise ApiError(ErrorCategory.VALIDATION, "team relationship is unavailable")
+
+
+async def _ensure_active_projects(
+    db: AsyncSession, *, organization_id: str, project_ids: list[str]
+) -> None:
+    unique_ids = list(dict.fromkeys(project_ids))
+    rows = list(
+        (
+            await db.scalars(
+                select(CorporateProject).where(
+                    CorporateProject.organization_id == organization_id,
+                    CorporateProject.id.in_(unique_ids),
+                    CorporateProject.state == "active",
+                    CorporateProject.lifecycle == "active",
+                )
+            )
+        ).all()
+    )
+    if len(rows) != len(unique_ids):
+        raise ApiError(ErrorCategory.VALIDATION, "project relationship is unavailable")
+
+
+async def _ensure_active_technologies(
+    db: AsyncSession, *, organization_id: str, technology_ids: list[str]
+) -> None:
+    unique_ids = list(dict.fromkeys(technology_ids))
+    rows = list(
+        (
+            await db.scalars(
+                select(Technology).where(
+                    Technology.organization_id == organization_id,
+                    Technology.id.in_(unique_ids),
+                    Technology.lifecycle == "active",
+                    Technology.redirect_id.is_(None),
+                )
+            )
+        ).all()
+    )
+    if len(rows) != len(unique_ids):
+        raise ApiError(ErrorCategory.VALIDATION, "technology relationship is unavailable")
+
+
+async def _ensure_active_members(
+    db: AsyncSession, *, organization_id: str, account_ids: list[str]
+) -> None:
+    unique_ids = list(dict.fromkeys(account_ids))
+    rows = list(
+        (
+            await db.scalars(
+                select(OrganizationMembership).where(
+                    OrganizationMembership.organization_id == organization_id,
+                    OrganizationMembership.account_id.in_(unique_ids),
+                    OrganizationMembership.state == "active",
+                )
+            )
+        ).all()
+    )
+    if len(rows) != len(unique_ids):
+        raise ApiError(ErrorCategory.VALIDATION, "employee relationship is unavailable")
+
+
 async def store_mutation_receipt(
     db: AsyncSession,
     *,
@@ -1231,6 +1358,167 @@ async def delete_role(
     return response
 
 
+async def create_job_title(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    payload: CorporateJobTitleCreateRequest,
+    request_id: str | None,
+) -> CorporateJobTitleView:
+    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="job_title.create",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation="job_title.create",
+        fingerprint=fingerprint,
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return CorporateJobTitleView.model_validate(receipt.response_body)
+    name = " ".join(unicodedata.normalize("NFKC", payload.name).split())
+    normalized_name = _normalize_job_title(name)
+    if not name or await db.scalar(
+        select(CorporateJobTitle.id).where(
+            CorporateJobTitle.organization_id == organization_id,
+            CorporateJobTitle.normalized_name == normalized_name,
+        )
+    ):
+        raise ApiError(ErrorCategory.CONFLICT, "job title already exists")
+    row = CorporateJobTitle(
+        id=new_id("job_title"),
+        organization_id=organization_id,
+        name=name,
+        normalized_name=normalized_name,
+        description=payload.description.strip(),
+        state="current",
+    )
+    db.add(row)
+    organization.policy_revision += 1
+    await db.flush()
+    response = job_title_view(row)
+    await store_mutation_receipt(
+        db,
+        organization_id=organization_id,
+        key=payload.idempotency_key,
+        operation="job_title.create",
+        fingerprint=fingerprint,
+        response=response,
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="job_title.create",
+        target_table="corporate_job_title",
+        target_id=row.id,
+        request_id=request_id,
+    )
+    return response
+
+
+async def list_job_titles(
+    db: AsyncSession, *, ctx: AuthContext, organization_id: str, request_id: str | None
+) -> CorporateJobTitleList:
+    await authorize(db, ctx=ctx, organization_id=organization_id, permission="job_title.list")
+    rows = (
+        await db.scalars(
+            select(CorporateJobTitle)
+            .where(CorporateJobTitle.organization_id == organization_id)
+            .order_by(CorporateJobTitle.normalized_name, CorporateJobTitle.id)
+            .limit(256)
+        )
+    ).all()
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="job_title.list",
+        target_table="corporate_job_title",
+        target_id=organization_id,
+        request_id=request_id,
+    )
+    return CorporateJobTitleList(items=[job_title_view(row) for row in rows])
+
+
+async def update_job_title(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    job_title_id: str,
+    payload: CorporateJobTitleUpdateRequest,
+    request_id: str | None,
+) -> CorporateJobTitleView:
+    fingerprint = mutation_fingerprint(payload.model_dump(mode="json", exclude={"idempotency_key"}))
+    organization, receipt = await authorize_idempotent(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="job_title.update",
+        authorization_revision=payload.authorization_revision,
+        idempotency_key=payload.idempotency_key,
+        operation="job_title.update",
+        fingerprint=fingerprint,
+        request_id=request_id,
+    )
+    if receipt is not None:
+        return CorporateJobTitleView.model_validate(receipt.response_body)
+    row = await db.scalar(
+        select(CorporateJobTitle)
+        .where(
+            CorporateJobTitle.organization_id == organization_id,
+            CorporateJobTitle.id == job_title_id,
+        )
+        .with_for_update()
+    )
+    if row is None:
+        raise ApiError(ErrorCategory.PERMISSION, "job title access denied")
+    if row.revision != payload.expected_revision:
+        raise ApiError(ErrorCategory.CONFLICT, "job title revision changed")
+    name = " ".join(unicodedata.normalize("NFKC", payload.name).split())
+    normalized_name = _normalize_job_title(name)
+    duplicate = await db.scalar(
+        select(CorporateJobTitle.id).where(
+            CorporateJobTitle.organization_id == organization_id,
+            CorporateJobTitle.normalized_name == normalized_name,
+            CorporateJobTitle.id != job_title_id,
+        )
+    )
+    if duplicate:
+        raise ApiError(ErrorCategory.CONFLICT, "job title already exists")
+    row.name = name
+    row.normalized_name = normalized_name
+    row.description = payload.description.strip()
+    row.state = payload.state
+    row.revision += 1
+    organization.policy_revision += 1
+    await db.flush()
+    response = job_title_view(row)
+    await store_mutation_receipt(
+        db,
+        organization_id=organization_id,
+        key=payload.idempotency_key,
+        operation="job_title.update",
+        fingerprint=fingerprint,
+        response=response,
+    )
+    await emit_audit(
+        db,
+        actor_account_id=ctx.account_id,
+        organization_id=organization_id,
+        action="job_title.update",
+        target_table="corporate_job_title",
+        target_id=job_title_id,
+        request_id=request_id,
+    )
+    return response
+
+
 async def create_member(
     db: AsyncSession,
     *,
@@ -1253,7 +1541,11 @@ async def create_member(
     )
     if receipt is not None:
         return CorporateMember.model_validate(receipt.response_body)
+    await _ensure_active_teams(db, organization_id=organization_id, team_ids=payload.team_ids)
     await _ensure_role_exists(db, organization_id=organization_id, role=payload.role)
+    await _ensure_current_job_title(
+        db, organization_id=organization_id, job_title_id=payload.job_title_id
+    )
     account = await db.get(Account, payload.account_id) if payload.account_id else None
     if account is None:
         account = Account(id=new_id("account"), status="active", display_name=payload.display_name)
@@ -1281,6 +1573,7 @@ async def create_member(
         display_name=payload.display_name.strip(),
         role=payload.role,
         state="active",
+        job_title_id=payload.job_title_id,
     )
     binding = CorporateRoleBinding(
         id=new_id("operation"),
@@ -1294,6 +1587,26 @@ async def create_member(
     db.add(membership)
     await db.flush()
     db.add(binding)
+    for team_id in dict.fromkeys(payload.team_ids):
+        db.add(
+            CorporateTeamMember(
+                organization_id=organization_id,
+                team_id=team_id,
+                account_id=account.id,
+                role="staff",
+            )
+        )
+        db.add(
+            CorporateRoleBinding(
+                id=new_id("operation"),
+                organization_id=organization_id,
+                account_id=account.id,
+                role="staff",
+                scope_kind="team",
+                scope_id=team_id,
+                state="active",
+            )
+        )
     organization.policy_revision += 1
     await db.flush()
     response = member_view(membership, account)
@@ -1439,7 +1752,15 @@ async def update_member(
     if row.revision != payload.expected_revision:
         raise ApiError(ErrorCategory.CONFLICT, "member revision changed")
     await _ensure_role_exists(db, organization_id=organization_id, role=payload.role)
-    before = {"role": row.role, "state": row.state, "revision": row.revision}
+    await _ensure_current_job_title(
+        db, organization_id=organization_id, job_title_id=payload.job_title_id
+    )
+    before = {
+        "role": row.role,
+        "state": row.state,
+        "job_title_id": row.job_title_id,
+        "revision": row.revision,
+    }
     removes_superadmin = row.role == "superadmin" and (
         payload.role != "superadmin" or payload.state != "active"
     )
@@ -1457,6 +1778,7 @@ async def update_member(
             raise ApiError(ErrorCategory.CONFLICT, "last superadmin cannot be changed")
     row.role = payload.role
     row.state = payload.state
+    row.job_title_id = payload.job_title_id
     row.revision += 1
     bindings = list(
         (
@@ -2015,11 +2337,19 @@ async def create_project(
     )
     if receipt is not None:
         return CorporateProjectView.model_validate(receipt.response_body)
+    if payload.owner_team_id is not None:
+        await _ensure_active_teams(
+            db, organization_id=organization_id, team_ids=[payload.owner_team_id]
+        )
+    await _ensure_active_technologies(
+        db, organization_id=organization_id, technology_ids=list(payload.technology_ids)
+    )
     row = CorporateProject(
         id=new_id("remote_project"),
         organization_id=organization_id,
         name=payload.name,
         lifecycle="active",
+        profile={"description": payload.description},
     )
     db.add(
         ProjectIdentity(
@@ -2033,6 +2363,27 @@ async def create_project(
     )
     await db.flush()
     db.add(row)
+    await db.flush()
+    if payload.owner_team_id is not None:
+        db.add(
+            ProjectTeamRelation(
+                organization_id=organization_id,
+                id=new_id("relation"),
+                project_id=row.id,
+                team_id=payload.owner_team_id,
+                role="owner",
+            )
+        )
+    for technology_id in dict.fromkeys(payload.technology_ids):
+        db.add(
+            ProjectTechnologyRelation(
+                organization_id=organization_id,
+                id=new_id("relation"),
+                project_id=row.id,
+                project_namespace="remote",
+                technology_id=technology_id,
+            )
+        )
     await db.flush()
     organization.policy_revision += 1
     response = _project_view(row)
@@ -2428,6 +2779,16 @@ async def create_team(
     )
     if receipt is not None:
         return CorporateTeamView.model_validate(receipt.response_body)
+    employee_ids = list(dict.fromkeys(payload.employee_ids))
+    if payload.lead_account_id is not None and payload.lead_account_id not in employee_ids:
+        raise ApiError(ErrorCategory.VALIDATION, "team lead must be an employee of the team")
+    await _ensure_active_members(db, organization_id=organization_id, account_ids=employee_ids)
+    await _ensure_active_projects(
+        db, organization_id=organization_id, project_ids=list(payload.project_ids)
+    )
+    await _ensure_active_technologies(
+        db, organization_id=organization_id, technology_ids=list(payload.technology_ids)
+    )
     row = CorporateTeam(
         id=new_id("operation"),
         organization_id=organization_id,
@@ -2435,6 +2796,47 @@ async def create_team(
         description=payload.description,
     )
     db.add(row)
+    await db.flush()
+    for account_id in employee_ids:
+        team_role = "lead" if account_id == payload.lead_account_id else "staff"
+        db.add(
+            CorporateTeamMember(
+                organization_id=organization_id,
+                team_id=row.id,
+                account_id=account_id,
+                role=team_role,
+            )
+        )
+        db.add(
+            CorporateRoleBinding(
+                id=new_id("operation"),
+                organization_id=organization_id,
+                account_id=account_id,
+                role=team_role,
+                scope_kind="team",
+                scope_id=row.id,
+                state="active",
+            )
+        )
+    for project_id in dict.fromkeys(payload.project_ids):
+        db.add(
+            ProjectTeamRelation(
+                organization_id=organization_id,
+                id=new_id("relation"),
+                project_id=project_id,
+                team_id=row.id,
+                role="contributor",
+            )
+        )
+    for technology_id in dict.fromkeys(payload.technology_ids):
+        db.add(
+            TechnologyTeamResponsibility(
+                organization_id=organization_id,
+                id=new_id("relation"),
+                technology_id=technology_id,
+                team_id=row.id,
+            )
+        )
     await db.flush()
     organization.policy_revision += 1
     response = await team_view(db, row, ctx=ctx)

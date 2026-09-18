@@ -135,6 +135,14 @@
       "title": "Authors",
       "type": "array"
     },
+    "category_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Category Ids",
+      "type": "array"
+    },
     "component_type": {
       "anyOf": [
         {

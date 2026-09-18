@@ -101,6 +101,36 @@ class EntityProfileColumns:
     )
 
 
+class CorporateJobTitle(Base):
+    """Organization-governed employee classification, independent of RBAC."""
+
+    __tablename__ = "corporate_job_title"
+    __table_args__ = (
+        PrimaryKeyConstraint("organization_id", "id"),
+        UniqueConstraint("organization_id", "normalized_name", name="uq_corporate_job_title_name"),
+        CheckConstraint("state in ('current', 'retired')", name="ck_corporate_job_title_state"),
+        CheckConstraint("revision >= 1", name="ck_corporate_job_title_revision"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64))
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(
+        String(2000), nullable=False, default="", server_default=""
+    )
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="current", server_default="current"
+    )
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class OrganizationMembership(EntityProfileColumns, Base):
     """One account's active or suspended membership in one organization."""
 
@@ -117,6 +147,11 @@ class OrganizationMembership(EntityProfileColumns, Base):
         CheckConstraint(
             "profile_revision >= 0", name="ck_organization_membership_profile_revision"
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "job_title_id"],
+            ["corporate_job_title.organization_id", "corporate_job_title.id"],
+            ondelete="RESTRICT",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -129,6 +164,7 @@ class OrganizationMembership(EntityProfileColumns, Base):
     )
     role: Mapped[str] = mapped_column(String(64), nullable=False, default="member")
     display_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    job_title_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

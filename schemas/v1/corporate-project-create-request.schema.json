@@ -14,6 +14,12 @@
       "title": "Authorization Revision",
       "type": "integer"
     },
+    "description": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Description",
+      "type": "string"
+    },
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
@@ -23,11 +29,33 @@
       "title": "Name",
       "type": "string"
     },
+    "owner_team_id": {
+      "anyOf": [
+        {
+          "pattern": "^operation_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner Team Id"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "technology_ids": {
+      "items": {
+        "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Technology Ids",
+      "type": "array"
     }
   },
   "required": [

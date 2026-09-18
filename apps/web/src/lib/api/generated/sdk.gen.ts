@@ -56,6 +56,9 @@ import type {
   CreateCorporateBindingData,
   CreateCorporateBindingErrors,
   CreateCorporateBindingResponses,
+  CreateCorporateJobTitleData,
+  CreateCorporateJobTitleErrors,
+  CreateCorporateJobTitleResponses,
   CreateCorporateMemberData,
   CreateCorporateMemberErrors,
   CreateCorporateMemberResponses,
@@ -182,6 +185,12 @@ import type {
   ListCorporateCatalogAssignmentsData,
   ListCorporateCatalogAssignmentsErrors,
   ListCorporateCatalogAssignmentsResponses,
+  ListCorporateCatalogUsageData,
+  ListCorporateCatalogUsageErrors,
+  ListCorporateCatalogUsageResponses,
+  ListCorporateJobTitlesData,
+  ListCorporateJobTitlesErrors,
+  ListCorporateJobTitlesResponses,
   ListCorporateMemberProjectsData,
   ListCorporateMemberProjectsErrors,
   ListCorporateMemberProjectsResponses,
@@ -557,6 +566,9 @@ import type {
   UpdateCorporateBindingData,
   UpdateCorporateBindingErrors,
   UpdateCorporateBindingResponses,
+  UpdateCorporateJobTitleData,
+  UpdateCorporateJobTitleErrors,
+  UpdateCorporateJobTitleResponses,
   UpdateCorporateMemberData,
   UpdateCorporateMemberErrors,
   UpdateCorporateMemberProfileData,
@@ -1712,6 +1724,26 @@ export const writeCorporateCatalogOwnership = <ThrowOnError extends boolean = fa
   });
 
 /**
+ * Read authorized direct and effective organization usage for an exact catalog version.
+ */
+export const listCorporateCatalogUsage = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateCatalogUsageData, ThrowOnError>,
+): RequestResult<
+  ListCorporateCatalogUsageResponses,
+  ListCorporateCatalogUsageErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCorporateCatalogUsageResponses,
+    ListCorporateCatalogUsageErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-usage",
+    ...options,
+  });
+
+/**
  * Read effective corporate context and capabilities.
  */
 export const readCorporateContext = <ThrowOnError extends boolean = false>(
@@ -1800,6 +1832,62 @@ export const writeCorporateEntityProfile = <ThrowOnError extends boolean = false
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/entity-profiles/{subject_kind}/{subject_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List organization job titles.
+ */
+export const listCorporateJobTitles = <ThrowOnError extends boolean = false>(
+  options: Options<ListCorporateJobTitlesData, ThrowOnError>,
+): RequestResult<ListCorporateJobTitlesResponses, ListCorporateJobTitlesErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListCorporateJobTitlesResponses,
+    ListCorporateJobTitlesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/job-titles",
+    ...options,
+  });
+
+/**
+ * Create an organization job title.
+ */
+export const createCorporateJobTitle = <ThrowOnError extends boolean = false>(
+  options: Options<CreateCorporateJobTitleData, ThrowOnError>,
+): RequestResult<CreateCorporateJobTitleResponses, CreateCorporateJobTitleErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateCorporateJobTitleResponses,
+    CreateCorporateJobTitleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/job-titles",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Update or retire an organization job title.
+ */
+export const updateCorporateJobTitle = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateCorporateJobTitleData, ThrowOnError>,
+): RequestResult<UpdateCorporateJobTitleResponses, UpdateCorporateJobTitleErrors, ThrowOnError> =>
+  (options.client ?? client).patch<
+    UpdateCorporateJobTitleResponses,
+    UpdateCorporateJobTitleErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/job-titles/{job_title_id}",
     ...options,
     headers: {
       "Content-Type": "application/json",

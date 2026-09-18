@@ -85,7 +85,7 @@ describe("corporate directory filters", () => {
     );
     expect(screen.getByRole("link", { name: "Agent Gateway" })).toHaveAttribute(
       "href",
-      "/catalog/components/agent-gateway?return_to=%2Fcorporate%2Fcomponents",
+      "/catalog/components/agent-gateway?return_to=%2Fcorporate%2Fcatalog",
     );
     expect(screen.getByText("skill")).toBeVisible();
     expect(screen.getByText("Ada Lovelace")).toBeVisible();

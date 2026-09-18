@@ -18,7 +18,7 @@ export default async function OrganizationPage({
   if (!context)
     return <StatePanel kind="empty" title={t("organization")} description={t("empty")} />;
   const sections = [
-    { key: "employees", href: "/corporate/members" },
+    { key: "employees", href: "/corporate/employees" },
     { key: "projects", href: "/corporate/projects" },
     { key: "teams", href: "/corporate/teams" },
     { key: "technologies", href: "/corporate/technologies" },

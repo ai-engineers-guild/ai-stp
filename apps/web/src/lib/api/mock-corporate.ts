@@ -60,6 +60,8 @@ const members: CorporateMember[] = employeeNodes.map((item, index) => ({
   display_name: item.name,
   state: "active",
   role: roles[index] ?? "staff",
+  job_title_id: null,
+  job_title_name: null,
   revision: 1,
 }));
 const memberDescriptions = [
@@ -686,6 +688,7 @@ function corporateDirectoryResponse(query: URLSearchParams): WorkspaceMockResult
       description: descriptions.get(item.name) ?? `Offline ${item.kind} fixture`,
       revision: 1,
       role: resource === "members" ? (item.detail as CorporateMember).role : null,
+      job_title: null,
       is_lead:
         resource === "members" &&
         teamViews.some((candidate) => candidate.lead_account_ids.includes(item.id)),
@@ -715,6 +718,7 @@ function corporateDirectoryResponse(query: URLSearchParams): WorkspaceMockResult
           : [],
       owner_team: ownerTeam,
       owner,
+      available_actions: [],
     };
   });
   const filterNames: Record<string, keyof CorporateDirectoryItem> = {
@@ -926,6 +930,7 @@ export function corporateHandlers(
         query.get("subject_id") ?? undefined,
       ).length,
     });
+  if (suffix === "catalog-usage") return ok({ schema_version: 1, items: [], total: 0 });
   if (suffix === "technology-categories") return ok({ schema_version: 1, items: categoryViews });
   const categoryMatch = suffix.match(/^technology-categories\/([^/]+)$/);
   if (categoryMatch) {

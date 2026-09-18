@@ -35,9 +35,15 @@ from ai_stp_contracts.corporate import (
     CorporateCatalogAssignmentList,
     CorporateCatalogAssignmentQuery,
     CorporateCatalogAssignmentRequest,
+    CorporateCatalogUsageList,
+    CorporateCatalogUsageQuery,
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateJobTitleCreateRequest,
+    CorporateJobTitleList,
+    CorporateJobTitleUpdateRequest,
+    CorporateJobTitleView,
     CorporateMember,
     CorporateMemberCreateRequest,
     CorporateMemberList,
@@ -188,6 +194,22 @@ async def list_catalog_assignments(
     )
 
 
+@router.get(
+    "/corporate/organizations/{organization_id}/catalog-usage",
+    response_model=CorporateCatalogUsageList,
+)
+async def list_catalog_usage(
+    organization_id: str,
+    query: Annotated[CorporateCatalogUsageQuery, Query()],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateCatalogUsageList:
+    return await assignments.list_usage(
+        db, ctx=ctx, organization_id=organization_id, query=query, request_id=_request_id(request)
+    )
+
+
 @router.put(
     "/corporate/organizations/{organization_id}/catalog-assignments",
     response_model=CorporateCatalogAssignment,
@@ -246,6 +268,66 @@ async def create_member(
         db,
         ctx=ctx,
         organization_id=organization_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/job-titles",
+    response_model=CorporateJobTitleView,
+)
+async def create_job_title(
+    organization_id: str,
+    payload: CorporateJobTitleCreateRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateJobTitleView:
+    return await service.create_job_title(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/job-titles",
+    response_model=CorporateJobTitleList,
+)
+async def list_job_titles(
+    organization_id: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateJobTitleList:
+    return await service.list_job_titles(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        request_id=_request_id(request),
+    )
+
+
+@router.patch(
+    "/corporate/organizations/{organization_id}/job-titles/{job_title_id}",
+    response_model=CorporateJobTitleView,
+)
+async def update_job_title(
+    organization_id: str,
+    job_title_id: str,
+    payload: CorporateJobTitleUpdateRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateJobTitleView:
+    return await service.update_job_title(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        job_title_id=job_title_id,
         payload=payload,
         request_id=_request_id(request),
     )

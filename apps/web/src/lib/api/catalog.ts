@@ -56,6 +56,7 @@ type SearchParams = {
   team_ids?: ReadonlyArray<string>;
   project_ids?: ReadonlyArray<string>;
   technology_ids?: ReadonlyArray<string>;
+  category_ids?: ReadonlyArray<string>;
   owner_ids?: ReadonlyArray<string>;
   maintainer_ids?: ReadonlyArray<string>;
   assignment?: "direct" | "effective";
@@ -144,6 +145,7 @@ export async function searchComponents(params: SearchParams = {}): Promise<Compo
     team_ids: params.team_ids ? [...params.team_ids] : undefined,
     project_ids: params.project_ids ? [...params.project_ids] : undefined,
     technology_ids: params.technology_ids ? [...params.technology_ids] : undefined,
+    category_ids: params.category_ids ? [...params.category_ids] : undefined,
     owner_ids: params.owner_ids ? [...params.owner_ids] : undefined,
     maintainer_ids: params.maintainer_ids ? [...params.maintainer_ids] : undefined,
     assignment: params.assignment,
@@ -185,6 +187,7 @@ export async function searchSetups(params: SearchParams = {}): Promise<SetupList
     team_ids: params.team_ids ? [...params.team_ids] : undefined,
     project_ids: params.project_ids ? [...params.project_ids] : undefined,
     technology_ids: params.technology_ids ? [...params.technology_ids] : undefined,
+    category_ids: params.category_ids ? [...params.category_ids] : undefined,
     owner_ids: params.owner_ids ? [...params.owner_ids] : undefined,
     maintainer_ids: params.maintainer_ids ? [...params.maintainer_ids] : undefined,
     assignment: params.assignment,

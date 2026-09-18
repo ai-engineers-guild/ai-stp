@@ -72,6 +72,7 @@ from ai_stp_platform.organization_models import (
     CorporateCatalogVerification,
     CorporateTeamMember,
 )
+from ai_stp_platform.technology_models import TechnologyClassification
 
 _log = structlog.get_logger("catalog_search")
 
@@ -700,6 +701,7 @@ async def search_catalog(
     corporate_team_ids: Sequence[str] = (),
     corporate_project_ids: Sequence[str] = (),
     corporate_technology_ids: Sequence[str] = (),
+    corporate_category_ids: Sequence[str] = (),
     corporate_owner_ids: Sequence[str] = (),
     corporate_maintainer_ids: Sequence[str] = (),
     corporate_assignment: str | None = None,
@@ -845,6 +847,28 @@ async def search_catalog(
                             list(corporate_technology_ids)
                         ),
                         CorporateCatalogAssignment.state == "current",
+                    )
+                )
+            )
+        if corporate_category_ids:
+            relation_clauses.append(
+                exists(
+                    select(1)
+                    .select_from(CorporateCatalogAssignment)
+                    .join(
+                        TechnologyClassification,
+                        and_(
+                            TechnologyClassification.organization_id
+                            == CorporateCatalogAssignment.organization_id,
+                            TechnologyClassification.technology_id
+                            == CorporateCatalogAssignment.technology_id,
+                        ),
+                    )
+                    .where(
+                        object_coordinates(CorporateCatalogAssignment),
+                        CorporateCatalogAssignment.state == "current",
+                        CorporateCatalogAssignment.technology_id.is_not(None),
+                        TechnologyClassification.category_id.in_(list(corporate_category_ids)),
                     )
                 )
             )

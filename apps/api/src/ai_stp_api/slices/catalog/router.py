@@ -158,6 +158,7 @@ _COMPONENT_SEARCH_KEYS = frozenset(
         "team_ids",
         "project_ids",
         "technology_ids",
+        "category_ids",
         "owner_ids",
         "maintainer_ids",
         "assignment",
@@ -197,6 +198,7 @@ _SETUP_SEARCH_KEYS = frozenset(
         "team_ids",
         "project_ids",
         "technology_ids",
+        "category_ids",
         "owner_ids",
         "maintainer_ids",
         "assignment",
@@ -333,6 +335,7 @@ def _component_search_request(
     team_ids: Annotated[list[str] | None, Query()] = None,
     project_ids: Annotated[list[str] | None, Query()] = None,
     technology_ids: Annotated[list[str] | None, Query()] = None,
+    category_ids: Annotated[list[str] | None, Query()] = None,
     owner_ids: Annotated[list[str] | None, Query()] = None,
     maintainer_ids: Annotated[list[str] | None, Query()] = None,
     assignment: Annotated[Literal["direct", "effective"] | None, Query()] = None,
@@ -370,6 +373,7 @@ def _component_search_request(
             team_ids=list(team_ids or []),
             project_ids=list(project_ids or []),
             technology_ids=list(technology_ids or []),
+            category_ids=list(category_ids or []),
             owner_ids=list(owner_ids or []),
             maintainer_ids=list(maintainer_ids or []),
             assignment=assignment,
@@ -415,6 +419,7 @@ def _setup_search_request(
     team_ids: Annotated[list[str] | None, Query()] = None,
     project_ids: Annotated[list[str] | None, Query()] = None,
     technology_ids: Annotated[list[str] | None, Query()] = None,
+    category_ids: Annotated[list[str] | None, Query()] = None,
     owner_ids: Annotated[list[str] | None, Query()] = None,
     maintainer_ids: Annotated[list[str] | None, Query()] = None,
     assignment: Annotated[Literal["direct", "effective"] | None, Query()] = None,
@@ -453,6 +458,7 @@ def _setup_search_request(
             team_ids=list(team_ids or []),
             project_ids=list(project_ids or []),
             technology_ids=list(technology_ids or []),
+            category_ids=list(category_ids or []),
             owner_ids=list(owner_ids or []),
             maintainer_ids=list(maintainer_ids or []),
             assignment=assignment,
@@ -475,6 +481,7 @@ async def _corporate_search_account(
         search.team_ids
         or search.project_ids
         or search.technology_ids
+        or search.category_ids
         or search.owner_ids
         or search.maintainer_ids
         or search.assignment is not None

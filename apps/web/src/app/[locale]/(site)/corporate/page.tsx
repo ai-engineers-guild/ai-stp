@@ -74,7 +74,7 @@ export async function CorporateOverview({
           },
           {
             key: "employees",
-            href: "/corporate/members",
+            href: "/corporate/employees",
             icon: "user",
             count: graph.nodes.filter((node) => node.kind === "employee").length,
             caption: t("acrossTeams"),

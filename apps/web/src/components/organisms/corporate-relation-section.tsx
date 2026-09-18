@@ -43,6 +43,7 @@ type Labels = {
   projects: string;
   technologies: string;
   categories: string;
+  job_titles?: string;
   teamLeads: string;
   team: string;
   employee: string;
@@ -68,6 +69,7 @@ type SelectedFilters = Partial<Record<DirectoryFacet, string[]>>;
 function facetLabel(labels: Labels, facet: DirectoryFacet) {
   if (facet === "leads") return labels.teamLeads;
   if (facet === "categories") return labels.categories;
+  if (facet === "job_titles") return labels.job_titles ?? labels.categories;
   return labels[facet];
 }
 

@@ -61,6 +61,64 @@ export async function readCorporateDirectory(
   return { ...directory, context, roles };
 }
 
+export type CorporateDirectoryResource =
+  "projects" | "teams" | "members" | "employees" | "technologies";
+
+export type CorporateDirectoryPageOptions = Omit<
+  CorporateDirectoryQuery,
+  "resource" | "offset" | "limit"
+> & {
+  page?: number;
+  pageSize?: number;
+};
+
+export async function readCorporateDirectoryPage(
+  sessionToken: string,
+  resource: CorporateDirectoryResource,
+  options: CorporateDirectoryPageOptions = {},
+) {
+  const context = await readCorporateContext(sessionToken);
+  if (!context) return null;
+  const page = Math.max(1, options.page ?? 1);
+  const pageSize = Math.min(256, Math.max(1, options.pageSize ?? 24));
+  const apiResource = resource === "employees" ? "members" : resource;
+  const {
+    page: _requestedPage,
+    pageSize: _requestedPageSize,
+    query: searchQuery,
+    is_lead: leadOnly,
+    ...filters
+  } = options;
+  const directory = await apiRequest<CorporateDirectoryView>(
+    `/v1/corporate/organizations/${context.organization.organization_id}/directory`,
+    {
+      sessionToken,
+      query: {
+        ...filters,
+        resource: apiResource,
+        offset: (page - 1) * pageSize,
+        limit: pageSize,
+        ...(searchQuery ? { query: searchQuery } : {}),
+        ...(leadOnly !== undefined && leadOnly !== null ? { is_lead: leadOnly } : {}),
+      },
+    },
+  );
+  const roles =
+    apiResource === "members" && context.capabilities.includes("role.list")
+      ? await apiRequest<CorporateRoleList>(
+          `/v1/corporate/organizations/${context.organization.organization_id}/roles`,
+          { sessionToken },
+        )
+      : null;
+  return {
+    ...directory,
+    context,
+    roles,
+    page,
+    pageSize,
+  };
+}
+
 export async function readCorporateDirectoryPages(
   sessionToken: string,
   organizationId: string,
@@ -293,7 +351,10 @@ export async function readCorporateResource(
     member,
     role,
     members,
-    roles: null,
+    roles:
+      resource === "members" && context.capabilities.includes("role.list")
+        ? await apiRequest<CorporateRoleList>(`${path}/roles`, { sessionToken })
+        : null,
     projectMemberships,
   };
 }

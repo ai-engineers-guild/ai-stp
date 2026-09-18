@@ -5,9 +5,10 @@ import { CorporateDirectory } from "@/components/organisms/corporate-directory";
 import { readCorporateContext, readCorporateDirectoryPages } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
 import { listCatalogAuthors, searchComponents } from "@/lib/api/catalog";
-import type { ComponentType } from "@/lib/api/generated/types.gen";
+import type { CatalogPageInfo, ComponentType } from "@/lib/api/generated/types.gen";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
+import { safeCorporateQuery } from "@/lib/corporate-routes";
 import type {
   CorporateCatalogFacetConfig,
   DirectoryItem,
@@ -33,10 +34,17 @@ function readCatalogFilters(raw: CatalogSearchParams) {
       : raw.corporate_verified === "false"
         ? false
         : undefined;
-  return { query, values, assignment, corporateVerified };
+  const page = Number(raw.page);
+  return {
+    query,
+    values,
+    assignment,
+    corporateVerified,
+    page: Number.isInteger(page) && page > 0 ? page : 1,
+  };
 }
 
-export default async function CorporateComponentsPage({
+export default async function CorporateCatalogPage({
   params,
   searchParams,
 }: {
@@ -45,14 +53,16 @@ export default async function CorporateComponentsPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/components`);
+  await requireSession(locale, `/${locale}/corporate/catalog`);
   const t = await getTranslations("hub");
   const common = await getTranslations("common");
   const catalog = await getTranslations("catalog");
   const token = (await sessionCookieValue()) ?? "";
   const context = await readCorporateContext(token);
   if (!context) return <StatePanel kind="empty" title={t("components")} description={t("empty")} />;
-  const { query, values, assignment, corporateVerified } = readCatalogFilters(await searchParams);
+  const rawSearchParams = await searchParams;
+  const { query, values, assignment, corporateVerified, page } =
+    readCatalogFilters(rawSearchParams);
   const organizationId = context.organization.organization_id;
   const [memberDirectory, technologyDirectory] = await Promise.allSettled([
     readCorporateDirectoryPages(token, organizationId, {
@@ -77,6 +87,9 @@ export default async function CorporateComponentsPage({
     context.projects.map((project) => ({ id: project.project_id, name: project.name })),
   );
   const technologyOptions = optionList(refs(technologyDirectory));
+  const categoryOptions = optionList(
+    refs(technologyDirectory).flatMap((item) => item.categories ?? []),
+  );
   const ownerOptions = optionList([
     { id: organizationId, name: context.organization.display_name },
     ...context.teams.map((team) => ({ id: team.team_id, name: team.name })),
@@ -92,6 +105,7 @@ export default async function CorporateComponentsPage({
     { key: "team_ids", label: t("teams"), options: teamOptions },
     { key: "project_ids", label: t("projects"), options: projectOptions },
     { key: "technology_ids", label: t("technologies"), options: technologyOptions },
+    { key: "category_ids", label: t("categories"), options: categoryOptions },
     { key: "owner_ids", label: t("catalogOwner"), options: ownerOptions },
     { key: "maintainer_ids", label: t("catalogMaintainer"), options: maintainerOptions },
     {
@@ -123,6 +137,7 @@ export default async function CorporateComponentsPage({
     tags?: readonly string[];
     version?: string;
   }> = [];
+  let pageInfo: { page_number: number; page_size: number; total_items: number } | null = null;
   try {
     const [result, authors] = await Promise.all([
       searchComponents({
@@ -132,15 +147,28 @@ export default async function CorporateComponentsPage({
         team_ids: values("team_ids"),
         project_ids: values("project_ids"),
         technology_ids: values("technology_ids"),
+        category_ids: values("category_ids"),
         owner_ids: values("owner_ids"),
         maintainer_ids: values("maintainer_ids"),
         ...(assignment ? { assignment } : {}),
         ...(corporateVerified !== undefined ? { corporate_verified: corporateVerified } : {}),
-        page_size: 100,
+        page,
+        page_size: 64,
         include_experimental: true,
       }),
       listCatalogAuthors().catch(() => ({ items: [] })),
     ]);
+    const candidate = result.page as Partial<CatalogPageInfo>;
+    pageInfo =
+      typeof candidate.page_number === "number" &&
+      typeof candidate.page_size === "number" &&
+      typeof candidate.total_items === "number"
+        ? {
+            page_number: candidate.page_number,
+            page_size: candidate.page_size,
+            total_items: candidate.total_items,
+          }
+        : null;
     const authorNames = new Map(
       authors.items.map((author) => [
         author.account_id,
@@ -178,11 +206,18 @@ export default async function CorporateComponentsPage({
         team_ids: values("team_ids"),
         project_ids: values("project_ids"),
         technology_ids: values("technology_ids"),
+        category_ids: values("category_ids"),
         owner_ids: values("owner_ids"),
         maintainer_ids: values("maintainer_ids"),
         assignment: assignment ? [assignment] : [],
         corporate_verified: corporateVerified === undefined ? [] : [String(corporateVerified)],
       }}
+      filters={safeCorporateQuery(rawSearchParams).slice(1)}
+      serverPaginated={pageInfo !== null}
+      pageNumber={pageInfo?.page_number ?? page}
+      pageSize={pageInfo?.page_size ?? 64}
+      total={pageInfo?.total_items ?? rows.length}
+      paginationLabel={t("pagination")}
     />
   );
 }

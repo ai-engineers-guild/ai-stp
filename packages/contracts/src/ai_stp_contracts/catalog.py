@@ -618,6 +618,7 @@ class ComponentSearchRequest(BaseModel):
     team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     project_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     technology_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    category_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     owner_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     maintainer_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     assignment: Literal["direct", "effective"] | None = None
@@ -709,6 +710,7 @@ class SetupSearchRequest(BaseModel):
     team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     project_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     technology_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
+    category_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     owner_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     maintainer_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list[str])
     assignment: Literal["direct", "effective"] | None = None

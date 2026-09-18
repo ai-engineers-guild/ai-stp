@@ -22,6 +22,19 @@
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
     },
+    "job_title_id": {
+      "anyOf": [
+        {
+          "pattern": "^job_title_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Job Title Id"
+    },
     "role": {
       "description": "Tenant-local role name.",
       "maxLength": 64,

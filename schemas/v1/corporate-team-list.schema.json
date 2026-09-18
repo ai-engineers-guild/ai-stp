@@ -126,6 +126,31 @@
           ],
           "title": "Display Name"
         },
+        "job_title_id": {
+          "anyOf": [
+            {
+              "pattern": "^job_title_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Job Title Id"
+        },
+        "job_title_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Job Title Name"
+        },
         "revision": {
           "minimum": 1,
           "title": "Revision",
@@ -157,6 +182,8 @@
       "required": [
         "account_id",
         "display_name",
+        "job_title_id",
+        "job_title_name",
         "revision",
         "role",
         "schema_version",

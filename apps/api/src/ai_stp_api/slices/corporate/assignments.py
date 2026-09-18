@@ -1,5 +1,7 @@
 """Operational catalog assignments never mutate grants or harness state."""
 
+from typing import Literal, cast
+
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,9 +14,14 @@ from ai_stp_contracts.corporate import (
     CorporateCatalogAssignmentList,
     CorporateCatalogAssignmentQuery,
     CorporateCatalogAssignmentRequest,
+    CorporateCatalogUsage,
+    CorporateCatalogUsageList,
+    CorporateCatalogUsageQuery,
 )
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.catalog_read import get_visible_metadata
+from ai_stp_platform.corporate_authorization import has_corporate_permission
+from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
     CorporateCatalogAssignment as AssignmentRow,
 )
@@ -25,6 +32,8 @@ from ai_stp_platform.organization_models import (
     OrganizationMembership,
 )
 from ai_stp_platform.technology_models import Technology
+
+UsageSubjectKind = Literal["employee", "team", "project", "technology"]
 
 
 async def write_assignment(
@@ -293,5 +302,173 @@ async def list_assignments(
             )
         )
     return CorporateCatalogAssignmentList(
+        items=items[query.offset : query.offset + query.limit], total=len(items)
+    )
+
+
+async def list_usage(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    query: CorporateCatalogUsageQuery,
+    request_id: str | None,
+) -> CorporateCatalogUsageList:
+    """Return one authorized, deduplicated usage projection for an exact object."""
+    await service.authorize(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        permission="catalog_object.read",
+    )
+    rows = (
+        await db.scalars(
+            select(AssignmentRow)
+            .where(
+                AssignmentRow.organization_id == organization_id,
+                AssignmentRow.object_kind == query.object_kind,
+                AssignmentRow.stable_id == query.stable_id,
+                AssignmentRow.version == query.version,
+                AssignmentRow.state == "current",
+            )
+            .order_by(AssignmentRow.id)
+        )
+    ).all()
+    team_ids = {row.team_id for row in rows if row.team_id is not None}
+    account_ids = {row.account_id for row in rows if row.account_id is not None}
+    if team_ids:
+        account_ids.update(
+            (
+                await db.scalars(
+                    select(CorporateTeamMember.account_id).where(
+                        CorporateTeamMember.organization_id == organization_id,
+                        CorporateTeamMember.team_id.in_(team_ids),
+                    )
+                )
+            ).all()
+        )
+    team_members_by_team: dict[str, list[CorporateTeamMember]] = {}
+    if team_ids:
+        for member in (
+            await db.scalars(
+                select(CorporateTeamMember).where(
+                    CorporateTeamMember.organization_id == organization_id,
+                    CorporateTeamMember.team_id.in_(team_ids),
+                )
+            )
+        ).all():
+            team_members_by_team.setdefault(member.team_id, []).append(member)
+    teams = {
+        row.id: row.name
+        for row in (
+            await db.scalars(
+                select(CorporateTeam).where(
+                    CorporateTeam.organization_id == organization_id,
+                    CorporateTeam.id.in_(team_ids or {""}),
+                )
+            )
+        ).all()
+    }
+    projects = {
+        row.id: row.name
+        for row in (
+            await db.scalars(
+                select(CorporateProject).where(
+                    CorporateProject.organization_id == organization_id,
+                    CorporateProject.id.in_({row.project_id for row in rows if row.project_id}),
+                )
+            )
+        ).all()
+    }
+    technologies = {
+        row.id: row.name
+        for row in (
+            await db.scalars(
+                select(Technology).where(
+                    Technology.organization_id == organization_id,
+                    Technology.id.in_({row.technology_id for row in rows if row.technology_id}),
+                )
+            )
+        ).all()
+    }
+    members = {
+        membership.account_id: membership.display_name or account.display_name
+        for membership, account in (
+            await db.execute(
+                select(OrganizationMembership, Account)
+                .join(Account, Account.id == OrganizationMembership.account_id)
+                .where(
+                    OrganizationMembership.organization_id == organization_id,
+                    OrganizationMembership.account_id.in_(account_ids or {""}),
+                )
+            )
+        ).all()
+    }
+    permission_cache: dict[tuple[str, str], bool] = {}
+
+    async def readable(kind: str, identity: str) -> bool:
+        key = (kind, identity)
+        if key not in permission_cache:
+            permission_cache[key] = await has_corporate_permission(
+                db,
+                organization_id=organization_id,
+                principal_type="user",
+                principal_id=ctx.account_id,
+                permission=f"{kind}.read",
+                scope_kind="organization" if kind == "employee" else kind,
+                scope_id=organization_id if kind == "employee" else identity,
+            )
+        return permission_cache[key]
+
+    def subject(row: AssignmentRow) -> tuple[UsageSubjectKind, str, str] | None:
+        for kind, identity, name in (
+            ("employee", row.account_id, members.get(row.account_id or "", "")),
+            ("team", row.team_id, teams.get(row.team_id or "", "")),
+            ("project", row.project_id, projects.get(row.project_id or "", "")),
+            ("technology", row.technology_id, technologies.get(row.technology_id or "", "")),
+        ):
+            if identity is not None:
+                return cast(UsageSubjectKind, kind), identity, name or identity
+        return None
+
+    items: list[CorporateCatalogUsage] = []
+    for row in rows:
+        identity = subject(row)
+        if identity is not None and await readable(identity[0], identity[1]):
+            items.append(
+                CorporateCatalogUsage(
+                    organization_id=organization_id,
+                    assignment_id=row.id,
+                    object_kind=query.object_kind,
+                    stable_id=row.stable_id,
+                    version=row.version,
+                    subject_kind=identity[0],
+                    subject_id=identity[1],
+                    subject_name=identity[2],
+                    source="direct",
+                )
+            )
+        if row.team_id is None:
+            continue
+        for member in team_members_by_team.get(row.team_id, []):
+            member_name = members.get(member.account_id)
+            if member_name is None or not await readable("employee", member.account_id):
+                continue
+            items.append(
+                CorporateCatalogUsage(
+                    organization_id=organization_id,
+                    assignment_id=row.id,
+                    object_kind=query.object_kind,
+                    stable_id=row.stable_id,
+                    version=row.version,
+                    subject_kind="employee",
+                    subject_id=member.account_id,
+                    subject_name=member_name,
+                    source="effective",
+                    source_team_id=row.team_id,
+                )
+            )
+    items.sort(key=lambda item: (item.subject_name.casefold(), item.subject_id, item.source))
+    return CorporateCatalogUsageList(
         items=items[query.offset : query.offset + query.limit], total=len(items)
     )

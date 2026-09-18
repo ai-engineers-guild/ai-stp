@@ -158,7 +158,7 @@ export function CorporateAuditPanel({
                 item.actor_account_id &&
                 actors.has(item.actor_account_id) ? (
                   <Link
-                    href={`/corporate/members/${item.actor_account_id}`}
+                    href={`/corporate/employees/${item.actor_account_id}`}
                     className="underline underline-offset-4"
                   >
                     {actors.get(item.actor_account_id)}

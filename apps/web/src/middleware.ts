@@ -53,6 +53,12 @@ function requestOriginUrl(request: NextRequest) {
  */
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const legacyCorporateCatalog = pathname.match(/^(\/(?:en|ru)(?:\/ai)?)\/corporate\/components$/);
+  if (legacyCorporateCatalog) {
+    const url = requestOriginUrl(request);
+    url.pathname = `${legacyCorporateCatalog[1]}/corporate/catalog`;
+    return NextResponse.redirect(url, 308);
+  }
   const sharedPath =
     COMPILED_FEATURE_PROFILE === "corporate_hub" ? corporateSharedPath(pathname) : null;
   if (COMPILED_FEATURE_PROFILE === "corporate_hub" && !sharedPath) {

@@ -27,6 +27,7 @@ import { ContextBudgetPanel } from "@/components/organisms/context-budget-panel"
 import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { ObjectDetailHeader } from "@/components/organisms/object-detail-header";
 import { ComponentMediaGallery } from "@/components/organisms/component-media-gallery";
+import { CorporateCatalogUsage } from "@/components/organisms/corporate-catalog-usage";
 import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
 import { SetupComposition } from "@/components/organisms/setup-composition";
 import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
@@ -39,7 +40,10 @@ import {
   readSetupVersion,
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
-import { readCorporateCatalogOwnership } from "@/lib/api/corporate-catalog-ownership";
+import {
+  readCorporateCatalogOwnership,
+  readCorporateCatalogUsage,
+} from "@/lib/api/corporate-catalog-ownership";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
@@ -94,6 +98,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   }
 
   const t = await getTranslations("catalog");
+  const th = await getTranslations("hub");
   const tc = await getTranslations("common");
   const tCli = await getTranslations("cli");
   const reportLabel = t("reportSetup");
@@ -151,6 +156,15 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
   const corporateCsrfToken = corporateOwnership?.ownership.can_edit
     ? ((await readCsrfToken()) ?? "")
     : "";
+  const corporateUsage = corporateOwnership
+    ? await readCorporateCatalogUsage(
+        token!,
+        corporateOwnership.ownership.organization_id,
+        "setup",
+        setupId,
+        asVersionId(summary.latest_version),
+      )
+    : null;
   const reportHref = latest?.passport_digest
     ? `/${locale}/reports?object_kind=setup&stable_id=${encodeURIComponent(stableId)}&version=${encodeURIComponent(summary.latest_version)}&digest=${encodeURIComponent(latest.passport_digest)}`
     : undefined;
@@ -331,6 +345,24 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
                 authorizationRevision={corporateOwnership.authorizationRevision}
                 csrfToken={corporateCsrfToken}
                 members={corporateOwnership.members}
+              />
+            ) : null}
+            {corporateUsage ? (
+              <CorporateCatalogUsage
+                items={corporateUsage.items}
+                total={corporateUsage.total}
+                labels={{
+                  title: th("catalogUsageTitle"),
+                  summary: th("catalogUsageSummary"),
+                  direct: th("directAssignment"),
+                  effective: th("effectiveAssignment"),
+                  subjectKinds: {
+                    employee: th("employee"),
+                    team: th("team"),
+                    project: th("project"),
+                    technology: th("technologies"),
+                  },
+                }}
               />
             ) : null}
             <div className="border-border bg-card rounded-lg border p-4 shadow-sm">

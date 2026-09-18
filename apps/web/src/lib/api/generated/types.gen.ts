@@ -1206,6 +1206,10 @@ export type ComponentSearchRequest = {
    * Authors
    */
   authors?: Array<string>;
+  /**
+   * Category Ids
+   */
+  category_ids?: Array<string>;
   component_type?: ComponentType | null;
   /**
    * Component Types
@@ -2662,6 +2666,102 @@ export type CorporateCatalogOwnershipRequest = {
 };
 
 /**
+ * CorporateCatalogUsage
+ */
+export type CorporateCatalogUsage = {
+  /**
+   * Assignment Id
+   */
+  assignment_id: string;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Source
+   */
+  source: "direct" | "effective";
+  /**
+   * Source Team Id
+   */
+  source_team_id: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Subject Id
+   */
+  subject_id: string;
+  /**
+   * Subject Kind
+   */
+  subject_kind: "employee" | "team" | "project" | "technology";
+  /**
+   * Subject Name
+   */
+  subject_name: string;
+  /**
+   * Version
+   */
+  version: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateCatalogUsageList
+ */
+export type CorporateCatalogUsageList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateCatalogUsage>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateCatalogUsageQuery
+ */
+export type CorporateCatalogUsageQuery = {
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
  * CorporateCatalogVerification
  */
 export type CorporateCatalogVerification = {
@@ -2815,6 +2915,10 @@ export type CorporateDirectoryFacets = {
    */
   categories: Array<CorporateDirectoryReference>;
   /**
+   * Job Titles
+   */
+  job_titles: Array<CorporateDirectoryReference>;
+  /**
    * Leads
    */
   leads: Array<CorporateDirectoryReference>;
@@ -2838,6 +2942,10 @@ export type CorporateDirectoryFacets = {
  */
 export type CorporateDirectoryItem = {
   /**
+   * Available Actions
+   */
+  available_actions: Array<string>;
+  /**
    * Categories
    */
   categories: Array<CorporateDirectoryReference>;
@@ -2853,10 +2961,11 @@ export type CorporateDirectoryItem = {
    * Is Lead
    */
   is_lead: boolean;
+  job_title: CorporateDirectoryReference | null;
   /**
    * Kind
    */
-  kind: "project" | "team" | "employee" | "technology" | "category";
+  kind: "project" | "team" | "employee" | "technology" | "category" | "job_title";
   /**
    * Leads
    */
@@ -2911,6 +3020,10 @@ export type CorporateDirectoryQuery = {
    */
   is_lead?: boolean | null;
   /**
+   * Job Title Ids
+   */
+  job_title_ids?: Array<string>;
+  /**
    * Lead Ids
    */
   lead_ids?: Array<string>;
@@ -2933,7 +3046,11 @@ export type CorporateDirectoryQuery = {
   /**
    * Resource
    */
-  resource: "projects" | "teams" | "members" | "technologies";
+  resource: "projects" | "teams" | "members" | "employees" | "technologies";
+  /**
+   * Sort
+   */
+  sort?: "name" | "name_desc";
   /**
    * Team Ids
    */
@@ -2955,7 +3072,7 @@ export type CorporateDirectoryReference = {
   /**
    * Kind
    */
-  kind: "project" | "team" | "employee" | "technology" | "category";
+  kind: "project" | "team" | "employee" | "technology" | "category" | "job_title";
   /**
    * Name
    */
@@ -2976,7 +3093,7 @@ export type CorporateDirectoryView = {
   /**
    * Resource
    */
-  resource: "projects" | "teams" | "members" | "technologies";
+  resource: "projects" | "teams" | "members" | "employees" | "technologies";
   /**
    * Schema Version
    */
@@ -3012,6 +3129,114 @@ export type CorporateEffectivePermission = {
 };
 
 /**
+ * CorporateJobTitleCreateRequest
+ */
+export type CorporateJobTitleCreateRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Description
+   */
+  description?: string;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+};
+
+/**
+ * CorporateJobTitleList
+ */
+export type CorporateJobTitleList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateJobTitleView>;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateJobTitleUpdateRequest
+ */
+export type CorporateJobTitleUpdateRequest = {
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Description
+   */
+  description?: string;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * State
+   */
+  state: "current" | "retired";
+};
+
+/**
+ * CorporateJobTitleView
+ */
+export type CorporateJobTitleView = {
+  /**
+   * Description
+   */
+  description: string;
+  /**
+   * Job Title Id
+   */
+  job_title_id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Normalized Name
+   */
+  normalized_name: string;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Revision
+   */
+  revision: number;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * State
+   */
+  state: "current" | "retired";
+  [key: string]: unknown;
+};
+
+/**
  * CorporateMember
  */
 export type CorporateMember = {
@@ -3023,6 +3248,14 @@ export type CorporateMember = {
    * Display Name
    */
   display_name: string | null;
+  /**
+   * Job Title Id
+   */
+  job_title_id: string | null;
+  /**
+   * Job Title Name
+   */
+  job_title_name: string | null;
   /**
    * Revision
    */
@@ -3066,6 +3299,10 @@ export type CorporateMemberCreateRequest = {
   email?: string | null;
   idempotency_key: IdempotencyKey;
   /**
+   * Job Title Id
+   */
+  job_title_id?: string | null;
+  /**
    * Role
    *
    * Tenant-local role name.
@@ -3075,6 +3312,10 @@ export type CorporateMemberCreateRequest = {
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Team Ids
+   */
+  team_ids?: Array<string>;
 };
 
 /**
@@ -3128,6 +3369,10 @@ export type CorporateMemberUpdateRequest = {
    */
   expected_revision: number;
   idempotency_key: IdempotencyKey;
+  /**
+   * Job Title Id
+   */
+  job_title_id?: string | null;
   /**
    * Role
    *
@@ -3369,15 +3614,27 @@ export type CorporateProjectCreateRequest = {
    * Authorization Revision
    */
   authorization_revision: number;
+  /**
+   * Description
+   */
+  description?: string;
   idempotency_key: IdempotencyKey;
   /**
    * Name
    */
   name: string;
   /**
+   * Owner Team Id
+   */
+  owner_team_id?: string | null;
+  /**
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Technology Ids
+   */
+  technology_ids?: Array<string>;
 };
 
 /**
@@ -3739,15 +3996,31 @@ export type CorporateTeamCreateRequest = {
    * Description
    */
   description?: string;
+  /**
+   * Employee Ids
+   */
+  employee_ids?: Array<string>;
   idempotency_key: IdempotencyKey;
+  /**
+   * Lead Account Id
+   */
+  lead_account_id?: string | null;
   /**
    * Name
    */
   name: string;
   /**
+   * Project Ids
+   */
+  project_ids?: Array<string>;
+  /**
    * Schema Version
    */
   schema_version?: 1;
+  /**
+   * Technology Ids
+   */
+  technology_ids?: Array<string>;
 };
 
 /**
@@ -8746,6 +9019,10 @@ export type SetupSearchRequest = {
    */
   authors?: Array<string>;
   /**
+   * Category Ids
+   */
+  category_ids?: Array<string>;
+  /**
    * Corporate Verified
    */
   corporate_verified?: boolean | null;
@@ -12234,6 +12511,10 @@ export type SearchComponentsData = {
      * Authors
      */
     authors?: Array<string>;
+    /**
+     * Category Ids
+     */
+    category_ids?: Array<string>;
     component_type?: ComponentType | null;
     /**
      * Component Types
@@ -12782,6 +13063,10 @@ export type SearchSetupsData = {
      * Authors
      */
     authors?: Array<string>;
+    /**
+     * Category Ids
+     */
+    category_ids?: Array<string>;
     /**
      * Corporate Verified
      */
@@ -15062,6 +15347,85 @@ export type WriteCorporateCatalogOwnershipResponses = {
 export type WriteCorporateCatalogOwnershipResponse =
   WriteCorporateCatalogOwnershipResponses[keyof WriteCorporateCatalogOwnershipResponses];
 
+export type ListCorporateCatalogUsageData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Object Kind
+     */
+    object_kind: "setup" | "component";
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Stable Id
+     */
+    stable_id: string;
+    /**
+     * Version
+     */
+    version: string;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/catalog-usage";
+};
+
+export type ListCorporateCatalogUsageErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateCatalogUsageError =
+  ListCorporateCatalogUsageErrors[keyof ListCorporateCatalogUsageErrors];
+
+export type ListCorporateCatalogUsageResponses = {
+  /**
+   * Read authorized direct and effective organization usage for an exact catalog version.
+   */
+  200: CorporateCatalogUsageList;
+};
+
+export type ListCorporateCatalogUsageResponse =
+  ListCorporateCatalogUsageResponses[keyof ListCorporateCatalogUsageResponses];
+
 export type ReadCorporateContextData = {
   body?: never;
   headers?: {
@@ -15148,6 +15512,10 @@ export type ReadCorporateDirectoryData = {
      */
     is_lead?: boolean | null;
     /**
+     * Job Title Ids
+     */
+    job_title_ids?: Array<string>;
+    /**
      * Lead Ids
      */
     lead_ids?: Array<string>;
@@ -15170,7 +15538,11 @@ export type ReadCorporateDirectoryData = {
     /**
      * Resource
      */
-    resource: "projects" | "teams" | "members" | "technologies";
+    resource: "projects" | "teams" | "members" | "employees" | "technologies";
+    /**
+     * Sort
+     */
+    sort?: "name" | "name_desc";
     /**
      * Team Ids
      */
@@ -15424,6 +15796,196 @@ export type WriteCorporateEntityProfileResponses = {
 
 export type WriteCorporateEntityProfileResponse =
   WriteCorporateEntityProfileResponses[keyof WriteCorporateEntityProfileResponses];
+
+export type ListCorporateJobTitlesData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/job-titles";
+};
+
+export type ListCorporateJobTitlesErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ListCorporateJobTitlesError =
+  ListCorporateJobTitlesErrors[keyof ListCorporateJobTitlesErrors];
+
+export type ListCorporateJobTitlesResponses = {
+  /**
+   * List organization job titles.
+   */
+  200: CorporateJobTitleList;
+};
+
+export type ListCorporateJobTitlesResponse =
+  ListCorporateJobTitlesResponses[keyof ListCorporateJobTitlesResponses];
+
+export type CreateCorporateJobTitleData = {
+  body: CorporateJobTitleCreateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/job-titles";
+};
+
+export type CreateCorporateJobTitleErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type CreateCorporateJobTitleError =
+  CreateCorporateJobTitleErrors[keyof CreateCorporateJobTitleErrors];
+
+export type CreateCorporateJobTitleResponses = {
+  /**
+   * Create an organization job title.
+   */
+  200: CorporateJobTitleView;
+};
+
+export type CreateCorporateJobTitleResponse =
+  CreateCorporateJobTitleResponses[keyof CreateCorporateJobTitleResponses];
+
+export type UpdateCorporateJobTitleData = {
+  body: CorporateJobTitleUpdateRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+    /**
+     * Typed corporate job title identifier.
+     */
+    job_title_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/job-titles/{job_title_id}";
+};
+
+export type UpdateCorporateJobTitleErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type UpdateCorporateJobTitleError =
+  UpdateCorporateJobTitleErrors[keyof UpdateCorporateJobTitleErrors];
+
+export type UpdateCorporateJobTitleResponses = {
+  /**
+   * Update or retire an organization job title.
+   */
+  200: CorporateJobTitleView;
+};
+
+export type UpdateCorporateJobTitleResponse =
+  UpdateCorporateJobTitleResponses[keyof UpdateCorporateJobTitleResponses];
 
 export type ListCorporateMembersData = {
   body?: never;

@@ -20,8 +20,30 @@
       "title": "Description",
       "type": "string"
     },
+    "employee_ids": {
+      "items": {
+        "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "title": "Employee Ids",
+      "type": "array"
+    },
     "idempotency_key": {
       "$ref": "#/$defs/IdempotencyKey"
+    },
+    "lead_account_id": {
+      "anyOf": [
+        {
+          "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lead Account Id"
     },
     "name": {
       "maxLength": 200,
@@ -29,11 +51,29 @@
       "title": "Name",
       "type": "string"
     },
+    "project_ids": {
+      "items": {
+        "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Project Ids",
+      "type": "array"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "technology_ids": {
+      "items": {
+        "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Technology Ids",
+      "type": "array"
     }
   },
   "required": [

@@ -19,6 +19,8 @@ import {
   type CorporateCatalogFacetConfig,
 } from "./corporate-directory-types";
 import { useRouter } from "@/lib/i18n/navigation";
+import { PageNav } from "@/components/organisms/catalog-page-nav";
+import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
 export type { DirectoryItem, DirectoryResource } from "./corporate-directory-types";
 
@@ -102,12 +104,16 @@ function directoryLabels(t: (key: string) => string) {
     teams: t("teams"),
     projects: t("projects"),
     technologies: t("technologies"),
+    categories: t("categories"),
     team: t("team"),
     employee: t("employee"),
     author: t("author"),
     owner: t("owner"),
     type: t("type"),
     moreActions: t("moreActions"),
+    copyId: t("copyId"),
+    copyUrl: t("copyUrl"),
+    copied: t("copied"),
     unknownEmployee: t("unknownEmployee"),
     notAvailable: t("notAvailable"),
   };
@@ -124,6 +130,12 @@ export function CorporateDirectoryResults({
   onAdd,
   catalogFacets = EMPTY_CATALOG_FACETS,
   initialCatalogSelected = EMPTY_CATALOG_SELECTION,
+  serverPaginated = false,
+  pageNumber = 1,
+  pageSize = 24,
+  total,
+  paginationLabel = "Pagination",
+  facets,
 }: {
   resource: DirectoryResource;
   items: readonly DirectoryItem[];
@@ -135,6 +147,12 @@ export function CorporateDirectoryResults({
   onAdd?: (() => void) | undefined;
   catalogFacets?: readonly CorporateCatalogFacetConfig[];
   initialCatalogSelected?: Partial<Record<CorporateCatalogFacet, string[]>>;
+  serverPaginated?: boolean;
+  pageNumber?: number;
+  pageSize?: number;
+  total?: number | undefined;
+  paginationLabel?: string | undefined;
+  facets?: CorporateDirectoryFacets;
 }) {
   const t = useTranslations("hub");
   const [query, setQuery] = useState(initialQuery);
@@ -174,7 +192,12 @@ export function CorporateDirectoryResults({
     values.forEach((value) => {
       url.searchParams.append(name, value);
     });
-    window.history.replaceState(window.history.state, "", url);
+    if (serverPaginated && name !== "view") {
+      url.searchParams.set("page", "1");
+      router.push(`${url.pathname}${url.search}`);
+    } else {
+      window.history.replaceState(window.history.state, "", url);
+    }
     setReturnFilters(url.searchParams.toString());
   }
 
@@ -247,10 +270,12 @@ export function CorporateDirectoryResults({
         cancelLabel={cancelLabel}
         adding={adding}
         onAdd={onAdd}
+        {...(facets ? { facets } : {})}
       />
       <div className="flex items-center justify-end gap-3">
         <p className="text-muted-foreground text-sm" aria-live="polite">
-          {visible.length} {t(resource === "members" ? "employees" : resource)}
+          {serverPaginated ? (total ?? visible.length) : visible.length}{" "}
+          {t(resource === "members" ? "employees" : resource)}
         </p>
       </div>
       {visible.length ? (
@@ -273,6 +298,18 @@ export function CorporateDirectoryResults({
           {t(items.length ? "noMatches" : "empty")}
         </p>
       )}
+      {serverPaginated && total && total > pageSize ? (
+        <PageNav
+          label={paginationLabel}
+          pageNumber={pageNumber}
+          totalPages={Math.ceil(total / pageSize)}
+          hrefFor={(page) => {
+            const params = new URLSearchParams(filters);
+            params.set("page", String(page));
+            return `?${params.toString()}`;
+          }}
+        />
+      ) : null}
     </section>
   );
 }
