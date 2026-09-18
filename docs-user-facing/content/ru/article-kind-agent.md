@@ -76,7 +76,7 @@ reviewer/
 └── reviewer.md                    # {name}.md в корне пакета
 ```
 
-Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
+Когда вы начинаете из `ai_stp`, стартуйте intent `author`. Не набирайте `component scaffold plan`. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
 `source/` для portable и `projections/<harness>/` для конкретного харнесса,
 а не всё дерево. Агенты Codex — TOML под `agents/`.
@@ -92,7 +92,15 @@ reviewer/                          # component-scaffold/3
     └── reviewer.md
 ```
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type agent \
   --language none \
@@ -128,7 +136,7 @@ ai-stp component scaffold apply \
 [Agent Skills Specification](https://agentskills.io/specification), нет.
 Skill — переносимый workflow; agent — роль.
 
-Ссылайтесь на `layout_source` из `ai-stp component discover --json`,
+Ссылайтесь на `layout_source` из конверта intent `author`,
 когда классификация неясна. Custom agents Codex документированы только из
 `.codex/agents` — не выдумывайте второй каталог.
 
@@ -138,7 +146,7 @@ NVIDIA SkillSpector и Cisco Skill Scanner — сканеры skill. Это не
 ## Нативные layout по харнессам
 
 Discovery сообщает только объявленные layout. Точные пути на машине даёт
-`ai-stp component discover --json`. У каждой находки есть `layout_source`.
+конверт intent `author`. У каждой находки есть `layout_source`.
 Если классификация неясна, покажите это поле; не угадывайте путь соседа.
 
 Из матрицы discovery:
@@ -161,10 +169,13 @@ Walker не изобретает файлы agent из соседнего кат
 Одиночный файл в directory-shaped layout дополнительного манифеста не
 требует — так авторят agents Claude Code, и adopt их принимает.
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover`. Движок сам находит нативное дерево.
 
 ## Версии — `X.Y`, не SemVer
 
@@ -235,20 +246,20 @@ ai-stp skill status --json
 **Автор, adopt, публикация:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Найти, выбрать, установить:**
+**Установить:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 Agent может быть embedded-членом compose-манифеста. См.
@@ -304,15 +315,14 @@ Agent может быть embedded-членом compose-манифеста. См
    Постоянные правила положите в [`instruction`](https://ai-stp.aiguild.space/ru/docs/components),
    процедуры — в [`skill`](https://ai-stp.aiguild.space/ru/docs/components).
 3. Объявите потребности в авторизации в паспорте. Секретов нет.
-4. Запустите `ai-stp component discover --root . --json` и прочитайте
-   `layout_source` у находки.
-5. `component adopt --path <точный source_path>` — добавьте `--kind agent`,
-   если путь заявлен более чем одним видом.
-6. Закрепите точный публичный GitHub commit и подпуть.
-7. `component passport validate` → `component version release`, чтобы
+4. Зарегистрируйте каталог через
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` остаются для recovery.
+5. Закрепите точный публичный GitHub commit и подпуть.
+6. `component passport validate` → `component version release`, чтобы
    выпустить неизменяемый `X.Y`.
-8. Публикуйте через [путь публикации](https://ai-stp.aiguild.space/ru/docs/components).
-9. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия
+7. Публикуйте через [путь публикации](https://ai-stp.aiguild.space/ru/docs/components).
+8. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия
    сетапа.
 
 Связанное: [Авторство](https://ai-stp.aiguild.space/ru/docs/components),

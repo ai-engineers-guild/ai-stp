@@ -1,0 +1,77 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-task-input-account",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Sign in, sign out, or explicitly sync. Login never uploads.",
+  "properties": {
+    "action": {
+      "anyOf": [
+        {
+          "enum": [
+            "login",
+            "logout",
+            "sync"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Action"
+    },
+    "project_root": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Root"
+    },
+    "provider": {
+      "anyOf": [
+        {
+          "enum": [
+            "google",
+            "github"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "anyOf": [
+        {
+          "enum": [
+            "push",
+            "pull"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scope"
+    }
+  },
+  "title": "TaskAccountInput",
+  "type": "object"
+}

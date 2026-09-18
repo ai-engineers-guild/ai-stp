@@ -1,4 +1,6 @@
+import { login } from "@/lib/cli-copy";
 import {
+  code,
   field,
   heading,
   link,
@@ -72,7 +74,13 @@ export function presentDevices(input: {
     current: string;
   };
 }): MachineDocument {
-  const doc: MachineDocument = [heading(1, input.title), paragraph(input.subtitle)];
+  const held = login("github");
+  const doc: MachineDocument = [
+    heading(1, input.title),
+    paragraph(input.subtitle),
+    field("account", held),
+    code(held),
+  ];
   if (input.devices.length === 0) {
     doc.push(paragraph(input.emptyMessage));
     return doc;

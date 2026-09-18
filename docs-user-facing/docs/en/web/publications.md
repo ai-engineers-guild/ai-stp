@@ -78,9 +78,14 @@ human-only.
 ## Matching CLI commands
 
 ```bash
-ai-stp publication plan --json
-ai-stp publication status --json
-ai-stp publication confirm --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Expert leaves matching this page (status/confirm of an already-built plan):
+
+```text
+ai-stp publication status --plan-id <plan_id> --json
+ai-stp publication confirm --plan-id <plan_id> --plan-hash <plan_hash> --confirm --json
 ai-stp attestation sign --json
 ai-stp owner version show --json
 ai-stp link web --json
@@ -93,9 +98,9 @@ the button on this page. `attestation sign` (`apply`,
 `explicit_flag`) signs credential-dependent test evidence with the
 **active device key** — that cannot be done in the browser.
 
-Setup publication is a different pair:
+Expert setup-publication leaves (a reviewed pin set, then the setup):
 
-```bash
+```text
 ai-stp setup publish plan --json
 ai-stp setup publish confirm --json
 ```
@@ -109,8 +114,8 @@ Those confirm a reviewed set: pinned components, then the setup. See
 | --- | --- | --- |
 | Plan not found or not available | bad id or not yours | start from Objects or `publication status` |
 | Confirmation is not available | state ≠ `ready`, or no CSRF | wait / refresh; re-login if CSRF missing |
-| Plan expired | `expires_at` passed | create a new plan in the CLI |
-| Start publication missing on Objects | no device or not allowed | link a CLI device; `publication plan` |
+| Plan expired | `expires_at` passed | start `publish` |
+| Start publication missing on Objects | no device or not allowed | link a CLI device; start `publish` |
 | Evidence empty | no extra rows | still read digest and hash |
 | Want to change a file | too late for this hash | new version, new plan |
 | Browser “build” | does not exist | CLI only |

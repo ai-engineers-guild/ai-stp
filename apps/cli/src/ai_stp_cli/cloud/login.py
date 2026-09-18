@@ -28,7 +28,7 @@ import httpx
 
 from ai_stp_cli import identity
 from ai_stp_cli.cloud import client, session
-from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.cloud.client import Endpoint, login_actions, login_continuations
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports
 from ai_stp_cli.local.database import open_registry
@@ -230,7 +230,8 @@ def poll(
             raise CliFailure(
                 "AI_STP_AUTHORIZATION_EXPIRED",
                 "the sign-in was not approved in time",
-                next_actions=["auth login --provider google --json"],
+                next_actions=login_actions(),
+                continuations=login_continuations(),
             )
         pause(interval)
 

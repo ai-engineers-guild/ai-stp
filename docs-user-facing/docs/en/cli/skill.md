@@ -14,7 +14,7 @@ installing the control-plane skill because a catalog card exists.
 The Skill is what an agent reads to learn how to drive this CLI, so an
 installation that carries the binary and not the procedure has
 delivered half a product. After it is present, the agent still starts
-every session with `doctor` and `help --agent`.
+every session with `task intents --json`.
 
 The destination is named rather than discovered. Where each harness
 looks for a native skill is a fact about that harness. This command
@@ -160,12 +160,11 @@ The envelope also carries `ok`, `warnings`, `next_actions`,
 After the file is present, the agent still starts every session with:
 
 ```bash
-ai-stp doctor --json
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
 The Skill tells it to do that. Installing the file is not a substitute
-for reading machine help.
+for compact intent discovery.
 
 ## Typical refusals
 

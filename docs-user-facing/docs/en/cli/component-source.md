@@ -13,6 +13,13 @@ Parsing does not fetch. Resolving binds one full commit SHA. Searching names
 does not select a candidate. Evidence commands talk about the archived
 repository state, not about whether the version is safe.
 
+Everyday registration is the `author` intent. Source parse/resolve/search
+and evidence leaves below stay expert recovery.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
 ## Command table
 
 | Command | Mutability | Confirmation | When |
@@ -115,6 +122,14 @@ Success fields for show and refresh: `stable_id`, `version`,
 
 ## Happy path
 
+Everyday:
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery:
+
 ```text
 component source parse --source owner/repo
 → component source resolve --source owner/repo
@@ -166,12 +181,13 @@ only.
 - [Registry](registry.md)
 - [Publishing](../publishing/index.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups source commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups source commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

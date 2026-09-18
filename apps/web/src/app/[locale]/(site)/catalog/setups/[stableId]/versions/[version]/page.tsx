@@ -21,7 +21,7 @@ import {
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsSetupId } from "@/lib/brands";
-import { registryVersion } from "@/lib/cli-copy";
+import { installStart, registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { versionPageMetadata } from "@/lib/seo/metadata";
 import { publicOrigin } from "@/lib/site";
@@ -182,9 +182,21 @@ export default async function SetupVersionPage({ params }: PageProps) {
         t={t}
       />
       <CliCopyBlock
-        command={registryVersion("setup", stableId, version)}
+        command={installStart()}
         title={tCli("useTitle")}
-        description={canonical.cli_command}
+        description={tCli("useBody")}
+        copyLabel={tCli("copy")}
+        copiedLabel={tCli("copied")}
+        errorLabel={tCli("copyError")}
+        docsLabel={tCli("docs")}
+        visibility="public"
+        publicLabel={t("public")}
+        privateLabel={t("private")}
+      />
+      <CliCopyBlock
+        command={registryVersion("setup", stableId, version)}
+        title={tCli("inspectTitle")}
+        description={tCli("inspectBody")}
         copyLabel={tCli("copy")}
         copiedLabel={tCli("copied")}
         errorLabel={tCli("copyError")}

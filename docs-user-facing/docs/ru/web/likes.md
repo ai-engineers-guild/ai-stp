@@ -116,7 +116,7 @@ ai-stp link web --json
 | Закрепить `X.Y` | нет | `registry version --version` |
 | Согласие на experimental | нет | CLI `consent allow` |
 | Грант major-линии | нет | [Доступ](access.md) |
-| Установка | нет | `install plan` / provider |
+| Установка | нет | `task start --intent install` / provider |
 | Подтвердить содержимое | нет | `component_verified` на версии |
 
 Machine-проекция `/likes` — список ссылок kind + `stable_id`. Агент

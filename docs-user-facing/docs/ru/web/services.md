@@ -105,7 +105,7 @@ Human / Machine сохраняет путь. Machine index — список се
 
 Команды `ai-stp services` нет. Близнец — поиск каталога:
 
-```bash
+```text
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry show --kind setup --id <stable_id> --json

@@ -1,6 +1,6 @@
 ---
 description: "CLI machine help as the source of available commands and schemas."
-last_verified: "2026-09-15"
+last_verified: "2026-09-18"
 ---
 
 # Machine help
@@ -8,6 +8,16 @@ last_verified: "2026-09-15"
 Machine help is how the Agent learns which commands exist and how to invoke them. The Skill neither rewrites nor guesses the flag list: `SPEC-011` REQ-1106 explicitly forbids this.
 
 ## Two Entry Points
+
+```text
+ai-stp task intents --json
+```
+
+Durable agent journeys start here. Do not type `ai-stp capabilities` or
+`ai-stp help --agent` as the first move: both dump every command path,
+including `install plan`.
+
+Expert orientation (not the everyday start):
 
 ```text
 ai-stp capabilities --json
@@ -20,13 +30,16 @@ They answer different questions and intentionally do not replace each other.
 whether this process loaded a published wheel or this checkout, the local
 registry schema it reads, the command-registry fingerprint, supported harnesses,
 whether catalog and synchronization are enabled, and a command-path list as a
-pointer. It is an inexpensive first call.
+pointer. The payload keeps `command_paths` (SPEC-080 REQ-8006). Inspect
+orientation does not copy that list.
 
 `help --agent` answers **which commands, fields, and errors exist**. It is the full
 registry: for each command, it provides the path, purpose, mutability class,
 confirmation rule, parameters, result schema, and family-orientation next actions; for
 each error code, it provides the exit class, a brief meaning, and initial Agent
-`handling`. The response is considerably larger.
+`handling`. The response is considerably larger. An unknown `--path` lists
+`task intents` instead of dumping that registry. An unscoped dump still carries
+a `task intents` continuation so the everyday catalog is the next argv.
 
 Both responses are assembled from the same registry in `apps/cli`, so they cannot disagree about which commands exist.
 
@@ -43,12 +56,38 @@ The machine-help shape is declared with the wire models rather than inside the a
 
 The command list belongs to the registry and grows with implemented tasks. It is not duplicated here: a copy in this document would diverge from the implementation on the first change, while the Skill reads the implementation.
 
-Durable agent journeys use `task start`, `task answer`, `task continue`,
-`task status`, and `task cancel`. Discovery is `help --path task --json`. The
-first intent is `inspect`; it calls the same in-process inspect services as
-`doctor` and `capabilities`. Installation through this surface is not declared
-as an intent yet. There is no machine-global current task: every call names
-`--task`.
+Durable agent journeys start at `task intents --json`, then `task start`,
+`task answer`, `task continue`, `task status`, and `task cancel`. The five
+lifecycle verbs keep result schema `cli-task`. Compact discovery is
+`cli-task-intents`. `help --agent` remains the full registry. Shipped intents
+are `inspect`, `initialize`, `install`, `change`, `author`, `switch`,
+`account`, and `publish`. Inspect stores doctor plus slim
+orientation (no `command_paths`). Unshipped intent names are refused. There is no
+stored current-task pointer. `task answer --json` or `task continue --json`
+without `--task` emits that unique blocked human question's answer argv when
+exactly one unsettled task exists; the same verbs with `--task` and without
+`--revision` emit that named task's answer argv. Otherwise they list
+`task intents`. The continuation still names `--task` and `--revision`.
+`task start --json` without `--intent`, and `task start --intent` with a
+name that is not shipped, list `task intents` and do not echo Click's
+missing-option or choice dump. A shipped intent without the key emits
+the start argv with `<intent>-session-01`.
+An incomplete command group that a shipped intent already drains
+(`install`, `auth`, `publication`, `sync`, `setup compose`, `setup preserve`,
+`setup restore`, `setup preserved`) returns `task start` for that intent.
+Other incomplete groups return `task intents --json`. The envelope does not
+list expert leaves. A `task_covered` leaf that fails Click parse, or a bare
+handler validation such as `install plan --json`, is the same `task start`
+as its group. Everyday pending leaves (`setup compose plan`,
+`select propose`, `component adopt`, `component discover`) do the same. `install plan --action
+backup|rollback` and `auth login` with
+a supported `--provider` plus another flag stay leaf errors.
+`sync preview` stays a leaf error.
+A scoped `help --path install` dump carries the install start continuation,
+not an empty one. Mixed families (`component`, `select`, `setup`,
+`registry`, `config`) list `task intents`. `help --path doctor` carries none.
+A successful `task_pending` everyday leaf (`component discover --json`)
+carries the same draining start continuation.
 
 ## What Enters the Registry
 

@@ -12,7 +12,7 @@ from typing import Any, cast
 
 import pytest
 
-from ai_stp_cli.commands import select
+from ai_stp_cli.application import select
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     acquired_trust,
@@ -1081,7 +1081,7 @@ def test_a_named_empty_setup_is_proposed_confirmed_and_immutable(
     assert conversion["complete"] is True
     assert conversion["entries"] == []
 
-    from ai_stp_cli.commands import install
+    from ai_stp_cli.application import install
 
     prepared = install._prepared_setup_source(  # pyright: ignore[reportPrivateUsage]
         registry, f"{confirmed.stable_id}@{confirmed.version}", str(tmp_path)

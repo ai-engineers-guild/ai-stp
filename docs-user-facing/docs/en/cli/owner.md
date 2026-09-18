@@ -131,7 +131,7 @@ On each version, also read `visibility`, `trust_lane`, and
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | no signed-in account | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | no signed-in account | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_PERMISSION_DENIED` | this account does not own that object | you are a grantee or a catalog reader; use `registry show` |
 | `AI_STP_NOT_FOUND` | the id or version is not on the server | `owner objects`; a local-only draft is not here |
 | `AI_STP_VALIDATION_ERROR` | `--kind` missing on show, or `--version` missing | `--kind` is required on object and version show |
@@ -153,12 +153,13 @@ fresh account is typed emptiness.
 - [Publishing](../publishing/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups owner commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups owner commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

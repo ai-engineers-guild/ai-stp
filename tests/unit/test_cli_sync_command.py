@@ -7,7 +7,7 @@ from typing import cast
 
 import pytest
 
-from ai_stp_cli.commands import sync
+from ai_stp_cli.application import sync
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, revisions
 from ai_stp_cli.local.database import open_registry

@@ -33,12 +33,12 @@ do not.
 
 ## What this screen is for
 
-Use Catalog to find a candidate, read its trust axes, and copy a CLI
-show/version command.
+Use Catalog to find a candidate, read its trust axes, then copy the
+everyday install intent. Registry show/version stays inspect identity.
 
 Catalog does **not**:
 
-- run `select` or `install`;
+- run `select` or `install` in the browser;
 - write a provider plan;
 - treat `author_verified` as proof that a version is safe;
 - hide experimental objects unless you turn that filter off;
@@ -152,9 +152,15 @@ signal.
 
 ## Matching CLI commands
 
-Anonymous catalog reads:
+Everyday install after a card exists:
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect (identity, not install):
+
+```text
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry show --kind setup --id <stable_id> --json
@@ -176,8 +182,9 @@ Canonical website URL for an object:
 ai-stp link web --json
 ```
 
-Selection and install are **not** catalog commands. They start at
-[Select](../cli/select.md) and [Install](../cli/install.md).
+Selection and compose leaves are **not** catalog commands. Everyday
+install after a card exists is the `install` intent above. Expert
+choreography is [Select](../cli/select.md) and [Install](../cli/install.md).
 
 ## Dead-ends
 
@@ -191,9 +198,9 @@ Selection and install are **not** catalog commands. They start at
 | Both-mode page looks like only setups | you are still on a setup page of the mixed pager | go forward past setup pages |
 | Card 404 after click | unpublished, blocked, or unknown id | stay on search; do not guess ids |
 
-A machine catalog document lists the active query as fields, then
-setups and components. Empty machine output is the same empty message,
-not a stack trace.
+A machine catalog document lists the everyday install start, the active
+query as fields, then setups and components. Empty machine output is the
+same empty message, not a stack trace.
 
 ## Related pages
 

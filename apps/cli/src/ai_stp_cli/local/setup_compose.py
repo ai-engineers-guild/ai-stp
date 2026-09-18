@@ -287,6 +287,7 @@ def apply(
     device_id: str,
     publisher_id: str,
     at: str,
+    related_setup_ids: Sequence[str] = (),
 ) -> SetupComposeResult:
     if resolved.plan_digest != expected_plan_digest:
         raise CliFailure(
@@ -314,6 +315,7 @@ def apply(
         publisher_id=publisher_id,
         at=at,
         member_passports=passports,
+        related_setup_ids=related_setup_ids,
     )
     with transaction(connection):
         for item in resolved.catalog:
@@ -514,6 +516,7 @@ def _setup_passport(
     publisher_id: str,
     at: str,
     member_passports: Sequence[Mapping[str, JsonValue]],
+    related_setup_ids: Sequence[str] = (),
 ) -> dict[str, JsonValue]:
     refs = [
         {
@@ -649,7 +652,7 @@ def _setup_passport(
         "harness_ids": cast(JsonValue, projected_harnesses),
         "components": cast(JsonValue, refs),
         "ported_from": None,
-        "related_setup_ids": [],
+        "related_setup_ids": list(related_setup_ids),
         "execution_profile": "full-auto",
         "supported_harness_versions": [],
         "supported_os": [],

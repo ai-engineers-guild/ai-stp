@@ -14,12 +14,22 @@ description: "Подготовка repository-backed компонентов и �
 Опубликованная версия — неизменяемый `X.Y`, не SemVer. Изменение байтов
 означает новую версию.
 
-## Scaffold
+Повседневный путь:
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Leaves scaffold / adopt / validate / release ниже — expert recovery.
+
+## Expert recovery: scaffold
 
 Сначала просмотрите каждый файл и digest, затем примените те же входы с
 точным digest плана. Назначения ещё не должно существовать.
 
-```bash
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type skill \
   --language none \
@@ -87,15 +97,13 @@ Compose пишет SQLite. Compose — это не install.
 без разрешения на распространение (`NOASSERTION`, пока вы не проверите
 лицензию).
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport show --id <stable_id> --json
-ai-stp component passport suggest --id <stable_id> --json
-ai-stp component passport update --id <stable_id> --expected-revision <rev> --from <patch.json> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component passport quality --id <stable_id> --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте discover / adopt / passport. Движок регистрирует дерево.
 
 `validate` перечисляет все структурные блокеры публикации. `quality` —
 необязательные подсказки автору; он не меняет доверие и готовность.
@@ -154,12 +162,14 @@ ai-stp component skill validate --path ./playwright-checks/source --json
 
 ## Из нативного дерева, которое уже есть
 
-Если компонент уже лежит в layout харнесса:
+Если компонент уже лежит в layout харнесса, запустите intent `author`.
+Discover и adopt ниже — expert recovery:
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <точный source_path из finding> --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover` или `component adopt`.
 
 Adoption принимает только путь, который discovery уже назвал. У каталога
 должен быть манифест из закрытого набора (`SKILL.md`, `AGENTS.md`,

@@ -364,7 +364,7 @@ def test_the_observers_ask_on_the_same_named_gate(
     had to be remembered twice. It is one function now, and this asserts the
     reason it hands over — for both commands, and only when asked.
     """
-    from ai_stp_cli.commands import install
+    from ai_stp_cli.application import install
 
     executable = _stub(tmp_path)
     target = tmp_path / "target"

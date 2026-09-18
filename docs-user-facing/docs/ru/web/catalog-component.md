@@ -105,7 +105,7 @@ description: "Как читать публичную страницу компо
 | Автор | аватар издателя, отображаемое имя, `author_verified` |
 | Использование | просмотры страницы, скачивания артефакта |
 | Бюджет контекста | потенциальные токены; runtime-derived виды так и говорят |
-| Копия CLI | точная строка `registry version` |
+| Копия CLI | повседневный `task start --intent install` в «Использовать через CLI»; inspect-копия `registry version` |
 | История версий | предложенные номера `X.Y`; пропуски намеренны |
 
 **Публичный JSON паспорта** спрятан за аккордеоном. Копируйте его как
@@ -133,6 +133,14 @@ OS/arch, доказательства поддержки и digest этой ве
 
 ## Соответствующие команды CLI
 
+Повседневная установка (Использовать через CLI):
+
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-чтение каталога и локальный blast-radius:
+
 ```bash
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <x.y> --json
@@ -150,8 +158,8 @@ ai-stp select blast-radius --json
 Adopt и публикация — не эта страница:
 
 ```bash
-ai-stp component discover --json
-ai-stp owner object show --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 ## Тупики

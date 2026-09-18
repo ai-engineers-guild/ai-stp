@@ -13,6 +13,15 @@ The website shows the catalog. It does not discover a file on this machine,
 write a local passport, or extract an embedded member. Those steps stay in the
 CLI. Selection, assembly, and installation are other groups.
 
+Everyday registration is the `author` intent. Everyday publication is
+`publish`. Discover, passport, source, and `component publish` below stay
+expert recovery.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
 ## Child pages
 
 | Page | What it covers |
@@ -67,12 +76,12 @@ proves the decision.
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp component discover` | `read` | `none` | list native components in harness roots and one project |
+| component discover | `read` | `none` | list native components in harness roots and one project |
 | `ai-stp component find` | `read` | `none` | search the local registry; no model, no network |
-| `ai-stp component scaffold plan` | `plan` | `none` | preview exact scaffold files and digests |
-| `ai-stp component scaffold apply` | `apply` | `plan_digest` | create exactly the confirmed scaffold |
+| component scaffold plan | `plan` | `none` | preview exact scaffold files and digests |
+| component scaffold apply | `apply` | `plan_digest` | create exactly the confirmed scaffold |
 | `ai-stp component template render` | `read` | `none` | render a portable template for one harness |
-| `ai-stp component adopt` | `apply` | `none` | register one discovered path in the local registry |
+| component adopt | `apply` | `none` | register one discovered path in the local registry |
 | `ai-stp component forget` | `apply` | `none` | mark a registered component deleted, keep history |
 
 ### Passport
@@ -100,7 +109,7 @@ proves the decision.
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp component publish` | `plan` | `none` | extract one embedded member into a publication plan |
+| component publish | `plan` | `none` | extract one embedded member into a publication plan |
 | `ai-stp component version list` | `read` | `none` | every recorded version, and the next minor |
 | `ai-stp component version release` | `apply` | `none` | give the current head an immutable `X.Y` |
 | `ai-stp component fork` | `apply` | `none` | copy one recorded version under a new identity |
@@ -144,7 +153,7 @@ catalog, Git, package, and path sources lives in [Setup commands](setup.md).
 | `AI_STP_USER_DECISION_REQUIRED` | a path answers to more than one harness or kind | pass `--harness` or `--kind` as the descriptor names them |
 | `AI_STP_PLAN_STALE` | the scaffold or passport bytes changed | build a new plan, show it, confirm again |
 | `AI_STP_CONFLICT` | the expected revision is no longer the head | `passport show`, then a new patch |
-| `AI_STP_AUTH_REQUIRED` | a cloud publication step needs a session | `auth login`, then retry the publication command |
+| `AI_STP_AUTH_REQUIRED` | a cloud publication step needs a session | `task start --intent account --idempotency-key account-session-01 --json` |
 | command absent from machine help | this install does not have it | stop; do not substitute a similar command |
 
 A mutating command without `--json` mixes human text onto stdout. Add `--json`
@@ -164,12 +173,13 @@ and read one envelope.
 - [Setup commands](setup.md)
 - [Publication](publication.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-Documentation groups commands so a person can find the right page. The
-installed CLI is the source of flags, schemas, and `next_actions`. If this
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+Documentation groups commands so a person can find the right page. If this
 page and the CLI disagree, follow the CLI.

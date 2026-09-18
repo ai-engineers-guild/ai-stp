@@ -10,22 +10,37 @@ component versions. These commands compose a mixed setup from catalog and
 external sources, import a native configuration you already have, replace
 one embedded member, and plan publication of the whole graph.
 
-They do not write the harness target. Installation still goes through
+They do not write the harness target. Everyday composition is the `change`
+intent. Everyday installation of a recorded setup is the `install` intent.
+Do not type `setup compose plan` or `install plan` unless you are recovering
+a stopped operation.
+
+```bash
+ai-stp task start --intent change --idempotency-key change-session-01 --json
+```
+
+Follow `continuations`. After the setup identity is recorded, start
+`install` the same way. Expert compose / import / publish leaves below stay
+for operators who already hold a digest.
+
+Installation still goes through
 [Install](install.md) and the public provider.
 
 ## Command table
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp setup compose plan` | `plan` | `none` | resolve and freeze a new setup from catalog, Git, package, and path sources |
-| `ai-stp setup compose apply` | `apply` | `plan_digest` | record the exact still-current mixed setup as one immutable local version |
-| `ai-stp setup import inspect` | `read` | `none` | read one native configuration; write nothing |
-| `ai-stp setup import plan` | `plan` | `none` | plan exact component and setup drafts from one native configuration |
-| `ai-stp setup import register` | `apply` | `plan_digest` | register the inspected configuration as your own setup |
-| `ai-stp setup update plan` | `plan` | `none` | preview replacing one embedded component with a newer exact snapshot |
-| `ai-stp setup update apply` | `apply` | `plan_digest` | apply one exact embedded update and create a new setup version |
-| `ai-stp setup publish plan` | `plan` | `none` | plan publication of one released setup with every component it pins |
-| `ai-stp setup publish confirm` | `apply` | `explicit_flag` | confirm one exact reviewed publication set |
+| `ai-stp task start --intent change` | `apply` | `none` | everyday compose; records a new setup identity |
+| `ai-stp task start --intent install` | `apply` | `none` | everyday install of a recorded setup |
+| setup compose plan | `plan` | `none` | expert: resolve and freeze a new setup from catalog, Git, package, and path sources |
+| setup compose apply | `apply` | `plan_digest` | expert: record the exact still-current mixed setup as one immutable local version |
+| setup import inspect | `read` | `none` | read one native configuration; write nothing |
+| setup import plan | `plan` | `none` | plan exact component and setup drafts from one native configuration |
+| setup import register | `apply` | `plan_digest` | register the inspected configuration as your own setup |
+| setup update plan | `plan` | `none` | preview replacing one embedded component with a newer exact snapshot |
+| setup update apply | `apply` | `plan_digest` | apply one exact embedded update and create a new setup version |
+| setup publish plan | `plan` | `none` | plan publication of one released setup with every component it pins |
+| setup publish confirm | `apply` | `explicit_flag` | confirm one exact reviewed publication set |
 
 `--json` is global. Always pass it.
 
@@ -80,7 +95,9 @@ components do not need a catalog listing.
 }
 ```
 
-```bash
+Expert recovery (already-held digest):
+
+```text
 ai-stp setup compose plan --manifest setup.json --root . --json
 ```
 
@@ -95,7 +112,7 @@ The plan answer carries `setup_id`, `version`, `harness_id`, `created_at`,
 Apply repeats resolution and refuses changed bytes. Pass the returned setup
 id, timestamp, and plan digest:
 
-```bash
+```text
 ai-stp setup compose apply \
   --manifest setup.json \
   --root . \
@@ -118,7 +135,7 @@ Import brings a native harness configuration into the local registry as
 your own setup. Secret values are not stored. The target is untouched: the
 provider already made the backup; register only records where it is.
 
-```bash
+```text
 ai-stp setup import inspect --root <native-dir> --harness codex --json
 ai-stp setup import plan --root <native-dir> --harness codex --json
 ai-stp setup import register \
@@ -145,7 +162,7 @@ Register fields: `stable_id`, `revision_id`, `backup_id`, `component_ids`,
 Replace one **embedded** component with a newer exact snapshot. Catalog
 pins are not updated this way.
 
-```bash
+```text
 ai-stp setup update plan \
   --id <setup_id> \
   --version 1.0 \
@@ -166,7 +183,7 @@ is checked.
 
 Apply repeats the same options and adds `--expected-plan-digest`:
 
-```bash
+```text
 ai-stp setup update apply \
   --id <setup_id> \
   --version 1.0 \
@@ -191,7 +208,7 @@ Plan the publication of one released setup together with every component it
 pins. Confirming makes that exact graph public: pinned components first,
 then the setup.
 
-```bash
+```text
 ai-stp setup publish plan --id <setup_id> --version 1.0 --json
 ai-stp setup publish confirm \
   --set-digest sha256:... \
@@ -211,12 +228,25 @@ Success fields: `set_digest`, `setup_stable_id`, `setup_version`, `state`,
 Compose:
 
 ```text
-setup compose plan --manifest setup.json --root .
-→ setup compose apply --manifest setup.json --root . --id … --created-at … --expected-plan-digest …
-→ select session / install plan
+task start --intent change --idempotency-key change-session-01 --json
+→ follow continuations until there are none
+→ task start --intent install --idempotency-key install-session-01 --json
 ```
 
-Import:
+Expert compose (already-held digest):
+
+```text
+setup compose plan --manifest setup.json --root .
+→ setup compose apply --manifest setup.json --root . --id … --created-at … --expected-plan-digest …
+```
+
+Import a native tree (everyday `author` intent):
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert import (already-held plan digest):
 
 ```text
 setup import inspect --root <dir> --harness <id>
@@ -224,7 +254,13 @@ setup import inspect --root <dir> --harness <id>
 → setup import register --root <dir> --harness <id> --backup-ref … --plan-digest …
 ```
 
-Publish the graph:
+Publish the graph (everyday `publish` intent):
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Expert publish (already-held set digest):
 
 ```text
 setup publish plan --id <setup_id> --version <X.Y>
@@ -252,7 +288,7 @@ setup publish plan --id <setup_id> --version <X.Y>
 | `AI_STP_VALIDATION_ERROR` | `--expected-plan-digest`, `--plan-digest`, or `--set-digest` missing | copy the digest the plan returned |
 | `AI_STP_PLAN_STALE` | Git bytes, package bytes, or local paths changed | plan again; apply refuses changed bytes |
 | `AI_STP_PRECONDITION_FAILED` | import register without a provider backup, or an unbound member | take the backup through install; fix the manifest |
-| `AI_STP_AUTH_REQUIRED` | publish needs a signed-in account | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | publish needs a signed-in account | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_PERMISSION_DENIED` | this account cannot publish that setup | check owner and grants |
 | path outside `--root` | local sources are bounded | move the files or change `--root` |
 | floating package version | package sources require an exact version | pin `name@version` |
@@ -272,12 +308,13 @@ passport to "complete" the import.
 - [Publishing](../publishing/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups setup commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups setup commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

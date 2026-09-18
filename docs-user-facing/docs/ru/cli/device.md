@@ -174,7 +174,7 @@ Reset — это не:
 | `AI_STP_USER_DECISION_REQUIRED` на `device reset` | не было `--confirm` | `ai-stp device reset --confirm --json` после явного решения |
 | `credential_store` равен `file` | секретное хранилище ОС было недоступно | читать `credential_store_detail`; это сообщают, а не скрывают |
 | doctor сообщает, что устройства нет | `device show` отказал бы так же | `device init`, не `device reset` |
-| облачные вызовы падают после reset | старый ключ выведен из строя | `auth login`, затем `auth complete` для новой идентичности |
+| облачные вызовы падают после reset | старый ключ выведен из строя | `task start --intent account --idempotency-key account-session-01 --json` |
 
 ## Связанные страницы
 

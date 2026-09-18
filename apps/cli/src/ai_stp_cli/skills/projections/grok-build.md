@@ -16,30 +16,42 @@ Native surface for this harness: Native marketplace, plugin, and Skill.
 
 Help the user's coding agent choose, install and maintain complete harness
 setups through the installed CLI. Finish the requested operation and report
-what was actually verified.
+what was actually verified. The CLI owns acquisition, composition, backup,
+plan, approve, apply, verify, retries, and recovery.
 
 ## Start here
 
-1. Run `ai-stp doctor --json`, then `ai-stp help --agent --json`.
-   If the executable is missing, follow [bootstrap](references/bootstrap.md).
-2. Read the envelope and keep the command descriptors it carries.
-   Use their parameters, parameter rules, confirmation and result schemas to
-   construct calls. Keep the envelope's registry fingerprint beside them and
-   reuse the descriptors while it is unchanged; reload help when it differs, or
-   after a command mismatch. The version string is not the fingerprint: two
-   builds can report the same version with different commands and flags.
-   The help descriptor itself declares how to read one command family instead
-   of the whole registry; once the playbook below names the family, read that.
-3. Take the harness, project root and requested outcome from the conversation
-   and current workspace. Inspect missing facts. Ask only for information that
-   cannot be determined and materially changes the requested effect.
-4. Open the matching playbook below and continue through its verification step.
-   A request to install or fix something authorizes the corresponding reversible
-   work; a machine confirmation parameter is not a new conversational question.
+You are the coding agent. Run `ai-stp` yourself with your tools. Do not ask
+the human to paste or execute those commands. A printed command is not a completed operation.
+If the user is already signed in and this turn says not to run the CLI, do
+not type `ai-stp`. Do not start `account`.
 
-Only these two bootstrap invocations fix CLI flags in this package. Other
-command paths describe a workflow; their executable arguments come from help.
-Use machine JSON for subsequent calls, as declared by the installed registry.
+1. Run `ai-stp task intents --json` and pick one shipped intent. If the
+   executable is missing, follow [bootstrap](references/bootstrap.md).
+2. Call `ai-stp task start` for that intent.
+   `envelope.continuations[0].actor` is a JSON field, not the user's identity.
+   When that field is `cli`, execute `argv` with your tools. When it is
+   `human`, do not execute that `argv` as printed (the value is missing on
+   purpose). Answer immediately from the conversation through
+   `ai-stp task answer`. Waiting for a person is not the job. When it is
+   `external`, show the payload once and stop. Do not execute that `argv`.
+   `provider-too-old` is not login: do not start `account`, do not loop
+   `task continue`. A device-code payload is shown once; later
+   `task continue` only after the browser, never in a tight loop.
+   Start already advanced the task. Do not insert
+   `task continue` when `actor` is `human` or when there are no continuations.
+   Do not invent `task status`, `task info`, or `task get`.
+   Wait for each `ai-stp` JSON envelope on stdout. Foreground the CLI; do not background it. A backgrounded invocation is a failed turn.
+3. Stop when there are no continuations. If `error.details.state` is
+   `failed`, the task is settled; do not type `task get`. Report payload
+   verification, not envelope `ok` alone.
+
+Only `task intents --json` fixes CLI flags in this package. Other command
+paths describe a workflow; their executable arguments come from continuation
+`argv` or from machine help. Use machine JSON for subsequent calls.
+
+Do not run `ai-stp doctor` or dump `ai-stp help` as a prelude to every
+request. Completing inspect is enough when the user asked what is wrong.
 
 ## What is being installed
 
@@ -81,6 +93,38 @@ and [traps](references/traps.md) when a returned state is ambiguous.
 
 - Machine help owns supported commands, parameters, schemas and error handling.
   Execute returned next actions only after resolving their actual inputs.
+  Prefer continuation `argv` over typing expert leaves.
+- Do not choreograph `install plan`, `install approve`, or `install apply`.
+  Do not type the install group with no leaf. The install intent drains those
+  in-process. Do not type `install transaction plan`.
+- Do not type `setup compose plan`, `setup compose apply`, `setup update apply`,
+  `component adopt`, `component scaffold`, `component publish`, or `config init`.
+  Use `change` to alter a saved setup and `author` / `publish` / `initialize`
+  for those journeys.
+- Do not type `setup restore plan` or `setup preserve plan`. Do not type
+  `setup preserve recover` or `setup preserved list`. Use `switch` to
+  return the last working user config. Never kill the caller. Never claim the
+  running session loaded new files.
+- Do not type `auth login`, `auth complete`, `auth logout`, `sync push`,
+  `sync pull`, `publication plan`, `publication confirm`, `setup publish plan`,
+  `setup publish confirm`, `select propose`,
+  `select confirm`, `select bundle`, `registry acquire`, `registry search`,
+  `registry show`, `registry fetch`, `registry version`,
+  `registry port inspect`, `registry port plan`, or `registry port discover`.
+  Use `account` to sign in or sync (login never uploads), `publish` for a
+  local object, and `install` for catalog bytes. Show a device-code
+  `actor=external` payload once, then later `task continue`.
+  `provider-too-old` is not a device code. Do not invent git provenance.
+  Do not type a `github.com` remote. Already signed in with no sign-in,
+  sign-out, or sync request: do not type
+  `ai-stp` and do not start `account`.
+- Do not type `ai-stp help` or `help --json`. Start at
+  `task intents --json`. The registry dump is expert recovery.
+- Do not type `ai-stp capabilities`. It lists every command path. Use the
+  `inspect` intent.
+- Do not type `provider network`. Empty `continuations` means stop and
+  report the typed error. When `error.details.state` is `failed`, the task
+  is settled; do not type `task get`, `task status`, or `task continue`.
 - Use CLI configuration and installation commands. The provider writes the
   harness target; do not replace its work with manual native-file edits.
 - Keep exact setup/component versions, proposal and operation identifiers,

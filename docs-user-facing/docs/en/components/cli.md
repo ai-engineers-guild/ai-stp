@@ -15,6 +15,12 @@ It does not answer "which checkable operation can be called by name?"
 harness. A `cli` is a process. It is also not the `ai-stp` control-plane
 executable itself — that lives under [CLI](../cli/index.md).
 
+Everyday authoring is the `author` intent. Do not type `component scaffold plan`.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
 !!! warning "Kind `cli` is not a slash command"
 
     | Object | Where it lives | Lives in a setup? |

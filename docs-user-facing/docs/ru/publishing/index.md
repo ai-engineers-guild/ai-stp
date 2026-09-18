@@ -20,6 +20,17 @@ commit и подпутём. После публикации версия неи�
 Публикация — CLI-путь со входом в аккаунт. Веб может показать результат; он
 не привязывает байты и не подтверждает hash плана.
 
+Повседневный путь:
+
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Leaves `plan` / `status` / `confirm` ниже — expert recovery, если план уже
+открыт.
+
 ## Предусловия
 
 1. Есть локальная идентичность устройства: `ai-stp device init --json`.
@@ -28,6 +39,8 @@ commit и подпутём. После публикации версия неи�
 4. Публичный источник — точный GitHub commit. Ветки и короткие SHA
    отклоняются.
 5. Секреты, приватные пути и тела `.env` отсутствуют в паспорте и артефакте.
+
+Expert recovery:
 
 ```bash
 ai-stp component passport validate --id <stable_id> --json
@@ -66,11 +79,17 @@ ai-stp attestation sign \
 
 ## Публикация выпущенного компонента
 
-Спланируйте, просмотрите, затем подтвердите **точный** hash, который вам
+Повседневный путь:
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Expert leaves, если план уже открыт. Подтвердите **точный** hash, который вам
 показали. Если ответ confirm потерялся, это не второй confirm: сначала
 прочитайте status.
 
-```bash
+```text
 ai-stp publication plan \
   --id <stable_id> \
   --version 1.0 \
@@ -92,10 +111,12 @@ ai-stp publication confirm \
 
 ## Извлечь embedded-компонент и опубликовать его
 
+Expert recovery:
+
 Компонент, который живёт только внутри сетапа, можно поднять в обычный план
 публикации:
 
-```bash
+```text
 ai-stp component publish \
   --from-setup <setup_id> \
   --setup-version 1.0 \
@@ -112,7 +133,7 @@ ai-stp component publish \
 **набор**: по одному плану на каждый ещё не публичный pin, затем план самого
 сетапа. Уже публичные участники перечисляются и не планируются заново.
 
-```bash
+```text
 ai-stp setup publish plan --id <setup_id> --version 1.0 --json
 
 ai-stp setup publish confirm --set-digest <set_digest> --confirm --json

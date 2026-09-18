@@ -7,11 +7,11 @@ from typing import cast
 import httpx
 import pytest
 
+from ai_stp_cli.application import cloud_auth
+from ai_stp_cli.application import sync as sync_commands
 from ai_stp_cli.cloud import session
 from ai_stp_cli.cloud import sync as cloud_sync
 from ai_stp_cli.cloud.client import Endpoint
-from ai_stp_cli.commands import cloud_auth
-from ai_stp_cli.commands import sync as sync_commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import lifecycle, revisions, sync_state, versions
 from ai_stp_cli.local.database import open_registry

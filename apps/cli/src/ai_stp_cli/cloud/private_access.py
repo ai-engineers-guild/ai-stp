@@ -3,7 +3,7 @@
 from pydantic import ValidationError
 
 from ai_stp_cli.cloud import client, session
-from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.cloud.client import Endpoint, login_actions, login_continuations
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache
 from ai_stp_cli.secrets import open_store
@@ -19,7 +19,8 @@ def held_session(*, offline: bool = False) -> session.Session:
         raise CliFailure(
             "AI_STP_AUTH_REQUIRED",
             "private cloud access requires a signed-in account",
-            next_actions=["auth login --provider github --json"],
+            next_actions=login_actions(),
+            continuations=login_continuations(),
         )
     if not offline and held.state() == "revoked":
         raise CliFailure("AI_STP_DEVICE_REVOKED", "this device has been revoked")

@@ -9,6 +9,17 @@ Publication creates an immutable server plan for one exact released
 component version, and confirms that plan by its hash. Attestation signing
 binds credential-dependent test evidence to the active device key.
 
+Everyday publication is the `publish` intent. The engine drains plan and
+confirm in-process. Do not type `publication plan` unless you are recovering
+a stopped plan.
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Follow `continuations`. Expert plan / status / confirm leaves below stay
+for operators who already hold a plan hash.
+
 The plan does not make the version public. Confirm does. A failed check
 must not leave a partially published version behind. `author_verified` still
 does not mean the content is safe.
@@ -17,10 +28,11 @@ does not mean the content is safe.
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
+| `ai-stp task start --intent publish` | `apply` | `none` | everyday publication; drains plan/confirm |
 | `ai-stp attestation sign` | `apply` | `explicit_flag` | sign exact credential-dependent test evidence with the active device key |
-| `ai-stp publication plan` | `plan` | `none` | create an immutable server plan for one exact released component version |
+| publication plan | `plan` | `none` | expert: create an immutable server plan for one exact released component version |
 | `ai-stp publication status` | `read` | `none` | read the current server state of one publication plan |
-| `ai-stp publication confirm` | `apply` | `explicit_flag` | confirm one exact unexpired publication plan hash |
+| publication confirm | `apply` | `explicit_flag` | expert: confirm one exact unexpired publication plan hash |
 
 `--json` is global. Always pass it.
 
@@ -65,7 +77,7 @@ put secrets in the attestation file.
 
 ## Publication plan
 
-```bash
+```text
 ai-stp publication plan --id <stable_id> --version 1.0 --json
 ai-stp publication plan \
   --id <stable_id> \
@@ -97,7 +109,7 @@ Confirm only an unexpired plan whose `plan_hash` still matches.
 
 ## Confirm
 
-```bash
+```text
 ai-stp publication confirm \
   --plan-id <plan_id> \
   --plan-hash sha256:... \
@@ -114,7 +126,12 @@ The answer is the plan view in its new `state`. Follow with
 
 ## Happy path
 
-Component:
+```text
+task start --intent publish --idempotency-key publish-session-01 --json
+→ follow continuations until there are none
+```
+
+Expert (already-held plan hash):
 
 ```text
 component passport validate --id <id>
@@ -150,7 +167,7 @@ the plan. They must match the version you intended.
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | no signed-in account | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | no signed-in account | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_USER_DECISION_REQUIRED` | `--confirm` was omitted | pass `--confirm` after reading `effects` |
 | `AI_STP_VALIDATION_ERROR` | `--id`, `--version`, `--plan-id`, or `--plan-hash` missing | read the descriptor |
 | `AI_STP_PRECONDITION_FAILED` | attestation not bound to this version, device, and account | sign again on this device after login |
@@ -175,12 +192,13 @@ commit and subpath. Local-only provenance is refused at plan time.
 - [Trust and safety](../trust-and-safety/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups publication commands so a person can find them. The
-installed CLI is the source of flags, schemas, and `next_actions`. If this
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups publication commands so a person can find them. If this
 page and the CLI disagree, follow the CLI.

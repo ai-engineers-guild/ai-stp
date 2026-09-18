@@ -176,22 +176,347 @@ def test_an_empty_human_invocation_opens_first_run_help(home: Path) -> None:
     assert result.returncode == 0
     assert result.stderr == ""
     assert "Usage: ai-stp" in result.stdout
-    assert "ai-stp doctor --json" in result.stdout
-    assert "ai-stp help --agent --json" in result.stdout
+    assert "ai-stp task intents --json" in result.stdout
 
 
 def test_auth_help_and_machine_registry_expose_provider_choices(home: Path) -> None:
     help_result = run("auth", "--help", home=home)
     assert help_result.returncode == 0
     assert help_result.stderr == ""
-    assert "ai-stp auth login --provider google" in help_result.stdout
-    assert "ai-stp auth login --provider github" in help_result.stdout
+    assert (
+        "ai-stp task start --intent account --idempotency-key account-session-01 --json"
+        in help_result.stdout
+    )
+    assert "ai-stp auth login --provider google" not in help_result.stdout
 
     registry_result = run("help", "--agent", "--json", home=home)
     commands = json.loads(registry_result.stdout)["data"]["commands"]
     login = next(command for command in commands if command["path"] == ["auth", "login"])
     provider = next(item for item in login["parameters"] if item["name"] == "provider")
     assert provider["choices"] == ["google", "github"]
+
+
+def _group_command_names(help_text: str) -> set[str]:
+    names: set[str] = set()
+    in_commands = False
+    for line in help_text.splitlines():
+        if line.startswith("Commands:"):
+            in_commands = True
+            continue
+        if not in_commands:
+            continue
+        if line.strip() == "":
+            break
+        if line.startswith("  "):
+            names.add(line.split()[0])
+    return names
+
+
+def test_install_help_hides_plan_approve_apply(home: Path) -> None:
+    result = run("install", "--help", home=home)
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json"
+        in result.stdout
+    )
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"plan", "approve", "apply", "cancel", "status", "recover", "resume"})
+    plan_help = run("install", "plan", "--help", home=home)
+    assert plan_help.returncode == 0
+    assert "immutable installation plan" in plan_help.stdout
+    parent = run("--help", home=home)
+    assert "install" not in _group_command_names(parent.stdout)
+
+
+def test_auth_help_hides_login_and_complete(home: Path) -> None:
+    result = run("auth", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"login", "complete", "logout", "status"})
+    logout_help = run("auth", "logout", "--help", home=home)
+    assert logout_help.returncode == 0
+    parent = run("--help", home=home)
+    assert "auth" not in _group_command_names(parent.stdout)
+
+
+def test_select_help_hides_propose_and_confirm(home: Path) -> None:
+    result = run("select", "--help", home=home)
+    assert result.returncode == 0
+    assert (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json"
+        in result.stdout
+    )
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint(
+        {
+            "propose",
+            "confirm",
+            "bundle",
+            "graph",
+            "eligibility",
+            "blast-radius",
+            "impact",
+            "cancel",
+            "reports",
+            "session",
+        }
+    )
+    bundle_help = run("select", "bundle", "--help", home=home)
+    assert bundle_help.returncode == 0
+
+
+def test_root_help_hides_the_registry_dump_command(home: Path) -> None:
+    result = run("--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert "help" not in names
+    assert "capabilities" not in names
+    assert "doctor" not in names
+    assert "setup" not in names
+    assert "publication" not in names
+    assert "eval" not in names
+    assert "environment" not in names
+    assert "component" not in names
+    assert "select" not in names
+    assert "config" not in names
+    assert "target" not in names
+    assert "sync" not in names
+    assert "harness" not in names
+    assert "task" in names
+    assert "install" not in names
+    assert "auth" not in names
+    assert "registry" not in names
+    assert "project" not in names
+    assert "provider" not in names
+    assert "update" not in names
+    assert "version" not in names
+    assert "ai-stp task intents --json" in result.stdout
+    dump = run("help", "--help", home=home)
+    assert dump.returncode == 0
+    listed = run("capabilities", "--help", home=home)
+    assert listed.returncode == 0
+    doctor = run("doctor", "--help", home=home)
+    assert doctor.returncode == 0
+
+
+def test_task_help_shows_only_lifecycle_leaves(home: Path) -> None:
+    result = run("task", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names == {"start", "answer", "continue", "intents"}
+    assert names.isdisjoint({"status", "info", "get", "cancel"})
+
+
+def test_registry_help_hides_search_and_acquire(home: Path) -> None:
+    result = run("registry", "--help", home=home)
+    assert result.returncode == 0
+    assert (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json"
+        in result.stdout
+    )
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"search", "acquire", "show", "fetch", "version"})
+    search_help = run("registry", "search", "--help", home=home)
+    assert search_help.returncode == 0
+    parent = run("--help", home=home)
+    assert "registry" not in _group_command_names(parent.stdout)
+
+
+def test_sync_help_hides_push_and_pull(home: Path) -> None:
+    result = run("sync", "--help", home=home)
+    assert result.returncode == 0
+    assert (
+        "ai-stp task start --intent account --idempotency-key account-session-01 --json"
+        in result.stdout
+    )
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"push", "pull", "preview", "merge"})
+    push_help = run("sync", "push", "--help", home=home)
+    assert push_help.returncode == 0
+
+
+def test_registry_port_help_hides_inspect_plan_import(home: Path) -> None:
+    result = run("registry", "port", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"discover", "inspect", "plan", "import"})
+    inspect_help = run("registry", "port", "inspect", "--help", home=home)
+    assert inspect_help.returncode == 0
+    parent = run("registry", "--help", home=home)
+    assert "port" not in _group_command_names(parent.stdout)
+
+
+def test_install_transaction_help_hides_plan_approve_apply(home: Path) -> None:
+    result = run("install", "transaction", "--help", home=home)
+    assert result.returncode == 0
+    assert (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json"
+        in result.stdout
+    )
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"plan", "approve", "apply", "cancel", "recover", "status"})
+    plan_help = run("install", "transaction", "plan", "--help", home=home)
+    assert plan_help.returncode == 0
+    parent = run("install", "--help", home=home)
+    assert "transaction" not in _group_command_names(parent.stdout)
+
+
+def test_environment_help_hides_plan(home: Path) -> None:
+    result = run("environment", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"plan", "inspect"})
+    assert (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json"
+        in result.stdout
+    )
+    plan_help = run("environment", "plan", "--help", home=home)
+    assert plan_help.returncode == 0
+
+
+def test_eval_help_hides_plan_and_run(home: Path) -> None:
+    result = run("eval", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"plan", "run", "show", "status", "profile", "component"})
+    assert "ai-stp task intents --json" in result.stdout
+    plan_help = run("eval", "plan", "--help", home=home)
+    assert plan_help.returncode == 0
+
+
+def test_setup_help_hides_drained_choreography_groups(home: Path) -> None:
+    result = run("setup", "--help", home=home)
+    assert result.returncode == 0
+    assert (
+        "ai-stp task start --intent change --idempotency-key change-session-01 --json"
+        in result.stdout
+    )
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint(
+        {
+            "compose",
+            "scaffold",
+            "update",
+            "restore",
+            "import",
+            "publish",
+            "recast",
+            "preserve",
+            "preserved",
+            "export",
+        }
+    )
+    compose_help = run("setup", "compose", "--help", home=home)
+    assert compose_help.returncode == 0
+    import_help = run("setup", "import", "--help", home=home)
+    assert import_help.returncode == 0
+    preserve_help = run("setup", "preserve", "--help", home=home)
+    assert preserve_help.returncode == 0
+    assert (
+        "ai-stp task start --intent switch --idempotency-key switch-session-01 --json"
+        in preserve_help.stdout
+    )
+    root = run("--help", home=home)
+    assert "setup" not in _group_command_names(root.stdout)
+
+
+def test_component_help_hides_scaffold_and_publish(home: Path) -> None:
+    result = run("component", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint(
+        {
+            "scaffold",
+            "publish",
+            "discover",
+            "adopt",
+            "materialize",
+            "portability",
+            "adaptation",
+            "find",
+            "forget",
+            "fork",
+            "inventory",
+            "passport",
+            "program",
+            "skill",
+            "source",
+            "template",
+            "version",
+        }
+    )
+    assert (
+        "ai-stp task start --intent author --idempotency-key author-session-01 --json"
+        in result.stdout
+    )
+    scaffold_help = run("component", "scaffold", "--help", home=home)
+    assert scaffold_help.returncode == 0
+
+
+def test_project_help_hides_revision_and_sync(home: Path) -> None:
+    result = run("project", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint(
+        {"revision", "sync", "link", "unlink", "unlink-plan", "symbols", "discover", "index"}
+    )
+    push_help = run("project", "revision", "push", "--help", home=home)
+    assert push_help.returncode == 0
+    parent = run("--help", home=home)
+    assert "project" not in _group_command_names(parent.stdout)
+    link_help = run("project", "link", "--help", home=home)
+    assert link_help.returncode == 0
+    assert (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json"
+        in link_help.stdout
+    )
+
+
+def test_update_help_hides_plan_and_apply(home: Path) -> None:
+    result = run("update", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"plan", "apply", "check", "status", "recover", "rollback"})
+    plan_help = run("update", "plan", "--help", home=home)
+    assert plan_help.returncode == 0
+    parent = run("--help", home=home)
+    assert "update" not in _group_command_names(parent.stdout)
+    provider = run("provider", "--help", home=home)
+    assert "update" not in _group_command_names(provider.stdout)
+    assert _group_command_names(provider.stdout).isdisjoint(
+        {"check", "conformance", "trust", "fetch", "forget", "network", "reinstall"}
+    )
+    assert "provider" not in _group_command_names(parent.stdout)
+
+
+def test_setup_publish_help_hides_plan_and_confirm(home: Path) -> None:
+    result = run("setup", "publish", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"plan", "confirm"})
+    assert (
+        "ai-stp task start --intent publish --idempotency-key publish-session-01 --json"
+        in result.stdout
+    )
+    plan_help = run("setup", "publish", "plan", "--help", home=home)
+    assert plan_help.returncode == 0
+    parent = run("setup", "--help", home=home)
+    assert "publish" not in _group_command_names(parent.stdout)
+
+
+def test_publication_visibility_help_hides_plan_and_confirm(home: Path) -> None:
+    result = run("publication", "visibility", "--help", home=home)
+    assert result.returncode == 0
+    names = _group_command_names(result.stdout)
+    assert names.isdisjoint({"plan", "confirm", "status"})
+    parent = run("publication", "--help", home=home)
+    assert "visibility" not in _group_command_names(parent.stdout)
+    assert "status" not in _group_command_names(parent.stdout)
+    assert (
+        "ai-stp task start --intent publish --idempotency-key publish-session-01 --json"
+        in parent.stdout
+    )
 
 
 @pytest.mark.parametrize(
@@ -212,9 +537,9 @@ def test_auth_usage_failures_are_actionable_in_machine_mode(
     envelope = json.loads(result.stdout)
     assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"
     assert envelope["next_actions"] == [
-        "auth login --provider google --json",
-        "auth login --provider github --json",
+        "task start --intent account --idempotency-key account-session-01 --json"
     ]
+    assert envelope["error"]["details"]["intent"] == "account"
 
 
 @pytest.mark.parametrize(
@@ -251,7 +576,7 @@ def test_a_correct_provider_is_never_blamed_for_someone_else_s_mistake(
 
 
 def test_the_auth_repair_offers_exactly_the_declared_providers(home: Path) -> None:
-    """The suggestion is read from the registry, not restated beside it."""
+    """Bare `auth login` starts the account intent; providers stay on the descriptor."""
     declared = next(
         parameter.choices
         for command in COMMANDS
@@ -260,8 +585,11 @@ def test_the_auth_repair_offers_exactly_the_declared_providers(home: Path) -> No
         if parameter.name == "provider"
     )
     envelope = json.loads(run("auth", "login", "--json", home=home).stdout)
-    assert envelope["next_actions"] == [f"auth login --provider {name} --json" for name in declared]
-    assert envelope["error"]["details"]["allowed"] == ", ".join(declared)
+    assert envelope["next_actions"] == [
+        "task start --intent account --idempotency-key account-session-01 --json"
+    ]
+    assert envelope["error"]["details"]["intent"] == "account"
+    assert set(declared) == {"google", "github"}
 
 
 def test_a_portable_root_skill_is_discovered_and_adopted_by_exact_path(home: Path) -> None:

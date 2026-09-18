@@ -63,7 +63,7 @@ CLI — рабочая поверхность. Он обнаруживает н�
 
 После установки или обновления `ai-stp-cli` проверьте, что этот журнал описывает бинарник в `PATH`:
 
-```bash
+```text
 ai-stp version --json
 ai-stp doctor --json
 ai-stp help --agent --json

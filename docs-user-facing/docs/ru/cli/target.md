@@ -8,8 +8,17 @@ description: "Ежедневный статус, diff, копии и имено�
 Команды target — ежедневный вид одной пары проект–harness. Они читают.
 Они никогда не обновляют target, не снимают backup и не восстанавливают его.
 
-`target rollback` **называет** предыдущую подтверждённую версию.
-Восстановление — это `install plan --action rollback`. Повторная установка
+Повседневное восстановление последнего рабочего сетапа — intent `switch`.
+Не набирайте `install plan --action rollback`, если вы не восстанавливаете
+остановившуюся операцию.
+
+```bash
+ai-stp task start --intent switch --idempotency-key switch-session-01 --json
+```
+
+Expert-чтения target ниже ничего не восстанавливают. `target rollback`
+**называет** предыдущую подтверждённую версию. Восстановление через
+`install plan --action rollback` — expert recovery. Повторная установка
 более ранней версии через `action=update` — не то же самое, что
 восстановление из backup.
 
@@ -26,6 +35,8 @@ description: "Ежедневный статус, diff, копии и имено�
 берёт `--confirm` и не берёт digest плана.
 
 ## Status
+
+Expert recovery:
 
 ```bash
 ai-stp target status --project <project_id> --harness codex --json
@@ -111,9 +122,10 @@ ai-stp target backups \
 
 У каждой копии есть `backup_ref`, операция, которая её сняла, и версия
 сетапа, установленная в тот момент. Эта команда ничего не восстанавливает.
-Чтобы восстановить:
 
-```bash
+Expert recovery (остановившийся rollback):
+
+```text
 ai-stp install plan \
   --action rollback \
   --backup-ref <exact> \
@@ -157,7 +169,7 @@ ai-stp target rollback --project <project_id> --harness codex --json
 ```text
 target status --project <id> --harness <id>
 → target diff --project <id> --harness <id>   # если states включает local_drift
-→ install plan …                              # если решите менять
+→ task start --intent install --idempotency-key install-session-01 --json
 ```
 
 После успешного apply:
@@ -170,7 +182,7 @@ target status --project <id> --harness <id>
 Перед рискованным изменением:
 
 ```text
-install plan --action backup … → approve --plan-digest → apply
+task start --intent switch --idempotency-key switch-session-01 --json
 → target backups --project <id> --harness <id>
 → target rollback --project <id> --harness <id>   # имя, не restore
 ```
@@ -208,12 +220,13 @@ install plan --action backup … → approve --plan-digest → apply
 - [Диагностика](../troubleshooting/index.md)
 - [Карта команд](commands.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды target, чтобы человек их нашёл.
-Установленный CLI — источник флагов, схем и `next_actions`. Если страница
-и CLI расходятся, следуйте CLI.
+Если страница и CLI расходятся, следуйте CLI.

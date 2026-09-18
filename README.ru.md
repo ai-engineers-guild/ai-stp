@@ -55,17 +55,19 @@ JSON-конверт. CLI не пишет нативные файлы харне�
 
 ```bash
 uv tool install ai-stp-cli
-ai-stp doctor --json
+ai-stp task intents --json
 ```
 
 <details>
-<summary>Следующие команды агент должен взять из машинного реестра</summary>
+<summary>Следующие команды агент берёт из компактного списка intent</summary>
 
 ```bash
-ai-stp help --agent --json
-ai-stp passport developer init --json
-ai-stp device init --json
+ai-stp task intents --json
+ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
 ```
+
+`help --agent --json` — полный реестр, когда shipped intent недостаточно.
+Не дампьте его как прелюдию.
 
 `ai-stp` — имя исполняемого файла. `ai-stp-cli` — имя пакета. Команда
 `uv tool install ai-stp` ставит дистрибутив, который этот проект не публикует.

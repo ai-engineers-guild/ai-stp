@@ -117,7 +117,7 @@ and confirm that one. See [troubleshooting](../troubleshooting/index.md).
     The public catalog can be read without signing in. Search, show, and
     version are catalog reads. They do not grant, publish, or sync.
 
-    ```bash
+    ```text
     ai-stp registry search --kind setup --query frontend --json
     ai-stp registry show --kind setup --id <stable_id> --json
     ```
@@ -128,7 +128,7 @@ and confirm that one. See [troubleshooting](../troubleshooting/index.md).
     objects, and device binding to the cloud session.
 
     ```bash
-    ai-stp auth login --provider github --json
+    ai-stp task start --intent account --idempotency-key account-session-01 --json
     ai-stp auth status --json
     ```
 
@@ -157,7 +157,7 @@ A project is one indexed root. `ai_stp` discovers it, indexes it without
 reading secrets or binary content, and can record a project passport that
 pins the index, toolchain and config.
 
-```bash
+```text
 ai-stp project discover --root . --json
 ai-stp project index --root . --json
 ai-stp project passport --root . --json

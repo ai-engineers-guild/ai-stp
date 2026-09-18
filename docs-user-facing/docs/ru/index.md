@@ -30,7 +30,7 @@ FORM: MVP documentation site, category-standard static docs chosen deliberately 
 - [Быстрый старт для человека](quickstart/human.md): установить CLI, проверить
   окружение и прочитать каталог.
 - [Быстрый старт для ИИ-агента](quickstart/agent.md): каждую сессию начинать
-  с `doctor` и `help --agent`.
+  с `task intents --json`.
 - [CLI](cli/index.md): рабочая поверхность — JSON-конверты, планы и
   подтверждение.
 - [Веб](web/index.md): аккаунт, карточки каталога, публикации и жалобы.
@@ -59,8 +59,9 @@ FORM: MVP documentation site, category-standard static docs chosen deliberately 
 Основной путь выглядит так:
 
 ```text
-CLI → паспорта → индекс проекта → поиск → сборка сетапа → проверки
-→ план установки → резервная копия → применение через provider → status
+CLI → task intents → task start
+→ follow continuations (исполнять argv только когда actor равен cli)
+→ сообщить payload verification
 ```
 
 ??? question "Как читать эту документацию"
@@ -69,6 +70,7 @@ CLI → паспорта → индекс проекта → поиск → сб
     [для ИИ-агента](quickstart/agent.md) и со страницы про харнессы. Если вы
     уже собираете сетап, переходите сразу к
     [компонентам](components/index.md): каждая страница объясняет назначение,
-    границы и риск конкретного вида. Флаги команд всегда берутся из
-    `ai-stp help --agent --json`; этот сайт называет команды, чтобы человек
+    границы и риск конкретного вида. Повседневные флаги — из continuation
+    `argv` после `ai-stp task intents --json`; `help --agent` остаётся полным
+    реестром этой установки. Этот сайт называет команды, чтобы человек
     нашёл нужную страницу.

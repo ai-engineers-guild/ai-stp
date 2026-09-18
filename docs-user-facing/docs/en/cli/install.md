@@ -1,25 +1,39 @@
 ---
 title: "Install"
-description: "Plan, approve, apply, cancel, recover, and resume an installation."
+description: "Start the install intent. Expert plan, approve, apply, recover, and resume remain for recovery."
 ---
 
 # Install
 
-Install computes an immutable plan, records an approval against that plan's
-digest, and asks the harness's public provider to apply it. The CLI does not
-write native harness state itself.
+Everyday installation is the `install` intent. The engine drains plan,
+approve, apply, and verify in-process. Do not type `install plan` to obtain
+a digest unless you are recovering a stopped operation.
 
-A plan has no effect of its own. Approval is the user decision. Apply is
-the provider's write, journaled here. Recover and resume inspect or finish
-a result check; they do not apply the plan again.
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Follow `continuations`. Execute `argv` only when `actor` is `cli`. Relay a
+blocked human question through `task answer`. Report payload verification,
+not envelope `ok` alone.
+
+The CLI does not write native harness state itself. Only the harness's
+public provider does.
+
+Expert leaves below stay for recovery (`install recover`, `install resume`)
+and for operators who already hold a plan digest. A plan has no effect of
+its own. Approval is the user decision. Apply is the provider's write,
+journaled here. Recover and resume inspect or finish a result check; they
+do not apply the plan again.
 
 ## Command table
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp install plan` | `plan` | `none` | compute an immutable installation plan |
-| `ai-stp install approve` | `apply` | `plan_digest` | approve one plan by its exact digest |
-| `ai-stp install apply` | `apply` | `plan_digest` | carry out one approved plan through its provider |
+| `ai-stp task start --intent install` | `apply` | `none` | everyday install; drains plan/approve/apply |
+| install plan | `plan` | `none` | expert: compute an immutable installation plan |
+| install approve | `apply` | `plan_digest` | expert: approve one plan by its exact digest |
+| install apply | `apply` | `plan_digest` | expert: carry out one approved plan through its provider |
 | `ai-stp install cancel` | `apply` | `none` | abandon a plan before anything is applied |
 | `ai-stp install status` | `read` | `none` | operations that stopped without a settled outcome |
 | `ai-stp install recover` | `read` | `none` | what one stopped operation left; recovers nothing itself |
@@ -32,13 +46,13 @@ does **not** take a digest flag: approval already bound that digest to the
 operation. There is no `--confirm` on this group. There is no
 `--expected-plan-digest` on `install plan`, `approve`, or `apply`.
 
-## Plan
+## Expert recovery: plan
 
 Exactly one of `--proposal` or `--setup` is required. `--setup` is
 `<stable_id>@<X.Y>` and then `--project` is required. `--provider` is
 always required.
 
-```bash
+```text
 ai-stp install plan \
   --proposal <proposal_id> \
   --provider <exe> \
@@ -50,7 +64,7 @@ ai-stp install plan \
 
 From a prepared setup version:
 
-```bash
+```text
 ai-stp install plan \
   --setup setup_...@1.0 \
   --project . \
@@ -79,7 +93,7 @@ provider-declared execution posture, separate from setup identity.
 
 A backup you take on purpose:
 
-```bash
+```text
 ai-stp install plan \
   --action backup \
   --project <project_id> \
@@ -95,9 +109,9 @@ A restore from a provider-owned copy uses `--action rollback` and
 `--backup-ref`. That is not `target rollback`, which only **names** a
 previous version. See [Target](target.md) and [Setups](../setups/index.md).
 
-## Approve
+## Expert recovery: approve
 
-```bash
+```text
 ai-stp install approve \
   --operation <operation_id> \
   --plan-digest sha256:... \
@@ -108,9 +122,9 @@ ai-stp install approve \
 confirmation. A flag meaning "whatever is in front of me" is not accepted.
 A changed plan is a new operation.
 
-## Apply
+## Expert recovery: apply
 
-```bash
+```text
 ai-stp install apply \
   --operation <operation_id> \
   --provider <exe> \
@@ -147,6 +161,14 @@ appears here even though it is terminal: someone still has to recover.
 applies nothing. `--operation` and `--provider` are required.
 
 ## Happy path
+
+```text
+task start --intent install --idempotency-key install-session-01 --json
+→ follow continuations until there are none
+→ report payload verification
+```
+
+Expert recovery (stopped operation, already-held digest):
 
 ```text
 select confirm --proposal <id>
@@ -220,12 +242,13 @@ Do not restore a single component: restoring returns the target as a whole.
 - [Troubleshooting](../troubleshooting/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups install commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups install commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

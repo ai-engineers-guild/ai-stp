@@ -80,7 +80,7 @@ Cursor внутри доказанного pack: `skills`, `agents`, `commands` 
 (каждый файл — `instruction`). Официальная схема также называет `hooks`
 и `mcpServers`; walker не изобретает эти виды из соседнего каталога.
 
-Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
+Когда вы начинаете из `ai_stp`, стартуйте intent `author`. Не набирайте `component scaffold plan`. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
 `source/` для portable и `projections/<harness>/` для конкретного харнесса,
 а не всё дерево.
@@ -98,7 +98,15 @@ review-pack/                       # component-scaffold/6
         └── README.md
 ```
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type plugin \
   --language python \
@@ -152,7 +160,7 @@ NVIDIA SkillSpector и Cisco Skill Scanner — сканеры skill. Они не
 ## Нативные layout по харнессам
 
 Discovery сообщает только объявленные layout. Точные пути на машине даёт
-`ai-stp component discover --json`. У каждой находки есть `layout_source`.
+конверт intent `author`. У каждой находки есть `layout_source`.
 Если классификация неясна, покажите это поле; не угадывайте путь соседа.
 
 Из матрицы discovery:
@@ -175,10 +183,13 @@ Pack одного харнесса не вызывает жалобу друго
 `.claude-plugin/plugin.json` или `plugin.json` — это **plugin**. Discovery
 различает их по манифесту, а не по имени родительской папки.
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover`. Движок сам находит нативное дерево.
 
 ## Версии — `X.Y`, не SemVer
 
@@ -249,26 +260,28 @@ ai-stp component skill validate --path <directory-with-SKILL.md> --json
 **Автор, adopt, публикация:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 Если путь также заявлен как каталог skill:
 
-```bash
+Expert recovery:
+
+```text
 ai-stp component adopt --path <source_path> --kind plugin --json
 ```
 
-**Найти, выбрать, установить:**
+**Установить:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 Plugin может быть embedded-членом compose-манифеста. См.
@@ -331,14 +344,13 @@ Plugin может быть embedded-членом compose-манифеста. С�
    `commands/`, `hooks/hooks.json`, `.mcp.json`, `rules/` Cursor) только
    когда доказанный pack этого харнесса их действительно читает.
 4. Объявите post-install поведение в паспорте. Секретов нет.
-5. Запустите `ai-stp component discover --root . --json` и прочитайте
-   `layout_source` у находки plugin и у вложенных членов.
-6. `component adopt --path <точный source_path>` — добавьте
-   `--kind plugin`, если путь также является каталогом skill.
-7. Закрепите точный публичный GitHub commit и подпуть.
-8. `component passport validate` → `component version release`, чтобы
+5. Зарегистрируйте каталог через
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` остаются для recovery.
+6. Закрепите точный публичный GitHub commit и подпуть.
+7. `component passport validate` → `component version release`, чтобы
    выпустить неизменяемый `X.Y`.
-9. Публикуйте через [путь публикации](../publishing/index.md). В сетапе
+8. Публикуйте через [путь публикации](../publishing/index.md). В сетапе
    закрепите этот `X.Y`.
 
 Связанное: [Авторство](../publishing/authoring.md),

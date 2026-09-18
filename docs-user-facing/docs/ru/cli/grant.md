@@ -161,7 +161,7 @@ grant direct --kind setup --id <id> --major 1 --recipient-kind user_id --recipie
 
 | Что вы видите | Что это значит | Что делать |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | нет авторизованного аккаунта | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | нет авторизованного аккаунта | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_USER_DECISION_REQUIRED` | `--confirm` не передан | передайте `--confirm` после проверки kind, id и major |
 | `AI_STP_VALIDATION_ERROR` | отсутствует `--idempotency-key`, `--token-env` или `--kind` | прочитайте descriptor; `--kind` — `component` или `setup` |
 | `AI_STP_PERMISSION_DENIED` | этот аккаунт не владеет данной major-линией | `owner objects`; нельзя выдать грант на чужой объект |
@@ -183,12 +183,13 @@ Major-линия — граница доступа. `--major 1` не даёт д
 - [Trust and safety](../trust-and-safety/index.md)
 - [Command map](commands.md)
 
-## Machine help — источник парсера
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды grant, чтобы человек мог их найти.
-Установленный CLI — источник флагов, схем и `next_actions`. Если эта
-страница и CLI расходятся, следуйте CLI.
+Если эта страница и CLI расходятся, следуйте CLI.

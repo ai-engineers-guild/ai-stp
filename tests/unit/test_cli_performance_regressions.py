@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from ai_stp_cli.commands import select
+from ai_stp_cli.application import select
 from ai_stp_cli.local import harnesses, project_index
 from ai_stp_cli.local.database import configured_path, open_registry
 

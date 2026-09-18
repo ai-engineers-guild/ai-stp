@@ -40,7 +40,7 @@ Use Objects to:
 
 Objects does **not**:
 
-- create a component (use `component discover` / scaffold);
+- create a component (use the `author` intent);
 - change type, name, tags, source, or version bytes;
 - apply a setup to a harness;
 - set `author_verified` by ticking a box.
@@ -56,12 +56,12 @@ Empty: **No owned objects yet. Sync or publish from the CLI first.**
 Two copy blocks:
 
 ```bash
-ai-stp component discover
-ai-stp toolchain harnesses
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent install --idempotency-key install-session-01 --json
 ```
 
-Those are the safe first steps (no extra arguments). They do not
-publish.
+The first is everyday registration. The second is everyday catalog install.
+They do not publish.
 
 Each row: `object_kind`, name, `stable_id`, latest version, lifecycle
 badge, visibility badge, optional Author verified / Component
@@ -126,10 +126,8 @@ YouTube wants the id, not a full URL.
 ai-stp owner objects --json
 ai-stp owner object show --json
 ai-stp owner version show --json
-ai-stp component discover --json
-ai-stp toolchain harnesses --json
-ai-stp publication plan --json
-ai-stp publication status --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 `owner objects` is the list. `owner object show` is one object and its
@@ -141,11 +139,11 @@ Publication confirm can be CLI or website; see
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| No objects yet | nothing owned on the server | discover / publish from the CLI |
+| No objects yet | nothing owned on the server | start `author` / `publish` |
 | Object not available | not yours, or unknown | do not probe ids |
-| No versions recorded | never released | `component version release` in the CLI |
+| No versions recorded | never released | start `author` |
 | Install blocked | eligibility false | read evidence; do not force apply |
-| Start publication missing | not allowed, no CSRF, or no device | link a CLI device; use `publication plan` |
+| Start publication missing | not allowed, no CSRF, or no device | link a CLI device; start `publish` |
 | Media upload failed | type/size/source | fix the item; do not Save mid-upload |
 | Public page 404 | not published / not visible | expected for private drafts |
 | External services hidden | flag off | catalog relationships omitted |

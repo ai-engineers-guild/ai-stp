@@ -1,15 +1,28 @@
 ---
 title: "Установка"
-description: "Спланировать, одобрить, применить, отменить, восстановить и продолжить установку."
+description: "Запустить intent install. Expert plan, approve, apply, recover и resume остаются для recovery."
 ---
 
 # Установка
 
-Install считает неизменяемый план, записывает одобрение против digest этого
-плана и просит public provider harness применить его. CLI сам нативное
-состояние harness не пишет.
+Повседневная установка — intent `install`. Движок сливает plan, approve,
+apply и verify in-process. Не набирайте `install plan`, чтобы получить
+digest, если вы не восстанавливаете остановившуюся операцию.
 
-У плана нет собственного эффекта. Approve — решение пользователя. Apply —
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Следуйте `continuations`. Исполняйте `argv` только когда `actor` равен
+`cli`. Blocked human-вопрос — через `task answer`. Сообщайте payload
+verification, а не одно поле `ok`.
+
+CLI сам нативное состояние harness не пишет. Это делает только public
+provider харнесса.
+
+Expert leaves ниже остаются для recovery (`install recover`,
+`install resume`) и для операторов, у которых уже есть digest плана. У
+плана нет собственного эффекта. Approve — решение пользователя. Apply —
 запись provider, журналируемая здесь. Recover и resume осматривают или
 завершают проверку результата; они не применяют план снова.
 
@@ -17,9 +30,10 @@ Install считает неизменяемый план, записывает �
 
 | Команда | Mutability | Confirmation | Когда |
 | --- | --- | --- | --- |
-| `ai-stp install plan` | `plan` | `none` | посчитать неизменяемый план установки |
-| `ai-stp install approve` | `apply` | `plan_digest` | одобрить один план по его точному digest |
-| `ai-stp install apply` | `apply` | `plan_digest` | выполнить один одобренный план через его provider |
+| `ai-stp task start --intent install` | `apply` | `none` | повседневная установка; сливает plan/approve/apply |
+| install plan | `plan` | `none` | expert: посчитать неизменяемый план установки |
+| install approve | `apply` | `plan_digest` | expert: одобрить один план по его точному digest |
+| install apply | `apply` | `plan_digest` | expert: выполнить один одобренный план через его provider |
 | `ai-stp install cancel` | `apply` | `none` | отменить план до того, как что-либо применено |
 | `ai-stp install status` | `read` | `none` | операции, остановившиеся без завершённого исхода |
 | `ai-stp install recover` | `read` | `none` | что оставила одна остановившаяся операция; сама ничего не восстанавливает |
@@ -32,13 +46,13 @@ Apply **не** берёт флаг digest: одобрение уже привя�
 операции. В этой группе нет `--confirm`. Нет `--expected-plan-digest` у
 `install plan`, `approve` или `apply`.
 
-## Plan
+## Expert recovery: plan
 
 Ровно одно из `--proposal` или `--setup` обязательно. `--setup` — это
 `<stable_id>@<X.Y>`, и тогда обязателен `--project`. `--provider` обязателен
 всегда.
 
-```bash
+```text
 ai-stp install plan \
   --proposal <proposal_id> \
   --provider <exe> \
@@ -50,7 +64,7 @@ ai-stp install plan \
 
 Из подготовленной версии сетапа:
 
-```bash
+```text
 ai-stp install plan \
   --setup setup_...@1.0 \
   --project . \
@@ -79,7 +93,7 @@ ai-stp install plan \
 
 Намеренный backup:
 
-```bash
+```text
 ai-stp install plan \
   --action backup \
   --project <project_id> \
@@ -96,9 +110,9 @@ ai-stp install plan \
 только **называет** предыдущую версию. См. [Target](target.md) и
 [Сетапы](../setups/index.md).
 
-## Approve
+## Expert recovery: approve
 
-```bash
+```text
 ai-stp install approve \
   --operation <operation_id> \
   --plan-digest sha256:... \
@@ -109,9 +123,9 @@ ai-stp install approve \
 Флаг со смыслом «что сейчас передо мной» не принимается. Изменённый план —
 новая операция.
 
-## Apply
+## Expert recovery: apply
 
-```bash
+```text
 ai-stp install apply \
   --operation <operation_id> \
   --provider <exe> \
@@ -150,6 +164,14 @@ Cancel отклоняется, как только применение нача
 не сделал. Ничего не применяет. `--operation` и `--provider` обязательны.
 
 ## Happy path
+
+```text
+task start --intent install --idempotency-key install-session-01 --json
+→ follow continuations, пока они не кончатся
+→ сообщить payload verification
+```
+
+Expert recovery (остановившаяся операция, digest уже есть):
 
 ```text
 select confirm --proposal <id>
@@ -224,12 +246,13 @@ install plan --action backup … → approve --plan-digest → apply
 - [Диагностика](../troubleshooting/index.md)
 - [Карта команд](commands.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды установки, чтобы человек их нашёл.
-Установленный CLI — источник флагов, схем и `next_actions`. Если страница
-и CLI расходятся, следуйте CLI.
+Если страница и CLI расходятся, следуйте CLI.

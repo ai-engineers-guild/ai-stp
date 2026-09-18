@@ -401,6 +401,15 @@ def _download_artifact(
                     raise _oversized(expected.size_bytes, received)
                 sink.write(block)
         return cache.keep_version_artifact(scratch, expected)
+    except httpx.HTTPError as error:
+        scratch.unlink(missing_ok=True)
+        raise CliFailure(
+            "AI_STP_DEPENDENCY_UNAVAILABLE",
+            "the platform could not be reached",
+            retryable=True,
+            details={"exception": type(error).__name__},
+            next_actions=["doctor --json"],
+        ) from error
     except BaseException:
         scratch.unlink(missing_ok=True)
         raise

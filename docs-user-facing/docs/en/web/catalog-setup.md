@@ -100,8 +100,7 @@ The rail:
 | Author | setup publisher, `author_verified` |
 | Usage | detail views, artifact downloads |
 | Context budget | potential tokens for always-loaded vs on-use members |
-| Local full report | copy of `ai-stp select impact --setup-id … --setup-version …` |
-| CLI copy | `ai-stp registry version --kind setup --id … --version …` |
+| CLI copy | everyday `task start --intent install` under Use via CLI; inspect copy of `ai-stp registry version --kind setup --id … --version …` |
 | Version history | offered `X.Y`; gaps are intentional |
 
 **Public passport JSON** is the setup passport, including the pin list.
@@ -127,7 +126,15 @@ a substitute for reading a failed pin.
 
 ## Matching CLI commands
 
+Everyday install:
+
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog reads and local impact:
+
+```text
 ai-stp registry show --kind setup --id <stable_id> --json
 ai-stp registry version --kind setup --id <stable_id> --version <x.y> --json
 ai-stp registry acquire --json
@@ -139,14 +146,6 @@ ai-stp link web --json
 offline compilation. `select impact` compares context, token cost, and
 capabilities of exact **local** setup versions — the website only
 copies the command.
-
-Composition and apply stay in the CLI:
-
-```bash
-ai-stp setup compose plan --json
-ai-stp select propose --json
-ai-stp install plan --json
-```
 
 Those pages: [Setup commands](../cli/setup.md),
 [Select](../cli/select.md), [Install](../cli/install.md).
@@ -161,7 +160,7 @@ Those pages: [Setup commands](../cli/setup.md),
 | Context budget error | exact artifact unavailable | fetch first (`registry acquire` / `registry fetch`) |
 | Report missing digest | no passport digest on latest | open `/versions/{version}` |
 | Like requires sign-in | no session | [Sign-in](login.md) |
-| Install from the browser | not offered | copy CLI, then provider apply |
+| Install from the browser | not offered | copy CLI, then `task start --intent install` |
 
 Machine projection lists purpose, target role (or its absence),
 posture, pins, trust lane, and the two verified bits. It does not

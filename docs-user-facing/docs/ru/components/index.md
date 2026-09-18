@@ -47,7 +47,7 @@ layout, какие проверки реально бегут, путь CLI, з�
 - MCP-**сервер** против **клиентского конфига** `.mcp.json` plugin;
 - `AGENTS.md` (instruction) против вида `agent`.
 
-Точные нативные пути даёт `ai-stp component discover --json`. У каждой
+Точные нативные пути даёт конверт intent `author`. У каждой
 находки есть `layout_source`. Не выдумывайте путь соседа.
 
 ## Быстрый выбор
@@ -115,12 +115,8 @@ layout, какие проверки реально бегут, путь CLI, з�
 Типичный локальный путь:
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 Общие `.agents/skills` возвращаются один раз, с `harness_id=null`. Пакет

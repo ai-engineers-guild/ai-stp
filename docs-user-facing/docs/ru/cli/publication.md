@@ -7,16 +7,25 @@ description: "Подписать attestation, спланировать, прос
 
 Публикация создаёт неизменяемый серверный план для одной точной выпущенной версии компонента и подтверждает этот план по его хешу. Подписание аттестации привязывает тестовые данные, зависящие от учётных данных, к активному ключу устройства.
 
+Повседневная публикация — intent `publish`. Движок drain'ит plan и confirm in-process. Не набирайте `publication plan`, если вы не восстанавливаете остановившийся план.
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Следуйте `continuations`. Expert plan / status / confirm ниже — для операторов, у которых уже есть hash плана.
+
 План не делает версию публичной. Confirm делает. Неудавшаяся проверка не должна оставлять частично опубликованную версию. `author_verified` по-прежнему не означает, что содержимое безопасно.
 
 ## Таблица команд
 
 | Команда | Изменяемость | Подтверждение | Когда |
 | --- | --- | --- | --- |
+| `ai-stp task start --intent publish` | `apply` | `none` | повседневная публикация; drain plan/confirm |
 | `ai-stp attestation sign` | `apply` | `explicit_flag` | подписание точных тестовых данных, зависящих от учётных данных, активным ключом устройства |
-| `ai-stp publication plan` | `plan` | `none` | создание неизменяемого серверного плана для одной точной выпущенной версии компонента |
+| publication plan | `plan` | `none` | expert: создание неизменяемого серверного плана для одной точной выпущенной версии компонента |
 | `ai-stp publication status` | `read` | `none` | чтение текущего серверного состояния одного плана публикации |
-| `ai-stp publication confirm` | `apply` | `explicit_flag` | подтверждение одного точного неистёкшего хеша плана публикации |
+| publication confirm | `apply` | `explicit_flag` | expert: подтверждение одного точного неистёкшего хеша плана публикации |
 
 `--json` — глобальный флаг. Передавайте его всегда.
 
@@ -50,7 +59,7 @@ ai-stp attestation sign \
 
 ## План публикации
 
-```bash
+```text
 ai-stp publication plan --id <stable_id> --version 1.0 --json
 ai-stp publication plan \
   --id <stable_id> \
@@ -75,7 +84,7 @@ ai-stp publication status --plan-id <plan_id> --json
 
 ## Подтверждение
 
-```bash
+```text
 ai-stp publication confirm \
   --plan-id <plan_id> \
   --plan-hash sha256:... \
@@ -89,7 +98,12 @@ ai-stp publication confirm \
 
 ## Счастливый путь
 
-Компонент:
+```text
+task start --intent publish --idempotency-key publish-session-01 --json
+→ follow continuations until there are none
+```
+
+Expert (уже есть hash плана):
 
 ```text
 component passport validate --id <id>
@@ -123,7 +137,7 @@ component publish --from-setup <setup> --setup-version <X.Y> --component-id <id>
 
 | Что вы видите | Что это означает | Что делать |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | нет выполненного входа | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | нет выполненного входа | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_USER_DECISION_REQUIRED` | `--confirm` был пропущен | передайте `--confirm` после чтения `effects` |
 | `AI_STP_VALIDATION_ERROR` | отсутствует `--id`, `--version`, `--plan-id` или `--plan-hash` | прочитайте дескриптор |
 | `AI_STP_PRECONDITION_FAILED` | аттестация не привязана к этой версии, устройству и учётной записи | подпишите снова на этом устройстве после входа |
@@ -147,10 +161,12 @@ component publish --from-setup <setup> --setup-version <X.Y> --component-id <id>
 - [Доверие и безопасность](../trust-and-safety/index.md)
 - [Карта команд](commands.md)
 
-## Справка для машины — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
+
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
 
 Эта страница группирует команды публикации для удобства поиска. Установленный CLI является источником флагов, схем и `next_actions`. Если эта страница и CLI расходятся, следуйте CLI.

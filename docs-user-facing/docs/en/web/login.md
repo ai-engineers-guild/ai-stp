@@ -61,7 +61,7 @@ Sign-in does **not**:
 | Subtitle | Sign in with a supported provider. Session state is stored in a secure HttpOnly cookie. | — |
 | Google | Continue with Google | `/v1/auth/google/login?client=web&return_to=…` |
 | GitHub | Continue with GitHub | `/v1/auth/github/login?client=web&return_to=…` |
-| CLI copy | Sign in a device from the CLI | `ai-stp auth login --provider github` |
+| CLI copy | Sign in a device from the CLI | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
 
 In mock/e2e the buttons POST to a mock action instead of the API.
 `?debug=1` with mocks adds extra error/cancel simulators. That gate is
@@ -81,18 +81,25 @@ a **second** provider on an existing account is
 | User code | User code |
 | Submit | Approve device |
 
-Errors: unknown (retype), expired (run `auth login` again), resolved
+Errors: unknown (retype), expired (continue the account task), resolved
 (already used), csrf (reload), failed (retry). Success: **Device
 approved** — return to the CLI; polling should complete.
 
-Human / Machine: machine login lists the two providers as links and
-the CLI command as a code block.
+Human / Machine: machine login is the title, subtitle, the everyday
+account start as a code block, and a catalog link.
 
 ## Matching CLI commands
 
-These are the only auth commands in the registry:
+Everyday sign-in is the account intent:
 
 ```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Expert leaves (`auth login` / `complete` / `logout`) stay for a pending
+device code already held:
+
+```text
 ai-stp auth login --provider github --json
 ai-stp auth login --provider google --json
 ai-stp auth complete --json
@@ -108,8 +115,8 @@ local-only, authenticated, expired, or revoked. `auth logout` ends the
 cloud session and keeps local data. `link web` prints a canonical
 website URL.
 
-There is no `ai-stp auth device` command. The website hint that names
-it is describing this same `auth login` code. Follow the CLI.
+There is no `ai-stp auth device` command. The website copies the
+account start, not a fake leaf. Follow the CLI.
 
 Device identity on the machine is separate:
 
@@ -131,7 +138,7 @@ device. You usually need both, in that order, on a new install.
 | Session expired | stale cookie | sign in; `returnTo` is kept |
 | Need sign-in on device-login | no browser session | sign in, code is preserved |
 | Unknown code | typo | retype; do not add spaces |
-| Code expired / already used | run login again | `ai-stp auth login --provider github --json` |
+| Code expired / already used | continue the same account task | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
 | Sent to onboarding | new account | accept the two revisions |
 | Conflict on link | that Google/GitHub is on another account | unlink there first; no merge |
 

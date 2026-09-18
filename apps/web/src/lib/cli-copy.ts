@@ -5,7 +5,10 @@
 export {
   COMPONENT_NEXT_STEP,
   DISTRIBUTION,
+  INITIALIZE_PROMPT,
+  INITIALIZE_START,
   INSTALL_CLI,
+  INTENTS_BOOTSTRAP,
   LOGIN,
   REGISTRY_SHOW,
   REGISTRY_VERSION,
@@ -15,6 +18,7 @@ export {
   objectKindFromId,
   ownerComponentNextStep,
   ownerSetupNextStep,
+  installStart,
   registryCommand,
   registryShow,
   registryVersion,

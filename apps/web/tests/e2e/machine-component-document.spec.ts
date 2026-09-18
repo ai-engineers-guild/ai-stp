@@ -17,6 +17,7 @@ const REQUIRED_FIELDS = [
   "author_verified:",
   "component_verified:",
   "dependencies:",
+  "ai-stp task start --intent install --idempotency-key install-session-01 --json",
   `ai-stp registry version --kind component --id ${stableId} --version 1.0`,
 ];
 

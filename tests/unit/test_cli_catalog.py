@@ -193,7 +193,7 @@ def test_a_truncated_document_does_not_verify() -> None:
 
 def test_the_catalogue_can_be_switched_off_and_says_so() -> None:
     from ai_stp_cli import config
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
 
     path = config.config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -207,14 +207,14 @@ def test_the_catalogue_can_be_switched_off_and_says_so() -> None:
 
 @pytest.mark.parametrize("given", [None, "widget"])
 def test_an_unusable_kind_is_refused(given: object) -> None:
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
 
     with pytest.raises(CliFailure, match="kind"):
         registry_commands.search({"kind": given})
 
 
 def test_showing_without_an_identifier_is_refused() -> None:
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
 
     with pytest.raises(CliFailure, match="identifier is required"):
         registry_commands.show({"kind": "component"})
@@ -223,7 +223,7 @@ def test_showing_without_an_identifier_is_refused() -> None:
 def test_the_commands_read_and_write_nothing_local(monkeypatch: pytest.MonkeyPatch) -> None:
     # `#76`: a read command must not create a setup version or touch a harness
     # target. The registry file is the durable local state, and it stays absent.
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
     from ai_stp_cli.local.database import configured_path
 
     monkeypatch.setattr(registry_commands, "endpoint", mock)
@@ -456,7 +456,7 @@ def test_a_version_falls_back_to_a_sound_cache_when_the_platform_is_away() -> No
 
 
 def test_a_version_needs_both_an_identifier_and_a_number() -> None:
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
 
     with pytest.raises(CliFailure, match="both required"):
         registry_commands.version({"kind": "component", "id": "x"})
@@ -515,7 +515,7 @@ def test_an_out_of_range_limit_names_the_flag_a_person_typed() -> None:
     contract constant, so the CLI can refuse locally and say which flag and
     which maximum, without a round trip that only fails.
     """
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
 
     with pytest.raises(CliFailure) as caught:
         registry_commands.search({"kind": "component", "limit": 200})

@@ -14,6 +14,13 @@ Specification и извлекают один embedded-член сетапа в �
 `plan`. Публичная запись — подтверждение на [Publication](publication.md)
 или `setup publish confirm`, когда наружу уходит весь граф.
 
+Повседневная публикация — intent `publish`. Version, fork, validate и
+`component publish` ниже — expert recovery.
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
 ## Таблица команд
 
 | Команда | Mutability | Confirmation | Когда |
@@ -22,7 +29,7 @@ Specification и извлекают один embedded-член сетапа в �
 | `ai-stp component version release` | `apply` | `none` | дать текущему head неизменяемый `X.Y`; minor, если нет `--major` |
 | `ai-stp component fork` | `apply` | `none` | скопировать одну записанную версию под новой идентичностью |
 | `ai-stp component skill validate` | `read` | `none` | назвать каждое отклонение от Agent Skills Specification |
-| `ai-stp component publish` | `plan` | `none` | извлечь один embedded-компонент в план публикации |
+| component publish | `plan` | `none` | извлечь один embedded-компонент в план публикации |
 
 `--json` глобальный. Всегда передавайте его.
 
@@ -83,13 +90,13 @@ finding — успешный отчёт, а не упавшая команда.
 Это не собственный Agent Skill CLI (`ai-stp skill …`). Тот skill описан на
 [Agent Skill CLI](skill.md). Kind `skill` — это компонент.
 
-## Component publish
+## Expert recovery: component publish
 
 Извлечь один **embedded**-компонент из локального сетапа в обычный план
 публикации. У членов каталога уже есть издатель; эта команда — для члена,
 который живёт только внутри сетапа.
 
-```bash
+```text
 ai-stp component publish \
   --from-setup <setup_id> \
   --setup-version 1.0 \
@@ -110,7 +117,13 @@ Embedded-член остаётся embedded, пока подтверждение
 
 ## Happy path
 
-Из локального черновика:
+Повседневный путь:
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Expert recovery из локального черновика:
 
 ```text
 component passport validate --id <id>
@@ -119,7 +132,7 @@ component passport validate --id <id>
 → publication confirm --plan-id <plan> --plan-hash <hash> --confirm
 ```
 
-Из embedded-члена сетапа:
+Expert recovery из embedded-члена сетапа:
 
 ```text
 component publish --from-setup <setup> --setup-version <X.Y> --component-id <id>
@@ -127,7 +140,7 @@ component publish --from-setup <setup> --setup-version <X.Y> --component-id <id>
 → publication confirm --plan-id <plan> --plan-hash <hash> --confirm
 ```
 
-Для skill-пакета, который ещё не adopt:
+Expert recovery для skill-пакета, который ещё не adopt:
 
 ```text
 component skill validate --path <dir>
@@ -150,7 +163,7 @@ component skill validate --path <dir>
 | `AI_STP_VALIDATION_ERROR` | нет обязательного id, версии или пути | прочитать дескриптор |
 | `AI_STP_NOT_FOUND` | объекта, версии или embedded-члена здесь нет | `version list` или `select graph` |
 | `AI_STP_PRECONDITION_FAILED` | паспорт не готов, или attestation не привязано | `passport validate`; подписать через `attestation sign` |
-| `AI_STP_AUTH_REQUIRED` | продвижение на сервер требует сессии | `auth login`, затем снова `component publish` |
+| `AI_STP_AUTH_REQUIRED` | продвижение на сервер требует сессии | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_PERMISSION_DENIED` | этот аккаунт не может публиковать этот объект | проверить owner и grants |
 | `conforms: false` | skill-пакет отклоняется от спецификации | прочитать каждый `SK…` finding; не adopt как прошедший |
 | считать `component publish` публичным | это plan | подтвердить через `publication confirm` |
@@ -172,12 +185,13 @@ component skill validate --path <dir>
 - [Проверки безопасности](../security-checks.md)
 - [Agent Skill CLI](skill.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды публикации, чтобы человек их нашёл.
-Установленный CLI — источник флагов, схем и `next_actions`. Если страница
-и CLI расходятся, следуйте CLI.
+Если страница и CLI расходятся, следуйте CLI.

@@ -16,12 +16,13 @@ look like success.
 - Only the catalog command intended for offline closure supplies its bytes. An
   object key is not authority to fetch.
 - `candidate_id` is not a Component id. The Component id appears only after
-  `component adopt`.
+  the `author` intent registers the directory. Do not type `component adopt`.
 - Call a GitHub origin exact only with `provenance.kind: github` and
   `state: exact`. A cache directory name is not evidence.
 - `harness_id: null` is not assigned to a harness by the agent.
 - Browser device flow must complete through the real browser account. Follow
   the account playbook; a locally fabricated session proves no user sign-in.
+  `provider-too-old` is not a device-code wait.
 - Do not construct web routes. Use `link web` for canonical links and
   `cli_argv`.
 - `source: cache` is the past: show `checked_at` and do not present it as

@@ -251,9 +251,9 @@ def test_command_delivers_new_release_after_resuming_an_uncertain_push(
     import httpx
 
     from ai_stp_cli import config
+    from ai_stp_cli.application import cloud_auth, sync
     from ai_stp_cli.cloud.client import Endpoint
     from ai_stp_cli.cloud.session import Session
-    from ai_stp_cli.commands import cloud_auth, sync
     from ai_stp_cli.errors import CliFailure
     from ai_stp_contracts.sync import SyncPushRequest
 
@@ -371,9 +371,9 @@ def test_pull_reports_partial_until_a_legacy_reference_is_materialized(
     import httpx
 
     from ai_stp_cli import config
+    from ai_stp_cli.application import cloud_auth, sync
     from ai_stp_cli.cloud.client import Endpoint
     from ai_stp_cli.cloud.session import Session
-    from ai_stp_cli.commands import cloud_auth, sync
 
     account, sender, receiver, stable = (
         new_id("account"),

@@ -44,6 +44,10 @@
     {
       "kit_version": "0.2.11",
       "aggregate_digest": "sha256:6ab195790be1c7dfacf6e6ab5a892244097cc2002f97090ff9a4b3c3174ed357"
+    },
+    {
+      "kit_version": "0.2.12",
+      "aggregate_digest": "sha256:18345b734ef1f9012ec3724ecbf57e5d1c77e9d336387b1d3ce348f371797732"
     }
   ],
   "republished": [

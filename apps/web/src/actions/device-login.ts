@@ -56,7 +56,7 @@ export async function approveDeviceCodeAction(input: {
     // already resolved, and a rejected request — and every one of them used to
     // arrive here as the bare word "error". Someone approving a device could
     // not tell a code that had timed out from one they mistyped, which is the
-    // difference between retrying and re-running `ai-stp auth login`.
+    // difference between retrying and starting the account intent again.
     if (error instanceof ApiError) {
       const reason = REASONS[error.code] ?? "failed";
       redirect(

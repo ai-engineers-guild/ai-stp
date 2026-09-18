@@ -1,15 +1,17 @@
 """The two introspection commands (issue #72, docs/agent/machine-help.md).
 
-They answer different questions on purpose. `capabilities` is a cheap optional
-orientation call — versions, supported harnesses, whether the catalogue and
-sync are on. The canonical Skill starts with `doctor` and `help --agent`; the
-latter is the full registry and is larger. Both introspection responses read the
-same registry, so they cannot disagree about which commands exist.
+They answer different questions on purpose. `capabilities` reports versions,
+supported harnesses, whether the catalogue and sync are on, and every
+`command_path`. Durable journeys start at `task intents`; `help --agent`
+remains the full registry and is larger. Both introspection responses read
+the same registry, so they cannot disagree about which commands exist.
 """
 
 from collections.abc import Mapping
 
 from ai_stp_cli.answer import Answer
+from ai_stp_cli.application.inventory import MIXED_HELP_PREFIXES, intent_for_command_prefix
+from ai_stp_cli.application.outcome import intent_start_continuation
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.runtime import cli_version
 from ai_stp_contracts.machine_help import (
@@ -18,7 +20,17 @@ from ai_stp_contracts.machine_help import (
     MachineErrorDescriptor,
     MachineHelp,
 )
+from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.errors import ERROR_CODES
+
+
+def _intents_continuation() -> Continuation:
+    return Continuation(
+        kind="inspect",
+        path=["task", "intents"],
+        argv=["task", "intents", "--json"],
+        actor="cli",
+    )
 
 
 def _scoped(commands: list[CommandDescriptor], requested: object) -> list[CommandDescriptor]:
@@ -28,11 +40,13 @@ def _scoped(commands: list[CommandDescriptor], requested: object) -> list[Comman
         return commands
     kept = [command for command in commands if command.path[: len(wanted)] == wanted]
     if not kept:
+        continuation = _intents_continuation()
         raise CliFailure(
             "AI_STP_NOT_FOUND",
             "no command lives under that path",
             details={"path": " ".join(wanted)},
-            next_actions=["capabilities --json", "help --agent --json"],
+            continuations=[continuation],
+            next_actions=["task intents --json"],
         )
     return kept
 
@@ -59,23 +73,36 @@ def registry(parameters: Mapping[str, object]) -> Answer[MachineHelp]:
     registry already owns; an intent vocabulary would be a second registry to
     keep in step with this one. Either way the answer names the build it
     describes, so a scoped read and a full one stay comparable.
+
+    An unscoped dump still carries a `task intents` continuation so a caller
+    that landed here by habit is steered back to the everyday catalog. A scoped
+    dump of a family a shipped intent already drains carries that start. Mixed
+    families that are not 1:1 with an intent list `task intents`.
     """
     from ai_stp_cli.registry import GLOBAL_OPTIONS, descriptors, registry_digest
 
-    return Answer(
-        MachineHelp(
-            cli_version=cli_version(),
-            registry_digest=registry_digest(),
-            global_options=list(GLOBAL_OPTIONS),
-            commands=_scoped(descriptors(), parameters.get("path")),
-            error_codes=[
-                MachineErrorDescriptor(
-                    code=code,
-                    exit_class=entry.exit_class,
-                    handling=entry.handling,
-                    description=entry.description,
-                )
-                for code, entry in sorted(ERROR_CODES.items())
-            ],
-        )
+    payload = MachineHelp(
+        cli_version=cli_version(),
+        registry_digest=registry_digest(),
+        global_options=list(GLOBAL_OPTIONS),
+        commands=_scoped(descriptors(), parameters.get("path")),
+        error_codes=[
+            MachineErrorDescriptor(
+                code=code,
+                exit_class=entry.exit_class,
+                handling=entry.handling,
+                description=entry.description,
+            )
+            for code, entry in sorted(ERROR_CODES.items())
+        ],
     )
+    path = parameters.get("path")
+    if not path:
+        return Answer(payload, continuations=(_intents_continuation(),))
+    words = str(path).split()
+    intent = intent_for_command_prefix(words)
+    if intent is not None:
+        return Answer(payload, continuations=(intent_start_continuation(intent),))
+    if words and words[0] in MIXED_HELP_PREFIXES:
+        return Answer(payload, continuations=(_intents_continuation(),))
+    return Answer(payload)

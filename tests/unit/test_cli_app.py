@@ -62,7 +62,7 @@ def test_the_flag_may_be_written_before_the_command(capsys: pytest.CaptureFixtur
         (["registry", "show", "--json"], "Missing option"),
         (["nope", "--json"], "No such command"),
         (["version", "--nosuch", "--json"], "No such option"),
-        (["config", "--json"], "Missing command"),
+        (["config", "--json"], "incomplete command group"),
         (["--help", "--json"], "usage text is not machine readable"),
     ],
 )
@@ -80,6 +80,755 @@ def test_a_refused_invocation_is_a_validation_error_with_exit_class_two(
     else:
         assert message in err
         assert not out
+
+
+@pytest.mark.parametrize(
+    ("argv", "intent"),
+    [
+        (["install", "--json"], "install"),
+        (["install", "--harness", "cursor", "--json"], "install"),
+        (["install", "/tmp/project", "--json"], "install"),
+        (["auth", "--json"], "account"),
+        (["sync", "--json"], "account"),
+        (["publication", "--json"], "publish"),
+        (["setup", "preserve", "--json"], "switch"),
+        (["setup", "restore", "--json"], "switch"),
+        (["setup", "preserved", "--json"], "switch"),
+        (["setup", "compose", "--json"], "change"),
+        (["setup", "publish", "--json"], "publish"),
+        (["initialize", "--json"], "initialize"),
+        (["inspect", "--json"], "inspect"),
+        (["change", "--json"], "change"),
+        (["author", "--json"], "author"),
+        (["switch", "--json"], "switch"),
+        (["account", "--json"], "account"),
+        (["publish", "--json"], "publish"),
+    ],
+)
+def test_an_intent_group_without_a_leaf_starts_the_task_engine(
+    argv: list[str], intent: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
+    assert "task intent" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+    assert envelope["error"]["details"]["intent"] == intent  # pyright: ignore[reportIndexIssue]
+    expected = f"task start --intent {intent} --idempotency-key {intent}-session-01 --json"
+    assert envelope["next_actions"] == [expected]
+    held = envelope["continuations"]
+    assert isinstance(held, list) and held
+    first = held[0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == [
+        "task",
+        "start",
+        "--intent",
+        intent,
+        "--idempotency-key",
+        f"{intent}-session-01",
+        "--json",
+    ]
+    assert "help --agent" not in out
+    assert "install plan" not in out
+    assert "compose plan" not in out
+    assert "Usage:" not in out
+
+
+@pytest.mark.parametrize(
+    ("argv", "intent"),
+    [
+        (["task", "start", "--intent", "initialize", "--json"], "initialize"),
+        (["task", "start", "--intent=install", "--json"], "install"),
+        (["task", "start", "--intent", "inspect", "--json"], "inspect"),
+    ],
+)
+def test_task_start_without_the_key_emits_the_start_argv(
+    argv: list[str], intent: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["message"] == "task start needs an idempotency key"  # pyright: ignore[reportIndexIssue]
+    assert envelope["error"]["details"]["intent"] == intent  # pyright: ignore[reportIndexIssue]
+    expected = f"task start --intent {intent} --idempotency-key {intent}-session-01 --json"
+    assert envelope["next_actions"] == [expected]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == [
+        "task",
+        "start",
+        "--intent",
+        intent,
+        "--idempotency-key",
+        f"{intent}-session-01",
+        "--json",
+    ]
+    assert "help --agent" not in out
+    assert first["argv"] != ["task", "intents", "--json"]
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["task", "start", "--json"],
+        ["task", "start", "--idempotency-key", "initialize-session-01", "--json"],
+        ["task", "start", "--intent", "--json"],
+    ],
+)
+def test_task_start_without_an_intent_lists_intents(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["message"] == "task start needs an intent"  # pyright: ignore[reportIndexIssue]
+    assert envelope["next_actions"] == ["task intents --json"]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == ["task", "intents", "--json"]
+    assert "Missing option" not in out
+    assert "help --agent" not in out
+    assert "is not one of" not in out
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["task", "start", "--intent", "compose", "--json"],
+        [
+            "task",
+            "start",
+            "--intent",
+            "compose",
+            "--idempotency-key",
+            "compose-session-01",
+            "--json",
+        ],
+        ["task", "start", "--intent=recast", "--json"],
+    ],
+)
+def test_task_start_with_an_unshipped_intent_lists_intents(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["message"] == "the task intent is not supported"  # pyright: ignore[reportIndexIssue]
+    assert envelope["next_actions"] == ["task intents --json"]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["argv"] == ["task", "intents", "--json"]
+    assert "compose" not in out
+    assert "recast" not in out
+    assert "is not one of" not in out
+    assert "help --agent" not in out
+    assert "help --path task" not in out
+
+
+@pytest.mark.parametrize("verb", ["answer", "continue"])
+def test_task_lifecycle_without_task_resumes_the_unique_blocked_question(
+    verb: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from ai_stp_cli.commands import task as task_command
+
+    started = task_command.start(
+        {"intent": "initialize", "idempotency-key": f"initialize-hint-{verb}-0001"}
+    )
+    assert started.payload.state == "blocked"
+    code, out, err = _run(["task", verb, "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["message"] == "task answer needs the open question"  # pyright: ignore[reportIndexIssue]
+    assert envelope["error"]["details"]["task"] == started.payload.task_id  # pyright: ignore[reportIndexIssue]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "human"
+    assert first["argv"][:4] == ["task", "answer", "--task", started.payload.task_id]
+    assert "--question-id" in first["argv"]
+    assert "harness-id" in first["argv"]
+    assert "--value" not in first["argv"]
+    assert first["argv"] != ["task", "intents", "--json"]
+    assert "help --agent" not in out
+
+
+@pytest.mark.parametrize("verb", ["answer", "continue"])
+def test_task_lifecycle_without_task_lists_intents_when_two_are_open(
+    verb: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from ai_stp_cli.commands import task as task_command
+
+    task_command.start({"intent": "initialize", "idempotency-key": f"initialize-hint-{verb}-a-01"})
+    task_command.start({"intent": "initialize", "idempotency-key": f"initialize-hint-{verb}-b-01"})
+    code, out, err = _run(["task", verb, "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["next_actions"] == ["task intents --json"]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["argv"] == ["task", "intents", "--json"]
+    assert "needs the open question" not in out
+
+
+@pytest.mark.parametrize("verb", ["answer", "continue"])
+def test_task_lifecycle_without_revision_resumes_the_named_task(
+    verb: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from ai_stp_cli.commands import task as task_command
+
+    started = task_command.start(
+        {"intent": "initialize", "idempotency-key": f"initialize-rev-{verb}-0001"}
+    )
+    other = task_command.start(
+        {"intent": "initialize", "idempotency-key": f"initialize-rev-{verb}-0002"}
+    )
+    assert started.payload.task_id != other.payload.task_id
+    code, out, err = _run(["task", verb, "--task", started.payload.task_id, "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["message"] == "task answer needs the open question"  # pyright: ignore[reportIndexIssue]
+    assert envelope["error"]["details"]["task"] == started.payload.task_id  # pyright: ignore[reportIndexIssue]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "human"
+    assert first["argv"][:6] == [
+        "task",
+        "answer",
+        "--task",
+        started.payload.task_id,
+        "--revision",
+        str(started.payload.revision),
+    ]
+    assert "--value" not in first["argv"]
+    assert first["argv"] != ["task", "intents", "--json"]
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["task", "get", "--json"],
+        ["task", "info", "--json"],
+        ["task", "--json"],
+    ],
+)
+def test_an_invented_task_verb_lists_intents_not_help_agent(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
+    assert "start, answer, continue, status, and cancel" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+    assert envelope["next_actions"] == ["task intents --json"]
+    held = envelope["continuations"]
+    assert isinstance(held, list) and held
+    first = held[0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == ["task", "intents", "--json"]
+    assert "help --agent" not in out
+
+
+def test_an_empty_machine_invocation_lists_intents_not_help_agent(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["message"] == "no command given"  # pyright: ignore[reportIndexIssue]
+    assert envelope["next_actions"] == ["task intents --json"]
+    held = envelope["continuations"]
+    assert isinstance(held, list) and held
+    first = held[0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == ["task", "intents", "--json"]
+    assert "help --agent" not in out
+
+
+def test_machine_help_flag_lists_intents_not_usage(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["--help", "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert "usage text is not machine readable" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+    assert envelope["next_actions"] == ["task intents --json"]
+    assert "help --agent" not in out
+
+
+def test_click_usage_text_is_not_a_machine_error() -> None:
+    assert app._is_click_usage("Missing command.")
+    assert app._is_click_usage(
+        "Usage: ai-stp component [OPTIONS] COMMAND [ARGS]...\n\n"
+        "Commands:\n  adopt  Register one discovered component.\n"
+        "Error: Missing command."
+    )
+    assert not app._is_click_usage("No such command 'nope'.")
+    assert not app._is_click_usage("Missing option '--kind'.")
+
+
+@pytest.mark.parametrize(
+    ("argv", "intent"),
+    [
+        (["install", "plan", "--json"], "install"),
+        (["install", "approve", "--json"], "install"),
+        (["install", "apply", "--json"], "install"),
+        (["auth", "login", "--json"], "account"),
+        (["auth", "login", "--google", "--json"], "account"),
+        (["auth", "login", "--provider", "gitlab", "--json"], "account"),
+        (["auth", "login", "--provider=nope", "--json"], "account"),
+        (["auth", "google", "login", "--json"], "account"),
+        (["publication", "plan", "--json"], "publish"),
+        (["publication", "confirm", "--json"], "publish"),
+        (["setup", "compose", "apply", "--json"], "change"),
+        (["setup", "preserve", "plan", "--json"], "switch"),
+        (["setup", "restore", "plan", "--json"], "switch"),
+        (["registry", "acquire", "--json"], "install"),
+        (["setup", "compose", "plan", "--json"], "change"),
+        (["select", "propose", "--json"], "install"),
+        (["select", "confirm", "--json"], "install"),
+        (["select", "bundle", "--json"], "install"),
+        (["component", "adopt", "--json"], "author"),
+        (["component", "discover", "--bogus", "--json"], "author"),
+        (["component", "publish", "--json"], "publish"),
+        (["setup", "import", "inspect", "--json"], "author"),
+        (["setup", "import", "plan", "--json"], "author"),
+        (["setup", "import", "register", "--json"], "author"),
+        (["install", "transaction", "plan", "--json"], "install"),
+        (["install", "transaction", "approve", "--json"], "install"),
+        (["install", "transaction", "status", "--json"], "install"),
+        (["install", "cancel", "--json"], "install"),
+        (["install", "recover", "--json"], "install"),
+        (["install", "resume", "--json"], "install"),
+        (["registry", "search", "--json"], "install"),
+        (["registry", "port", "import", "--json"], "install"),
+        (["publication", "status", "--json"], "publish"),
+        (["publication", "visibility", "plan", "--json"], "publish"),
+        (["setup", "preserved", "show", "--json"], "switch"),
+        (["setup", "preserve", "recover", "--json"], "switch"),
+    ],
+)
+def test_a_covered_leaf_without_required_input_starts_the_task_engine(
+    argv: list[str], intent: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
+    assert "task intent" in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+    assert envelope["error"]["details"]["intent"] == intent  # pyright: ignore[reportIndexIssue]
+    expected = f"task start --intent {intent} --idempotency-key {intent}-session-01 --json"
+    assert envelope["next_actions"] == [expected]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == [
+        "task",
+        "start",
+        "--intent",
+        intent,
+        "--idempotency-key",
+        f"{intent}-session-01",
+        "--json",
+    ]
+    assert "help --agent" not in out
+    assert "install plan --proposal" not in out
+    assert "auth login --provider" not in out
+
+
+@pytest.mark.parametrize(
+    ("argv", "intent", "forbidden"),
+    [
+        (
+            ["install", "plan", "--setup", "setup_01JQZK7B8N4M6P2R9T5V0X3YC2", "--json"],
+            "install",
+            "install plan",
+        ),
+        (
+            ["select", "confirm", "--proposal", "proposal_01JQZK7B8N4M6P2R9T5V0X3YC2", "--json"],
+            "install",
+            "select propose",
+        ),
+    ],
+)
+def test_an_everyday_leaf_with_flags_does_not_teach_an_expert_leaf(
+    argv: list[str],
+    intent: str,
+    forbidden: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _code, out, err = _run(argv, capsys)
+    assert err == ""
+    envelope = _envelope(out)
+    actions = envelope["next_actions"]
+    assert isinstance(actions, list)
+    joined = " ".join(str(item) for item in actions)
+    assert forbidden not in joined
+    expected = f"task start --intent {intent} --idempotency-key {intent}-session-01 --json"
+    assert expected in actions
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"][3] == intent
+
+
+def test_install_backup_still_names_the_expert_leaf(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(
+        ["install", "plan", "--action", "backup", "--json"],
+        capsys,
+    )
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert "task start --intent install" not in out
+    assert code == 2
+
+
+def test_a_pending_everyday_success_carries_the_draining_intent(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["component", "discover", "--json"], capsys)
+    assert code == 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is True
+    expected = "task start --intent author --idempotency-key author-session-01 --json"
+    assert envelope["next_actions"][0] == expected
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == [
+        "task",
+        "start",
+        "--intent",
+        "author",
+        "--idempotency-key",
+        "author-session-01",
+        "--json",
+    ]
+
+
+def test_config_init_success_carries_the_initialize_start(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["config", "init", "--json"], capsys)
+    assert code == 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is True
+    expected = "task start --intent initialize --idempotency-key initialize-session-01 --json"
+    assert envelope["next_actions"][0] == expected
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["argv"] == [
+        "task",
+        "start",
+        "--intent",
+        "initialize",
+        "--idempotency-key",
+        "initialize-session-01",
+        "--json",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("argv", "intent"),
+    [
+        (["install", "status", "--json"], "install"),
+        (["setup", "preserved", "list", "--json"], "switch"),
+    ],
+)
+def test_a_covered_read_success_carries_the_draining_intent(
+    argv: list[str], intent: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is True
+    expected = f"task start --intent {intent} --idempotency-key {intent}-session-01 --json"
+    assert envelope["next_actions"][0] == expected
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"][3] == intent
+
+
+def test_everyday_success_strips_forbidden_continuations_then_starts() -> None:
+    from ai_stp_foundation.envelope import Continuation
+
+    held = Continuation(
+        kind="advance",
+        path=["install", "apply"],
+        argv=["install", "apply", "--json"],
+        actor="cli",
+    )
+    continuations, actions = app._everyday_success_envelope(
+        ("install", "plan"),
+        "plan",
+        [held],
+        ["install apply --json"],
+    )
+    expected = "task start --intent install --idempotency-key install-session-01 --json"
+    assert continuations[0].argv == [
+        "task",
+        "start",
+        "--intent",
+        "install",
+        "--idempotency-key",
+        "install-session-01",
+        "--json",
+    ]
+    assert actions == [expected]
+    assert "install apply" not in " ".join(actions)
+
+
+def test_terminal_apply_success_keeps_allowed_continuations() -> None:
+    from ai_stp_foundation.envelope import Continuation
+
+    recover = Continuation(
+        kind="advance",
+        path=["install", "recover"],
+        argv=["install", "recover", "--json"],
+        actor="cli",
+    )
+    forbidden = Continuation(
+        kind="advance",
+        path=["install", "plan"],
+        argv=["install", "plan", "--json"],
+        actor="cli",
+    )
+    continuations, actions = app._everyday_success_envelope(
+        ("install", "apply"),
+        "apply",
+        [recover, forbidden],
+        ["install recover --json", "install plan --json"],
+    )
+    assert [item.argv for item in continuations] == [["install", "recover", "--json"]]
+    assert actions == ["install recover --json"]
+
+
+def test_backup_install_plan_stays_expert_recovery(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["install", "plan", "--action", "backup", "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["next_actions"] != [  # pyright: ignore[reportIndexIssue]
+        "task start --intent install --idempotency-key install-session-01 --json"
+    ]
+    assert "task start --intent install" not in out
+
+
+def test_an_install_plan_that_already_names_a_proposal_still_starts_install(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["install", "plan", "--proposal", "proposal_x", "--json"], capsys)
+    assert code != 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert "this group is a task intent" not in str(envelope["error"]["message"])
+    expected = "task start --intent install --idempotency-key install-session-01 --json"
+    assert expected in envelope["next_actions"]
+    assert "install plan --proposal" not in out
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"][3] == "install"
+
+
+def test_an_expert_sync_leaf_is_not_redirected_to_account(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["sync", "preview", "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["next_actions"] != [  # pyright: ignore[reportIndexIssue]
+        "task start --intent account --idempotency-key account-session-01 --json"
+    ]
+    assert "task start --intent account" not in out
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["component", "--json"],
+        ["registry", "--json"],
+        ["select", "--json"],
+        ["setup", "--json"],
+        ["config", "--json"],
+    ],
+)
+def test_an_incomplete_group_does_not_list_expert_leaves(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(argv, capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
+    assert envelope["error"]["message"] == "incomplete command group; list shipped intents"  # pyright: ignore[reportIndexIssue]
+    assert envelope["next_actions"] == ["task intents --json"]
+    held = envelope["continuations"]
+    assert isinstance(held, list) and held
+    first = held[0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == ["task", "intents", "--json"]
+    assert "help --agent" not in out
+    assert "Usage:" not in out
+    assert "Commands:" not in out
+    assert "component adopt" not in out
+    assert "compose plan" not in out
+    assert "select propose" not in out
+
+
+def test_help_with_an_unknown_path_lists_intents(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["help", "--path", "nope", "--json"], capsys)
+    assert code == 2
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "AI_STP_NOT_FOUND"  # pyright: ignore[reportIndexIssue]
+    assert envelope["error"]["message"] == "no command lives under that path"  # pyright: ignore[reportIndexIssue]
+    assert envelope["next_actions"] == ["task intents --json"]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == ["task", "intents", "--json"]
+    assert "help --agent" not in out
+    assert "capabilities --json" not in out
+
+
+def test_unscoped_machine_help_points_at_task_intents(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["help", "--agent", "--json"], capsys)
+    assert code == 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is True
+    assert envelope["next_actions"] == ["task intents --json"]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == ["task", "intents", "--json"]
+    data = envelope["data"]
+    assert isinstance(data, dict)
+    assert "commands" in data
+
+
+def test_scoped_install_help_starts_the_install_intent(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["help", "--path", "install", "--json"], capsys)
+    assert code == 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is True
+    expected = "task start --intent install --idempotency-key install-session-01 --json"
+    assert envelope["next_actions"] == [expected]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["actor"] == "cli"
+    assert first["argv"] == [
+        "task",
+        "start",
+        "--intent",
+        "install",
+        "--idempotency-key",
+        "install-session-01",
+        "--json",
+    ]
+    assert "task intents --json" not in envelope["next_actions"]
+
+
+@pytest.mark.parametrize(
+    ("path", "intent"),
+    [
+        ("auth", "account"),
+        ("publication", "publish"),
+        ("sync", "account"),
+        ("setup compose", "change"),
+        ("setup publish", "publish"),
+        ("setup preserve", "switch"),
+        ("setup restore", "switch"),
+        ("setup preserved", "switch"),
+    ],
+)
+def test_scoped_help_of_a_drained_family_starts_that_intent(
+    path: str, intent: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(["help", "--path", path, "--json"], capsys)
+    assert code == 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is True
+    expected = f"task start --intent {intent} --idempotency-key {intent}-session-01 --json"
+    assert envelope["next_actions"] == [expected]
+
+
+@pytest.mark.parametrize("path", ["component", "select", "setup", "registry", "config"])
+def test_scoped_help_of_a_mixed_family_lists_intents(
+    path: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, out, err = _run(["help", "--path", path, "--json"], capsys)
+    assert code == 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is True
+    assert envelope["next_actions"] == ["task intents --json"]
+    first = envelope["continuations"][0]
+    assert isinstance(first, dict)
+    assert first["argv"] == ["task", "intents", "--json"]
+
+
+def test_scoped_inspect_help_has_no_intent_continuation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, out, err = _run(["help", "--path", "doctor", "--json"], capsys)
+    assert code == 0
+    assert err == ""
+    envelope = _envelope(out)
+    assert envelope["ok"] is True
+    assert envelope["next_actions"] == []
+    assert envelope["continuations"] == []
 
 
 def test_a_machine_failure_goes_to_stdout_so_one_stream_carries_the_outcome(
@@ -140,54 +889,38 @@ def test_an_empty_human_invocation_opens_first_run_help(
     assert code == 0
     assert err == ""
     assert "Usage: ai-stp" in out
-    assert "ai-stp doctor --json" in out
-    assert "ai-stp help --agent --json" in out
+    assert "ai-stp task intents --json" in out
 
 
-def test_auth_help_teaches_both_supported_login_flows(
+def test_auth_help_teaches_the_account_intent(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     code, out, err = _run(["auth", "--help"], capsys)
     assert code == 0
     assert err == ""
-    assert "ai-stp auth login --provider google" in out
-    assert "ai-stp auth login --provider github" in out
-    assert "ai-stp auth complete" in out
-    assert "ai-stp auth status" in out
+    assert "ai-stp task start --intent account --idempotency-key account-session-01 --json" in out
+    assert "ai-stp auth status" not in out
+    assert "ai-stp auth login --provider google" not in out
 
 
 @pytest.mark.parametrize(
-    ("argv", "message"),
+    "argv",
     [
-        (["auth", "login"], "auth login requires --provider"),
-        (["auth", "login", "--google"], "auth login requires --provider"),
-        (
-            ["auth", "login", "--provider", "gitlab"],
-            "invalid auth provider",
-        ),
-        (["auth", "google", "login"], "auth commands start with 'auth login'"),
+        ["auth", "login"],
+        ["auth", "login", "--google"],
+        ["auth", "login", "--provider", "gitlab"],
+        ["auth", "google", "login"],
     ],
 )
-def test_common_auth_spelling_errors_explain_the_exact_correction(
-    argv: list[str], message: str, capsys: pytest.CaptureFixture[str]
+def test_common_auth_spelling_errors_start_the_account_intent(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
 ) -> None:
     code, out, err = _run(argv, capsys)
     assert code == 2
     assert out == ""
-    assert message in err
-
-    code, out, err = _run([*argv, "--json"], capsys)
-    assert code == 2
-    assert err == ""
-    envelope = _envelope(out)
-    assert envelope["error"]["code"] == "AI_STP_VALIDATION_ERROR"  # pyright: ignore[reportIndexIssue]
-    assert message in envelope["error"]["message"]  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
-    details = cast(dict[str, object], envelope["error"]["details"])  # pyright: ignore[reportIndexIssue]
-    assert details["allowed"] == "google, github"
-    assert envelope["next_actions"] == [  # pyright: ignore[reportIndexIssue]
-        "auth login --provider google --json",
-        "auth login --provider github --json",
-    ]
+    assert "task intent" in err
+    assert "auth login --provider" not in err
+    assert "auth commands start with" not in err
 
 
 def test_an_unexpected_exception_becomes_the_internal_class_and_leaks_nothing(
@@ -559,7 +1292,7 @@ def test_a_refused_parameter_is_a_validation_error_not_an_internal_one() -> None
 
     assert failure.code == "AI_STP_VALIDATION_ERROR"
     assert failure.details == {"fields": "q"}
-    assert failure.next_actions == ["help --agent --json"]
+    assert failure.next_actions == []
 
 
 def test_a_refused_value_never_reaches_the_message_or_details() -> None:
@@ -662,32 +1395,6 @@ def test_a_correct_provider_written_either_way_is_not_blamed_for_another_option(
     error = cast(Mapping[str, object], envelope["error"])
     assert "--bogus" in str(error["message"])
     assert "requires --provider" not in str(error["message"])
-
-
-@pytest.mark.parametrize(
-    ("argv", "supplied"),
-    [
-        (["auth", "login", "--provider=nope", "--json"], "attached"),
-        (["auth", "login", "--provider", "nope", "--json"], "spaced"),
-    ],
-)
-def test_a_wrong_provider_written_either_way_is_named_as_the_wrong_provider(
-    argv: list[str], supplied: str, capsys: pytest.CaptureFixture[str]
-) -> None:
-    code, out, _err = _run(argv, capsys)
-    assert code == 2
-    error = cast(Mapping[str, object], _envelope(out)["error"])
-    assert error["message"] == "invalid auth provider", supplied
-    assert cast(Mapping[str, object], error["details"])["allowed"] == "google, github"
-
-
-def test_a_missing_provider_is_still_reported_as_missing(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    code, out, _err = _run(["auth", "login", "--json"], capsys)
-    assert code == 2
-    error = cast(Mapping[str, object], _envelope(out)["error"])
-    assert error["message"] == "auth login requires --provider"
 
 
 @pytest.mark.parametrize(

@@ -9,6 +9,15 @@ Sync перемещает локальные ревизии паспортов �
 Это не публичный каталог, не Git и не установка. Предпросмотр никогда
 не изменяет head. Push, merge и pull — явные, безопасные для повторного воспроизведения записи.
 
+Повседневный sync — intent `account`. Движок спрашивает, прежде чем загружать.
+Не набирайте `sync push`, чтобы форсировать upload.
+
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Expert preview / push / merge / pull ниже — для операторов, у которых уже есть id ревизии.
+
 Локальная работа не нуждается в sync. Вход в учётную запись обязателен для этих команд,
 потому что они обращаются к потоку учётной записи. Поток несёт ревизии паспортов,
 а не файлы таргета харнеса и не бэкапы провайдера.
@@ -17,10 +26,11 @@ Sync перемещает локальные ревизии паспортов �
 
 | Команда | Мутабельность | Подтверждение | Когда |
 | --- | --- | --- | --- |
-| `ai-stp sync preview` | `read` | `none` | предпросмотр локального fast-forward, merge или конфликта без изменения head |
-| `ai-stp sync push` | `apply` | `explicit_flag` | запушить один точный локальный head с устойчивым безопасным для воспроизведения событием |
-| `ai-stp sync merge` | `apply` | `explicit_flag` | зафиксировать механически чистый мёрж двух head разработческих паспортов |
-| `ai-stp sync pull` | `apply` | `explicit_flag` | получить и атомарно применить одну ограниченную страницу из потока учётной записи |
+| `ai-stp task start --intent account` | `apply` | `none` | повседневный вход и явный sync |
+| `ai-stp sync preview` | `read` | `none` | expert: предпросмотр локального fast-forward, merge или конфликта без изменения head |
+| sync push | `apply` | `explicit_flag` | expert: запушить один точный локальный head с устойчивым безопасным для воспроизведения событием |
+| `ai-stp sync merge` | `apply` | `explicit_flag` | expert: зафиксировать механически чистый мёрж двух head разработческих паспортов |
+| sync pull | `apply` | `explicit_flag` | expert: получить и атомарно применить одну ограниченную страницу из потока учётной записи |
 
 `--json` — глобальный флаг. Всегда передавайте его. Push, merge и pull требуют
 `--confirm`.
@@ -53,7 +63,7 @@ Preview не пушит. Конфликт — это честный отчёт, 
 
 ## Push
 
-```bash
+```text
 ai-stp sync push --id <stable_id> --confirm --json
 ```
 
@@ -82,7 +92,7 @@ ai-stp sync merge --id <stable_id> --confirm --json
 
 ## Pull
 
-```bash
+```text
 ai-stp sync pull --confirm --json
 ai-stp sync pull --page-size 20 --confirm --json
 ai-stp sync pull --skip-event <event_id> --confirm --json
@@ -98,6 +108,13 @@ ai-stp sync pull --skip-event <event_id> --confirm --json
 поток. Каждая страница атомарна.
 
 ## Счастливый путь
+
+```text
+task start --intent account --idempotency-key account-session-01 --json
+→ follow continuations until there are none
+```
+
+Expert (уже есть id ревизии):
 
 ```text
 auth status
@@ -123,7 +140,7 @@ auth status
 
 | Что вы видите | Что это значит | Что делать |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | нет выполненного входа | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | нет выполненного входа | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_DEVICE_REVOKED` | ключ этого устройства отозван для облачных операций | `device` + новый вход; не переиспользуйте отозванный ключ |
 | `AI_STP_USER_DECISION_REQUIRED` | `--confirm` был пропущен | передайте `--confirm` после чтения preview |
 | `AI_STP_NOT_FOUND` | у этого id нет локальных head ревизий | `passport developer show` / создайте объект локально сначала |
@@ -144,12 +161,13 @@ auth status
 - [Объекты владельца](owner.md)
 - [Карта команд](commands.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-Эта страница группирует команды синхронизации, чтобы человек мог их найти. Установленный
-CLI — источник флагов, схем и `next_actions`. Если эта страница и
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
+Эта страница группирует команды синхронизации, чтобы человек мог их найти. Если эта страница и
 CLI расходятся, следуйте CLI.
