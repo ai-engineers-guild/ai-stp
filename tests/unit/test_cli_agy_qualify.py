@@ -51,6 +51,7 @@ from ai_stp_cli.agy_qualify import (
     drive_native_install,
     escaped_workspace,
     extra_cursor_ref,
+    fill_unrun,
     host_home,
     incomplete_capacity_hit,
     invalidate_cell,
@@ -1426,6 +1427,29 @@ def test_capacity_probe_miss_skips_qualify(
     held = json.loads(capsys.readouterr().out)
     assert held["status"] == "not_run"
     assert held["reason"] == "unavailable"
+
+
+def test_fill_sleeps_through_a_capacity_outage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runs = {"n": 0}
+
+    def _qualify(*_args: object, **_kwargs: object) -> int:
+        runs["n"] += 1
+        raise AssertionError("fill must not run a cell after a probe miss")
+
+    monkeypatch.setattr("ai_stp_cli.agy_qualify.capacity_probe", lambda *_a, **_k: False)
+    monkeypatch.setattr("ai_stp_cli.agy_qualify.qualify_one", _qualify)
+    code = fill_unrun(
+        tmp_path / "cells",
+        measured=tmp_path / "measured.json",
+        agy=Path("/bin/agy"),
+        timeout=5,
+        max_attempts=3,
+        gap_seconds=0,
+    )
+    assert code == 1
+    assert runs["n"] == 0
 
 
 def test_503_after_cli_use_is_scored_not_cleared(

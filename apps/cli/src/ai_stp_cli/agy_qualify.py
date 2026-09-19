@@ -1869,6 +1869,10 @@ def fill_unrun(
         chosen = next_fill_cell(pending, skipped, rotate_from=last)
         if chosen is None:
             break
+        if not capacity_probe(agy):
+            if attempt + 1 < max_attempts:
+                time.sleep(gap_seconds)
+            continue
         last = chosen
         scenario, run = chosen
         cell_root = parent / f"{scenario}-{run}-{attempt}"
