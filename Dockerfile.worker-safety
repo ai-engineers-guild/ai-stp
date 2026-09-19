@@ -21,6 +21,9 @@ RUN GOBIN=/out CGO_ENABLED=0 go install \
 # tools: install OS packages + pinned scanner binaries
 # -----------------------------------------------------------------------------
 FROM python:3.12-slim@sha256:09f7da3bc104798d0afb40bc08d23ab2da20a76130cec1f2ef170848f5d85217 AS tools
+# `tools` is an intermediate stage that never runs as a service; only its
+# copied artifacts reach the final non-root stage.
+# hadolint ignore=DL3002
 USER root
 ENV DEBIAN_FRONTEND=noninteractive \
     SAFETY_BIN_PREFIX=/opt/safety-bin \
@@ -92,6 +95,9 @@ USER appuser
 RUN uv sync --locked --no-dev --all-packages --no-cache
 COPY --chown=appuser:appuser migrations ./migrations
 COPY --chown=appuser:appuser alembic.ini ./
+# `app-base` is intermediate; `worker-safety` below ends as appuser, which is
+# the only stage a container ever starts.
+# hadolint ignore=DL3002
 USER root
 RUN mkdir -p /var/log/ai_stp /var/lib/ai_stp/osv \
     && chown appuser:appuser /var/log/ai_stp /var/lib/ai_stp /var/lib/ai_stp/osv

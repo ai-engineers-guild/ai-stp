@@ -7,7 +7,8 @@
 # public DNS or TLS: `verify_public.py` proves those from the deployment runner.
 set -euo pipefail
 
-readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly ROOT
 cd "${ROOT}"
 
 if [[ -f "${ROOT}/.deploy-env" ]]; then

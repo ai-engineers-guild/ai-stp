@@ -10,7 +10,12 @@
 # A group is a check's owner, and the prefix is mandatory:
 #   docs-*  — the documentation basis (specs, ADRs, docs/, MkDocs);
 #   back-*  — Python: packages/, apps/api, apps/platform, apps/cli, tests/;
-#   web-*   — apps/web.
+#   web-*   — apps/web;
+#   infra-* — Docker images, Compose stacks and the host-side deploy chain.
+#
+# `infra-*` is deliberately not in `check`: it needs the Docker toolchain,
+# which is not universal — fleet devices exist with no Docker at all, and
+# `check` is the gate every host can run.
 #
 # Every group carries the same verb set, so a command is derived, not
 # remembered:
@@ -730,3 +735,49 @@ web-feature-profiles:
 [doc('The web aggregate')]
 [group('web')]
 web-check: web-build web-storybook web-static web-test web-regress web-feature-profiles
+
+# Docker and Compose surface. Not a dependency of `check`: hadolint, shellcheck
+# and the Compose CLI are infra tools, not gate prerequisites — a maintainer
+# touches infra files knowingly and runs this group explicitly. The deploy
+# chain's own checks live in tests/ (test_deploy_contract.py,
+# test_container_bases_are_pinned.py) and run under `back-test` in CI.
+[doc('The infra aggregate')]
+[group('infra')]
+infra-check: infra-static
+
+# Dockerfile lint (hadolint, governed by .hadolint.yaml), deploy-script lint
+# (shellcheck), and `docker compose config` over every file and overlay
+# combination that must render. `config -q` resolves interpolation and service
+# references without contacting the daemon — read-only, no build, no mutation.
+# The two overlays are invalid alone by design (they patch dev services), so
+# they are validated in the combinations the runbooks actually use.
+[doc('Lint Dockerfiles, deploy scripts and every valid compose combination')]
+[group('infra')]
+infra-static:
+    hadolint Dockerfile Dockerfile.user-docs Dockerfile.worker-safety apps/web/Dockerfile.prod apps/web/Dockerfile.dev
+    shellcheck -x -S warning deploy/*.sh
+    docker compose -f docker-compose.prod.yml config -q
+    docker compose -f docker-compose.dev.yml config -q
+    docker compose -f docker-compose.dev.yml -f docker-compose.corporate-local.yml config -q
+    docker compose -f docker-compose.dev.yml -f docker-compose.seo-enrichment.yml --profile seo_enrichment config -q
+
+# Builds the production images the way the deployment host does — from this
+# checkout, no registry push, `.env.prod` not required: build args carry
+# defaults and `env_file` is `required: false` precisely so config and build
+# work without secrets.
+[doc('Build the production images from this checkout, as the deploy host does')]
+[group('infra')]
+infra-build:
+    docker compose -f docker-compose.prod.yml build
+
+# The development stack is the only stack meant for local bring-up; prod is
+# brought up by deploy/deploy.sh under its lock, on the deployment host.
+[doc('Bring the development stack up with a fresh build')]
+[group('infra')]
+infra-up:
+    docker compose -f docker-compose.dev.yml up -d --build
+
+[doc('Bring the development stack down')]
+[group('infra')]
+infra-down:
+    docker compose -f docker-compose.dev.yml down
