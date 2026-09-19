@@ -244,9 +244,15 @@ class Workspace:
 def bundled_cli() -> Path:
     """The in-venv executable. Isolated HOME must not go through `uv run`."""
     name = "ai-stp.exe" if os.name == "nt" else "ai-stp"
-    held = Path(sys.executable).resolve().parent / name
-    if held.is_file():
-        return held
+    # sys.executable may symlink into a toolchain directory (uv/pysa); the
+    # console script lives next to the unresolved path inside the env's bin.
+    candidates = (
+        Path(sys.executable).parent / name,
+        Path(sys.executable).resolve().parent / name,
+    )
+    for held in candidates:
+        if held.is_file():
+            return held
     found = shutil.which("ai-stp")
     if found:
         return Path(found)
