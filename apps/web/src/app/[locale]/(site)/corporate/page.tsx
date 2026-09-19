@@ -194,59 +194,64 @@ async function enrichOverview(
       ]),
     );
     const catalog = new Map(
-      await Promise.all(
-        usage.map(async ({ assignment }) => {
-          const version = asVersionId(assignment.version);
-          const stableId =
-            assignment.object_kind === "component"
-              ? asComponentId(assignment.stable_id)
-              : asSetupId(assignment.stable_id);
-          const ownership = await readCorporateCatalogOwnershipSummary(
-            token,
-            organizationId,
-            assignment.object_kind,
-            stableId,
-            version,
-          ).catch((error: unknown) => {
-            if (error instanceof ApiError && error.status >= 400) return null;
-            throw error;
-          });
-          const detail = catalogDetails.get(`${assignment.stable_id}:${assignment.version}`);
-          const publisherId =
-            detail && "publisher_id" in detail && typeof detail.publisher_id === "string"
-              ? detail.publisher_id
-              : null;
-          const authorName =
-            (publisherId && directoryNames.get(publisherId)) ||
-            (detail && "owner_handle" in detail && typeof detail.owner_handle === "string"
-              ? detail.owner_handle || null
-              : publisherId && !publisherId.startsWith("account_")
-                ? publisherId
-                : null);
-          return [
-            `${assignment.object_kind}:${assignment.stable_id}`,
-            {
-              owner_name: ownership?.owner_display_name ?? null,
-              owner_id: ownership?.owner_display_name ? ownership.owner_account_id : null,
-              owner_readable: ownership !== null,
-              author_name: authorName,
-              author_id: publisherId,
-              catalog_type:
-                detail &&
-                "latest_component_type" in detail &&
-                typeof detail.latest_component_type === "string"
-                  ? detail.latest_component_type
-                  : assignment.object_kind,
-              description:
-                detail &&
-                "latest_description" in detail &&
-                typeof detail.latest_description === "string"
-                  ? detail.latest_description
-                  : "",
-            },
-          ] as const;
-        }),
-      ),
+      (
+        await Promise.all(
+          usage.map(async ({ assignment }) => {
+            // A `latest` selector carries no stored version; the ownership
+            // read below needs an exact coordinate, so those rows enrich nothing.
+            if (assignment.version === null) return null;
+            const version = asVersionId(assignment.version);
+            const stableId =
+              assignment.object_kind === "component"
+                ? asComponentId(assignment.stable_id)
+                : asSetupId(assignment.stable_id);
+            const ownership = await readCorporateCatalogOwnershipSummary(
+              token,
+              organizationId,
+              assignment.object_kind,
+              stableId,
+              version,
+            ).catch((error: unknown) => {
+              if (error instanceof ApiError && error.status >= 400) return null;
+              throw error;
+            });
+            const detail = catalogDetails.get(`${assignment.stable_id}:${assignment.version}`);
+            const publisherId =
+              detail && "publisher_id" in detail && typeof detail.publisher_id === "string"
+                ? detail.publisher_id
+                : null;
+            const authorName =
+              (publisherId && directoryNames.get(publisherId)) ||
+              (detail && "owner_handle" in detail && typeof detail.owner_handle === "string"
+                ? detail.owner_handle || null
+                : publisherId && !publisherId.startsWith("account_")
+                  ? publisherId
+                  : null);
+            return [
+              `${assignment.object_kind}:${assignment.stable_id}`,
+              {
+                owner_name: ownership?.owner_display_name ?? null,
+                owner_id: ownership?.owner_display_name ? ownership.owner_account_id : null,
+                owner_readable: ownership !== null,
+                author_name: authorName,
+                author_id: publisherId,
+                catalog_type:
+                  detail &&
+                  "latest_component_type" in detail &&
+                  typeof detail.latest_component_type === "string"
+                    ? detail.latest_component_type
+                    : assignment.object_kind,
+                description:
+                  detail &&
+                  "latest_description" in detail &&
+                  typeof detail.latest_description === "string"
+                    ? detail.latest_description
+                    : "",
+              },
+            ] as const;
+          }),
+        )
+      ).filter((entry): entry is NonNullable<typeof entry> => entry !== null),
     );
     return {
       ...directoryGraph,

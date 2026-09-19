@@ -860,8 +860,13 @@ class CorporateCatalogAssignment(Base):
             "(CASE WHEN account_id IS NULL THEN 0 ELSE 1 END + "
             "CASE WHEN team_id IS NULL THEN 0 ELSE 1 END + "
             "CASE WHEN project_id IS NULL THEN 0 ELSE 1 END + "
-            "CASE WHEN technology_id IS NULL THEN 0 ELSE 1 END) = 1",
+            "CASE WHEN technology_id IS NULL THEN 0 ELSE 1 END) <= 1",
             name="ck_corporate_assignment_subject",
+        ),
+        CheckConstraint("selector in ('exact','latest')", name="ck_corporate_assignment_selector"),
+        CheckConstraint(
+            "selector = 'latest' OR version IS NOT NULL",
+            name="ck_corporate_assignment_selector_version",
         ),
         ForeignKeyConstraint(
             ["organization_id", "account_id"],
@@ -898,6 +903,7 @@ class CorporateCatalogAssignment(Base):
             "object_kind",
             "stable_id",
             "version",
+            "harness",
             name="uq_corporate_assignment_account",
         ),
         UniqueConstraint(
@@ -906,6 +912,7 @@ class CorporateCatalogAssignment(Base):
             "object_kind",
             "stable_id",
             "version",
+            "harness",
             name="uq_corporate_assignment_team",
         ),
         UniqueConstraint(
@@ -914,6 +921,7 @@ class CorporateCatalogAssignment(Base):
             "object_kind",
             "stable_id",
             "version",
+            "harness",
             name="uq_corporate_assignment_project",
         ),
         UniqueConstraint(
@@ -922,7 +930,25 @@ class CorporateCatalogAssignment(Base):
             "object_kind",
             "stable_id",
             "version",
+            "harness",
             name="uq_corporate_assignment_technology",
+        ),
+        Index(
+            "uq_corporate_assignment_organization",
+            "organization_id",
+            "object_kind",
+            "stable_id",
+            "version",
+            "harness",
+            unique=True,
+            postgresql_where=text(
+                "account_id IS NULL AND team_id IS NULL "
+                "AND project_id IS NULL AND technology_id IS NULL"
+            ),
+            sqlite_where=text(
+                "account_id IS NULL AND team_id IS NULL "
+                "AND project_id IS NULL AND technology_id IS NULL"
+            ),
         ),
     )
 
@@ -936,7 +962,12 @@ class CorporateCatalogAssignment(Base):
     technology_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     object_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     stable_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    selector: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="exact", server_default="exact"
+    )
+    version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    passport_digest: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    harness: Mapped[str | None] = mapped_column(String(64), nullable=True)
     state: Mapped[str] = mapped_column(
         String(16), nullable=False, default="current", server_default="current"
     )

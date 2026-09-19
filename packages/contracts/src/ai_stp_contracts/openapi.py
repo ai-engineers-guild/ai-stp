@@ -126,6 +126,9 @@ from ai_stp_contracts.corporate import (
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateEffectiveAssignment,
+    CorporateEffectiveAssignmentCandidate,
+    CorporateEffectiveAssignmentQuery,
     CorporateJobTitleCreateRequest,
     CorporateJobTitleList,
     CorporateJobTitleUpdateRequest,
@@ -1324,7 +1327,10 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         method="put",
         path="/corporate/organizations/{organization_id}/catalog-assignments",
         operation_id="writeCorporateCatalogAssignment",
-        summary="Assign or retire an exact catalog version without granting access.",
+        summary=(
+            "Assign or retire a catalog line with an exact or latest selector, "
+            "without granting access."
+        ),
         response=CorporateCatalogAssignment,
         body=CorporateCatalogAssignmentRequest,
         path_params=(_ORGANIZATION_ID,),
@@ -1368,6 +1374,16 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         summary="Read direct and team-derived assignments visible to the caller.",
         response=CorporateCatalogAssignmentList,
         query=CorporateCatalogAssignmentQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/catalog-assignments/effective",
+        operation_id="readCorporateEffectiveAssignment",
+        summary=("Resolve the winning applicable assignment for one employee and catalog line."),
+        response=CorporateEffectiveAssignment,
+        query=CorporateEffectiveAssignmentQuery,
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
     ),
@@ -3079,6 +3095,7 @@ NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
     ProviderProjectObservationRequest,
     CorporateAuditEntry,
     CorporateCatalogUsage,
+    CorporateEffectiveAssignmentCandidate,
 )
 
 

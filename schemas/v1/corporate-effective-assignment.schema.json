@@ -1,0 +1,314 @@
+{
+  "$defs": {
+    "CorporateEffectiveAssignmentCandidate": {
+      "additionalProperties": true,
+      "description": "One assignment row considered by the deterministic effective evaluation.",
+      "properties": {
+        "assignment_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Assignment Id",
+          "type": "string"
+        },
+        "harness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarnessId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "outcome": {
+          "enum": [
+            "winner",
+            "overridden",
+            "revoked",
+            "inapplicable"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "resolved_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved Digest"
+        },
+        "resolved_version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved Version"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "enum": [
+            "employee",
+            "team",
+            "project",
+            "technology",
+            "organization"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "selector": {
+          "enum": [
+            "exact",
+            "latest"
+          ],
+          "title": "Selector",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "subject_id": {
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "assignment_id",
+        "harness",
+        "outcome",
+        "resolved_digest",
+        "resolved_version",
+        "revision",
+        "schema_version",
+        "scope",
+        "selector",
+        "state",
+        "subject_id",
+        "version"
+      ],
+      "title": "CorporateEffectiveAssignmentCandidate",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-effective-assignment",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The winning assignment, its source, and the exact resolved coordinate.",
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "assignment_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Assignment Id"
+    },
+    "candidates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateEffectiveAssignmentCandidate"
+      },
+      "maxItems": 256,
+      "title": "Candidates",
+      "type": "array"
+    },
+    "harness": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HarnessId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "object_kind": {
+      "enum": [
+        "setup",
+        "component"
+      ],
+      "title": "Object Kind",
+      "type": "string"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "passport_digest": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Passport Digest"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "selector": {
+      "anyOf": [
+        {
+          "enum": [
+            "exact",
+            "latest"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selector"
+    },
+    "source_scope": {
+      "anyOf": [
+        {
+          "enum": [
+            "employee",
+            "team",
+            "project",
+            "technology",
+            "organization"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Scope"
+    },
+    "source_subject_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Subject Id"
+    },
+    "stable_id": {
+      "title": "Stable Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "assigned",
+        "revoked",
+        "unassigned"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Version"
+    }
+  },
+  "required": [
+    "account_id",
+    "assignment_id",
+    "candidates",
+    "harness",
+    "object_kind",
+    "organization_id",
+    "passport_digest",
+    "schema_version",
+    "selector",
+    "source_scope",
+    "source_subject_id",
+    "stable_id",
+    "state",
+    "version"
+  ],
+  "title": "CorporateEffectiveAssignment",
+  "type": "object"
+}

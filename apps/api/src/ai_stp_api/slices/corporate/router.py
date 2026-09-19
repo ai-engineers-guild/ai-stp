@@ -40,6 +40,8 @@ from ai_stp_contracts.corporate import (
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateEffectiveAssignment,
+    CorporateEffectiveAssignmentQuery,
     CorporateJobTitleCreateRequest,
     CorporateJobTitleList,
     CorporateJobTitleUpdateRequest,
@@ -190,6 +192,22 @@ async def list_catalog_assignments(
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogAssignmentList:
     return await assignments.list_assignments(
+        db, ctx=ctx, organization_id=organization_id, query=query, request_id=_request_id(request)
+    )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/catalog-assignments/effective",
+    response_model=CorporateEffectiveAssignment,
+)
+async def read_effective_assignment(
+    organization_id: str,
+    query: Annotated[CorporateEffectiveAssignmentQuery, Query()],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateEffectiveAssignment:
+    return await assignments.resolve_effective(
         db, ctx=ctx, organization_id=organization_id, query=query, request_id=_request_id(request)
     )
 

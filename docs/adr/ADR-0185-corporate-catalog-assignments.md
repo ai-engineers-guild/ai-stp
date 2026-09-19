@@ -5,7 +5,9 @@ last_verified: "2026-09-13"
 
 # ADR-0185: Corporate catalog assignments
 
-Status: accepted.
+Status: accepted. Superseded by ADR-0194 for effective assignment selection;
+the exact-version storage and assignment/access separation remain historical
+foundations of the current model.
 
 ## Context
 

@@ -21,7 +21,7 @@ export const overviewEntityIcons: Record<string, IconName> = {
   setup: "setup",
 };
 export function overviewAssignmentHref(item: CorporateOverviewNode["assignments"][number]) {
-  return `/catalog/${item.object_kind === "setup" ? "setups" : "components"}/${encodeURIComponent(item.stable_id)}/versions/${encodeURIComponent(item.version)}`;
+  return `/catalog/${item.object_kind === "setup" ? "setups" : "components"}/${encodeURIComponent(item.stable_id)}/versions/${encodeURIComponent(item.version ?? "latest")}`;
 }
 export type OverviewBranch = {
   node: CorporateOverviewNode;

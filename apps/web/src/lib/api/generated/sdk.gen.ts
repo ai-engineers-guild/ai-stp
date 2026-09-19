@@ -353,6 +353,9 @@ import type {
   ReadCorporateDirectoryData,
   ReadCorporateDirectoryErrors,
   ReadCorporateDirectoryResponses,
+  ReadCorporateEffectiveAssignmentData,
+  ReadCorporateEffectiveAssignmentErrors,
+  ReadCorporateEffectiveAssignmentResponses,
   ReadCorporateEntityProfileData,
   ReadCorporateEntityProfileErrors,
   ReadCorporateEntityProfileResponses,
@@ -1564,7 +1567,7 @@ export const listCorporateCatalogAssignments = <ThrowOnError extends boolean = f
   });
 
 /**
- * Assign or retire an exact catalog version without granting access.
+ * Assign or retire a catalog line with an exact or latest selector, without granting access.
  */
 export const writeCorporateCatalogAssignment = <ThrowOnError extends boolean = false>(
   options: Options<WriteCorporateCatalogAssignmentData, ThrowOnError>,
@@ -1585,6 +1588,26 @@ export const writeCorporateCatalogAssignment = <ThrowOnError extends boolean = f
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Resolve the winning applicable assignment for one employee and catalog line.
+ */
+export const readCorporateEffectiveAssignment = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateEffectiveAssignmentData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateEffectiveAssignmentResponses,
+  ReadCorporateEffectiveAssignmentErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateEffectiveAssignmentResponses,
+    ReadCorporateEffectiveAssignmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/effective",
+    ...options,
   });
 
 /**

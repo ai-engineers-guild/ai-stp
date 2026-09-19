@@ -1,4 +1,4 @@
-"""Verify assignment storage has tenant and exact-version integrity boundaries."""
+"""Verify assignment storage has tenant and selector integrity boundaries."""
 
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportAttributeAccessIssue=false
 
@@ -22,13 +22,16 @@ def test_assignment_storage_restricts_subjects_to_the_same_tenant() -> None:
         "catalog_metadata.stable_id",
         "catalog_metadata.version",
     ) in keys
-    assert not table.c.version.nullable
     checks = {
         constraint.name
         for constraint in table.constraints
         if isinstance(constraint, CheckConstraint)
     }
-    assert "ck_corporate_assignment_subject" in checks
+    assert {
+        "ck_corporate_assignment_subject",
+        "ck_corporate_assignment_selector",
+        "ck_corporate_assignment_selector_version",
+    } <= checks
     unique = {
         constraint.name
         for constraint in table.constraints
@@ -38,4 +41,15 @@ def test_assignment_storage_restricts_subjects_to_the_same_tenant() -> None:
         "uq_corporate_assignment_account",
         "uq_corporate_assignment_team",
         "uq_corporate_assignment_project",
+        "uq_corporate_assignment_technology",
     } <= unique
+
+
+def test_assignment_storage_supports_latest_and_organization_scope() -> None:
+    table = CorporateCatalogAssignment.__table__
+    assert table.c.version.nullable
+    assert not table.c.selector.nullable
+    assert table.c.harness.nullable
+    assert table.c.passport_digest.nullable
+    organization_scope = {index.name for index in table.indexes if index.unique}
+    assert "uq_corporate_assignment_organization" in organization_scope

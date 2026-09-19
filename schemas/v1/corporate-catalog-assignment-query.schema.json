@@ -32,7 +32,8 @@
         "employee",
         "team",
         "project",
-        "technology"
+        "technology",
+        "organization"
       ],
       "title": "Subject Kind",
       "type": "string"

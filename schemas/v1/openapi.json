@@ -4589,6 +4589,17 @@
             "default": null,
             "title": "Display Name"
           },
+          "harness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarnessId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "object_kind": {
             "enum": [
               "setup",
@@ -4602,6 +4613,19 @@
             "title": "Organization Id",
             "type": "string"
           },
+          "passport_digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Passport Digest"
+          },
           "revision": {
             "minimum": 1,
             "title": "Revision",
@@ -4612,6 +4636,15 @@
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "selector": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "latest"
+            ],
+            "title": "Selector",
+            "type": "string"
           },
           "source_team_id": {
             "anyOf": [
@@ -4647,24 +4680,36 @@
               "employee",
               "team",
               "project",
-              "technology"
+              "technology",
+              "organization"
             ],
             "title": "Subject Kind",
             "type": "string"
           },
           "version": {
-            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
-            "title": "Version",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
           }
         },
         "required": [
           "assignment_id",
           "display_name",
+          "harness",
           "object_kind",
           "organization_id",
+          "passport_digest",
           "revision",
           "schema_version",
+          "selector",
           "source_team_id",
           "stable_id",
           "state",
@@ -4737,7 +4782,8 @@
               "employee",
               "team",
               "project",
-              "technology"
+              "technology",
+              "organization"
             ],
             "title": "Subject Kind",
             "type": "string"
@@ -4752,7 +4798,7 @@
       },
       "CorporateCatalogAssignmentRequest": {
         "additionalProperties": false,
-        "description": "Assign a readable exact catalog version without granting access or installing it.",
+        "description": "Assign a stable catalog line without granting access or installing it.",
         "properties": {
           "authorization_revision": {
             "minimum": 1,
@@ -4763,6 +4809,17 @@
             "minimum": 0,
             "title": "Expected Revision",
             "type": "integer"
+          },
+          "harness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarnessId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "idempotency_key": {
             "$ref": "#/components/schemas/IdempotencyKey"
@@ -4775,11 +4832,33 @@
             "title": "Object Kind",
             "type": "string"
           },
+          "passport_digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Passport Digest"
+          },
           "schema_version": {
             "const": 1,
             "default": 1,
             "title": "Schema Version",
             "type": "integer"
+          },
+          "selector": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "latest"
+            ],
+            "title": "Selector",
+            "type": "string"
           },
           "stable_id": {
             "maxLength": 64,
@@ -4807,15 +4886,24 @@
               "employee",
               "team",
               "project",
-              "technology"
+              "technology",
+              "organization"
             ],
             "title": "Subject Kind",
             "type": "string"
           },
           "version": {
-            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
-            "title": "Version",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
           }
         },
         "required": [
@@ -4823,7 +4911,6 @@
           "subject_id",
           "object_kind",
           "stable_id",
-          "version",
           "expected_revision",
           "authorization_revision",
           "idempotency_key"
@@ -6346,6 +6433,373 @@
           "total"
         ],
         "title": "CorporateDirectoryView",
+        "type": "object"
+      },
+      "CorporateEffectiveAssignment": {
+        "additionalProperties": true,
+        "description": "The winning assignment, its source, and the exact resolved coordinate.",
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "assignment_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Assignment Id"
+          },
+          "candidates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateEffectiveAssignmentCandidate"
+            },
+            "maxItems": 256,
+            "title": "Candidates",
+            "type": "array"
+          },
+          "harness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarnessId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "passport_digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Passport Digest"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "selector": {
+            "anyOf": [
+              {
+                "enum": [
+                  "exact",
+                  "latest"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Selector"
+          },
+          "source_scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "employee",
+                  "team",
+                  "project",
+                  "technology",
+                  "organization"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Scope"
+          },
+          "source_subject_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Subject Id"
+          },
+          "stable_id": {
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "assigned",
+              "revoked",
+              "unassigned"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
+          }
+        },
+        "required": [
+          "account_id",
+          "assignment_id",
+          "candidates",
+          "harness",
+          "object_kind",
+          "organization_id",
+          "passport_digest",
+          "schema_version",
+          "selector",
+          "source_scope",
+          "source_subject_id",
+          "stable_id",
+          "state",
+          "version"
+        ],
+        "title": "CorporateEffectiveAssignment",
+        "type": "object"
+      },
+      "CorporateEffectiveAssignmentCandidate": {
+        "additionalProperties": true,
+        "description": "One assignment row considered by the deterministic effective evaluation.",
+        "properties": {
+          "assignment_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Assignment Id",
+            "type": "string"
+          },
+          "harness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarnessId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "outcome": {
+            "enum": [
+              "winner",
+              "overridden",
+              "revoked",
+              "inapplicable"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "resolved_digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resolved Digest"
+          },
+          "resolved_version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resolved Version"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "scope": {
+            "enum": [
+              "employee",
+              "team",
+              "project",
+              "technology",
+              "organization"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "selector": {
+            "enum": [
+              "exact",
+              "latest"
+            ],
+            "title": "Selector",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "current",
+              "retired"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "subject_id": {
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
+          }
+        },
+        "required": [
+          "assignment_id",
+          "harness",
+          "outcome",
+          "resolved_digest",
+          "resolved_version",
+          "revision",
+          "schema_version",
+          "scope",
+          "selector",
+          "state",
+          "subject_id",
+          "version"
+        ],
+        "title": "CorporateEffectiveAssignmentCandidate",
+        "type": "object"
+      },
+      "CorporateEffectiveAssignmentQuery": {
+        "additionalProperties": false,
+        "description": "Authorized effective-assignment evaluation for one employee and catalog line.",
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "harness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarnessId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Id"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Id"
+          }
+        },
+        "required": [
+          "account_id",
+          "object_kind",
+          "stable_id"
+        ],
+        "title": "CorporateEffectiveAssignmentQuery",
         "type": "object"
       },
       "CorporateEffectivePermission": {
@@ -35145,7 +35599,8 @@
                 "employee",
                 "team",
                 "project",
-                "technology"
+                "technology",
+                "organization"
               ],
               "title": "Subject Kind",
               "type": "string"
@@ -35411,7 +35866,7 @@
                 }
               }
             },
-            "description": "Assign or retire an exact catalog version without granting access.",
+            "description": "Assign or retire a catalog line with an exact or latest selector, without granting access.",
             "headers": {
               "ETag": {
                 "description": "Current version, for a later If-Match.",
@@ -35556,7 +36011,261 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Assign or retire an exact catalog version without granting access."
+        "summary": "Assign or retire a catalog line with an exact or latest selector, without granting access."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/catalog-assignments/effective": {
+      "get": {
+        "operationId": "readCorporateEffectiveAssignment",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "harness",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/HarnessId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          {
+            "in": "query",
+            "name": "object_kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "setup",
+                "component"
+              ],
+              "title": "Object Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stable_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Stable Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "technology_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Technology Id"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateEffectiveAssignment"
+                }
+              }
+            },
+            "description": "Resolve the winning applicable assignment for one employee and catalog line.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Resolve the winning applicable assignment for one employee and catalog line."
       }
     },
     "/v1/corporate/organizations/{organization_id}/catalog-governance/lifecycle": {

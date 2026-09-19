@@ -869,6 +869,9 @@ function catalogAssignments(
       organization_id: organization.organization_id,
       revision: 1,
       schema_version: 1,
+      selector: "exact" as const,
+      passport_digest: null,
+      harness: null,
       source_team_id:
         subject.kind === "employee"
           ? (teamViews.find((candidate) =>

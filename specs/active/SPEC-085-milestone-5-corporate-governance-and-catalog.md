@@ -1,6 +1,6 @@
 ---
 description: "SPEC-085: Corporate governance lifecycle, team profile, and catalog context."
-last_verified: "2026-09-18"
+last_verified: "2026-09-19"
 ---
 
 # SPEC-085: Milestone 5 corporate governance and catalog context
@@ -8,8 +8,9 @@ last_verified: "2026-09-18"
 ## Purpose
 
 Complete the enterprise-MVP extension of the existing Corporate Hub for issues
-issues 210, 211, and 212 without introducing a second authorization, publication,
-assignment, or catalog search workflow.
+210, 211, and 212, and extend the same assignment workflow for milestone 6 issue
+205 without introducing a second authorization, publication, assignment, or
+catalog search workflow.
 
 ## Normative boundary
 
@@ -22,8 +23,9 @@ global verification, or provider authority.
 ## Scope
 
 This specification covers tenant-scoped governance relations for published
-components and setups, the existing Corporate Hub team detail projection, and
-corporate context on the existing component/setup catalog searches. It does not
+components and setups, the existing Corporate Hub team detail projection,
+corporate context on the existing component/setup catalog searches, and the
+deterministic effective-assignment policy used by the CLI and Web. It does not
 replace publication, global author verification, catalog access grants, setup
 installation, or provider-owned harness state.
 
@@ -37,8 +39,13 @@ by this specification.
 - `Corporate governance relation` — an organization-scoped ownership,
   maintainership, corporate-verification, lifecycle, or exact-version
   assignment row.
-- `Effective assignment` — an employee-visible assignment derived from a
-  current canonical team membership and a current team assignment.
+- `Effective assignment` — the winning applicable assignment for an employee,
+  resolved from direct user, project, technology, team, and organization scopes
+  plus an optional harness condition. A team-derived row remains a projection
+  of its source assignment.
+- `Assignment selector` — either an exact immutable catalog coordinate (version
+  and, when available, digest) or the `latest` selector, which is resolved to an
+  exact eligible coordinate only when an effective plan is evaluated.
 - `Corporate catalog context` — an authenticated organization plus optional
   team, project, technology, owner, maintainer, assignment, and verification
   filters applied to the existing catalog search contract.
@@ -79,17 +86,44 @@ by this specification.
   exposes a paginated organization-usage projection over readable teams, projects,
   and technologies for one stable setup or component. Direct and effective paths are
   deduplicated without erasing source, and authorization precedes rows and totals.
+- `REQ-8507`: An assignment targets one stable setup or component line and carries
+  an exact immutable selector or `latest`, plus an optional harness restriction.
+  Exact selectors must identify an eligible published coordinate; wildcard,
+  mutable, unverified, unavailable, and malformed coordinates are rejected.
+  `latest` is never persisted as an installed coordinate and is resolved only by
+  an authorized evaluation or installation-plan operation.
+- `REQ-8508`: Effective assignment precedence is deterministic and documented as
+  user, project, technology, team, then organization. Within a scope, a
+  harness-specific assignment wins over an unrestricted assignment; an explicit
+  user exception or revocation wins over inherited assignments. Effective results
+  identify the winning assignment and source scope. `latest` resolves according
+  to the same catalog eligibility and trust rules as exact selection, and the
+  resulting plan records the exact version and digest.
+- `REQ-8509`: Assignment mutations remain tenant-scoped and use the existing
+  authorization evaluator, role bindings, expected revision, authorization
+  revision, idempotency receipt, and audit history. Organization-wide and foreign
+  tenant mutations are denied to actors without the corresponding scope
+  permission. Retiring or changing an assignment does not rewrite prior history
+  or silently mutate a materialized installation.
+- `REQ-8510`: CLI and Web consume one generated effective-assignment contract and
+  return the same winning source, exact resolved coordinate, and explainability
+  fields. Evaluation and planning are read/plan operations separate from live
+  provider installation or active-harness replacement.
 
 ## States and errors
 
 Ownership is current for a stable component/setup coordinate and is transferred
 or cleared by an exact expected revision. Maintainer, assignment, verification,
 and lifecycle rows retain retired, revoked, or historical states rather than
-rewriting the relation's past. Verification and assignment always identify an
-exact published version; ownership remains stable-object scoped. Invalid typed
-identities, stale revisions, missing idempotency, unavailable catalog versions,
-foreign tenant coordinates, and insufficient permissions are rejected before a
-durable mutation. Replays reauthorize and return the original durable result.
+rewriting the relation's past. Verification and exact assignments identify an
+exact published version; an assignment may additionally use the `latest`
+selector for future evaluation. Every evaluated or materialized plan contains
+an exact eligible version and digest. Invalid typed identities, stale revisions,
+missing idempotency, unavailable catalog versions, foreign tenant coordinates,
+mutable or unverified selectors, and insufficient permissions are rejected
+before a durable mutation. Replays reauthorize and return the original durable
+result. Changing a `latest` assignment affects future plans only; it does not
+rewrite assignment history or an existing materialized installation.
 
 ## Security and privacy
 
@@ -113,7 +147,11 @@ catalog requests, publication workflows, role bindings, and catalog routes
 remain compatible. Generated schemas, OpenAPI, provider projections, and web
 clients are regenerated by the repository generators. Rollback can disable the
 new governance routes and corporate search context without deleting incumbent
-catalog, publication, membership, or audit data.
+catalog, publication, membership, or audit data. The legacy exact-version
+assignment request remains valid. Selector, harness condition, precedence,
+explainability, and effective-plan fields are additive; existing exact
+assignments keep their current semantics. No existing active installation is
+rewritten during migration or latest-selector evaluation.
 
 ## Acceptance
 
@@ -133,3 +171,7 @@ generators.
 | `REQ-8504` | `tests/api/platform/test_corporate_entity_profiles.py` covers the existing team/entity projection and tenant authorization; the full API suite covers the additive profile response fields and redaction. |
 | `REQ-8505` | `tests/contract/test_openapi.py` covers generated search contracts; Web unit tests cover corporate catalog loading and URL/query transport; the full API suite covers public compatibility and tenant isolation. |
 | `REQ-8506` | Contract and PostgreSQL API tests cover technology-category filtering, setup/component usage pagination, direct/effective source, deduplication, authorization-before-count, and tenant isolation. |
+| `REQ-8507` | Contract/API tests cover exact and `latest` selectors, harness conditions, immutable-coordinate validation, and rejection of mutable, unverified, wildcard, or unavailable selectors. |
+| `REQ-8508` | Effective-assignment tests cover precedence, harness-specific selection, user exceptions/revocations, winning-source explainability, and exact version/digest resolution for `latest`. |
+| `REQ-8509` | API tests cover tenant/scope authorization, revision/idempotency replay, audit retention, and the absence of live-installation mutation. |
+| `REQ-8510` | Generated contract tests and CLI/Web integration tests compare the effective result and explanation fields across both clients. |

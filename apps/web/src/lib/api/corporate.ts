@@ -17,6 +17,7 @@ import type {
   CorporateMember,
   CorporateRoleView,
   CorporateCatalogAssignmentList,
+  CorporateEffectiveAssignment,
   OrganizationListResponse,
   OrganizationSummary,
   EmployeeTechnologyList,
@@ -440,4 +441,27 @@ export async function readCorporateCatalogAssignments(
     if (!page.items.length) break;
   } while (items.length < total);
   return { items, total };
+}
+
+export async function readEffectiveCorporateAssignment(
+  sessionToken: string,
+  organizationId: string,
+  query: {
+    account_id: string;
+    object_kind: "setup" | "component";
+    stable_id: string;
+    project_id?: string;
+    technology_id?: string;
+    harness?: string;
+  },
+): Promise<CorporateEffectiveAssignment> {
+  return apiRequest<CorporateEffectiveAssignment>(
+    `/v1/corporate/organizations/${organizationId}/catalog-assignments/effective`,
+    {
+      sessionToken,
+      query: Object.fromEntries(
+        Object.entries(query).filter(([, value]) => value !== undefined),
+      ) as Record<string, string>,
+    },
+  );
 }

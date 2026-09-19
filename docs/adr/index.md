@@ -191,6 +191,7 @@ last_verified: "2026-08-03"
 | [ADR-0191-corporate-governance-and-search-context.md](ADR-0191-corporate-governance-and-search-context.md) | Use existing corporate authorization and catalog search for tenant governance context. | 2026-09-18 |
 | [ADR-0192-one-account-identity-in-corporate-ui.md](ADR-0192-one-account-identity-in-corporate-ui.md) | One account identity owns corporate employee and public publisher projections. | 2026-09-18 |
 | [ADR-0193-one-corporate-catalog-and-directory-projection.md](ADR-0193-one-corporate-catalog-and-directory-projection.md) | The Corporate Hub extends one catalog and one authorized directory projection. | 2026-09-18 |
+| [ADR-0194-effective-corporate-catalog-assignments.md](ADR-0194-effective-corporate-catalog-assignments.md) | Deterministic effective corporate catalog assignments and exact install plans. | 2026-09-19 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->
