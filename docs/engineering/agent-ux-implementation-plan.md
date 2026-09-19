@@ -1,6 +1,6 @@
 ---
 description: "Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261."
-last_verified: "2026-09-18"
+last_verified: "2026-09-19"
 ---
 
 # Agent UX implementation plan
@@ -18,9 +18,9 @@ prompt, a Haiku-class agent operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
-## Checkpoint (2026-09-18)
+## Checkpoint (2026-09-19)
 
-Owner skipped Slice 9 Haiku fill. The agent-first CLI is on
+The agent-first CLI is on
 `feat/agent-task-lifecycle` as PR
 [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297). This agent
 does not merge. Epic #261–#275 stay OPEN. Do not touch colleague issues
@@ -28,13 +28,13 @@ does not merge. Epic #261–#275 stay OPEN. Do not touch colleague issues
 
 | Object | Identity |
 | --- | --- |
-| Branch | `feat/agent-task-lifecycle` (parent merge `9b3833a8`; this commit is the gate fix) |
-| PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) into `dev`. Not merged |
-| `origin/dev` at verify | `80db1e9d` (#300). Re-merge after this commit if still behind |
+| Branch | `feat/agent-task-lifecycle` at `541d6e14` (includes `4a1d9752` env-bin `bundled_cli()` fix; probe-in-fill was tried and reverted — `--probe` stays opt-in by design) |
+| PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) into `dev`. Not merged; mergeable |
+| `origin/dev` at verify | `80db1e9d` (#300). Already merged into the branch; merge-base is `80db1e9d` |
 | Released CLI | still `0.0.22`. No PyPI cut |
 | Provider kit | `0.2.13` recorded in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
-| Haiku 20×5 | **not re-run**. Last overlay 49 pass / 0 fail / 51 unrun. Not a ship gate this pass |
+| Haiku 20×5 | overlay 53 pass / 0 fail / 47 unrun. Durable `--fill` restarted with `--docker-image ai-stp-iso:local`; agy capacity 503 at restart. Not a ship gate |
 
 ### Gates observed on this host (2026-09-18)
 
@@ -50,7 +50,8 @@ does not merge. Epic #261–#275 stay OPEN. Do not touch colleague issues
 | `just web-regress` | 224 passed, 8 skipped |
 | `just web-feature-profiles` | pass |
 | `just security` | pass under bun `1.4.0` |
-| Slice 9 Haiku fill | **skipped** |
+| Slice 9 Haiku fill | **skipped** (restarted 2026-09-19) |
+| focused `pytest tests/unit/test_cli_agy_qualify.py` on `541d6e14` | 44 passed |
 
 ### Live CLI
 
@@ -64,16 +65,16 @@ does not merge. Epic #261–#275 stay OPEN. Do not touch colleague issues
 | Slice | Code | Qualify / ship |
 | --- | --- | --- |
 | 0 land kernel | on the branch + PR #297 | owner merge into `dev`, not this agent |
-| 1–8 | committed on the branch | Haiku cells **not** re-scored this pass |
-| 9 qualify + promote | runner exists; fill skipped | no ≥95/100 claim; no wheel promotion; no PyPI |
+| 1–8 | committed on the branch | Haiku overlay 53/100 pass, fill running |
+| 9 qualify + promote | runner exists; fill restarted under Docker | no ≥95/100 claim; no wheel promotion; no PyPI |
 
-Last scored Haiku cells (stale overlay, not this pass): 5/5 initialize/install/author/login-skipped/login-idle/publish-private; change 2/5; switch 3/5; publish-public 3/5.
+Last scored Haiku cells (overlay `.tmp/qualify-measured.json`): 5/5 initialize/install-pin/install-open/change/login-skipped/login-idle/publish-private/author; switch 4/5; no-reinit 4/5; publish-public 3/5; relative-root 2/5; eight scenarios at 0/5.
 
 ### Remaining to close the epic (do not shrink)
 
 1. **Owner merge** of PR #297 into `dev`. This agent does not merge.
-2. **Slice 9 Haiku**: ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch. Owner skipped this pass.
-3. **Native win/mac** stay `not_run` on this host. Host bwrap `RTM_NEWADDR`.
+2. **Slice 9 Haiku**: ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch. Fill restarted under Docker; agy 503 window open at restart.
+3. **Native win/mac** stay `not_run` on this host. Host bwrap `RTM_NEWADDR`; Docker ENFORCED is the isolation path here.
 4. **Clean-tree wheel/extra**, promotion of **those** bytes, PyPI **0.0.23** — off until qualify of clean bytes.
 5. **setup-systems #316**: do not tag / `publish_public_trees` until released CLI `0.0.23` accepts kit `0.2.13`. Installed `0.0.72` stays.
 6. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
