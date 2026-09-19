@@ -640,6 +640,37 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path grant --json",),
     ),
     Declaration(
+        path=["corporate", "assignment", "effective"],
+        summary=(
+            "Resolve the winning corporate assignment for one employee and "
+            "catalog line, including the exact coordinates a latest selector "
+            "evaluates to."
+        ),
+        result_schema="urn:ai-stp:schema:v1:corporate-effective-assignment",
+        handler="corporate:effective",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option("account", "string", "Employee account identifier.", required=True),
+            option(
+                "kind",
+                "string",
+                "Catalog object kind.",
+                required=True,
+                choices=("component", "setup"),
+            ),
+            option("id", "string", "Stable catalog line identifier.", required=True),
+            option("project", "string", "Corporate project context."),
+            option("technology", "string", "Corporate technology context."),
+            option(
+                "harness",
+                "string",
+                "Harness the assignment may be conditioned on.",
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+        ),
+        next_actions=("help --path corporate --json",),
+    ),
+    Declaration(
         path=["report", "preview"],
         summary="Prepare and show the exact bounded report payload without sending it.",
         result_schema="urn:ai-stp:schema:v1:cli-report-preview",

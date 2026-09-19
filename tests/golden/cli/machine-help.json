@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:c2fc7c440da2a25a8741051e97fe73f123cbe3d0b14c3c30dd9f39f91f5a011f",
+  "registry_digest": "sha256:eee2510b33682c7ceb426237bc2dd06904230f9a24aeed740c2a29032eb3726a",
   "global_options": [
     {
       "name": "json",
@@ -2121,6 +2121,97 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-standard-inventory",
       "next_actions": [
         "help --path version --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "effective"
+      ],
+      "summary": "Resolve the winning corporate assignment for one employee and catalog line, including the exact coordinates a latest selector evaluates to.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "account",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Employee account identifier.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Catalog object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable catalog line identifier.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate project context.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate technology context.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Harness the assignment may be conditioned on.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:corporate-effective-assignment",
+      "next_actions": [
+        "help --path corporate --json"
       ]
     },
     {

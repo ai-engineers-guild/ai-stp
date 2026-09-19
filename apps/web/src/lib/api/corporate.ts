@@ -459,9 +459,14 @@ export async function readEffectiveCorporateAssignment(
     `/v1/corporate/organizations/${organizationId}/catalog-assignments/effective`,
     {
       sessionToken,
-      query: Object.fromEntries(
-        Object.entries(query).filter(([, value]) => value !== undefined),
-      ) as Record<string, string>,
+      query: {
+        account_id: query.account_id,
+        object_kind: query.object_kind,
+        stable_id: query.stable_id,
+        project_id: query.project_id,
+        technology_id: query.technology_id,
+        harness: query.harness,
+      },
     },
   );
 }

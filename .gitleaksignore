@@ -1,3 +1,0 @@
-# Historical documentation false positive: generic-api-key detector matches
-# the long SPEC-080 acceptance-table line; no credential is present.
-4f744a3f57c992e87da9622fa179fab391f34133:specs/active/SPEC-080-cli-agent-task-contract.md:generic-api-key:445

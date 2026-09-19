@@ -1,7 +1,7 @@
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = "Deterministic test fixtures, generated contracts, and documentation examples"
 paths = [
   '''^schemas/v1/openapi\.json$''',
@@ -13,4 +13,14 @@ paths = [
 ]
 regexes = [
   '''^proposal-evidence-0001$''',
+]
+
+[[allowlists]]
+condition = "AND"
+description = "SPEC-080 acceptance-table example token matched generic-api-key at one historical commit; documentation, not a credential"
+commits = [
+  "4f744a3f57c992e87da9622fa179fab391f34133",
+]
+paths = [
+  '''^specs/active/SPEC-080-cli-agent-task-contract\.md$''',
 ]

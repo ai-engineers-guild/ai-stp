@@ -312,6 +312,11 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("config",): "Read and change this installation's settings.",
     ("consent",): "Grant and withdraw consent for unverified candidates.",
     ("contract",): "The coordinated standard family and the other contract axes this build speaks.",
+    ("corporate",): "Organization-governed catalog assignments this account can read.",
+    (
+        "corporate",
+        "assignment",
+    ): "The winning corporate assignment for one employee and catalog line.",
     ("device",): "This machine's identity in the local registry.",
     ("eval",): "Score a setup against a profile before installing it.",
     ("eval", "component"): "Score every advertised adaptation of one component version.",
