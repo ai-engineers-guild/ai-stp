@@ -9,6 +9,13 @@ description: "Найти нативные компоненты, сделать s
 новый каталог авторства. Они не публикуют, не устанавливают и не пишут
 состояние harness.
 
+Повседневная регистрация нативного дерева — intent `author`. Discover и
+adopt ниже — expert recovery.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
 Discovery сообщает пути, не открывая файлы с секретными именами, чтобы
 узнать содержимое. Adopt пути — явное действие: он регистрирует один
 найденный компонент в локальном реестре. Forget помечает запись удалённой
@@ -18,18 +25,18 @@ Discovery сообщает пути, не открывая файлы с сек�
 
 | Команда | Mutability | Confirmation | Когда |
 | --- | --- | --- | --- |
-| `ai-stp component discover` | `read` | `none` | перечислить нативные компоненты в названном проекте или в корнях harness, если проект не назван |
+| component discover | `read` | `none` | перечислить нативные компоненты в названном проекте или в корнях harness, если проект не назван |
 | `ai-stp component inventory` | `read` | `none` | паспорт-первый инвентарь одного явного дерева авторства |
 | `ai-stp component find` | `read` | `none` | искать в локальном реестре по prefix, phrase, tag или field |
-| `ai-stp component scaffold plan` | `plan` | `none` | показать точные файлы и digest одного версионированного scaffold |
-| `ai-stp component scaffold apply` | `apply` | `plan_digest` | создать ровно подтверждённый scaffold; путь не перезаписывать |
+| component scaffold plan | `plan` | `none` | показать точные файлы и digest одного версионированного scaffold |
+| component scaffold apply | `apply` | `plan_digest` | создать ровно подтверждённый scaffold; путь не перезаписывать |
 | `ai-stp component template render` | `read` | `none` | отрендерить и проверить portable-шаблон для одного harness |
-| `ai-stp component adopt` | `apply` | `none` | зарегистрировать один найденный компонент в локальном реестре |
+| component adopt | `apply` | `none` | зарегистрировать один найденный компонент в локальном реестре |
 | `ai-stp component forget` | `apply` | `none` | пометить зарегистрированный компонент удалённым, историю сохранить |
 
 `--json` глобальный. Всегда передавайте его.
 
-## Discover
+## Expert recovery: discover
 
 `discover` без `--root` сканирует корни harness. С `--root` он смотрит только
 внутрь этого каталога и не добавляет глобальные home. Ничего не меняет. Путь,
@@ -41,7 +48,7 @@ Discovery сообщает пути, не открывая файлы с сек�
 Если `complete` ложно, передайте возвращённый `continuation` как `--cursor` с
 тем же `--root`. Усечённый список нельзя считать исчерпывающим.
 
-```bash
+```text
 ai-stp component discover --json
 ai-stp component discover --root . --json
 ai-stp component inventory --root . --json
@@ -73,7 +80,7 @@ ai-stp component find --field kind --value skill --include-unverified --json
 Поля успеха: `hits` (у каждого `stable_id`, `lane` и `fields`) и
 `schema_version`.
 
-## Scaffold plan, затем apply
+## Expert recovery: scaffold plan, затем apply
 
 Scaffold — новый каталог авторства. Сначала plan. Apply создаёт ровно те
 файлы, которые назвал план, и отказывается перезаписать путь, который уже
@@ -87,7 +94,15 @@ Scaffold — новый каталог авторства. Сначала plan. 
 `antigravity`. `--name` — slug в нижнем регистре. `--output` — новый
 каталог.
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type skill \
   --language python \
@@ -105,7 +120,7 @@ scaffold всё равно нужен точный источник.
 Apply повторяет те же опции и добавляет `--expected-plan-digest`
 неизменённого плана. `--confirm` нет. Digest говорит, **какой** scaffold.
 
-```bash
+```text
 ai-stp component scaffold apply \
   --type skill \
   --language python \
@@ -137,12 +152,12 @@ ai-stp component template render \
 `--harness` здесь — harness из закрытого реестра, не `portable`.
 `--component-root` — ограниченный относительный POSIX-путь.
 
-## Adopt
+## Expert recovery: adopt
 
 Adopt пишет паспорт и сохраняет байты. Назвать `--path` точным путём из
 discovery **и есть** решение. `--confirm` нет.
 
-```bash
+```text
 ai-stp component adopt --path <exact-path> --json
 ai-stp component adopt --path <exact-path> --root . --json
 ```
@@ -166,6 +181,14 @@ ai-stp component forget --id <stable_id> --reason "replaced by catalog pin" --js
 `--reason` необязателен. Ответ той же формы, что у adopt.
 
 ## Happy path
+
+Повседневный путь:
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery:
 
 ```text
 component discover --root .
@@ -218,12 +241,13 @@ component scaffold plan → scaffold apply --expected-plan-digest
 - [Реестр](registry.md)
 - [Согласие](consent.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды обнаружения, чтобы человек их нашёл.
-Установленный CLI — источник флагов, схем и `next_actions`. Если страница
-и CLI расходятся, следуйте CLI.
+Если страница и CLI расходятся, следуйте CLI.

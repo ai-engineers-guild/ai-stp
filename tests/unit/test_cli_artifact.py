@@ -138,6 +138,26 @@ def test_a_stream_longer_than_declared_stops_rather_than_being_read_whole() -> N
     assert not cache.version_artifact_path(DIGEST).exists()
 
 
+def test_a_stream_timeout_is_unavailable_not_internal() -> None:
+    def timeout(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out")
+
+    with pytest.raises(CliFailure) as raised:
+        catalog.fetch_artifact(
+            MOCK,
+            "component",
+            OBJECT,
+            "1.0",
+            REF,
+            transport=httpx.MockTransport(timeout),
+        )
+    assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+    assert raised.value.retryable is True
+    assert raised.value.details["exception"] == "ReadTimeout"
+    leftovers = cache.version_artifact_path(DIGEST).parent
+    assert not leftovers.exists() or list(leftovers.glob("*")) == []
+
+
 def test_a_refusal_from_the_platform_is_a_typed_failure() -> None:
     with pytest.raises(CliFailure) as raised:
         catalog.fetch_artifact(
@@ -182,7 +202,7 @@ def test_in_memory_raw_artifact_refuses_a_wrong_or_noncanonical_digest() -> None
 
 
 def test_an_artifact_the_passport_does_not_declare_is_named_rather_than_downloaded() -> None:
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
     from ai_stp_contracts.catalog import CatalogTrust
     from ai_stp_contracts.machine_help import CatalogVersionView
 
@@ -214,7 +234,7 @@ def test_the_fetch_command_reports_where_the_verified_bytes_are(
     `source` is what an offline caller needs: it says whether the network was
     involved, and the second call must say `cache` without one.
     """
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
     from ai_stp_contracts.catalog import CatalogTrust
     from ai_stp_contracts.machine_help import CatalogVersionView
 

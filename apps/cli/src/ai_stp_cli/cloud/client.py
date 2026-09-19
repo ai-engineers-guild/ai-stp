@@ -30,7 +30,6 @@ from pydantic import BaseModel, ValidationError
 
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.runtime import DISTRIBUTION, cli_version
-from ai_stp_contracts.auth import OAUTH_PROVIDERS
 from ai_stp_contracts.http import (
     API_BASE_PATH,
     REQUEST_ID_HEADER,
@@ -38,6 +37,7 @@ from ai_stp_contracts.http import (
     SCHEMA_VERSION_HEADER,
 )
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.errors import is_registered_code
 
 #: Bounded on purpose. An agent waiting on a hung connection cannot tell the
@@ -449,13 +449,18 @@ def _malformed(response: httpx.Response, error: BaseException) -> CliFailure:
     )
 
 
-#: Starting a sign-in again, one command per declared provider. Which provider
-#: this installation uses is not knowable from a transport failure, and naming
-#: GitHub for everybody sent an account that signs in with Google into a flow
-#: it cannot finish. Enumerating the declared set is what the argument parser
-#: already does when a provider is missing.
-_LOGIN_ACTIONS: Final[tuple[str, ...]] = tuple(
-    f"auth login --provider {name} --json" for name in OAUTH_PROVIDERS
+#: Everyday sign-in is the account intent. Naming `auth login --provider …`
+#: here is how a weak model learned the expert leaf (`SPEC-080` REQ-8022).
+#: Which provider this installation uses is a blocked question on that intent,
+#: not a pair of guessed argv lines.
+_ACCOUNT_START: Final = "task start --intent account --idempotency-key account-session-01 --json"
+_LOGIN_ACTIONS: Final[tuple[str, ...]] = (_ACCOUNT_START,)
+_ACCOUNT_RESTART: Final[frozenset[str]] = frozenset(
+    {
+        "AI_STP_AUTH_REQUIRED",
+        "AI_STP_AUTHORIZATION_EXPIRED",
+        "AI_STP_AUTHORIZATION_PENDING",
+    }
 )
 
 #: How to get out of a refusal the server reported. A code raised locally
@@ -472,7 +477,10 @@ _LOGIN_ACTIONS: Final[tuple[str, ...]] = tuple(
 #: silence.
 _WAY_BACK: Final[Mapping[str, tuple[str, ...]]] = {
     "AI_STP_AUTH_REQUIRED": _LOGIN_ACTIONS,
-    "AI_STP_AUTHORIZATION_PENDING": ("auth complete --json",),
+    # Pending is not a decision. The device-code is already in the secret
+    # store; the account intent finishes it. Naming `auth complete` taught
+    # the expert leaf.
+    "AI_STP_AUTHORIZATION_PENDING": _LOGIN_ACTIONS,
     # The request aged out; the identity behind it did not. Ask again.
     "AI_STP_AUTHORIZATION_EXPIRED": _LOGIN_ACTIONS,
     # The user said no. No command here turns that into approval, and offering
@@ -489,8 +497,15 @@ _WAY_BACK: Final[Mapping[str, tuple[str, ...]]] = {
 
 
 def login_actions() -> list[str]:
-    """Starting a sign-in again, for callers that refuse before any request."""
+    """Everyday sign-in, for callers that refuse before any request."""
     return list(_LOGIN_ACTIONS)
+
+
+def login_continuations() -> list[Continuation]:
+    """`actor=cli` start so FOLLOW_ACTOR does not copy `auth login` or `auth complete`."""
+    from ai_stp_cli.application.outcome import intent_start_continuation
+
+    return [intent_start_continuation("account")]
 
 
 def _way_back(code: str) -> list[str]:
@@ -580,4 +595,5 @@ def failure_from(response: httpx.Response) -> CliFailure:
             "request_id": response.headers.get(REQUEST_ID_HEADER, ""),
         },
         next_actions=_way_back(code),
+        continuations=login_continuations() if code in _ACCOUNT_RESTART else [],
     )

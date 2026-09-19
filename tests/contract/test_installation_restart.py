@@ -381,7 +381,7 @@ def test_a_later_process_can_settle_what_the_killed_one_left(ready: Ready) -> No
 
 
 def test_a_provider_that_cannot_confirm_the_target_leaves_it_partial(ready: Ready) -> None:
-    """`partial`, not `failed`: after the call, "nothing was done" is not ours to say."""
+    """`partial` is recovery-required: envelope ok stays false (REQ-1132)."""
     operation = _killed_mid_apply(ready)
     unsure = _executable(
         ready.home.parent / "unsure",
@@ -392,10 +392,31 @@ def test_a_provider_that_cannot_confirm_the_target_leaves_it_partial(ready: Read
         "    raise SystemExit(0)\n"
         'print(json.dumps(ANSWERS.get(sys.argv[1], {"answered": sys.argv[1]})))\n',
     )
-    settled = _ok(
-        "install", "resume", "--operation", operation, "--provider", str(unsure), home=ready.home
+    finished = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ai_stp_cli",
+            "install",
+            "resume",
+            "--operation",
+            operation,
+            "--provider",
+            str(unsure),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env=_environment(ready.home),
+        check=False,
     )
-    assert settled["state"] == "partial"
+    assert finished.stdout, f"nothing on stdout; stderr {finished.stderr[:400]}"
+    answer = json.loads(finished.stdout)
+    assert answer["ok"] is False
+    error = answer["error"]
+    assert error["code"] == "AI_STP_PARTIAL_OPERATION"
+    assert error["details"]["state"] == "partial"
+    assert error["details"]["operation_id"] == operation
 
 
 def test_a_settled_operation_cannot_be_resumed(ready: Ready) -> None:

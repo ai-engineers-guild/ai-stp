@@ -10,9 +10,9 @@ than living inside the application that happens to render it.
 The split between the two introspection commands is deliberate:
 
 - `capabilities` answers **what this installation can do right now** — versions,
-  supported harnesses, whether the catalogue and sync are switched on. It is a
-  cheap optional orientation call; the canonical Skill starts with `doctor` and
-  `help --agent`.
+  supported harnesses, whether the catalogue and sync are switched on. It still
+  lists every `command_path`. Durable journeys start at `task intents`. Do not
+  type `capabilities` as the first move.
 - `help --agent` answers **what commands and fields exist**. It is the full
   registry and it is larger.
 
@@ -329,8 +329,18 @@ class DoctorReport(BaseModel):
 
 
 type TaskState = Literal["planned", "blocked", "running", "completed", "failed", "cancelled"]
-type TaskIntent = Literal["inspect"]
+type TaskIntent = Literal[
+    "inspect",
+    "initialize",
+    "install",
+    "change",
+    "author",
+    "switch",
+    "account",
+    "publish",
+]
 type TaskId = Annotated[str, Field(pattern=stable_id_pattern("task"))]
+type TaskActor = Literal["human", "external"]
 
 
 class TaskQuestion(BaseModel):
@@ -342,6 +352,141 @@ class TaskQuestion(BaseModel):
     prompt: Annotated[str, Field(min_length=1)]
     value_type: ParameterType
     choices: list[str]
+    recommended: str = ""
+    why: str = ""
+    actor: TaskActor = "human"
+
+
+class TaskOrientation(BaseModel):
+    """Slim inspect facts. No command registry dump."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    cli_version: Annotated[str, Field(min_length=1)]
+    wire_schema_version: Literal[1] = 1
+    registry_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    local_schema_version: Annotated[int, Field(ge=1)]
+    installation: Literal["distribution", "source"]
+    supported_harnesses: Annotated[list[HarnessId], Field(min_length=1)]
+    catalog_enabled: bool
+    sync_enabled: bool
+    intents: list[str]
+
+
+class TaskInspectInput(BaseModel):
+    """Inspect takes no caller facts."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+
+
+class TaskInitializeInput(BaseModel):
+    """Optional harness pin. Omitted means the engine asks once."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    harness_id: HarnessId | None = None
+
+
+class TaskInstallInput(BaseModel):
+    """Pins and scope. Omitted pins mean one justified pick, not a catalog quiz."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    harness_id: HarnessId | None = None
+    project_root: str | None = None
+    setup_id: str | None = None
+    setup_version: str | None = None
+
+
+class TaskChangeInput(BaseModel):
+    """Source setup plus one member delta. Omitted source means the harness baseline."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    harness_id: HarnessId | None = None
+    project_root: str | None = None
+    setup_id: str | None = None
+    setup_version: str | None = None
+    component_id: str | None = None
+    component_version: str | None = None
+    action: Literal["add", "remove"] | None = None
+
+
+class TaskAuthorInput(BaseModel):
+    """Directory plus typed authoring fields. One component and one setup identity."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    directory: str | None = None
+    harness_id: HarnessId | None = None
+    component_type: ComponentType | None = None
+    name: str | None = None
+    license_spdx: str | None = None
+
+
+class TaskSwitchInput(BaseModel):
+    """Restore last user working config. Omitted snapshot means the latest preserved setup."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    harness_id: HarnessId | None = None
+    project_root: str | None = None
+    preserved_setup_id: str | None = None
+    reload_session: str | None = None
+
+
+class TaskAccountInput(BaseModel):
+    """Sign in, sign out, or explicitly sync. Login never uploads."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    action: Literal["login", "logout", "sync"] | None = None
+    provider: Literal["google", "github"] | None = None
+    project_root: str | None = None
+    scope: Literal["push", "pull"] | None = None
+
+
+class TaskPublishInput(BaseModel):
+    """Publish a local object through the existing no-binding publication plan."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    object_id: str | None = None
+    object_version: str | None = None
+    visibility: Literal["public", "private"] | None = None
+    directory: str | None = None
+    provider: Literal["google", "github"] | None = None
+
+
+class TaskIntentDescriptor(BaseModel):
+    """One shipped intent the Skill may start."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
+    when: Annotated[str, Field(min_length=1)]
+    input_schema: Annotated[str, Field(min_length=1)]
+
+
+class TaskIntentsCatalog(BaseModel):
+    """Compact catalog of shipped intents. Not the 203-command registry."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    cli_version: Annotated[str, Field(min_length=1)]
+    registry_digest: Annotated[str, Field(pattern=DIGEST_PATTERN)]
+    intents: list[TaskIntentDescriptor]
 
 
 class TaskInspectOutcome(BaseModel):
@@ -349,8 +494,132 @@ class TaskInspectOutcome(BaseModel):
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
+    kind: Literal["inspect"] = "inspect"
     doctor: DoctorReport
-    capabilities: Capabilities
+    orientation: TaskOrientation
+
+
+class TaskInitializeOutcome(BaseModel):
+    """Initialize drained in-process. The provider writes harness files."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    kind: Literal["initialize"] = "initialize"
+    harness_id: HarnessId
+    wrote: bool
+    limitation: str = ""
+    section_digest: Annotated[str, Field(pattern=rf"^(?:{DIGEST_PATTERN[1:-1]})?$")] = ""
+    surface: str = ""
+
+
+class TaskInstallOutcome(BaseModel):
+    """Install drained in-process. Plan, approve, and apply never return to the model."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    kind: Literal["install"] = "install"
+    harness_id: HarnessId
+    setup_id: str
+    setup_version: str
+    operation_id: str
+    state: str
+    verified: bool
+
+
+class TaskChangeOutcome(BaseModel):
+    """Change drained in-process. A new setup identity; the source id is untouched."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    kind: Literal["change"] = "change"
+    harness_id: HarnessId
+    source_setup_id: str
+    source_setup_version: str
+    setup_id: str
+    setup_version: str
+    minted: bool
+    operation_id: str
+    state: str
+    verified: bool
+
+
+class TaskAuthorOutcome(BaseModel):
+    """Author drained in-process. A local component and one new setup identity."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    kind: Literal["author"] = "author"
+    harness_id: HarnessId
+    directory: str
+    component_type: ComponentType
+    name: str
+    component_id: str
+    component_version: str
+    setup_id: str
+    setup_version: str
+    minted: bool
+
+
+class TaskSwitchOutcome(BaseModel):
+    """Switch drained in-process. Restores last user working config; never kills the caller."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    kind: Literal["switch"] = "switch"
+    harness_id: HarnessId
+    project_root: str
+    preserved_setup_id: str
+    drift_preserved_setup_id: str = ""
+    operation_id: str
+    state: str
+    verified: bool
+    process_killed: Literal[False] = False
+    session_loaded: Literal[False] = False
+
+
+class TaskAccountOutcome(BaseModel):
+    """Account drained in-process. Login never uploads; sync is a separate explicit step."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    kind: Literal["account"] = "account"
+    action: Literal["login", "logout", "sync"]
+    authenticated: bool
+    login_uploaded: Literal[False] = False
+    provider: str = ""
+    session_state: str = ""
+    synced: bool = False
+    scope: str = ""
+
+
+class TaskPublishOutcome(BaseModel):
+    """Publish drained in-process. Worker receipt is not a readable catalog result."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    kind: Literal["publish"] = "publish"
+    object_id: str
+    object_version: str
+    visibility: Literal["private", "public"]
+    source_binding_id: str = ""
+    plan_id: str
+    plan_hash: str
+    state: str
+    readable: bool
+    provenance: Literal["filesystem"] = "filesystem"
+
+
+type TaskOutcome = Annotated[
+    TaskInspectOutcome
+    | TaskInitializeOutcome
+    | TaskInstallOutcome
+    | TaskChangeOutcome
+    | TaskAuthorOutcome
+    | TaskSwitchOutcome
+    | TaskAccountOutcome
+    | TaskPublishOutcome,
+    Field(discriminator="kind"),
+]
 
 
 class TaskView(BaseModel):
@@ -365,7 +634,7 @@ class TaskView(BaseModel):
     state: TaskState
     goal_satisfied: bool
     questions: list[TaskQuestion]
-    outcome: TaskInspectOutcome | None
+    outcome: TaskOutcome | None
     child_operation_ids: list[str]
 
 

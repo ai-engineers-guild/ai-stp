@@ -11,11 +11,11 @@ description: "Что делает сайт, чего он не применяе�
 харнесса и не вызывает модель.
 
 Рабочая поверхность выбора, проверок и установки — CLI плюс
-provider харнесса. Читайте каталог здесь; применяйте план там.
+provider харнесса. Читайте каталог здесь; запускайте intent install там.
 
 ```text
 Website → доказательства каталога, аккаунт, confirm публикации
-CLI     → паспорта, select, план установки
+CLI     → task intents, task start, follow continuations
 Provider → нативное состояние харнесса
 ```
 
@@ -152,9 +152,9 @@ Self-hosted профиль выключает оба: Материалы, Кон
 Сайт копирует только команды, которые CLI реально разбирает.
 Канонические шаблоны:
 
-```bash
+```text
 uv tool install ai-stp-cli
-ai-stp auth login --provider github --json
+ai-stp task start --intent account --idempotency-key account-session-01 --json
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <x.y> --json

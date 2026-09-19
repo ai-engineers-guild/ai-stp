@@ -5,6 +5,15 @@ description: "How ai_stp assembles a complete setup from exact component version
 
 # Setups
 
+Everyday composition is the `change` intent; everyday installation of a
+recorded setup is `install`. Do not type `setup compose plan` unless you
+already hold a digest.
+
+```bash
+ai-stp task start --intent change --idempotency-key change-session-01 --json
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
 ## Compose from catalog and external sources
 
 `setup compose` creates one exact setup from catalog components and embedded
@@ -52,7 +61,8 @@ catalog listing. Put the reviewed metadata and sources in a JSON manifest:
 }
 ```
 
-Plan first, then pass the returned setup id, timestamp, and plan digest to apply:
+Plan first, then pass the returned setup id, timestamp, and plan digest to apply.
+The intents above drain that. Expert compose (already-held digest):
 
 ```text
 ai-stp setup compose plan --manifest setup.json --root . --json
@@ -120,7 +130,7 @@ later still.
 
 The copy first:
 
-```console
+```text
 $ ai-stp install plan --action backup --project <id> --harness <id> \
     --provider <exe> --provider-manifest <path> --protocol-version 3 \
     --target <dir> --json
@@ -138,7 +148,7 @@ The answer carries the `backup_ref`, the operation that took it, and the setup
 version installed at that moment. From there it is the ordinary plan, approve
 and apply:
 
-```console
+```text
 $ ai-stp install plan --action rollback --backup-ref <exact> \
     --provider <exe> --provider-manifest <path> --protocol-version 3 \
     --target <dir> --json

@@ -10,15 +10,15 @@ from pydantic import BaseModel
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application.inspect import capabilities as inspect_capabilities
-from ai_stp_cli.application.outcome import envelope_actions, operation_id_of
-from ai_stp_cli.commands import machine_help
-from ai_stp_cli.commands.install_transaction import (
+from ai_stp_cli.application.install_transaction import (
     _complete,  # pyright: ignore[reportPrivateUsage]
 )
+from ai_stp_cli.application.outcome import envelope_actions, operation_id_of
+from ai_stp_cli.commands import machine_help
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.output import render_failure, render_success
 from ai_stp_contracts.machine_help import MultiRootChildView, MultiRootTransactionView
-from ai_stp_foundation.envelope import Continuation
+from ai_stp_foundation.envelope import Continuation, bound_continuation
 from ai_stp_foundation.ids import new_id
 
 DIGEST = "sha256:" + "ab" * 32
@@ -95,7 +95,7 @@ def test_envelope_actions_are_handler_continuations_only() -> None:
         arguments={"operation": "operation_01J0000000000000000000000A"},
     )
     continuations, actions = envelope_actions(Answer(_Payload(), continuations=(held,)))
-    assert continuations == [held]
+    assert continuations == [bound_continuation(held)]
     assert actions == ["install status --operation operation_01J0000000000000000000000A --json"]
     empty, empty_actions = envelope_actions(Answer(_Payload()))
     assert empty == []
@@ -136,8 +136,7 @@ def test_rolled_back_transaction_is_compensated_failure() -> None:
     assert raised.value.exit_code == 4
     assert raised.value.operation_id == view.transaction_id
     assert raised.value.details["state"] == "rolled_back"
-    assert raised.value.continuations[0].kind == "terminal"
-    assert raised.value.continuations[0].path == ["install", "transaction", "status"]
+    assert raised.value.continuations == []
 
 
 def test_recovery_required_transaction_is_partial_failure() -> None:

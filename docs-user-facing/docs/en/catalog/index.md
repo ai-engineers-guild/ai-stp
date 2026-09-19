@@ -21,7 +21,15 @@ Web cards: [Web catalog](../web/catalog.md). What a scan result means:
 The public catalog can be read without an account. That matters for a first
 look, for local selection, and for an agent working before sign-in.
 
+Everyday install after a candidate exists:
+
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect (identity, not install):
+
+```text
 ai-stp registry search --kind setup --query frontend --json
 ai-stp registry search --kind component --query playwright --json
 ai-stp registry show --kind setup --id <stable_id> --json
@@ -33,7 +41,7 @@ in the CLI; Both-mode is a web listing that concatenates the two halves.
 
 Experimental objects sit in their own section and need an explicit flag:
 
-```bash
+```text
 ai-stp registry search --kind component --query scanner --include-experimental --json
 ```
 
@@ -47,9 +55,9 @@ Search and show may answer from cache when the network is down. The envelope
 says when the platform last confirmed the bytes. Treat that as a dated
 snapshot, not a live catalog.
 
-To pin exact published bytes locally:
+To pin exact published bytes locally (expert recovery):
 
-```bash
+```text
 ai-stp registry fetch --kind component --id <stable_id> --version 1.0 --json
 ai-stp registry acquire --id <setup_id> --version 1.0 --json
 ai-stp registry acquire --id <setup_id> --version 1.0 --offline --json
@@ -66,12 +74,12 @@ compilation. `--offline` uses only verified cached passports and artifacts.
 | Browse cards, Both-mode, sort | yes | no mixed Both search; two `--kind` searches |
 | Read a public object without an account | yes | `registry search` / `show` / `version` |
 | Fetch exact bytes into the local cache | no | `registry fetch`, `registry acquire` |
-| Select, compose, install | no | select, setup, install groups |
+| Select, compose, install | no | `task start --intent install` |
 | Publish | account UI plus CLI confirm | `publication` and `setup publish` |
 | Report a problem | report UI | `report preview` then `report confirm` |
 
 The website does not assemble a setup and does not write native harness
-state. If a card looks right, the next command is still on the CLI.
+state. If a card looks right, everyday next is the `install` intent.
 
 ## Both-mode
 

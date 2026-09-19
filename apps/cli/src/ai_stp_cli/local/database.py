@@ -1361,6 +1361,32 @@ MIGRATIONS: Final[tuple[Migration, ...]] = (
         ),
         down=("DROP TABLE agent_task",),
     ),
+    Migration(
+        version=43,
+        summary="overlap columns for one mutating task per bound target",
+        up=(
+            "ALTER TABLE agent_task ADD COLUMN harness_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE agent_task ADD COLUMN project_root TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE agent_task ADD COLUMN scope TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE agent_task ADD COLUMN account_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE agent_task ADD COLUMN precondition_digest TEXT NOT NULL DEFAULT ''",
+            """
+            CREATE UNIQUE INDEX agent_task_open_binding
+            ON agent_task(harness_id, project_root, scope)
+            WHERE state IN ('planned', 'blocked', 'running')
+              AND intent != 'inspect'
+              AND harness_id != ''
+            """,
+        ),
+        down=(
+            "DROP INDEX IF EXISTS agent_task_open_binding",
+            "ALTER TABLE agent_task DROP COLUMN precondition_digest",
+            "ALTER TABLE agent_task DROP COLUMN account_id",
+            "ALTER TABLE agent_task DROP COLUMN scope",
+            "ALTER TABLE agent_task DROP COLUMN project_root",
+            "ALTER TABLE agent_task DROP COLUMN harness_id",
+        ),
+    ),
 )
 
 #: Names for nested savepoints. A counter rather than a fixed name: two nested

@@ -21,7 +21,7 @@ target. They describe one tree so later selection has a place to stand.
 | `ai-stp project discover` | `read` | `none` | List the projects inside a directory you name. Scans nothing else. |
 | `ai-stp project index` | `read` | `none` | Index one project root, bounded, skipping secrets and binary content. |
 | `ai-stp project symbols` | `read` | `none` | Read a project's public symbols, entry points and tests. No call graph. |
-| `ai-stp project passport` | `apply` | `none` | Record a project passport revision pinning the index, toolchain and config. |
+| project passport | `apply` | `none` | Record a project passport revision pinning the index, toolchain and config. |
 | `ai-stp project revision push` | `apply` | `explicit_flag` | Push one local passport projection into the organization project ledger. |
 | `ai-stp project revision pull` | `read` | `none` | Pull redacted organization project-ledger revisions for one link. |
 
@@ -32,7 +32,7 @@ link instead.
 
 ## Typical path
 
-```bash
+```text
 ai-stp project discover --root <root> --json
 ai-stp project index --root <root> --json
 ai-stp project symbols --root <root> --json
@@ -144,7 +144,7 @@ with a reason.
 Record a project passport revision pinning the index, toolchain and
 config.
 
-```bash
+```text
 ai-stp project passport --root <root> --json
 ```
 

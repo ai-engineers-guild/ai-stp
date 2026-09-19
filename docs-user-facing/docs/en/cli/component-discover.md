@@ -8,6 +8,13 @@ description: "Find native components, scaffold them, and register a discovery."
 These commands look at files this machine already has, or create a new
 authoring directory. They do not publish, install, or write harness state.
 
+Everyday registration of a native tree is the `author` intent. Discover and
+adopt below stay expert recovery.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
 Discovery reports paths without opening secret-named files to learn their
 contents. Adopting a path is an explicit act: it registers one discovered
 component in the local registry. Forgetting it marks the record deleted and
@@ -17,18 +24,18 @@ keeps history.
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp component discover` | `read` | `none` | list native components in one project or the harness roots |
+| component discover | `read` | `none` | list native components in one project or the harness roots |
 | `ai-stp component inventory` | `read` | `none` | passport-first inventory of one explicit authoring tree |
 | `ai-stp component find` | `read` | `none` | search the local registry by prefix, phrase, tag, or field |
-| `ai-stp component scaffold plan` | `plan` | `none` | preview exact files and digests for one versioned scaffold |
-| `ai-stp component scaffold apply` | `apply` | `plan_digest` | create exactly the confirmed scaffold; never overwrite a path |
+| component scaffold plan | `plan` | `none` | preview exact files and digests for one versioned scaffold |
+| component scaffold apply | `apply` | `plan_digest` | create exactly the confirmed scaffold; never overwrite a path |
 | `ai-stp component template render` | `read` | `none` | render and validate a portable template for one harness |
-| `ai-stp component adopt` | `apply` | `none` | register one discovered component in the local registry |
+| component adopt | `apply` | `none` | register one discovered component in the local registry |
 | `ai-stp component forget` | `apply` | `none` | mark a registered component deleted, keeping its history |
 
 `--json` is global. Always pass it.
 
-## Discover
+## Expert recovery: discover
 
 `discover` without `--root` scans harness roots. With `--root` it looks only
 inside that directory and does not add global homes. It changes nothing. A
@@ -40,7 +47,7 @@ does not treat generated `projections/` as independent sources.
 If `complete` is false, pass the returned `continuation` as `--cursor` with the
 same `--root`. Do not treat a truncated listing as exhaustive.
 
-```bash
+```text
 ai-stp component discover --json
 ai-stp component discover --root . --json
 ai-stp component inventory --root . --json
@@ -72,7 +79,7 @@ together match one declared field exactly.
 Success fields include `hits` (each with `stable_id`, `lane`, and `fields`)
 and `schema_version`.
 
-## Scaffold plan, then apply
+## Expert recovery: scaffold plan, then apply
 
 A scaffold is a new authoring directory. Plan first. Apply creates exactly
 the files the plan named, and refuses to overwrite a path that already
@@ -86,7 +93,15 @@ or one of `python`, `typescript`, `javascript`, `rust`, `go`,
 `antigravity`. `--name` is a lowercase slug. `--output` is the new
 directory.
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type skill \
   --language python \
@@ -104,7 +119,7 @@ an exact source before publication.
 Apply repeats the same options and adds `--expected-plan-digest` of the
 unchanged plan. There is no `--confirm`. The digest says **which** scaffold.
 
-```bash
+```text
 ai-stp component scaffold apply \
   --type skill \
   --language python \
@@ -136,12 +151,12 @@ ai-stp component template render \
 `--harness` here is a closed-registry harness, not `portable`.
 `--component-root` is a bounded relative POSIX path.
 
-## Adopt
+## Expert recovery: adopt
 
 Adoption writes a passport and stores bytes. Naming `--path` with the exact
 path discovery reported **is** the decision. There is no `--confirm`.
 
-```bash
+```text
 ai-stp component adopt --path <exact-path> --json
 ai-stp component adopt --path <exact-path> --root . --json
 ```
@@ -165,6 +180,14 @@ ai-stp component forget --id <stable_id> --reason "replaced by catalog pin" --js
 `--reason` is optional. The answer is the same passport view shape as adopt.
 
 ## Happy path
+
+Everyday:
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery:
 
 ```text
 component discover --root .
@@ -217,12 +240,13 @@ not declared. Scaffold apply is confirmed by `--expected-plan-digest`.
 - [Registry](registry.md)
 - [Consent](consent.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups discovery commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups discovery commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

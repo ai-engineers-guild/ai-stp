@@ -1,6 +1,6 @@
 ---
 description: "JSON envelope, error classes, and CLI machine-output rules."
-last_verified: "2026-09-15"
+last_verified: "2026-09-16"
 ---
 
 # JSON CLI
@@ -62,17 +62,23 @@ a supported automatic migration; `detail` names the current and target schema.
 This condition does not require a user decision. An unreadable registry or a
 schema newer than the installed reader remains `failed`.
 
-Each element of `next_actions` is a command of this CLI, runnable as written
-with `--json` and carrying every option the command requires. A value the
-caller must supply stands in angle brackets. Unresolved steps are not written
-as argv with `...`: they are `help --path <family> --json`, or they live in
-`continuations` with a non-empty `missing` list. A report never answers with
-state names or prose in that field.
+Each element of `next_actions` is a command of this CLI, shown as a quoted
+display of executable tokens, with `--json` and carrying every option the
+command requires. A value the caller must supply stands in angle brackets.
+Unresolved steps are not written as argv with `...`: they are
+`help --path <family> --json` when `argv` is empty, or they live in
+`continuations` with a non-empty `missing` list. Explicit `argv` is kept
+even when `missing` is non-empty. A blocked human continuation binds
+`task answer` without the missing value. A report never answers with state names or prose
+in that field. `next_actions` is never passed to a shell.
 
 `continuations` is additive inside major 1. An older producer omits the field;
 a reader treats absence as an empty list. Each item names a declared command
-`path`, arguments already bound, and `missing` for names the caller must still
-supply. `next_actions` remains the generated argv for older callers.
+`path`, JSON arguments already bound, executable `argv`, `actor`, and
+`missing` for names the caller must still supply. `argv` and `actor` are
+additive on the continuation object. `next_actions` remains the quoted
+display of `argv` for older callers. A finished compensation emits no
+continuation.
 
 ## Exit codes
 

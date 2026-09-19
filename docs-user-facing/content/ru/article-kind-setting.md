@@ -84,7 +84,15 @@ strict-mode/                       # component-scaffold/3
     └── settings.json
 ```
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type setting \
   --language none \
@@ -129,7 +137,7 @@ ai-stp component scaffold apply \
 [MCP](https://modelcontextprotocol.io), нет. Каждый харнесс документирует
 свой файл конфигурации.
 
-Ссылайтесь на `layout_source` из `ai-stp component discover --json`,
+Ссылайтесь на `layout_source` из конверта intent `author`,
 когда классификация неясна. Не угадывайте путь соседа и не считайте файл
 настроек MCP только потому, что он существует.
 
@@ -139,7 +147,7 @@ NVIDIA SkillSpector и Cisco Skill Scanner — сканеры skill. Они не
 ## Нативные layout по харнессам
 
 Discovery сообщает только объявленные layout. Точные пути на машине даёт
-`ai-stp component discover --json`. У каждой находки есть `layout_source`.
+конверт intent `author`. У каждой находки есть `layout_source`.
 Если классификация неясна, покажите это поле; не угадывайте путь соседа.
 
 Из матрицы discovery:
@@ -158,15 +166,20 @@ Discovery сообщает только объявленные layout. Точн�
 Объявленный путь всё равно принадлежит недоверенной машине. Discovery не
 читает секретные значения из файла настроек, чтобы их «проверить».
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover`. Движок сам находит нативное дерево.
 
 Если один путь отвечает более чем одному виду, назовите `--kind` при
 adopt.
 
-```bash
+Expert recovery:
+
+```text
 ai-stp component adopt --path <source_path> --kind setting --json
 ```
 
@@ -231,20 +244,20 @@ ai-stp component passport validate --id <stable_id> --json
 **Автор, adopt, публикация:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Найти, выбрать, установить:**
+**Установить:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 Setting может быть embedded-членом compose-манифеста. См.
@@ -300,15 +313,14 @@ Setting может быть embedded-членом compose-манифеста. С
 3. Если файл также объявляет MCP-серверы, считайте это отдельной находкой
    [`mcp`](https://ai-stp.aiguild.space/ru/docs/components). Не кладите значения серверов в этот артефакт.
 4. Объявите в паспорте, что меняют значения.
-5. Запустите `ai-stp component discover --root . --json` и прочитайте
-   `layout_source`, а также `native_role`, если появится вторая находка.
-6. `component adopt --path <точный source_path>` — добавьте
-   `--kind setting`, когда путь также является MCP.
-7. Закрепите точный публичный GitHub commit и подпуть. Секретов в дереве
+5. Зарегистрируйте каталог через
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` остаются для recovery.
+6. Закрепите точный публичный GitHub commit и подпуть. Секретов в дереве
    нет.
-8. `component passport validate` → `component version release`, чтобы
+7. `component passport validate` → `component version release`, чтобы
    выпустить неизменяемый `X.Y`.
-9. Публикуйте через [путь публикации](https://ai-stp.aiguild.space/ru/docs/components). В сетапе
+8. Публикуйте через [путь публикации](https://ai-stp.aiguild.space/ru/docs/components). В сетапе
    закрепите этот `X.Y`.
 
 Связанное: [Авторство](https://ai-stp.aiguild.space/ru/docs/components),

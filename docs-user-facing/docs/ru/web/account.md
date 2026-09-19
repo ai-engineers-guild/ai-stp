@@ -87,7 +87,7 @@ Google или GitHub уже принадлежит другому аккаунт
 
 ## Соответствующие команды CLI
 
-```bash
+```text
 ai-stp auth status --json
 ai-stp auth logout --json
 ai-stp link web --json

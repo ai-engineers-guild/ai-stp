@@ -13,6 +13,15 @@ description: "Группа команд component: обнаружение, па�
 локальный паспорт и не извлекает embedded-член. Эти шаги остаются в CLI.
 Выбор, сборка и установка — другие группы.
 
+Повседневная регистрация — intent `author`. Повседневная публикация —
+`publish`. Discover, passport, source и `component publish` ниже — expert
+recovery.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
 ## Дочерние страницы
 
 | Страница | Что покрывает |
@@ -66,12 +75,12 @@ discover / find / scaffold plan → apply
 
 | Команда | Mutability | Confirmation | Когда |
 | --- | --- | --- | --- |
-| `ai-stp component discover` | `read` | `none` | перечислить нативные компоненты в корнях harness и одном проекте |
+| component discover | `read` | `none` | перечислить нативные компоненты в корнях harness и одном проекте |
 | `ai-stp component find` | `read` | `none` | искать в локальном реестре; без модели, без сети |
-| `ai-stp component scaffold plan` | `plan` | `none` | показать точные файлы scaffold и digest |
-| `ai-stp component scaffold apply` | `apply` | `plan_digest` | создать ровно подтверждённый scaffold |
+| component scaffold plan | `plan` | `none` | показать точные файлы scaffold и digest |
+| component scaffold apply | `apply` | `plan_digest` | создать ровно подтверждённый scaffold |
 | `ai-stp component template render` | `read` | `none` | отрендерить portable-шаблон для одного harness |
-| `ai-stp component adopt` | `apply` | `none` | зарегистрировать один найденный путь в локальном реестре |
+| component adopt | `apply` | `none` | зарегистрировать один найденный путь в локальном реестре |
 | `ai-stp component forget` | `apply` | `none` | пометить зарегистрированный компонент удалённым, историю сохранить |
 
 ### Паспорт
@@ -99,7 +108,7 @@ discover / find / scaffold plan → apply
 
 | Команда | Mutability | Confirmation | Когда |
 | --- | --- | --- | --- |
-| `ai-stp component publish` | `plan` | `none` | извлечь один embedded-член в обычный план публикации |
+| component publish | `plan` | `none` | извлечь один embedded-член в обычный план публикации |
 | `ai-stp component version list` | `read` | `none` | все записанные версии и следующий minor |
 | `ai-stp component version release` | `apply` | `none` | дать текущему head неизменяемый `X.Y` |
 | `ai-stp component fork` | `apply` | `none` | скопировать одну записанную версию под новой идентичностью |
@@ -143,7 +152,7 @@ discover / find / scaffold plan → apply
 | `AI_STP_USER_DECISION_REQUIRED` | путь отвечает более чем одному harness или kind | передать `--harness` или `--kind`, как в дескрипторе |
 | `AI_STP_PLAN_STALE` | байты scaffold или паспорта изменились | построить новый план, показать, подтвердить снова |
 | `AI_STP_CONFLICT` | ожидаемая ревизия больше не head | `passport show`, затем новый patch |
-| `AI_STP_AUTH_REQUIRED` | облачному шагу публикации нужна сессия | `auth login`, затем повторить команду публикации |
+| `AI_STP_AUTH_REQUIRED` | облачному шагу публикации нужна сессия | `task start --intent account --idempotency-key account-session-01 --json` |
 | команды нет в machine help | этой установки её нет | остановиться; не подменять похожей командой |
 
 Мутирующая команда без `--json` смешивает человеческий текст в stdout.
@@ -163,12 +172,13 @@ discover / find / scaffold plan → apply
 - [Команды сетапа](setup.md)
 - [Publication](publication.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-Документация группирует команды, чтобы человек нашёл страницу. Установленный
-CLI — источник флагов, схем и `next_actions`. Если страница и CLI расходятся,
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
+Документация группирует команды, чтобы человек нашёл страницу. Если страница и CLI расходятся,
 следуйте CLI.

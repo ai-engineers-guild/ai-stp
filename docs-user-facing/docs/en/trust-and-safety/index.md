@@ -81,7 +81,7 @@ target even when `task` is active.
 Search can show the experimental lane for one command without recording
 consent:
 
-```bash
+```text
 ai-stp registry search --kind component --query scanner --include-experimental --json
 ```
 

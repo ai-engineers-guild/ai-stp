@@ -63,7 +63,7 @@ This is not a git history. **Added** is the working surface on `0.0.15`. **Chang
 
 After you install or upgrade `ai-stp-cli`, confirm that this log describes the binary on `PATH`:
 
-```bash
+```text
 ai-stp version --json
 ai-stp doctor --json
 ai-stp help --agent --json

@@ -45,7 +45,11 @@ KIT_IDENTITY_SCHEMA: Final[str] = "ai-stp-provider-kit-identity/1"
 #: 0.2.10 names optional `reset`: empty declared native namespaces as a
 #: separately chosen effect, not the default of install/replace/remove.
 #: 0.2.11 declares complete native preservation and verified snapshot status.
-KIT_VERSION: Final[str] = "0.2.11"
+#: 0.2.12 adds optional `patch_instruction_region` to the provider-info schema.
+#: 0.2.13 opens `plan_request_fields` to `instruction_section`. Nothing sends
+#: `--instruction-section` yet — this release lets a provider declare the
+#: field without older consumers refusing its whole `provider-info`.
+KIT_VERSION: Final[str] = "0.2.13"
 
 #: The kit's only artifact with no source to re-derive it from, and therefore
 #: the exact limit of what `--check` can see. Everything else here is rendered

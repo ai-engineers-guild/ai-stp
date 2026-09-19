@@ -80,11 +80,12 @@ fi
 test -f "$tool/home/data/ai-stp/registry.sqlite"
 # Review finding: the wheel carried no canonical Agent Skill, so the installed
 # product gave the agent a binary and no procedure. Check outside the source tree,
-# where a repository copy cannot mask the defect.
+# where a repository copy cannot mask the defect. The Skill bootstrap is
+# `task intents`, not `doctor` (REQ-8022).
 mkdir -p "$tool/harness"
 "$tool/bin/ai-stp$exe" skill install --target "$tool/harness" --harness claude-code --json > /dev/null
 test -f "$tool/harness/SKILL.md"
-grep -q "ai-stp doctor --json" "$tool/harness/SKILL.md"
+grep -q "ai-stp task intents --json" "$tool/harness/SKILL.md"
 owned="$("$tool/bin/ai-stp$exe" skill status --target "$tool/harness" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["state"])')"
 if [ "$owned" != "owned" ]; then
     echo "clean_install_regress: installed Skill is not owned by the package ($owned)" >&2

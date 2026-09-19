@@ -1,0 +1,16 @@
+{
+  "$id": "urn:ai-stp:schema:v1:cli-task-input-inspect",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Inspect takes no caller facts.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "TaskInspectInput",
+  "type": "object"
+}

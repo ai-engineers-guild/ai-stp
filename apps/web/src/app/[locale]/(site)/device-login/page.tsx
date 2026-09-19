@@ -64,7 +64,7 @@ export default async function DeviceLoginPage({ params, searchParams }: PageProp
         // for a mistyped code, a code that had timed out, one already used,
         // and a rejected request. The reader could not tell which of the four
         // they were looking at, and the two most common ones need opposite
-        // responses: retype it, or run `ai-stp auth login` again.
+        // responses: retype it, or start the account intent again.
         <StatePanel kind="error" title={t("error")} description={t(reasonKey(sp.reason))} />
       ) : null}
       <form

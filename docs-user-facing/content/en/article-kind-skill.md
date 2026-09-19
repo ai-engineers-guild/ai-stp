@@ -76,7 +76,7 @@ playwright-checks/
 
 The directory name must match the `name` field in frontmatter.
 
-When you start from `ai_stp`, scaffold first. The authoring directory is
+When you start from `ai_stp`, start the `author` intent. Do not type `component scaffold plan`. The authoring directory is
 wider than the published package: `discover` / `adopt` transfer `source/`
 when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
@@ -92,7 +92,15 @@ playwright-checks/                 # component-scaffold/3
     └── SKILL.md
 ```
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type skill \
   --language none \
@@ -155,7 +163,7 @@ Put harness-specific notes under `metadata`.
 ## Native layouts per harness
 
 Discovery only reports layouts that are declared. Exact paths on a machine
-come from `ai-stp component discover --json`. Each finding carries
+come from the `author` intent envelope. Each finding carries
 `layout_source` — the official document that declared the layout. If
 classification is uncertain, show that field; do not guess a neighbour's
 path.
@@ -181,10 +189,13 @@ an already discovered path. They do not invent a skill from a missing
 directory, and they do not make an external manifest a source of confirmed
 passport facts.
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover`. The engine finds the native tree.
 
 ## Versions are `X.Y`, not SemVer
 
@@ -229,7 +240,8 @@ Before install, also look at:
 
 ## Related CLI commands
 
-Only commands that exist. Flags always from `ai-stp help --agent --json`.
+Only commands that exist. Flags from continuation `argv`; start at
+`ai-stp task intents --json`.
 
 **This kind, specifically:**
 
@@ -248,20 +260,20 @@ ai-stp skill remove --target <dir> --json
 **Author, adopt, publish:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Find, select, install:**
+**Install:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --json
-ai-stp install plan --json
 ```
 
 A skill can also be an embedded member of a compose manifest. See
@@ -320,7 +332,9 @@ A skill can also be an embedded member of a compose manifest. See
 4. Run `ai-stp component skill validate --path <package> --json` and fix
    every `SKxxx` code.
 5. Pin an exact public GitHub commit and subpath. No secrets in the tree.
-6. `component discover` → `component adopt` → `component passport validate`.
+6. Register the directory through
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert discover/adopt remain for recovery.
 7. `component version release` to mint immutable `X.Y`.
 8. Publish through [the publication path](https://ai-stp.aiguild.space/en/docs/components).
 9. In a setup, pin that `X.Y`. Updating later is a new setup version.

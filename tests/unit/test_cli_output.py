@@ -118,10 +118,11 @@ def test_an_internal_failure_names_the_type_and_leaks_nothing_else() -> None:
     assert failure.exit_code == 70
 
 
-def test_an_unknown_command_points_at_the_machine_registry() -> None:
+def test_an_unknown_command_lists_task_intents_not_the_full_registry() -> None:
     failure = unknown_command("No such command 'nope'.")
-    assert failure.next_actions == ["help --agent --json"]
+    assert failure.next_actions == ["task intents --json"]
     assert failure.exit_code == 2
+    assert failure.continuations[0].argv == ["task", "intents", "--json"]
 
 
 def test_continuations_are_emitted_on_the_wire_and_derive_argv() -> None:

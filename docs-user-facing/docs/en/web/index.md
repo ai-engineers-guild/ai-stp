@@ -10,11 +10,11 @@ components, publisher pages, legal revisions, and the signed-in workspace.
 It does not assemble a setup, write a harness target, or call a model.
 
 The working surface for selection, checks, and installation is the CLI plus
-the harness provider. Read the catalog here; apply a plan there.
+the harness provider. Read the catalog here; start an install intent there.
 
 ```text
 Website → catalog evidence, account, publication confirm
-CLI     → passports, select, install plan
+CLI     → task intents, task start, follow continuations
 Provider → native harness state
 ```
 
@@ -145,9 +145,9 @@ separate help-center chapters.
 The website copies only commands the CLI actually parses. The canonical
 templates are:
 
-```bash
+```text
 uv tool install ai-stp-cli
-ai-stp auth login --provider github --json
+ai-stp task start --intent account --idempotency-key account-session-01 --json
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <x.y> --json

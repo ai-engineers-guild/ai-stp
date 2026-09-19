@@ -271,10 +271,10 @@ def test_create_keeps_one_idempotency_key_when_the_first_answer_is_lost() -> Non
 
 
 def test_confirm_requires_the_exact_explicit_decision(monkeypatch: pytest.MonkeyPatch) -> None:
-    from ai_stp_cli.commands import publication as command
+    from ai_stp_cli.application import publication as service
 
     monkeypatch.setattr(
-        command,
+        service,
         "_session",
         lambda: session.Session(
             account_id=ACCOUNT,
@@ -285,13 +285,13 @@ def test_confirm_requires_the_exact_explicit_decision(monkeypatch: pytest.Monkey
         ),
     )
     with pytest.raises(CliFailure) as raised:
-        command.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH})
+        service.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH})
     assert raised.value.code == "AI_STP_USER_DECISION_REQUIRED"
     assert "--confirm" in raised.value.next_actions[0]
 
 
 def test_confirm_binds_all_locally_stored_exact_artifacts(monkeypatch: pytest.MonkeyPatch) -> None:
-    from ai_stp_cli.commands import publication as command
+    from ai_stp_cli.application import publication as service
 
     held = session.Session(
         account_id=ACCOUNT,
@@ -340,19 +340,20 @@ def test_confirm_binds_all_locally_stored_exact_artifacts(monkeypatch: pytest.Mo
             ]
         )
 
-    monkeypatch.setattr(command, "_session", lambda: held)
-    monkeypatch.setattr(command, "endpoint", lambda: Endpoint(BASE))
-    monkeypatch.setattr(command, "open_readonly", _open)
+    monkeypatch.setattr(service, "_session", lambda: held)
+    monkeypatch.setattr(service, "endpoint", lambda: Endpoint(BASE))
+    monkeypatch.setattr(service, "open_readonly", _open)
     monkeypatch.setattr("ai_stp_cli.local.component_passports.version_passport", _passport)
-    monkeypatch.setattr("ai_stp_cli.commands.publication.publication.status", _status)
-    monkeypatch.setattr("ai_stp_cli.commands.publication.content.get", _get)
-    monkeypatch.setattr("ai_stp_cli.commands.publication.publication.bind", _bind)
+    monkeypatch.setattr("ai_stp_cli.application.publication.publication.status", _status)
+    monkeypatch.setattr("ai_stp_cli.application.publication.content.get", _get)
+    monkeypatch.setattr("ai_stp_cli.application.publication.publication.bind", _bind)
     monkeypatch.setattr(
-        "ai_stp_cli.commands.publication.publication.bind_projection", _bind_projection
+        "ai_stp_cli.application.publication.publication.bind_projection",
+        _bind_projection,
     )
-    monkeypatch.setattr("ai_stp_cli.commands.publication.publication.confirm", _confirm)
+    monkeypatch.setattr("ai_stp_cli.application.publication.publication.confirm", _confirm)
 
-    result = command.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True}).payload
+    result = service.confirm({"plan-id": PLAN, "plan-hash": PLAN_HASH, "confirm": True}).payload
 
     assert result.state == "validating"
     assert seen == [b"exact-bytes"]

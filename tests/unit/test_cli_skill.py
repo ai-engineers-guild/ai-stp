@@ -13,17 +13,19 @@ from ai_stp_cli.local.skill_package import validate
 
 def test_every_declared_harness_has_a_projection_in_the_package() -> None:
     canonical = skill.available(None)
-    assert "ai-stp doctor --json" in canonical
+    assert "ai-stp task intents --json" in canonical
+    assert "When that field is `cli`" in canonical
+    assert "Start already advanced the task" in canonical
     assert "skills/canonical/" not in canonical
     for harness in skill.HARNESSES:
         text = skill.available(harness)
         assert harness in text
-        assert "ai-stp doctor --json" in text
+        assert "ai-stp task intents --json" in text
         assert "skills/canonical/" not in text
         assert text != canonical
         files = skill.package_files(harness)
         assert "references/bootstrap.md" in files
-        assert b"ai-stp help --agent --json" in files["references/bootstrap.md"]
+        assert b"ai-stp task intents --json" in files["references/bootstrap.md"]
 
 
 @pytest.mark.parametrize("harness", skill.HARNESSES)

@@ -1,83 +1,18 @@
 {
   "$defs": {
-    "Capabilities": {
-      "additionalProperties": true,
-      "description": "What this installation can do right now.\n\nDeliberately not a copy of the registry: it carries the few facts that\ndecide whether a later call is even worth making. `command_paths` is the\nindex into `help --agent`, not a substitute for it.",
-      "properties": {
-        "catalog_enabled": {
-          "title": "Catalog Enabled",
-          "type": "boolean"
-        },
-        "cli_version": {
-          "minLength": 1,
-          "title": "Cli Version",
-          "type": "string"
-        },
-        "command_paths": {
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1,
-          "title": "Command Paths",
-          "type": "array"
-        },
-        "installation": {
-          "enum": [
-            "distribution",
-            "source"
-          ],
-          "title": "Installation",
-          "type": "string"
-        },
-        "local_schema_version": {
-          "minimum": 1,
-          "title": "Local Schema Version",
-          "type": "integer"
-        },
-        "registry_digest": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Registry Digest",
-          "type": "string"
-        },
-        "schema_version": {
-          "const": 1,
-          "default": 1,
-          "title": "Schema Version",
-          "type": "integer"
-        },
-        "supported_harnesses": {
-          "items": {
-            "$ref": "#/$defs/HarnessId"
-          },
-          "minItems": 1,
-          "title": "Supported Harnesses",
-          "type": "array"
-        },
-        "sync_enabled": {
-          "title": "Sync Enabled",
-          "type": "boolean"
-        },
-        "wire_schema_version": {
-          "const": 1,
-          "default": 1,
-          "title": "Wire Schema Version",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "catalog_enabled",
-        "cli_version",
-        "command_paths",
-        "installation",
-        "local_schema_version",
-        "registry_digest",
-        "schema_version",
-        "supported_harnesses",
-        "sync_enabled",
-        "wire_schema_version"
+    "ComponentType": {
+      "enum": [
+        "instruction",
+        "skill",
+        "mcp",
+        "hook",
+        "command",
+        "agent",
+        "plugin",
+        "setting",
+        "cli"
       ],
-      "title": "Capabilities",
-      "type": "object"
+      "type": "string"
     },
     "DoctorCheck": {
       "additionalProperties": true,
@@ -163,36 +98,526 @@
       ],
       "type": "string"
     },
+    "TaskAccountOutcome": {
+      "additionalProperties": true,
+      "description": "Account drained in-process. Login never uploads; sync is a separate explicit step.",
+      "properties": {
+        "action": {
+          "enum": [
+            "login",
+            "logout",
+            "sync"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "authenticated": {
+          "title": "Authenticated",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "account",
+          "default": "account",
+          "title": "Kind",
+          "type": "string"
+        },
+        "login_uploaded": {
+          "const": false,
+          "default": false,
+          "title": "Login Uploaded",
+          "type": "boolean"
+        },
+        "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+        },
+        "scope": {
+          "default": "",
+          "title": "Scope",
+          "type": "string"
+        },
+        "session_state": {
+          "default": "",
+          "title": "Session State",
+          "type": "string"
+        },
+        "synced": {
+          "default": false,
+          "title": "Synced",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action",
+        "authenticated",
+        "kind",
+        "login_uploaded",
+        "provider",
+        "scope",
+        "session_state",
+        "synced"
+      ],
+      "title": "TaskAccountOutcome",
+      "type": "object"
+    },
+    "TaskActor": {
+      "enum": [
+        "human",
+        "external"
+      ],
+      "type": "string"
+    },
+    "TaskAuthorOutcome": {
+      "additionalProperties": true,
+      "description": "Author drained in-process. A local component and one new setup identity.",
+      "properties": {
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "component_type": {
+          "$ref": "#/$defs/ComponentType"
+        },
+        "component_version": {
+          "title": "Component Version",
+          "type": "string"
+        },
+        "directory": {
+          "title": "Directory",
+          "type": "string"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "author",
+          "default": "author",
+          "title": "Kind",
+          "type": "string"
+        },
+        "minted": {
+          "title": "Minted",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "setup_id": {
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "title": "Setup Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_id",
+        "component_type",
+        "component_version",
+        "directory",
+        "harness_id",
+        "kind",
+        "minted",
+        "name",
+        "setup_id",
+        "setup_version"
+      ],
+      "title": "TaskAuthorOutcome",
+      "type": "object"
+    },
+    "TaskChangeOutcome": {
+      "additionalProperties": true,
+      "description": "Change drained in-process. A new setup identity; the source id is untouched.",
+      "properties": {
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "change",
+          "default": "change",
+          "title": "Kind",
+          "type": "string"
+        },
+        "minted": {
+          "title": "Minted",
+          "type": "boolean"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "setup_id": {
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "title": "Setup Version",
+          "type": "string"
+        },
+        "source_setup_id": {
+          "title": "Source Setup Id",
+          "type": "string"
+        },
+        "source_setup_version": {
+          "title": "Source Setup Version",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "verified": {
+          "title": "Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "harness_id",
+        "kind",
+        "minted",
+        "operation_id",
+        "setup_id",
+        "setup_version",
+        "source_setup_id",
+        "source_setup_version",
+        "state",
+        "verified"
+      ],
+      "title": "TaskChangeOutcome",
+      "type": "object"
+    },
     "TaskId": {
       "pattern": "^task_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
       "type": "string"
+    },
+    "TaskInitializeOutcome": {
+      "additionalProperties": true,
+      "description": "Initialize drained in-process. The provider writes harness files.",
+      "properties": {
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "initialize",
+          "default": "initialize",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limitation": {
+          "default": "",
+          "title": "Limitation",
+          "type": "string"
+        },
+        "section_digest": {
+          "default": "",
+          "pattern": "^(?:sha256:[0-9a-f]{64})?$",
+          "title": "Section Digest",
+          "type": "string"
+        },
+        "surface": {
+          "default": "",
+          "title": "Surface",
+          "type": "string"
+        },
+        "wrote": {
+          "title": "Wrote",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "harness_id",
+        "kind",
+        "limitation",
+        "section_digest",
+        "surface",
+        "wrote"
+      ],
+      "title": "TaskInitializeOutcome",
+      "type": "object"
     },
     "TaskInspectOutcome": {
       "additionalProperties": true,
       "description": "Inspection drained in-process by the inspect intent.",
       "properties": {
-        "capabilities": {
-          "$ref": "#/$defs/Capabilities"
-        },
         "doctor": {
           "$ref": "#/$defs/DoctorReport"
+        },
+        "kind": {
+          "const": "inspect",
+          "default": "inspect",
+          "title": "Kind",
+          "type": "string"
+        },
+        "orientation": {
+          "$ref": "#/$defs/TaskOrientation"
         }
       },
       "required": [
-        "capabilities",
-        "doctor"
+        "doctor",
+        "kind",
+        "orientation"
       ],
       "title": "TaskInspectOutcome",
       "type": "object"
     },
+    "TaskInstallOutcome": {
+      "additionalProperties": true,
+      "description": "Install drained in-process. Plan, approve, and apply never return to the model.",
+      "properties": {
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "install",
+          "default": "install",
+          "title": "Kind",
+          "type": "string"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "setup_id": {
+          "title": "Setup Id",
+          "type": "string"
+        },
+        "setup_version": {
+          "title": "Setup Version",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "verified": {
+          "title": "Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "harness_id",
+        "kind",
+        "operation_id",
+        "setup_id",
+        "setup_version",
+        "state",
+        "verified"
+      ],
+      "title": "TaskInstallOutcome",
+      "type": "object"
+    },
     "TaskIntent": {
-      "const": "inspect",
+      "enum": [
+        "inspect",
+        "initialize",
+        "install",
+        "change",
+        "author",
+        "switch",
+        "account",
+        "publish"
+      ],
       "type": "string"
+    },
+    "TaskOrientation": {
+      "additionalProperties": true,
+      "description": "Slim inspect facts. No command registry dump.",
+      "properties": {
+        "catalog_enabled": {
+          "title": "Catalog Enabled",
+          "type": "boolean"
+        },
+        "cli_version": {
+          "minLength": 1,
+          "title": "Cli Version",
+          "type": "string"
+        },
+        "installation": {
+          "enum": [
+            "distribution",
+            "source"
+          ],
+          "title": "Installation",
+          "type": "string"
+        },
+        "intents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Intents",
+          "type": "array"
+        },
+        "local_schema_version": {
+          "minimum": 1,
+          "title": "Local Schema Version",
+          "type": "integer"
+        },
+        "registry_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Registry Digest",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "supported_harnesses": {
+          "items": {
+            "$ref": "#/$defs/HarnessId"
+          },
+          "minItems": 1,
+          "title": "Supported Harnesses",
+          "type": "array"
+        },
+        "sync_enabled": {
+          "title": "Sync Enabled",
+          "type": "boolean"
+        },
+        "wire_schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Wire Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "catalog_enabled",
+        "cli_version",
+        "installation",
+        "intents",
+        "local_schema_version",
+        "registry_digest",
+        "schema_version",
+        "supported_harnesses",
+        "sync_enabled",
+        "wire_schema_version"
+      ],
+      "title": "TaskOrientation",
+      "type": "object"
+    },
+    "TaskOutcome": {
+      "discriminator": {
+        "mapping": {
+          "account": "#/$defs/TaskAccountOutcome",
+          "author": "#/$defs/TaskAuthorOutcome",
+          "change": "#/$defs/TaskChangeOutcome",
+          "initialize": "#/$defs/TaskInitializeOutcome",
+          "inspect": "#/$defs/TaskInspectOutcome",
+          "install": "#/$defs/TaskInstallOutcome",
+          "publish": "#/$defs/TaskPublishOutcome",
+          "switch": "#/$defs/TaskSwitchOutcome"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TaskInspectOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskInitializeOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskInstallOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskChangeOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskAuthorOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskSwitchOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskAccountOutcome"
+        },
+        {
+          "$ref": "#/$defs/TaskPublishOutcome"
+        }
+      ]
+    },
+    "TaskPublishOutcome": {
+      "additionalProperties": true,
+      "description": "Publish drained in-process. Worker receipt is not a readable catalog result.",
+      "properties": {
+        "kind": {
+          "const": "publish",
+          "default": "publish",
+          "title": "Kind",
+          "type": "string"
+        },
+        "object_id": {
+          "title": "Object Id",
+          "type": "string"
+        },
+        "object_version": {
+          "title": "Object Version",
+          "type": "string"
+        },
+        "plan_hash": {
+          "title": "Plan Hash",
+          "type": "string"
+        },
+        "plan_id": {
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "filesystem",
+          "default": "filesystem",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "readable": {
+          "title": "Readable",
+          "type": "boolean"
+        },
+        "source_binding_id": {
+          "default": "",
+          "title": "Source Binding Id",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "visibility": {
+          "enum": [
+            "private",
+            "public"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "object_id",
+        "object_version",
+        "plan_hash",
+        "plan_id",
+        "provenance",
+        "readable",
+        "source_binding_id",
+        "state",
+        "visibility"
+      ],
+      "title": "TaskPublishOutcome",
+      "type": "object"
     },
     "TaskQuestion": {
       "additionalProperties": true,
       "description": "One typed question the task engine still needs before it can continue.",
       "properties": {
+        "actor": {
+          "$ref": "#/$defs/TaskActor",
+          "default": "human"
+        },
         "choices": {
           "items": {
             "type": "string"
@@ -210,15 +635,28 @@
           "title": "Question Id",
           "type": "string"
         },
+        "recommended": {
+          "default": "",
+          "title": "Recommended",
+          "type": "string"
+        },
         "value_type": {
           "$ref": "#/$defs/ParameterType"
+        },
+        "why": {
+          "default": "",
+          "title": "Why",
+          "type": "string"
         }
       },
       "required": [
+        "actor",
         "choices",
         "prompt",
         "question_id",
-        "value_type"
+        "recommended",
+        "value_type",
+        "why"
       ],
       "title": "TaskQuestion",
       "type": "object"
@@ -233,6 +671,72 @@
         "cancelled"
       ],
       "type": "string"
+    },
+    "TaskSwitchOutcome": {
+      "additionalProperties": true,
+      "description": "Switch drained in-process. Restores last user working config; never kills the caller.",
+      "properties": {
+        "drift_preserved_setup_id": {
+          "default": "",
+          "title": "Drift Preserved Setup Id",
+          "type": "string"
+        },
+        "harness_id": {
+          "$ref": "#/$defs/HarnessId"
+        },
+        "kind": {
+          "const": "switch",
+          "default": "switch",
+          "title": "Kind",
+          "type": "string"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "preserved_setup_id": {
+          "title": "Preserved Setup Id",
+          "type": "string"
+        },
+        "process_killed": {
+          "const": false,
+          "default": false,
+          "title": "Process Killed",
+          "type": "boolean"
+        },
+        "project_root": {
+          "title": "Project Root",
+          "type": "string"
+        },
+        "session_loaded": {
+          "const": false,
+          "default": false,
+          "title": "Session Loaded",
+          "type": "boolean"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "verified": {
+          "title": "Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "drift_preserved_setup_id",
+        "harness_id",
+        "kind",
+        "operation_id",
+        "preserved_setup_id",
+        "process_killed",
+        "project_root",
+        "session_loaded",
+        "state",
+        "verified"
+      ],
+      "title": "TaskSwitchOutcome",
+      "type": "object"
     }
   },
   "$id": "urn:ai-stp:schema:v1:cli-task",
@@ -257,7 +761,7 @@
     "outcome": {
       "anyOf": [
         {
-          "$ref": "#/$defs/TaskInspectOutcome"
+          "$ref": "#/$defs/TaskOutcome"
         },
         {
           "type": "null"

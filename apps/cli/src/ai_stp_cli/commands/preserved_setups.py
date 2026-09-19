@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal, cast
 
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.commands import install
+from ai_stp_cli.application import install
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import installation, preserved_setups
 from ai_stp_cli.local.database import configured_path, open_readonly

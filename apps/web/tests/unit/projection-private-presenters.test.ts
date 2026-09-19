@@ -21,7 +21,7 @@ import { machineTextLeaks } from "@/lib/projection/page-facts";
 
 const BOOL = { yes: "Yes", no: "No" };
 
-describe("private machine documents (REQ-3611, REQ-3612)", () => {
+describe("private machine documents (REQ-3611, REQ-3612, REQ-3627)", () => {
   it("lists sign-in methods on the account document", () => {
     const text = machineDocumentToText(
       presentAccount({
@@ -79,6 +79,9 @@ describe("private machine documents (REQ-3611, REQ-3612)", () => {
       "en",
     );
 
+    expect(text).toContain(
+      "ai-stp task start --intent account --idempotency-key account-session-01 --json",
+    );
     expect(text).toContain("device_01H");
     expect(text).toContain("device_type: cli");
     expect(text).toContain("state: active");
@@ -384,6 +387,9 @@ describe("private machine documents (REQ-3611, REQ-3612)", () => {
         },
       }),
       "en",
+    );
+    expect(text).toContain(
+      "ai-stp task start --intent account --idempotency-key account-session-01 --json",
     );
     expect(text).not.toMatch(/<img|avatar|image\//i);
   });

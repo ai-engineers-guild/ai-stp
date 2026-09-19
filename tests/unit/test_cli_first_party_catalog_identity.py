@@ -7,7 +7,7 @@ from contextlib import closing
 import pytest
 from release_scripts.build_first_party_corpus import POSTURES, REPOSITORIES
 
-from ai_stp_cli.commands import registry as registry_commands
+from ai_stp_cli.application import catalog as registry_commands
 from ai_stp_cli.commands.select import compile_setup_version_bundle
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_contracts.catalog import CatalogTrust

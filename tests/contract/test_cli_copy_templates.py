@@ -15,20 +15,25 @@ registry, so what is asserted is that the invocation is well-formed — that the
 verb exists, the options are declared, and the values satisfy their choices.
 """
 
+import json
 import re
 from pathlib import Path
 
 import pytest
 
-from ai_stp_cli.registry import COMMANDS
+from ai_stp_cli.registry import COMMANDS, GLOBAL_OPTIONS
 from ai_stp_contracts.cli_copy import (
     COMPONENT_NEXT_STEP,
     DISTRIBUTION,
+    INITIALIZE_PROMPT,
+    INITIALIZE_START,
     INSTALL_CLI,
+    INTENTS_BOOTSTRAP,
     LOGIN,
     REGISTRY_SHOW,
     REGISTRY_VERSION,
     SETUP_NEXT_STEP,
+    install_start,
     login,
     owner_component_next_step,
     owner_setup_next_step,
@@ -50,6 +55,7 @@ RENDERED: tuple[str, ...] = (
     owner_setup_next_step(),
     login("google"),
     login("github"),
+    INITIALIZE_START,
 )
 
 
@@ -70,6 +76,7 @@ def test_a_copy_template_names_a_command_that_exists(rendered: str) -> None:
     options = {item.removeprefix("--") for item in argv if item.startswith("--")}
 
     declared = _declared()
+    global_names = {parameter.name for parameter in GLOBAL_OPTIONS}
     # The longest leading run of words that names a command; the rest are values.
     name = next(
         (
@@ -80,7 +87,7 @@ def test_a_copy_template_names_a_command_that_exists(rendered: str) -> None:
         None,
     )
     assert name is not None, f"no command is named by {rendered!r}"
-    unknown = options - declared[name]
+    unknown = options - declared[name] - global_names
     assert not unknown, f"{rendered!r} passes options {name} does not declare: {sorted(unknown)}"
 
 
@@ -164,8 +171,14 @@ def test_the_web_copy_module_says_exactly_what_the_owner_says() -> None:
     """
     assert _web_constant("DISTRIBUTION") == DISTRIBUTION
     assert _web_constant("INSTALL_CLI") == INSTALL_CLI
+    assert _web_constant("INTENTS_BOOTSTRAP") == INTENTS_BOOTSTRAP
+    assert _web_constant("INITIALIZE_START") == INITIALIZE_START
+    assert _web_constant("INITIALIZE_PROMPT") == INITIALIZE_PROMPT
     assert _web_constant("COMPONENT_NEXT_STEP") == COMPONENT_NEXT_STEP
     assert _web_constant("SETUP_NEXT_STEP") == SETUP_NEXT_STEP
+    assert "export function installStart" in _web_source()
+    assert install_start() == SETUP_NEXT_STEP
+    assert install_start() == owner_setup_next_step()
     assert _web_template("registryShow") == REGISTRY_SHOW
     assert _web_template("registryVersion") == REGISTRY_VERSION
     assert _web_template("login") == LOGIN
@@ -186,6 +199,8 @@ def test_every_command_the_web_publishes_is_a_registered_command() -> None:
         _web_template("login"),
         _web_constant("COMPONENT_NEXT_STEP"),
         _web_constant("SETUP_NEXT_STEP"),
+        _web_constant("INTENTS_BOOTSTRAP"),
+        _web_constant("INITIALIZE_START"),
     )
     for rendered in published:
         words = rendered.removeprefix("ai-stp ").split(" ")
@@ -194,3 +209,17 @@ def test_every_command_the_web_publishes_is_a_registered_command() -> None:
         while name and name not in registered:
             name = " ".join(name.split(" ")[:-1])
         assert name in registered, f"web publishes {rendered!r}, which is not a registered command"
+
+
+def test_device_login_copy_uses_the_account_start() -> None:
+    """Expired / spent codes and the Devices hint used to teach a fake leaf."""
+    held = LOGIN
+    for locale in ("en", "ru"):
+        messages = json.loads(Path(f"apps/web/messages/{locale}.json").read_text(encoding="utf-8"))
+        assert held in messages["deviceLogin"]["expired"]
+        assert held in messages["deviceLogin"]["resolved"]
+        assert "auth login" not in messages["deviceLogin"]["expired"]
+        assert "auth login" not in messages["deviceLogin"]["resolved"]
+        assert held in messages["devices"]["authorizeHint"]
+        assert "auth device" not in messages["devices"]["authorizeHint"]
+        assert "auth login" not in messages["devices"]["authorizeHint"]

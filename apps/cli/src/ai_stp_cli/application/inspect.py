@@ -17,14 +17,77 @@ from ai_stp_contracts.machine_help import (
     DoctorCheck,
     DoctorReport,
     SetupState,
+    TaskIntentDescriptor,
+    TaskIntentsCatalog,
+    TaskOrientation,
 )
 from ai_stp_foundation.harnesses import HARNESS_IDS
+
+SHIPPED_INTENT_NAMES: Final[tuple[str, ...]] = (
+    "inspect",
+    "initialize",
+    "install",
+    "change",
+    "author",
+    "switch",
+    "account",
+    "publish",
+)
+INSPECT_WHEN: Final[str] = (
+    "Call when the user asks what is wrong or what this CLI can do. "
+    "Do not call as a prelude to every mutation."
+)
+INSPECT_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-inspect"
+INITIALIZE_WHEN: Final[str] = (
+    "Call on first run, or when the user says ai-stp is missing from this harness. "
+    "Do not call as a prelude to every coding request. "
+    "provider-too-old is not login: report it and stop; do not start account."
+)
+INITIALIZE_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-initialize"
+INSTALL_WHEN: Final[str] = (
+    "Call when the user wants a catalog or local setup on a target. "
+    "Do not choreograph plan, approve, or apply yourself."
+)
+INSTALL_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-install"
+CHANGE_WHEN: Final[str] = (
+    "Call when the user wants to add or remove a member of a saved setup. "
+    "Do not compose in place and do not type setup compose plan or apply."
+)
+CHANGE_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-change"
+AUTHOR_WHEN: Final[str] = (
+    "Call when the user wants to register a local directory as a component. "
+    "Do not type component adopt, component scaffold, or setup compose apply."
+)
+AUTHOR_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-author"
+SWITCH_WHEN: Final[str] = (
+    "Call when the user wants the last working user config back. "
+    "Do not type setup restore plan or setup preserve plan, and do not kill the caller."
+)
+SWITCH_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-switch"
+ACCOUNT_WHEN: Final[str] = (
+    "Call when the user says sign in, sign out, or explicitly sync. "
+    "Login never uploads. Do not type auth login or auth complete. "
+    "Do not call for provider-too-old."
+)
+ACCOUNT_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-account"
+PUBLISH_WHEN: Final[str] = (
+    "Call when the user wants to publish a local object. "
+    "Do not type publication plan or publication confirm, and do not invent git provenance."
+)
+PUBLISH_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-publish"
 
 
 def capabilities() -> Capabilities:
     """What this process can do right now, without a registry dump."""
+    from ai_stp_cli.application.inventory import classified_paths, classify, expert_reason
+    from ai_stp_cli.application.qualify import report
     from ai_stp_cli.registry import command_paths, registry_digest
 
+    classified_paths()
+    for path in (tuple(item.split()) for item in command_paths()):
+        if classify(path) == "expert":
+            expert_reason(path)
+    report()
     catalog_enabled, sync_enabled = config.catalog_and_sync_enabled()
     return Capabilities(
         cli_version=cli_version(),
@@ -35,6 +98,75 @@ def capabilities() -> Capabilities:
         catalog_enabled=catalog_enabled,
         sync_enabled=sync_enabled,
         command_paths=command_paths(),
+    )
+
+
+def orientation() -> TaskOrientation:
+    """Inspect-sized orientation: no command_paths."""
+    from ai_stp_cli.registry import registry_digest
+
+    catalog_enabled, sync_enabled = config.catalog_and_sync_enabled()
+    return TaskOrientation(
+        cli_version=cli_version(),
+        installation=installation(),
+        registry_digest=registry_digest(),
+        local_schema_version=database.SCHEMA_VERSION,
+        supported_harnesses=sorted(HARNESS_IDS),
+        catalog_enabled=catalog_enabled,
+        sync_enabled=sync_enabled,
+        intents=list(SHIPPED_INTENT_NAMES),
+    )
+
+
+def intent_catalog() -> TaskIntentsCatalog:
+    """Shipped intents only. Unknown names are not advertised."""
+    from ai_stp_cli.registry import registry_digest
+
+    return TaskIntentsCatalog(
+        cli_version=cli_version(),
+        registry_digest=registry_digest(),
+        intents=[
+            TaskIntentDescriptor(
+                name="inspect",
+                when=INSPECT_WHEN,
+                input_schema=INSPECT_INPUT_SCHEMA,
+            ),
+            TaskIntentDescriptor(
+                name="initialize",
+                when=INITIALIZE_WHEN,
+                input_schema=INITIALIZE_INPUT_SCHEMA,
+            ),
+            TaskIntentDescriptor(
+                name="install",
+                when=INSTALL_WHEN,
+                input_schema=INSTALL_INPUT_SCHEMA,
+            ),
+            TaskIntentDescriptor(
+                name="change",
+                when=CHANGE_WHEN,
+                input_schema=CHANGE_INPUT_SCHEMA,
+            ),
+            TaskIntentDescriptor(
+                name="author",
+                when=AUTHOR_WHEN,
+                input_schema=AUTHOR_INPUT_SCHEMA,
+            ),
+            TaskIntentDescriptor(
+                name="switch",
+                when=SWITCH_WHEN,
+                input_schema=SWITCH_INPUT_SCHEMA,
+            ),
+            TaskIntentDescriptor(
+                name="account",
+                when=ACCOUNT_WHEN,
+                input_schema=ACCOUNT_INPUT_SCHEMA,
+            ),
+            TaskIntentDescriptor(
+                name="publish",
+                when=PUBLISH_WHEN,
+                input_schema=PUBLISH_INPUT_SCHEMA,
+            ),
+        ],
     )
 
 

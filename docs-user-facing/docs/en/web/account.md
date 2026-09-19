@@ -85,7 +85,7 @@ Human / Machine switch keeps `/account` vs `/account/privacy`.
 
 ## Matching CLI commands
 
-```bash
+```text
 ai-stp auth status --json
 ai-stp auth logout --json
 ai-stp link web --json

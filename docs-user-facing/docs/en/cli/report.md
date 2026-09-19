@@ -124,7 +124,7 @@ idempotency key only when the intent is actually different.
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | no signed-in account | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | no signed-in account | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_USER_DECISION_REQUIRED` | `--confirm` was omitted | pass `--confirm` after reading the preview |
 | `AI_STP_VALIDATION_ERROR` | `--kind`, `--id`, `--version`, `--content-digest`, or `--idempotency-key` missing | correct the request |
 | `AI_STP_PLAN_STALE` | `--plan-digest` no longer matches the stored preview | preview again |
@@ -145,12 +145,13 @@ down by itself. It flags the closed case. Staff triage is on the server.
 - [Trust and safety](../trust-and-safety/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups report commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups report commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

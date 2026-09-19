@@ -83,7 +83,7 @@ Human / Machine: machine Onboarding — заголовок и абзац. Гал
 
 ```bash
 ai-stp auth status --json
-ai-stp auth login --provider github --json
+ai-stp task start --intent account --idempotency-key account-session-01 --json
 ai-stp device init --json
 ```
 

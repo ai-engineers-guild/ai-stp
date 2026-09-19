@@ -116,7 +116,7 @@ provider. Он не пишет файлы харнесса.
     Публичный каталог читается без входа. Search, show и version — это чтение
     каталога. Они не выдают доступ, не публикуют и не синхронизируют.
 
-    ```bash
+    ```text
     ai-stp registry search --kind setup --query frontend --json
     ai-stp registry show --kind setup --id <stable_id> --json
     ```
@@ -127,7 +127,7 @@ provider. Он не пишет файлы харнесса.
     и привязки устройства к облачной сессии.
 
     ```bash
-    ai-stp auth login --provider github --json
+    ai-stp task start --intent account --idempotency-key account-session-01 --json
     ai-stp auth status --json
     ```
 
@@ -156,7 +156,7 @@ ai-stp device show --json
 индексирует без чтения секретов и двоичного содержимого и может записать
 паспорт проекта, который закрепляет индекс, toolchain и конфигурацию.
 
-```bash
+```text
 ai-stp project discover --root . --json
 ai-stp project index --root . --json
 ai-stp project passport --root . --json

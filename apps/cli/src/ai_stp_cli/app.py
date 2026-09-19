@@ -25,7 +25,19 @@ from typing import Any, Final
 import click
 from pydantic import ValidationError
 
-from ai_stp_cli.application.outcome import envelope_actions, operation_id_of
+from ai_stp_cli.application.inspect import SHIPPED_INTENT_NAMES
+from ai_stp_cli.application.inventory import (
+    everyday_intent,
+    everyday_success_start_intent,
+    intent_for_command_prefix,
+    is_forbidden_wayback,
+    teaches_forbidden_wayback,
+)
+from ai_stp_cli.application.outcome import (
+    envelope_actions,
+    intent_start_continuation,
+    operation_id_of,
+)
 from ai_stp_cli.errors import (
     CliFailure,
     internal_failure,
@@ -41,6 +53,7 @@ from ai_stp_cli.output import (
 )
 from ai_stp_cli.registry import COMMANDS, Command
 from ai_stp_contracts.machine_help import CommandParameter
+from ai_stp_foundation.envelope import Continuation, continuation_argv
 
 PROGRAM_NAME: Final[str] = "ai-stp"
 
@@ -99,6 +112,36 @@ def _option_for(parameter: CommandParameter) -> click.Option:
     )
 
 
+def _everyday_success_envelope(
+    path: tuple[str, ...],
+    mutability: str,
+    continuations: list[Continuation],
+    actions: list[str],
+) -> tuple[list[Continuation], list[str]]:
+    """Drop qualify-forbidden success way-back, then attach `task start`.
+
+    A plan that already named `install apply` used to skip rewrite because
+    continuations were non-empty. FOLLOW_ACTOR would then type the leaf.
+    Terminal apply is still not started again: that would loop.
+    """
+    kept_continuations = [
+        item
+        for item in continuations
+        if not is_forbidden_wayback(" ".join(continuation_argv(item)))
+    ]
+    kept_actions = [item for item in actions if not is_forbidden_wayback(item)]
+    intent = everyday_success_start_intent(
+        path,
+        mutability,
+        has_continuations=bool(kept_continuations),
+    )
+    if intent is None:
+        return kept_continuations, kept_actions
+    start = intent_start_continuation(intent)
+    held = " ".join(start.argv)
+    return [start], [held, *[item for item in kept_actions if item != held]]
+
+
 def _callback_for(command: Command) -> Any:
     def _invoke(**parameters: object) -> None:
         context = click.get_current_context()
@@ -120,6 +163,12 @@ def _callback_for(command: Command) -> Any:
         except Exception:
             extra_warnings, extra_actions = (), ()
         continuations, actions = envelope_actions(answer)
+        continuations, actions = _everyday_success_envelope(
+            tuple(command.descriptor.path),
+            command.descriptor.mutability,
+            continuations,
+            actions,
+        )
         for action in extra_actions:
             if action not in actions:
                 actions.append(action)
@@ -192,6 +241,18 @@ def _click_command(command: Command) -> click.Command:
         params=params,
         callback=_callback_for(command),
         help=command.descriptor.summary,
+        # Path-exact: a wayback token "capabilities" would hide
+        # `toolchain harness-capabilities`.
+        hidden=is_forbidden_wayback(" ".join(command.descriptor.path))
+        or tuple(command.descriptor.path)
+        in {
+            ("capabilities",),
+            ("doctor",),
+            ("version",),
+            ("install", "recover"),
+            ("install", "resume"),
+            ("task", "cancel"),
+        },
     )
 
 
@@ -228,7 +289,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("provider", "reinstall"): "Install one exact provider version into the same path again.",
     ("attestation",): "Sign exact test evidence with this device's key.",
     ("auth",): "Sign in, inspect or remove the optional cloud session.",
-    ("component",): "Discover, adopt, describe and version single components.",
+    ("component",): "Author and version single components.",
     ("component", "adaptation"): "Add another harness-native projection to one authoring tree.",
     (
         "component",
@@ -259,7 +320,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("grant", "invitation"): "Invitations offered but not yet accepted.",
     ("github",): "Read selected GitHub repositories through the connected App.",
     ("github", "source"): "Prepare an exact GitHub snapshot for publication.",
-    ("install",): "Plan, apply, resume and recover a setup on a target.",
+    ("install",): "Start the install intent. Expert plan/apply remain for recovery.",
     ("install", "transaction"): "Coordinate one setup across several provider-owned roots.",
     ("link",): "Open the matching page on the web.",
     ("owner",): "What this account has published, as its owner sees it.",
@@ -275,12 +336,12 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("project", "sync"): "Plan and apply one explicit project synchronization decision.",
     ("project", "unlink-plan"): "Plan removal of one project link without changing state.",
     ("provider",): "Inspect the setup manager that writes the harness.",
-    ("publication",): "Publish a component version through plan and confirmation.",
-    ("registry",): "Search the local registry and bring objects into it.",
+    ("publication",): "Start the publish intent. Expert plan/confirm remain for recovery.",
+    ("registry",): "Inspect catalog identity. Everyday bytes go through the install intent.",
     ("registry", "port"): "Import a setup captured elsewhere into this registry.",
     ("report",): "Report an object to the catalogue's moderators.",
-    ("select",): "Choose components and compile them into one setup.",
-    ("setup",): "Whole setups: import one, or publish one with its pins.",
+    ("select",): "Everyday composition is the install intent.",
+    ("setup",): "Whole setups: change, install, or recover a preserved copy.",
     ("setup", "compose"): "Freeze a new setup from catalog and embedded sources.",
     ("setup", "recast"): "Record a complete setup for another harness with provenance.",
     ("setup", "export"): "Write a review tree of one recorded local setup.",
@@ -294,7 +355,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("setup", "scaffold"): "Start a new setup from a declared harness layout.",
     ("setup", "update"): "Replace one embedded component with a confirmed exact snapshot.",
     ("skill",): "Install this CLI's own agent skill into a harness.",
-    ("sync",): "Move local revisions to and from the cloud registry.",
+    ("sync",): "Explicit account sync after the account intent.",
     ("target",): "The installed state on a harness: status, drift, backups, rollback.",
     ("task",): "Start, continue, inspect, and cancel a durable agent task.",
     ("telemetry",): "The anonymous install ping, and whether it is on.",
@@ -304,20 +365,64 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
 
 #: Groups worth showing by example rather than by sentence alone.
 _GROUP_EXAMPLES: Final[dict[tuple[str, ...], tuple[str, ...]]] = {
-    ("auth",): (
-        "ai-stp auth login --provider google",
-        "ai-stp auth login --provider github",
-        "ai-stp auth complete",
-        "ai-stp auth status",
-    ),
+    ("auth",): ("ai-stp task start --intent account --idempotency-key account-session-01 --json",),
     ("install",): (
-        "ai-stp install plan --harness claude-code --setup <id> --json",
-        "ai-stp install apply --expected-plan-digest <digest> --json",
-        "ai-stp install recover --json",
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    ),
+    ("publication",): (
+        "ai-stp task start --intent publish --idempotency-key publish-session-01 --json",
+    ),
+    ("select",): (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    ),
+    ("component",): (
+        "ai-stp task start --intent author --idempotency-key author-session-01 --json",
+    ),
+    ("setup", "compose"): (
+        "ai-stp task start --intent change --idempotency-key change-session-01 --json",
+    ),
+    ("config",): (
+        "ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json",
+    ),
+    ("setup",): (
+        "ai-stp task start --intent change --idempotency-key change-session-01 --json",
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    ),
+    ("eval",): ("ai-stp task intents --json",),
+    ("environment",): (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    ),
+    ("install", "transaction"): (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    ),
+    ("setup", "preserve"): (
+        "ai-stp task start --intent switch --idempotency-key switch-session-01 --json",
+    ),
+    ("setup", "preserved"): (
+        "ai-stp task start --intent switch --idempotency-key switch-session-01 --json",
+    ),
+    ("project", "link"): (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    ),
+    ("update",): ("ai-stp task intents --json",),
+    ("provider",): ("ai-stp task intents --json",),
+    ("publication", "visibility"): (
+        "ai-stp task start --intent publish --idempotency-key publish-session-01 --json",
+    ),
+    ("setup", "publish"): (
+        "ai-stp task start --intent publish --idempotency-key publish-session-01 --json",
+    ),
+    ("registry",): (
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    ),
+    ("sync",): ("ai-stp task start --intent account --idempotency-key account-session-01 --json",),
+    ("target",): (
+        "ai-stp task start --intent inspect --idempotency-key inspect-session-01 --json",
+        "ai-stp task start --intent switch --idempotency-key switch-session-01 --json",
     ),
     ("project",): (
-        "ai-stp project discover --root . --json",
-        "ai-stp project index --root . --json",
+        "ai-stp task start --intent inspect --idempotency-key inspect-session-01 --json",
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
     ),
 }
 
@@ -347,7 +452,7 @@ def build_group() -> click.Group:
     root = _group(
         PROGRAM_NAME,
         "Manage AI harness setups through a strict machine contract.",
-        epilog=("First run:\n  ai-stp doctor --json\n  ai-stp help --agent --json"),
+        epilog=("First run:\n  ai-stp task intents --json"),
     )
 
     for command in sorted(COMMANDS, key=lambda item: item.name):
@@ -380,7 +485,27 @@ def build_group() -> click.Group:
                 )
             parent = existing
         parent.add_command(_click_command(command))
+    _hide_groups_without_visible_commands(root)
     return root
+
+
+def _hide_groups_without_visible_commands(group: click.Group) -> None:
+    """Drop drained choreography groups from human `--help`.
+
+    `setup compose` only exists so plan/apply stay invokable. Once those
+    leaves are `hidden`, the empty group still taught `compose` on
+    `setup --help`. Recurse first so a parent that only held such groups
+    also hides. The root stays listed even if a future drain emptied it.
+    """
+    for command in group.commands.values():
+        if isinstance(command, click.Group):
+            _hide_groups_without_visible_commands(command)
+    if group.name == PROGRAM_NAME:
+        return
+    if any(not command.hidden for command in group.commands.values()):
+        return
+    if group.commands:
+        group.hidden = True
 
 
 def _valued_options(argv: list[str]) -> frozenset[str]:
@@ -431,19 +556,11 @@ def _help_requested(argv: list[str]) -> bool:
 
 def _dispatch(argv: list[str], machine: bool, request_id: str) -> int:
     if machine and _help_requested(argv):
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "usage text is not machine readable",
-            next_actions=[f"help --agent {JSON_FLAG}"],
-        )
+        raise unknown_command("usage text is not machine readable")
     if not [item for item in argv if item != JSON_FLAG] and not machine:
         argv = ["--help"]
     elif not [item for item in argv if item != JSON_FLAG]:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "no command given",
-            next_actions=[f"help --agent {JSON_FLAG}"],
-        )
+        raise unknown_command("no command given")
 
     # With `standalone_mode=False` Click returns the status it would otherwise
     # have exited with instead of calling `sys.exit`, and returns the callback's
@@ -523,7 +640,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return _dispatch(arguments, machine, request_id)
     except CliFailure as failure:
-        return render_failure(failure, machine=machine, request_id=request_id)
+        return render_failure(
+            _handler_covered_leaf_failure(arguments, failure),
+            machine=machine,
+            request_id=request_id,
+        )
     except click.Abort:
         return 130
     except click.ClickException as failure:
@@ -575,6 +696,18 @@ def _auth_providers() -> tuple[str, ...]:
     return ()  # pragma: no cover — `auth login` is a declared command
 
 
+def _option_value(command_words: Sequence[str], name: str) -> str | None:
+    """The value written for `--name`, in either spelling Click accepts."""
+    flag = f"--{name}"
+    prefix = f"--{name}="
+    for index, word in enumerate(command_words):
+        if word.startswith(prefix):
+            return word.split("=", 1)[1]
+        if word == flag and index + 1 < len(command_words):
+            return command_words[index + 1]
+    return None
+
+
 def _supplied_provider(command_words: list[str]) -> str | None:
     """The value written for `--provider`, in either spelling Click accepts.
 
@@ -583,65 +716,215 @@ def _supplied_provider(command_words: list[str]) -> str | None:
     supplied one correctly — sending the caller to edit the one argument that
     was right while `--bogus`, the actual failure, went unmentioned.
     """
-    for index, word in enumerate(command_words):
-        if word.startswith("--provider="):
-            return word.split("=", 1)[1]
-        if word == "--provider" and index + 1 < len(command_words):
-            return command_words[index + 1]
+    return _option_value(command_words, "provider")
+
+
+INCOMPLETE_GROUP_MESSAGE: Final[str] = "incomplete command group; list shipped intents"
+
+
+def _is_click_usage(message: str) -> bool:
+    """Click group help lists expert leaves. That dump is not a machine error."""
+    held = message.strip()
+    if held in {"Missing command.", "Missing command"}:
+        return True
+    if held.startswith("Usage:") or "\nCommands:\n" in message:
+        return True
+    return held.endswith("Missing command.") or held.endswith("Missing command")
+
+
+def _leading_words(arguments: Sequence[str]) -> list[str]:
+    return [item for item in arguments if item != JSON_FLAG and not item.startswith("-")]
+
+
+def _declared_path(words: Sequence[str]) -> tuple[str, ...] | None:
+    declared = {tuple(command.descriptor.path) for command in COMMANDS}
+    for length in range(len(words), 0, -1):
+        candidate = tuple(words[:length])
+        if candidate in declared:
+            return candidate
+    return None
+
+
+def _intent_for_group(words: Sequence[str]) -> str | None:
+    if _declared_path(words) is not None:
+        return None
+    intent = intent_for_command_prefix(words)
+    if intent is not None:
+        return intent
+    if words and words[0] in SHIPPED_INTENT_NAMES:
+        return words[0]
+    return None
+
+
+def _covered_leaf_intent(arguments: Sequence[str]) -> str | None:
+    command_words = [item for item in arguments if item != JSON_FLAG]
+    words = _leading_words(command_words)
+    if _option_value(command_words, "action") in {"backup", "rollback"}:
+        return None
+    if words[:2] == ["auth", "login"] and _supplied_provider(command_words) in _auth_providers():
+        return None
+    path = _declared_path(words)
+    if path is None:
+        return None
+    return everyday_intent(path)
+
+
+def _handler_covered_leaf_failure(arguments: list[str], failure: CliFailure) -> CliFailure:
+    """A bare `install plan --json` used to teach `--proposal`."""
+    if failure.code == "AI_STP_VALIDATION_ERROR":
+        command_words = [item for item in arguments if item != JSON_FLAG]
+        if not any(item.startswith("-") for item in command_words):
+            intent = _covered_leaf_intent(arguments)
+            if intent is not None:
+                return _intent_start_failure(intent)
+    return _rewrite_everyday_wayback(arguments, failure)
+
+
+def _rewrite_everyday_wayback(arguments: list[str], failure: CliFailure) -> CliFailure:
+    """Extra flags used to keep `install plan --proposal` on the envelope."""
+    intent = _covered_leaf_intent(arguments)
+    if intent is None:
+        return failure
+    empty = not failure.continuations and not failure.next_actions
+    if not teaches_forbidden_wayback(failure.next_actions) and not empty:
+        return failure
+    start = intent_start_continuation(intent)
+    held = " ".join(start.argv)
+    kept = [item for item in failure.next_actions if not is_forbidden_wayback(item)]
+    actions = [held, *[item for item in kept if item != held]]
+    continuations = list(failure.continuations) or [start]
+    return CliFailure(
+        failure.code,
+        failure.message,
+        retryable=failure.retryable,
+        details=dict(failure.details),
+        operation_id=failure.operation_id,
+        next_actions=actions,
+        continuations=continuations,
+    )
+
+
+def _intent_start_failure(intent: str) -> CliFailure:
+    continuation = intent_start_continuation(intent)
+    return CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        "this group is a task intent; start it through the task engine",
+        details={"intent": intent},
+        continuations=[continuation],
+        next_actions=[" ".join(continuation.argv)],
+    )
+
+
+def _missing_start_key_failure(command_words: Sequence[str], message: str) -> CliFailure | None:
+    """A known intent without the key is still that start, not a registry dump."""
+    if "Missing option '--idempotency-key'" not in message:
+        return None
+    if _declared_path(_leading_words(command_words)) != ("task", "start"):
+        return None
+    held = _option_value(command_words, "intent")
+    if held not in SHIPPED_INTENT_NAMES:
+        return None
+    start = _intent_start_failure(held)
+    return CliFailure(
+        start.code,
+        "task start needs an idempotency key",
+        details=start.details,
+        continuations=start.continuations,
+        next_actions=start.next_actions,
+    )
+
+
+def _missing_answer_task_failure(
+    command_words: Sequence[str], words: Sequence[str], message: str
+) -> CliFailure | None:
+    """A named or unique blocked question is still that answer, not a dump."""
+    if tuple(words[:2]) not in {("task", "answer"), ("task", "continue")}:
+        return None
+    from ai_stp_cli.application.task import missing_answer_hint
+
+    if "Missing option '--task'" in message:
+        return missing_answer_hint()
+    if "Missing option '--revision'" in message:
+        held = _option_value(command_words, "task")
+        if held is None:
+            return None
+        return missing_answer_hint(task_id=held)
+    return None
+
+
+def _task_intents_failure(message: str) -> CliFailure:
+    continuation = Continuation(
+        kind="inspect",
+        path=["task", "intents"],
+        argv=["task", "intents", "--json"],
+        actor="cli",
+    )
+    return CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        message,
+        continuations=[continuation],
+        next_actions=["task intents --json"],
+    )
+
+
+def _invented_task_verb_failure() -> CliFailure:
+    return _task_intents_failure(
+        "the task engine verbs are start, answer, continue, status, and cancel"
+    )
+
+
+def _start_intent_parse_failure(command_words: Sequence[str], message: str) -> CliFailure | None:
+    """A start without a shipped intent lists the catalog, not Click's choice dump."""
+    if _declared_path(_leading_words(command_words)) != ("task", "start"):
+        return None
+    if "Missing option '--intent'" in message or (
+        "--intent" in message and "requires an argument" in message
+    ):
+        return _task_intents_failure("task start needs an intent")
+    if "Invalid value" in message and "--intent" in message:
+        held = _option_value(command_words, "intent")
+        if not held or held.startswith("-"):
+            return _task_intents_failure("task start needs an intent")
+        return _task_intents_failure("the task intent is not supported")
     return None
 
 
 def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFailure:
-    """Turn auth spelling mistakes into a safe, executable correction.
+    """Turn parse failures into a safe, executable correction.
 
-    Only the mistakes that are actually about the provider. This used to end
-    with an unconditional "auth login requires --provider", reached by every
-    parse failure under `auth login` — so
+    A group that a shipped intent already drains must not teach its expert
+    leaves. `install --json` used to answer "Missing command" and point at
+    `help --agent`, which is how a weak model learned `install plan`.
+
+    A `task_covered` leaf with missing flags is the same start. `auth login
+    --json` used to list `--provider google|github`. A declared `auth login`
+    that already has a supported `--provider` and fails for another flag
+    keeps Click's subject, so
 
         ai-stp auth login --provider google --bogus --json
 
-    told the caller to supply a provider it had already supplied correctly,
-    and never mentioned `--bogus`. An agent following that instruction edits
-    the one argument that was right and loops. The envelope stays valid JSON
-    the whole time, which is what makes the wrong answer easy to trust.
-
-    A repair instruction has to name the argument that is wrong; when this
-    adapter cannot show that the provider is wrong, Click's own message about
-    the real failure is the better answer.
+    still names `--bogus`. Backup and rollback `--action` stay expert recovery.
     """
     command_words = [item for item in arguments if item != JSON_FLAG]
-    if command_words[:1] != ["auth"]:
-        return unknown_command(failure.format_message())
-
-    providers = _auth_providers()
-    allowed = ", ".join(providers)
-    next_actions = [f"auth login --provider {name} --json" for name in providers]
-
-    if command_words[:2] == ["auth", "login"]:
-        supplied = _supplied_provider(command_words)
-        if supplied is not None:
-            if supplied in providers:
-                # The provider is right, so this failure is about something
-                # else. Say what Click said rather than inventing a subject.
-                return unknown_command(failure.format_message())
-            return CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "invalid auth provider",
-                details={"parameter": "provider", "allowed": allowed},
-                next_actions=next_actions,
-            )
-        return CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "auth login requires --provider",
-            details={"parameter": "provider", "allowed": allowed},
-            next_actions=next_actions,
-        )
-
-    if len(command_words) >= 2 and command_words[1] in providers:
-        return CliFailure(
-            "AI_STP_VALIDATION_ERROR",
-            "auth commands start with 'auth login'",
-            details={"command": "auth login", "allowed": allowed},
-            next_actions=next_actions,
-        )
-    return unknown_command(failure.format_message())
+    intent = _intent_for_group(_leading_words(command_words))
+    if intent is not None:
+        return _intent_start_failure(intent)
+    words = _leading_words(command_words)
+    if words[:1] == ["task"] and _declared_path(words) is None:
+        return _invented_task_verb_failure()
+    missing_intent = _start_intent_parse_failure(command_words, failure.format_message())
+    if missing_intent is not None:
+        return missing_intent
+    missing_key = _missing_start_key_failure(command_words, failure.format_message())
+    if missing_key is not None:
+        return missing_key
+    missing_answer = _missing_answer_task_failure(command_words, words, failure.format_message())
+    if missing_answer is not None:
+        return missing_answer
+    detail = failure.format_message()
+    covered = _covered_leaf_intent(arguments)
+    if covered is not None:
+        return _intent_start_failure(covered)
+    if _is_click_usage(detail):
+        detail = INCOMPLETE_GROUP_MESSAGE
+    return unknown_command(detail)

@@ -10,22 +10,37 @@ description: "Собрать, импортировать, обновить и о
 внешних источников, импортируют уже имеющуюся нативную конфигурацию, заменяют
 один встроенный элемент и планируют публикацию всего графа.
 
-Они не записывают таргет харнеса. Установка по-прежнему идёт через
+Они не записывают таргет харнеса. Повседневная сборка — intent `change`.
+Повседневная установка записанного сетапа — intent `install`. Не набирайте
+`setup compose plan` или `install plan`, если вы не восстанавливаете
+остановившуюся операцию.
+
+```bash
+ai-stp task start --intent change --idempotency-key change-session-01 --json
+```
+
+Следуйте `continuations`. После записи identity сетапа запустите `install`
+тем же способом. Expert compose / import / publish ниже — для операторов,
+у которых уже есть digest.
+
+Установка по-прежнему идёт через
 [Install](install.md) и публичного провайдера.
 
 ## Таблица команд
 
 | Команда | Мутабельность | Подтверждение | Когда |
 | --- | --- | --- | --- |
-| `ai-stp setup compose plan` | `plan` | `none` | разрешить и зафиксировать новый сетап из каталога, Git, пакетов и path-источников |
-| `ai-stp setup compose apply` | `apply` | `plan_digest` | записать точный, по-прежнему актуальный смешанный сетап как одну неизменяемую локальную версию |
-| `ai-stp setup import inspect` | `read` | `none` | прочитать одну нативную конфигурацию; ничего не записывать |
-| `ai-stp setup import plan` | `plan` | `none` | спланировать точные черновики компонентов и сетапа из одной нативной конфигурации |
-| `ai-stp setup import register` | `apply` | `plan_digest` | зарегистрировать проинспектированную конфигурацию как свой сетап |
-| `ai-stp setup update plan` | `plan` | `none` | предпросмотр замены одного встроенного компонента более новым точным снапшотом |
-| `ai-stp setup update apply` | `apply` | `plan_digest` | применить одно точное встроенное обновление и создать новую версию сетапа |
-| `ai-stp setup publish plan` | `plan` | `none` | спланировать публикацию одного выпущенного сетапа со всеми компонентами, которые он фиксирует |
-| `ai-stp setup publish confirm` | `apply` | `explicit_flag` | подтвердить один точный отрецензированный набор публикации |
+| `ai-stp task start --intent change` | `apply` | `none` | повседневная сборка; записывает новый identity сетапа |
+| `ai-stp task start --intent install` | `apply` | `none` | повседневная установка записанного сетапа |
+| setup compose plan | `plan` | `none` | expert: разрешить и зафиксировать новый сетап из каталога, Git, пакетов и path-источников |
+| setup compose apply | `apply` | `plan_digest` | expert: записать точный, по-прежнему актуальный смешанный сетап как одну неизменяемую локальную версию |
+| setup import inspect | `read` | `none` | прочитать одну нативную конфигурацию; ничего не записывать |
+| setup import plan | `plan` | `none` | спланировать точные черновики компонентов и сетапа из одной нативной конфигурации |
+| setup import register | `apply` | `plan_digest` | зарегистрировать проинспектированную конфигурацию как свой сетап |
+| setup update plan | `plan` | `none` | предпросмотр замены одного встроенного компонента более новым точным снапшотом |
+| setup update apply | `apply` | `plan_digest` | применить одно точное встроенное обновление и создать новую версию сетапа |
+| setup publish plan | `plan` | `none` | спланировать публикацию одного выпущенного сетапа со всеми компонентами, которые он фиксирует |
+| setup publish confirm | `apply` | `explicit_flag` | подтвердить один точный отрецензированный набор публикации |
 
 `--json` — глобальный флаг. Всегда передавайте его.
 
@@ -80,7 +95,9 @@ description: "Собрать, импортировать, обновить и о
 }
 ```
 
-```bash
+Expert recovery (уже есть digest):
+
+```text
 ai-stp setup compose plan --manifest setup.json --root . --json
 ```
 
@@ -95,7 +112,7 @@ ai-stp setup compose plan --manifest setup.json --root . --json
 Apply повторяет разрешение и отклоняет изменённые байты. Передайте возвращённый
 идентификатор сетапа, временную метку и дайджест плана:
 
-```bash
+```text
 ai-stp setup compose apply \
   --manifest setup.json \
   --root . \
@@ -118,7 +135,7 @@ Import вносит нативную конфигурацию харнеса в 
 ваш собственный сетап. Значения секретов не сохраняются. Таргет не
 затрагивается: провайдер уже сделал бэкап; register лишь записывает, где он.
 
-```bash
+```text
 ai-stp setup import inspect --root <native-dir> --harness codex --json
 ai-stp setup import plan --root <native-dir> --harness codex --json
 ai-stp setup import register \
@@ -145,7 +162,7 @@ ai-stp setup import register \
 Замена одного **встроенного** компонента более новым точным снапшотом. Фиксации
 каталога таким образом не обновляются.
 
-```bash
+```text
 ai-stp setup update plan \
   --id <setup_id> \
   --version 1.0 \
@@ -166,7 +183,7 @@ ai-stp setup update plan \
 
 Apply повторяет те же опции и добавляет `--expected-plan-digest`:
 
-```bash
+```text
 ai-stp setup update apply \
   --id <setup_id> \
   --version 1.0 \
@@ -191,7 +208,7 @@ ai-stp setup update apply \
 которые он фиксирует. Подтверждение делает этот точный граф публичным: сначала
 фиксированные компоненты, затем сетап.
 
-```bash
+```text
 ai-stp setup publish plan --id <setup_id> --version 1.0 --json
 ai-stp setup publish confirm \
   --set-digest sha256:... \
@@ -211,12 +228,25 @@ Plan требует `--id` и `--version`. Confirm требует `--set-digest`
 Compose:
 
 ```text
-setup compose plan --manifest setup.json --root .
-→ setup compose apply --manifest setup.json --root . --id … --created-at … --expected-plan-digest …
-→ select session / install plan
+task start --intent change --idempotency-key change-session-01 --json
+→ follow continuations until there are none
+→ task start --intent install --idempotency-key install-session-01 --json
 ```
 
-Import:
+Expert compose (уже есть digest):
+
+```text
+setup compose plan --manifest setup.json --root .
+→ setup compose apply --manifest setup.json --root . --id … --created-at … --expected-plan-digest …
+```
+
+Импорт нативного дерева (повседневный intent `author`):
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert import (уже есть plan digest):
 
 ```text
 setup import inspect --root <dir> --harness <id>
@@ -224,7 +254,13 @@ setup import inspect --root <dir> --harness <id>
 → setup import register --root <dir> --harness <id> --backup-ref … --plan-digest …
 ```
 
-Публикация графа:
+Публикация графа (повседневный intent `publish`):
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Expert publish (уже есть set digest):
 
 ```text
 setup publish plan --id <setup_id> --version <X.Y>
@@ -252,7 +288,7 @@ setup publish plan --id <setup_id> --version <X.Y>
 | `AI_STP_VALIDATION_ERROR` | отсутствует `--expected-plan-digest`, `--plan-digest` или `--set-digest` | скопируйте дайджест, который вернул plan |
 | `AI_STP_PLAN_STALE` | байты Git, байты пакетов или локальные пути изменились | спланируйте заново; apply отклоняет изменённые байты |
 | `AI_STP_PRECONDITION_FAILED` | import register без бэкапа провайдера или несвязанный элемент | сделайте бэкап через install; исправьте манифест |
-| `AI_STP_AUTH_REQUIRED` | publish требует выполненного входа | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | publish требует выполненного входа | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_PERMISSION_DENIED` | эта учётная запись не может публиковать этот сетап | проверьте владельца и гранты |
 | путь за пределами `--root` | локальные источники ограничены | переместите файлы или измените `--root` |
 | плавающая версия пакета | источники-пакеты требуют точную версию | зафиксируйте `name@version` |
@@ -272,12 +308,13 @@ setup publish plan --id <setup_id> --version <X.Y>
 - [Publishing](../publishing/index.md)
 - [Карта команд](commands.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-Эта страница группирует команды сетапа, чтобы человек мог их найти. Установленный
-CLI — источник флагов, схем и `next_actions`. Если эта страница и
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
+Эта страница группирует команды сетапа, чтобы человек мог их найти. Если эта страница и
 CLI расходятся, следуйте CLI.

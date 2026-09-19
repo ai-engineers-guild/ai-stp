@@ -103,6 +103,7 @@ EXEMPT: dict[str, str] = {
     "sandbox.reset_sandbox_cache": (
         "sandbox mode cache reset tests use so one case cannot leak into the next"
     ),
+    "qualify.tree_digest": "REQ-8020 artifact identity hash; tests compare bytes",
     # Public document API is read-only. A published revision is written by the
     # repository-source import SPEC-031 names, not by a request handler.
     "service.publish_revision": (

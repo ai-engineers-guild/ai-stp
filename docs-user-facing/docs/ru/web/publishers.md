@@ -90,7 +90,7 @@ Human / Machine сохраняет account id. Machine-проекция печа
 
 ## Совпадающие команды CLI
 
-```bash
+```text
 ai-stp link web --json
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json

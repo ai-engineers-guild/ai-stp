@@ -2,20 +2,18 @@
 
 Намерения: найти skill или сетап, показать версию, забрать байты.
 
-Берите из machine help: `ai-stp registry search`, `ai-stp registry show`,
-`ai-stp registry version`, `ai-stp registry fetch`, `ai-stp registry acquire`.
-
-| Нужный результат | Команда |
-|---|---|
-| Паспорт одной точной версии | `ai-stp registry version` |
-| Байты одной версии компонента или сетапа | `ai-stp registry fetch` |
-| Сетап и полный граф его компонентов для локальной сборки | `ai-stp registry acquire` |
+Не набирайте `registry search` или `registry acquire`. Не набирайте
+`registry port discover`, `registry port inspect`, `registry port plan` или
+`registry port import`. Не набирайте `registry show`, `registry fetch` или
+`registry version` для обычного setup. Байты каталога для
+обычного install идут через intent `install`. Identity inspect остаётся
+expert machine help, когда пользователь спросил, что это за объект, а не
+как его ставить.
 
 Закрепляйте точный `id` и `X.Y`. По умолчанию линия `authoritative`.
 `experimental` допустим в рамках уже разрешённой задачи, с явной маркировкой
-в отдельном разделе. Ключ объекта не
-даёт права скачивать. Проверьте возвращённую идентичность до compose или
-install.
+в отдельном разделе. Ключ объекта не даёт права скачивать. Проверьте
+возвращённую идентичность до install.
 
 Приватные версии требуют явного authenticated-доступа владельца или по гранту
 из дескриптора. Публичный поиск остаётся анонимным. Отказ онлайн остаётся

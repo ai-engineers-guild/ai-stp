@@ -13,11 +13,18 @@ Every command on this page is copied with `--json`. `config show` is a
 read. `config init`, `config set`, and `config unset` are applies. None
 of them is destructive.
 
+Everyday first write of the catalogued instruction surface is the
+`initialize` intent. `config init` below stays expert recovery.
+
+```bash
+ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
+```
+
 ## Commands
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp config init` | `apply` | `none` | Create the configuration file if it is absent, and validate it either way. |
+| config init | `apply` | `none` | Create the configuration file if it is absent, and validate it either way. |
 | `ai-stp config set` | `apply` | `none` | Write declared values to the configuration file. |
 | `ai-stp config unset` | `apply` | `none` | Remove declared values so their defaults apply again. |
 | `ai-stp config validate` | `read` | `none` | Read the configuration file and refuse it if it cannot be honoured. |
@@ -31,15 +38,17 @@ consent.
 ## Typical path
 
 ```bash
+ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
+```
+
+Expert recovery (`config init` is idempotent: if the file already exists,
+the command validates it rather than replacing it):
+
+```text
 ai-stp config init --json
 ai-stp config show --json
 ai-stp config validate --json
 ```
-
-`config init` is idempotent: if the file already exists, the command
-validates it rather than replacing it. Every field has a default, so
-nothing *needs* this file to exist. Create it when you intend to change
-a value, or when you want a file on disk that `doctor` can point at.
 
 To change a declared field, then see that the source is now the file:
 
@@ -93,7 +102,7 @@ because you wrote 20” lead to different next actions. That is why
 Create the configuration file if it is absent, and validate it either
 way.
 
-```bash
+```text
 ai-stp config init --json
 ```
 

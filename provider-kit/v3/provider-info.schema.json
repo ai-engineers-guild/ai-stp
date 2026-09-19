@@ -20,6 +20,7 @@
         "enum": [
           "capture_mode",
           "end_state",
+          "instruction_section",
           "target_scope"
         ],
         "type": "string"
@@ -267,7 +268,8 @@
           "software_install",
           "software_update",
           "software_remove",
-          "launch"
+          "launch",
+          "patch_instruction_region"
         ],
         "type": "string"
       },

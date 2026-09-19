@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:606c3a4eac40514f4ea8973c76113f04ced4df71aab10cf6a74019671b624035",
+  "registry_digest": "sha256:c2fc7c440da2a25a8741051e97fe73f123cbe3d0b14c3c30dd9f39f91f5a011f",
   "global_options": [
     {
       "name": "json",
@@ -265,8 +265,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-capabilities",
       "next_actions": [
-        "help --path doctor --json",
-        "help --agent"
+        "task intents --json"
       ]
     },
     {
@@ -9255,7 +9254,7 @@
           "name": "question-id",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
           "summary": "Open question this answer belongs to.",
           "choices": []
@@ -9264,9 +9263,18 @@
           "name": "value",
           "kind": "option",
           "value_type": "string",
-          "required": true,
+          "required": false,
           "repeatable": false,
           "summary": "Answer value.",
+          "choices": []
+        },
+        {
+          "name": "input",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "JSON object file, or - for stdin.",
           "choices": []
         }
       ],
@@ -9347,6 +9355,21 @@
     {
       "path": [
         "task",
+        "intents"
+      ],
+      "summary": "List shipped task intents and when to start each one.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-task-intents",
+      "next_actions": [
+        "help --path task --json"
+      ]
+    },
+    {
+      "path": [
+        "task",
         "start"
       ],
       "summary": "Create a durable agent task for one closed intent.",
@@ -9361,7 +9384,14 @@
           "repeatable": false,
           "summary": "Closed intent this task will drain.",
           "choices": [
-            "inspect"
+            "inspect",
+            "initialize",
+            "install",
+            "change",
+            "author",
+            "switch",
+            "account",
+            "publish"
           ]
         },
         {
@@ -9371,6 +9401,15 @@
           "required": true,
           "repeatable": false,
           "summary": "Stable key for this exact intent.",
+          "choices": []
+        },
+        {
+          "name": "input",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "JSON object file, or - for stdin.",
           "choices": []
         }
       ],

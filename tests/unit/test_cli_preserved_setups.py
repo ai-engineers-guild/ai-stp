@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_stp_cli.commands import install
+from ai_stp_cli.application import install
 from ai_stp_cli.commands import preserved_setups as commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import installation, passports, preserved_setups, project_passport

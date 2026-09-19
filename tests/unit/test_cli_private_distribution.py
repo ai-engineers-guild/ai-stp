@@ -8,6 +8,7 @@ import httpx
 import pytest
 from tests.unit.test_cli_install_commands import _confirmed  # pyright: ignore[reportPrivateUsage]
 
+from ai_stp_cli.application import publication as publication_service
 from ai_stp_cli.cloud import session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.commands import publication, visibility
@@ -69,7 +70,8 @@ def test_component_upload_defaults_private_and_refuses_a_legacy_public_plan(
         return httpx.Response(201, json=response)
 
     where = Endpoint("https://private.example.test", transport=httpx.MockTransport(serve))
-    monkeypatch.setattr(publication, "endpoint", lambda: where)
+    monkeypatch.setattr(publication_service, "endpoint", lambda: where)
+    monkeypatch.setattr(publication_service, "_session", lambda: held)
     parameters = {
         "id": component_id,
         "version": "1.0",

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-037: Compact catalog, owner/public navigation, and CLI onboarding."
-last_verified: "2026-08-17"
+last_verified: "2026-09-18"
 ---
 
 # SPEC-037: Catalog, Navigation, and CLI Onboarding
@@ -52,7 +52,8 @@ passport editor, client-side authorization, recommendations, and hidden filters.
   object/version page displays `Manage this version` only to the authenticated
   owner. Private drafts use owner preview routes rather than public links.
 - `REQ-3706`: The catalog and owner pages provide a copy action for exact CLI commands
-  (`registry show` for a public object/version and an owner-appropriate next step)
+  (`registry show` / `registry version` for a public object/version, the `install`
+  intent start as the everyday "Use via CLI" action, and an owner-appropriate next step)
   and obtain the command template from a single canonical source. The UI does not promise browser installation.
 - `REQ-3707`: Empty owner objects/access/publications states explain that
   passports and setups are created through the CLI/agent, provide a copyable safe command and a link to

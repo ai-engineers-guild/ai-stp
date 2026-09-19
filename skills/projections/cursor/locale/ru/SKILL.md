@@ -17,30 +17,42 @@ Native surface for this harness: Plugin with `.cursor-plugin/plugin.json` manife
 
 Помогайте coding agent пользователя выбирать, устанавливать и сопровождать
 полные сетапы харнесса через установленный CLI. Доведите поручение до результата
-и сообщите, что действительно проверено.
+и сообщите, что действительно проверено. CLI сам получает байты, собирает граф,
+делает backup, plan, approve, apply, verify, retries и recovery.
 
 ## Start here
 
-1. Выполните `ai-stp doctor --json`, затем `ai-stp help --agent --json`.
-   Если команда не найдена, откройте [bootstrap](references/bootstrap.md).
-2. Прочитайте конверт и сохраните дескрипторы команд.
-   Стройте вызовы по parameters, parameter rules, confirmation и result schema.
-   Рядом с ними сохраните отпечаток реестра из конверта и используйте уже
-   полученную справку, пока он не изменился; перечитайте help, когда он отличается
-   или когда команда не совпала. Строка версии — не отпечаток: две сборки могут
-   называть одну версию и иметь разные команды и флаги.
-   Дескриптор самого help объявляет, как прочитать одно семейство команд вместо
-   всего реестра; когда playbook ниже назвал семейство, читайте его.
-3. Возьмите харнесс, корень проекта и желаемый результат из разговора и текущего
-   workspace. Недостающие факты установите осмотром. Вопрос нужен только для
-   сведений, которые нельзя определить и которые существенно меняют эффект.
-4. Откройте подходящий playbook и дойдите до проверки результата. Поручение
-   установить или исправить разрешает соответствующую обратимую работу;
-   параметр машинного подтверждения не означает новый вопрос пользователю.
+Вы — coding agent. Запускайте `ai-stp` сами своими tools. Не просите
+человека вставлять или выполнять эти команды. Напечатанная команда — не завершённая операция.
+Если пользователь уже вошёл и этот ход говорит не запускать CLI, не
+набирайте `ai-stp`. Не стартуйте `account`.
 
-Только эти два bootstrap-вызова фиксируют флаги CLI в пакете. Остальные пути
-команд описывают процесс; исполняемые аргументы берутся из help. Последующие
-вызовы выполняйте в машинном JSON согласно установленному реестру.
+1. Выполните `ai-stp task intents --json` и выберите один shipped intent. Если
+   исполняемый файл не найден, откройте [bootstrap](references/bootstrap.md).
+2. Вызовите `ai-stp task start` для этого intent.
+   `envelope.continuations[0].actor` — JSON-поле, а не личность пользователя.
+   Когда поле `cli`, исполните `argv` своими tools. Когда `human`, этот
+   `argv` как напечатан не исполняйте (value нарочно отсутствует). Сразу
+   ответьте из разговора через `ai-stp task answer`. Ждать человека — не
+   работа. Когда `external`, покажите payload один раз и остановитесь.
+   Этот `argv` не исполняйте. `provider-too-old` — не login: не стартуйте
+   `account` и не крутите `task continue`. Device-code покажите один раз;
+   `task continue` только после браузера, не в тесном цикле.
+   `task start` уже продвинул задачу. Не вставляйте `task continue`, когда
+   `actor` равен `human` или continuations нет.
+   Не выдумывайте `task status`, `task info` или `task get`.
+   Дождитесь JSON-конверта `ai-stp` на stdout. Держите CLI на переднем плане;
+   не уводите его в background. Увод в background — проваленная попытка.
+3. Остановитесь, когда continuations нет. Если `error.details.state` —
+   `failed`, задача settled; не набирайте `task get`. В отчёте — проверка
+   payload, а не только `ok` конверта.
+
+Только `task intents --json` фиксирует флаги CLI в этом пакете. Остальные пути
+команд описывают процесс; исполняемые аргументы берутся из continuation `argv`
+или из machine help. Последующие вызовы выполняйте в машинном JSON.
+
+Не запускайте `ai-stp doctor` и не дампьте `ai-stp help` как прелюдию к каждому
+запросу. Завершённого inspect достаточно, если пользователь спросил, что не так.
 
 ## What is being installed
 
@@ -82,6 +94,38 @@ Native surface for this harness: Plugin with `.cursor-plugin/plugin.json` manife
 
 - Machine help владеет командами, параметрами, схемами и обработкой ошибок.
   Перед исполнением next actions установите фактические значения аргументов.
+  Предпочитайте continuation `argv`, а не набор expert leaves вручную.
+- Не хореографируйте `install plan`, `install approve` или `install apply`.
+  Не набирайте группу install без leaf. Intent install сливает их
+  in-process. Не набирайте `install transaction plan`.
+- Не набирайте `setup compose plan`, `setup compose apply`, `setup update apply`,
+  `component adopt`, `component scaffold`, `component publish` или `config init`.
+  Для правки сохранённого сетапа используйте `change`, для author / publish /
+  initialize — соответствующие intent'ы.
+- Не набирайте `setup restore plan` или `setup preserve plan`. Не набирайте
+  `setup preserve recover` или `setup preserved list`. Для возврата
+  последней рабочей пользовательской конфигурации используйте `switch`.
+  Никогда не убивайте вызывающий процесс. Не утверждайте, что текущая сессия
+  уже загрузила новые файлы.
+- Не набирайте `auth login`, `auth complete`, `auth logout`, `sync push`,
+  `sync pull`, `publication plan`, `publication confirm`, `setup publish plan`,
+  `setup publish confirm`, `select propose`,
+  `select confirm`, `select bundle`, `registry acquire`, `registry search`,
+  `registry show`, `registry fetch`, `registry version`,
+  `registry port inspect`, `registry port plan` или `registry port discover`.
+  Для входа и sync используйте `account` (login ничего не загружает), для
+  локального объекта — `publish`, для байт каталога — `install`. Device-code
+  с `actor=external` покажите один раз, затем позже `task continue`.
+  `provider-too-old` — не device-code. Не выдумывайте git-происхождение.
+  Не набирайте remote `github.com`. Уже вошли и нет запроса войти, выйти или sync: не набирайте `ai-stp` и
+  не стартуйте `account`.
+- Не набирайте `ai-stp help` или `help --json`. Начинайте с
+  `task intents --json`. Дамп реестра — expert recovery.
+- Не набирайте `ai-stp capabilities`. В ответе каждый command path. Используйте
+  intent `inspect`.
+- Не набирайте `provider network`. Пустой `continuations` значит остановиться
+  и сообщить типизированную ошибку. Когда `error.details.state` — `failed`,
+  задача settled; не набирайте `task get`, `task status` или `task continue`.
 - Используйте команды конфигурации и установки CLI. В harness target пишет
   провайдер; ручная правка нативных файлов не заменяет его работу.
 - Сохраняйте точные версии, идентификаторы proposal и operation, plan digest

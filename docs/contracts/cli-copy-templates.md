@@ -1,6 +1,6 @@
 ---
 description: "Canonical CLI templates for web UI copy blocks (SPEC-037)."
-last_verified: "2026-08-13"
+last_verified: "2026-09-18"
 ---
 
 # CLI copy templates
@@ -23,7 +23,6 @@ every copy button produced a command rejected by the CLI.
 - `{stable_id}` — stable object ID (`component_…` / `setup_…`).
 - `{version}` — exact `X.Y` version. It is a separate argument, not an `@`
   suffix: the CLI does not parse such syntax.
-- `{provider}` — `google` or `github`.
 - Paths and tokens are **not** substituted into UI commands.
 
 ## Public object / version
@@ -32,21 +31,23 @@ every copy button produced a command rejected by the CLI.
 |---|---|
 | Show a published object | `ai-stp registry show --kind {kind} --id {stable_id}` |
 | Show an exact version | `ai-stp registry version --kind {kind} --id {stable_id} --version {version}` |
+| Everyday catalog "Use via CLI" | `ai-stp task start --intent install --idempotency-key install-session-01 --json` |
 
 ## Owner next steps (empty / sync)
 
-An empty state receives the **read-only** entry point to its flow, not the
-mutating command to which that flow leads. Neither entry point requires
-arguments, so the copied string is complete and safe; a step requiring a root,
-harness, or confirmation cannot be rendered without substituting something this
-contract prohibits placing in a UI command.
+An empty state receives a complete everyday argv. Neither template needs a
+path or secret, so the copied string is safe; a step requiring a root,
+harness, or confirmation cannot be rendered without substituting something
+this contract prohibits placing in a UI command.
 
 | Context | Template |
 |---|---|
-| The owner has no components yet | `ai-stp component discover` |
-| The owner has no setups yet | `ai-stp toolchain harnesses` |
-| Device login | `ai-stp auth login --provider {provider}` |
+| The owner has no components yet | `ai-stp task start --intent author --idempotency-key author-session-01 --json` |
+| The owner has no setups yet | `ai-stp task start --intent install --idempotency-key install-session-01 --json` |
+| Device login | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
 | CLI installation (landing) | `uv tool install ai-stp-cli` |
+| Compact intent discovery | `ai-stp task intents --json` |
+| First-run harness discoverability | `ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json` |
 
 `ai-stp` is the executable name; `ai-stp-cli` is the distribution name.
 Installing by executable name fetches a package that this project does not
@@ -55,7 +56,7 @@ publish.
 ## Interface rules
 
 1. The copy button inserts **exactly** the template string after substituting
-   `{kind}` / `{stable_id}` / `{version}` / `{provider}`.
+   `{kind}` / `{stable_id}` / `{version}`.
 2. The interface does not promise installation through the browser and does not
    render a web-based passport editor.
 3. A copy failure is shown explicitly; success produces brief feedback without

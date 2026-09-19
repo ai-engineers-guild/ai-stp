@@ -113,7 +113,7 @@ sign in again — the reaction is on the server, not in localStorage.
 | Pin `X.Y` | no | `registry version --version` |
 | Consent to experimental | no | CLI `consent allow` |
 | Grant a major line | no | [Access](access.md) |
-| Install | no | `install plan` / provider |
+| Install | no | `task start --intent install` / provider |
 | Verify content | no | `component_verified` on the version |
 
 Machine projection of `/likes` is a list of kind + `stable_id` links.

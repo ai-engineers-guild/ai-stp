@@ -14,6 +14,13 @@ None of them makes the catalog public by itself. `component publish` is a
 `plan`. The public write is [Publication](publication.md) confirmation, or
 [Setup](setup.md) publish confirm when the whole graph goes out together.
 
+Everyday publication is the `publish` intent. Version, fork, validate, and
+`component publish` below stay expert recovery.
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
 ## Command table
 
 | Command | Mutability | Confirmation | When |
@@ -22,7 +29,7 @@ None of them makes the catalog public by itself. `component publish` is a
 | `ai-stp component version release` | `apply` | `none` | give the current head an immutable `X.Y`; minor unless `--major` |
 | `ai-stp component fork` | `apply` | `none` | copy one recorded version under a new identity |
 | `ai-stp component skill validate` | `read` | `none` | name every Agent Skills Specification deviation |
-| `ai-stp component publish` | `plan` | `none` | extract one embedded component into a publication plan |
+| component publish | `plan` | `none` | extract one embedded component into a publication plan |
 
 `--json` is global. Always pass it.
 
@@ -84,13 +91,13 @@ of findings is a successful report, not a crashed command.
 This is not the CLI's own Agent Skill (`ai-stp skill …`). That skill is
 documented on [Agent Skill CLI](skill.md). Kind `skill` is a component.
 
-## Component publish
+## Expert recovery: component publish
 
 Extract one **embedded** component from a local setup into the ordinary
 publication plan. Catalog members already have a publisher; this command is
 for a member that still lives only inside the setup.
 
-```bash
+```text
 ai-stp component publish \
   --from-setup <setup_id> \
   --setup-version 1.0 \
@@ -111,7 +118,13 @@ member stays embedded until that confirmation finishes.
 
 ## Happy path
 
-From a local draft:
+Everyday:
+
+```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Expert recovery from a local draft:
 
 ```text
 component passport validate --id <id>
@@ -120,7 +133,7 @@ component passport validate --id <id>
 → publication confirm --plan-id <plan> --plan-hash <hash> --confirm
 ```
 
-From an embedded setup member:
+Expert recovery from an embedded setup member:
 
 ```text
 component publish --from-setup <setup> --setup-version <X.Y> --component-id <id>
@@ -128,7 +141,7 @@ component publish --from-setup <setup> --setup-version <X.Y> --component-id <id>
 → publication confirm --plan-id <plan> --plan-hash <hash> --confirm
 ```
 
-For a skill package you have not adopted yet:
+Expert recovery for a skill package you have not adopted yet:
 
 ```text
 component skill validate --path <dir>
@@ -151,7 +164,7 @@ component skill validate --path <dir>
 | `AI_STP_VALIDATION_ERROR` | a required id, version, or path is missing | read the descriptor |
 | `AI_STP_NOT_FOUND` | the object, version, or embedded member is not here | `version list` or `select graph` |
 | `AI_STP_PRECONDITION_FAILED` | the passport is not ready, or an attestation is unbound | `passport validate`; sign with `attestation sign` |
-| `AI_STP_AUTH_REQUIRED` | promoting to the server needs a session | `auth login`, then `component publish` again |
+| `AI_STP_AUTH_REQUIRED` | promoting to the server needs a session | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_PERMISSION_DENIED` | this account cannot publish that object | check owner and grants |
 | `conforms: false` | the skill package deviates from the specification | read each `SK…` finding; do not adopt as if it passed |
 | treating `component publish` as public | it is a plan | confirm with `publication confirm` |
@@ -173,12 +186,13 @@ exists.
 - [Security checks](../security-checks.md)
 - [Agent Skill CLI](skill.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups publish commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups publish commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

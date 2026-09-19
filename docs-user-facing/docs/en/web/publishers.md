@@ -92,7 +92,7 @@ lists as links.
 
 ## Matching CLI commands
 
-```bash
+```text
 ai-stp link web --json
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json

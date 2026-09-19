@@ -21,7 +21,7 @@ description: "Найти корни проектов, проиндексиров
 | `ai-stp project discover` | `read` | `none` | перечислить проекты внутри названного каталога; больше ничего не сканирует |
 | `ai-stp project index` | `read` | `none` | проиндексировать один корень проекта, ограниченно, пропуская секреты и двоичное содержимое |
 | `ai-stp project symbols` | `read` | `none` | прочитать публичные символы проекта, точки входа и тесты; графа вызовов нет |
-| `ai-stp project passport` | `apply` | `none` | записать ревизию паспорта проекта, закрепляющую индекс, toolchain и конфигурацию |
+| project passport | `apply` | `none` | записать ревизию паспорта проекта, закрепляющую индекс, toolchain и конфигурацию |
 | `ai-stp project revision push` | `apply` | `explicit_flag` | опубликовать allowlisted-проекцию локального паспорта в ledger организации |
 | `ai-stp project revision pull` | `read` | `none` | прочитать redacted-узлы ledger организации для одной связи |
 
@@ -32,7 +32,7 @@ Revision push и pull берут идентификатор локального
 
 ## Типичный путь
 
-```bash
+```text
 ai-stp project discover --root <root> --json
 ai-stp project index --root <root> --json
 ai-stp project symbols --root <root> --json
@@ -144,7 +144,7 @@ ai-stp project symbols --root <root> --json
 Записать ревизию паспорта проекта, закрепляющую индекс, toolchain и
 конфигурацию.
 
-```bash
+```text
 ai-stp project passport --root <root> --json
 ```
 

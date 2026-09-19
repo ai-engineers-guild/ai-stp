@@ -30,7 +30,7 @@ harness's own public provider.
 - [Quickstart for people](quickstart/human.md): install the CLI, check the
   environment and read the catalog.
 - [Quickstart for agents](quickstart/agent.md): start every session from
-  `doctor` and `help --agent`.
+  `task intents --json`.
 - [CLI](cli/index.md): the working surface — JSON envelopes, plans, and
   confirmation.
 - [Web](web/index.md): account, catalog cards, publications, and reports.
@@ -58,8 +58,9 @@ local checks are allowed. Automatic installation is not considered safe.
 The main path looks like this:
 
 ```text
-CLI → passports → project index → search → setup assembly → checks
-→ install plan → backup → apply through the provider → status
+CLI → task intents → task start
+→ follow continuations (execute argv only when actor is cli)
+→ report payload verification
 ```
 
 ??? question "How to read this documentation"
@@ -67,6 +68,7 @@ CLI → passports → project index → search → setup assembly → checks
     [agent](quickstart/agent.md) quickstart and the harnesses page. If you
     are already assembling a setup, go straight to
     [components](components/index.md): each page explains what one kind is
-    for, where its boundary is, and what it risks. Command flags always come
-    from `ai-stp help --agent --json`; this site names commands so a person
-    can find the right page.
+    for, where its boundary is, and what it risks. Everyday flags come from
+    continuation `argv` after `ai-stp task intents --json`; `help --agent`
+    remains the full registry of this install. This site names commands so a
+    person can find the right page.

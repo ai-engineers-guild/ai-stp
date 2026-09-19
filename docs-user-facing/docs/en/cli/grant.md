@@ -160,7 +160,7 @@ grant direct --kind setup --id <id> --major 1 --recipient-kind user_id --recipie
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | no signed-in account | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | no signed-in account | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_USER_DECISION_REQUIRED` | `--confirm` was omitted | pass `--confirm` after reviewing kind, id, and major |
 | `AI_STP_VALIDATION_ERROR` | `--idempotency-key`, `--token-env`, or `--kind` missing | read the descriptor; `--kind` is `component` or `setup` |
 | `AI_STP_PERMISSION_DENIED` | this account does not own that major line | `owner objects`; you cannot grant someone else's object |
@@ -182,12 +182,13 @@ command.
 - [Trust and safety](../trust-and-safety/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups grant commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups grant commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

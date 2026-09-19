@@ -1,40 +1,24 @@
 # Compose
 
-User intents: select a setup, check eligibility, confirm a proposal.
+To add or remove a member of a saved setup, start the `change` intent.
+Do not type `ai-stp setup compose plan`, `ai-stp setup compose apply`, or
+`ai-stp setup update apply`. The engine mints a new setup identity, records
+lineage to the source, and installs the derived pin. The original setup id
+stays restorable.
 
-Resolve from machine help: `ai-stp select eligibility`,
-`ai-stp select eligibility-matrix`, `ai-stp select impact`,
-`ai-stp select propose`, `ai-stp select confirm`, `ai-stp select cancel`,
-`ai-stp select graph`, `ai-stp select reports`, `ai-stp setup compose plan`,
-`ai-stp setup compose apply`, `ai-stp setup recast plan`,
-`ai-stp setup recast apply`, `ai-stp component materialize plan`,
-`ai-stp component materialize apply`, `ai-stp component portability plan`,
-`ai-stp component portability apply`,
-`ai-stp eval plan`, `ai-stp eval run`,
-`ai-stp eval component plan`, `ai-stp eval component run`.
+1. Pass `harness_id`, the source `setup_id`/`setup_version` when known, and
+   `component_id`/`component_version`. Omitted source means the first-party
+   `baseline` for that harness. Omitted action is `add`.
+2. Call `ai-stp task start` with intent `change` and execute continuation
+   `argv` only when `actor` is `cli`. Relay one blocked question through `ai-stp task answer`.
+3. Report the derived setup id, whether a new identity was minted, and native
+   verification. Envelope `ok` alone is not enough.
 
-For a ready published setup use [install](install.md); do not reconstruct it
-component by component. For a custom composition, obtain exact component
-versions and their required bytes, inspect their harness adaptations, then
-propose that member set for the selected project and harness. Inspect the
-proposal's conflicts and reports, confirm that returned proposal, and pass its
-identifier into the installation plan. Confirmation freezes a private setup;
-it does not install it or publish it.
+A custom composition that is not one member delta is still `install` once a
+setup identity exists. Do not type `select propose`, `select confirm`,
+`select bundle`, or compose plan/apply. Do not type `setup recast plan` or
+`setup recast apply`. Recast, materialize, and portability stay in machine
+help; do not choreograph those plan/apply leaves from this playbook.
 
-Read eligibility and reports before proposing. Confirm only the proposal just
-returned, not an older row from a listing. `experimental` or unverified-author
-members may enter under task authority and stay labeled; they do not become
-`authoritative`. Verify with `ai-stp select graph` after confirm.
-
-To recast a complete setup onto another harness, resolve `setup recast plan`
-and `setup recast apply` from machine help. Apply only a complete plan. A
-blocked member is not a setup. MCP files and host-file contributions derive;
-settings, non-MCP contributions, and MCP plugin packages stay blocked.
-
-To materialize one missing target adaptation of a pinned component, resolve
-`component materialize plan` and `component materialize apply`. Choose the target harness set using the installed
-descriptor. Request all missing targets only when the source is already correct
-for each of them; a blocked member makes the aggregate incomplete. A claimed-portable install without a published adaptation is
-`component portability plan` / `apply`, which forks a private overlay and never
-mutates the public version. Compose the overlay into a private setup through
-`select propose`; a public setup composition and publication refuse it.
+Do not reconstruct a published setup component by component; use
+[install](install.md).

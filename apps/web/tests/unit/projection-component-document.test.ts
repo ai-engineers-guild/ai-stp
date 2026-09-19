@@ -93,8 +93,9 @@ describe("component machine document completeness (REQ-3610, REQ-3623)", () => {
     expect(facts.authorVerified).toBe(false);
     expect(facts.componentVerified).toBe(false);
     expect(facts.dependencies).toEqual([{ stableId: DEPENDENCY_ID, version: "1.0" }]);
-    expect(facts.install).toContain(SEED_A3_AGENT_ID);
-    expect(facts.install).toContain("--version 1.0");
+    expect(facts.install).toContain("task start --intent install");
+    expect(facts.inspect).toContain(SEED_A3_AGENT_ID);
+    expect(facts.inspect).toContain("--version 1.0");
     expect(facts.license).toBe("AGPL-3.0-or-later");
     expect(facts.requiresAuthorization).toBe("none");
   });
@@ -113,6 +114,7 @@ describe("component machine document completeness (REQ-3610, REQ-3623)", () => {
     expect(text).toContain("component_verified: No");
     expect(text).toContain(`dependencies: ${DEPENDENCY_ID}@1.0`);
     expect(text).toContain(facts.install);
+    expect(text).toContain(facts.inspect);
     expect(text).toContain("license: AGPL-3.0-or-later");
     expect(text).toContain("requires_credentials: No");
     expect(text).toContain("requires_authorization: none");

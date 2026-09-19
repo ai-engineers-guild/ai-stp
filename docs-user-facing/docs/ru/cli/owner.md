@@ -99,7 +99,7 @@ owner version show --kind component --id <id> --version <X.Y>
 
 | Что вы видите | Что это означает | Что делать |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | нет выполненного входа | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | нет выполненного входа | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_PERMISSION_DENIED` | эта учётная запись не владеет данным объектом | вы получатель гранта или читатель каталога; используйте `registry show` |
 | `AI_STP_NOT_FOUND` | id или версия отсутствуют на сервере | `owner objects`; локальный черновик здесь не отображается |
 | `AI_STP_VALIDATION_ERROR` | отсутствует `--kind` на show или `--version` | `--kind` обязателен для object и version show |
@@ -119,10 +119,12 @@ owner version show --kind component --id <id> --version <X.Y>
 - [Публикация](../publishing/index.md)
 - [Карта команд](commands.md)
 
-## Справка для машины — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
+
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
 
 Эта страница группирует команды владельца для удобства поиска. Установленный CLI является источником флагов, схем и `next_actions`. Если эта страница и CLI расходятся, следуйте CLI.
