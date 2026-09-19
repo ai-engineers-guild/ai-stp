@@ -42,6 +42,22 @@ const labels = {
 };
 
 describe("CorporateAdminPanel job titles", () => {
+  it("keeps the dedicated page scoped to job-title controls", () => {
+    render(
+      <CorporateAdminPanel
+        jobTitlesOnly
+        csrfToken="csrf"
+        organizationId="organization_fixture"
+        authorizationRevision={7}
+        permissions={["member.create", "project.create", "team.create", "job_title.create"]}
+        labels={labels}
+      />,
+    );
+    expect(screen.getByLabelText("Job title")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Display name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Projects" })).not.toBeInTheDocument();
+  });
+
   it("creates and revision-updates a job title through capabilities", async () => {
     mutation.mockResolvedValue({ ok: true, data: {} });
     render(

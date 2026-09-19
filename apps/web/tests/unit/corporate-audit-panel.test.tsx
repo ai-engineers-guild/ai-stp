@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 const { exportAudit } = vi.hoisted(() => ({ exportAudit: vi.fn() }));
 vi.mock("@/actions/corporate", () => ({
@@ -143,4 +143,48 @@ it("creates a quoted CSV without exposing extra audit fields in the UI", () => {
   });
   expect(csv).toContain('"name contains ""quotes"""');
   expect(csv).toContain('"{""name"":""Alice""}"');
+});
+
+it("exports the selected range and keeps the object URL alive through the click", async () => {
+  exportAudit.mockResolvedValue({
+    ok: true,
+    data: {
+      schema_version: 1,
+      organization_id: "organization_fixture",
+      exported_at: "2026-09-13T10:00:00Z",
+      items: [],
+    },
+  });
+  URL.createObjectURL = vi.fn(() => "blob:audit");
+  URL.revokeObjectURL = vi.fn();
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+  render(
+    <CorporateAuditPanel
+      organizationId="organization_fixture"
+      audit={{ schema_version: 1, items: [], next_before_created_at: null, next_before_id: null }}
+      filters={{ action: "member.update" }}
+      labels={{
+        title: "Journal",
+        export: "Export",
+        exporting: "Exporting",
+        exportFormat: "Format",
+        exportRange: "Time range",
+        currentFilters: "Current filters",
+        today: "Today",
+        last7Days: "Last 7 days",
+        last30Days: "Last 30 days",
+        allEvents: "All events",
+        json: "JSON",
+        csv: "CSV",
+        noAudit: "No events",
+        failed: "Export failed",
+      }}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Export" }));
+  await waitFor(() =>
+    expect(exportAudit).toHaveBeenCalledWith("organization_fixture", { action: "member.update" }),
+  );
+  expect(URL.createObjectURL).toHaveBeenCalledOnce();
+  await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:audit"));
 });

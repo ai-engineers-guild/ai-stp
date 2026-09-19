@@ -61,6 +61,22 @@ export default async function CorporateAdministrationPage({ params }: PageProps)
       </header>
 
       <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label={t("administration")}>
+        {context.capabilities.includes("category.list") && (
+          <Link
+            href="/corporate/categories"
+            className="inline-flex min-h-11 items-center underline underline-offset-4"
+          >
+            {technology("categories")}
+          </Link>
+        )}
+        {context.capabilities.includes("job_title.list") && (
+          <Link
+            href="/corporate/organization/admins/job-titles"
+            className="inline-flex min-h-11 items-center underline underline-offset-4"
+          >
+            {t("jobTitles")}
+          </Link>
+        )}
         {(context.capabilities.includes("technology.list") ||
           context.capabilities.includes("technology.create") ||
           context.capabilities.includes("category.create")) && (

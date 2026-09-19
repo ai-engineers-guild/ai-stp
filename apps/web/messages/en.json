@@ -1607,6 +1607,7 @@
     "administration": "Administration",
     "administrationBody": "Create organization members, projects, teams, and job titles when your capabilities allow it.",
     "jobTitles": "Job titles",
+    "jobTitlesDescription": "Create, rename, retire, and restore the job titles used by employee profiles and directory filters.",
     "jobTitleName": "Job title",
     "jobTitleDescription": "Description",
     "jobTitleState": "State",
@@ -1632,6 +1633,9 @@
     "auditJournal": "Audit journal",
     "auditUi": {
       "allEmployees": "All employees",
+      "searchEmployee": "Search employees",
+      "close": "Close",
+      "target": "Target ID",
       "filterEvents": "Filter events",
       "action": "Action",
       "allActions": "All actions",

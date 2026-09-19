@@ -81,8 +81,10 @@ export function CorporateAuditPanel({
         const link = document.createElement("a");
         link.href = url;
         link.download = `${organizationId}-audit.${exportFormat}`;
+        document.body.append(link);
         link.click();
-        URL.revokeObjectURL(url);
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 0);
       } catch {
         setMessage(labels.failed);
       }

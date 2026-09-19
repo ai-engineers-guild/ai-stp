@@ -1607,6 +1607,7 @@
     "administration": "Администрирование",
     "administrationBody": "Создавайте участников, проекты, команды и должности, если это разрешено вашими capabilities.",
     "jobTitles": "Должности",
+    "jobTitlesDescription": "Создавайте, переименовывайте, архивируйте и восстанавливайте должности для профилей сотрудников и фильтров каталога.",
     "jobTitleName": "Название должности",
     "jobTitleDescription": "Описание",
     "jobTitleState": "Состояние",
@@ -1632,6 +1633,9 @@
     "auditJournal": "Журнал аудита",
     "auditUi": {
       "allEmployees": "Все сотрудники",
+      "searchEmployee": "Поиск сотрудников",
+      "close": "Закрыть",
+      "target": "ID объекта",
       "filterEvents": "Показать события",
       "action": "Действие",
       "allActions": "Все действия",
