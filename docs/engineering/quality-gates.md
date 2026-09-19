@@ -255,7 +255,9 @@ Each group uses the same verbs, so commands are derived rather than memorized:
 No `-check` recipe writes anything: generated/source divergence is caught in
 `-static` and fixed by an explicit `-gen` call. Each recipe remains independently
 callable so a failure can be reproduced precisely without running neighboring
-groups.
+groups. The full convention set for the file — settings and attribute policy,
+parameter documentation, and the checklist for adding a recipe — is the working
+copy's own justfile standard; it does not ship in the public tree.
 
 Outside the groups are `setup`, `hooks`, `gen`, `check`, `pre-commit`, and
 `security`. No aliases are added: `ci` and `pre-push` were second names for `check`

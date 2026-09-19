@@ -108,7 +108,11 @@ Recipes outside the three prefixes name a domain directly: `evidence-*`
     dependency of another is marked private so `--list` shows the public
     surface. `just-fmt` is the example.
 11. **Recipes keep `#` doc comments** — they render in `just --list` and are
-    the recipe's documentation. English only (repository rule).
+    the recipe's documentation. English only (repository rule). The list takes
+    the *last* contiguous comment line as the recipe's summary, so a
+    multi-paragraph why-comment ends in a fragment there; give such recipes a
+    `[doc('…')]` one-liner, which overrides the comment for the listing while
+    the prose stays.
 12. **Comments in recipe bodies** (`# …` on an indented line) are allowed
     for why-notes at the point of execution; the shell reads them as
     comments harmlessly.
@@ -118,7 +122,9 @@ Recipes outside the three prefixes name a domain directly: `evidence-*`
     blocks automation is not a control.
 14. **`just --fmt` is the canonical format** and is enforced in the local
     `pre-commit` recipe via `just-fmt`. It cannot live in `check`: CI runs
-    no `just` (rule 15).
+    no `just` (rule 15). `--fmt` also owns attribute ordering — it rewrites
+    attributes into its own order, so hand-arranged attribute sequences are
+    churn the formatter will undo.
 15. **The `check` tree must not invoke `just`.** Every leaf of `check` needs
     a `_LEAF_TOKENS` entry and the command must appear in a workflow —
     `just --anything` can satisfy neither. Local-only checks (this file's
