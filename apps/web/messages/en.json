@@ -1198,7 +1198,6 @@
     "useBody": "Start the install intent. The CLI asks for harness and setup.",
     "inspectTitle": "Inspect this version via CLI",
     "inspectBody": "Command uses the stable object id and version.",
-    "cliUnavailable": "This corporate entity is not installable through the CLI.",
     "copy": "Copy",
     "copied": "Copied",
     "copyError": "Copy failed",
