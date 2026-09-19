@@ -475,9 +475,9 @@ function buildCorporateCatalogFacets(
   const technologies =
     technologyDirectory.status === "fulfilled" ? technologyDirectory.value.items : [];
   const optionList = (items: readonly { id: string; name: string }[]) =>
-    [...new Map(items.map((item) => [item.id, { value: item.id, label: item.name }])).values()].sort(
-      (left, right) => left.label.localeCompare(right.label),
-    );
+    [
+      ...new Map(items.map((item) => [item.id, { value: item.id, label: item.name }])).values(),
+    ].sort((left, right) => left.label.localeCompare(right.label));
   return [
     {
       key: "team_ids",

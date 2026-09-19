@@ -10,8 +10,7 @@ export function HistoryBackButton({ label, fallback }: { label: string; fallback
   const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split("/")[1];
-  const localizedFallback =
-    locale === "en" || locale === "ru" ? `/${locale}${fallback}` : fallback;
+  const localizedFallback = locale === "en" || locale === "ru" ? `/${locale}${fallback}` : fallback;
 
   return (
     <Button

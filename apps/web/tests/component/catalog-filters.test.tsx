@@ -148,18 +148,16 @@ describe("CatalogFilters", () => {
     const user = userEvent.setup();
     render(
       <CatalogFilters
-        query={
-          query({
-            assignment: "effective",
-            corporateVerified: true,
-            teamIds: ["team-a"],
-            projectIds: ["project-a"],
-            technologyIds: ["technology-a"],
-            categoryIds: ["category-a"],
-            ownerIds: ["owner-a"],
-            maintainerIds: ["maintainer-a"],
-          })
-        }
+        query={query({
+          assignment: "effective",
+          corporateVerified: true,
+          teamIds: ["team-a"],
+          projectIds: ["project-a"],
+          technologyIds: ["technology-a"],
+          categoryIds: ["category-a"],
+          ownerIds: ["owner-a"],
+          maintainerIds: ["maintainer-a"],
+        })}
         labels={{ ...labels, corporateFilters: "Corporate filters" }}
         fixedAuthors={["fixed-author"]}
         corporateFacets={[
