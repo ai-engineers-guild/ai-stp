@@ -35848,10 +35848,13 @@
                     "value": {
                       "assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "display_name": "Mobile setup",
+                      "harness": null,
                       "object_kind": "setup",
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
                       "revision": 1,
                       "schema_version": 1,
+                      "selector": "exact",
                       "source_team_id": null,
                       "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
                       "state": "current",
@@ -36129,6 +36132,56 @@
           "200": {
             "content": {
               "application/json": {
+                "examples": {
+                  "readCorporateEffectiveAssignment.corporate": {
+                    "summary": "Effective resolution names the winning scope and the exact resolved coordinate.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "candidates": [
+                        {
+                          "assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "harness": null,
+                          "outcome": "winner",
+                          "resolved_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                          "resolved_version": "2.0",
+                          "revision": 1,
+                          "schema_version": 1,
+                          "scope": "team",
+                          "selector": "latest",
+                          "state": "current",
+                          "subject_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "version": null
+                        },
+                        {
+                          "assignment_id": "operation_02JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "harness": null,
+                          "outcome": "overridden",
+                          "resolved_digest": null,
+                          "resolved_version": null,
+                          "revision": 1,
+                          "schema_version": 1,
+                          "scope": "organization",
+                          "selector": "exact",
+                          "state": "current",
+                          "subject_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "version": "1.0"
+                        }
+                      ],
+                      "harness": null,
+                      "object_kind": "setup",
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "passport_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                      "schema_version": 1,
+                      "selector": "latest",
+                      "source_scope": "team",
+                      "source_subject_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "state": "assigned",
+                      "version": "2.0"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/CorporateEffectiveAssignment"
                 }
