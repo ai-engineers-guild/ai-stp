@@ -3,6 +3,24 @@
 import { z } from "zod";
 import { errorBody } from "@/mocks/fixtures";
 import fixtureData from "@/mocks/corporate-overview-fixture";
+import {
+  FIXTURE_COMPONENT_ID,
+  FIXTURE_SETUP_ID,
+  SEED_A1_AGENT_ID,
+  SEED_A1_HOOK_ID,
+  SEED_A1_INCIDENT_AGENT_ID,
+  SEED_A1_INCIDENT_SETUP_ID,
+  SEED_A1_MCP_ID,
+  SEED_A1_SETUP_ID,
+  SEED_A1_SKILL_CORE_ID,
+  SEED_A1_SKILL_PAIR_ID,
+  SEED_A2_AGENT_ID,
+  SEED_A2_HOOK_ID,
+  SEED_A2_MCP_ID,
+  SEED_A2_SETUP_ID,
+  SEED_A2_SKILL_CORE_ID,
+  SEED_A3_SETUP_ID,
+} from "@/mocks/fixtures/catalog-ids";
 import { entityProfileViewSchema } from "@/lib/corporate-detail";
 import type {
   CorporateOverview,
@@ -786,29 +804,25 @@ function catalogAssignments(
   subjectKind?: string,
   subjectId?: string,
 ): CorporateCatalogAssignment[] {
-  const components = [
-    "Claude Code",
-    "Context7",
-    "Growth API",
-    "Jupyter",
-    "MLflow",
-    "Agent Gateway",
-    "Intercom",
-    "Zendesk",
-    "Cluster",
-    "EKS",
-    "Monitoring Agent",
-    "Platform Settings",
+  const components: ReadonlyArray<readonly [string, string]> = [
+    ["Claude Code", FIXTURE_COMPONENT_ID],
+    ["Context7", SEED_A1_SKILL_CORE_ID],
+    ["Growth API", SEED_A1_SKILL_PAIR_ID],
+    ["Jupyter", SEED_A1_MCP_ID],
+    ["MLflow", SEED_A1_HOOK_ID],
+    ["Agent Gateway", SEED_A1_AGENT_ID],
+    ["Intercom", SEED_A1_INCIDENT_AGENT_ID],
+    ["Zendesk", SEED_A2_MCP_ID],
+    ["Cluster", SEED_A2_HOOK_ID],
+    ["EKS", SEED_A2_AGENT_ID],
+    ["Monitoring Agent", SEED_A2_SKILL_CORE_ID],
   ];
-  const setups = [
-    "staging",
-    "production",
-    "research",
-    "support-staging",
-    "support-production",
-    "dev",
-    "prod",
-    "analytics",
+  const setups: ReadonlyArray<readonly [string, string]> = [
+    ["staging", FIXTURE_SETUP_ID],
+    ["production", SEED_A1_SETUP_ID],
+    ["research", SEED_A1_INCIDENT_SETUP_ID],
+    ["support-staging", SEED_A2_SETUP_ID],
+    ["support-production", SEED_A3_SETUP_ID],
   ];
   const subjects = resourceEntries()
     .flatMap(([, items]) => items)
@@ -833,19 +847,19 @@ function catalogAssignments(
           ? components.slice((subjectIndex * 2) % 8, ((subjectIndex * 2) % 8) + 4)
           : components.slice((subjectIndex * 4) % 8, ((subjectIndex * 4) % 8) + 6);
     return [
-      ...names.map((displayName, index) => ({
+      ...names.map(([displayName, stableId]) => ({
         displayName,
         kind: "component" as const,
-        stableId: `component_fixture_${displayName.toLowerCase().replaceAll(" ", "-")}`,
+        stableId,
         version: "1.0",
       })),
       ...(subject.kind === "employee"
         ? setups.slice(subjectIndex % 4, (subjectIndex % 4) + 1)
         : setups.slice(0, subject.kind === "team" ? 2 : 4)
-      ).map((displayName) => ({
+      ).map(([displayName, stableId]) => ({
         displayName,
         kind: "setup" as const,
-        stableId: `setup_fixture_${displayName}`,
+        stableId,
         version: "1.0",
       })),
     ].map((item, index) => ({
@@ -919,6 +933,17 @@ export function corporateHandlers(
   if (suffix === "context") return ok(context);
   if (suffix === "overview") return ok(overviewResponse());
   if (suffix === "directory") return corporateDirectoryResponse(query);
+  if (suffix === "roles")
+    return ok({
+      schema_version: 1,
+      items: [...new Set(roles)].map((name) => ({
+        schema_version: 1,
+        name,
+        parent_role: null,
+        permissions: [],
+        revision: 1,
+      })),
+    });
   if (suffix === "catalog-assignments")
     return ok({
       schema_version: 1,

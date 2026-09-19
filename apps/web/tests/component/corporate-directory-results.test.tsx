@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("@/lib/i18n/navigation", () => ({ Link: "a", useRouter: () => ({ push }) }));
+vi.mock("@/lib/i18n/navigation", () => ({
+  Link: "a",
+  useRouter: () => ({ push }),
+  usePathname: () => window.location.pathname.replace(/^\/en/, "") || "/",
+}));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 import {
   CorporateDirectoryResults,
@@ -174,7 +178,7 @@ describe("corporate directory filters", () => {
     fireEvent.click(closeButton);
     fireEvent.click(screen.getByRole("button", { name: "applyFilters" }));
     expect(push).toHaveBeenCalledWith(
-      "/en/corporate/components?organization_id=org&sort=name&page=1&team_ids=team_mobile",
+      "/corporate/components?organization_id=org&sort=name&page=1&team_ids=team_mobile",
     );
   });
 

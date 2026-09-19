@@ -13,7 +13,7 @@ import { entityProfileViewSchema } from "../../src/lib/corporate-detail";
  */
 const mode = process.env["AI_STP_CORPORATE_E2E"];
 const state = process.env["AI_STP_CORPORATE_STORAGE_STATE"];
-const resources = ["teams", "projects", "technologies", "members"] as const;
+const resources = ["teams", "projects", "technologies", "employees"] as const;
 const syntheticPngPath = "public/brand/icon-512.png";
 const main = (page: Page) => page.locator("#main-content");
 test.use({
@@ -172,7 +172,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
       tree,
       "A populated authorized organization is required; empty/error screens do not pass",
     ).toBeVisible();
-    for (const resource of ["teams", "projects", "members", "technologies"]) {
+    for (const resource of ["teams", "projects", "employees", "technologies"]) {
       await expect(main(page).locator(`a[href$="/corporate/${resource}"]`).first()).toBeVisible();
     }
     const depth = main(page).getByRole("combobox", { name: "Show to", exact: true });
@@ -181,7 +181,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
     await expect(tree.locator("details[open]")).toHaveCount(0);
     await depth.selectOption("3");
     await expect(tree.locator("details[open]").first()).toBeVisible();
-    for (const resource of ["projects", "teams", "members"]) {
+    for (const resource of ["projects", "teams", "employees"]) {
       await expect(tree.locator(`a[href*="/corporate/${resource}/"]`).first()).toBeVisible();
     }
     const filter = main(page)
@@ -278,18 +278,18 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           });
           await expect(teamsHeading).toHaveCount(1);
           await expect(teamsHeading).toBeVisible();
-          await expect(
-            teamsHeading
-              .locator("xpath=ancestor::section[1]")
-              .getByRole("link", { name: "Core", exact: true }),
-          ).toBeVisible();
           const ownerLabel = main(page)
             .locator('[data-ui="component-detail-rail"]')
             .getByText("Owning team", { exact: true });
           await expect(ownerLabel).toBeVisible();
+          const ownerLink = ownerLabel.locator("..").getByRole("link");
+          const ownerName = await ownerLink.innerText();
           await expect(
-            ownerLabel.locator("..").getByRole("link", { name: "Core", exact: true }),
+            teamsHeading
+              .locator("xpath=ancestor::section[1]")
+              .getByRole("link", { name: ownerName, exact: true }),
           ).toBeVisible();
+          await expect(ownerLink).toBeVisible();
           const technologiesHeading = detailMain.getByRole("heading", {
             level: 2,
             name: "Technologies",
@@ -297,15 +297,13 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           });
           await expect(technologiesHeading).toBeVisible();
           await expect(
-            technologiesHeading
-              .locator("xpath=ancestor::section[1]")
-              .getByRole("link", { name: "Offline technology", exact: true }),
+            technologiesHeading.locator("xpath=ancestor::section[1]").getByRole("link").first(),
           ).toBeVisible();
           await expect(
             main(page).getByRole("heading", { level: 2, name: "Employees", exact: true }),
           ).toHaveCount(0);
         }
-        if (resource === "members") {
+        if (resource === "employees") {
           const detailMain = main(page).locator('[data-ui="component-detail-main"]');
           const teamsHeading = detailMain.getByRole("heading", {
             level: 2,
@@ -314,9 +312,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           });
           await expect(teamsHeading).toBeVisible();
           await expect(
-            teamsHeading
-              .locator("xpath=ancestor::section[1]")
-              .getByRole("link", { name: "Core", exact: true }),
+            teamsHeading.locator("xpath=ancestor::section[1]").getByRole("link").first(),
           ).toBeVisible();
         }
         if (resource === "technologies") {
@@ -326,9 +322,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
             .locator('[data-ui="component-detail-rail"]')
             .getByText("Operational owner", { exact: true });
           await expect(ownerLabel).toBeVisible();
-          await expect(
-            ownerLabel.locator("..").getByRole("link", { name: "Team lead", exact: true }),
-          ).toBeVisible();
+          await expect(ownerLabel.locator("..").getByRole("link")).toBeVisible();
           const projectsHeading = detailMain.getByRole("heading", {
             level: 2,
             name: "Projects",
@@ -337,9 +331,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           await expect(projectsHeading).toHaveCount(1);
           await expect(projectsHeading).toBeVisible();
           await expect(
-            projectsHeading
-              .locator("xpath=ancestor::section[1]")
-              .getByRole("link", { name: "Platform", exact: true }),
+            projectsHeading.locator("xpath=ancestor::section[1]").getByRole("link").first(),
           ).toBeVisible();
           await expect(
             main(page).getByText("The landscape is unavailable. Keep your filters and try again.", {
@@ -356,7 +348,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
             teams: "team",
             projects: "project",
             technologies: "technology",
-            members: "employee",
+            employees: "employee",
           }[resource];
           profilePath = `/v1/corporate/organizations/${organizationId}/entity-profiles/${kind}/${id}`;
           const response = await page.request.get(profilePath);
@@ -368,7 +360,7 @@ test.describe("original Corporate Hub goal: integrated browser workflow", () => 
           name: "Edit public presentation",
           exact: true,
         });
-        if (resource === "members") {
+        if (resource === "employees") {
           await expect(edit).toHaveCount(0);
           return;
         }

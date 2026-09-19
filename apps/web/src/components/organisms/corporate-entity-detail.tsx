@@ -167,9 +167,9 @@ export function CorporateEntityDetail({
                 close: c("cancel"),
                 previous: catalog("previousMedia"),
                 next: catalog("nextMedia"),
-                typeImage: catalog("mediaKindImage"),
-                typeVideo: catalog("mediaKindVideo"),
-                typeYoutube: catalog("mediaKindYoutube"),
+                typeImage: objects("mediaKindImage"),
+                typeVideo: objects("mediaKindVideo"),
+                typeYoutube: objects("mediaKindYoutube"),
               }}
             />
           ) : null

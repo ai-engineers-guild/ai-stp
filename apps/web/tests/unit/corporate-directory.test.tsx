@@ -10,6 +10,7 @@ const { mutation, refresh, push } = vi.hoisted(() => ({
 vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh, push }),
+  usePathname: () => window.location.pathname.replace(/^\/en/, "") || "/",
   Link: ({ children, href, ...props }: { children: ReactNode; href: string }) => (
     <a href={href} {...props}>
       {children}

@@ -18,7 +18,7 @@ import {
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
 } from "./corporate-directory-types";
-import { useRouter } from "@/lib/i18n/navigation";
+import { usePathname, useRouter } from "@/lib/i18n/navigation";
 import { PageNav } from "@/components/organisms/catalog-page-nav";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
@@ -292,6 +292,7 @@ export function CorporateDirectoryResults({
   const [returnFilters, setReturnFilters] = useState(filters);
   const [catalogSelected, setCatalogSelected] = useState(initialCatalogSelected);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     function restore() {
@@ -321,7 +322,7 @@ export function CorporateDirectoryResults({
     });
     if (serverPaginated && name !== "view") {
       url.searchParams.set("page", "1");
-      router.push(`${url.pathname}${url.search}`);
+      router.push(`${pathname}${url.search}`);
     } else {
       window.history.replaceState(window.history.state, "", url);
     }
@@ -358,7 +359,7 @@ export function CorporateDirectoryResults({
     url.searchParams.set("page_size", String(value));
     url.searchParams.set("page", "1");
     setReturnFilters(url.searchParams.toString());
-    if (serverPaginated) router.push(`${url.pathname}${url.search}`);
+    if (serverPaginated) router.push(`${pathname}${url.search}`);
   }
 
   function applyCatalogFacets(values: Partial<Record<CorporateCatalogFacet, string[]>>) {
@@ -370,7 +371,7 @@ export function CorporateDirectoryResults({
     }
     setCatalogSelected(values);
     setReturnFilters(url.searchParams.toString());
-    router.push(`${url.pathname}${url.search ? url.search : ""}`);
+    router.push(`${pathname}${url.search ? url.search : ""}`);
   }
 
   const visible = visibleDirectoryItems(items, query, selected, leadOnly, sort);
