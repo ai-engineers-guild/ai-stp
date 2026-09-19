@@ -111,12 +111,12 @@ def test_download_never_accepts_bytes_that_miss_the_pin(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("system", "machine", "expected"),
     [
-        ("Linux", "x86_64", "just-1.43.0-x86_64-unknown-linux-musl.tar.gz"),
-        ("Linux", "aarch64", "just-1.43.0-aarch64-unknown-linux-musl.tar.gz"),
-        ("Darwin", "arm64", "just-1.43.0-aarch64-apple-darwin.tar.gz"),
-        ("Darwin", "x86_64", "just-1.43.0-x86_64-apple-darwin.tar.gz"),
-        ("Windows", "AMD64", "just-1.43.0-x86_64-pc-windows-msvc.zip"),
-        ("Windows", "ARM64", "just-1.43.0-aarch64-pc-windows-msvc.zip"),
+        ("Linux", "x86_64", "just-1.58.0-x86_64-unknown-linux-musl.tar.gz"),
+        ("Linux", "aarch64", "just-1.58.0-aarch64-unknown-linux-musl.tar.gz"),
+        ("Darwin", "arm64", "just-1.58.0-aarch64-apple-darwin.tar.gz"),
+        ("Darwin", "x86_64", "just-1.58.0-x86_64-apple-darwin.tar.gz"),
+        ("Windows", "AMD64", "just-1.58.0-x86_64-pc-windows-msvc.zip"),
+        ("Windows", "ARM64", "just-1.58.0-aarch64-pc-windows-msvc.zip"),
     ],
 )
 def test_every_supported_platform_resolves_to_a_pinned_asset(

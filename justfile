@@ -1,24 +1,32 @@
-# Единая точка входа для локальных и CI-проверок.
+# Single entry point for local checks. `just` is a maintainer convenience,
+# never a CI dependency: workflows write the recipe bodies out inline, and
+# tests/contract/test_gate_split_covers_the_gate.py proves the two unions
+# match. The conventions this file follows live in standards/just.md.
 #
-# Файл держится на дуальности: `gen` пишет, `check` читает. Всё остальное —
-# те же операции, суженные до одной группы.
+# The file rests on a duality: `gen` writes, `check` reads. Everything else is
+# the same operations narrowed to one group.
 #
-# Группа — это владелец проверки, и префикс обязателен:
-#   docs-*  — документационное основание (specs, ADR, docs/, MkDocs);
+# A group is a check's owner, and the prefix is mandatory:
+#   docs-*  — the documentation basis (specs, ADRs, docs/, MkDocs);
 #   back-*  — Python: packages/, apps/api, apps/platform, apps/cli, tests/;
 #   web-*   — apps/web.
 #
-# У каждой группы один и тот же набор глаголов, поэтому команду можно вывести,
-# а не помнить:
-#   <группа>-gen      переписать машинный текст (формат и порождённые артефакты);
-#   <группа>-static   прочитать исходник, не запуская его;
-#   <группа>-test     прогнать тесты;
-#   <группа>-build    собрать артефакт;
-#   <группа>-regress  прогнать собранный артефакт в реальном движке;
-#   <группа>-check    агрегат группы.
+# Every group carries the same verb set, so a command is derived, not
+# remembered:
+#   <group>-gen      rewrite machine text (format and generated artifacts);
+#   <group>-static   read source without executing it;
+#   <group>-test     run tests;
+#   <group>-build    build the artifact;
+#   <group>-regress  run the built artifact in a real engine;
+#   <group>-check    the group's aggregate.
 #
-# Никакой `-check` ничего не пишет: расхождение порождённого с источником
-# ловится в `-static` и чинится явным вызовом `-gen`.
+# No `-check` writes anything: generated-vs-source drift is caught in
+# `-static` and repaired by an explicit `-gen` call.
+
+# The floor equals the bootstrap pin in docs_scripts/bootstrap_just.py; raise
+# the two together. A parse-time error beats a feature silently mis-read by an
+# older binary.
+set minimum-version := "1.58.0"
 
 scripts := "docs_scripts"
 py := "uv run --locked --group docs python"
@@ -45,114 +53,155 @@ test_dist := env_var_or_default("AI_STP_TEST_DIST", "load")
 # made coverage fall back to ctrace with a warning per worker (ADR-0117).
 export COVERAGE_CORE := env_var_or_default("AI_STP_TEST_COVERAGE_CORE", "sysmon")
 
-# Отсутствие bun обязано валить рецепт, а не пропускать шаг. Версия проверяется
-# точно: bun пишет lockfile в формате своей линии, и `bun install` из другой
-# версии молча переписывает `bun.lock` в то, что гейт прочитать не может.
-# Ошибка тогда всплывает в CI, а не здесь.
+# A missing bun must fail the recipe, not skip the step. The version is
+# checked exactly: bun writes its lockfile in the format of its own line, and
+# `bun install` from another version silently rewrites `bun.lock` into
+# something the gate cannot read. The error then surfaces in CI, not here.
 bunreq := 'test "$(bun --version)" = "$(cat .bun-version)" || { echo "bun $(cat .bun-version) required, found $(bun --version 2>/dev/null || echo none)" >&2; exit 1; }'
 
-# То же для uv, но по другой причине и только на сборщике. uv штампует свою
-# версию в `dist-info/WHEEL`, поэтому кандидат, собранный другой версией,
-# отличается от выпускаемого — при полностью совпадающих модулях. Один раз это
-# уже стоило разбирательства: десять несовпавших digest'ов оказались одной
-# строкой `Generator:`, и версия читалась как подмена байтов.
+# The same for uv, but for a different reason and only on the builder. uv
+# stamps its own version into `dist-info/WHEEL`, so a candidate built by a
+# different version differs from the released one — with fully identical
+# modules. Once this already cost an investigation: ten mismatched digests
+# turned out to be a single `Generator:` line, and the version read as byte
+# substitution.
 uvreq := 'have=$(uv --version 2>/dev/null | cut -d" " -f2); want=$(cat .uv-version); test "$have" = "$want" || { echo "uv $want required, found ${have:-none}; get it with: bash .github/scripts/install-uv.sh $want <dir> && export PATH=<dir>:\$PATH" >&2; exit 1; }'
 
 export PYTHONUTF8 := "1"
 
+[doc('List available recipes')]
+[group('gate')]
 default:
     @just --list --unsorted
 
-# Здесь же ловится рассинхрон lock-файлов: все три ставятся строго по ним.
+# Lockfile drift is caught here as well: all three install strictly by theirs.
 
-# Готовит окружение целиком: Python, Node-инструменты документации и веб.
-# Готовит окружение целиком. Осталась агрегатом, потому что локально нужен
-# именно он: один вызов перед `just check`, который готовит всё.
+# Prepares the whole environment. Kept as an aggregate because that is exactly
+# what is needed locally: one call before `just check` that prepares all.
 #
-# Разделён на три части не ради вкуса. В CI гейт исполняется несколькими job, и
-# job, которому нужен только Python, ставил Node, bun и зависимости веба —
-# измеренно 1 м 35 с на `setup-node` и 1 м 55 с на кэш bun, каждый раз впустую
-# (`ADR-0105`).
+# Split into three parts not for taste. In CI the gate executes as several
+# jobs, and a job needing only Python used to install Node, bun and the web
+# dependencies — a measured 1 m 35 s on `setup-node` and 1 m 55 s on the bun
+# cache, wasted every time (`ADR-0105`).
+[doc('Prepare the whole environment: Python, documentation and web tools')]
+[group('gate')]
 setup: setup-python setup-docs setup-web
 
-# Python-окружение: всё, что исполняет `uv run`.
+# The Python environment: everything `uv run` executes.
+[group('gate')]
 setup-python:
     uv sync --locked --group docs --group dev
 
-# Node-инструменты документации: markdownlint и движок Mermaid.
+# The documentation Node tools: markdownlint and the Mermaid engine.
+[group('gate')]
 setup-docs:
-    {{bunreq}}
+    {{ bunreq }}
     cd docs_scripts && bun install --frozen-lockfile
 
-# Зависимости веба.
+# The web dependencies.
+[group('gate')]
 setup-web:
-    {{bunreq}}
+    {{ bunreq }}
     cd apps/web && bun install --frozen-lockfile
 
+[doc('Install the git hooks')]
+[group('gate')]
 hooks:
-    python {{scripts}}/install_hooks.py
+    python {{ scripts }}/install_hooks.py
 
-# Всё, что пишет. Итоговый diff смотрится руками.
+# Everything that writes. The resulting diff is reviewed by hand.
+[group('gate')]
 gen: docs-gen back-gen web-gen
 
-# Всё, что читает.
+# Everything that reads.
+[group('gate')]
 check: docs-check back-check web-check security
 
 # Fast gate for the local commit hook: source-level documentation checks, their
 # validator unit tests, and static Python analysis. Full documentation builds,
 # backend tests, wheel/install regression, web suites, and security scans are
 # CI-only and run from the pull-request or main-push workflow.
-pre-commit: docs-static docs-test back-static
+[doc('Fast local gate: docs-static, docs-test, back-static, just-fmt')]
+[group('gate')]
+pre-commit: docs-static docs-test back-static just-fmt
 
-# Общий для репозитория, а не групповой: сканер пока один. Python-сканер
-# добавляется сюда же, когда будет выбран, а не пустым рецептом заранее.
+# Local-only leaf: CI runs no `just`, so this file's own format check can only
+# live outside the `check` tree.
+[private]
+just-fmt:
+    just --fmt --check
 
-# Условия редистрибуции, записанные внутри каждого отслеживаемого шрифта.
-# Намеренно вне `just check`: остаётся ли restricted-шрифт в репозитории — это
-# лицензионное решение владельца со своей ценой, и падающий сегодня гейт принял
-# бы его за него. `--strict` возвращает ненулевой код и предназначен release-гейту
-# после того, как решение принято. fonttools подаётся через `--with` и в lockfile
-# проекта не попадает: разовый аудит не должен весить на каждой установке.
+# Repository-wide rather than group-owned: there is one scanner so far. A
+# Python scanner joins here when one is chosen, not as an empty recipe early.
+
+# The redistribution terms recorded inside each tracked font. Deliberately
+# outside `just check`: whether a restricted font stays in the repository is a
+# licensing decision of the owner with its own price, and a gate red today
+# would have taken it for them. `--strict` returns nonzero and is meant for
+# the release gate once the decision is made. fonttools comes through `--with`
+# and never enters the project lockfile: a one-off audit must not weigh on
+# every install.
+[arg('args', help='extra font_licence_audit.py arguments')]
+[doc('Audit the redistribution terms recorded inside each tracked font')]
+[group('misc')]
 fonts-licence *args:
     uv run --no-project --with fonttools --with brotli \
-        python {{scripts}}/font_licence_audit.py {{args}}
+        python {{ scripts }}/font_licence_audit.py {{ args }}
 
-# Скан зависимостей на известные уязвимости.
+# Dependency scan for known vulnerabilities.
+[group('misc')]
 security:
-    {{bunreq}}
+    {{ bunreq }}
     cd apps/web && bun run audit
 
 # Offline check of an estate record (`docs/contracts/estate-release.md`).
+[arg('path', help='estate record file to validate')]
+[arg('args', help='extra validator arguments')]
+[group('release')]
 estate-validate path *args:
-    {{run}} python -m release_scripts.validate_estate_record "{{path}}" {{args}}
+    {{ run }} python -m release_scripts.validate_estate_record "{{ path }}" {{ args }}
 
 # Build one estate record from local identities. Does not fetch.
+[arg('tag', help='release tag')]
+[arg('commit', help='source commit')]
+[arg('output', help='record output path')]
+[arg('version', help='release version')]
+[arg('checksums', help='checksums file')]
+[group('release')]
 estate-record version commit tag checksums output:
-    {{run}} python -m release_scripts.build_estate_record \
-        --version "{{version}}" \
-        --commit "{{commit}}" \
-        --tag "{{tag}}" \
-        --checksums "{{checksums}}" \
-        --output "{{output}}"
+    {{ run }} python -m release_scripts.build_estate_record \
+        --version "{{ version }}" \
+        --commit "{{ commit }}" \
+        --tag "{{ tag }}" \
+        --checksums "{{ checksums }}" \
+        --output "{{ output }}"
 
 # Deterministic safety evidence; the script disables external CLI and network.
+[arg('args', help='extra benchmark arguments')]
+[group('safety')]
 safety-benchmark *args:
-    {{run}} python scripts/safety/benchmark_offline.py {{args}}
+    {{ run }} python scripts/safety/benchmark_offline.py {{ args }}
 
 # 108 real filesystem fixtures, sequential platform backend scan, JSON evidence.
+[arg('args', help='extra corpus runner arguments')]
+[group('safety')]
 safety-corpus *args:
-    {{run}} python scripts/safety/run_adversarial_corpus.py {{args}}
+    {{ run }} python scripts/safety/run_adversarial_corpus.py {{ args }}
 
 # Builds, but does not publish, the public ai-stp-cli candidate. The working
 # tree must be clean; a dirty tree is only for local characterization with
 # explicit `--allow-dirty` and is never release evidence.
+[doc('Build the public ai-stp-cli candidate without publishing')]
+[group('release')]
 release-candidate:
-    {{uvreq}}
+    {{ uvreq }}
     uv run --locked python release_scripts/build_candidate.py --replace
 
 # Installs the current candidate's ai-stp-cli wheel outside checkout, runs
 # the CLI, and removes the tool. The public index is used only for third-party
 # dependencies.
+[doc('Install the candidate wheel outside checkout, run it, remove it')]
+[group('release')]
 release-candidate-install:
     uv run --locked python -m release_scripts.verify_candidate_install \
         dist/release-candidate \
@@ -164,9 +213,13 @@ release-candidate-install:
 # itself without credentials, and a script that cannot hold one cannot leak one.
 # Not part of `just check` — the repository gate may not depend on an external
 # environment, or that environment being unreachable reads as a red build here.
+[arg('origin', help='deployment origin')]
+[arg('commit', help='expected deployed commit')]
+[doc('Verify the anonymous slice against the deployed environment')]
+[group('evidence')]
 evidence-live origin="https://ai-stp.aiguild.space" commit="":
     uv run --locked python -m release_scripts.verify_live_slice \
-        --origin "{{origin}}" \
+        --origin "{{ origin }}" \
         {{ if commit == "" { "" } else { "--expected-commit " + commit } }}
 
 # Verifies the two-device synchronisation slice (#180) against the deployed
@@ -182,266 +235,360 @@ evidence-live origin="https://ai-stp.aiguild.space" commit="":
 # `skip` is a space-separated list of exact event ids that no client can apply to
 # this account's history. The operator names them: a slice that guessed what to
 # skip would go green on the strength of what it never read.
+[arg('skip', help='event ids no client may apply')]
+[arg('home_a', help='first signed-in home')]
+[arg('home_b', help='second signed-in home')]
+[arg('origin', help='deployment origin')]
+[doc('Verify the two-device synchronisation slice on the deployment')]
+[group('evidence')]
 evidence-sync home_a home_b origin="https://ai-stp.aiguild.space" skip="":
     uv run --locked python -m release_scripts.verify_sync_slice \
-        --origin "{{origin}}" \
-        --home-a "{{home_a}}" \
-        --home-b "{{home_b}}" \
+        --origin "{{ origin }}" \
+        --home-a "{{ home_a }}" \
+        --home-b "{{ home_b }}" \
         {{ if skip == "" { "" } else { prepend("--skip-event ", skip) } }}
 
-# Доказывает, что таблица проекций этого репозитория всё ещё согласна с семью
-# провайдерами **как выпущенными** — на байтах, которые отдаёт `provider fetch`.
+# Proves this repository's projection table still agrees with the seven
+# providers **as released** — on the bytes `provider fetch` serves.
 #
-# Не входит в `just check` по той же причине, что и остальные срезы: гейт не
-# вправе зависеть от чужих тегов, иначе недоступность релиза читается как
-# красный код здесь.
+# Not in `just check` for the same reason as the other slices: the gate may
+# not depend on somebody else's tags, or a release being unreachable reads as
+# red code here.
 #
-# Существует потому, что 2026-08-27 обе наши таблицы назвали поверхность cursor,
-# которую продукт не читает, а сравнивающая их проверка прошла — они были
-# неверны одинаково. Решила только декларация провайдера, и ни одна проверка не
-# сверялась с **релизом**: аналог в наборе тестов читает локальное дерево
-# сборки, то есть то, что человек последним скомпилировал.
+# It exists because on 2026-08-27 both of our tables named a cursor surface
+# the product does not read, and the check comparing them passed — they were
+# wrong identically. Only the provider's declaration settled it, and no check
+# compared against the **release**: the test-suite analog reads the local
+# build tree, that is, whatever a person last compiled.
 #
-# Требует `GH_CONFIG_DIR`: срез изолирует `HOME`, а `provider fetch` вызывает
-# `gh`, который в изоляции не находит конфигурацию и сообщает об отсутствии
-# метаданных релиза — не о причине.
+# Requires `GH_CONFIG_DIR`: the slice isolates `HOME`, and `provider fetch`
+# calls `gh`, which in isolation finds no configuration and reports missing
+# release metadata — not the cause.
+[arg('tag', help='provider release tag')]
+[arg('harness', help='limit to one harness')]
+[doc('Prove projections agree with the released provider bytes')]
+[group('evidence')]
 evidence-providers tag harness="":
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_provider_slice \
-        --tag "{{tag}}" \
+        --tag "{{ tag }}" \
         {{ if harness == "" { "" } else { prepend("--harness ", harness) } }}
 
 # Drives every non-global provider profile through a mutating disposable-target
 # lifecycle with a consumer-produced adaptation-bound bundle v2. This is local
 # source evidence before release; `evidence-providers` remains the released-byte
 # proof after attestation and publication.
+[arg('setup_systems_root', help='checkout of the private setup-systems source')]
+[doc('Drive every provider profile through a mutating lifecycle')]
+[group('evidence')]
 evidence-provider-scopes setup_systems_root:
     uv run --locked python -m release_scripts.verify_scoped_provider_slice \
-        --setup-systems-root "{{setup_systems_root}}"
+        --setup-systems-root "{{ setup_systems_root }}"
 
-# Вторая половина того же вопроса: `evidence-providers` доказывает контракт и
-# байты, а этот срез ведёт каждый выпущенный провайдер через **потребительский**
-# путь — `harness install/status/update/remove` вызовами самого `ai-stp`.
+# The second half of the same question: `evidence-providers` proves the
+# contract and the bytes, while this slice drives each released provider
+# through the **consumer** path — `harness install/status/update/remove`
+# calls of `ai-stp` itself.
 #
-# Это разные вопросы, и они падают по разным причинам. Все дефекты интеграции
-# этого хозяйства жили ровно между потребителем и провайдером: argv, которого
-# провайдер не ждал; статус, прочитанный иначе; запись, не пережившая песочницу;
-# постусловие, снятое не с того субъекта. Ни один из них не виден срезу,
-# который спрашивает провайдера напрямую.
+# These are different questions and they fail for different reasons. Every
+# integration defect in this estate lived exactly between consumer and
+# provider: argv the provider did not expect; a status read differently; a
+# record that did not survive the sandbox; a postcondition taken from the
+# wrong subject. None of them is visible to a slice that asks the provider
+# directly.
 #
-# Строка на харнесс, исход из пяти, и отсутствующая строка — ошибка, а не ноль
-# отказов. `GH_CONFIG_DIR` нужен по той же причине, что и соседу.
+# One line per harness, an outcome out of five, and a missing line is an
+# error, not zero refusals. `GH_CONFIG_DIR` is needed for the same reason as
+# its neighbour.
+[arg('tag', help='provider release tag')]
+[arg('harness', help='limit to one harness')]
+[arg('acquire', help='non-empty to auto-acquire artifacts')]
+[doc('Drive released providers through the consumer install path')]
+[group('evidence')]
 evidence-software tag harness="" acquire="":
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_software_slice \
-        --tag "{{tag}}" \
+        --tag "{{ tag }}" \
         {{ if harness == "" { "" } else { prepend("--harness ", harness) } }} \
         {{ if acquire == "" { "" } else { "--acquire" } }}
 
-# Третий вопрос той же пары, и единственный про **конфигурацию**.
-# `evidence-providers` спрашивает контракт, `evidence-software` — программу,
-# а этот ведёт нативную поверхность каждого харнесса через полную дугу:
-# посев → adopt → release → propose → confirm → plan → approve → apply →
-# наблюдение цели → план удаления → apply → цель снова чиста.
+# The third question of the same pair, and the only one about
+# **configuration**. `evidence-providers` asks the contract,
+# `evidence-software` the program, and this drives each harness's native
+# surface through the full arc: seed → adopt → release → propose → confirm →
+# plan → approve → apply → target observation → removal plan → apply → the
+# target is clean again.
 #
-# Существует потому, что до него сквозное свойство вижена — «захватить
-# конфигурацию машины и поставить её на следующей» — измерялось руками и
-# только на linux/x86_64. Вердикт снимается с цели, а не с ответа провайдера.
+# It exists because before it the end-to-end property — "capture a machine's
+# configuration and put it on the next one" — was measured by hand and only
+# on linux/x86_64. The verdict is taken from the target, not from the
+# provider's answer.
 #
-# В `just check` не входит по той же причине, что и соседи: гейт не вправе
-# зависеть от чужого релиза. `GH_CONFIG_DIR` нужен `provider fetch`.
+# Not in `just check` for the same reason as the neighbours: the gate may not
+# depend on somebody else's release. `GH_CONFIG_DIR` is needed by
+# `provider fetch`.
+[arg('tag', help='provider release tag')]
+[arg('scope', help='limit to one scope')]
+[arg('harness', help='limit to one harness')]
+[arg('from_import', help='non-empty to seed from an import')]
+[doc('Drive each harness through the full configuration arc')]
+[group('evidence')]
 evidence-config tag harness="" from_import="" scope="":
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_config_slice \
-        --tag "{{tag}}" \
+        --tag "{{ tag }}" \
         {{ if harness == "" { "" } else { prepend("--harness ", harness) } }} \
         {{ if from_import == "" { "" } else { "--from-import" } }} \
         {{ if scope == "" { "" } else { "--scope " + scope } }}
 
-# Приёмка `#54`: один MCP-компонент в трёх нативных формах — ключ в чужом
-# файле настроек, собственный файл, и продукт, у которого такого вида нет.
+# Acceptance of `#54`: one MCP component in three native forms — a key in
+# somebody else's settings file, its own file, and a product that has no such
+# kind at all.
 #
-# Скрипт существовал с 2026-08-31 и не вызывался ниоткуда: ни рецепта, ни шага
-# workflow, ни строки в документе. Первый настоящий запуск нашёл в нём три
-# дефекта — усыновление из произвольного каталога, версия, которой adopt не
-# возвращает, и контроль claude-code, зеленевший на чужом отказе.
+# The script existed since 2026-08-31 and was called from nowhere: no recipe,
+# no workflow step, no line in a document. The first real run found three
+# defects in it — adoption from an arbitrary directory, a version adopt does
+# not return, and a claude-code control going green on somebody else's
+# refusal.
+[arg('tag', help='provider release tag')]
+[doc('Acceptance of #54: one MCP component in three native forms')]
+[group('evidence')]
 evidence-contribution tag:
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-${APPDATA:+$APPDATA/GitHub CLI}}"; \
     GH_CONFIG_DIR="${GH_CONFIG_DIR:-$HOME/.config/gh}" \
     uv run --locked python -m release_scripts.verify_contribution_slice \
-        --tag "{{tag}}"
+        --tag "{{ tag }}"
 
-# Спрашивает у источника, разошёлся ли корпус первого лица с тем, что
-# опубликовано. Сорок объектов корпуса привязаны к `passport_digest` и
-# неизменяемы по `REQ-2606` — то есть защищены от того, чтобы их **изменили**,
-# и ничем от того, чтобы они были **неверны**. Локально их не перевывести:
-# содержимое живёт в семи чужих репозиториях.
+# Asks the source whether the first-party corpus drifted from what is
+# published. The corpus's forty objects are bound to `passport_digest` and
+# immutable under `REQ-2606` — that is, protected from being **changed**, and
+# by nothing from having been **wrong**. They cannot be re-derived locally:
+# their content lives in seven outside repositories.
 #
-# Разница между двумя защитами не теоретическая: 2026-08-29 корпус нёс семь
-# сетапов из двадцати восьми опубликованных, под именем роли, которого нет ни в
-# одном источнике, — и все digest'ы сходились всё это время (`#461`).
+# The difference between the two protections is not theoretical: on 2026-08-29
+# the corpus carried seven setups out of twenty-eight published, under a role
+# name no source carries — and every digest agreed the whole time (`#461`).
 #
-# Рецепт заведён потому, что до него это умел только тот, кто наберёт путь к
-# скрипту. Он сообщает и никогда не отказывает, и в `just check` не входит:
-# гейт репозитория не вправе зависеть от чужой сети.
+# The recipe exists because before it only somebody who could type the script
+# path could do this. It reports and never refuses, and is not in
+# `just check`: the repository gate may not depend on somebody else's
+# network.
+[arg('args', help='extra corpus builder arguments')]
+[doc('Report first-party corpus drift against published sources')]
+[group('evidence')]
 corpus-drift *args:
     uv run --locked python release_scripts/build_first_party_corpus.py --drift \
-        --out packages/contracts/src/ai_stp_contracts/first_party/v1 {{args}}
+        --out packages/contracts/src/ai_stp_contracts/first_party/v1 {{ args }}
 
-# Фетчит каждую ссылку, на которой стоит строка каталога харнессов, и называет
-# мёртвые. Ничто в репозитории ссылку не открывает, поэтому протухшую находит
-# человек и больше никто: 2026-08-28 таких оказалось четыре, две из них
-# написаны в тот же день по образцу соседей, а не с открытой страницы.
+# Fetches every link a harness-catalog row stands on and names the dead ones.
+# Nothing in the repository opens a link, so a stale one is found by a person
+# and nobody else: on 2026-08-28 there were four, two of them written the same
+# day after a neighbour's pattern rather than off an open page.
 #
-# Не в гейте по той же причине, что и остальные срезы: `just check` не вправе
-# зависеть от того, что сайт вендора отвечает. 403, 405 и 429 считаются
-# недоказанными, а не мёртвыми — часть хостов отказывает скрипту на HEAD.
+# Not in the gate for the same reason as the other slices: `just check` may
+# not depend on a vendor's site answering. 403, 405 and 429 count as
+# unproven, not dead — some hosts refuse the script on HEAD.
+[doc('Name dead links under harness-catalog rows')]
+[group('evidence')]
 evidence-citations:
     uv run --locked python -m release_scripts.verify_citation_slice
 
 # Verifies publication, grants, reports and owner reads against the deployed
 # environment (#182). Read-only by default: publishing an immutable version and
 # changing somebody else's access both need an explicit decision by the operator.
+[arg('home', help='signed-in home')]
+[arg('origin', help='deployment origin')]
+[arg('writes', help='non-empty to allow writes')]
+[arg('invite', help='email to invite')]
+[doc('Verify publication, grants and owner reads on the deployment')]
+[group('evidence')]
 evidence-publication home origin="https://ai-stp.aiguild.space" writes="" invite="":
     uv run --locked python -m release_scripts.verify_publication_slice \
-        --origin "{{origin}}" \
-        --home "{{home}}" \
+        --origin "{{ origin }}" \
+        --home "{{ home }}" \
         {{ if writes == "" { "" } else { "--allow-writes" } }} \
         {{ if invite == "" { "" } else { prepend("--invite-email ", invite) } }}
 
 # --- docs ---------------------------------------------------------------
 
-# Перегенерирует оглавления и таблицы документации.
+# Regenerates the documentation tables of contents and indexes.
+[group('docs')]
 docs-gen:
-    {{py}} {{scripts}}/docs_lint.py --fix
+    {{ py }} {{ scripts }}/docs_lint.py --fix
 
-# Frontmatter, ссылки, anchors, placeholders, паритет index.md, структура и
-# трассируемость active specs, семантические регрессии, Markdown и YAML.
+# Frontmatter, links, anchors, placeholders, index.md parity, structure and
+# traceability of active specs, semantic regressions, Markdown and YAML.
 
-# Статические проверки документации одним прогоном.
+# Static documentation checks in one pass.
+[group('docs')]
 docs-static:
-    {{py}} {{scripts}}/docs_lint.py
-    {{py}} {{scripts}}/spec_lint.py
-    {{py}} {{scripts}}/contract_lint.py
-    {{py}} {{scripts}}/run_markdownlint.py
-    {{py}} -m yamllint -c {{scripts}}/.yamllint.yml .
+    {{ py }} {{ scripts }}/docs_lint.py
+    {{ py }} {{ scripts }}/spec_lint.py
+    {{ py }} {{ scripts }}/contract_lint.py
+    {{ py }} {{ scripts }}/run_markdownlint.py
+    {{ py }} -m yamllint -c {{ scripts }}/.yamllint.yml .
 
-# Unit-тесты самих документационных валидаторов.
+# Unit tests of the documentation validators themselves.
+[group('docs')]
 docs-test:
-    {{py}} -m unittest discover -s {{scripts}}/tests -v
+    {{ py }} -m unittest discover -s {{ scripts }}/tests -v
 
+[doc('Strict builds of all three MkDocs sites')]
+[group('docs')]
 docs-build:
-    {{py}} -m mkdocs build --strict -f {{scripts}}/mkdocs.yml
-    {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.yml
-    {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.en.yml
+    {{ py }} -m mkdocs build --strict -f {{ scripts }}/mkdocs.yml
+    {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.yml
+    {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.en.yml
 
-# Реальный render диаграмм в движке Mermaid, а не разбор их текста.
+# Real render of diagrams in the Mermaid engine, not parsing of their text.
+[group('docs')]
 docs-regress:
-    {{py}} {{scripts}}/mermaid_check.py
+    {{ py }} {{ scripts }}/mermaid_check.py
 
+[doc('Serve the engineering docs locally')]
+[group('docs')]
 docs-serve:
-    {{py}} -m mkdocs serve -f {{scripts}}/mkdocs.yml
+    {{ py }} -m mkdocs serve -f {{ scripts }}/mkdocs.yml
 
-# Обе языковые линии. Английская собирается в `/en/` внутри того же site_dir,
-# поэтому порядок важен: русская чистит каталог, английская кладётся внутрь.
+# Both language lines. English builds into `/en/` inside the same site_dir,
+# so order matters: Russian cleans the directory, English lands inside it.
+[doc('Build both user-docs language lines')]
+[group('docs')]
 user-docs-build:
-    {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.yml
-    {{py}} -m mkdocs build --strict -f {{scripts}}/user-mkdocs.en.yml
+    {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.yml
+    {{ py }} -m mkdocs build --strict -f {{ scripts }}/user-mkdocs.en.yml
 
+[doc('Serve the user docs locally')]
+[group('docs')]
 user-docs-serve:
-    {{py}} {{scripts}}/user_docs_dev.py --host 127.0.0.1 --port 8011
+    {{ py }} {{ scripts }}/user_docs_dev.py --host 127.0.0.1 --port 8011
 
+[doc('Serve the English user docs locally')]
+[group('docs')]
 user-docs-serve-en:
-    {{py}} -m mkdocs serve -f {{scripts}}/user-mkdocs.en.yml
+    {{ py }} -m mkdocs serve -f {{ scripts }}/user-mkdocs.en.yml
 
+[doc('The documentation aggregate')]
+[group('docs')]
 docs-check: docs-static docs-test docs-build docs-regress
 
 # --- back ---------------------------------------------------------------
 
-# Формат исходников и оба порождаемых артефакта: schemas/v1 и проекции Skill.
+# Source format and both generated artifacts: schemas/v1 and Skill
+# projections.
+[doc('Rewrite source format and generated artifacts')]
+[group('back')]
 back-gen:
-    {{run}} ruff format .
-    {{run}} python -m ai_stp_contracts.schemas schemas/v1
-    {{run}} python -m ai_stp_contracts.web_projections
-    {{run}} python release_scripts/provider_kit.py provider-kit/v3
-    {{run}} python release_scripts/verifier_requirements.py
-    {{py}} {{scripts}}/skill_projections.py
+    {{ run }} ruff format .
+    {{ run }} python -m ai_stp_contracts.schemas schemas/v1
+    {{ run }} python -m ai_stp_contracts.web_projections
+    {{ run }} python release_scripts/provider_kit.py provider-kit/v3
+    {{ run }} python release_scripts/verifier_requirements.py
+    {{ py }} {{ scripts }}/skill_projections.py
 
-# Формат, линт, типы и расхождение порождённого с источником одним прогоном.
-# Что попадёт в публичный репозиторий `ai-stp`, и что попасть в него не может.
-# Отчёт ничего не пишет и отказывает, если появился неназванный корень или
-# приватная инфраструктура в публикуемом файле.
+# Format, lint, types and generated-vs-source drift in one pass.
+# What may enter the public `ai-stp` repository, and what may never.
+# The report writes nothing and refuses if an unnamed root or private
+# infrastructure appears in a published file.
+[doc('Report what may and may never enter the public tree')]
+[group('release')]
 public-report:
-    {{run}} python -m release_scripts.public_export --report
+    {{ run }} python -m release_scripts.public_export --report
 
-# Собирает публичное дерево в `public/build`: манифест, оверлей, свой git и
-# пересобранные индексы.
+# Builds the public tree into `public/build`: manifest, overlay, its own git
+# and rebuilt indexes.
+[doc('Build the public tree into public/build')]
+[group('release')]
 public-build:
-    {{run}} python -m release_scripts.public_export
+    {{ run }} python -m release_scripts.public_export
 
-# Публикует собранное дерево в `ai-stp` одним коммитом от identity из global
-# git config. Дельта считается через API, поэтому скачивать ничего не нужно.
+# Publishes the built tree to `ai-stp` in one commit from the identity of the
+# global git config. The delta is computed through the API, so nothing needs
+# downloading.
+[arg('tree', help='built public tree')]
+[arg('message', help='file containing the commit message')]
+[doc('Publish the built tree to ai-stp in one commit')]
+[group('release')]
 public-publish tree message:
-    {{run}} python -m release_scripts.public_publish --tree "{{tree}}" --message-file "{{message}}"
+    {{ run }} python -m release_scripts.public_publish --tree "{{ tree }}" --message-file "{{ message }}"
 
-# Забирает публичное дерево обратно сюда (`ADR-0110`). Аргумент — checkout
-# `ai-stp`. Генераторы вызываются следом, потому что индексы публичного дерева
-# перечисляют только его документы, а здесь их больше.
+# Pulls the public tree back here (`ADR-0110`). The argument is a checkout of
+# `ai-stp`. Generators are called next, because the public tree's indexes
+# enumerate only its own documents and this tree has more.
+[arg('tree', help='checkout of the public ai-stp repository')]
+[doc('Pull the public tree back here (ADR-0110)')]
+[group('release')]
 public-sync tree:
-    {{run}} python -m release_scripts.public_import --tree "{{tree}}"
+    {{ run }} python -m release_scripts.public_import --tree "{{ tree }}"
     just docs-gen
     just back-gen
 
-# Показывает, что изменил бы синк, ничего не записывая.
+# Shows what a sync would change, writing nothing.
+[arg('tree', help='checkout of the public ai-stp repository')]
+[group('release')]
 public-sync-report tree:
-    {{run}} python -m release_scripts.public_import --tree "{{tree}}" --report
+    {{ run }} python -m release_scripts.public_import --tree "{{ tree }}" --report
 
-# Проверяет, что опубликованная половина этого дерева совпадает с публичным
-# репозиторием байт в байт. Это круговая проверка синка и экспорта сразу.
+# Verifies the published half of this tree matches the public repository byte
+# for byte. This is a round-trip check of sync and export at once.
+[arg('tree', help='checkout of the public ai-stp repository')]
+[doc('Verify the published half matches the public repository')]
+[group('release')]
 public-sync-verify tree:
-    {{run}} python -m release_scripts.public_import --tree "{{tree}}" --verify
+    {{ run }} python -m release_scripts.public_import --tree "{{ tree }}" --verify
 
+[doc('Format, lint, types and generated drift in one pass')]
+[group('back')]
 back-static:
-    {{run}} ruff format --check .
-    {{run}} ruff check .
-    {{run}} python -m pyright
-    {{run}} python -m release_scripts.public_export --report
-    {{run}} python -m ai_stp_contracts.schemas --check schemas/v1
-    {{run}} python -m ai_stp_contracts.web_projections --check
-    {{run}} python release_scripts/provider_kit.py --check provider-kit/v3
-    {{run}} python release_scripts/verifier_requirements.py --check
-    {{py}} {{scripts}}/skill_projections.py --check
+    {{ run }} ruff format --check .
+    {{ run }} ruff check .
+    {{ run }} python -m pyright
+    {{ run }} python -m release_scripts.public_export --report
+    {{ run }} python -m ai_stp_contracts.schemas --check schemas/v1
+    {{ run }} python -m ai_stp_contracts.web_projections --check
+    {{ run }} python release_scripts/provider_kit.py --check provider-kit/v3
+    {{ run }} python release_scripts/verifier_requirements.py --check
+    {{ py }} {{ scripts }}/skill_projections.py --check
 
 # Coverage is printed, not a fail-under (ADR-0147). The second call reads
 # the data pytest-cov wrote so the local log matches CI's combined report.
+[doc('Full test suite with coverage report')]
+[group('back')]
 back-test:
-    {{run}} python -m pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}}
-    {{run}} python -m coverage report --precision=2
+    {{ run }} python -m pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{ test_dist }}
+    {{ run }} python -m coverage report --precision=2
 
-# Итерационный прогон без покрытия. Сбор покрытия стоит около трети времени
-# гейта (ADR-0104: 325 с с ним против 252 с без), и в петле правка-запуск он не
-# отвечает ни на один вопрос, который не ответил бы падающий тест. Гейтом не
-# является: порог здесь не проверяется и проверяться не должен.
+# Iteration run without coverage. Collecting coverage costs about a third of
+# gate time (ADR-0104: 325 s with it versus 252 s without), and in the
+# edit-run loop it answers no question a failing test would not. It is not
+# the gate: no threshold is checked here or should be.
+[arg('args', help='extra pytest arguments')]
+[doc('Iteration run without coverage')]
+[group('back')]
 back-test-fast *args:
-    {{run}} python -m pytest --no-cov {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} {{args}}
+    {{ run }} python -m pytest --no-cov {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{ test_dist }} {{ args }}
 
-# Полный однопроцессный прогон с записью длительностей каждого теста в
-# .test_durations. Файл питает duration-based шардирование, когда оно будет
-# включено; без него шардирование падает на выравнивание по количеству тестов.
-# Обновлять после крупных сдвигов состава набора, а не каждый прогон.
+# Full single-process run writing every test's duration to .test_durations.
+# The file feeds duration-based sharding once it is enabled; without it
+# sharding falls back to balancing by test count. Refresh after large shifts
+# in suite composition, not every run.
+[doc('Record per-test durations for duration-based sharding')]
+[group('back')]
 back-durations:
-    {{run}} python -m pytest -n 0 --no-cov -q \
+    {{ run }} python -m pytest -n 0 --no-cov -q \
         --store-durations --durations-path .test_durations
 
 # SQLite emits its direct ResourceWarning only on Python 3.13+ finalization.
 # Run the focused long-lived CLI lifecycle with both warning forms as errors;
 # the broad suite also owns platform logging handlers, whose lifecycle belongs
 # to the platform track and must not weaken this CLI-specific acceptance gate.
+[doc('CLI lifecycle under ResourceWarning-as-error')]
+[group('back')]
 back-resource:
-    {{run}} python -m pytest --no-cov -q \
+    {{ run }} python -m pytest --no-cov -q \
         -W error::ResourceWarning \
         -W error::pytest.PytestUnraisableExceptionWarning \
         tests/contract/test_cli_resource_lifecycle.py
@@ -452,108 +599,133 @@ back-resource:
 # `faulthandler_timeout` names the hanging test instead of ending mid-line,
 # which is how three CI runs died on their own timeout without saying why.
 # Local runs on one OS exercise the same invocation the three-OS matrix runs.
+[arg('suite', help='test suite directory under tests/: unit, contract, process')]
+[group('back')]
 back-cli-suite suite:
-    {{run}} python -m pytest "tests/{{suite}}" --no-cov -vv \
-        -o faulthandler_timeout=300 {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{test_dist}} \
+    {{ run }} python -m pytest "tests/{{ suite }}" --no-cov -vv \
+        -o faulthandler_timeout=300 {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{ test_dist }} \
         {{ if suite == "unit" { "--ignore=tests/unit/platform --ignore=tests/unit/api" } else { "" } }}
 
-# Каталог очищается перед сборкой: колесо снятой версии, оставшееся от прошлого
-# прогона, иначе доступно установщику через --find-links и подменит собой новое.
+# The directory is cleaned before building: a wheel of a yanked version left
+# over from a previous run would otherwise be available to the installer
+# through --find-links and substitute itself for the new one.
 
-# Колёса всех пакетов workspace в dist/ (каталог git-ignored).
+# Wheels of all workspace packages into dist/ (a git-ignored directory).
+[group('back')]
 back-build:
-    {{run}} python -c "import shutil; shutil.rmtree('dist', ignore_errors=True)"
+    {{ run }} python -c "import shutil; shutil.rmtree('dist', ignore_errors=True)"
     uv build --all-packages --out-dir dist -q
 
-# Ставит собранные колёса и запускает CLI двумя способами. Тело живёт в
-# release_scripts/clean_install_regress.sh: его вызывает и этот рецепт, и CI
-# гейт напрямую, поэтому чистая установка не может разойтись между локальным
-# и CI-путём. Рабочее окружение содержит зависимости групп docs и dev,
-# поэтому необъявленная зависимость пакета в нём не видна и проявляется
-# только у того, кто поставил колесо: так уже прошёл незамеченным импорт yaml
-# в apps/cli.
+# Installs the built wheels and runs the CLI two ways. The body lives in
+# release_scripts/clean_install_regress.sh: both this recipe and the CI gate
+# call it, so a clean install cannot diverge between the local and the CI
+# path. The working environment carries the docs and dev group dependencies,
+# so an undeclared package dependency is invisible in it and only shows for
+# whoever installed the wheel: an unimported-by-declaration yaml import in
+# apps/cli already slipped through that way once.
 # Windows PATH `bash` is frequently WSL, which cannot run this checkout.
 # `run_bash.py` locates Git-for-Windows bash (or PATH bash on POSIX) so the
 # same recipe body is the local path; CI still calls the shell script itself.
+[doc('Install built wheels and run the CLI in a clean environment')]
+[group('back')]
 back-regress:
     @just back-build
-    {{run}} python release_scripts/run_bash.py release_scripts/clean_install_regress.sh
+    {{ run }} python release_scripts/run_bash.py release_scripts/clean_install_regress.sh
 
+[doc('The backend aggregate')]
+[group('back')]
 back-check: back-static back-test back-resource back-build back-regress
 
 # --- web ----------------------------------------------------------------
 
-# Формат исходников и типизированный клиент, порождённый из контракта.
+# Source format and the typed client generated from the contract.
+[doc('Regenerate the typed web client and format it')]
+[group('web')]
 web-gen:
-    {{run}} python -m ai_stp_contracts.web_projections
-    {{bunreq}}
+    {{ run }} python -m ai_stp_contracts.web_projections
+    {{ bunreq }}
     cd apps/web && bun run api:generate
     # The generator does not emit repository-Prettier form.  Formatting must
     # happen after generation so `just gen` is a deterministic clean producer
     # and `web-static` can validate its output without a repair step.
     cd apps/web && bun run format
 
-# Запрет литерального пользовательского текста и паритет ru/en каталогов.
+# Ban on literal user-facing text and ru/en catalogue parity.
+[group('web')]
 web-i18n:
-    {{bunreq}}
+    {{ bunreq }}
     cd apps/web && bun run i18n:check
 
-# ESLint, Prettier и TypeScript 7 одним прогоном.
+# ESLint, Prettier and TypeScript 7 in one pass.
+[group('web')]
 web-static: web-i18n
-    {{bunreq}}
+    {{ bunreq }}
     cd apps/web && bun run lint
     cd apps/web && bun run format:check
     cd apps/web && bun run type-check
 
-# Покрытие меряется всегда: иначе его пороги были бы справочной цифрой, а не гейтом.
+# Coverage is always measured: otherwise its thresholds would be a reference
+# number, not a gate.
 
-# Модульные и компонентные тесты.
+# Module and component tests.
+[group('web')]
 web-test:
-    {{bunreq}}
+    {{ bunreq }}
     cd apps/web && bun run test:coverage
     cd apps/web && bun run test:coverage:catalog
 
+[doc('Production build of the SaaS profile')]
+[group('web')]
 web-build:
-    {{bunreq}}
+    {{ bunreq }}
     cd apps/web && AI_STP_WEB_PROFILE=public_saas bun run build
 
-# Storybook собирается вместе с приложением, потому что у него другой сборочный
-# граф: он свой Vite поднимает сам, через `viteFinal`. Пока его здесь не было,
-# подъём `@vitejs/plugin-react` до 6 прошёл весь гейт зелёным и сломал только
-# его — плагин требует Vite 8, приложение закреплено на 6, и увидеть это было
-# негде. Одиннадцать секунд за то, чтобы такой разрыв назывался сразу.
+# Storybook builds together with the app because it has a different build
+# graph: it raises its own Vite through `viteFinal`. While it was absent here,
+# bumping `@vitejs/plugin-react` to 6 passed the whole gate green and broke
+# only it — the plugin requires Vite 8, the app is pinned on 6, and there was
+# nowhere to see it. Eleven seconds for such a divergence to be named at once.
+[doc('Build Storybook with its own Vite graph')]
+[group('web')]
 web-storybook:
-    {{bunreq}}
+    {{ bunreq }}
     cd apps/web && bun run build-storybook
 
-# Сценарии в браузере поверх SaaS production-сборки, desktop и мобильный viewport.
+# Browser scenarios over the SaaS production build, desktop and mobile
+# viewport.
 #
-# Сборка объявлена зависимостью, а не повторена телом. Раньше рецепт вызывал
-# `bun run build` сам, поэтому внутри `web-check` production-сборка одного и
-# того же профиля выполнялась дважды подряд: `just` выполняет один раз рецепт,
-# а не одинаковую команду в двух телах. Разница измерена — 45 с локально и
-# около полутора минут на четырёхъядерной машине флота, каждый прогон.
+# The build is declared a dependency, not repeated in the body. The recipe
+# used to call `bun run build` itself, so inside `web-check` the production
+# build of the same profile ran twice in a row: `just` runs a recipe once,
+# not the same command in two bodies. The difference is measured — 45 s
+# locally and about a minute and a half on the fleet's four-core machine,
+# every run.
 #
-# Самостоятельный `just web-regress` при этом не изменился: зависимость даёт
-# ту же сборку, которую рецепт делал сам.
+# A standalone `just web-regress` is unchanged all the same: the dependency
+# gives the same build the recipe used to do itself.
+[doc('Browser scenarios over the production build')]
+[group('web')]
 web-regress: web-build
-    {{bunreq}}
+    {{ bunreq }}
     # Browser bytes belong to the user's Playwright cache. OS packages belong
     # to the runner image and are provisioned out of band: a repository check
     # may not invoke sudo or block waiting for an administrator password.
-    {{run}} python release_scripts/run_bash.py .github/scripts/ensure-chrome.sh
+    {{ run }} python release_scripts/run_bash.py .github/scripts/ensure-chrome.sh
     cd apps/web && bun run test:e2e
 
-# Две независимые production-сборки доказывают build-time исключение feature.
+# Two independent production builds prove build-time feature exclusion.
+[group('web')]
 web-feature-profiles:
-    {{bunreq}}
-    {{run}} python release_scripts/run_bash.py .github/scripts/ensure-chrome.sh
+    {{ bunreq }}
+    {{ run }} python release_scripts/run_bash.py .github/scripts/ensure-chrome.sh
     cd apps/web && bun run test:feature-profiles
 
-# Сборка идёт первой намеренно. `tsconfig` включает `.next/types/**/*.ts` —
-# валидатор маршрутов, который порождает `next build`. Пока сборка шла после
-# статики, этот include не значил ничего в чистом checkout (каталога нет, шаблон
-# не совпадает ни с чем) и давал ложный отказ локально, где каталог остался от
-# другой ветки. `just` выполняет каждый рецепт один раз, поэтому порядок ничего
-# не удорожает: сборка всё равно в этом же агрегате.
+# The build goes first on purpose. `tsconfig` includes `.next/types/**/*.ts`
+# — the route validator `next build` generates. While the build ran after
+# statics, that include meant nothing in a clean checkout (no directory, the
+# pattern matches nothing) and gave a false refusal locally, where the
+# directory survived from another branch. `just` runs each recipe once, so
+# the order costs nothing: the build is in this aggregate anyway.
+[doc('The web aggregate')]
+[group('web')]
 web-check: web-build web-storybook web-static web-test web-regress web-feature-profiles
