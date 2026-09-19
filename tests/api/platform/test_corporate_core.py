@@ -26,6 +26,7 @@ from ai_stp_platform.organization_models import (
     CorporateTeam,
     CorporateTeamMember,
     Organization,
+    OrganizationMembership,
     ProjectIdentity,
 )
 from ai_stp_platform.tenant_scope import set_tenant_scope
@@ -71,6 +72,88 @@ async def test_concurrent_bootstrap_creates_one_initial_owner(
         request(second_id, "concurrent-bootstrap-two"),
     )
     assert sorted(response.status_code for response in responses) == [200, 409]
+
+
+async def test_job_titles_enforce_idempotency_revision_uniqueness_and_tenant_boundary(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    owner_id, owner_token = await _account_token(sessionmaker)
+    foreign_id, foreign_token = await _account_token(sessionmaker)
+
+    async def bootstrap(account_id: str, token: str, key: str) -> tuple[str, dict[str, str]]:
+        response = await client.post(
+            "/v1/corporate/bootstrap",
+            json={
+                "schema_version": 1,
+                "organization_name": key,
+                "superadmin_account_id": account_id,
+                "idempotency_key": key,
+            },
+            headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["organization_id"], {"Authorization": f"Bearer {token}"}
+
+    organization_id, auth = await bootstrap(owner_id, owner_token, "job-title-owner-0001")
+    foreign_organization_id, foreign_auth = await bootstrap(
+        foreign_id, foreign_token, "job-title-foreign-0001"
+    )
+    async with sessionmaker() as db:
+        db.add(
+            OrganizationMembership(
+                organization_id=organization_id,
+                account_id=foreign_id,
+                role="staff",
+                display_name="Foreign Staff",
+            )
+        )
+        await db.commit()
+    path = f"/v1/corporate/organizations/{organization_id}/job-titles"
+    payload = {
+        "schema_version": 1,
+        "name": "  Platform   Engineer  ",
+        "description": "Builds the platform.",
+        "authorization_revision": 1,
+        "idempotency_key": "job-title-create-0001",
+    }
+    created = await client.post(path, json=payload, headers=auth)
+    assert created.status_code == 200, created.text
+    assert created.json()["name"] == "Platform Engineer"
+    assert (await client.post(path, json=payload, headers=auth)).json() == created.json()
+
+    duplicate = await client.post(
+        path,
+        json={**payload, "name": "platform engineer", "idempotency_key": "job-title-create-0002"},
+        headers=auth,
+    )
+    assert duplicate.status_code == 409
+    assert (await client.get(path, headers=auth)).json()["items"] == [created.json()]
+
+    job_title_id = created.json()["job_title_id"]
+    update = {
+        "schema_version": 1,
+        "name": "Platform Engineer",
+        "description": "Retired title.",
+        "state": "retired",
+        "expected_revision": 1,
+        "authorization_revision": 1,
+        "idempotency_key": "job-title-update-0001",
+    }
+    retired = await client.patch(f"{path}/{job_title_id}", json=update, headers=auth)
+    assert retired.status_code == 200, retired.text
+    assert retired.json()["state"] == "retired"
+    assert retired.json()["revision"] == 2
+    stale = await client.patch(
+        f"{path}/{job_title_id}",
+        json={**update, "idempotency_key": "job-title-update-0002"},
+        headers=auth,
+    )
+    assert stale.status_code == 409
+
+    assert (await client.get(path, headers=foreign_auth)).status_code == 403
+    foreign_path = f"/v1/corporate/organizations/{foreign_organization_id}/job-titles"
+    assert (await client.get(foreign_path, headers=auth)).status_code == 403
 
 
 async def test_corporate_core_lifecycle_and_tenant_boundary(

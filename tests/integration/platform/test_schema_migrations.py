@@ -57,6 +57,97 @@ def test_migrations_upgrade_repeat_downgrade_and_upgrade_again(
     assert _version(isolated_database_url) == head
 
 
+def test_job_title_migrations_upgrade_and_downgrade_cleanly(
+    isolated_database_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AI_STP_DB_URL", isolated_database_url)
+    config = Config("alembic.ini")
+    command.upgrade(config, "0078_corporate_catalog_permissions")
+    organization_id = f"organization_{ULID()}"
+
+    async def seed_superadmin_role() -> None:
+        engine = create_async_engine(isolated_database_url)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(
+                    text(
+                        "INSERT INTO organization (id, kind, display_name) "
+                        "VALUES (:id, 'corporate', 'Migration test')"
+                    ),
+                    {"id": organization_id},
+                )
+                await connection.execute(
+                    text(
+                        "INSERT INTO corporate_role (organization_id, name) "
+                        "VALUES (:id, 'superadmin')"
+                    ),
+                    {"id": organization_id},
+                )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(seed_superadmin_role())
+    command.upgrade(config, "0079_corporate_job_title_permissions")
+    assert (
+        asyncio.run(
+            _scalar(isolated_database_url, "SELECT to_regclass('public.corporate_job_title')")
+        )
+        == "corporate_job_title"
+    )
+    assert (
+        asyncio.run(
+            _scalar(
+                isolated_database_url,
+                "SELECT COUNT(*) FROM information_schema.columns "
+                "WHERE table_name = 'organization_membership' AND column_name = 'job_title_id'",
+            )
+        )
+        == 1
+    )
+    assert (
+        asyncio.run(
+            _scalar(
+                isolated_database_url,
+                "SELECT COUNT(*) FROM corporate_role_permission "
+                "WHERE permission LIKE 'job_title.%'",
+            )
+        )
+        == 4
+    )
+
+    command.downgrade(config, "0078_corporate_catalog_permissions")
+    assert (
+        asyncio.run(
+            _scalar(
+                isolated_database_url,
+                "SELECT COUNT(*) FROM corporate_role_permission "
+                "WHERE permission LIKE 'job_title.%'",
+            )
+        )
+        == 0
+    )
+    command.downgrade(config, "0076_milestone5_corporate_governance")
+    assert (
+        asyncio.run(
+            _scalar(isolated_database_url, "SELECT to_regclass('public.corporate_job_title')")
+        )
+        is None
+    )
+    assert (
+        asyncio.run(
+            _scalar(
+                isolated_database_url,
+                "SELECT COUNT(*) FROM information_schema.columns "
+                "WHERE table_name = 'organization_membership' AND column_name = 'job_title_id'",
+            )
+        )
+        == 0
+    )
+
+    command.upgrade(config, "head")
+
+
 def test_identity_migration_preserves_distinct_account_suffixes(
     isolated_database_url: str,
     monkeypatch: pytest.MonkeyPatch,
