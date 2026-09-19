@@ -16,7 +16,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 from ai_stp_cli.application.initialize import ANTIGRAVITY_LIMITATION
 from ai_stp_cli.application.qualify import (
@@ -39,7 +39,8 @@ ROOT: Final[Path] = Path(__file__).resolve().parents[4]
 def _contains_github_url(log: str) -> bool:
     for candidate in re.findall(r"https?://\S+", log):
         try:
-            hostname = urlsplit(candidate.rstrip(".,);]")).hostname
+            parsed = cast(SplitResult, urlsplit(candidate.rstrip(".,);]")))
+            hostname = parsed.hostname
         except ValueError:
             continue
         if hostname == "github.com":
