@@ -143,7 +143,7 @@ async def test_job_titles_enforce_idempotency_revision_uniqueness_and_tenant_bou
         "description": "Retired title.",
         "state": "retired",
         "expected_revision": 1,
-        "authorization_revision": 1,
+        "authorization_revision": authorization_revision,
         "idempotency_key": "job-title-update-0001",
     }
     retired = await client.patch(f"{path}/{job_title_id}", json=update, headers=auth)
