@@ -2,7 +2,6 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateDirectory } from "@/components/organisms/corporate-directory";
-import { TechnologyRegistryCreate } from "@/components/organisms/technology-registry-create";
 import { ApiError } from "@/lib/api/errors";
 import { readTechnologyDirectory } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
@@ -63,15 +62,10 @@ export default async function TechnologyRegistryPage({
   }
   if (!registry)
     return <StatePanel kind="empty" title={h("organization")} description={h("empty")} />;
-  const { organization, permissions, directory, categories } = registry;
+  const { permissions, directory } = registry;
   if (!directory)
     return <StatePanel kind="empty" title={h("technologies")} description={t("notPermitted")} />;
-  const mutation = {
-    organizationId: organization.organization_id,
-    authorizationRevision: permissions.authorization_revision,
-    csrfToken: (await readCsrfToken()) ?? "",
-    categories: categories?.items ?? null,
-  };
+  const csrfToken = (await readCsrfToken()) ?? "";
   const canCreate = permissions.capabilities.includes("technology.create");
   return (
     <CorporateDirectory
@@ -79,7 +73,7 @@ export default async function TechnologyRegistryPage({
       items={directory.items}
       organizationId={directory.organization.organization_id}
       authorizationRevision={directory.organization.authorization_revision}
-      csrfToken={mutation.csrfToken}
+      csrfToken={csrfToken}
       canCreate={canCreate}
       roles={[]}
       initialQuery={query ?? ""}
@@ -90,9 +84,7 @@ export default async function TechnologyRegistryPage({
       total={directory.total}
       facets={directory.facets}
       paginationLabel={h("pagination")}
-      customCreate={
-        canCreate ? <TechnologyRegistryCreate kind="technology" {...mutation} /> : undefined
-      }
+      {...(canCreate ? { createHref: "/corporate/technologies/new" } : {})}
     />
   );
 }
