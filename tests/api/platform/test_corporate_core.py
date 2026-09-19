@@ -120,9 +120,7 @@ async def test_job_titles_enforce_idempotency_revision_uniqueness_and_tenant_bou
     assert created.json()["name"] == "Platform Engineer"
     assert (await client.post(path, json=payload, headers=auth)).json() == created.json()
     authorization_revision = (
-        await client.get(
-            f"/v1/corporate/organizations/{organization_id}/context", headers=auth
-        )
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
     ).json()["organization"]["authorization_revision"]
 
     duplicate = await client.post(
