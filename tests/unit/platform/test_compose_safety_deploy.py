@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -148,6 +149,31 @@ def test_prod_compose_worker_safety_and_rustfs_health() -> None:
     assert "minio/health/live" not in _executable("docker-compose.prod.yml")
     # API/worker wait on storage
     assert "service_healthy" in text
+
+
+def test_every_long_running_prod_service_reports_health() -> None:
+    """`restart: always` revives a dead process; it cannot describe a wedged one.
+
+    `docs` was the one long-running service without a healthcheck, so
+    `docker compose ps` reported it `running` while saying nothing about the
+    only question a static site can answer — does it serve. One-shot jobs
+    (`restart: "no"`) are exempt: their health is their exit code.
+    """
+    text = _read("docker-compose.prod.yml")
+    services = text.split("services:\n", 1)[1].split("\nnetworks:\n", 1)[0]
+    missing: list[str] = []
+    for block in re.split(r"\n  (?=\S)", services):
+        name = block.split(":", 1)[0].strip()
+        if not name or name.startswith("#"):
+            continue
+        executable = "\n".join(
+            line for line in block.splitlines() if not line.lstrip().startswith("#")
+        )
+        if 'restart: "no"' in executable:
+            continue
+        if "restart: always" in executable and "healthcheck:" not in executable:
+            missing.append(name)
+    assert not missing, missing
 
 
 def test_worker_safety_dockerfile_enables_external_cli() -> None:

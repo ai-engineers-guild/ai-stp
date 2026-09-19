@@ -38,6 +38,7 @@ roots = [
   "Dockerfile.user-docs",
   "Dockerfile.worker-safety",
   ".dockerignore",
+  ".hadolint.yaml",
   ".gitattributes",
   ".gitignore",
   ".gitleaks.toml",

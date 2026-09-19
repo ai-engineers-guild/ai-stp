@@ -1,13 +1,15 @@
 # Production frontend image (SPEC-024 REQ-2403, ADR-0044).
 # Multi-stage: bun builds Next.js standalone, then a minimal non-root Node runtime.
-# Base tags are pinned; bump only via a separate reviewed change.
+# Bases are pinned by digest like every other image in this repository: a tag
+# names the version, the digest proves which build of it ran. Bump both only
+# via a separate reviewed change.
 
-FROM oven/bun:1.4.0-alpine AS deps
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS deps
 WORKDIR /app
 COPY apps/web/package.json apps/web/bun.lock ./
 RUN bun install --frozen-lockfile
 
-FROM oven/bun:1.4.0-alpine AS builder
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web .
@@ -24,6 +26,9 @@ ARG NEXT_PUBLIC_ANALYTICS_ENABLED=true
 ARG NEXT_PUBLIC_GA_MEASUREMENT_ID
 ARG NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID
 ARG NEXT_PUBLIC_COOKIE_CONSENT_ENABLED=true
+# AI_STP_SESSION_SECRET below is a literal build-time placeholder documented
+# as such; the real value arrives via env at runtime.
+# hadolint ignore=DL3064
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
     AI_STP_WEB_PROFILE=${AI_STP_WEB_PROFILE} \
     AI_STP_FEATURE_CONTENT_HUB=${AI_STP_FEATURE_CONTENT_HUB} \
@@ -41,7 +46,7 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
 
 RUN bun run build
 
-FROM node:22.18.0-slim AS runner
+FROM node:22.18.0-slim@sha256:752ea8a2f758c34002a0461bd9f1cee4f9a3c36d48494586f60ffce1fc708e0e AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \

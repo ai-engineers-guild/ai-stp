@@ -14,6 +14,7 @@ they are withheld from the public export in
 | Document | Technology | Covers |
 | --- | --- | --- |
 | [just.md](just.md) | `just` command runner | version contract, file structure, naming taxonomy, settings and attribute policy, the local-only/CI parity boundary |
+| [docker.md](docker.md) | Docker + Compose + deploy chain | digest pinning, apt/apk policy, image/context rules, compose invariants, pull-model deployment, the `infra-*` just surface |
 
 ## Writing a standard
 
