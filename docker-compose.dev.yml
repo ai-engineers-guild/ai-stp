@@ -260,6 +260,7 @@ services:
       - sh
       - -c
       - >-
+        mkdir -p /app/.next &&
         find /app/.next -mindepth 1 -maxdepth 1 -exec rm -r -- {} + &&
         exec node node_modules/next/dist/bin/next dev --hostname 0.0.0.0 --port 3000
     env_file:

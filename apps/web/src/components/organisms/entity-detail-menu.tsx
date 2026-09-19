@@ -1,6 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ export function EntityDetailMenu({
   shareLabel,
   reportLabel,
   reportTarget,
+  adminItems,
 }: {
   moreLabel: string;
   openLabel?: string | undefined;
@@ -37,6 +39,7 @@ export function EntityDetailMenu({
   shareLabel?: string | undefined;
   reportLabel?: string | undefined;
   reportTarget?: string | undefined;
+  adminItems?: ReactNode;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -111,6 +114,7 @@ export function EntityDetailMenu({
                 </Link>
               </DropdownMenu.Item>
             ) : null}
+            {adminItems}
             {entityId ? (
               <DropdownMenu.Item
                 className="hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"

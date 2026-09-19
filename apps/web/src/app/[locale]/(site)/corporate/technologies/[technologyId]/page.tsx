@@ -4,11 +4,14 @@ import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { CorporateEntityDetail } from "@/components/organisms/corporate-entity-detail";
+import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
+import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateRelationSection } from "@/components/organisms/corporate-relation-section";
 import { readCorporatePresentation } from "@/lib/api/corporate-detail";
-import { readCorporateContext } from "@/lib/api/corporate";
+import { readCorporateCatalogAssignments, readCorporateContext } from "@/lib/api/corporate";
 import { readTechnologyDetail } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
+import { readCsrfToken } from "@/lib/auth/session";
 import { Link } from "@/lib/i18n/navigation";
 
 type TechnologyDetail = NonNullable<Awaited<ReturnType<typeof readTechnologyDetail>>>;
@@ -36,6 +39,12 @@ export default async function TechnologyDetailPage({
   if (!detail)
     return <StatePanel kind="empty" title={t("registry")} description={t("notPermitted")} />;
   const { technology, categories, decision, teams } = detail;
+  const assignments = await readCorporateCatalogAssignments(
+    session,
+    organizationId,
+    "technology",
+    technologyId,
+  );
   const presentation = await readCorporatePresentation(
     session,
     organizationId,
@@ -59,69 +68,23 @@ export default async function TechnologyDetailPage({
         resource="technologies"
         resourceId={technologyId}
         title={technology.name}
+        adminMenu={
+          workspace.capabilities.includes("technology.delete") ? (
+            <LocalizedResourceDeleteMenuItem
+              csrfToken={(await readCsrfToken()) ?? ""}
+              organizationId={organizationId}
+              authorizationRevision={workspace.organization.authorization_revision}
+              resource="technologies"
+              resourceId={technologyId}
+              revision={technology.revision}
+            />
+          ) : null
+        }
         {...(technology.lifecycle === "active"
           ? {}
           : { state: t(`values.${technology.lifecycle}`) })}
       >
-        <DetailAccordion title={t("technicalDetails")}>
-          <dl className="grid gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-muted-foreground">{t("categories")}</dt>
-              <dd className="mt-1">
-                {technology.category_ids.map((id) => {
-                  const category = categories?.items.find((item) => item.category_id === id);
-                  return category ? (
-                    <Link
-                      key={id}
-                      href={`/corporate/categories/${id}`}
-                      className="mr-3 underline underline-offset-4"
-                    >
-                      {category.name}
-                    </Link>
-                  ) : null;
-                })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">{t("aliases")}</dt>
-              <dd className="mt-1">
-                {technology.aliases.length ? technology.aliases.join(", ") : t("values.none")}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">{t("officialUrls")}</dt>
-              <dd>
-                <ul>
-                  {technology.official_urls.map((url) => (
-                    <li key={url}>
-                      <a
-                        href={url}
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-11 max-w-full items-center break-all underline underline-offset-4"
-                      >
-                        {url}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </dd>
-            </div>
-            {technology.icon_url && (
-              <div>
-                <dt className="text-muted-foreground">{t("iconUrl")}</dt>
-                <dd>
-                  <a
-                    href={technology.icon_url}
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-11 max-w-full items-center break-all underline underline-offset-4"
-                  >
-                    {technology.icon_url}
-                  </a>
-                </dd>
-              </div>
-            )}
-          </dl>
-        </DetailAccordion>
+        <TechnologyTechnicalDetails technology={technology} categories={categories} t={t} />
         <TechnologyProjectsPanel
           projects={detail.projects}
           technologyId={technologyId}
@@ -131,6 +94,15 @@ export default async function TechnologyDetailPage({
             unavailable: t("unavailable"),
             relation: technologyRelationLabels(h),
           }}
+        />
+        <CorporateCatalogAssignments
+          items={assignments.items}
+          organizationId={organizationId}
+          subjectKind="technology"
+          subjectId={technologyId}
+          authorizationRevision={workspace.organization.authorization_revision}
+          csrfToken={(await readCsrfToken()) ?? ""}
+          canManage={workspace.capabilities.includes("catalog_object.assign")}
         />
         {technology.redirect_id && (
           <Link
@@ -150,6 +122,78 @@ export default async function TechnologyDetailPage({
         />
       </CorporateEntityDetail>
     </div>
+  );
+}
+
+function TechnologyTechnicalDetails({
+  technology,
+  categories,
+  t,
+}: {
+  technology: TechnologyDetail["technology"];
+  categories: TechnologyDetail["categories"];
+  t: (key: string) => string;
+}) {
+  return (
+    <DetailAccordion title={t("technicalDetails")}>
+      <dl className="grid gap-4 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-muted-foreground">{t("categories")}</dt>
+          <dd className="mt-1">
+            {technology.category_ids.map((id) => {
+              const category = categories?.items.find((item) => item.category_id === id);
+              return category ? (
+                <Link
+                  key={id}
+                  href={`/corporate/categories/${id}`}
+                  className="mr-3 underline underline-offset-4"
+                >
+                  {category.name}
+                </Link>
+              ) : null;
+            })}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">{t("aliases")}</dt>
+          <dd className="mt-1">
+            {technology.aliases.length ? technology.aliases.join(", ") : t("values.none")}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">{t("officialUrls")}</dt>
+          <dd>
+            <ul>
+              {technology.official_urls.map((url) => (
+                <li key={url}>
+                  <a
+                    href={url}
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-11 max-w-full items-center break-all underline underline-offset-4"
+                  >
+                    {url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </dd>
+        </div>
+        {technology.icon_url && (
+          <div>
+            <dt className="text-muted-foreground">{t("iconUrl")}</dt>
+            <dd>
+              <a
+                href={technology.icon_url}
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 max-w-full items-center break-all underline underline-offset-4"
+              >
+                {technology.icon_url}
+              </a>
+            </dd>
+          </div>
+        )}
+      </dl>
+    </DetailAccordion>
   );
 }
 

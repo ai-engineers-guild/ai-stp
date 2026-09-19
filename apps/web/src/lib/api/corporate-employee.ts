@@ -1,7 +1,7 @@
 import { searchComponents, searchSetups } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { readEmployeeTechnologies } from "@/lib/api/corporate";
-import { readTechnologyRegistry, readTeamProjects } from "@/lib/api/technology";
+import { readTechnologyRegistry } from "@/lib/api/technology";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { asCursorToken, tryAsAccountId } from "@/lib/brands";
 import type {
@@ -238,13 +238,14 @@ export function applyCorporateEmployeePresentation(
   };
 }
 
-export async function assembleCorporateEmployeePresentation(input: {
+export function assembleCorporateEmployeePresentation(input: {
   presentation: CorporatePresentation;
   sessionToken: string;
   organizationId: string;
   member: Pick<CorporateMember, "account_id" | "display_name">;
   teams: readonly CorporateTeamView[];
   projects: readonly { project_id: string; name: string }[];
+  projectIds?: readonly string[];
   content: CorporateEmployeeContent;
   includeTechnologies?: boolean;
   unknownName: string;
@@ -262,41 +263,22 @@ export async function assembleCorporateEmployeePresentation(input: {
         links: profile.links.length ? [...profile.links] : input.presentation.links,
       }
     : input.presentation;
-  const memberTeams = input.teams.filter((team) =>
-    team.members.some((member) => member.account_id === input.member.account_id),
-  );
-  const throughTeams = await Promise.all(
-    memberTeams.map((team) =>
-      readTeamProjects(input.sessionToken, input.organizationId, team.team_id),
-    ),
-  );
   const projectOptions = new Map(input.projects.map((project) => [project.project_id, project]));
-  const projects = [
-    ...new Map(
-      throughTeams.flatMap(
-        (data) =>
-          data?.relations.items
-            .filter((item) => item.state === "current")
-            .flatMap((item) => {
-              const project =
-                data.projects?.items.find(
-                  (candidate) => candidate.project_id === item.project_id,
-                ) ?? projectOptions.get(item.project_id);
-              return project ? [[project.project_id, project] as const] : [];
-            }) ?? [],
-      ),
-    ).values(),
-  ];
-  return applyCorporateEmployeePresentation(presentation, {
-    member: input.member,
-    teams: input.teams,
-    projects,
-    technologies:
-      input.includeTechnologies !== false && input.content.technologies.status === "data"
-        ? input.content.technologies.data
-        : [],
-    authoredComponents:
-      input.content.components.status === "data" ? input.content.components.data : [],
-    unknownName: input.unknownName,
-  });
+  const projects = (input.projectIds ?? [])
+    .map((projectId) => projectOptions.get(projectId))
+    .filter((project): project is { project_id: string; name: string } => Boolean(project));
+  return Promise.resolve(
+    applyCorporateEmployeePresentation(presentation, {
+      member: input.member,
+      teams: input.teams,
+      projects,
+      technologies:
+        input.includeTechnologies !== false && input.content.technologies.status === "data"
+          ? input.content.technologies.data
+          : [],
+      authoredComponents:
+        input.content.components.status === "data" ? input.content.components.data : [],
+      unknownName: input.unknownName,
+    }),
+  );
 }

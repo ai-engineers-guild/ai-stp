@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";

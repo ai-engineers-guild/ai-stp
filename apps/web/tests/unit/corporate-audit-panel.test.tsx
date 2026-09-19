@@ -117,6 +117,32 @@ it("shows export transport errors and permits retry without losing the journal",
   await screen.findByText("Try again later");
   expect(exportAudit).toHaveBeenCalledTimes(2);
 });
+it("does not offer export when the server projection withholds the capability", () => {
+  render(
+    <CorporateAuditPanel
+      organizationId="organization_fixture"
+      canExport={false}
+      audit={{ schema_version: 1, items: [], next_before_created_at: null, next_before_id: null }}
+      labels={{
+        title: "Journal",
+        export: "Export",
+        exporting: "Exporting",
+        exportFormat: "Format",
+        exportRange: "Time range",
+        currentFilters: "Current filters",
+        today: "Today",
+        last7Days: "Last 7 days",
+        last30Days: "Last 30 days",
+        allEvents: "All events",
+        json: "JSON",
+        csv: "CSV",
+        noAudit: "No events",
+        failed: "Export failed",
+      }}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: "Export" })).not.toBeInTheDocument();
+});
 it("creates a quoted CSV without exposing extra audit fields in the UI", () => {
   const csv = auditExportCsv({
     schema_version: 1,
@@ -155,8 +181,10 @@ it("exports the selected range and keeps the object URL alive through the click"
       items: [],
     },
   });
-  URL.createObjectURL = vi.fn(() => "blob:audit");
-  URL.revokeObjectURL = vi.fn();
+  const createObjectURLMock = vi.fn(() => "blob:audit");
+  const revokeObjectURLMock = vi.fn();
+  URL.createObjectURL = createObjectURLMock;
+  URL.revokeObjectURL = revokeObjectURLMock;
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
   render(
     <CorporateAuditPanel
@@ -182,9 +210,14 @@ it("exports the selected range and keeps the object URL alive through the click"
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Export" }));
-  await waitFor(() =>
-    expect(exportAudit).toHaveBeenCalledWith("organization_fixture", { action: "member.update" }),
-  );
-  expect(URL.createObjectURL).toHaveBeenCalledOnce();
-  await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:audit"));
+  const exportAuditMock = vi.mocked(exportAudit);
+  await waitFor(() => {
+    expect(exportAuditMock).toHaveBeenCalledWith("organization_fixture", {
+      action: "member.update",
+    });
+  });
+  expect(createObjectURLMock).toHaveBeenCalledOnce();
+  await waitFor(() => {
+    expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:audit");
+  });
 });

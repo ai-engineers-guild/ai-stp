@@ -102,6 +102,8 @@ function directoryLabels(
   editPresentation: string,
   share: string,
   report: string,
+  publicVisibility: string,
+  privateVisibility: string,
 ) {
   return {
     lead: t("lead"),
@@ -125,6 +127,8 @@ function directoryLabels(
     report,
     unknownEmployee: t("unknownEmployee"),
     notAvailable: t("notAvailable"),
+    publicVisibility,
+    privateVisibility,
   };
 }
 
@@ -166,63 +170,6 @@ function DirectoryItemList({
   );
 }
 
-function DirectoryPagination({
-  filters,
-  label,
-  pageNumber,
-  pageSize,
-  total,
-}: {
-  filters: string;
-  label: string;
-  pageNumber: number;
-  pageSize: number;
-  total: number;
-}) {
-  if (total <= pageSize) return null;
-  return (
-    <PageNav
-      label={label}
-      pageNumber={pageNumber}
-      totalPages={Math.ceil(total / pageSize)}
-      hrefFor={(page) => {
-        const params = new URLSearchParams(filters);
-        params.set("page", String(page));
-        return `?${params.toString()}`;
-      }}
-    />
-  );
-}
-
-function DirectoryPageSize({
-  pageSize,
-  onChange,
-  label,
-}: {
-  pageSize: number;
-  onChange: (value: number) => void;
-  label: string;
-}) {
-  return (
-    <label className="text-muted-foreground flex items-center gap-2 text-sm">
-      <span>{label}</span>
-      <select
-        value={pageSize}
-        onChange={(event) => {
-          onChange(Number(event.target.value));
-        }}
-        className="border-input bg-background text-foreground h-9 rounded-sm border px-2 text-sm"
-      >
-        {[10, 24, 48, 64].map((size) => (
-          <option key={size} value={size}>
-            {size}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 function visibleDirectoryItems(
   items: readonly DirectoryItem[],
   query: string,
@@ -261,27 +208,22 @@ type CorporateDirectoryResultsProps = {
   facets?: CorporateDirectoryFacets;
 };
 
-export function CorporateDirectoryResults({
+function useDirectoryResultControls({
   resource,
-  items,
   filters = "",
   initialQuery = "",
-  addLabel,
-  cancelLabel,
-  adding = false,
-  onAdd,
-  addHref,
   catalogFacets = EMPTY_CATALOG_FACETS,
   initialCatalogSelected = EMPTY_CATALOG_SELECTION,
   serverPaginated = false,
-  pageNumber = 1,
-  pageSize = 24,
-  total,
-  paginationLabel = "Pagination",
-  facets,
-}: CorporateDirectoryResultsProps) {
-  const t = useTranslations("hub");
-  const objects = useTranslations("objects");
+}: Pick<
+  CorporateDirectoryResultsProps,
+  | "resource"
+  | "filters"
+  | "initialQuery"
+  | "catalogFacets"
+  | "initialCatalogSelected"
+  | "serverPaginated"
+>) {
   const [query, setQuery] = useState(initialQuery);
   const [view, setView] = useState<"list" | "cards">(
     resource === "technologies" ? "list" : "cards",
@@ -374,6 +316,71 @@ export function CorporateDirectoryResults({
     router.push(`${pathname}${url.search ? url.search : ""}`);
   }
 
+  return {
+    query,
+    view,
+    sort,
+    selected,
+    leadOnly,
+    returnFilters,
+    catalogSelected,
+    changeQuery,
+    changeFacet,
+    changeView,
+    changeSort,
+    changeLeadOnly,
+    changePageSize,
+    applyCatalogFacets,
+  };
+}
+
+export function CorporateDirectoryResults({
+  resource,
+  items,
+  filters = "",
+  initialQuery = "",
+  addLabel,
+  cancelLabel,
+  adding = false,
+  onAdd,
+  addHref,
+  catalogFacets = EMPTY_CATALOG_FACETS,
+  initialCatalogSelected = EMPTY_CATALOG_SELECTION,
+  serverPaginated = false,
+  pageNumber = 1,
+  pageSize = 24,
+  total,
+  paginationLabel = "Pagination",
+  facets,
+}: CorporateDirectoryResultsProps) {
+  const t = useTranslations("hub");
+  const common = useTranslations("common");
+  const objects = useTranslations("objects");
+  const controls = useDirectoryResultControls({
+    resource,
+    filters,
+    initialQuery,
+    catalogFacets,
+    initialCatalogSelected,
+    serverPaginated,
+  });
+  const {
+    query,
+    view,
+    sort,
+    selected,
+    leadOnly,
+    returnFilters,
+    catalogSelected,
+    changeQuery,
+    changeFacet,
+    changeView,
+    changeSort,
+    changeLeadOnly,
+    changePageSize,
+    applyCatalogFacets,
+  } = controls;
+
   const visible = visibleDirectoryItems(items, query, selected, leadOnly, sort);
   return (
     <section className="min-w-0 space-y-5">
@@ -406,24 +413,49 @@ export function CorporateDirectoryResults({
           {t(resource === "members" ? "employees" : resource)}
         </p>
         {serverPaginated ? (
-          <DirectoryPageSize pageSize={pageSize} onChange={changePageSize} label={t("pageSize")} />
+          <label className="text-muted-foreground flex items-center gap-2 text-sm">
+            <span>{t("pageSize")}</span>
+            <select
+              value={pageSize}
+              onChange={(event) => {
+                changePageSize(Number(event.target.value));
+              }}
+              className="border-input bg-background text-foreground h-9 rounded-sm border px-2 text-sm"
+            >
+              {[10, 24, 48, 64].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
         ) : null}
       </div>
       <DirectoryItemList
         resource={resource}
         items={visible}
-        labels={directoryLabels(t, objects("editPresentation"), t("share"), t("report"))}
+        labels={directoryLabels(
+          t,
+          objects("editPresentation"),
+          t("share"),
+          t("report"),
+          common("public"),
+          common("private"),
+        )}
         returnFilters={returnFilters}
         view={view}
         emptyLabel={t(items.length ? "noMatches" : "empty")}
       />
-      {serverPaginated && total ? (
-        <DirectoryPagination
-          filters={filters}
+      {serverPaginated && total && total > pageSize ? (
+        <PageNav
           label={paginationLabel}
           pageNumber={pageNumber}
-          pageSize={pageSize}
-          total={total}
+          totalPages={Math.ceil(total / pageSize)}
+          hrefFor={(page) => {
+            const params = new URLSearchParams(filters);
+            params.set("page", String(page));
+            return `?${params.toString()}`;
+          }}
         />
       ) : null}
     </section>

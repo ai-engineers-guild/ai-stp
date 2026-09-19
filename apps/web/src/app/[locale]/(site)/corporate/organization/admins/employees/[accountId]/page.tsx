@@ -7,14 +7,14 @@ import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { Link } from "@/lib/i18n/navigation";
 
-export default async function MemberAccessPage({
+export default async function EmployeeAccessPage({
   params,
 }: {
   params: Promise<{ locale: string; accountId: string }>;
 }) {
   const { locale, accountId } = await params;
   setRequestLocale(locale);
-  await requireSession(locale, `/${locale}/corporate/organization/admins/members/${accountId}`);
+  await requireSession(locale, `/${locale}/corporate/organization/admins/employees/${accountId}`);
   const t = await getTranslations("corporate");
   const technology = await getTranslations("technology");
   const result = await readCorporateMemberAccess((await sessionCookieValue()) ?? "", accountId);

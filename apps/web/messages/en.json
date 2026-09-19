@@ -907,6 +907,9 @@
     "closeMedia": "Close media",
     "previousMedia": "Previous",
     "nextMedia": "Next",
+    "mediaKindImage": "Image",
+    "mediaKindVideo": "Video",
+    "mediaKindYoutube": "YouTube",
     "author": "Author",
     "technicalDetails": "Technical details",
     "versionHistory": "Version history",
@@ -1193,7 +1196,6 @@
   "cli": {
     "useTitle": "Use via CLI",
     "useBody": "Command uses the stable object id and version.",
-    "cliUnavailable": "This corporate entity is not installable through the CLI.",
     "copy": "Copy",
     "copied": "Copied",
     "copyError": "Copy failed",

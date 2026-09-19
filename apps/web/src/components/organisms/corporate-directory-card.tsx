@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/atoms/badge";
 import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
+import { ObjectCard } from "@/components/organisms/object-card";
 import { Link } from "@/lib/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/theme";
@@ -36,6 +37,8 @@ type Labels = {
   copyId?: string;
   share?: string;
   report?: string;
+  publicVisibility?: string;
+  privateVisibility?: string;
 };
 
 const resourceIcons: Record<Exclude<DirectoryResource, "components">, IconName> = {
@@ -239,6 +242,7 @@ export function CorporateDirectoryCard({
   item,
   labels,
   returnFilters,
+  view,
 }: {
   resource: DirectoryResource;
   item: DirectoryItem;
@@ -247,6 +251,27 @@ export function CorporateDirectoryCard({
   view: "list" | "cards";
 }) {
   const href = directoryHref(resource, item.id, returnFilters);
+  if (resource === "components" && item.catalog_item) {
+    return (
+      <li className="min-w-0">
+        <ObjectCard
+          kind="component"
+          item={item.catalog_item}
+          href={href}
+          view={view}
+          labels={{
+            harness: "",
+            tags: labels.categories,
+            type: labels.type,
+            componentKind: labels.type,
+            moreActions: labels.moreActions,
+            publicVisibility: labels.publicVisibility ?? "Public",
+            privateVisibility: labels.privateVisibility ?? "Private",
+          }}
+        />
+      </li>
+    );
+  }
   const title = item.name || (resource === "members" ? labels.unknownEmployee : item.name);
   const references = primaryReferences(resource, item);
   const technologyRelations =

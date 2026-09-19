@@ -103,6 +103,31 @@ describe("parseCatalogSearchParams", () => {
     expect(result.value.tags).toEqual(["python", "tests"]);
   });
 
+  it("round-trips corporate catalog facets without changing public facets", () => {
+    const parsed = parseCatalogSearchParams({
+      team_ids: "team-a,team-b",
+      project_ids: "project-a",
+      technology_ids: "technology-a",
+      category_ids: "category-a",
+      owner_ids: "owner-a",
+      maintainer_ids: "maintainer-a",
+      assignment: "effective",
+      corporate_verified: "false",
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.teamIds).toEqual(["team-a", "team-b"]);
+    expect(parsed.value.assignment).toBe("effective");
+    expect(parsed.value.corporateVerified).toBe(false);
+    expect(catalogQueryToRecord(parsed.value)).toMatchObject({
+      team_ids: "team-a,team-b",
+      project_ids: "project-a",
+      assignment: "effective",
+      corporate_verified: "false",
+    });
+    expect(countAppliedFilters(parsed.value)).toBe(9);
+  });
+
   it("opts out of experimental with 0 or false", () => {
     const zero = parseCatalogSearchParams({ include_experimental: "0" });
     expect(zero.ok).toBe(true);

@@ -6,6 +6,7 @@ import {
   startCatalogResourceReads,
   type CatalogReadDeps,
 } from "@/lib/catalog-load";
+import { parseCatalogSearchParams } from "@/lib/catalog-query";
 import { defaultCatalogQuery } from "@/lib/catalog-query-defaults";
 import {
   FIXTURE_ACCOUNT_ID,
@@ -108,6 +109,39 @@ describe("catalog resource orchestration", () => {
     const reads = startCatalogResourceReads(defaultCatalogQuery("all"), deps);
     await expect(reads.services).resolves.toEqual([]);
     await expect(reads.components).rejects.toThrow("search down");
+  });
+
+  it("forwards corporate facets and the organization session scope", async () => {
+    const parsed = parseCatalogSearchParams({
+      team_ids: "team-a",
+      owner_ids: "owner-a",
+      assignment: "direct",
+      corporate_verified: "true",
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    let received: Record<string, unknown> | undefined;
+    const reads = startCatalogResourceReads(
+      parsed.value,
+      {
+        listExternalProducts: () => Promise.resolve({ schema_version: 1, items: [] }),
+        searchComponents: (input) => {
+          received = input as Record<string, unknown>;
+          return Promise.resolve(emptyList);
+        },
+        searchSetups: () => Promise.resolve(emptyList),
+      },
+      { sessionToken: "session", organizationId: "org" },
+    );
+    await reads.components;
+    expect(received).toMatchObject({
+      sessionToken: "session",
+      organization_id: "org",
+      team_ids: ["team-a"],
+      owner_ids: ["owner-a"],
+      assignment: "direct",
+      corporate_verified: true,
+    });
   });
 });
 

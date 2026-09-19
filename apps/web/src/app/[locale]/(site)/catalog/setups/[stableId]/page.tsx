@@ -362,7 +362,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
                 total={corporateUsage.total}
                 labels={{
                   title: th("catalogUsageTitle"),
-                  summary: th("catalogUsageSummary"),
+                  summary: th("catalogUsageSummary", { count: corporateUsage.total }),
                   direct: th("directAssignment"),
                   effective: th("effectiveAssignment"),
                   subjectKinds: {

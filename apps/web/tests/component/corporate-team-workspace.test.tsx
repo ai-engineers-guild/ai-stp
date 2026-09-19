@@ -18,6 +18,7 @@ const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push }) }));
 vi.mock("@/lib/i18n/navigation", () => ({
   useRouter: () => ({ refresh, push }),
+  usePathname: () => "/corporate/teams",
   Link: ({ href, children, ...props }: { href: string; children: ReactNode }) => (
     <a href={href} {...props}>
       {children}

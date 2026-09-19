@@ -416,7 +416,7 @@ export async function readCorporateOrganization(
 export async function readCorporateCatalogAssignments(
   sessionToken: string,
   organizationId: string,
-  subjectKind: "employee" | "team" | "project",
+  subjectKind: "employee" | "team" | "project" | "technology",
   subjectId: string,
 ) {
   const items: CorporateCatalogAssignmentList["items"] = [];

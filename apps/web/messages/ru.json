@@ -907,6 +907,9 @@
     "closeMedia": "Закрыть медиа",
     "previousMedia": "Назад",
     "nextMedia": "Далее",
+    "mediaKindImage": "Изображение",
+    "mediaKindVideo": "Видео",
+    "mediaKindYoutube": "YouTube",
     "author": "Автор",
     "technicalDetails": "Технические детали",
     "versionHistory": "История версий",
@@ -1193,7 +1196,6 @@
   "cli": {
     "useTitle": "Использовать через CLI",
     "useBody": "Команда использует стабильный идентификатор и версию объекта.",
-    "cliUnavailable": "Эта корпоративная сущность не устанавливается через CLI.",
     "copy": "Копировать",
     "copied": "Скопировано",
     "copyError": "Ошибка копирования",

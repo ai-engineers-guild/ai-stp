@@ -16,7 +16,7 @@ type Props = {
   csrfToken: string;
   organizationId: string;
   authorizationRevision: number;
-  resource: "members" | "projects" | "teams" | "roles";
+  resource: "members" | "projects" | "teams" | "roles" | "technologies";
   resourceId: string;
   name: string;
   role?: string;
@@ -48,6 +48,58 @@ type Props = {
     archived: string;
   };
 };
+
+export function CorporateResourceDeleteMenuItem({
+  csrfToken,
+  organizationId,
+  authorizationRevision,
+  resource,
+  resourceId,
+  revision,
+  label,
+  confirmLabel,
+}: {
+  csrfToken: string;
+  organizationId: string;
+  authorizationRevision: number;
+  resource: Props["resource"];
+  resourceId: string;
+  revision: number;
+  label: string;
+  confirmLabel: string;
+}) {
+  const router = useRouter();
+  const [busy, startTransition] = useTransition();
+
+  return (
+    <DropdownMenu.Item
+      disabled={busy}
+      className="focus:bg-muted text-destructive flex min-h-11 cursor-pointer items-center rounded-sm px-3 py-2 text-sm outline-none"
+      onSelect={(event) => {
+        event.preventDefault();
+        if (!window.confirm(confirmLabel)) return;
+        startTransition(async () => {
+          const result = await corporateMutationAction({
+            csrfToken,
+            organizationId,
+            path: `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`,
+            method: "DELETE",
+            body: {
+              schema_version: 1,
+              expected_revision: revision,
+              authorization_revision: authorizationRevision,
+              idempotency_key: crypto.randomUUID(),
+            },
+          });
+          if (result.ok) router.refresh();
+        });
+      }}
+    >
+      <Icon name="close" size="sm" />
+      {busy ? "…" : label}
+    </DropdownMenu.Item>
+  );
+}
 
 // Keep resource mutation controls in one server-action boundary.
 // eslint-disable-next-line max-lines-per-function
@@ -82,12 +134,16 @@ export function CorporateResourceActions({
   const retry = useRef<{ effect: string; key: string } | null>(null);
   const endpoint = `/v1/corporate/organizations/${organizationId}/${resource}/${resourceId}`;
   const actionSet = availableActions ?? permissions;
-  const canUpdate = actionSet.includes(
-    `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.update`,
-  );
-  const canDelete = actionSet.includes(
-    `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.delete`,
-  );
+  const actionResource =
+    resource === "members"
+      ? "member"
+      : resource === "roles"
+        ? "role"
+        : resource === "technologies"
+          ? "technology"
+          : resource.slice(0, -1);
+  const canUpdate = actionSet.includes(`${actionResource}.update`);
+  const canDelete = actionSet.includes(`${actionResource}.delete`);
 
   function submit(method: "PATCH" | "DELETE", body: Record<string, unknown>) {
     const effect = JSON.stringify({ method, body });

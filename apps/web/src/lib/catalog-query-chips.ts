@@ -24,6 +24,15 @@ export function countAppliedFilters(query: ParsedCatalogQuery): number {
   if (query.familyId) n += 1;
   if (query.familyAlignment) n += 1;
   if (query.memberHarnessId) n += 1;
+  n +=
+    (query.teamIds?.length ?? 0) +
+    (query.projectIds?.length ?? 0) +
+    (query.technologyIds?.length ?? 0) +
+    (query.categoryIds?.length ?? 0) +
+    (query.ownerIds?.length ?? 0) +
+    (query.maintainerIds?.length ?? 0);
+  if (query.assignment) n += 1;
+  if (query.corporateVerified !== undefined) n += 1;
   if (!query.includeExperimental) n += 1;
   return n;
 }
@@ -212,7 +221,49 @@ export function appliedFilterChips(query: ParsedCatalogQuery): AppliedFilterChip
     });
   }
   appendCompatibilityAndFamilyChips(chips, query);
+  appendCorporateChips(chips, query);
   return chips.map((chip) => ({ ...chip, without: resetCatalogPage(chip.without) }));
+}
+
+function appendCorporateChips(chips: AppliedFilterChip[], query: ParsedCatalogQuery) {
+  const fields = [
+    ["team", "teamIds", query.teamIds ?? []],
+    ["project", "projectIds", query.projectIds ?? []],
+    ["technology", "technologyIds", query.technologyIds ?? []],
+    ["category", "categoryIds", query.categoryIds ?? []],
+    ["owner", "ownerIds", query.ownerIds ?? []],
+    ["maintainer", "maintainerIds", query.maintainerIds ?? []],
+  ] as const;
+  for (const [prefix, field, values] of fields) {
+    for (const value of values) {
+      chips.push({
+        key: `${prefix}:${value}`,
+        label: value,
+        without: {
+          ...query,
+          [field]: values.filter((item) => item !== value),
+          cursor: undefined,
+          pageNumber: 1,
+        },
+      });
+    }
+  }
+  if (query.assignment) {
+    const { assignment, ...rest } = query;
+    chips.push({
+      key: "assignment",
+      label: query.assignment,
+      without: { ...rest, cursor: undefined, pageNumber: 1 },
+    });
+  }
+  if (query.corporateVerified !== undefined) {
+    const { corporateVerified, ...rest } = query;
+    chips.push({
+      key: "corporate_verified",
+      label: query.corporateVerified ? "verified" : "not verified",
+      without: { ...rest, cursor: undefined, pageNumber: 1 },
+    });
+  }
 }
 
 function appendCompatibilityAndFamilyChips(chips: AppliedFilterChip[], query: ParsedCatalogQuery) {

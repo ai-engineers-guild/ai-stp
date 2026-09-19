@@ -27,6 +27,12 @@ export function defaultCatalogQuery(resource: CatalogResource = "all"): ParsedCa
     supportState: undefined,
     serviceDomains: [],
     countryCodes: [],
+    teamIds: [],
+    projectIds: [],
+    technologyIds: [],
+    categoryIds: [],
+    ownerIds: [],
+    maintainerIds: [],
     pageSize: CATALOG_DEFAULT_PAGE_SIZE,
     pageNumber: 1,
   };

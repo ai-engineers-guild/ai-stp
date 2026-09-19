@@ -13,6 +13,7 @@ import type { CorporateAuditExport, CorporateAuditList } from "@/lib/api/generat
 type Props = {
   organizationId: string;
   audit: CorporateAuditList;
+  canExport?: boolean;
   members?: readonly { account_id: string; display_name: string | null }[];
   filters?: CorporateAuditFilterValues;
   labels: {
@@ -39,6 +40,7 @@ type ExportRange = "current" | "today" | "last7" | "last30" | "all";
 export function CorporateAuditPanel({
   organizationId,
   audit,
+  canExport = true,
   labels,
   members = [],
   filters = {},
@@ -84,7 +86,9 @@ export function CorporateAuditPanel({
         document.body.append(link);
         link.click();
         link.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+        window.setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 0);
       } catch {
         setMessage(labels.failed);
       }
@@ -95,42 +99,44 @@ export function CorporateAuditPanel({
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-medium">{labels.title}</h2>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground block">{labels.exportFormat}</span>
-            <select
-              aria-label={labels.exportFormat}
-              value={exportFormat}
-              onChange={(event) => {
-                setExportFormat(event.target.value as ExportFormat);
-              }}
-              className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
-            >
-              <option value="json">{labels.json}</option>
-              <option value="csv">{labels.csv}</option>
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground block">{labels.exportRange}</span>
-            <select
-              aria-label={labels.exportRange}
-              value={range}
-              onChange={(event) => {
-                setRange(event.target.value as ExportRange);
-              }}
-              className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
-            >
-              <option value="current">{labels.currentFilters}</option>
-              <option value="today">{labels.today}</option>
-              <option value="last7">{labels.last7Days}</option>
-              <option value="last30">{labels.last30Days}</option>
-              <option value="all">{labels.allEvents}</option>
-            </select>
-          </label>
-          <Button type="button" disabled={busy} onClick={exportAudit}>
-            {busy ? labels.exporting : labels.export}
-          </Button>
-        </div>
+        {canExport ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="space-y-1 text-sm">
+              <span className="text-muted-foreground block">{labels.exportFormat}</span>
+              <select
+                aria-label={labels.exportFormat}
+                value={exportFormat}
+                onChange={(event) => {
+                  setExportFormat(event.target.value as ExportFormat);
+                }}
+                className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
+              >
+                <option value="json">{labels.json}</option>
+                <option value="csv">{labels.csv}</option>
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="text-muted-foreground block">{labels.exportRange}</span>
+              <select
+                aria-label={labels.exportRange}
+                value={range}
+                onChange={(event) => {
+                  setRange(event.target.value as ExportRange);
+                }}
+                className="border-input bg-background min-h-11 rounded-sm border px-3 text-sm"
+              >
+                <option value="current">{labels.currentFilters}</option>
+                <option value="today">{labels.today}</option>
+                <option value="last7">{labels.last7Days}</option>
+                <option value="last30">{labels.last30Days}</option>
+                <option value="all">{labels.allEvents}</option>
+              </select>
+            </label>
+            <Button type="button" disabled={busy} onClick={exportAudit}>
+              {busy ? labels.exporting : labels.export}
+            </Button>
+          </div>
+        ) : null}
       </div>
       {audit.items.length ? (
         <ol className="divide-border divide-y text-sm">

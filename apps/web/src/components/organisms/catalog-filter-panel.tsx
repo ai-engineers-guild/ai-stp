@@ -4,6 +4,7 @@
 import { useMemo, useState } from "react";
 
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import type { CorporateCatalogFacetConfig } from "@/components/organisms/corporate-directory-types";
 import type { CatalogAuthorOption, ExternalProduct } from "@/lib/api/catalog";
 import { CATALOG_UNSPECIFIED_FILTER, type ParsedCatalogQuery } from "@/lib/catalog-query";
 import { localizedCountryName } from "@/lib/country-name";
@@ -56,6 +57,7 @@ export type CatalogFilterPanelLabels = {
   updatedFrom?: string;
   updatedTo?: string;
   clearUpdatedRange?: string;
+  corporateFilters?: string;
 };
 // eslint-disable-next-line max-lines-per-function, complexity
 export function CatalogFilterPanel({
@@ -65,6 +67,7 @@ export function CatalogFilterPanel({
   authors = [],
   locale = "en",
   hideAuthorFilter = false,
+  corporateFacets = [],
 }: {
   query: ParsedCatalogQuery;
   labels: CatalogFilterPanelLabels;
@@ -72,6 +75,7 @@ export function CatalogFilterPanel({
   authors?: CatalogAuthorOption[];
   locale?: string;
   hideAuthorFilter?: boolean;
+  corporateFacets?: readonly CorporateCatalogFacetConfig[];
 }) {
   const unspecifiedLabel = labels.unspecifiedOption ?? "Not specified";
   const [countryCodes, setCountryCodes] = useState(() => {
@@ -249,9 +253,44 @@ export function CatalogFilterPanel({
           onFromChange={setUpdatedFrom}
           onToChange={setUpdatedTo}
         />
+        {corporateFacets.length ? (
+          <fieldset className="border-border min-w-0 space-y-3 rounded-lg border p-4 md:col-span-2">
+            <legend className="px-1 text-sm font-medium">
+              {labels.corporateFilters ?? "Corporate"}
+            </legend>
+            <div className="grid min-w-0 gap-5 md:grid-cols-2">
+              {corporateFacets.map((facet) => (
+                <Facet key={facet.key} label={facet.label}>
+                  <SearchableMultiSelect
+                    name={facet.key}
+                    label={facet.label}
+                    searchLabel={labels.searchOptions}
+                    options={facet.options}
+                    selected={selectedCorporateValues(query, facet.key)}
+                    multiple={facet.multiple !== false}
+                  />
+                </Facet>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
       </div>
     </div>
   );
+}
+
+function selectedCorporateValues(
+  query: ParsedCatalogQuery,
+  key: CorporateCatalogFacetConfig["key"],
+): string[] {
+  if (key === "team_ids") return query.teamIds ?? [];
+  if (key === "project_ids") return query.projectIds ?? [];
+  if (key === "technology_ids") return query.technologyIds ?? [];
+  if (key === "category_ids") return query.categoryIds ?? [];
+  if (key === "owner_ids") return query.ownerIds ?? [];
+  if (key === "maintainer_ids") return query.maintainerIds ?? [];
+  if (key === "assignment") return query.assignment ? [query.assignment] : [];
+  return query.corporateVerified === undefined ? [] : [String(query.corporateVerified)];
 }
 function sortAuthorOptions(
   authors: readonly CatalogAuthorOption[],

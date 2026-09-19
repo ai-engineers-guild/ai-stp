@@ -3,7 +3,6 @@ import { useTranslations } from "next-intl";
 import { AvatarImage } from "@/components/atoms/avatar-image";
 import { Badge } from "@/components/atoms/badge";
 import { MarkdownDescription } from "@/components/molecules/markdown-description";
-import { DetailAccordion } from "@/components/molecules/detail-accordion";
 import { EntityDetailHeader } from "@/components/organisms/entity-detail-header";
 import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
 import {
@@ -31,6 +30,7 @@ export function CorporateEntityDetail({
   title,
   state,
   rail,
+  adminMenu,
 }: {
   presentation: CorporatePresentation | null;
   description: string;
@@ -40,6 +40,7 @@ export function CorporateEntityDetail({
   title: string;
   state?: string;
   rail?: ReactNode;
+  adminMenu?: ReactNode;
 }) {
   const t = useTranslations("account");
   const h = useTranslations("hub");
@@ -48,7 +49,6 @@ export function CorporateEntityDetail({
   const objects = useTranslations("objects");
   const access = useTranslations("access");
   const corporate = useTranslations("corporate");
-  const cli = useTranslations("cli");
   const canonicalResource = resource === "members" ? "employees" : resource;
   const detailHref = `/corporate/${canonicalResource}/${encodeURIComponent(resourceId)}`;
   const visibleState = visibleCorporateState(state);
@@ -84,14 +84,15 @@ export function CorporateEntityDetail({
         menu={
           <EntityDetailMenu
             moreLabel={access("more")}
-            editPresentationLabel={objects("editPresentation")}
-            editPresentationHref={presentation?.can_edit ? `${detailHref}/edit` : undefined}
+            editLabel={objects("editPresentation")}
+            editHref={presentation?.can_edit ? `${detailHref}/edit` : undefined}
             entityId={resourceId}
             shareHref={detailHref}
             copyIdLabel={h("copyId")}
             shareLabel={h("share")}
             reportLabel={h("report")}
             reportTarget={`corporate:${canonicalResource}:${resourceId}`}
+            adminItems={adminMenu}
           />
         }
       />
@@ -182,10 +183,6 @@ export function CorporateEntityDetail({
             operationalOwnerLabel={h("operationalOwner")}
             teamLeadsLabel={h("teamLeads")}
             emptyLabel={h("notAvailable")}
-            contextBudgetLabel={catalog("contextBudgetTitle")}
-            contextBudgetUnavailable={catalog("contextBudgetError")}
-            cliTitle={cli("useTitle")}
-            cliUnavailable={cli("cliUnavailable")}
           >
             {rail}
           </CorporateIdentityRail>
@@ -244,10 +241,6 @@ function CorporateIdentityRail({
   operationalOwnerLabel,
   teamLeadsLabel,
   emptyLabel,
-  contextBudgetLabel,
-  contextBudgetUnavailable,
-  cliTitle,
-  cliUnavailable,
   children,
 }: {
   presentation: CorporatePresentation | null;
@@ -256,10 +249,6 @@ function CorporateIdentityRail({
   operationalOwnerLabel: string;
   teamLeadsLabel: string;
   emptyLabel: string;
-  contextBudgetLabel: string;
-  contextBudgetUnavailable: string;
-  cliTitle: string;
-  cliUnavailable: string;
   children?: ReactNode;
 }) {
   const subjects =
@@ -297,12 +286,6 @@ function CorporateIdentityRail({
               <p className="text-muted-foreground mt-2 text-sm">{emptyLabel}</p>
             )}
           </section>
-          <DetailAccordion title={contextBudgetLabel} summary={contextBudgetUnavailable}>
-            <p className="text-muted-foreground text-sm">{contextBudgetUnavailable}</p>
-          </DetailAccordion>
-          <DetailAccordion title={cliTitle} summary={cliUnavailable}>
-            <p className="text-muted-foreground text-sm">{cliUnavailable}</p>
-          </DetailAccordion>
           {presentation.links.length ? (
             <ul className="border-border bg-card space-y-2 rounded-lg border p-5">
               {presentation.links.map((link) => (

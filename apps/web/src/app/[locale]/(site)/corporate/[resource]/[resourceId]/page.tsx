@@ -3,7 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
-import { LocalizedResourceActions } from "@/components/organisms/localized-corporate-resource-actions";
+import { LocalizedResourceDeleteMenuItem } from "@/components/organisms/localized-corporate-resource-actions";
 import { CorporateCatalogAssignments } from "@/components/organisms/corporate-catalog-assignments";
 import { CorporateRelationSection } from "@/components/organisms/corporate-relation-section";
 import { CorporateEmployeeDetail } from "@/components/organisms/corporate-employee-detail";
@@ -16,7 +16,7 @@ import {
 } from "@/lib/api/corporate-employee";
 import { ApiError } from "@/lib/api/errors";
 import { readCorporateResource, readCorporateCatalogAssignments } from "@/lib/api/corporate";
-import { readProjectTechnologyDetail, readTeamProjects } from "@/lib/api/technology";
+import { readProjectTechnologyDetail } from "@/lib/api/technology";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { safeCorporateQuery } from "@/lib/corporate-routes";
@@ -59,6 +59,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     workspace = await readCorporateResource(session, resource, resourceId);
   } catch (error) {
     if (error instanceof ApiError) {
+      if (error.code === "AI_STP_NOT_FOUND" || error.status === 404) notFound();
       return (
         <StatePanel
           kind="error"
@@ -72,6 +73,12 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     throw error;
   }
   if (!workspace) notFound();
+  if (
+    resource === "projects" &&
+    !workspace.context.projects.some((item) => item.project_id === resourceId)
+  ) {
+    notFound();
+  }
 
   let projectDetail = null;
   if (resource === "projects") {
@@ -83,6 +90,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
       );
     } catch (error) {
       if (error instanceof ApiError) {
+        if (error.code === "AI_STP_NOT_FOUND" || error.status === 404) notFound();
         return (
           <StatePanel
             kind="error"
@@ -99,8 +107,8 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
   const project = projectDetail?.project;
   const team = workspace.team;
   const teamProjects = team
-    ? await readTeamProjects(session, workspace.organization.organization_id, team.team_id)
-    : null;
+    ? workspace.context.projects.filter((project) => team.project_ids.includes(project.project_id))
+    : [];
   const member = workspace.member;
   const employeeContent = member
     ? await readCorporateEmployeeContent({
@@ -255,6 +263,7 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         member,
         teams: workspace.context.teams,
         projects: workspace.context.projects,
+        projectIds: workspace.projectMemberships?.items.map((item) => item.project_id) ?? [],
         content: employeeContent,
         includeTechnologies: true,
         unknownName: t("unknownEmployee"),
@@ -264,6 +273,12 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
   const displayDescription = presentation
     ? presentation.description
     : team?.description || detail.description;
+  const csrfToken = (await readCsrfToken()) ?? "";
+  const actionSet =
+    resource === "teams" ? (team?.available_actions ?? []) : workspace.context.capabilities;
+  const canDelete = actionSet.includes(
+    `${resource === "members" ? "member" : resource === "roles" ? "role" : resource.slice(0, -1)}.delete`,
+  );
   return (
     <article className="mx-auto max-w-7xl space-y-8">
       <HistoryBackButton label={backLabel} fallback={parentHref} />
@@ -273,6 +288,18 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
         resource={resource === "roles" ? "teams" : resource}
         resourceId={resourceId}
         title={detail.name}
+        adminMenu={
+          canDelete ? (
+            <LocalizedResourceDeleteMenuItem
+              csrfToken={csrfToken}
+              organizationId={workspace.context.organization.organization_id}
+              authorizationRevision={workspace.context.organization.authorization_revision}
+              resource={resource}
+              resourceId={detail.id}
+              revision={detail.revision}
+            />
+          ) : null
+        }
         {...(detail.role || detail.state !== "active"
           ? { state: detail.role ?? detail.state }
           : {})}
@@ -292,35 +319,19 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
                 api={{ resource: "members", filters: { team_ids: [team.team_id] } }}
               />
             ) : null}
-            {teamProjects
-              ? (() => {
-                  const projects = teamProjects.relations.items
-                    .filter((item) => item.state === "current")
-                    .flatMap((item) => {
-                      const project = teamProjects.projects?.items.find(
-                        (candidate) => candidate.project_id === item.project_id,
-                      );
-                      return project
-                        ? [
-                            {
-                              kind: "project" as const,
-                              id: project.project_id,
-                              name: project.name,
-                            },
-                          ]
-                        : [];
-                    });
-                  return projects.length ? (
-                    <CorporateRelationSection
-                      title={h("projects")}
-                      resource="projects"
-                      references={projects}
-                      labels={relationLabels(h)}
-                      api={{ resource: "projects", filters: { team_ids: [team.team_id] } }}
-                    />
-                  ) : null;
-                })()
-              : null}
+            {teamProjects.length ? (
+              <CorporateRelationSection
+                title={h("projects")}
+                resource="projects"
+                references={teamProjects.map((project) => ({
+                  kind: "project" as const,
+                  id: project.project_id,
+                  name: project.name,
+                }))}
+                labels={relationLabels(h)}
+                api={{ resource: "projects", filters: { team_ids: [team.team_id] } }}
+              />
+            ) : null}
           </>
         ) : null}
         {member && employeeContent ? (
@@ -336,47 +347,12 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
             subjectKind={subjectKind}
             subjectId={resourceId}
             authorizationRevision={workspace.organization.authorization_revision}
-            csrfToken={(await readCsrfToken()) ?? ""}
+            csrfToken={csrfToken}
             canManage={
               resource === "teams"
                 ? Boolean(team?.available_actions.includes("assignment.manage"))
                 : workspace.context.capabilities.includes("catalog_object.assign")
             }
-          />
-        )}
-        {(resource === "members" || resource === "projects" || resource === "teams") && (
-          <LocalizedResourceActions
-            csrfToken={(await readCsrfToken()) ?? ""}
-            organizationId={workspace.context.organization.organization_id}
-            authorizationRevision={workspace.context.organization.authorization_revision}
-            resource={resource}
-            resourceId={detail.id}
-            name={detail.name}
-            {...(workspace.roles ? { roles: workspace.roles.items } : {})}
-            availableActions={
-              resource === "teams"
-                ? (team?.available_actions ?? [])
-                : workspace.context.capabilities
-            }
-            state={detail.state}
-            revision={detail.revision}
-            permissions={workspace.context.capabilities}
-          />
-        )}
-        {resource === "roles" && (
-          <LocalizedResourceActions
-            csrfToken={(await readCsrfToken()) ?? ""}
-            organizationId={workspace.context.organization.organization_id}
-            authorizationRevision={workspace.context.organization.authorization_revision}
-            resource={resource}
-            resourceId={detail.id}
-            name={detail.name}
-            {...(detail.role === undefined ? {} : { role: detail.role })}
-            {...("parentRole" in detail ? { parentRole: detail.parentRole } : {})}
-            {...("rolePermissions" in detail ? { rolePermissions: detail.rolePermissions } : {})}
-            state={project?.state ?? detail.state}
-            revision={detail.revision}
-            permissions={workspace.context.capabilities}
           />
         )}
       </CorporateEntityDetail>

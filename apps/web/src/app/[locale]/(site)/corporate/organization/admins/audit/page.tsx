@@ -116,6 +116,7 @@ export default async function CorporateAuditPage({
       <CorporateAuditPanel
         organizationId={result.context.organization.organization_id}
         audit={result.audit}
+        canExport={result.context.capabilities.includes("audit.export")}
         members={result.members?.items ?? []}
         filters={filters}
         labels={{

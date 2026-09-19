@@ -23,6 +23,27 @@ import type { MachineRoute } from "@/lib/projection/route-table";
 
 export const TECHNOLOGY_ROUTES: MachineRoute[] = [
   {
+    pattern: "corporate/technologies/new",
+    resolve: async () => {
+      const t = await getTranslations("technology");
+      return presentPage({
+        title: t("createTechnology"),
+        links: [[t("backToTechnologies"), "/corporate/technologies"]],
+      });
+    },
+  },
+  {
+    pattern: "corporate/organization/admins/job-titles",
+    resolve: async () => {
+      const t = await getTranslations("corporate");
+      return presentPage({
+        title: t("jobTitles"),
+        summary: t("jobTitlesDescription"),
+        links: [[t("backToWorkspace"), "/corporate/organization/admins"]],
+      });
+    },
+  },
+  {
     pattern: "corporate/organization",
     resolve: async () => {
       const t = await getTranslations("hub");
@@ -43,7 +64,7 @@ export const TECHNOLOGY_ROUTES: MachineRoute[] = [
     },
   },
   {
-    pattern: "corporate/organization/admins/members/:accountId",
+    pattern: "corporate/organization/admins/employees/:accountId",
     resolve: async ({ segments }) => {
       const accountId = segments.at(-1);
       if (!accountId) return null;
