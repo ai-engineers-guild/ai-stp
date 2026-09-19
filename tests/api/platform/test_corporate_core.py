@@ -119,10 +119,20 @@ async def test_job_titles_enforce_idempotency_revision_uniqueness_and_tenant_bou
     assert created.status_code == 200, created.text
     assert created.json()["name"] == "Platform Engineer"
     assert (await client.post(path, json=payload, headers=auth)).json() == created.json()
+    authorization_revision = (
+        await client.get(
+            f"/v1/corporate/organizations/{organization_id}/context", headers=auth
+        )
+    ).json()["organization"]["authorization_revision"]
 
     duplicate = await client.post(
         path,
-        json={**payload, "name": "platform engineer", "idempotency_key": "job-title-create-0002"},
+        json={
+            **payload,
+            "name": "platform engineer",
+            "idempotency_key": "job-title-create-0002",
+            "authorization_revision": authorization_revision,
+        },
         headers=auth,
     )
     assert duplicate.status_code == 409
@@ -580,7 +590,7 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         f"/v1/corporate/organizations/{organization_id}/context", headers=staff_auth
     )
     assert removed_context.status_code == 200
-    assert removed_context.json()["teams"] == []
+    assert [item["name"] for item in removed_context.json()["teams"]] == ["Initial"]
     assert removed_context.json()["projects"] == []
 
     foreign_id = new_id("organization")
