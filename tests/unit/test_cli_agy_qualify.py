@@ -8,6 +8,7 @@ import os
 import sqlite3
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -1290,7 +1291,7 @@ def test_run_agy_does_not_retry_an_empty_log_503(
         raise AssertionError("empty-log 503 must not sleep")
 
     monkeypatch.setattr("ai_stp_cli.agy_qualify.subprocess.run", fake_run)
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.time.sleep", _sleep)
+    monkeypatch.setattr("ai_stp_cli.agy_qualify.time", SimpleNamespace(sleep=_sleep))
     assert run_agy(workspace, agy=Path("/bin/agy"), timeout=5) == 1
     assert calls["n"] == 1
 
@@ -1327,7 +1328,7 @@ def test_start_only_503_retries_until_follow_through(
         return None
 
     monkeypatch.setattr("ai_stp_cli.agy_qualify.subprocess.run", fake_run)
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.time.sleep", _sleep)
+    monkeypatch.setattr("ai_stp_cli.agy_qualify.time", SimpleNamespace(sleep=_sleep))
     assert run_agy(workspace, agy=Path("/bin/agy"), timeout=5) == 0
     assert calls["n"] == 2
     (workspace.root / "cli.log").write_text("install plan --json\n", encoding="utf-8")
@@ -1523,7 +1524,7 @@ def test_unavailable_agy_keeps_a_prior_fail_cell(
     def _sleep(_seconds: float) -> None:
         sleeps["n"] += 1
 
-    monkeypatch.setattr("ai_stp_cli.agy_qualify.time.sleep", _sleep)
+    monkeypatch.setattr("ai_stp_cli.agy_qualify.time", SimpleNamespace(sleep=_sleep))
     code = main(
         [
             "--root",
