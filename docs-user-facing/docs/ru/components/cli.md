@@ -15,6 +15,12 @@ description: "Компоненты cli: отдельный исполняемы�
 `cli` — процесс. Это также не сам исполняемый файл `ai-stp` — он живёт в
 [CLI](../cli/index.md).
 
+Повседневное авторство — intent `author`. Не набирайте `component scaffold plan`.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
 !!! warning "Вид `cli` — не slash-команда"
 
     | Объект | Где живёт | В сетапе? |

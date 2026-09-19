@@ -76,8 +76,12 @@ OPTIONAL_INFO_FIELDS: Final[frozenset[str]] = frozenset(
 #: already uses. The consumer does not send that bundle yet — a released
 #: `0.0.52` answers a bundle on `remove` with `unsupported_operation`, correctly
 #: — and it will not until a provider declares this name.
+#: `instruction_section` carries the marked user-global instruction bytes for
+#: optional `patch_instruction_region`. The name is accepted one CLI release
+#: before any provider may declare it. `--instruction-section` is sent only
+#: to a provider that lists both the operation and this field (`ADR-0125`).
 PLAN_REQUEST_FIELDS: Final[frozenset[str]] = frozenset(
-    {"target_scope", "end_state", "capture_mode"}
+    {"target_scope", "end_state", "capture_mode", "instruction_section"}
 )
 
 #: Request-side arguments a provider says it accepts on `status`, by the same
@@ -172,6 +176,7 @@ class Operation(StrEnum):
     SOFTWARE_UPDATE = "software_update"
     SOFTWARE_REMOVE = "software_remove"
     LAUNCH = "launch"
+    PATCH_INSTRUCTION_REGION = "patch_instruction_region"
 
 
 CORE_OPERATIONS: Final[frozenset[Operation]] = frozenset(
@@ -456,6 +461,7 @@ OPERATION_NETWORK: Final[Mapping[Operation, tuple[PhasePolicy, ...]]] = MappingP
         Operation.LAUNCH: (
             PhasePolicy(OperationPhase.EXECUTE, NetworkRequirement.RUNTIME_EXTERNAL),
         ),
+        Operation.PATCH_INSTRUCTION_REGION: _LOCAL_PLAN_APPLY,
     }
 )
 

@@ -58,6 +58,11 @@ The public catalog, publisher pages, and this content hub are readable without s
 uv tool install ai-stp-cli
 ai-stp doctor --json
 ai-stp version --json
+```
+
+Expert command-path dump:
+
+```text
 ai-stp capabilities --json
 ```
 

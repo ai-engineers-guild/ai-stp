@@ -63,9 +63,10 @@ description: "Лендинг: установка CLI и вход в катало
 
 Переключатель Human / Machine остаётся внизу окна. Machine-Главная —
 короткий Markdown: заголовок, подзаголовок, ссылка на каталог, ссылка
-на Документацию, заголовок установки и fenced-копия той же команды.
-Документация там указывает на `AI_STP_USER_DOCS_URL`, когда presenter
-его получил; это не страница OpenAPI API.
+на Документацию, заголовок установки, команда установки CLI и
+повседневный initialize start. Документация там указывает на
+`AI_STP_USER_DOCS_URL`, когда presenter его получил; это не страница
+OpenAPI API.
 
 Шапка и подвал — общая оболочка, описанная в [Веб](index.md).
 **Документация** в шапке — внешний хост MkDocs.
@@ -80,11 +81,16 @@ description: "Лендинг: установка CLI и вход в катало
 
 ## Соответствующие команды CLI
 
-Эти команды есть в реестре работающего CLI. Копируйте их с
-`--json`.
+Поставьте CLI, затем стартуйте first-run discoverability:
 
 ```bash
 uv tool install ai-stp-cli
+ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
+```
+
+Expert inspect установленного бинарника:
+
+```text
 ai-stp version --json
 ai-stp doctor --json
 ai-stp capabilities --json
@@ -132,10 +138,9 @@ ai-stp passport developer init --json
 
 ```text
 копия с Главной → uv tool install ai-stp-cli
-                → doctor / capabilities
-                → registry search
-                → select / install plan
-                → provider apply
+                → task intents --json
+                → task start --intent initialize|install|…
+                → follow continuations
 ```
 
 В этой цепочке нет website POST, кроме позднего входа, лайков,

@@ -66,6 +66,12 @@ def all_saved(connection: sqlite3.Connection, target_id: str = "") -> tuple[Pres
     return tuple(_read(row) for row in rows)
 
 
+def latest_for(connection: sqlite3.Connection, target_id: str) -> PreservedSetup | None:
+    """The most recent user working config for one target. Never an upstream default."""
+    held = all_saved(connection, target_id)
+    return held[-1] if held else None
+
+
 def register(
     connection: sqlite3.Connection,
     *,

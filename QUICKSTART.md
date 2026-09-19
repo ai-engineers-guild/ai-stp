@@ -4,7 +4,7 @@
 
 Work status is tracked in `docs/engineering/implementation-roadmap.md`. The `uv` workspace exists, the `foundation`, `passports`, `assurance`, and `contracts` packages are materialized, the `apps/cli` application exists, and both per-file schemas and `openapi.json` are generated in `schemas/v1`. Remaining work is tracked in GitHub issues.
 
-Useful facts about `apps/cli`: the command is installed as `ai-stp`; `uv run ai-stp help --agent --json` prints the complete command registry; `uv run ai-stp doctor --json` reports installation state; `uv run ai-stp device init --json` creates this device's identity; `uv run ai-stp device show --json` shows it and the key location without creating anything; `uv run ai-stp passport developer init --json` creates the local registry and developer passport; and `uv run ai-stp auth status --json` shows the installation's relationship to the platform: `local_only`, `authenticated`, `expired`, or `revoked`. Each command is declared exactly once: the parser is built from the registry and machine help is rendered from the same source, so they cannot diverge. See `docs/agent/machine-help.md` for details.
+Useful facts about `apps/cli`: the command is installed as `ai-stp`; `uv run ai-stp task intents --json` is the agent bootstrap; `uv run ai-stp doctor --json` reports installation state when asked what is broken; `uv run ai-stp device init --json` creates this device's identity; `uv run ai-stp device show --json` shows it and the key location without creating anything; `uv run ai-stp passport developer init --json` creates the local registry and developer passport; and `uv run ai-stp auth status --json` shows the installation's relationship to the platform: `local_only`, `authenticated`, `expired`, or `revoked`. Expert `help --agent --json` is the full command registry — do not type `ai-stp capabilities` as the first move. Each command is declared exactly once: the parser is built from the registry and machine help is rendered from the same source, so they cannot diverge. See `docs/agent/machine-help.md` for details.
 
 Useful facts about `packages/contracts`: it carries the frozen `/v1` boundary together with a shared fixture corpus, mock transport, and conformance suite. The mock requires `httpx` and is provided through the optional `ai-stp-contracts[mock]` dependency. See `docs/contracts/fixture-corpus.md` for details.
 
@@ -14,7 +14,7 @@ The sole source of truth for Python dependencies is the root `uv.lock`; document
 
 ```bash
 uv tool install ai-stp-cli
-ai-stp doctor --json
+ai-stp task intents --json
 ```
 
 This is the same command promised by the landing page, and `just back-smoke` verifies it on every run: build, installation into an isolated tool directory, execution outside the source tree, and removal. Administrator privileges are not required.

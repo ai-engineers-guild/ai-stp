@@ -83,7 +83,7 @@ Cursor inside a proven pack: `skills`, `agents`, `commands`, and
 `hooks` and `mcpServers`; the walker does not invent those types from an
 adjacent directory.
 
-When you start from `ai_stp`, scaffold first. The authoring directory is
+When you start from `ai_stp`, start the `author` intent. Do not type `component scaffold plan`. The authoring directory is
 wider than the published package: `discover` / `adopt` transfer `source/`
 when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
@@ -101,7 +101,15 @@ review-pack/                       # component-scaffold/6
         └── README.md
 ```
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type plugin \
   --language python \
@@ -154,7 +162,7 @@ do not validate a plugin package as a whole.
 ## Native layouts per harness
 
 Discovery only reports layouts that are declared. Exact paths on a
-machine come from `ai-stp component discover --json`. Each finding
+machine come from the `author` intent envelope. Each finding
 carries `layout_source`. If classification is uncertain, show that
 field; do not guess a neighbour's path.
 
@@ -179,10 +187,13 @@ with `.claude-plugin/plugin.json` or `plugin.json` is a **plugin**.
 Discovery tells them apart by the manifest, not by the parent folder
 name.
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover`. The engine finds the native tree.
 
 ## Versions are `X.Y`, not SemVer
 
@@ -250,26 +261,28 @@ ai-stp component skill validate --path <directory-with-SKILL.md> --json
 **Author, adopt, publish:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 If the path is also claimed as a skill directory:
 
-```bash
+Expert recovery:
+
+```text
 ai-stp component adopt --path <source_path> --kind plugin --json
 ```
 
-**Find, select, install:**
+**Install:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 A plugin can also be an embedded member of a compose manifest. See
@@ -332,14 +345,13 @@ A plugin can also be an embedded member of a compose manifest. See
    `commands/`, `hooks/hooks.json`, `.mcp.json`, Cursor `rules/`) only
    when that harness's proven pack actually reads them.
 4. Declare post-install behaviour in the passport. No secrets.
-5. Run `ai-stp component discover --root . --json` and read
-   `layout_source` on the plugin finding and on nested members.
-6. `component adopt --path <exact source_path>` — add `--kind plugin`
-   if the path is also a skill directory.
-7. Pin an exact public GitHub commit and subpath.
-8. `component passport validate` → `component version release` to mint
+5. Register the directory through
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` remain for recovery.
+6. Pin an exact public GitHub commit and subpath.
+7. `component passport validate` → `component version release` to mint
    immutable `X.Y`.
-9. Publish through [the publication path](../publishing/index.md). In a
+8. Publish through [the publication path](../publishing/index.md). In a
    setup, pin that `X.Y`.
 
 Related: [Authoring](../publishing/authoring.md),

@@ -24,7 +24,7 @@ from typing import Any, cast
 import pytest
 
 from ai_stp_cli import config, identity, telemetry
-from ai_stp_cli.commands import install as install_cmd
+from ai_stp_cli.application import install as install_cmd
 from ai_stp_cli.commands import telemetry as telemetry_cmd
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import content, installation, revisions, versions

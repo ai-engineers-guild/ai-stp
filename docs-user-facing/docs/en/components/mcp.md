@@ -81,7 +81,7 @@ github-issues/                     # TypeScript server package
     └── index.ts                   # bin/script entry; imports the SDK
 ```
 
-When you start from `ai_stp`, scaffold first. The authoring directory is
+When you start from `ai_stp`, start the `author` intent. Do not type `component scaffold plan`. The authoring directory is
 wider than the published package: `discover` / `adopt` transfer `source/`
 when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree. The scaffold plants `source/mcp.json` plus a language
@@ -100,7 +100,15 @@ github-issues/                     # component-scaffold/6
     └── src/main.py                # python handler; add the package manifest
 ```
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type mcp \
   --language python \
@@ -143,7 +151,7 @@ finding rather than guessing a vendor path.
 ## Native layouts per harness
 
 Discovery only reports layouts that are declared. Exact paths on a
-machine come from `ai-stp component discover --json`. Each finding
+machine come from the `author` intent envelope. Each finding
 carries `layout_source`. If classification is uncertain, show that
 field; do not guess a neighbour's path.
 
@@ -172,10 +180,13 @@ A plugin `.mcp.json` proves itself by name, so discovery does not open
 it. Working servers for Claude Code packs reside there; guessing a
 different home file is not a layout.
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover`. The engine finds the native tree.
 
 If the same path is both a `setting` and an `mcp`, name `--kind` on
 adopt. Do not adopt the file twice under guessed kinds.
@@ -241,26 +252,28 @@ ai-stp component passport validate --id <stable_id> --json
 **Author, adopt, publish:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 When the finding is also a setting file:
 
-```bash
+Expert recovery:
+
+```text
 ai-stp component adopt --path <source_path> --kind mcp --json
 ```
 
-**Find, select, install:**
+**Install:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 An MCP component can also be an embedded member of a compose manifest.
@@ -320,14 +333,13 @@ See [Setups](../setups/index.md).
 3. For **client config**, keep values that bear access out of the
    artifact. Record env *names* only.
 4. Declare filesystem, network, and credential needs in the passport.
-5. Run `ai-stp component discover --root . --json` and read
-   `native_role`, `harness_id`, and `layout_source`.
-6. `component adopt --path <exact source_path>` — add `--kind mcp` when
-   the file is also a setting.
-7. Pin an exact public GitHub commit and subpath. No secrets in the tree.
-8. `component passport validate` → `component version release` to mint
+5. Register the directory through
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` remain for recovery.
+6. Pin an exact public GitHub commit and subpath. No secrets in the tree.
+7. `component passport validate` → `component version release` to mint
    immutable `X.Y`.
-9. Publish through [the publication path](../publishing/index.md). In a
+8. Publish through [the publication path](../publishing/index.md). In a
    setup, pin that `X.Y`.
 
 Related: [Authoring](../publishing/authoring.md),

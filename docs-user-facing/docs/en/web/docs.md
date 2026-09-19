@@ -115,15 +115,21 @@ clients. Do not assume a reverse proxy collapsed them: the API path
 
 ## Matching CLI commands
 
-There is no `ai-stp docs` command. Machine help is:
+There is no `ai-stp docs` command. Everyday discovery:
 
 ```bash
+ai-stp task intents --json
+```
+
+Expert full registry of **this** install:
+
+```text
 ai-stp help --agent --json
 ```
 
-That envelope is the command registry of **this** install. Flags,
-schemas, and `next_actions` are not copied into Markdown. If a help
-page and the CLI disagree, follow the CLI.
+That envelope still continues at `task intents`. Flags, schemas, and
+`next_actions` are not copied into Markdown. If a help page and the CLI
+disagree, follow the CLI.
 
 Canonical web links from a shell:
 
@@ -143,7 +149,7 @@ MkDocs and does not open OpenAPI.
 | Header Documentation leaves the site | that is the external `docsHref` | expected |
 | Swagger UI at `/docs` on the API host | you opened OpenAPI | go to `:8011` or `/{locale}/docs` for how-tos |
 | English missing on `:8011/` | you are on the Russian root | open `:8011/en/` |
-| Search finds no CLI flag | help pages are not the parser | run `ai-stp help --agent --json` |
+| Search finds no CLI flag | help pages are not the parser | run `ai-stp task intents --json` |
 | Edit on GitHub 404s | you are not on `main` or lack access | read the built page; do not paste secrets into a PR |
 
 Self-hosted websites still compile this Markdown. They may point

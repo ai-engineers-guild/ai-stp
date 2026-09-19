@@ -77,7 +77,15 @@ strict-mode/                       # component-scaffold/6
     └── settings.json
 ```
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type setting \
   --language none \
@@ -122,7 +130,7 @@ There is no independent setting specification comparable to the
 to [MCP](https://modelcontextprotocol.io). Each harness documents its
 own configuration file.
 
-Cite `layout_source` from `ai-stp component discover --json` when
+Cite `layout_source` from the `author` intent envelope when
 classification is uncertain. Do not guess a neighbour's path, and do
 not treat a settings file as MCP merely because it exists.
 
@@ -132,7 +140,7 @@ do not validate settings.
 ## Native layouts per harness
 
 Discovery only reports layouts that are declared. Exact paths on a
-machine come from `ai-stp component discover --json`. Each finding
+machine come from the `author` intent envelope. Each finding
 carries `layout_source`. If classification is uncertain, show that
 field; do not guess a neighbour's path.
 
@@ -152,14 +160,19 @@ From the discovery matrix:
 A declared path still belongs to an untrusted machine. Discovery does
 not read secret values out of a settings file to "check" them.
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover`. The engine finds the native tree.
 
 If the same path answers to more than one kind, name `--kind` on adopt.
 
-```bash
+Expert recovery:
+
+```text
 ai-stp component adopt --path <source_path> --kind setting --json
 ```
 
@@ -223,20 +236,20 @@ ai-stp component passport validate --id <stable_id> --json
 **Author, adopt, publish:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Find, select, install:**
+**Install:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 A setting can also be an embedded member of a compose manifest. See
@@ -294,14 +307,13 @@ A setting can also be an embedded member of a compose manifest. See
 3. If the file also declares MCP servers, treat that as a separate
    [`mcp`](mcp.md) finding. Do not put server values in this artifact.
 4. Declare what the values change in the passport.
-5. Run `ai-stp component discover --root . --json` and read
-   `layout_source`, and `native_role` if a second finding appears.
-6. `component adopt --path <exact source_path>` — add `--kind setting`
-   when the path is also MCP.
-7. Pin an exact public GitHub commit and subpath. No secrets in the tree.
-8. `component passport validate` → `component version release` to mint
+5. Register the directory through
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` remain for recovery.
+6. Pin an exact public GitHub commit and subpath. No secrets in the tree.
+7. `component passport validate` → `component version release` to mint
    immutable `X.Y`.
-9. Publish through [the publication path](../publishing/index.md). In a
+8. Publish through [the publication path](../publishing/index.md). In a
    setup, pin that `X.Y`.
 
 Related: [Authoring](../publishing/authoring.md),

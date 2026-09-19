@@ -28,8 +28,9 @@ Local work needs no account. `device init` and a developer passport are enough t
 Google or GitHub sign-in unlocks private objects, sync, publication, devices and grants. Sign-in does not move assembly onto the website. The path stays:
 
 ```text
-CLI → passports → project index → search → setup assembly → checks
-→ install plan → backup → apply through the provider → status
+CLI → task intents → task start
+→ follow continuations (execute argv only when actor is cli)
+→ report payload verification
 ```
 
 The CLI returns one JSON envelope per command. Flags, schemas and `next_actions` come from `ai-stp help --agent`, not from memory of a blog post. Documentation groups commands so a person can find the right page. If a page and the installed CLI disagree, the CLI wins.

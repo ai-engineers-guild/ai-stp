@@ -22,7 +22,7 @@ PACKAGE = CANONICAL.parent
 
 #: Every `ai-stp ...` invocation written in a document.
 INVOCATION = re.compile(r"`(ai-stp [^`\n]+)`")
-BOOTSTRAP_FLAGS = frozenset({"--json", "--agent"})
+BOOTSTRAP_FLAGS = frozenset({"--json"})
 
 
 def _package_markdown() -> list[Path]:
@@ -82,14 +82,22 @@ def test_bootstrap_asks_which_project_directories_to_index() -> None:
     assert "Do not ask again" in text
 
 
-def test_the_canonical_skill_starts_from_doctor_and_machine_help() -> None:
-    # `#77` fixes the opening move: look at the installation, then read the
-    # registry. Anything else would be the Skill guessing.
+def test_the_canonical_skill_starts_from_task_intents() -> None:
+    # Durable journeys start at compact discovery, not a 203-command dump.
     text = CANONICAL.read_text(encoding="utf-8")
     beginning = text.split("## Start here", 1)[1].split("##", 1)[0]
-    assert "ai-stp doctor --json" in beginning
-    assert "ai-stp help --agent --json" in beginning
-    assert beginning.index("doctor") < beginning.index("help --agent")
+    assert "ai-stp task intents --json" in beginning
+    assert "yourself" in beginning
+    assert "JSON field" in beginning
+    assert "printed command is not a completed operation" in beginning
+    assert "Start already advanced the task" in beginning
+    assert "Do not invent `task status`" in beginning
+    assert "do not background it" in beginning
+    assert "already signed in" in beginning
+    assert "ai-stp doctor --json" not in beginning
+    assert "help --agent" not in beginning
+    assert len(text.splitlines()) <= 500
+    assert "203" not in text
 
 
 def test_every_example_uses_only_flags_declared_for_its_command() -> None:
@@ -105,10 +113,123 @@ def test_every_example_uses_only_flags_declared_for_its_command() -> None:
                 f"--{parameter.name}" for parameter in command.descriptor.parameters
             }
             flags = [token.split("=", 1)[0] for token in invocation if token.startswith("--")]
-            if command.descriptor.path == ["doctor"] or command.descriptor.path == ["help"]:
+            if command.descriptor.path == ["task", "intents"]:
                 assert set(flags) <= BOOTSTRAP_FLAGS | allowed
                 continue
             assert flags == [], " ".join(invocation)
+
+
+FLAG_TOKEN = re.compile(r"(?<![\w`])--[a-z][a-z0-9-]*")
+
+
+def test_skill_text_names_no_flags_except_the_bootstrap_pair() -> None:
+    for path in _package_markdown():
+        text = path.read_text(encoding="utf-8")
+        flags = FLAG_TOKEN.findall(text)
+        extra = [flag for flag in flags if flag not in BOOTSTRAP_FLAGS]
+        assert extra == [], f"{path}: {extra}"
+        if "--json" in flags:
+            assert "task intents --json" in text, path
+
+
+def test_install_playbook_does_not_type_the_install_group() -> None:
+    text = (PACKAGE / "references" / "install.md").read_text(encoding="utf-8")
+    assert "Do not type the install group with no leaf" in text
+
+
+def test_onboard_does_not_prelude_doctor() -> None:
+    text = (PACKAGE / "references" / "onboard.md").read_text(encoding="utf-8")
+    assert "before mutating" not in text
+    assert "as a prelude" in text
+    assert "initialize" in text
+    assert "provider-too-old" in text
+    assert "start `account`" in text
+
+
+def test_account_playbook_is_not_every_external_block() -> None:
+    text = (PACKAGE / "references" / "account.md").read_text(encoding="utf-8")
+    assert "provider-too-old" in text
+    assert "Do not open this playbook for" in text
+    assert "device-code" in text or "user_code" in text
+    assert "Do not type `sync push`" in text
+    assert "Do not type `project passport`" in text
+    assert "Do not type `project revision push`" in text
+    assert "already signed in" in text
+    assert "do not type `ai-stp`" in text
+    assert "Do not call `task continue` in that turn" in text
+
+
+def test_traps_do_not_teach_adopt_as_the_id_path() -> None:
+    text = (PACKAGE / "references" / "traps.md").read_text(encoding="utf-8")
+    assert "author" in text
+    assert "Do not type `component adopt`" in text
+    assert "provider-too-old" in text
+
+
+def test_catalog_playbook_does_not_type_registry_show() -> None:
+    text = (PACKAGE / "references" / "catalog.md").read_text(encoding="utf-8")
+    assert "Do not type `registry show`" in text
+    assert "`registry fetch`" in text
+    assert "install" in text
+
+
+def test_author_playbook_does_not_type_setup_publish() -> None:
+    text = (PACKAGE / "references" / "author.md").read_text(encoding="utf-8")
+    assert "`setup publish plan`" in text
+    assert "`setup publish confirm`" in text
+    assert "`component materialize plan`" in text
+    assert "publish" in text
+    assert "github.com" in text
+    assert "do not invent git" in text.lower()
+
+
+def test_environment_playbook_does_not_type_environment_plan() -> None:
+    text = (PACKAGE / "references" / "environment.md").read_text(encoding="utf-8")
+    assert "Do not type" in text
+    assert "`environment plan`" in text
+    assert "`environment inspect`" in text
+    assert "install" in text
+
+
+def test_compose_playbook_does_not_type_recast_plan() -> None:
+    text = (PACKAGE / "references" / "compose.md").read_text(encoding="utf-8")
+    assert "Do not type `setup recast plan`" in text
+    assert "change" in text
+
+
+def test_self_update_playbook_does_not_type_update_plan() -> None:
+    text = (PACKAGE / "references" / "self-update.md").read_text(encoding="utf-8")
+    assert "Do not type `update plan` or `update apply`" in text
+    assert "`ai-stp update check`" in text
+
+
+def test_provider_playbook_does_not_type_provider_update_plan() -> None:
+    text = (PACKAGE / "references" / "provider.md").read_text(encoding="utf-8")
+    assert "do not type `ai-stp provider update plan`" in text.lower()
+    assert "do not type `ai-stp harness install`" in text.lower()
+    assert "`ai-stp harness update`" in text
+
+
+def test_bootstrap_does_not_send_install_through_adopt() -> None:
+    text = (PACKAGE / "references" / "bootstrap.md").read_text(encoding="utf-8")
+    assert "Do not type `ai-stp component adopt`" in text
+    assert "Do not type `ai-stp capabilities`" in text
+    assert "author" in text
+
+
+def test_inspect_playbook_does_not_type_version() -> None:
+    text = (PACKAGE / "references" / "inspect.md").read_text(encoding="utf-8")
+    assert "Do not type `ai-stp capabilities` or `ai-stp version`" in text
+
+
+def test_recover_continues_the_open_task_before_expert_leaves() -> None:
+    text = (PACKAGE / "references" / "recover.md").read_text(encoding="utf-8")
+    assert "Do not start a second `install` intent" in text
+    assert "install recover" in text
+    assert "Do not type `setup preserve recover`" in text
+    assert "Do not dump the full registry" in text
+    assert "Do not type `ai-stp help`" in text
+    assert "Do not type `ai-stp capabilities`" in text
 
 
 def test_the_skill_carries_no_stale_capability_snapshot() -> None:
@@ -122,6 +243,9 @@ def test_the_skill_carries_no_stale_capability_snapshot() -> None:
     rules = CANONICAL.read_text(encoding="utf-8").split("## Hard rules", 1)[1]
     assert "machine help" in rules.lower() or "Machine help" in rules
     assert "harness target" in rules
+    assert "Do not type `provider network`" in rules
+    assert "Do not type `sync push`" in rules or "`sync push`" in rules
+    assert "`setup publish plan`" in rules
 
 
 def test_the_skill_uses_machine_error_dispositions_instead_of_exit_class_guesses() -> None:
@@ -146,6 +270,8 @@ def test_the_skill_distinguishes_effect_from_machine_confirmation() -> None:
     assert "Do not compute" in policy
     assert "mechanical, not questions" in policy
     assert "separate user decision" in policy
+    assert "run the named plan command" not in text
+    assert "do not type `install plan`" in text.lower()
 
 
 @pytest.mark.parametrize(
@@ -177,7 +303,7 @@ def test_a_projection_carries_the_procedure_without_a_repository_pointer() -> No
             command = _command_for(invocation)
             assert command.name in known, (projection.harness_id, invocation)
         assert "## Hard rules" in text
-        assert "ai-stp doctor --json" in text
+        assert "ai-stp task intents --json" in text
         assert "skills/canonical/" not in text
 
 

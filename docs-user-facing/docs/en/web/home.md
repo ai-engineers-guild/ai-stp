@@ -61,9 +61,10 @@ project does not publish.
 
 The Human / Machine switch stays at the bottom of the viewport. Machine
 Home is a short Markdown document: the title, the subtitle, a catalog
-link, a Documentation link, the install heading, and a fenced copy of
-the same command. Documentation there points at `AI_STP_USER_DOCS_URL`
-when the presenter is given it; it is not the API OpenAPI page.
+link, a Documentation link, the install heading, the CLI install
+command, and the everyday initialize start. Documentation there points
+at `AI_STP_USER_DOCS_URL` when the presenter is given it; it is not the
+API OpenAPI page.
 
 Header and footer are the shared chrome described in [Web](index.md).
 Header **Documentation** is the external MkDocs host.
@@ -78,11 +79,16 @@ Keyboard:
 
 ## Matching CLI commands
 
-These commands exist in the running CLI registry. Copy them with
-`--json`.
+Install the CLI, then start first-run discoverability:
 
 ```bash
 uv tool install ai-stp-cli
+ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
+```
+
+Expert inspect of the installed binary:
+
+```text
 ai-stp version --json
 ai-stp doctor --json
 ai-stp capabilities --json
@@ -128,10 +134,9 @@ selected and applied in the CLI:
 
 ```text
 Home copy → uv tool install ai-stp-cli
-         → doctor / capabilities
-         → registry search
-         → select / install plan
-         → provider apply
+         → task intents --json
+         → task start --intent initialize|install|…
+         → follow continuations
 ```
 
 Nothing in that chain is a website POST except later sign-in, likes,

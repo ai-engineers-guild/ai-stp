@@ -66,7 +66,7 @@ run-tests/
 └── run-tests.md                   # {name}.md at the package root
 ```
 
-When you start from `ai_stp`, scaffold first. The authoring directory is
+When you start from `ai_stp`, start the `author` intent. Do not type `component scaffold plan`. The authoring directory is
 wider than the published package: `discover` / `adopt` transfer `source/`
 when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
@@ -82,7 +82,15 @@ run-tests/                         # component-scaffold/6
     └── run-tests.md
 ```
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type command \
   --language none \
@@ -108,9 +116,9 @@ There is no `ai-stp component command validate`. Structural readiness is
 exists only for [`skill`](skill.md).
 
 Give the command a short name, an explicit description, and bounded
-arguments. The agent should read available commands from machine help,
-not invent them from memory — that rule is for `ai-stp` itself
-(`ai-stp help --agent --json`) and is the right habit for harness
+arguments. The agent should read available commands from continuation
+`argv` after `ai-stp task intents --json`, not invent them from memory —
+that rule is for `ai-stp` itself and is the right habit for harness
 commands too.
 
 If a command changes the outside world, it must be legible in the
@@ -123,7 +131,7 @@ There is no independent command specification comparable to the
 [Agent Skills Specification](https://agentskills.io/specification). A
 skill is the portable workflow; a command is the named entry.
 
-Cite `layout_source` from `ai-stp component discover --json` when
+Cite `layout_source` from the `author` intent envelope when
 classification is uncertain. Do not guess a neighbour's path.
 
 NVIDIA SkillSpector and Cisco Skill Scanner are skill scanners. They
@@ -132,7 +140,7 @@ do not validate commands.
 ## Native layouts per harness
 
 Discovery only reports layouts that are declared. Exact paths on a
-machine come from `ai-stp component discover --json`. Each finding
+machine come from the `author` intent envelope. Each finding
 carries `layout_source`. If classification is uncertain, show that
 field; do not guess a neighbour's path.
 
@@ -158,10 +166,13 @@ A single file in a directory-shaped layout needs no extra manifest —
 that is how Claude Code commands are authored, and adoption accepts
 them.
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover`. The engine finds the native tree.
 
 ## Versions are `X.Y`, not SemVer
 
@@ -223,26 +234,26 @@ ai-stp component passport validate --id <stable_id> --json
 **Not this kind** — `ai-stp` CLI groups (see [CLI](../cli/index.md)):
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
 **Author, adopt, publish:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Find, select, install:**
+**Install:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 A command can also be an embedded member of a compose manifest. See
@@ -297,14 +308,14 @@ A command can also be an embedded member of a compose manifest. See
    arguments. Put a procedure with assets in a [`skill`](skill.md)
    instead.
 3. Declare what the command changes in the passport. No secrets.
-4. Run `ai-stp component discover --root . --json` and read
-   `layout_source` on the finding.
-5. `component adopt --path <exact source_path>`.
-6. Pin an exact public GitHub commit and subpath.
-7. `component passport validate` → `component version release` to mint
+4. Register the directory through
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` remain for recovery.
+5. Pin an exact public GitHub commit and subpath.
+6. `component passport validate` → `component version release` to mint
    immutable `X.Y`.
-8. Publish through [the publication path](../publishing/index.md).
-9. In a setup, pin that `X.Y`. Updating later is a new setup version.
+7. Publish through [the publication path](../publishing/index.md).
+8. In a setup, pin that `X.Y`. Updating later is a new setup version.
 
 Related: [Authoring](../publishing/authoring.md),
 [Components](index.md), [`skill`](skill.md), [`hook`](hook.md),

@@ -44,12 +44,19 @@ run `device init`.
 
 ## Machine help is the parser
 
+Everyday discovery:
+
 ```bash
+ai-stp task intents --json
+```
+
+Expert full registry of this install:
+
+```text
 ai-stp help --agent --json
 ```
 
-Documentation groups commands so a person can find the right page. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and the
+Documentation groups commands so a person can find the right page. If this page and the
 CLI disagree, follow the CLI.
 
 The full list, one row per command, is the [command map](commands.md).
@@ -72,7 +79,7 @@ The full list, one row per command, is the [command map](commands.md).
 | Registry | [Registry](registry.md) | catalog search, fetch, local ports |
 | Component | [Component commands](component.md) | discover → passport → publish |
 | Select | [Select](select.md) | eligibility, proposal, reports |
-| Install | [Install](install.md) | plan, approve, apply, recover |
+| Install | [Install](install.md) | install intent; expert recover/resume remain |
 | Target | [Target](target.md) | daily status, diff, backups, named rollback |
 | Setup | [Setup commands](setup.md) | compose, import, update, publish |
 | Provider | [Provider](provider.md) | the binary that writes native state |
@@ -86,13 +93,15 @@ The full list, one row per command, is the [command map](commands.md).
 ## A working loop
 
 ```text
-doctor / capabilities / help --agent
-→ device + developer passport
-→ registry search / show
-→ select propose → confirm
-→ install plan → approve → apply
-→ target status
+task intents --json
+→ task start --intent <shipped> --idempotency-key <key> --json
+→ follow continuations (execute argv only when actor is cli)
+→ report payload verification
 ```
+
+Expert leaves (`install plan` / `approve` / `apply`) stay available for
+recovery. Everyday install, change, and switch drain those steps
+in-process under the matching intent.
 
 The agent may skip a step only when the previous envelope already made it
 unnecessary. It may not skip a mechanical check.

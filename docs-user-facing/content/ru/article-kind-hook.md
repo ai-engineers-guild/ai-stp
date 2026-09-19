@@ -69,7 +69,15 @@ pre-tool-check/                    # component-scaffold/3
         └── handler.py
 ```
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type hook \
   --language python \
@@ -107,7 +115,7 @@ Adopt принимает путь, который discovery уже назвал.
 [MCP](https://modelcontextprotocol.io), нет. Каждый харнесс документирует
 свои события.
 
-Ссылайтесь на `layout_source` из `ai-stp component discover --json`,
+Ссылайтесь на `layout_source` из конверта intent `author`,
 когда классификация неясна. Не угадывайте путь соседа и не считайте
 обычный `src/hooks/useFoo.ts` или бизнес-webhook hook'ом харнесса —
 `unsupported` в матрице не становится эвристикой по имени файла.
@@ -118,7 +126,7 @@ NVIDIA SkillSpector и Cisco Skill Scanner — сканеры skill. Они не
 ## Нативные layout по харнессам
 
 Discovery сообщает только объявленные layout. Точные пути на машине даёт
-`ai-stp component discover --json`. У каждой находки есть `layout_source`.
+конверт intent `author`. У каждой находки есть `layout_source`.
 Если классификация неясна, покажите это поле; не угадывайте путь соседа.
 
 Из матрицы discovery:
@@ -141,10 +149,13 @@ Project plugin pack Claude Code доказывается только точны
 Cursor pack доказывается `.cursor-plugin/plugin.json`. Walker не создаёт
 находку hook из соседнего каталога `hooks/`, который дерево не несёт.
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover`. Движок сам находит нативное дерево.
 
 ## Версии — `X.Y`, не SemVer
 
@@ -209,20 +220,20 @@ ai-stp component passport validate --id <stable_id> --json
 **Автор, adopt, публикация:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Найти, выбрать, установить:**
+**Установить:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 Hook может быть embedded-членом compose-манифеста. См.
@@ -281,14 +292,14 @@ Hook может быть embedded-членом compose-манифеста. См.
    `source/hook.json`: событие, порядок, блокирующий failure и handler.
 3. Объявите в паспорте, что делает handler, что он читает и как его
    отключить. Секретов нет.
-4. Запустите `ai-stp component discover --root . --json` и прочитайте
-   `layout_source` у находки.
-5. `component adopt --path <точный source_path>`.
-6. Закрепите точный публичный GitHub commit и подпуть.
-7. `component passport validate` → `component version release`, чтобы
+4. Зарегистрируйте каталог через
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` остаются для recovery.
+5. Закрепите точный публичный GitHub commit и подпуть.
+6. `component passport validate` → `component version release`, чтобы
    выпустить неизменяемый `X.Y`.
-8. Публикуйте через [путь публикации](https://ai-stp.aiguild.space/ru/docs/components).
-9. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия
+7. Публикуйте через [путь публикации](https://ai-stp.aiguild.space/ru/docs/components).
+8. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия
    сетапа.
 
 Связанное: [Авторство](https://ai-stp.aiguild.space/ru/docs/components),

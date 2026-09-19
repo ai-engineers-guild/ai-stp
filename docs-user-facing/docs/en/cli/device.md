@@ -176,7 +176,7 @@ a session may not.
 | `AI_STP_USER_DECISION_REQUIRED` on `device reset` | `--confirm` was missing | `ai-stp device reset --confirm --json` after an explicit decision |
 | `credential_store` is `file` | the OS secret store was unavailable | read `credential_store_detail`; this is reported, not hidden |
 | doctor reports no device | `device show` would refuse the same way | `device init`, not `device reset` |
-| cloud calls fail after reset | the old key is retired | `auth login` then `auth complete` for the new identity |
+| cloud calls fail after reset | the old key is retired | `task start --intent account --idempotency-key account-session-01 --json` |
 
 ## Related pages
 

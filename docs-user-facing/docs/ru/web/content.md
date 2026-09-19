@@ -101,9 +101,9 @@ JSON-LD отдаётся для краулеров. Это не паспорт.
 
 CLI хаба материалов нет. Каталог и справка остаются:
 
-```bash
+```text
 ai-stp registry search --json
-ai-stp help --agent --json
+ai-stp task intents --json
 ai-stp link web --json
 ```
 

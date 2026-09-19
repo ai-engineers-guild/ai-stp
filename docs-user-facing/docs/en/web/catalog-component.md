@@ -99,7 +99,7 @@ The rail:
 | Author | publisher avatar, display name, `author_verified` |
 | Usage | detail views, artifact downloads |
 | Context budget | potential tokens; runtime-derived kinds say so |
-| CLI copy | exact `registry version` line |
+| CLI copy | everyday `task start --intent install` under Use via CLI; inspect copy of `registry version` |
 | Version history | offered `X.Y` numbers; gaps are intentional |
 
 **Public passport JSON** is behind an accordion. Copy it as JSON. It is
@@ -126,6 +126,14 @@ skip; missing minors are not a catalog bug.
 
 ## Matching CLI commands
 
+Everyday install (Use via CLI):
+
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog reads and local blast-radius:
+
 ```bash
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <x.y> --json
@@ -142,8 +150,8 @@ shows which setups and targets already reference the component.
 Adopting or publishing is not this page:
 
 ```bash
-ai-stp component discover --json
-ai-stp owner object show --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 ## Dead-ends

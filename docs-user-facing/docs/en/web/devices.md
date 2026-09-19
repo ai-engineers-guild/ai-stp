@@ -9,7 +9,13 @@ Devices lists browsers and CLI installations currently linked to your
 account. You approve a new CLI device by typing the user code here (or
 on `/device-login`). You revoke a device forward-only.
 
-The website does not create a local device identity. That is
+Everyday CLI linking is the `account` intent:
+
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+The website does not create a local device identity. That is expert
 `ai-stp device init`.
 
 ## URLs and who can see them
@@ -31,7 +37,7 @@ land here.
 Use Devices to:
 
 - see which browsers and CLI installs can act as this account;
-- approve a code printed by `ai-stp auth login`;
+- approve a code printed by the `account` intent;
 - revoke a lost or old device.
 
 Devices does **not**:
@@ -76,7 +82,7 @@ Hint on the page tells you to run a CLI command then confirm the
 code. The declared command is:
 
 ```bash
-ai-stp auth login --provider github --json
+ai-stp task start --intent account --idempotency-key account-session-01 --json
 ```
 
 (`google` is the other closed provider). There is no
@@ -89,15 +95,16 @@ Revoke current device: **You revoked the current device. You have been
 signed out.** Stale eTag / conflict: refresh and decide again.
 
 Human / Machine: machine Devices lists `device_id`, type, state,
-last_active_at, location. It does not include the approve form.
+last_active_at, location, and the everyday account start. It does not
+include the approve form.
 
 ## Matching CLI commands
 
-```bash
+```text
 ai-stp device init --json
 ai-stp device show --json
 ai-stp device reset --confirm --json
-ai-stp auth login --provider github --json
+ai-stp task start --intent account --idempotency-key account-session-01 --json
 ai-stp auth complete --json
 ai-stp auth status --json
 ai-stp auth logout --json
@@ -117,8 +124,8 @@ head, not this HTML list.
 | --- | --- | --- |
 | Redirect to login | no session | sign in |
 | No devices registered | API returned empty | re-login in this browser |
-| Unknown / expired code | typo or timeout | retype, or run `auth login` again |
-| Code already used | resolved | run `auth login` again |
+| Unknown / expired code | typo or timeout | retype, or start `account` again |
+| Code already used | resolved | start `account` again |
 | Page went stale (CSRF) | reload | approve again |
 | Revoke blocked (stale / conflict) | concurrent change | refresh |
 | Revoke current → signed out | expected | sign in on a remaining device |
@@ -134,14 +141,14 @@ one-time approval, not a password to store.
 | --- | --- | --- |
 | Type | `web` | CLI |
 | Created by | OAuth cookie | `device init` |
-| Linked by | login itself | `auth login` + approve code |
+| Linked by | login itself | `account` intent + approve code |
 | Private key | session cookie | OS secret store (or file fallback) |
 | Revoke on this page | signs you out if current | cloud calls stop; files remain |
 | `device reset` | not applicable | new local identity; `--confirm` |
 
 Approve the code on **either** `/devices` or `/device-login`. The CLI
 polls until `auth complete` can finish. Approving twice with a spent
-code is `resolved`: run `auth login` again.
+code is `resolved`: start `account` again.
 
 Machine Devices is the list. The authorize form is human-only.
 

@@ -15,19 +15,26 @@ A search result is a candidate, not permission to install. Check the
 harness, the exact `X.Y` version, the trust line, and the two
 independent verification axes before you select anything.
 
+Everyday catalog install is the `install` intent. Search, fetch, acquire,
+and port import below stay expert recovery.
+
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
 ## Commands
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp registry search` | `read` | `none` | Search the public catalogue without an account. |
+| registry search | `read` | `none` | Search the public catalogue without an account. |
 | `ai-stp registry show` | `read` | `none` | Show one catalogue object and its published versions. |
 | `ai-stp registry version` | `read` | `none` | Show one exact published version and its verified passport. |
 | `ai-stp registry fetch` | `apply` | `none` | Fetch the exact bytes of one published version into the local cache. |
-| `ai-stp registry acquire` | `apply` | `none` | Acquire one exact published setup graph for local offline compilation. |
-| `ai-stp registry port discover` | `read` | `none` | Find compatible SX and APM snapshots under one explicit local root. |
-| `ai-stp registry port inspect` | `read` | `none` | Inspect one setup-store mapping without importing or running its CLI. |
-| `ai-stp registry port plan` | `plan` | `none` | Preview a local-only setup-store import and bind it to exact manifest bytes. |
-| `ai-stp registry port import` | `apply` | `plan_digest` | Import a confirmed exact SX or APM snapshot into the local registry only. |
+| registry acquire | `apply` | `none` | Acquire one exact published setup graph for local offline compilation. |
+| registry port discover | `read` | `none` | Find compatible SX and APM snapshots under one explicit local root. |
+| registry port inspect | `read` | `none` | Inspect one setup-store mapping without importing or running its CLI. |
+| registry port plan | `plan` | `none` | Preview a local-only setup-store import and bind it to exact manifest bytes. |
+| registry port import | `apply` | `plan_digest` | Import a confirmed exact SX or APM snapshot into the local registry only. |
 
 `--kind` is required on `search`, `show`, `version`, and `fetch`. It is
 `component` or `setup`. `--id` is required on `show`, `version`,
@@ -36,11 +43,11 @@ and `acquire`. Port commands require `--root`; inspect, plan, and
 import also require `--adapter` (`sx` or `apm`). Import requires
 `--expected-plan-digest`.
 
-## Typical path
+## Expert recovery: typical path
 
 Anonymous catalog reads:
 
-```bash
+```text
 ai-stp registry search --kind component --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <version> --json
@@ -52,7 +59,7 @@ exact `X.Y`. A range is not a reference.
 To put those exact bytes in the local cache, then acquire a setup
 graph:
 
-```bash
+```text
 ai-stp registry fetch --kind component --id <stable_id> --version <version> --json
 ai-stp registry acquire --id <stable_id> --version <version> --json
 ```
@@ -62,7 +69,7 @@ ai-stp registry acquire --id <stable_id> --version <version> --json
 To import a local setup-store snapshot, never touching the external
 store or a harness target:
 
-```bash
+```text
 ai-stp registry port discover --root <root> --json
 ai-stp registry port inspect --root <root> --adapter sx --json
 ai-stp registry port plan --root <root> --adapter sx --json
@@ -76,13 +83,13 @@ If the network is down, a read may answer from cache and will say so
 in `source`. Read `checked_at`. Do not treat a cache hit as a live
 catalog.
 
-## Catalog reads
+## Expert recovery: catalog reads
 
 ### `registry search`
 
 Search the public catalogue without an account.
 
-```bash
+```text
 ai-stp registry search --kind component --json
 ```
 
@@ -138,7 +145,7 @@ flag may be computed from the other. `authoritative` additionally
 requires both, and that implication is not a substitute for reading
 the flags.
 
-## Catalog writes to the local cache
+## Expert recovery: catalog writes to the local cache
 
 ### `registry fetch`
 
@@ -173,7 +180,7 @@ is the point of the envelope.
 
 Acquire one exact published setup graph for local offline compilation.
 
-```bash
+```text
 ai-stp registry acquire --id <stable_id> --version <version> --json
 ```
 
@@ -202,7 +209,7 @@ a harness target. `adapter` is `sx` or `apm`.
 
 Find compatible SX and APM snapshots under one explicit local root.
 
-```bash
+```text
 ai-stp registry port discover --root <root> --json
 ```
 
@@ -215,7 +222,7 @@ store names `adapter`, `contract_version`, `root`, `manifest`,
 
 Inspect one setup-store mapping without importing or running its CLI.
 
-```bash
+```text
 ai-stp registry port inspect --root <root> --adapter sx --json
 ```
 
@@ -227,7 +234,7 @@ and `diagnostics`. Unknown fields are listed, not silently imported.
 Preview a local-only setup-store import and bind it to exact manifest
 bytes.
 
-```bash
+```text
 ai-stp registry port plan --root <root> --adapter sx --json
 ```
 
@@ -245,7 +252,7 @@ does not become platform-verified by arriving through this port.
 Import a confirmed exact SX or APM snapshot into the local registry
 only.
 
-```bash
+```text
 ai-stp registry port import --root <root> --adapter sx --expected-plan-digest <plan-digest> --json
 ```
 

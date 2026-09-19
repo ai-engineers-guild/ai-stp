@@ -51,7 +51,7 @@ import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asVersionId, tryAsComponentId } from "@/lib/brands";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
-import { registryVersion } from "@/lib/cli-copy";
+import { installStart, registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { UI } from "@/lib/ui-selectors";
@@ -362,9 +362,21 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               labels={contextBudgetLabels(t, tCli)}
             />
             <CliCopyBlock
-              command={cliCommand}
+              command={installStart()}
               title={tCli("useTitle")}
               description={tCli("useBody")}
+              copyLabel={tCli("copy")}
+              copiedLabel={tCli("copied")}
+              errorLabel={tCli("copyError")}
+              docsLabel={tCli("docs")}
+              visibility={passport?.visibility === "private" ? "private" : "public"}
+              publicLabel={t("public")}
+              privateLabel={t("private")}
+            />
+            <CliCopyBlock
+              command={cliCommand}
+              title={tCli("inspectTitle")}
+              description={tCli("inspectBody")}
               copyLabel={tCli("copy")}
               copiedLabel={tCli("copied")}
               errorLabel={tCli("copyError")}

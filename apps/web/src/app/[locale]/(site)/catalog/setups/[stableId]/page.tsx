@@ -49,7 +49,7 @@ import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/pu
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asComponentId, asVersionId, tryAsSetupId } from "@/lib/brands";
-import { registryVersion } from "@/lib/cli-copy";
+import { installStart, registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
@@ -380,9 +380,21 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
               labels={contextBudgetLabels(t, tCli)}
             />
             <CliCopyBlock
-              command={cliCommand}
+              command={installStart()}
               title={tCli("useTitle")}
               description={tCli("useBody")}
+              copyLabel={tCli("copy")}
+              copiedLabel={tCli("copied")}
+              errorLabel={tCli("copyError")}
+              docsLabel={tCli("docs")}
+              visibility="public"
+              publicLabel={t("public")}
+              privateLabel={t("private")}
+            />
+            <CliCopyBlock
+              command={cliCommand}
+              title={tCli("inspectTitle")}
+              description={tCli("inspectBody")}
               copyLabel={tCli("copy")}
               copiedLabel={tCli("copied")}
               errorLabel={tCli("copyError")}

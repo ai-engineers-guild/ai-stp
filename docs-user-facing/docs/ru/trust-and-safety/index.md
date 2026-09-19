@@ -80,7 +80,7 @@ ai-stp consent revoke --scope publisher --target <publisher_id> --json
 
 Поиск может показать experimental-линию на одну команду без записи согласия:
 
-```bash
+```text
 ai-stp registry search --kind component --query scanner --include-experimental --json
 ```
 

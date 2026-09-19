@@ -5,7 +5,7 @@ import {
   namedPassportHarnesses,
   namedProjectionKinds,
 } from "@/lib/catalog-harnesses";
-import { registryCommand } from "@/lib/cli-copy";
+import { installStart, registryCommand } from "@/lib/cli-copy";
 import { isComponentType, type ComponentTypeId } from "@/lib/projection/inventory";
 import { sourceLinksFor, type PublicSourceLink } from "@/lib/source-url";
 import type { ComponentVersionPassport, GitSource } from "@/lib/api/generated/types.gen";
@@ -83,6 +83,7 @@ export type PublicObjectFacts = {
   publisher?: string;
   tags: string[];
   install: string;
+  inspect: string;
   countryCodes: string[];
   services: string[];
   license?: string;
@@ -294,7 +295,8 @@ export function componentPublicFacts(
     lifecycle: summary.latest_lifecycle,
     publisher: summary.publisher_id,
     tags: [...summary.latest_tags],
-    install: registryCommand(summary.stable_id, summary.latest_version),
+    install: installStart(),
+    inspect: registryCommand(summary.stable_id, summary.latest_version),
     countryCodes: extras?.countryCodes ?? [],
     services: extras?.services ?? [],
     requiredEnv: extras?.requiredEnv ?? [],
@@ -399,7 +401,8 @@ export function setupPublicFacts(
     lifecycle: summary.latest_lifecycle,
     publisher: summary.publisher_id,
     tags: [...summary.latest_tags],
-    install: registryCommand(summary.stable_id, summary.latest_version),
+    install: installStart(),
+    inspect: registryCommand(summary.stable_id, summary.latest_version),
     countryCodes: extras?.countryCodes ?? [],
     services: extras?.services ?? [],
     requiredEnv: [],

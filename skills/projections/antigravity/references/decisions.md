@@ -23,10 +23,13 @@ promotion, and deploy of verified work are not that list. Unverified stays
 labeled unverified. Experimental may enter composition under task authority
 and never becomes `authoritative` by that fact.
 
-For `explicit_flag` on the remaining stops, obtain the decision, then pass the
-parameter named by the descriptor. For `plan_digest`, run the named plan
-command and pass the digest the CLI returned. Do not compute it. A stale plan
-is replanned automatically.
+For `explicit_flag` on remaining expert stops, obtain the decision, then pass
+the parameter named by the descriptor. `plan_digest` is bound in-process by
+shipped task intents; do not type `install plan` to obtain a digest for
+`install`, `change`, or `switch`. Expert families that still declare
+`confirmation: plan_digest` take the digest from that family's plan command
+named by machine help. Do not compute it. A stale plan is replanned
+automatically.
 
 Digest, precondition, and idempotency checks are mechanical, not questions.
 Uncertainty triggers more inspection or a reversible experiment.

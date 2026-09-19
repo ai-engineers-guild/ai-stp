@@ -19,7 +19,7 @@ from contextlib import closing
 
 import pytest
 
-from ai_stp_cli.commands import install as install_cmd
+from ai_stp_cli.application import install as install_cmd
 from ai_stp_cli.local import installation, targets
 from ai_stp_cli.local.database import configured_path, open_registry
 from ai_stp_cli.provider import conformance
@@ -249,7 +249,7 @@ def test_a_sourceless_action_can_name_the_pair_it_acts_on() -> None:
     the handler reads parameters by name; the two agreed about everything except
     whether the option existed.
     """
-    from ai_stp_cli.commands.install import _SOURCELESS_ACTIONS
+    from ai_stp_cli.application.install import _SOURCELESS_ACTIONS
     from ai_stp_cli.registry import DECLARATIONS
 
     plan = next(d for d in DECLARATIONS if list(d.path) == ["install", "plan"])

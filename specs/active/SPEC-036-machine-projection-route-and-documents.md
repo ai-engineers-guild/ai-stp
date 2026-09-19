@@ -1,6 +1,6 @@
 ---
 description: "SPEC-036: Addressable machine projection web and page machine documents."
-last_verified: "2026-09-05"
+last_verified: "2026-09-18"
 ---
 
 # SPEC-036: Machine projection and machine documents
@@ -72,7 +72,9 @@ Does not include CLI, passports, domain APIs, access rules and color theme
   static routes use a common page presenter.
 - `REQ-3610`: The object's machine document contains a stable identifier,
   exact version, digest, harness, trust line, separate `author_verified` and
-  `component_verified` and the CLI install command. Icons and decorative media in
+  `component_verified`, the everyday CLI install command (`task start --intent
+  install`), and the catalog inspect command (`registry show` /
+  `registry version`). Icons and decorative media in
   it is not included.
 - `REQ-3611`: Machine representation has each route. Projection doesn't change
   page accessibility: private sections undergo the same session check and give
@@ -123,6 +125,12 @@ Does not include CLI, passports, domain APIs, access rules and color theme
   object give the same 404 in both projections. Private pairs, including
   `publications`, `invitations`, owner and `staff` objects, keep one
   redirect to login.
+- `REQ-3627`: The machine landing document contains the CLI install command
+  (`uv tool install ai-stp-cli`) and the everyday initialize start
+  (`task start --intent initialize`). The machine catalog listing contains
+  the everyday install start (`task start --intent install`). The machine
+  documents of `/login`, `/device-login`, and `/devices` contain the everyday
+  account start (`task start --intent account`).
 
 ## States and errors
 
@@ -181,3 +189,4 @@ not affected.
 | `REQ-3624` | The unit test applies the catalog query to the machine presenter; Playwright saves the query in the Human/Machine switch. |
 | `REQ-3625` | The unit test rejects media, avatar, CSRF, secret and internal identifiers in the serialized document. |
 | `REQ-3626` | Playwright requires the same 404 on an unknown path and the same login redirect on private pairs; feature-profile scenario preserves 200/404 parity. |
+| `REQ-3627` | Unit tests require those argv strings on the landing, catalog listing, login page document, and devices document. |

@@ -137,6 +137,47 @@ def test_end_state_is_accepted_before_anything_sends_it() -> None:
     assert both.plan_request_fields == frozenset({"end_state", "target_scope"})
 
 
+def test_instruction_section_is_accepted_before_anything_sends_it() -> None:
+    """`patch_instruction_region` needs the marked bytes on the plan argv.
+
+    The operation name is already optional on `supported_operations`. The
+    section itself is a request field: an unknown `--instruction-section`
+    is refused outright, so this build must accept the name before a
+    provider after setup-systems#316 may declare it. Sending stays gated
+    on that declaration.
+    """
+    capabilities = protocol_v3.parse_capabilities(
+        _info(plan_request_fields=["instruction_section"])
+    )
+    assert capabilities.plan_request_fields == frozenset({"instruction_section"})
+
+
+def test_instruction_section_is_absent_until_the_provider_declares_it() -> None:
+    section = ":::begin-ai-stp\nloop\n:::end-ai-stp\n"
+    with pytest.raises(CliFailure, match="instruction section"):
+        _arguments(
+            operation=protocol_v3.Operation.PATCH_INSTRUCTION_REGION,
+            instruction_section=section,
+        )
+
+
+def test_instruction_section_is_sent_only_for_the_patch_operation() -> None:
+    section = ":::begin-ai-stp\nloop\n:::end-ai-stp\n"
+    accepted = frozenset({"instruction_section"})
+    arguments = _arguments(
+        operation=protocol_v3.Operation.PATCH_INSTRUCTION_REGION,
+        accepted_request_fields=accepted,
+        instruction_section=section,
+    )
+    assert arguments[-2:] == ("--instruction-section", section)
+    with pytest.raises(CliFailure, match="only patch_instruction_region"):
+        _arguments(
+            operation=protocol_v3.Operation.INSTALL,
+            accepted_request_fields=accepted,
+            instruction_section=section,
+        )
+
+
 def test_a_removal_plan_must_keep_every_surviving_member_as_final_bytes() -> None:
     """`ADR-0129`'s removal half, checked on the plan the provider answers.
 

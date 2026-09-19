@@ -29,6 +29,11 @@ ai-stp version --json
 
 ```bash
 ai-stp doctor --json
+```
+
+Expert-ориентация (каждый command path):
+
+```text
 ai-stp capabilities --json
 ```
 
@@ -87,8 +92,8 @@ ai-stp passport device refresh --json
 
     `--target` — каталог, из которого harness читает свой native skill.
 
-    Когда файл на месте, агент всё равно начинает сессию с `doctor` и
-    `help --agent`. См. [Agent Skill CLI](../cli/skill.md) и
+    Когда файл на месте, агент всё равно начинает сессию с
+    `task intents --json`. См. [Agent Skill CLI](../cli/skill.md) и
     [Быстрый старт для ИИ-агента](agent.md).
 
 === "Нет программы harness"
@@ -102,7 +107,15 @@ ai-stp passport device refresh --json
 Анонимное чтение не требует входа. `--kind` обязателен: `component` или
 `setup`.
 
+Everyday-установка, когда кандидат уже есть:
+
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --json
 ai-stp registry show --kind component --id <stable_id> --json
 ```

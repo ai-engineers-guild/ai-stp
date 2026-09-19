@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "TaskIntentDescriptor": {
+      "additionalProperties": true,
+      "description": "One shipped intent the Skill may start.",
+      "properties": {
+        "input_schema": {
+          "minLength": 1,
+          "title": "Input Schema",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "when": {
+          "minLength": 1,
+          "title": "When",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input_schema",
+        "name",
+        "when"
+      ],
+      "title": "TaskIntentDescriptor",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-task-intents",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Compact catalog of shipped intents. Not the 203-command registry.",
+  "properties": {
+    "cli_version": {
+      "minLength": 1,
+      "title": "Cli Version",
+      "type": "string"
+    },
+    "intents": {
+      "items": {
+        "$ref": "#/$defs/TaskIntentDescriptor"
+      },
+      "title": "Intents",
+      "type": "array"
+    },
+    "registry_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Registry Digest",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "cli_version",
+    "intents",
+    "registry_digest",
+    "schema_version"
+  ],
+  "title": "TaskIntentsCatalog",
+  "type": "object"
+}

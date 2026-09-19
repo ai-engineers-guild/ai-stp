@@ -21,7 +21,15 @@ description: "Как читать публичный каталог ai_stp и ч
 Читать публичный каталог можно без аккаунта. Это нужно для первого знакомства,
 локального подбора и работы агента до авторизации.
 
+Everyday-установка, когда кандидат уже есть:
+
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога (идентичность, не установка):
+
+```text
 ai-stp registry search --kind setup --query frontend --json
 ai-stp registry search --kind component --query playwright --json
 ai-stp registry show --kind setup --id <stable_id> --json
@@ -33,7 +41,7 @@ ai-stp registry version --kind setup --id <stable_id> --version 1.0 --json
 
 Экспериментальные объекты живут в отдельной секции и требуют явного флага:
 
-```bash
+```text
 ai-stp registry search --kind component --query scanner --include-experimental --json
 ```
 
@@ -48,9 +56,9 @@ Search и show могут ответить из кэша, если сеть не
 когда платформа последний раз подтвердила байты. Это датированный снимок, а
 не живой каталог.
 
-Чтобы закрепить точные опубликованные байты локально:
+Чтобы закрепить точные опубликованные байты локально (expert recovery):
 
-```bash
+```text
 ai-stp registry fetch --kind component --id <stable_id> --version 1.0 --json
 ai-stp registry acquire --id <setup_id> --version 1.0 --json
 ai-stp registry acquire --id <setup_id> --version 1.0 --offline --json
@@ -68,12 +76,12 @@ ai-stp registry acquire --id <setup_id> --version 1.0 --offline --json
 | Карточки, Both-режим, сортировка | да | нет смешанного Both-поиска; два поиска с `--kind` |
 | Читать публичный объект без аккаунта | да | `registry search` / `show` / `version` |
 | Забрать точные байты в локальный кэш | нет | `registry fetch`, `registry acquire` |
-| Выбор, сборка, установка | нет | группы select, setup, install |
+| Выбор, сборка, установка | нет | `task start --intent install` |
 | Публикация | UI аккаунта плюс CLI confirm | `publication` и `setup publish` |
 | Пожаловаться | UI жалобы | `report preview`, затем `report confirm` |
 
 Веб не собирает сетап и не пишет нативное состояние харнесса. Если карточка
-выглядит правильно, следующая команда всё равно в CLI.
+выглядит правильно, everyday-следующий шаг — `install` intent.
 
 ## Режим Both
 

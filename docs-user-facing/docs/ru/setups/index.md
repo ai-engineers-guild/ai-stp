@@ -5,6 +5,15 @@ description: "Как ai_stp собирает полный сетап из точ
 
 # Сетапы
 
+Повседневная сборка — intent `change`, повседневная установка записанного
+сетапа — `install`. Не набирайте `setup compose plan`, если у вас ещё нет
+digest.
+
+```bash
+ai-stp task start --intent change --idempotency-key change-session-01 --json
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
 ## Сборка из каталога и внешних источников
 
 `setup compose` собирает один точный setup из каталожных компонентов и embedded
@@ -12,7 +21,7 @@ description: "Как ai_stp собирает полный сетап из точ
 не обязательно иметь собственную карточку в каталоге.
 
 Формат JSON-манифеста и полный пример находятся в английской версии этой
-страницы. Рабочая последовательность:
+страницы. Expert compose (уже есть digest):
 
 ```text
 ai-stp setup compose plan --manifest setup.json --root . --json
@@ -79,7 +88,7 @@ Git ref замораживается в commit, package требует точн�
 
 Сначала копия:
 
-```console
+```text
 $ ai-stp install plan --action backup --project <id> --harness <id> \
     --provider <exe> --provider-manifest <path> --protocol-version 3 \
     --target <dir> --json
@@ -96,7 +105,7 @@ ai-stp target backups --project <id> --harness <id> --json
 Ответ содержит `backup_ref`, операцию, которая её сняла, и версию сетапа,
 установленную на тот момент. Дальше — обычные план, подтверждение и применение:
 
-```console
+```text
 $ ai-stp install plan --action rollback --backup-ref <exact> \
     --provider <exe> --provider-manifest <path> --protocol-version 3 \
     --target <dir> --json

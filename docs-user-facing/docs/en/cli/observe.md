@@ -26,24 +26,39 @@ not a reason to mint one.
 
 ## Typical path
 
-On a fresh machine, or at the start of an agent session:
+Everyday agent session:
+
+```bash
+ai-stp task intents --json
+```
+
+Expert observe / health, when the user asked what is broken:
 
 ```bash
 ai-stp version --json
 ai-stp doctor --json
+```
+
+Expert command-path dump of this build:
+
+```text
 ai-stp capabilities --json
+```
+
+Expert full registry of this install:
+
+```text
 ai-stp help --agent --json
 ```
 
-Read `doctor` before inventing the next step. If a check is
-`needs_user_action`, follow that check, not a remembered ritual.
-`capabilities` answers a narrower question than `version`: which surfaces
-this *build* can talk to right now. Do not infer harness support from a
-version string.
+Read `doctor` before inventing a recovery ritual. If a check is
+`needs_user_action`, follow that check. `capabilities` answers a narrower
+question than `version`: which surfaces this *build* can talk to right now.
+Do not infer harness support from a version string.
 
 `help --agent` is the parser of *this* install. Documentation groups
 commands so a person can find a page. An agent must not reconstruct flags
-from memory when the CLI already answers with them.
+from memory when the CLI already answers with continuation `argv`.
 
 ## `version`
 
@@ -111,7 +126,7 @@ separate commands, reached after you have read the report.
 
 Emit the full command registry for an agent.
 
-```bash
+```text
 ai-stp help --agent --json
 ```
 
@@ -138,7 +153,7 @@ does not, stop. Do not substitute a similar path.
 
 Report what this installation can do right now.
 
-```bash
+```text
 ai-stp capabilities --json
 ```
 

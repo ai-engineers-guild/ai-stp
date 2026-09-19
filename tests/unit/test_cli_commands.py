@@ -612,7 +612,7 @@ def test_doctor_says_nothing_to_show_before_a_registry_exists() -> None:
 
 
 def test_showing_a_version_needs_a_kind_too() -> None:
-    from ai_stp_cli.commands import registry as registry_commands
+    from ai_stp_cli.application import catalog as registry_commands
     from ai_stp_cli.errors import CliFailure
 
     with pytest.raises(CliFailure, match="kind"):

@@ -3,9 +3,9 @@
 Намерения: обновить сам ai-stp, wheel на PyPI, self-update CLI, обновить
 установленную команду `ai-stp`.
 
-Берите из machine help: `ai-stp update check`, `ai-stp update plan`,
-`ai-stp update apply`, `ai-stp update status`, `ai-stp update recover`,
-`ai-stp update rollback`.
+Берите из machine help: `ai-stp update check` и `ai-stp update status`.
+Не набирайте `update plan` или `update apply`. Восстановление —
+`ai-stp update recover`. `ai-stp update rollback` остаётся expert.
 
 Это семейство заменяет wheel `ai-stp-cli` через installer, которому принадлежит
 установка. Оно не обновляет провайдеры, программы харнесса и сетапы.

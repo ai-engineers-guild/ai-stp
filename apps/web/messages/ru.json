@@ -1039,8 +1039,8 @@
     "approvedHint": "Вернитесь в CLI — опрос должен завершиться.",
     "error": "Не удалось подтвердить этот код",
     "unknown": "Ни один ожидающий вход не использует этот код. Сверьте код, который напечатал CLI, и введите заново.",
-    "expired": "Код истёк. Запустите `ai-stp auth login` ещё раз, чтобы получить новый.",
-    "resolved": "Код уже использован. Запустите `ai-stp auth login` ещё раз, чтобы получить новый.",
+    "expired": "Код истёк. Начните новую account-сессию: `ai-stp task start --intent account --idempotency-key account-session-01 --json`.",
+    "resolved": "Код уже использован. Начните новую account-сессию: `ai-stp task start --intent account --idempotency-key account-session-01 --json`.",
     "csrf": "Страница устарела, пока была открыта. Перезагрузите её и подтвердите код снова.",
     "failed": "Запрос не дошёл до сервиса. Попробуйте ещё раз через минуту."
   },
@@ -1057,7 +1057,7 @@
     "locationUnavailable": "Геолокация недоступна",
     "technicalDetails": "Технические данные",
     "authorizeTitle": "Авторизовать устройство",
-    "authorizeHint": "Выполните <command>ai-stp auth device</command> в CLI, затем подтвердите код здесь. К одному аккаунту можно привязать несколько устройств.",
+    "authorizeHint": "Выполните <command>ai-stp task start --intent account --idempotency-key account-session-01 --json</command> в CLI, затем подтвердите код здесь. К одному аккаунту можно привязать несколько устройств.",
     "deviceCode": "Код устройства",
     "confirmDevice": "Подтвердить устройство",
     "codeErrorHint": "Проверьте, что код ещё действует, и введите его снова.",
@@ -1186,7 +1186,9 @@
   },
   "cli": {
     "useTitle": "Использовать через CLI",
-    "useBody": "Команда использует стабильный идентификатор и версию объекта.",
+    "useBody": "Запустите intent install. CLI спросит harness и сетап.",
+    "inspectTitle": "Посмотреть эту версию через CLI",
+    "inspectBody": "Команда использует стабильный идентификатор и версию объекта.",
     "cliUnavailable": "Эта корпоративная сущность не устанавливается через CLI.",
     "copy": "Копировать",
     "copied": "Скопировано",
@@ -1194,8 +1196,8 @@
     "docs": "Документация по CLI",
     "ownerEmptyTitle": "Пока нет объектов",
     "ownerEmptyBody": "Компонент или сетап создаётся и синхронизируется через CLI.",
-    "syncCommandHint": "Найти компоненты через CLI",
-    "setupNextStepHint": "Показать упряжки через CLI",
+    "syncCommandHint": "Зарегистрировать компонент через CLI",
+    "setupNextStepHint": "Установить сетап через CLI",
     "loginHint": "Войти с устройства через CLI"
   },
   "docs": {

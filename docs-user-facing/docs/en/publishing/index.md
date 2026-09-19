@@ -19,6 +19,17 @@ the safety of the content. How to prepare the tree:
 Publication is a signed-in CLI path. The website can show the result; it does
 not bind bytes or confirm a plan hash.
 
+Everyday:
+
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+The plan / status / confirm leaves below are expert recovery when a plan is
+already open.
+
 ## Preconditions
 
 1. Local device identity exists: `ai-stp device init --json`.
@@ -29,6 +40,8 @@ not bind bytes or confirm a plan hash.
    closed.
 5. Secrets, private paths, and `.env` bodies are absent from the passport and
    the artifact.
+
+Expert recovery:
 
 ```bash
 ai-stp component passport validate --id <stable_id> --json
@@ -67,10 +80,16 @@ ai-stp attestation sign \
 
 ## Publish a released component
 
-Plan, inspect, then confirm the **exact** hash you were shown. Confirming a
-lost response is not a second confirm: read status first.
+Everyday:
 
 ```bash
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Expert leaves if a plan is already open. Confirm the **exact** hash you were
+shown. Confirming a lost response is not a second confirm: read status first.
+
+```text
 ai-stp publication plan \
   --id <stable_id> \
   --version 1.0 \
@@ -91,10 +110,12 @@ publish. A failed check must not leave a partially published version behind.
 
 ## Extract an embedded component, then publish it
 
+Expert recovery:
+
 A component that exists only inside a setup can be lifted into the ordinary
 publication plan:
 
-```bash
+```text
 ai-stp component publish \
   --from-setup <setup_id> \
   --setup-version 1.0 \
@@ -111,7 +132,7 @@ A setup cannot become public before its exact pins. `setup publish` is a
 **set**: one plan per unpublished pin, then one for the setup. Already-public
 members are listed and not replanned.
 
-```bash
+```text
 ai-stp setup publish plan --id <setup_id> --version 1.0 --json
 
 ai-stp setup publish confirm --set-digest <set_digest> --confirm --json

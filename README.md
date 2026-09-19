@@ -54,17 +54,19 @@ grants.
 
 ```bash
 uv tool install ai-stp-cli
-ai-stp doctor --json
+ai-stp task intents --json
 ```
 
 <details>
-<summary>Next commands the agent should read from the machine registry</summary>
+<summary>Next commands the agent should read from compact discovery</summary>
 
 ```bash
-ai-stp help --agent --json
-ai-stp passport developer init --json
-ai-stp device init --json
+ai-stp task intents --json
+ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
 ```
+
+`help --agent --json` is the full registry when a shipped intent is not enough.
+Do not dump it as a prelude.
 
 `ai-stp` is the executable. `ai-stp-cli` is the package name. Copying
 `uv tool install ai-stp` installs a distribution this project does not publish.

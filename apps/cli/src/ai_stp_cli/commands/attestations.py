@@ -1,8 +1,6 @@
 """Create and verify full device-signed author attestations."""
 
 import base64
-import os
-import stat
 from collections.abc import Mapping
 from contextlib import closing
 from pathlib import Path
@@ -11,8 +9,9 @@ from typing import cast
 from ai_stp_assurance import AuthorAttestation, attestation_digest
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
+from ai_stp_cli.application import cloud_auth
 from ai_stp_cli.cloud import session
-from ai_stp_cli.commands import cloud_auth
+from ai_stp_cli.cloud.client import login_actions, login_continuations
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     cache,
@@ -21,6 +20,7 @@ from ai_stp_cli.local import (
     publication_snapshot,
     versions,
 )
+from ai_stp_cli.local.author_attestations import load, verify
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home, write_private
@@ -29,7 +29,6 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.refs import ComponentRef
 
-MAX_ATTESTATION_BYTES = 256 * 1024
 _EMPTY_SIGNATURE = base64.b64encode(b"\x00" * 64).decode("ascii")
 
 
@@ -148,7 +147,8 @@ def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
             "the cloud session and local signing identity name different devices",
-            next_actions=["auth login --provider github --json"],
+            next_actions=login_actions(),
+            continuations=login_continuations(),
         )
     with closing(open_readonly(configured_path())) as connection:
         passport = component_passports.version_passport(connection, stable_id, version)
@@ -206,51 +206,4 @@ def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
     )
 
 
-def load(path: Path) -> AuthorAttestation:
-    """Load one bounded regular signed record without following a symlink."""
-    try:
-        before = path.lstat()
-    except OSError as error:
-        raise CliFailure("AI_STP_NOT_FOUND", "the attestation file cannot be opened") from error
-    if (
-        not stat.S_ISREG(before.st_mode)
-        or stat.S_ISLNK(before.st_mode)
-        or before.st_size > MAX_ATTESTATION_BYTES
-    ):
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "attestation must be a bounded regular file")
-    flags = (
-        os.O_RDONLY
-        | getattr(os, "O_BINARY", 0)
-        | getattr(os, "O_CLOEXEC", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
-    )
-    try:
-        descriptor = os.open(path, flags)
-        try:
-            after = os.fstat(descriptor)
-            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
-                raise CliFailure("AI_STP_CONFLICT", "the attestation file changed")
-            with os.fdopen(descriptor, "rb", closefd=False) as stream:
-                payload = stream.read(MAX_ATTESTATION_BYTES + 1)
-        finally:
-            os.close(descriptor)
-    except CliFailure:
-        raise
-    except OSError as error:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "attestation is not safely readable") from error
-    if len(payload) > MAX_ATTESTATION_BYTES:
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "attestation exceeds its byte limit")
-    try:
-        return AuthorAttestation.model_validate_json(payload)
-    except ValueError as error:
-        raise CliFailure(
-            "AI_STP_VALIDATION_ERROR", "attestation is not a valid closed record"
-        ) from error
-
-
-def verify(record: AuthorAttestation, signer: identity.Identity) -> bool:
-    try:
-        signature = base64.b64decode(record.signature, validate=True)
-    except ValueError:
-        return False
-    return identity.verify(signer.public_key, attestation_digest(record).encode("utf-8"), signature)
+__all__ = ["load", "sign", "verify"]

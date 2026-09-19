@@ -17,11 +17,11 @@ description: "Проверить, загрузить, оценить довер�
 | `ai-stp provider conformance` | `read` | `none` | проверка одного провайдера по явно выбранному протоколу |
 | `ai-stp provider fetch` | `apply` | `none` | загрузка аттестованного провайдера OpenNetwork и привязка закрытого манифеста релиза |
 | `ai-stp provider trust` | `read` | `none` | отчёт о закреплённой политике доверия и проверка одного релиза по ней |
-| `ai-stp provider network` | `read` | `none` | наблюдаемая сетевая изоляция protocol-v2 на этой машине |
+| provider network | `read` | `none` | наблюдаемая сетевая изоляция protocol-v2 на этой машине |
 | `ai-stp provider update plan` | `read` | `none` | описание замены провайдера одного харнеса на новейшую выпущенную версию |
 | `ai-stp provider update apply` | `apply` | `plan_digest` | выполнение ровно той замены, которую описал план |
-| `ai-stp provider reinstall plan` | `read` | `none` | описание переустановки одной точной версии провайдера по тому же пути |
-| `ai-stp provider reinstall apply` | `apply` | `plan_digest` | выполнение ровно той переустановки, которую описал план |
+| provider reinstall plan | `read` | `none` | описание переустановки одной точной версии провайдера по тому же пути |
+| provider reinstall apply | `apply` | `plan_digest` | выполнение ровно той переустановки, которую описал план |
 | `ai-stp provider forget` | `apply` | `none` | сброс записанного выбора провайдера, чтобы конфигурация и обнаружение решали снова |
 
 `--json` — глобальный флаг. Передавайте его всегда.
@@ -78,7 +78,7 @@ ai-stp provider fetch \
 
 ## Доверие и сеть
 
-```bash
+```text
 ai-stp provider trust --json
 ai-stp provider trust --manifest <release-manifest> --json
 ai-stp provider network --json
@@ -94,7 +94,7 @@ ai-stp provider network --json
 
 Обе команды замены принимают `--harness` (обязателен), `--executable` (обязателен, когда установлено более одного провайдера) и `--adopt` (заменяет провайдер, который ai-stp не устанавливал; ничто другое не перезаписывает чужой). Apply добавляет `--expected-plan-digest`. Reinstall также принимает `--version`: опустите его для переустановки той версии, которая уже есть. Переход на новейший релиз — это `provider update`, а не reinstall.
 
-```bash
+```text
 ai-stp provider update plan --harness codex --json
 ai-stp provider update apply \
   --harness codex \
@@ -141,7 +141,7 @@ provider check
 → provider trust
 → provider fetch --harness <id>
 → provider conformance --harness <id> --executable <exe>
-→ install plan --provider <exe> --provider-manifest <path> …
+→ task start --intent install --idempotency-key install-session-01 --json
 ```
 
 Замена текущей установки:
@@ -189,10 +189,12 @@ provider update plan --harness <id>
 - [Харнесы](../harnesses.md)
 - [Карта команд](commands.md)
 
-## Справка для машины — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
+
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
 
 Эта страница группирует команды провайдера для удобства поиска. Установленный CLI является источником флагов, схем и `next_actions`. Если эта страница и CLI расходятся, следуйте CLI.

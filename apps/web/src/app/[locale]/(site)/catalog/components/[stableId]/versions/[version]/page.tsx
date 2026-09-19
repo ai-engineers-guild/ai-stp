@@ -33,7 +33,7 @@ import {
   namedPassportHarnesses,
   namedProjectionKinds,
 } from "@/lib/catalog-harnesses";
-import { registryVersion } from "@/lib/cli-copy";
+import { installStart, registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
 import { versionPageMetadata } from "@/lib/seo/metadata";
@@ -234,9 +234,21 @@ export default async function ComponentVersionPage({ params }: PageProps) {
         <p className="text-sm font-medium">{t("githubArchived")}</p>
       ) : null}
       <CliCopyBlock
-        command={registryVersion("component", stableId, version)}
+        command={installStart()}
         title={tCli("useTitle")}
-        description={canonical.cli_command}
+        description={tCli("useBody")}
+        copyLabel={tCli("copy")}
+        copiedLabel={tCli("copied")}
+        errorLabel={tCli("copyError")}
+        docsLabel={tCli("docs")}
+        visibility={isPrivate ? "private" : "public"}
+        publicLabel={t("public")}
+        privateLabel={t("private")}
+      />
+      <CliCopyBlock
+        command={registryVersion("component", stableId, version)}
+        title={tCli("inspectTitle")}
+        description={tCli("inspectBody")}
         copyLabel={tCli("copy")}
         copiedLabel={tCli("copied")}
         errorLabel={tCli("copyError")}

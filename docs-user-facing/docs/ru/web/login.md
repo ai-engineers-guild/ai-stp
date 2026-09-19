@@ -61,7 +61,7 @@ description: "OAuth, вход с устройства и соответству�
 | Подзаголовок | Войдите через поддерживаемого провайдера. Сессия хранится в защищённой HttpOnly cookie. | — |
 | Google | Войти через Google | `/v1/auth/google/login?client=web&return_to=…` |
 | GitHub | Войти через GitHub | `/v1/auth/github/login?client=web&return_to=…` |
-| Копия CLI | Войти с устройства через CLI | `ai-stp auth login --provider github` |
+| Копия CLI | Войти с устройства через CLI | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
 
 В mock/e2e кнопки POST в mock-действие вместо API. `?debug=1` с
 моками добавляет дополнительные симуляторы ошибки/отмены. Этот гейт
@@ -81,19 +81,26 @@ Callback ставит session cookie. Step-up привязка **второго*
 | Код пользователя | Код пользователя |
 | Отправка | Подтвердить устройство |
 
-Ошибки: unknown (введите заново), expired (запустите `auth login`
-снова), resolved (уже использован), csrf (перезагрузите), failed
+Ошибки: unknown (введите заново), expired (продолжите ту же account-задачу),
+resolved (уже использован), csrf (перезагрузите), failed
 (повторите). Успех: **Устройство подтверждено** — вернитесь в CLI;
 опрос должен завершиться.
 
-Human / Machine: machine-вход перечисляет двух провайдеров как ссылки
-и команду CLI как блок кода.
+Human / Machine: machine-вход — заголовок, подзаголовок, повседневный
+account start как блок кода и ссылка на каталог.
 
 ## Соответствующие команды CLI
 
-Это единственные auth-команды в реестре:
+Повседневный вход — intent `account`:
 
 ```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Expert leaves (`auth login` / `complete` / `logout`) — если незавершённый
+device code уже есть:
+
+```text
 ai-stp auth login --provider github --json
 ai-stp auth login --provider google --json
 ai-stp auth complete --json
@@ -109,8 +116,8 @@ local-only, authenticated, expired или revoked. `auth logout`
 завершает облачную сессию и сохраняет локальные данные. `link web`
 печатает канонический URL сайта.
 
-Команды `ai-stp auth device` нет. Подсказка сайта, которая её
-называет, описывает тот же код `auth login`. Следуйте CLI.
+Команды `ai-stp auth device` нет. Сайт копирует account start, не
+выдуманный leaf. Следуйте CLI.
 
 Идентичность устройства на машине отдельна:
 
@@ -132,7 +139,7 @@ ai-stp device show --json
 | Сессия истекла | устаревшая cookie | войти; `returnTo` сохранён |
 | Нужен вход на device-login | нет браузерной сессии | войдите, код сохраняется |
 | Неизвестный код | опечатка | введите заново; не добавляйте пробелы |
-| Код истёк / уже использован | запустите login снова | `ai-stp auth login --provider github --json` |
+| Код истёк / уже использован | продолжите ту же account-задачу | `ai-stp task start --intent account --idempotency-key account-session-01 --json` |
 | Отправили на онбординг | новый аккаунт | примите две редакции |
 | Конфликт при привязке | этот Google/GitHub на другом аккаунте | сначала отвяжите там; слияния нет |
 

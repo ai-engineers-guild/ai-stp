@@ -47,7 +47,7 @@ Name collisions that the chapters spell out:
 - MCP **server** versus plugin `.mcp.json` **client config**;
 - `AGENTS.md` (instruction) versus kind `agent`.
 
-Exact native paths come from `ai-stp component discover --json`. Each
+Exact native paths come from the `author` intent envelope. Each
 finding carries `layout_source`. Do not invent a neighbour's path.
 
 ## Choosing quickly
@@ -114,12 +114,8 @@ The catalog percent and the required-versus-optional split are on
 Typical local path:
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 Shared `.agents/skills` are returned once, with `harness_id=null`. An MCP

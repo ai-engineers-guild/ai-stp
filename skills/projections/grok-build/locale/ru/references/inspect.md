@@ -2,12 +2,13 @@
 
 Намерения: какие харнессы есть, что на проекте, что установлено.
 
-Берите из machine help: `ai-stp harness status`, `ai-stp toolchain profile`,
-`ai-stp provider check`, `ai-stp provider trust`, `ai-stp provider conformance`,
-`ai-stp project discover`, `ai-stp project index`, `ai-stp component discover`,
-`ai-stp component inventory`, `ai-stp component find`, `ai-stp target status`,
-`ai-stp target diff`, `ai-stp target backups`.
+Когда пользователь спрашивает, что не так или что умеет этот CLI, стартуйте
+intent `inspect`. Не вызывайте inspect как прелюдию к каждой мутации. Не
+выгружайте полный реестр. Не набирайте `ai-stp capabilities` и `ai-stp version`.
 
 Идентификаторы берите из предыдущего ответа. Discovery исчерпывающий только при
 `complete: true`. Иначе покажите `diagnostics`. Отличайте `candidate_id` от
 идентификатора Component. Не назначайте `harness_id: null` харнессу.
+
+Дальнейшая диагностика харнессов, provider, проектов и targets — в machine
+help.

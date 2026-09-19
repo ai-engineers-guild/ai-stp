@@ -29,6 +29,11 @@ See [Troubleshooting](../troubleshooting/index.md).
 
 ```bash
 ai-stp doctor --json
+```
+
+Expert orientation dump (every command path):
+
+```text
 ai-stp capabilities --json
 ```
 
@@ -88,8 +93,8 @@ Read the doctor report before inventing the next step.
 
     `--target` is the directory the harness reads its native skill from.
 
-    After it is present, the agent still starts every session with `doctor` and
-    `help --agent`. See [Agent Skill CLI](../cli/skill.md) and
+    After it is present, the agent still starts every session with
+    `task intents --json`. See [Agent Skill CLI](../cli/skill.md) and
     [Quickstart for agents](agent.md).
 
 === "Harness program missing"
@@ -102,7 +107,15 @@ Read the doctor report before inventing the next step.
 
 Anonymous reads need no sign-in. `--kind` is required: `component` or `setup`.
 
+Everyday install after a candidate exists:
+
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --json
 ai-stp registry show --kind component --id <stable_id> --json
 ```

@@ -67,7 +67,7 @@ playwright-checks/
 
 Имя каталога должно совпадать с полем `name` во frontmatter.
 
-Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
+Когда вы начинаете из `ai_stp`, стартуйте intent `author`. Не набирайте `component scaffold plan`. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
 `source/` для portable и `projections/<harness>/` для конкретного харнесса,
 а не всё дерево.
@@ -83,7 +83,15 @@ playwright-checks/                 # component-scaffold/6
     └── SKILL.md
 ```
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type skill \
   --language none \
@@ -147,7 +155,7 @@ ai-stp component skill validate --path ./playwright-checks/source --json
 ## Нативные layout по харнессам
 
 Discovery сообщает только объявленные layout. Точные пути на машине даёт
-`ai-stp component discover --json`. У каждой находки есть `layout_source` —
+конверт intent `author`. У каждой находки есть `layout_source` —
 официальный документ, который объявил layout. Если классификация неясна,
 покажите это поле; не угадывайте путь соседа.
 
@@ -171,10 +179,13 @@ Discovery сообщает только объявленные layout. Точн�
 уже найденный путь. Они не создают skill из отсутствующего каталога и не
 делают внешний манифест источником подтверждённых фактов паспорта.
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover`. Движок сам находит нативное дерево.
 
 ## Версии — `X.Y`, не SemVer
 
@@ -222,8 +233,8 @@ workflow безвреден. Обязательные проверки, кото
 
 ## Связанные команды CLI
 
-Только команды, которые существуют. Флаги всегда из
-`ai-stp help --agent --json`.
+Только команды, которые существуют. Флаги из continuation `argv`; старт —
+`ai-stp task intents --json`.
 
 **Именно этот вид:**
 
@@ -243,20 +254,20 @@ ai-stp skill remove --target <dir> --json
 **Автор, adopt, публикация:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Найти, выбрать, установить:**
+**Установить:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --json
-ai-stp install plan --json
 ```
 
 Skill может быть и embedded-членом compose-манифеста. См.
@@ -317,7 +328,9 @@ Skill может быть и embedded-членом compose-манифеста. �
    исправьте каждый код `SKxxx`.
 5. Закрепите точный публичный GitHub commit и подпуть. Секретов в дереве
    нет.
-6. `component discover` → `component adopt` → `component passport validate`.
+6. Зарегистрируйте каталог через
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert discover/adopt остаются для recovery.
 7. `component version release`, чтобы выпустить неизменяемый `X.Y`.
 8. Публикуйте через [путь публикации](../publishing/index.md).
 9. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия

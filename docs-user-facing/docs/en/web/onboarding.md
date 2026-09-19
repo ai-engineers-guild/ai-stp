@@ -78,7 +78,7 @@ There is no onboarding CLI. After you pass the gate:
 
 ```bash
 ai-stp auth status --json
-ai-stp auth login --provider github --json
+ai-stp task start --intent account --idempotency-key account-session-01 --json
 ai-stp device init --json
 ```
 

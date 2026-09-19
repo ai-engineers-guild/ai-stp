@@ -6,8 +6,22 @@ description: "Start and finish a platform sign-in, inspect the session, log out,
 # Sign-in
 
 Local work does not need an account. Sign-in is for private objects,
-synchronisation, publication, devices on the website, and grants. The
-CLI starts a device-code flow, prints the code a person must approve,
+synchronisation, publication, devices on the website, and grants.
+
+Everyday account work is the `account` intent. The engine drains
+device-code login and explicit sync in-process. Do not type `auth login`
+unless you are recovering a pending device code.
+
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Follow `continuations`. Execute `argv` only when `actor` is `cli`. A blocked
+authorization question is `actor=external`: show the code once and stop.
+Expert login / complete / logout leaves below stay for operators who already
+hold a pending code.
+
+The CLI starts a device-code flow, prints the code a person must approve,
 and stores credentials only after that approval.
 
 `link web` sits on this page because it is the round-trip between a
@@ -17,9 +31,10 @@ catalog object and the website. It does not sign you in. It is a read.
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp auth login` | `apply` | `none` | Start a sign-in and report the code the user must approve. |
-| `ai-stp auth complete` | `apply` | `none` | Finish the pending sign-in once the user has approved it. |
-| `ai-stp auth logout` | `apply` | `none` | End the cloud session on the server and here, keeping all local data. |
+| `ai-stp task start --intent account` | `apply` | `none` | everyday login and explicit sync |
+| auth login | `apply` | `none` | expert: start a sign-in and report the code the user must approve |
+| auth complete | `apply` | `none` | expert: finish the pending sign-in once the user has approved it |
+| auth logout | `apply` | `none` | expert: end the cloud session on the server and here, keeping all local data |
 | `ai-stp auth status` | `read` | `none` | Report the platform relationship: local-only, authenticated, expired or revoked. |
 | `ai-stp link web` | `read` | `none` | Print a canonical web URL and round-trippable CLI reference. |
 
@@ -30,9 +45,18 @@ browser, which is the whole point of the flow.
 
 ## Typical path
 
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Follow `continuations`. A blocked authorization question is
+`actor=external`: show the payload once and stop.
+
+Expert (pending device code already held):
+
 You need a device identity first. Then:
 
-```bash
+```text
 ai-stp device init --json
 ai-stp auth status --json
 ai-stp auth login --provider github --json
@@ -44,7 +68,7 @@ ai-stp auth login --provider github --json
 The login envelope names `user_code`, `verification_uri`, and
 `verification_uri_complete`. Open the URI, approve the code, then:
 
-```bash
+```text
 ai-stp auth complete --json
 ai-stp auth status --json
 ```
@@ -56,7 +80,7 @@ itself. Do not wrap the command in a sleep loop that ignores
 
 To end the session later, keeping the local registry and passports:
 
-```bash
+```text
 ai-stp auth logout --json
 ai-stp auth status --json
 ```
@@ -70,11 +94,11 @@ ai-stp link web --kind component --id <stable_id> --json
 `--kind` and `--id` are required. `--kind` is `component`, `setup`, or
 `publisher`.
 
-## `auth login`
+## Expert recovery: `auth login`
 
 Start a sign-in and report the code the user must approve.
 
-```bash
+```text
 ai-stp auth login --provider github --json
 ```
 
@@ -98,11 +122,11 @@ Successful `data` names:
 
 `next_actions` names `auth complete` and `auth status`.
 
-## `auth complete`
+## Expert recovery: `auth complete`
 
 Finish the pending sign-in once the user has approved it.
 
-```bash
+```text
 ai-stp auth complete --json
 ```
 
@@ -119,7 +143,7 @@ nothing is pending, the code is `AI_STP_NOT_FOUND`.
 
 End the cloud session on the server and here, keeping all local data.
 
-```bash
+```text
 ai-stp auth logout --json
 ```
 
@@ -204,14 +228,14 @@ Every envelope also carries `ok`, `warnings`, `next_actions`,
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `AI_STP_VALIDATION_ERROR` on `auth login` | `--provider` missing or not `github`/`google` | pass `--provider github` or `--provider google` |
-| `AI_STP_NOT_FOUND` on `auth complete` | nothing is pending | `ai-stp auth login --provider github --json` |
-| `AI_STP_AUTHORIZATION_DECLINED` | the person declined in the browser | stop, or start a new login if they meant to approve |
-| `AI_STP_AUTHORIZATION_EXPIRED` | the pending code timed out | start a new `auth login` |
-| `state` is `expired` | the session is no longer valid | `auth login` then `auth complete`, not a retry of `complete` alone |
-| `state` is `revoked` | the account no longer trusts this device | a new login; `device reset` is a separate, destructive decision |
+| `AI_STP_VALIDATION_ERROR` on `auth login` | `--provider` missing or not `github`/`google` | `task start --intent account --idempotency-key account-session-01 --json` |
+| `AI_STP_NOT_FOUND` on `auth complete` | nothing is pending | `task start --intent account --idempotency-key account-session-01 --json` |
+| `AI_STP_AUTHORIZATION_DECLINED` | the person declined in the browser | stop, or start `account` again if they meant to approve |
+| `AI_STP_AUTHORIZATION_EXPIRED` | the pending code timed out | `task start --intent account --idempotency-key account-session-01 --json` |
+| `state` is `expired` | the session is no longer valid | `task start --intent account --idempotency-key account-session-01 --json` |
+| `state` is `revoked` | the account no longer trusts this device | a new `account` start; `device reset` is a separate, destructive decision |
 | `AI_STP_VALIDATION_ERROR` on `link web` | `--kind` or `--id` missing or malformed | pass both required options |
-| `AI_STP_AUTH_REQUIRED` on a later cloud command | there is no session | sign in, or stay on local and catalog-anonymous commands |
+| `AI_STP_AUTH_REQUIRED` on a later cloud command | there is no session | `task start --intent account --idempotency-key account-session-01 --json` |
 
 ## Related pages
 

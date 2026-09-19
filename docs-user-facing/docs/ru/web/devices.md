@@ -10,7 +10,13 @@ description: "Устройства аккаунта и связь с device в C
 пользователя здесь (или на `/device-login`). Отзыв устройства работает
 только вперёд.
 
-Сайт не создаёт локальную идентичность устройства. Это
+Повседневная привязка CLI — intent `account`:
+
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Сайт не создаёт локальную идентичность устройства. Это expert
 `ai-stp device init`.
 
 ## URL и кто их видит
@@ -33,7 +39,7 @@ description: "Устройства аккаунта и связь с device в C
 
 - видеть, какие браузеры и установки CLI могут действовать как этот
   аккаунт;
-- одобрить код, который напечатал `ai-stp auth login`;
+- одобрить код, который напечатал intent `account`;
 - отозвать потерянное или старое устройство.
 
 Устройства **не**:
@@ -78,7 +84,7 @@ description: "Устройства аккаунта и связь с device в C
 код. Объявленная команда:
 
 ```bash
-ai-stp auth login --provider github --json
+ai-stp task start --intent account --idempotency-key account-session-01 --json
 ```
 
 (`google` — другой закрытый provider). В реестре нет
@@ -91,15 +97,16 @@ CLI. `status=error` просит проверить, что код ещё дей
 из системы.** Устаревший eTag / конфликт: обновите и решите снова.
 
 Human / Machine: machine-Устройства перечисляют `device_id`, type,
-state, last_active_at, location. Формы одобрения в них нет.
+state, last_active_at, location и повседневный account start. Формы
+одобрения в них нет.
 
 ## Соответствующие команды CLI
 
-```bash
+```text
 ai-stp device init --json
 ai-stp device show --json
 ai-stp device reset --confirm --json
-ai-stp auth login --provider github --json
+ai-stp task start --intent account --idempotency-key account-session-01 --json
 ai-stp auth complete --json
 ai-stp auth status --json
 ai-stp auth logout --json
@@ -119,8 +126,8 @@ ai-stp passport device show --json
 | --- | --- | --- |
 | Редирект на вход | нет сессии | войти |
 | Устройства не зарегистрированы | API вернул пустоту | войти снова в этом браузере |
-| Неизвестный / истёкший код | опечатка или таймаут | введите заново или запустите `auth login` снова |
-| Код уже использован | resolved | запустите `auth login` снова |
+| Неизвестный / истёкший код | опечатка или таймаут | введите заново или запустите `account` снова |
+| Код уже использован | resolved | запустите `account` снова |
 | Страница устарела (CSRF) | перезагрузка | одобрите снова |
 | Отзыв заблокирован (устарело / конфликт) | параллельное изменение | обновите |
 | Отзыв текущего → выход | ожидаемо | войдите на оставшемся устройстве |
@@ -136,14 +143,14 @@ ai-stp passport device show --json
 | --- | --- | --- |
 | Тип | `web` | CLI |
 | Создаётся | OAuth cookie | `device init` |
-| Привязывается | самим входом | `auth login` + одобрение кода |
+| Привязывается | самим входом | intent `account` + одобрение кода |
 | Закрытый ключ | session cookie | секретное хранилище ОС (или файловый fallback) |
 | Отзыв на этой странице | выходит, если текущее | облачные вызовы останавливаются; файлы остаются |
 | `device reset` | неприменимо | новая локальная идентичность; `--confirm` |
 
 Одобрите код на **любом** из `/devices` или `/device-login`. CLI
 опрашивает, пока `auth complete` не сможет завершиться. Повторное
-одобрение потраченным кодом — `resolved`: запустите `auth login`
+одобрение потраченным кодом — `resolved`: запустите `account`
 снова.
 
 Machine-Устройства — список. Форма авторизации только human.

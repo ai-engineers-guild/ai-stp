@@ -254,6 +254,43 @@ def forked_from(connection: sqlite3.Connection, stable_id: str) -> Fork | None:
     )
 
 
+def record_fork_origin(
+    connection: sqlite3.Connection,
+    *,
+    stable_id: str,
+    source_stable_id: str,
+    source_version: str,
+    source_digest: str,
+    at: str,
+) -> Fork:
+    """Record lineage on a copy that already has an entity row."""
+    existing = forked_from(connection, stable_id)
+    if existing is not None:
+        if (
+            existing.source_stable_id != source_stable_id
+            or existing.source_version != source_version
+            or existing.source_digest != source_digest
+        ):
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "that identity already records a different fork origin",
+                details={"stable_id": stable_id},
+            )
+        return existing
+    connection.execute(
+        """
+        INSERT INTO fork_origin
+            (stable_id, source_stable_id, source_version, source_digest, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (stable_id, source_stable_id, source_version, source_digest, at),
+    )
+    found = forked_from(connection, stable_id)
+    if found is None:  # pragma: no cover - the insert above guarantees a row
+        raise CliFailure("AI_STP_INTERNAL", "the fork record vanished after being written")
+    return found
+
+
 def publishable(
     connection: sqlite3.Connection,
     stable_id: str,

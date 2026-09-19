@@ -158,12 +158,13 @@ provider install and not a network exemption for the harness.
 - [Trust and safety](../trust-and-safety/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups eval commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups eval commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

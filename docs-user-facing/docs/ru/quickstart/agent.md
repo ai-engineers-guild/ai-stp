@@ -1,6 +1,6 @@
 ---
 title: "Быстрый старт для ИИ-агента"
-description: "Каждую сессию ai-stp начинать с doctor и machine help; не собирать флаги из памяти."
+description: "Каждую сессию ai-stp начинать с task intents; запускать CLI самим; исполнять continuation argv только когда JSON-поле actor — cli; не собирать флаги из памяти."
 ---
 
 # Быстрый старт для ИИ-агента
@@ -17,32 +17,42 @@ description: "Каждую сессию ai-stp начинать с doctor и mac
 ## Каждая сессия начинается здесь
 
 ```bash
-ai-stp doctor --json
-ai-stp capabilities --json
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-Читайте `doctor` до того, как придумывать следующий шаг. Если проверка в
-состоянии `needs_user_action`, следуйте ей, а не заученному ритуалу.
+Выберите один shipped intent. Запускайте `ai-stp task start` сами.
+`envelope.continuations[0].actor` — JSON-поле, а не личность пользователя.
+Когда поле `cli`, исполните `argv` своими tools. Когда `human`, это
+`argv` не исполняйте: передайте `questions[0]` через
+`ai-stp task answer` с уже связанными `task`, `revision` и `question-id`.
+Когда `external`, покажите payload один раз и остановитесь. Этот `argv`
+не исполняйте. `provider-too-old` — не login. Device-code можно позже
+продолжить через `ai-stp task continue` после браузера; не опрашивайте
+в цикле. Остановитесь, когда continuations нет. В отчёте —
+проверка payload, а не только `ok` конверта.
 
-`capabilities` отвечает, с какими поверхностями умеет говорить **этот
-билд** прямо сейчас. Поддержку harness нельзя выводить из строки версии.
+Не запускайте `ai-stp doctor` и не дампьте `ai-stp help --agent` как
+прелюдию к каждому запросу. Завершённого `inspect` достаточно, если
+пользователь спросил, что не так. `ai-stp doctor --json` — только когда
+спросили, что сломано.
 
-`help --agent --json` — реестр команд **этой** установки. Если эта страница
-и этот конверт расходятся, прав CLI. Если команды нет в machine help,
-остановитесь. Не подменяйте похожей командой.
+`help --agent --json` остаётся полным реестром команд **этой** установки,
+когда нужен дескриптор. Если эта страница и конверт расходятся, прав CLI.
+Если команды нет в machine help, остановитесь. Не подменяйте похожей.
 
 Каждую команду копируйте с `--json`, чтобы в stdout был ровно один конверт.
+Предпочитайте уже выданный `argv`, а не набор expert leaves вручную.
 
 ## Как читать конверт
 
 При `ok: true` результат в `data`. `warnings` всё равно могут быть важны.
 При `ok: false` `error.code` — стабильный код из закрытого реестра;
-`next_actions` называет разумную следующую команду, а не разрешение.
+`next_actions` — цитируемое отображение, не eval. Используйте
+`continuations[].argv`.
 
 Не угадывайте следующий шаг только по классу кода выхода. Повторяйте
 только когда конверт говорит `retryable: true`. После неподтверждённого
-таймаута сначала читайте status, потом применяйте снова.
+таймаута сначала читайте status. Не повторяйте `install apply`.
 
 ## Mutability и confirmation
 
@@ -60,12 +70,16 @@ ai-stp help --agent --json
 | --- | --- |
 | `none` | лишнего токена нет; это не «можно запускать не спрашивая» |
 | `explicit_flag` | передать флаг, который называет дескриптор, обычно `--confirm` |
-| `plan_digest` | передать `--expected-plan-digest` неизменённого плана |
+| `plan_digest` | машинная привязка точных байт плана. Task intents привязывают её in-process. Expert leaves берут digest из plan-команды этого семейства, названной machine help. |
+
+Intents `install`, `change` и `switch` сливают plan/approve/apply
+in-process по полномочию задачи. Не набирайте `install plan`, чтобы
+получить digest, и не хореографируйте эти leaves.
 
 Команда чтения на свежей установке возвращает типизированную пустоту. Она
 молча не запускает `device init`.
 
-## Если doctor говорит, что нет идентичности
+## Если inspect или doctor говорит, что нет идентичности
 
 Попросите человека создать локальную идентичность или выполните те же
 команды. Это не аккаунт. Подробности: [Устройство](../cli/device.md),
@@ -79,9 +93,9 @@ ai-stp passport device refresh --json
 ```
 
 `device init` идемпотентен. `device reset` разрушителен, требует
-`--confirm` и не является повтором `doctor`.
+`--confirm` и не является повтором `inspect`.
 
-## Если doctor говорит, что нет Agent Skill
+## Если нет Agent Skill
 
 Это Agent Skill самого CLI: процедура, по которой вы ведёте `ai-stp`. Это
 **не** компонент kind `skill`. Смешение двух смыслов — как перезаписывают
@@ -96,20 +110,28 @@ ai-stp skill install --target <dir> --json
 skill. Не угадывайте этот каталог. Если не знаете его, спросите человека
 или документацию harness.
 
-Установка файла не заменяет чтение machine help. Когда файл на месте, всё
-равно начинайте сессию с `doctor` и `help --agent`.
+Установка файла не заменяет чтение `task intents`. Когда файл на месте,
+всё равно начинайте сессию оттуда.
 
 ## Чтения каталога — кандидаты
 
 Анонимное чтение каталога не требует входа. `--kind` обязателен:
 `component` или `setup`. Результат — не разрешение ставить.
 
+Everyday-установка, когда кандидат уже есть:
+
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --json
 ai-stp registry show --kind component --id <stable_id> --json
 ```
 
-До любого select или apply проверьте harness, точный `X.Y`, линию доверия
+До установки проверьте harness, точный `X.Y`, линию доверия
 и две независимые оси verification. Как читать карточку:
 [Каталог](../catalog/index.md). `author_verified` не равен
 `component_verified`, и ни то ни другое не гарантия безопасности:
@@ -121,12 +143,11 @@ ai-stp registry show --kind component --id <stable_id> --json
 ## Рабочий цикл
 
 ```text
-doctor / capabilities / help --agent
-→ device + паспорт разработчика (только если doctor попросил)
-→ registry search / show
-→ select propose → confirm
-→ install plan → approve → apply
-→ target status
+task intents --json
+→ task start (inspect | initialize | install | change | author | switch | account | publish)
+→ execute continuation argv только когда JSON-поле actor — cli
+→ task answer только для blocked human question
+→ проверка payload
 ```
 
 Пропускайте шаг только когда предыдущий конверт уже сделал его ненужным.
@@ -141,7 +162,9 @@ doctor / capabilities / help --agent
 ## Чего нельзя делать
 
 - вызывать API модели или просить ключ модели;
-- собирать флаги с этой страницы, когда доступен `help --agent`;
+- собирать флаги с этой страницы, когда доступны continuation `argv` или
+  `help --agent`;
+- хореографировать `install plan`, `install approve` или `install apply`;
 - считать `author_verified` доказательством, что версия безопасна;
 - ставить по заголовочному проценту каталога;
 - пропускать `--json` на мутирующей команде;
@@ -156,8 +179,8 @@ doctor / capabilities / help --agent
 | doctor `device_identity` не `ready` | идентичность не создавали или хранилище её не читает | `ai-stp device init --json`, если её не создавали; иначе читать `detail` |
 | команды нет в `help --agent` | этой установки её нет | остановиться; не подменять похожей командой |
 | `AI_STP_VALIDATION_ERROR` нет `--target` | нужен каталог назначения | передать `--target <dir>`; не угадывать путь |
-| stale plan | байты плана изменились | построить новый план, показать, подтвердить снова |
-| `ok: false` при `retryable: false` | тот же argv не поможет | читать `error.code` и `next_actions` |
+| stale plan | байты плана изменились | продолжить ту же задачу; движок перепланирует. Не набирайте `install plan` |
+| `ok: false` при `retryable: false` | тот же argv не поможет | читать `error.code` и `continuations` |
 
 ## Связанные страницы
 

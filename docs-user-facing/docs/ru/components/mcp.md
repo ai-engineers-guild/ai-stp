@@ -82,7 +82,7 @@ github-issues/                     # пакет сервера TypeScript
     └── index.ts                   # вход bin/script; импортирует SDK
 ```
 
-Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
+Когда вы начинаете из `ai_stp`, стартуйте intent `author`. Не набирайте `component scaffold plan`. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
 `source/` для portable и `projections/<harness>/` для конкретного харнесса,
 а не всё дерево. Scaffold кладёт `source/mcp.json` и языковой entry;
@@ -101,7 +101,15 @@ github-issues/                     # component-scaffold/6
     └── src/main.py                # python handler; добавьте манифест пакета
 ```
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type mcp \
   --language python \
@@ -146,7 +154,7 @@ ai-stp component scaffold apply \
 ## Нативные layout по харнессам
 
 Discovery сообщает только объявленные layout. Точные пути на машине даёт
-`ai-stp component discover --json`. У каждой находки есть `layout_source`.
+конверт intent `author`. У каждой находки есть `layout_source`.
 Если классификация неясна, покажите это поле; не угадывайте путь соседа.
 
 Из матрицы discovery:
@@ -175,10 +183,13 @@ command, аргументы, URL, headers, environment — не читаются
 открывает. Рабочие серверы Claude Code pack живут там; угадывать другой
 home-файл — не layout.
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover`. Движок сам находит нативное дерево.
 
 Если один путь одновременно `setting` и `mcp`, назовите `--kind` при
 adopt. Не adopt'ьте файл дважды под угаданными видами.
@@ -246,26 +257,28 @@ ai-stp component passport validate --id <stable_id> --json
 **Автор, adopt, публикация:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 Когда находка также является файлом setting:
 
-```bash
+Expert recovery:
+
+```text
 ai-stp component adopt --path <source_path> --kind mcp --json
 ```
 
-**Найти, выбрать, установить:**
+**Установить:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 MCP-компонент может быть embedded-членом compose-манифеста. См.
@@ -326,15 +339,14 @@ MCP-компонент может быть embedded-членом compose-ман�
    Записывайте только *имена* env.
 4. Объявите в паспорте потребности в файловой системе, сети и
    учётных данных.
-5. Запустите `ai-stp component discover --root . --json` и прочитайте
-   `native_role`, `harness_id` и `layout_source`.
-6. `component adopt --path <точный source_path>` — добавьте `--kind mcp`,
-   когда файл также является setting.
-7. Закрепите точный публичный GitHub commit и подпуть. Секретов в дереве
+5. Зарегистрируйте каталог через
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` остаются для recovery.
+6. Закрепите точный публичный GitHub commit и подпуть. Секретов в дереве
    нет.
-8. `component passport validate` → `component version release`, чтобы
+7. `component passport validate` → `component version release`, чтобы
    выпустить неизменяемый `X.Y`.
-9. Публикуйте через [путь публикации](../publishing/index.md). В сетапе
+8. Публикуйте через [путь публикации](../publishing/index.md). В сетапе
    закрепите этот `X.Y`.
 
 Связанное: [Авторство](../publishing/authoring.md),

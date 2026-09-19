@@ -1,38 +1,38 @@
 # Account
 
-Публичный поиск и получение публичного сетапа анонимны. Этот playbook нужен
-для приватного доступа, публикации или синхронизации аккаунта. Берите из help
-`ai-stp auth login`, `ai-stp auth complete`, `ai-stp auth status`,
-`ai-stp auth logout`, `ai-stp grant list`, `ai-stp owner objects`,
-`ai-stp sync preview`, `ai-stp sync pull`, `ai-stp sync push`,
-`ai-stp project revision push`, `ai-stp project revision pull`,
-`ai-stp project sync plan`, `ai-stp project sync apply`,
-`ai-stp report preview` и `ai-stp link web`.
+Публичный поиск и получение публичного сетапа анонимны. Этот playbook нужен,
+когда пользователь просит войти, выйти или явно синхронизировать, или когда
+вопрос несёт device-code / user_code. Не открывайте этот playbook для
+`provider-too-old`. Если они уже вошли и не просили войти, выйти или
+sync, не набирайте `ai-stp` и не стартуйте `account`.
 
-1. Проверьте auth status и используйте действующую сессию аккаунта.
-2. При необходимости начните login и используйте точные verification URL и
-   user code ответа. Пройдите настоящий браузерный вход в собственный аккаунт
-   пользователя в рамках доступных разрешений браузера. Если нужно действие
-   пользователя или выбор аккаунта, покажите конкретный шаг и продолжайте
-   независимую работу.
-3. После одобрения браузером выполните auth complete и проверьте auth status.
-   Показанный код или открытый браузер ещё не означают вход CLI.
+Запускайте intent `account`. Не набирайте `ai-stp auth login`,
+`ai-stp auth complete` или `ai-stp auth logout`. Login ничего не загружает и
+не подразумевает sync.
+
+1. Передайте `action` (`login`, `logout` или `sync`) и `provider`, если они
+   известны.
+2. Вызовите `ai-stp task start` с intent `account` и исполняйте continuation
+   `argv` только когда `actor` — `cli`. Для `actor=external` покажите user code и
+   verification URI один раз и остановитесь. Не вызывайте `task continue` в
+   этом ходе. Позже `ai-stp task continue` только после браузера, не в тесном
+   цикле. Не вызывайте `task answer` для этого вопроса.
+3. В отчёте — `authenticated` и `login_uploaded=false`. Показанный код не
+   является сессией. Одного `ok` конверта недостаточно.
 
 Не создавайте искусственную сессию и не выводите пароль, токен или секреты
 устройства в argv, окружение, логи и отчёты. Не входите в чужой аккаунт.
 Изменение видимости и доступа существующего объекта подчиняется
-[decisions](decisions.md). При синхронизации читайте preview и фактическую
-квитанцию: успешный конверт может содержать конфликт. Отсутствующая ревизия
-требует восстановления, а не пропуска неизвестной истории аккаунта.
+[decisions](decisions.md).
 
-История связанного проекта — это ledger организации, не account sync. После
-`ai-stp project passport` опубликуйте allowlisted-проекцию через
-`ai-stp project revision push`, прочитайте узлы, которые уже опубликовал
-другой device, через `ai-stp project revision pull`, затем
-`ai-stp project sync plan` и `ai-stp project sync apply`, чтобы сдвинуть
-указатели связи. План `local_to_remote` недоступен, пока этой ревизии нет в
-ledger. `--local-revision` у плана — это ledger `revision_id` из квитанции
-push, а не собственный `revision_id` паспорта.
+Явный sync — это `account` с `action=sync` и `scope` `push` или `pull`.
+Не набирайте `sync push` или `sync pull`. Push требует абсолютный `project_root`.
+История связанного проекта — ledger организации, не account sync.
+Не набирайте `project passport`. Не набирайте `project revision push`.
+Не набирайте `project revision pull`, `project sync plan` или `project sync apply`.
+План `local_to_remote`
+недоступен, пока этой ревизии нет в ledger. `local_revision` у плана — это
+ledger `revision_id` из квитанции push, а не собственный `revision_id` паспорта.
 
 Если pull сообщает `partial`, прочитайте `pending_version_count` и координаты
 версий. Устройство, сохранившее точные снимки, может передать их обновлённым

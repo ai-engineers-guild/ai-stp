@@ -40,7 +40,7 @@ description: "Частные и опубликованные объекты, к�
 
 Объекты **не**:
 
-- создаёт компонент (это `component discover` / scaffold);
+- создаёт компонент (это intent `author`);
 - меняет type, name, tags, source или байты версии;
 - применяет сетап к harness;
 - ставит `author_verified` галочкой.
@@ -56,11 +56,12 @@ description: "Частные и опубликованные объекты, к�
 опубликуйте через CLI.** Два блока копирования:
 
 ```bash
-ai-stp component discover
-ai-stp toolchain harnesses
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent install --idempotency-key install-session-01 --json
 ```
 
-Это безопасные первые шаги (без лишних аргументов). Они не публикуют.
+Первый — повседневная регистрация. Второй — повседневная установка из каталога.
+Они не публикуют.
 
 Строка: `object_kind`, name, `stable_id`, latest version, бейдж
 lifecycle, бейдж visibility, опционально **Автор verified** /
@@ -126,10 +127,8 @@ YouTube хочет id, не полный URL.
 ai-stp owner objects --json
 ai-stp owner object show --json
 ai-stp owner version show --json
-ai-stp component discover --json
-ai-stp toolchain harnesses --json
-ai-stp publication plan --json
-ai-stp publication status --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 `owner objects` — список. `owner object show` — один объект и его
@@ -141,11 +140,11 @@ ai-stp publication status --json
 
 | Что видно | Что это значит | Что делать |
 | --- | --- | --- |
-| Пока нет объектов | на сервере ничего не принадлежит вам | discover / publish из CLI |
+| Пока нет объектов | на сервере ничего не принадлежит вам | start `author` / `publish` |
 | Этот объект недоступен вашему аккаунту. | не ваше или неизвестно | не зондируйте id |
-| Для объекта нет записанных версий. | никогда не выпускали | `component version release` в CLI |
+| Для объекта нет записанных версий. | никогда не выпускали | start `author` |
 | Install blocked | eligibility false | читайте evidence; не форсируйте apply |
-| Начать публикацию нет | не разрешено, нет CSRF или нет устройства | привяжите CLI-устройство; `publication plan` |
+| Начать публикацию нет | не разрешено, нет CSRF или нет устройства | привяжите CLI-устройство; start `publish` |
 | Media upload failed | тип/размер/источник | исправьте элемент; не Save посреди загрузки |
 | Публичная страница 404 | не опубликовано / не видно | ожидаемо для частных черновиков |
 | External services скрыты | флаг выкл. | связи каталога опущены |

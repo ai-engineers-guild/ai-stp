@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from ai_stp_cli.commands import install as install_cmd
+from ai_stp_cli.application import install as install_cmd
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import installation
 from ai_stp_cli.provider import protocol
@@ -311,7 +311,7 @@ def test_a_scoped_graph_is_validated_against_the_profile_that_describes_it() -> 
     global profile: its kind read as undeclared and its namespace as
     unsupported, both correctly for a profile that does not describe it.
     """
-    from ai_stp_cli.commands import install as install_commands
+    from ai_stp_cli.application import install as install_commands
     from ai_stp_cli.provider import protocol_v3
 
     scoped = protocol_v3.ProjectionProfile(
@@ -397,7 +397,7 @@ def test_a_bundle_over_the_declared_limits_is_refused_by_name() -> None:
     ceiling of its own choosing cannot make this side build a larger bundle —
     it can only refuse a smaller one.
     """
-    from ai_stp_cli.commands import install as install_commands
+    from ai_stp_cli.application import install as install_commands
     from ai_stp_cli.local import bundle as bundle_module
     from ai_stp_cli.provider import protocol_v3
 
@@ -476,7 +476,7 @@ def test_a_project_compile_is_validated_against_the_project_profile() -> None:
     harness home are two plans against two profiles; before the scope was a
     choice, both resolved to whichever rule came first.
     """
-    from ai_stp_cli.commands import install as install_commands
+    from ai_stp_cli.application import install as install_commands
     from ai_stp_cli.provider import protocol_v3
 
     workspace = protocol_v3.ProjectionProfile(

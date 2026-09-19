@@ -7,6 +7,20 @@ description: "Начать и завершить вход на платформ�
 
 Для локальной работы аккаунт не нужен. Вход нужен для частных
 объектов, синхронизации, публикации, устройств на сайте и доступа.
+
+Повседневная работа с аккаунтом — intent `account`. Движок drain'ит
+device-code login и явный sync in-process. Не набирайте `auth login`,
+если вы не восстанавливаете незавершённый device code.
+
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Следуйте `continuations`. Выполняйте `argv` только когда `actor` — `cli`.
+Заблокированный вопрос authorization — `actor=external`: покажите код
+один раз и остановитесь. Expert login / complete / logout ниже — для
+операторов, у которых уже есть незавершённый код.
+
 CLI запускает device-code flow, печатает код, который человек должен
 одобрить, и сохраняет учётные данные только после этого одобрения.
 
@@ -17,9 +31,10 @@ CLI запускает device-code flow, печатает код, который
 
 | Команда | Mutability | Confirmation | Когда |
 | --- | --- | --- | --- |
-| `ai-stp auth login` | `apply` | `none` | начать вход и сообщить код, который пользователь должен одобрить |
-| `ai-stp auth complete` | `apply` | `none` | завершить ожидающий вход, когда пользователь его одобрил |
-| `ai-stp auth logout` | `apply` | `none` | закончить облачную сессию на сервере и здесь, сохранив все локальные данные |
+| `ai-stp task start --intent account` | `apply` | `none` | повседневный вход и явный sync |
+| auth login | `apply` | `none` | expert: начать вход и сообщить код, который пользователь должен одобрить |
+| auth complete | `apply` | `none` | expert: завершить ожидающий вход, когда пользователь его одобрил |
+| auth logout | `apply` | `none` | expert: закончить облачную сессию на сервере и здесь, сохранив все локальные данные |
 | `ai-stp auth status` | `read` | `none` | сообщить связь с платформой: только локально, authenticated, expired или revoked |
 | `ai-stp link web` | `read` | `none` | напечатать канонический веб-URL и обратимую ссылку CLI |
 
@@ -31,9 +46,18 @@ CLI запускает device-code flow, печатает код, который
 
 ## Типичный путь
 
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Следуйте `continuations`. Заблокированный вопрос authorization —
+`actor=external`: покажите payload один раз и остановитесь.
+
+Expert (незавершённый device code уже есть):
+
 Сначала нужна идентичность устройства. Затем:
 
-```bash
+```text
 ai-stp device init --json
 ai-stp auth status --json
 ai-stp auth login --provider github --json
@@ -44,7 +68,7 @@ ai-stp auth login --provider github --json
 Конверт login называет `user_code`, `verification_uri` и
 `verification_uri_complete`. Откройте URI, одобрите код, затем:
 
-```bash
+```text
 ai-stp auth complete --json
 ai-stp auth status --json
 ```
@@ -56,7 +80,7 @@ ai-stp auth status --json
 
 Чтобы позже закончить сессию, сохранив локальный реестр и паспорта:
 
-```bash
+```text
 ai-stp auth logout --json
 ai-stp auth status --json
 ```
@@ -70,11 +94,11 @@ ai-stp link web --kind component --id <stable_id> --json
 `--kind` и `--id` обязательны. `--kind` — `component`, `setup` или
 `publisher`.
 
-## `auth login`
+## Expert recovery: `auth login`
 
 Начать вход и сообщить код, который пользователь должен одобрить.
 
-```bash
+```text
 ai-stp auth login --provider github --json
 ```
 
@@ -98,11 +122,11 @@ ai-stp auth login --provider github --json
 
 `next_actions` называет `auth complete` и `auth status`.
 
-## `auth complete`
+## Expert recovery: `auth complete`
 
 Завершить ожидающий вход, когда пользователь его одобрил.
 
-```bash
+```text
 ai-stp auth complete --json
 ```
 
@@ -119,7 +143,7 @@ ai-stp auth complete --json
 
 Закончить облачную сессию на сервере и здесь, сохранив все локальные данные.
 
-```bash
+```text
 ai-stp auth logout --json
 ```
 
@@ -203,14 +227,14 @@ ai-stp link web --kind component --id <stable_id> --json
 
 | Что видно | Что это значит | Что делать |
 | --- | --- | --- |
-| `AI_STP_VALIDATION_ERROR` на `auth login` | нет `--provider` или это не `github`/`google` | передать `--provider github` или `--provider google` |
-| `AI_STP_NOT_FOUND` на `auth complete` | ничего не ожидает | `ai-stp auth login --provider github --json` |
-| `AI_STP_AUTHORIZATION_DECLINED` | человек отказал в браузере | остановиться или начать новый login, если хотели одобрить |
-| `AI_STP_AUTHORIZATION_EXPIRED` | незавершённый код истёк | начать новый `auth login` |
-| `state` равен `expired` | сессия больше не действительна | `auth login`, затем `auth complete`, а не повтор одного `complete` |
-| `state` равен `revoked` | аккаунт больше не доверяет этому устройству | новый login; `device reset` — отдельное destructive решение |
+| `AI_STP_VALIDATION_ERROR` на `auth login` | нет `--provider` или это не `github`/`google` | `task start --intent account --idempotency-key account-session-01 --json` |
+| `AI_STP_NOT_FOUND` на `auth complete` | ничего не ожидает | `task start --intent account --idempotency-key account-session-01 --json` |
+| `AI_STP_AUTHORIZATION_DECLINED` | человек отказал в браузере | остановиться или снова стартовать `account`, если хотели одобрить |
+| `AI_STP_AUTHORIZATION_EXPIRED` | незавершённый код истёк | `task start --intent account --idempotency-key account-session-01 --json` |
+| `state` равен `expired` | сессия больше не действительна | `task start --intent account --idempotency-key account-session-01 --json` |
+| `state` равен `revoked` | аккаунт больше не доверяет этому устройству | новый `account` start; `device reset` — отдельное destructive решение |
 | `AI_STP_VALIDATION_ERROR` на `link web` | нет `--kind` или `--id`, или они неверны | передать обе обязательные опции |
-| `AI_STP_AUTH_REQUIRED` на поздней облачной команде | сессии нет | войти или остаться на локальных и анонимных командах каталога |
+| `AI_STP_AUTH_REQUIRED` на поздней облачной команде | сессии нет | `task start --intent account --idempotency-key account-session-01 --json` |
 
 ## Связанные страницы
 

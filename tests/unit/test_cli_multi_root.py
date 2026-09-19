@@ -13,8 +13,8 @@ from typing import cast
 import pytest
 
 from ai_stp_cli.answer import Answer
-from ai_stp_cli.commands import install as install_command
-from ai_stp_cli.commands import install_transaction
+from ai_stp_cli.application import install as install_command
+from ai_stp_cli.application import install_transaction
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import installation, journal, multi_root
 from ai_stp_cli.local.database import configured_path, open_registry
@@ -334,7 +334,7 @@ def test_public_transaction_plans_approves_and_owns_children(
             )
         )
 
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.plan", child_plan)
+    monkeypatch.setattr("ai_stp_cli.application.install_transaction.install.plan", child_plan)
     planned = install_transaction.plan(
         {
             "setup": "setup_01J0000000000000000000000A@1.0",
@@ -385,7 +385,7 @@ def test_public_transaction_plans_approves_and_owns_children(
             )
         )
 
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.apply", child_apply)
+    monkeypatch.setattr("ai_stp_cli.application.install_transaction.install.apply", child_apply)
     completed = install_transaction.apply(
         {"transaction": planned.transaction_id, "provider": "/provider"}
     ).payload
@@ -507,9 +507,12 @@ def test_compensation_restores_verified_children_in_reverse_safe_state(
             )
         )
 
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.plan", rollback_plan)
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.approve", rollback_approve)
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.apply", rollback_apply)
+    monkeypatch.setattr("ai_stp_cli.application.install_transaction.install.plan", rollback_plan)
+    monkeypatch.setattr(
+        "ai_stp_cli.application.install_transaction.install.approve",
+        rollback_approve,
+    )
+    monkeypatch.setattr("ai_stp_cli.application.install_transaction.install.apply", rollback_apply)
     result = install_transaction._compensate(  # pyright: ignore[reportPrivateUsage]
         coordinator,
         planned.transaction_id,
@@ -642,9 +645,12 @@ def test_compensation_reuses_the_bound_undo_after_an_interrupted_acknowledgment(
             )
         )
 
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.plan", rollback_plan)
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.approve", rollback_approve)
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.apply", rollback_apply)
+    monkeypatch.setattr("ai_stp_cli.application.install_transaction.install.plan", rollback_plan)
+    monkeypatch.setattr(
+        "ai_stp_cli.application.install_transaction.install.approve",
+        rollback_approve,
+    )
+    monkeypatch.setattr("ai_stp_cli.application.install_transaction.install.apply", rollback_apply)
     first_pass = install_transaction._compensate(  # pyright: ignore[reportPrivateUsage]
         coordinator,
         planned.transaction_id,
@@ -703,7 +709,7 @@ def _stub_scope_plans(
             )
         )
 
-    monkeypatch.setattr("ai_stp_cli.commands.install_transaction.install.plan", child_plan)
+    monkeypatch.setattr("ai_stp_cli.application.install_transaction.install.plan", child_plan)
     return calls
 
 

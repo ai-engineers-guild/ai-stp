@@ -14,20 +14,28 @@ The agent may help choose members. It may not bypass mechanical eligibility,
 access, or safety constraints. An empty admissible list with reasons beside
 it is an honest answer, not a crash.
 
+Everyday composition is the `install` intent (catalog setup) or `change` /
+`author` (local graph). Eligibility, propose, and confirm below stay expert
+recovery.
+
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
 ## Command table
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp select eligibility` | `read` | `none` | which candidates one harness may use, and why each refusal happened |
-| `ai-stp select eligibility-matrix` | `read` | `none` | where one object may be composed, for every supported harness |
+| select eligibility | `read` | `none` | expert: which candidates one harness may use, and why each refusal happened |
+| select eligibility-matrix | `read` | `none` | where one object may be composed, for every supported harness |
 | `ai-stp select impact` | `read` | `none` | compare context, token cost, and capabilities of exact local versions |
 | `ai-stp select blast-radius` | `read` | `none` | local setup, project, device, and target references to a component |
-| `ai-stp select propose` | `plan` | `none` | record one composition proposal; no version, no target |
-| `ai-stp select confirm` | `apply` | `none` | freeze one proposal as a private setup version, trace, and pin |
+| select propose | `plan` | `none` | expert: record one composition proposal; no version, no target |
+| select confirm | `apply` | `none` | expert: freeze one proposal as a private setup version, trace, and pin |
 | `ai-stp select cancel` | `apply` | `none` | close one proposal without creating a version |
 | `ai-stp select graph` | `read` | `none` | resolve the exact dependency closure, or name every reason it cannot |
 | `ai-stp select reports` | `read` | `none` | what is chosen, what conflicts, what is lost |
-| `ai-stp select bundle` | `read` | `none` | compile the deterministic package; write to no target |
+| select bundle | `read` | `none` | compile the deterministic package; write to no target |
 | `ai-stp select session` | `read` | `none` | open proposals for one project and harness, and the version selected |
 
 `--json` is global. Always pass it. `select confirm` has `confirmation:
@@ -35,7 +43,9 @@ none`: naming `--proposal` **is** the decision. There is no `--confirm`.
 
 ## Eligibility
 
-```bash
+Expert recovery:
+
+```text
 ai-stp select eligibility --harness codex --json
 ai-stp select eligibility --harness codex --project . --json
 ai-stp select eligibility --harness codex --include-unverified --json
@@ -53,9 +63,9 @@ Success fields: `harness_id`, `harness_version`, `os`, `arch`,
 `capability_vocabulary_version`. `admissible_count: 0` with refusals listed
 is success.
 
-## Eligibility matrix
+## Expert recovery: eligibility matrix
 
-```bash
+```text
 ai-stp select eligibility-matrix --json
 ai-stp select eligibility-matrix --harness codex --harness claude-code --json
 ```
@@ -96,7 +106,7 @@ selected setup as the baseline when `--against-setup-id` is absent.
 `--scenario` is one of `update`, `deprecation`, `blocked`,
 `expired_evidence`, `advisory`.
 
-## Propose, session, confirm, cancel
+## Expert recovery: propose, session, confirm, cancel
 
 A proposal is a short-lived, exact session object. It expires. Confirming
 it freezes a private setup version. Cancelling it creates nothing.
@@ -104,7 +114,7 @@ it freezes a private setup version. Cancelling it creates nothing.
 `--member` is repeatable, each value `<stable_id>@<X.Y>`. `--empty` composes
 a setup that projects no files. `--empty` and `--member` refuse together.
 
-```bash
+```text
 ai-stp select session --harness codex --project . --json
 
 ai-stp select propose \
@@ -127,7 +137,7 @@ read `created` to tell "this call made it" from "it was already made".
 
 ## Graph, reports, bundle
 
-```bash
+```text
 ai-stp select graph --proposal <proposal_id> --json
 ai-stp select graph --member component_...@1.0 --json
 
@@ -158,13 +168,21 @@ target. If `compiled` is false, `digest` and `files` are empty and
 
 ## Happy path
 
+Everyday:
+
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert custom composition:
+
 ```text
 select eligibility --harness <id> --project .
 → select propose --harness <id> --member <id>@<X.Y>
 → select reports --harness <id> --proposal <proposal>
 → select graph --proposal <proposal>
 → select confirm --proposal <proposal>
-→ install plan --proposal <proposal> --provider <exe> …
+→ task start --intent install --idempotency-key install-session-01 --json
 ```
 
 Read `select session` any time you need the open proposal and the selected
@@ -210,12 +228,13 @@ install.
 - [Trust and safety](../trust-and-safety/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups selection commands so a person can find them. The
-installed CLI is the source of flags, schemas, and `next_actions`. If this
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups selection commands so a person can find them. If this
 page and the CLI disagree, follow the CLI.

@@ -67,7 +67,7 @@ project-conventions/
 └── AGENTS.md
 ```
 
-Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
+Когда вы начинаете из `ai_stp`, стартуйте intent `author`. Не набирайте `component scaffold plan`. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
 `source/` для portable и `projections/<harness>/` для конкретного харнесса,
 а не всё дерево.
@@ -86,7 +86,15 @@ project-conventions/                 # component-scaffold/6
 `source/AGENTS.md` — канон. Проекция Claude Code — `CLAUDE.md`; Cursor —
 `rules/<name>.mdc`. Не выдумывайте второй каталог-обёртку.
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type instruction \
   --language none \
@@ -124,7 +132,7 @@ Adopt принимает только путь, который discovery уже 
   Discovery считает `AGENTS.md` в корне проекта instruction, а не видом
   `agent`.
 - Страницы харнесса, которые объявили layout, появляются у каждой находки
-  как `layout_source` из `ai-stp component discover --json`. Если
+  как `layout_source` из конверта intent `author`. Если
   классификация неясна, покажите это поле; не угадывайте путь соседа.
 - Сравнивайте с [Agent Skills Specification](https://agentskills.io/specification),
   когда хочется положить workflow в instruction: процедура с `SKILL.md` —
@@ -137,7 +145,7 @@ Adopt принимает только путь, который discovery уже 
 ## Нативные layout по харнессам
 
 Discovery сообщает только объявленные layout. Точные пути на машине даёт
-`ai-stp component discover --json`. У каждой находки есть
+конверт intent `author`. У каждой находки есть
 `layout_source` — официальный документ, который объявил layout. Если
 классификация неясна, покажите это поле; не угадывайте путь соседа.
 
@@ -158,10 +166,13 @@ Discovery сообщает только объявленные layout. Точн�
 каждый файл как `instruction`. Он не выдумывает файлы instruction из
 соседнего каталога.
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover`. Движок сам находит нативное дерево.
 
 Если один путь отвечает более чем одному харнессу, назовите `--harness`
 при adopt. Для общей кросс-продуктовой претензии используйте `portable`.
@@ -228,26 +239,28 @@ ai-stp component passport validate --id <stable_id> --json
 **Автор, adopt, публикация:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 Если discovery сообщил путь более чем под одним харнессом или видом:
 
-```bash
+Expert recovery:
+
+```text
 ai-stp component adopt --path <source_path> --harness portable --kind instruction --json
 ```
 
-**Найти, выбрать, установить:**
+**Установить:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 Instruction может быть embedded-членом compose-манифеста. См.
@@ -302,15 +315,14 @@ Instruction может быть embedded-членом compose-манифеста
 2. Пишите только постоянные правила. Процедуру перенесите в
    [`skill`](skill.md); именованный shortcut — в [`command`](command.md).
 3. Объявите в паспорте, чего текст требует от агента. Секретов нет.
-4. Запустите `ai-stp component discover --root . --json` и прочитайте
-   `layout_source` у находки.
-5. `component adopt --path <точный source_path>` — добавьте
-   `--kind instruction`, если путь заявлен более чем одним видом.
-6. Закрепите точный публичный GitHub commit и подпуть.
-7. `component passport validate` → `component version release`, чтобы
+4. Зарегистрируйте каталог через
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` остаются для recovery.
+5. Закрепите точный публичный GitHub commit и подпуть.
+6. `component passport validate` → `component version release`, чтобы
    выпустить неизменяемый `X.Y`.
-8. Публикуйте через [путь публикации](../publishing/index.md).
-9. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия
+7. Публикуйте через [путь публикации](../publishing/index.md).
+8. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия
    сетапа.
 
 Связанное: [Авторство](../publishing/authoring.md),

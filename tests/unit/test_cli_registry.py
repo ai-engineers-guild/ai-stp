@@ -4,10 +4,10 @@ import click
 import pytest
 
 from ai_stp_cli import app, registry
-from ai_stp_cli.commands import machine_help
-from ai_stp_cli.commands.registry import (
+from ai_stp_cli.application.catalog import (
     _component_ref_tuples,  # pyright: ignore[reportPrivateUsage]
 )
+from ai_stp_cli.commands import machine_help
 from ai_stp_cli.registry import (
     COMMANDS,
     command_paths,

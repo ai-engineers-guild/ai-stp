@@ -99,9 +99,9 @@ JSON-LD is emitted for crawlers. It is not a passport.
 
 There is no content-hub CLI. Catalog and help remain:
 
-```bash
+```text
 ai-stp registry search --json
-ai-stp help --agent --json
+ai-stp task intents --json
 ai-stp link web --json
 ```
 

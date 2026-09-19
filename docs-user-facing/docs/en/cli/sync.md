@@ -9,6 +9,16 @@ Sync moves local passport revisions to and from the private account stream.
 It is not the public catalog, not Git, and not install. A preview never
 changes a head. Push, merge, and pull are explicit, replay-safe writes.
 
+Everyday sync is the `account` intent. The engine asks before it uploads.
+Do not type `sync push` to force an upload.
+
+```bash
+ai-stp task start --intent account --idempotency-key account-session-01 --json
+```
+
+Expert preview / push / merge / pull leaves below stay for operators who
+already hold a revision id.
+
 Local work does not need sync. Signing in is required for these commands
 because they talk to the account stream. The stream carries passport
 revisions, not harness target files and not provider backups.
@@ -17,10 +27,11 @@ revisions, not harness target files and not provider backups.
 
 | Command | Mutability | Confirmation | When |
 | --- | --- | --- | --- |
-| `ai-stp sync preview` | `read` | `none` | preview local fast-forward, merge, or conflict without changing a head |
-| `ai-stp sync push` | `apply` | `explicit_flag` | push one exact local head with a durable replay-safe event |
-| `ai-stp sync merge` | `apply` | `explicit_flag` | commit a mechanically clean merge of two developer-passport heads |
-| `ai-stp sync pull` | `apply` | `explicit_flag` | pull and atomically apply one bounded page from the account stream |
+| `ai-stp task start --intent account` | `apply` | `none` | everyday login and explicit sync |
+| `ai-stp sync preview` | `read` | `none` | expert: preview local fast-forward, merge, or conflict without changing a head |
+| sync push | `apply` | `explicit_flag` | expert: push one exact local head with a durable replay-safe event |
+| `ai-stp sync merge` | `apply` | `explicit_flag` | expert: commit a mechanically clean merge of two developer-passport heads |
+| sync pull | `apply` | `explicit_flag` | expert: pull and atomically apply one bounded page from the account stream |
 
 `--json` is global. Always pass it. Push, merge, and pull require
 `--confirm`.
@@ -53,7 +64,7 @@ not hold is also `conflict`, not `up_to_date`.
 
 ## Push
 
-```bash
+```text
 ai-stp sync push --id <stable_id> --confirm --json
 ```
 
@@ -82,7 +93,7 @@ The answer is a preview of the resulting heads: same schema as
 
 ## Pull
 
-```bash
+```text
 ai-stp sync pull --confirm --json
 ai-stp sync pull --page-size 20 --confirm --json
 ai-stp sync pull --skip-event <event_id> --confirm --json
@@ -98,6 +109,13 @@ Success fields: `received`, `applied`, `replayed`, `next_cursor`,
 stream. Each page is atomic.
 
 ## Happy path
+
+```text
+task start --intent account --idempotency-key account-session-01 --json
+→ follow continuations until there are none
+```
+
+Expert (already-held revision id):
 
 ```text
 auth status
@@ -123,7 +141,7 @@ without reading `state`.
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | no signed-in account | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | no signed-in account | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_DEVICE_REVOKED` | this device key is revoked for cloud operations | `device` + a new login; do not reuse the revoked key |
 | `AI_STP_USER_DECISION_REQUIRED` | `--confirm` was omitted | pass `--confirm` after reading the preview |
 | `AI_STP_NOT_FOUND` | that id has no local revision heads | `passport developer show` / create the object locally first |
@@ -144,12 +162,13 @@ of a harness target. Target copies live with the provider; see
 - [Owner objects](owner.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups sync commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups sync commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.
