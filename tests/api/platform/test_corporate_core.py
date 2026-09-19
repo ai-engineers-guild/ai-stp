@@ -311,35 +311,68 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         headers=auth,
     )
     assert demote_binding.status_code == 409, demote_binding.text
+    project_payload = {
+        "schema_version": 1,
+        "name": "Core",
+        "authorization_revision": revision,
+        "idempotency_key": "create-project-0001",
+    }
     project = await client.post(
         f"/v1/corporate/organizations/{organization_id}/projects",
-        json={
-            "schema_version": 1,
-            "name": "Core",
-            "authorization_revision": revision,
-            "idempotency_key": "create-project-0001",
-        },
+        json=project_payload,
         headers=auth,
     )
     assert project.status_code == 200, project.text
+    project_replay = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/projects",
+        json=project_payload,
+        headers=auth,
+    )
+    assert project_replay.status_code == 200 and project_replay.json() == project.json()
     project_id = project.json()["project_id"]
     revision = (
         await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
     ).json()["organization"]["authorization_revision"]
+    team_payload = {
+        "schema_version": 1,
+        "name": "Platform",
+        "authorization_revision": revision,
+        "idempotency_key": "create-team-0001",
+    }
     team = await client.post(
         f"/v1/corporate/organizations/{organization_id}/teams",
-        json={
-            "schema_version": 1,
-            "name": "Platform",
-            "authorization_revision": revision,
-            "idempotency_key": "create-team-0001",
-        },
+        json=team_payload,
         headers=auth,
     )
     assert team.status_code == 200, team.text
+    team_replay = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/teams",
+        json=team_payload,
+        headers=auth,
+    )
+    assert team_replay.status_code == 200 and team_replay.json() == team.json()
     revision = (
         await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
     ).json()["organization"]["authorization_revision"]
+    invalid_aggregate = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/teams",
+        json={
+            "schema_version": 1,
+            "name": "Must not persist",
+            "lead_account_id": member_id,
+            "employee_ids": [],
+            "project_ids": [project_id],
+            "authorization_revision": revision,
+            "idempotency_key": "create-team-invalid-aggregate",
+        },
+        headers=auth,
+    )
+    assert invalid_aggregate.status_code == 400
+    teams_after_failure = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/teams", headers=auth
+    )
+    assert teams_after_failure.status_code == 200
+    assert "Must not persist" not in teams_after_failure.text
     assignment = await client.post(
         f"/v1/corporate/organizations/{organization_id}/membership-assignments",
         json={
