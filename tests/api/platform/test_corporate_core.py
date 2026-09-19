@@ -26,6 +26,7 @@ from ai_stp_platform.organization_models import (
     CorporateTeam,
     CorporateTeamMember,
     Organization,
+    OrganizationMembership,
     ProjectIdentity,
 )
 from ai_stp_platform.tenant_scope import set_tenant_scope
@@ -73,6 +74,103 @@ async def test_concurrent_bootstrap_creates_one_initial_owner(
     assert sorted(response.status_code for response in responses) == [200, 409]
 
 
+async def test_job_titles_enforce_idempotency_revision_uniqueness_and_tenant_boundary(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    owner_id, owner_token = await _account_token(sessionmaker)
+    foreign_id, foreign_token = await _account_token(sessionmaker)
+
+    async def bootstrap(account_id: str, token: str, key: str) -> tuple[str, dict[str, str]]:
+        response = await client.post(
+            "/v1/corporate/bootstrap",
+            json={
+                "schema_version": 1,
+                "organization_name": key,
+                "superadmin_account_id": account_id,
+                "idempotency_key": key,
+            },
+            headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["organization_id"], {"Authorization": f"Bearer {token}"}
+
+    organization_id, auth = await bootstrap(owner_id, owner_token, "job-title-owner-0001")
+    foreign_auth = {"Authorization": f"Bearer {foreign_token}"}
+    async with sessionmaker() as db:
+        db.add(
+            OrganizationMembership(
+                organization_id=organization_id,
+                account_id=foreign_id,
+                role="staff",
+                display_name="Foreign Staff",
+            )
+        )
+        await db.commit()
+    path = f"/v1/corporate/organizations/{organization_id}/job-titles"
+    payload = {
+        "schema_version": 1,
+        "name": "  Platform   Engineer  ",
+        "description": "Builds the platform.",
+        "authorization_revision": 1,
+        "idempotency_key": "job-title-create-0001",
+    }
+    created = await client.post(path, json=payload, headers=auth)
+    assert created.status_code == 200, created.text
+    assert created.json()["name"] == "Platform Engineer"
+    assert (await client.post(path, json=payload, headers=auth)).json() == created.json()
+    authorization_revision = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()["organization"]["authorization_revision"]
+
+    duplicate = await client.post(
+        path,
+        json={
+            **payload,
+            "name": "platform engineer",
+            "idempotency_key": "job-title-create-0002",
+            "authorization_revision": authorization_revision,
+        },
+        headers=auth,
+    )
+    assert duplicate.status_code == 409
+    assert (await client.get(path, headers=auth)).json()["items"] == [created.json()]
+
+    job_title_id = created.json()["job_title_id"]
+    update = {
+        "schema_version": 1,
+        "name": "Platform Engineer",
+        "description": "Retired title.",
+        "state": "retired",
+        "expected_revision": 1,
+        "authorization_revision": authorization_revision,
+        "idempotency_key": "job-title-update-0001",
+    }
+    retired = await client.patch(f"{path}/{job_title_id}", json=update, headers=auth)
+    assert retired.status_code == 200, retired.text
+    assert retired.json()["state"] == "retired"
+    assert retired.json()["revision"] == 2
+    current_context = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/context", headers=auth
+    )
+    assert current_context.status_code == 200, current_context.text
+    current_authorization_revision = current_context.json()["organization"][
+        "authorization_revision"
+    ]
+    stale = await client.patch(
+        f"{path}/{job_title_id}",
+        json={
+            **update,
+            "authorization_revision": current_authorization_revision,
+            "idempotency_key": "job-title-update-0002",
+        },
+        headers=auth,
+    )
+    assert stale.status_code == 409
+
+    assert (await client.get(path, headers=foreign_auth)).status_code == 403
+
+
 async def test_corporate_core_lifecycle_and_tenant_boundary(
     db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
 ) -> None:
@@ -96,6 +194,19 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
     organization_id = organization["organization_id"]
     assert organization["authorization_revision"] == 1
 
+    initial_team = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/teams",
+        json={
+            "schema_version": 1,
+            "name": "Initial",
+            "authorization_revision": 1,
+            "idempotency_key": "create-initial-team-0001",
+        },
+        headers=auth,
+    )
+    assert initial_team.status_code == 200, initial_team.text
+    initial_team_id = initial_team.json()["team_id"]
+
     invalid_role_member = await client.post(
         f"/v1/corporate/organizations/{organization_id}/members",
         json={
@@ -103,7 +214,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "display_name": "Invalid Role",
             "email": "invalid.role@example.com",
             "role": "missing_role",
-            "authorization_revision": 1,
+            "team_ids": [initial_team_id],
+            "authorization_revision": 2,
             "idempotency_key": "create-invalid-role-0001",
         },
         headers={"Authorization": f"Bearer {owner_token}"},
@@ -130,7 +242,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "display_name": "Staff One",
             "email": "staff.one@example.com",
             "role": "staff",
-            "authorization_revision": 1,
+            "team_ids": [initial_team_id],
+            "authorization_revision": 2,
             "idempotency_key": "create-staff-0001",
         },
         headers=auth,
@@ -157,7 +270,8 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
             "email": "lead@example.com",
             "display_name": "Lead One",
             "role": "lead",
-            "authorization_revision": 2,
+            "team_ids": [initial_team_id],
+            "authorization_revision": 3,
             "idempotency_key": "create-lead-0001",
         },
         headers=auth,
@@ -186,7 +300,14 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         f"/v1/corporate/organizations/{organization_id}/bindings", headers=auth
     )
     assert bindings.status_code == 200, bindings.text
-    assert len(bindings.json()["items"]) == 3
+    binding_items = bindings.json()["items"]
+    assert {(item["account_id"], item["scope_kind"]) for item in binding_items} == {
+        (owner_id, "organization"),
+        (member_id, "organization"),
+        (member_id, "team"),
+        (lead_id, "organization"),
+        (lead_id, "team"),
+    }
     binding_id = bindings.json()["items"][0]["binding_id"]
     binding = await client.get(
         f"/v1/corporate/organizations/{organization_id}/bindings/{binding_id}", headers=auth
@@ -212,35 +333,68 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         headers=auth,
     )
     assert demote_binding.status_code == 409, demote_binding.text
+    project_payload = {
+        "schema_version": 1,
+        "name": "Core",
+        "authorization_revision": revision,
+        "idempotency_key": "create-project-0001",
+    }
     project = await client.post(
         f"/v1/corporate/organizations/{organization_id}/projects",
-        json={
-            "schema_version": 1,
-            "name": "Core",
-            "authorization_revision": revision,
-            "idempotency_key": "create-project-0001",
-        },
+        json=project_payload,
         headers=auth,
     )
     assert project.status_code == 200, project.text
+    project_replay = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/projects",
+        json=project_payload,
+        headers=auth,
+    )
+    assert project_replay.status_code == 200 and project_replay.json() == project.json()
     project_id = project.json()["project_id"]
     revision = (
         await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
     ).json()["organization"]["authorization_revision"]
+    team_payload = {
+        "schema_version": 1,
+        "name": "Platform",
+        "authorization_revision": revision,
+        "idempotency_key": "create-team-0001",
+    }
     team = await client.post(
         f"/v1/corporate/organizations/{organization_id}/teams",
-        json={
-            "schema_version": 1,
-            "name": "Platform",
-            "authorization_revision": revision,
-            "idempotency_key": "create-team-0001",
-        },
+        json=team_payload,
         headers=auth,
     )
     assert team.status_code == 200, team.text
+    team_replay = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/teams",
+        json=team_payload,
+        headers=auth,
+    )
+    assert team_replay.status_code == 200 and team_replay.json() == team.json()
     revision = (
         await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
     ).json()["organization"]["authorization_revision"]
+    invalid_aggregate = await client.post(
+        f"/v1/corporate/organizations/{organization_id}/teams",
+        json={
+            "schema_version": 1,
+            "name": "Must not persist",
+            "lead_account_id": member_id,
+            "employee_ids": [],
+            "project_ids": [project_id],
+            "authorization_revision": revision,
+            "idempotency_key": "create-team-invalid-aggregate",
+        },
+        headers=auth,
+    )
+    assert invalid_aggregate.status_code == 400
+    teams_after_failure = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/teams", headers=auth
+    )
+    assert teams_after_failure.status_code == 200
+    assert "Must not persist" not in teams_after_failure.text
     assignment = await client.post(
         f"/v1/corporate/organizations/{organization_id}/membership-assignments",
         json={
@@ -380,7 +534,7 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         f"/v1/corporate/organizations/{organization_id}/context", headers=staff_auth
     )
     assert staff_context.status_code == 200
-    assert [item["name"] for item in staff_context.json()["teams"]] == ["Platform"]
+    assert [item["name"] for item in staff_context.json()["teams"]] == ["Initial", "Platform"]
 
     membership_revision = staff_context.json()["organization"]["authorization_revision"]
     reassignment_payload = {
@@ -434,7 +588,7 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         f"/v1/corporate/organizations/{organization_id}/context", headers=staff_auth
     )
     assert removed_context.status_code == 200
-    assert removed_context.json()["teams"] == []
+    assert [item["name"] for item in removed_context.json()["teams"]] == ["Initial"]
     assert removed_context.json()["projects"] == []
 
     foreign_id = new_id("organization")

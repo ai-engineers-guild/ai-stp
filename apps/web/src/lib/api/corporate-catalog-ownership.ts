@@ -8,6 +8,7 @@ import type {
   CorporateCatalogOwnership,
   CorporateCatalogUsageList,
   CorporateDirectoryItem,
+  CorporateContext,
 } from "./generated/types.gen";
 import type { ComponentId, SetupId, VersionId } from "@/lib/brands";
 
@@ -72,12 +73,14 @@ export async function readCorporateCatalogOwnership(
   objectKind: CorporateCatalogObjectKind,
   stableId: ComponentId | SetupId,
   version: VersionId,
+  corporateContext?: CorporateContext | null,
 ): Promise<CorporateCatalogOwnershipData | null> {
   const validStableId =
     objectKind === "component" ? tryAsComponentId(stableId) : tryAsSetupId(stableId);
   if (!validStableId) throw new Error("invalid catalog ownership target");
   try {
-    const context = await readCorporateContext(sessionToken);
+    const context =
+      corporateContext === undefined ? await readCorporateContext(sessionToken) : corporateContext;
     if (!context) return null;
     const organizationId = context.organization.organization_id;
     const ownership = await readCorporateCatalogOwnershipSummary(

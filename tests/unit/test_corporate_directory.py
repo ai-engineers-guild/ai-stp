@@ -189,6 +189,7 @@ async def test_named_technology_relations_are_authorized_before_facets(
     assert [ref.name for ref in result.facets.technologies] == ["Python"]
     assert [ref.name for ref in result.items[0].related_teams] == ["Mobile"]
     assert [ref.name for ref in result.items[0].leads] == ["Alice"]
+    assert "entity_profile.update" in result.items[0].available_actions
     assert all(
         org.organization_id in call.args[0].compile().params.values()
         for call in db.scalars.await_args_list

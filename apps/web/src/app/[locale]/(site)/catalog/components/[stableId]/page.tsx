@@ -45,6 +45,7 @@ import {
   readCorporateCatalogUsage,
 } from "@/lib/api/corporate-catalog-ownership";
 import { readOwnerObject } from "@/lib/api/owner";
+import { readCorporateContext } from "@/lib/api/corporate";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { readPublisherProfile } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
@@ -60,6 +61,7 @@ import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
 import { ComponentTypeIcon } from "@/theme/component-types";
+import { visibleCorporateState } from "@/lib/corporate-detail";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string }>;
@@ -106,6 +108,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
 
   const seo = await readSeoProfile("component", stableId, locale);
   const summary = detail.summary;
+  const visibleLifecycle = visibleCorporateState(summary.latest_lifecycle);
   const latest = await readLatestComponentVersion(stableId, summary.latest_version, token);
   const isPrivate = await isAuthorizedPrivateComponentVersion(
     componentId,
@@ -121,22 +124,24 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
   const targetMatrix = (detail as unknown as { target_matrix?: typeof detail.target_matrix })
     .target_matrix;
   const author = await readAuthor(ownerId);
+  const corporateContext = token ? await readCorporateContext(token).catch(() => null) : null;
   const corporateOwnership = token
     ? await readCorporateCatalogOwnership(
         token,
         "component",
         componentId,
         asVersionId(summary.latest_version),
+        corporateContext,
       )
     : null;
   const corporateCsrfToken = corporateOwnership?.ownership.can_edit
     ? ((await readCsrfToken()) ?? "")
     : "";
   const corporateUsage =
-    token && corporateOwnership
+    token && corporateContext
       ? await readCorporateCatalogUsage(
           token,
-          corporateOwnership.ownership.organization_id,
+          corporateContext.organization.organization_id,
           "component",
           componentId,
           asVersionId(summary.latest_version),
@@ -270,6 +275,9 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
                 close: t("closeMedia"),
                 previous: t("previousMedia"),
                 next: t("nextMedia"),
+                typeImage: t("mediaKindImage"),
+                typeVideo: t("mediaKindVideo"),
+                typeYoutube: t("mediaKindYoutube"),
               }}
             />
           ) : undefined
@@ -288,9 +296,9 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
             {passport ? (
               <ObjectTechnicalDetails
                 title={t("technicalDetails")}
-                summary={summary.latest_lifecycle}
+                {...(visibleLifecycle ? { summary: visibleLifecycle } : {})}
                 facts={[
-                  { label: t("lifecycle"), value: summary.latest_lifecycle },
+                  ...(visibleLifecycle ? [{ label: t("lifecycle"), value: visibleLifecycle }] : []),
                   {
                     label: t("projectionKind"),
                     value: summary.latest_projection_kind ?? t("noneListed"),
@@ -336,7 +344,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
                 total={corporateUsage.total}
                 labels={{
                   title: th("catalogUsageTitle"),
-                  summary: th("catalogUsageSummary"),
+                  summary: th("catalogUsageSummary", { count: corporateUsage.total }),
                   direct: th("directAssignment"),
                   effective: th("effectiveAssignment"),
                   subjectKinds: {

@@ -92,6 +92,12 @@ function query(overrides: Partial<ParsedCatalogQuery> = {}): ParsedCatalogQuery 
     view: "list",
     supportTier: undefined,
     supportState: undefined,
+    teamIds: [],
+    projectIds: [],
+    technologyIds: [],
+    categoryIds: [],
+    ownerIds: [],
+    maintainerIds: [],
     ...overrides,
   };
 }
@@ -136,6 +142,75 @@ describe("CatalogFilters", () => {
     expect(screen.queryByRole("combobox", { name: "Support tier" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Support state" })).toBeNull();
     expect(screen.getByRole("button", { name: "Apply filters" })).toBeInTheDocument();
+  });
+
+  it("renders corporate catalog facets and preserves fixed authors", async () => {
+    const user = userEvent.setup();
+    render(
+      <CatalogFilters
+        query={query({
+          assignment: "effective",
+          corporateVerified: true,
+          teamIds: ["team-a"],
+          projectIds: ["project-a"],
+          technologyIds: ["technology-a"],
+          categoryIds: ["category-a"],
+          ownerIds: ["owner-a"],
+          maintainerIds: ["maintainer-a"],
+        })}
+        labels={{ ...labels, corporateFilters: "Corporate filters" }}
+        fixedAuthors={["fixed-author"]}
+        corporateFacets={[
+          { key: "team_ids", label: "Teams", options: [{ value: "team-a", label: "Team A" }] },
+          {
+            key: "project_ids",
+            label: "Projects",
+            options: [{ value: "project-a", label: "Project A" }],
+          },
+          {
+            key: "technology_ids",
+            label: "Technologies",
+            options: [{ value: "technology-a", label: "Technology A" }],
+          },
+          {
+            key: "category_ids",
+            label: "Categories",
+            options: [{ value: "category-a", label: "Category A" }],
+          },
+          { key: "owner_ids", label: "Owners", options: [{ value: "owner-a", label: "Owner A" }] },
+          {
+            key: "maintainer_ids",
+            label: "Maintainers",
+            options: [{ value: "maintainer-a", label: "Maintainer A" }],
+          },
+          {
+            key: "assignment",
+            label: "Assignment",
+            options: [
+              { value: "direct", label: "Direct" },
+              { value: "effective", label: "Effective" },
+            ],
+            multiple: false,
+          },
+          {
+            key: "corporate_verified",
+            label: "Corporate verification",
+            options: [
+              { value: "true", label: "Verified" },
+              { value: "false", label: "Not verified" },
+            ],
+            multiple: false,
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Filters \(8\)/ })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("fixed-author")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Filters \(8\)/ }));
+    expect(screen.getByRole("group", { name: "Teams" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Team A" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Effective" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Verified" })).toBeChecked();
   });
 
   it("hides component type facet for setups resource", async () => {
@@ -386,6 +461,13 @@ describe("CatalogFilters", () => {
             avatar_url: null,
           },
           {
+            account_id: "numeric",
+            first_name: null,
+            last_name: null,
+            display_name: "123 Team",
+            avatar_url: null,
+          },
+          {
             account_id: "z",
             first_name: "Zed",
             last_name: null,
@@ -410,7 +492,7 @@ describe("CatalogFilters", () => {
       within(authorDialog)
         .getAllByRole("checkbox")
         .map((checkbox) => checkbox.getAttribute("aria-label")),
-    ).toEqual(["Ada", "Zed", "Яна"]);
+    ).toEqual(["Ada", "Zed", "Яна", "123 Team"]);
   });
 
   it("shows the selected author chip with display name and avatar", () => {

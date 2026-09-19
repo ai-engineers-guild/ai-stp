@@ -1,6 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import type { ComponentProps } from "react";
-import { CorporateResourceActions } from "@/components/organisms/corporate-resource-actions";
+import {
+  CorporateResourceActions,
+  CorporateResourceDeleteMenuItem,
+} from "@/components/organisms/corporate-resource-actions";
 
 export async function LocalizedResourceActions(
   props: Omit<ComponentProps<typeof CorporateResourceActions>, "labels">,
@@ -29,6 +32,19 @@ export async function LocalizedResourceActions(
         suspended: t("suspended"),
         archived: t("archived"),
       }}
+    />
+  );
+}
+
+export async function LocalizedResourceDeleteMenuItem(
+  props: Omit<ComponentProps<typeof CorporateResourceDeleteMenuItem>, "label" | "confirmLabel">,
+) {
+  const t = await getTranslations("corporate");
+  return (
+    <CorporateResourceDeleteMenuItem
+      {...props}
+      label={t("delete")}
+      confirmLabel={t("confirmDelete")}
     />
   );
 }

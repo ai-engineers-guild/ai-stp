@@ -71,6 +71,7 @@ from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.catalog_ownership_models import (
     CorporateCatalogOwnership as CorporateCatalogOwnershipRow,
 )
+from ai_stp_platform.catalog_read import get_visible_metadata
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account, AuditEvent
 from ai_stp_platform.organization_models import (
@@ -1542,10 +1543,41 @@ async def create_member(
     if receipt is not None:
         return CorporateMember.model_validate(receipt.response_body)
     await _ensure_active_teams(db, organization_id=organization_id, team_ids=payload.team_ids)
+    await _ensure_active_projects(
+        db, organization_id=organization_id, project_ids=payload.project_ids
+    )
     await _ensure_role_exists(db, organization_id=organization_id, role=payload.role)
     await _ensure_current_job_title(
         db, organization_id=organization_id, job_title_id=payload.job_title_id
     )
+    if payload.catalog_assignments:
+        if not await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            permission="catalog_object.assign",
+        ):
+            raise ApiError(ErrorCategory.PERMISSION, "catalog assignment access denied")
+        assignment_keys: set[tuple[str, str]] = set()
+        for assignment in payload.catalog_assignments:
+            key = (assignment.stable_id, assignment.version)
+            if key in assignment_keys:
+                raise ApiError(ErrorCategory.VALIDATION, "duplicate catalog assignment")
+            assignment_keys.add(key)
+            catalog = await get_visible_metadata(
+                db,
+                object_kind=assignment.object_kind,
+                stable_id=assignment.stable_id,
+                version=assignment.version,
+                account_id=ctx.account_id,
+            )
+            if (
+                catalog is None
+                or catalog.published_at is None
+                or catalog.lifecycle_state not in {"active", "deprecated"}
+            ):
+                raise ApiError(ErrorCategory.PERMISSION, "catalog version is unavailable")
     account = await db.get(Account, payload.account_id) if payload.account_id else None
     if account is None:
         account = Account(id=new_id("account"), status="active", display_name=payload.display_name)
@@ -1605,6 +1637,27 @@ async def create_member(
                 scope_kind="team",
                 scope_id=team_id,
                 state="active",
+            )
+        )
+    for project_id in dict.fromkeys(payload.project_ids):
+        db.add(
+            CorporateProjectMember(
+                organization_id=organization_id,
+                project_id=project_id,
+                account_id=account.id,
+            )
+        )
+    for assignment in payload.catalog_assignments:
+        db.add(
+            CorporateCatalogAssignmentRow(
+                id=new_id("operation"),
+                organization_id=organization_id,
+                account_id=account.id,
+                object_kind=assignment.object_kind,
+                stable_id=assignment.stable_id,
+                version=assignment.version,
+                state="current",
+                revision=1,
             )
         )
     organization.policy_revision += 1

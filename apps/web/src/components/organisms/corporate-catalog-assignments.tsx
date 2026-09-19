@@ -10,6 +10,8 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { DetailAccordion } from "@/components/molecules/detail-accordion";
+import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
+import { RefineSurface } from "@/components/molecules/filter-surface";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import type {
   CorporateCatalogAssignment,
@@ -17,6 +19,7 @@ import type {
   OwnerObjectSummary,
 } from "@/lib/api/generated/types.gen";
 import { ObjectCard } from "@/components/organisms/object-card";
+import { Icon } from "@/theme";
 
 const assignmentCardLabels = {
   harness: "",
@@ -54,7 +57,7 @@ export function CorporateCatalogAssignments({
 }: {
   items: CorporateCatalogAssignment[];
   organizationId: string;
-  subjectKind: "employee" | "team" | "project";
+  subjectKind: "employee" | "team" | "project" | "technology";
   subjectId: string;
   authorizationRevision: number;
   csrfToken: string;
@@ -70,8 +73,18 @@ export function CorporateCatalogAssignments({
   const [version, setVersion] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
   const retry = useRef<{ effect: string; key: string } | null>(null);
   const currentItems = items.filter((item) => item.state === "current");
+  const filteredItems = currentItems.filter((item) => {
+    const text = `${item.display_name ?? ""} ${item.stable_id}`.toLocaleLowerCase();
+    return (
+      (!query || text.includes(query.toLocaleLowerCase())) &&
+      (!selectedKinds.length || selectedKinds.includes(item.object_kind))
+    );
+  });
   async function search(query: string) {
     setBusy(true);
     setMessage(null);
@@ -160,11 +173,64 @@ export function CorporateCatalogAssignments({
       summary={`${currentItems.length}`}
       defaultOpen={canManage}
     >
+      <div className="mb-4 flex justify-end">
+        <Button
+          type="button"
+          variant={filtersOpen || query || selectedKinds.length ? "default" : "outline"}
+          onClick={() => {
+            setFiltersOpen((open) => !open);
+          }}
+        >
+          <Icon name="controls" size="sm" />
+          {h("filters")}
+        </Button>
+      </div>
+      {filtersOpen ? (
+        <RefineSurface
+          id={`assignment-filters-${subjectKind}`}
+          labels={{
+            filtersButton: h("filters"),
+            refineButton: h("filterTitle"),
+            closeFilters: h("closeFilters"),
+          }}
+          onClose={() => {
+            setFiltersOpen(false);
+          }}
+        >
+          <div className="grid gap-5 md:grid-cols-2">
+            <label className="space-y-2 text-sm">
+              <span className="font-medium">{h("search")}</span>
+              <Input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
+              />
+            </label>
+            <label className="space-y-2 text-sm">
+              <span className="font-medium">{h("objectKind")}</span>
+              <SearchableMultiSelect
+                name="assignment-object-kind"
+                label={h("objectKind")}
+                searchLabel={h("search")}
+                options={[
+                  { value: "setup", label: h("setup") },
+                  { value: "component", label: h("component") },
+                ]}
+                selected={selectedKinds}
+                onChange={setSelectedKinds}
+                closeLabel={h("closeFilters")}
+                modal
+              />
+            </label>
+          </div>
+        </RefineSurface>
+      ) : null}
       <ul className="divide-border divide-y">
-        {currentItems.map((item) => (
+        {filteredItems.map((item) => (
           <li
             key={`${item.assignment_id}/${item.subject_id}/${item.source_team_id ?? "direct"}`}
-            className="flex flex-wrap items-center justify-between gap-3 py-3"
+            className="py-3"
           >
             <ObjectCard
               kind={item.object_kind}
@@ -173,37 +239,37 @@ export function CorporateCatalogAssignments({
               labels={assignmentCardLabels}
               view="list"
               ownerActions={
-                canManage && !item.source_team_id ? (
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => {
-                      void save(item);
-                    }}
-                  >
-                    {h("unlink")}
-                  </Button>
-                ) : null
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
+                  <span className="text-muted-foreground text-sm">
+                    {item.source_team_id ? (
+                      <Link
+                        href={`/corporate/teams/${item.source_team_id}`}
+                        className="underline underline-offset-4"
+                      >
+                        {h("viaTeam")}
+                      </Link>
+                    ) : (
+                      h("directAssignment")
+                    )}
+                  </span>
+                  {canManage && !item.source_team_id ? (
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => {
+                        void save(item);
+                      }}
+                    >
+                      {h("unlink")}
+                    </Button>
+                  ) : null}
+                </div>
               }
             />
-            <div className="mt-2">
-              {item.source_team_id ? (
-                <p className="text-muted-foreground text-sm">
-                  <Link
-                    href={`/corporate/teams/${item.source_team_id}`}
-                    className="underline underline-offset-4"
-                  >
-                    {h("viaTeam")}
-                  </Link>
-                </p>
-              ) : (
-                <p className="text-muted-foreground text-sm">{h("directAssignment")}</p>
-              )}
-            </div>
           </li>
         ))}
       </ul>
-      {!currentItems.length && (
+      {!filteredItems.length && (
         <p className="text-muted-foreground text-sm">{h("noAssignments")}</p>
       )}
       {canManage && (

@@ -68,6 +68,24 @@ function isBlockedPath(pathname: string, sharedPath: string | null): boolean {
  */
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const legacyAdminMember = pathname.match(
+    /^(\/(?:en|ru)(?:\/ai)?)\/corporate\/organization\/admins\/members\/([^/]+)$/,
+  );
+  if (legacyAdminMember) {
+    const url = requestOriginUrl(request);
+    url.pathname = `${legacyAdminMember[1]}/corporate/organization/admins/employees/${legacyAdminMember[2]}`;
+    return NextResponse.redirect(url, 308);
+  }
+  const legacyCorporatePublisher = pathname.match(
+    /^(\/(?:en|ru)(?:\/ai)?)\/corporate\/publishers(?:\/([^/]+))?$/,
+  );
+  if (legacyCorporatePublisher) {
+    const url = requestOriginUrl(request);
+    url.pathname = `${legacyCorporatePublisher[1]}/corporate/employees${
+      legacyCorporatePublisher[2] ? `/${legacyCorporatePublisher[2]}` : ""
+    }`;
+    return NextResponse.redirect(url, 308);
+  }
   const legacyCorporateCatalog = pathname.match(/^(\/(?:en|ru)(?:\/ai)?)\/corporate\/components$/);
   if (legacyCorporateCatalog) {
     const url = requestOriginUrl(request);

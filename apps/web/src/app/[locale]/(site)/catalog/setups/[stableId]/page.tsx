@@ -45,6 +45,7 @@ import {
   readCorporateCatalogUsage,
 } from "@/lib/api/corporate-catalog-ownership";
 import { listCatalogReactions } from "@/lib/api/reactions";
+import { readCorporateContext } from "@/lib/api/corporate";
 import { readPublisherProfile, type PublicProfileProjection } from "@/lib/api/public-profile";
 import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -57,6 +58,7 @@ import { readSeoProfile } from "@/lib/api/seo";
 import { metadataFromSeo } from "@/lib/seo/metadata";
 import { UI } from "@/lib/ui-selectors";
 import { sourceLinksFor } from "@/lib/source-url";
+import { visibleCorporateState } from "@/lib/corporate-detail";
 
 type PageProps = {
   params: Promise<{ locale: string; stableId: string }>;
@@ -105,6 +107,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
 
   const seo = await readSeoProfile("setup", stableId, locale);
   const summary = detail.summary;
+  const visibleLifecycle = visibleCorporateState(summary.latest_lifecycle);
   const media = detail.media;
   const initiallyLiked = token ? await isLiked(token, stableId) : false;
   let latest: Awaited<ReturnType<typeof readSetupVersion>> | null = null;
@@ -145,22 +148,24 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
     : null;
   const ownerId = summary.publisher_id || passport?.owner_id || "";
   const author = await readAuthor(ownerId);
+  const corporateContext = token ? await readCorporateContext(token).catch(() => null) : null;
   const corporateOwnership = token
     ? await readCorporateCatalogOwnership(
         token,
         "setup",
         setupId,
         asVersionId(summary.latest_version),
+        corporateContext,
       )
     : null;
   const corporateCsrfToken = corporateOwnership?.ownership.can_edit
     ? ((await readCsrfToken()) ?? "")
     : "";
   const corporateUsage =
-    token && corporateOwnership
+    token && corporateContext
       ? await readCorporateCatalogUsage(
           token,
-          corporateOwnership.ownership.organization_id,
+          corporateContext.organization.organization_id,
           "setup",
           setupId,
           asVersionId(summary.latest_version),
@@ -282,6 +287,9 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
                 close: t("closeMedia"),
                 previous: t("previousMedia"),
                 next: t("nextMedia"),
+                typeImage: t("mediaKindImage"),
+                typeVideo: t("mediaKindVideo"),
+                typeYoutube: t("mediaKindYoutube"),
               }}
             />
           ) : undefined
@@ -297,9 +305,9 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
             {passport ? (
               <ObjectTechnicalDetails
                 title={t("technicalDetails")}
-                summary={summary.latest_lifecycle}
+                {...(visibleLifecycle ? { summary: visibleLifecycle } : {})}
                 facts={[
-                  { label: t("lifecycle"), value: summary.latest_lifecycle },
+                  ...(visibleLifecycle ? [{ label: t("lifecycle"), value: visibleLifecycle }] : []),
                   { label: t("publishedAt"), value: summary.latest_published_at },
                   { label: t("harness"), value: summary.latest_harness_id },
                 ]}
@@ -354,7 +362,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
                 total={corporateUsage.total}
                 labels={{
                   title: th("catalogUsageTitle"),
-                  summary: th("catalogUsageSummary"),
+                  summary: th("catalogUsageSummary", { count: corporateUsage.total }),
                   direct: th("directAssignment"),
                   effective: th("effectiveAssignment"),
                   subjectKinds: {

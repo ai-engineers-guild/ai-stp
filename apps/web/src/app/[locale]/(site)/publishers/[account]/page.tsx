@@ -5,6 +5,8 @@ import { Badge } from "@/components/atoms/badge";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { CatalogFilters } from "@/components/organisms/catalog-filters";
 import { CatalogResults } from "@/components/organisms/catalog-results";
+import { EntityDetailHeader } from "@/components/organisms/entity-detail-header";
+import { ObjectDetailFrame } from "@/components/organisms/object-detail-frame";
 import { PublisherActions } from "@/components/organisms/publisher-actions";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { VerifiedAvatar } from "@/components/molecules/verified-avatar";
@@ -238,26 +240,63 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
   return (
     <article className="space-y-8">
       <HistoryBackButton label={tCatalog("backToCatalog")} fallback="/catalog" />
-      <section className="border-border relative grid gap-6 border-b pb-8 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-        <VerifiedAvatar
-          src={profile.avatar_url}
-          verified={profile.author_verified}
-          verifiedLabel={tCatalog("authorVerified")}
-          size="lg"
-          fallback={(profile.display_name ?? profile.account_id).slice(0, 2).toUpperCase()}
-        />
-        <div className="min-w-0 space-y-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-3 pr-14">
-            <h1 className="min-w-0 text-3xl font-medium tracking-tight break-words">
-              {profile.display_name ?? t("title")}
-            </h1>
-            {profile.author_verified ? (
-              <Badge variant="success">{tCatalog("authorVerified")}</Badge>
-            ) : null}
-          </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 pr-14">
-            {stats ? (
+      <EntityDetailHeader
+        icon={
+          <VerifiedAvatar
+            src={profile.avatar_url}
+            verified={profile.author_verified}
+            verifiedLabel={tCatalog("authorVerified")}
+            size="lg"
+            fallback={(profile.display_name ?? profile.account_id).slice(0, 2).toUpperCase()}
+          />
+        }
+        title={profile.display_name ?? t("title")}
+        meta={
+          profile.author_verified ? (
+            <Badge variant="success">{tCatalog("authorVerified")}</Badge>
+          ) : null
+        }
+        menu={
+          <PublisherActions
+            accountId={profile.account_id}
+            cliCommand={publisherLink}
+            {...(isOwner ? { editHref: "/account/profile/edit" } : {})}
+            reportHref={`/reports?topic=author_complaint&author=${encodeURIComponent(profile.account_id)}`}
+            labels={{
+              more: tCatalog("moreActions"),
+              report: tContact("reportAuthorType"),
+              copyLink: tCatalog("copyUrl"),
+              copyId: tCatalog("copyId"),
+              useCli: tCatalog("copyCli"),
+              editProfile: tAccount("profileEdit"),
+              copied: tCatalog("copied"),
+            }}
+          />
+        }
+      />
+      <ObjectDetailFrame
+        description={
+          <div className="space-y-4">
+            {!isEmpty ? (
               <>
+                {profile.links.length > 0 ? <ProfileLinks links={profile.links} /> : null}
+                {profile.bio ? (
+                  <div
+                    className="prose prose-sm text-muted-foreground max-w-prose text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_pre]:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdownOnServer(profile.bio).html }}
+                  />
+                ) : null}
+              </>
+            ) : (
+              <p className="text-muted-foreground">{t("emptyProfile")}</p>
+            )}
+          </div>
+        }
+        rail={
+          <section className="border-border bg-card space-y-4 rounded-lg border p-5">
+            <h2 className="text-sm font-medium">{t("publishedObjects")}</h2>
+            {stats ? (
+              <div className="flex flex-wrap gap-4">
                 <ProfileStat
                   icon="cards"
                   label={t("objectsStat")}
@@ -276,144 +315,118 @@ export default async function PublisherPage({ params, searchParams }: PageProps)
                   value={stats.detail_views_count + stats.artifact_downloads_count}
                   locale={locale}
                 />
-              </>
+              </div>
             ) : null}
-          </div>
-          {!isEmpty ? (
-            <>
-              {profile.links.length > 0 ? <ProfileLinks links={profile.links} /> : null}
-              {profile.bio ? (
-                <div
-                  className="prose prose-sm text-muted-foreground max-w-prose text-sm leading-relaxed [&_a]:underline [&_code]:font-mono [&_pre]:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdownOnServer(profile.bio).html }}
-                />
-              ) : null}
-            </>
-          ) : (
-            <p className="text-muted-foreground">{t("emptyProfile")}</p>
-          )}
-        </div>
-        <div className="absolute top-0 right-0">
-          <PublisherActions
-            accountId={profile.account_id}
-            cliCommand={publisherLink}
-            {...(isOwner ? { editHref: "/account/profile/edit" } : {})}
-            reportHref={`/reports?topic=author_complaint&author=${encodeURIComponent(profile.account_id)}`}
-            labels={{
-              more: tCatalog("moreActions"),
-              report: tContact("reportAuthorType"),
-              copyLink: tCatalog("copyUrl"),
-              copyId: tCatalog("copyId"),
-              useCli: tCatalog("copyCli"),
-              editProfile: tAccount("profileEdit"),
-              copied: tCatalog("copied"),
-            }}
-          />
-        </div>
-      </section>
-
-      <section className="space-y-4" aria-labelledby="published-objects-heading">
-        <div>
-          <h2 id="published-objects-heading" className="text-xl font-medium tracking-tight">
-            {t("publishedObjects")}
-          </h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {tCatalog("scopedFilterDescription")}
-          </p>
-        </div>
-        <CatalogFilters
-          query={query}
-          locale={locale}
-          basePath={`/publishers/${encodeURIComponent(account)}`}
-          hideSearch
-          hideAuthorFilter
-          fixedAuthors={[accountId]}
-          services={services}
-          labels={{
-            search: tCatalog("search"),
-            searchPlaceholder: tCatalog("searchPlaceholder"),
-            searchHelp: tCatalog("searchHelp"),
-            queryFields: tCatalog("queryFields"),
-            queryOperators: tCatalog("queryOperators"),
-            queryLiteralHint: tCatalog("queryLiteralHint"),
-            resourceLegend: tCatalog("resourceLegend"),
-            components: tCatalog("components"),
-            setups: tCatalog("setups"),
-            resourceBoth: tCatalog("resourceBoth"),
-            experimentalConsent: tCatalog("experimentalConsent"),
-            tagFilter: tCatalog("tagFilter"),
-            harnessFilter: tCatalog("harnessFilter"),
-            typeFilter: tCatalog("typeFilter"),
-            supportTierFilter: tCatalog("supportTierFilter"),
-            supportStateFilter: tCatalog("supportStateFilter"),
-            anyOption: tCatalog("anyOption"),
-            applyFilters: tCatalog("applyFilters"),
-            filtersButton: tCatalog("filtersButton"),
-            resetAll: tCatalog("resetAll"),
-            filterHelpTitle: tCatalog("filterHelpTitle"),
-            filterHelpBody: tCatalog("filterHelpBody"),
-            dismissFilter: tCatalog("dismissFilter"),
-            closeFilters: tCatalog("closeFilters"),
-            filterHelpLabel: tCatalog("filterHelpLabel"),
-            tagFilterHelp: tCatalog("tagFilterHelp"),
-            harnessFilterHelp: tCatalog("harnessFilterHelp"),
-            typeFilterHelp: tCatalog("typeFilterHelp"),
-            authorFilterHelp: tCatalog("authorFilterHelp"),
-            verifiedOnlyHelp: tCatalog("verifiedOnlyHelp"),
-            countryFilterHelp: tCatalog("countryFilterHelp"),
-            serviceFilterHelp: tCatalog("serviceFilterHelp"),
-            updatedRangeHelp: tCatalog("updatedRangeHelp"),
-            searchOptions: tCatalog("searchOptions"),
-            authorFilter: tCatalog("authorFilter"),
-            verifiedOnly: tCatalog("verifiedOnly"),
-            serviceFilter: tCatalog("serviceFilter"),
-            countryFilter: tCatalog("countryFilter"),
-            unspecifiedOption: tCatalog("unspecifiedOption"),
-            updatedFrom: tCatalog("updatedFrom"),
-            updatedTo: tCatalog("updatedTo"),
-            clearUpdatedRange: tCatalog("clearUpdatedRange"),
-            sortBy: tCatalog("sortBy"),
-            sortDirection: tCatalog("sortDirection"),
-            sortRelevance: tCatalog("sortRelevance"),
-            sortUpdated: tCatalog("sortUpdated"),
-            sortLikes: tCatalog("sortLikes"),
-            sortAscending: tCatalog("sortAscending"),
-            sortDescending: tCatalog("sortDescending"),
-            viewLabel: tCatalog("viewLabel"),
-            cardsView: tCatalog("cardsView"),
-            listView: tCatalog("listView"),
-            refineButton: tCatalog("refineButton"),
-            queryCorrection: tCatalog("queryCorrection"),
-            updatingLabel: tCatalog("updating"),
-          }}
-        />
-        {errorMessage ? (
-          <StatePanel kind="error" title={tc("error")} description={errorMessage} />
-        ) : components && setups ? (
-          <CatalogResults
-            kind="mixed"
-            items={[...setups.items, ...components.items]}
-            experimental={[...setups.experimental, ...components.experimental]}
-            nextCursor={null}
-            totalItems={
-              (numberOrNull(setups.page.total_items) ?? setups.items.length) +
-              (numberOrNull(components.page.total_items) ?? components.items.length)
-            }
-            pageNumber={query.pageNumber}
-            setupsTotalPages={numberOrNull(setups.page.total_pages)}
-            componentsTotalPages={numberOrNull(components.page.total_pages)}
-            view={query.view}
-            showExperimental={query.includeExperimental}
-            basePath={`/publishers/${encodeURIComponent(account)}`}
-            query={catalogQueryToRecord(query)}
-            labels={labels}
-            locale={locale}
-            authors={{
-              [accountId]: { displayName: profile.display_name, avatarUrl: profile.avatar_url },
-            }}
-          />
-        ) : null}
-      </section>
+            <p className="text-muted-foreground font-mono text-xs break-all">
+              {profile.account_id}
+            </p>
+          </section>
+        }
+        main={
+          <section className="space-y-4" aria-labelledby="published-objects-heading">
+            <div>
+              <h2 id="published-objects-heading" className="text-xl font-medium tracking-tight">
+                {t("publishedObjects")}
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {tCatalog("scopedFilterDescription")}
+              </p>
+            </div>
+            <CatalogFilters
+              query={query}
+              locale={locale}
+              basePath={`/publishers/${encodeURIComponent(account)}`}
+              hideSearch
+              hideAuthorFilter
+              fixedAuthors={[accountId]}
+              services={services}
+              labels={{
+                search: tCatalog("search"),
+                searchPlaceholder: tCatalog("searchPlaceholder"),
+                searchHelp: tCatalog("searchHelp"),
+                queryFields: tCatalog("queryFields"),
+                queryOperators: tCatalog("queryOperators"),
+                queryLiteralHint: tCatalog("queryLiteralHint"),
+                resourceLegend: tCatalog("resourceLegend"),
+                components: tCatalog("components"),
+                setups: tCatalog("setups"),
+                resourceBoth: tCatalog("resourceBoth"),
+                experimentalConsent: tCatalog("experimentalConsent"),
+                tagFilter: tCatalog("tagFilter"),
+                harnessFilter: tCatalog("harnessFilter"),
+                typeFilter: tCatalog("typeFilter"),
+                supportTierFilter: tCatalog("supportTierFilter"),
+                supportStateFilter: tCatalog("supportStateFilter"),
+                anyOption: tCatalog("anyOption"),
+                applyFilters: tCatalog("applyFilters"),
+                filtersButton: tCatalog("filtersButton"),
+                resetAll: tCatalog("resetAll"),
+                filterHelpTitle: tCatalog("filterHelpTitle"),
+                filterHelpBody: tCatalog("filterHelpBody"),
+                dismissFilter: tCatalog("dismissFilter"),
+                closeFilters: tCatalog("closeFilters"),
+                filterHelpLabel: tCatalog("filterHelpLabel"),
+                tagFilterHelp: tCatalog("tagFilterHelp"),
+                harnessFilterHelp: tCatalog("harnessFilterHelp"),
+                typeFilterHelp: tCatalog("typeFilterHelp"),
+                authorFilterHelp: tCatalog("authorFilterHelp"),
+                verifiedOnlyHelp: tCatalog("verifiedOnlyHelp"),
+                countryFilterHelp: tCatalog("countryFilterHelp"),
+                serviceFilterHelp: tCatalog("serviceFilterHelp"),
+                updatedRangeHelp: tCatalog("updatedRangeHelp"),
+                searchOptions: tCatalog("searchOptions"),
+                authorFilter: tCatalog("authorFilter"),
+                verifiedOnly: tCatalog("verifiedOnly"),
+                serviceFilter: tCatalog("serviceFilter"),
+                countryFilter: tCatalog("countryFilter"),
+                unspecifiedOption: tCatalog("unspecifiedOption"),
+                updatedFrom: tCatalog("updatedFrom"),
+                updatedTo: tCatalog("updatedTo"),
+                clearUpdatedRange: tCatalog("clearUpdatedRange"),
+                sortBy: tCatalog("sortBy"),
+                sortDirection: tCatalog("sortDirection"),
+                sortRelevance: tCatalog("sortRelevance"),
+                sortUpdated: tCatalog("sortUpdated"),
+                sortLikes: tCatalog("sortLikes"),
+                sortAscending: tCatalog("sortAscending"),
+                sortDescending: tCatalog("sortDescending"),
+                viewLabel: tCatalog("viewLabel"),
+                cardsView: tCatalog("cardsView"),
+                listView: tCatalog("listView"),
+                refineButton: tCatalog("refineButton"),
+                queryCorrection: tCatalog("queryCorrection"),
+                updatingLabel: tCatalog("updating"),
+              }}
+            />
+            {errorMessage ? (
+              <StatePanel kind="error" title={tc("error")} description={errorMessage} />
+            ) : components && setups ? (
+              <CatalogResults
+                kind="mixed"
+                items={[...setups.items, ...components.items]}
+                experimental={[...setups.experimental, ...components.experimental]}
+                nextCursor={null}
+                totalItems={
+                  (numberOrNull(setups.page.total_items) ?? setups.items.length) +
+                  (numberOrNull(components.page.total_items) ?? components.items.length)
+                }
+                pageNumber={query.pageNumber}
+                setupsTotalPages={numberOrNull(setups.page.total_pages)}
+                componentsTotalPages={numberOrNull(components.page.total_pages)}
+                view={query.view}
+                showExperimental={query.includeExperimental}
+                basePath={`/publishers/${encodeURIComponent(account)}`}
+                query={catalogQueryToRecord(query)}
+                labels={labels}
+                locale={locale}
+                authors={{
+                  [accountId]: { displayName: profile.display_name, avatarUrl: profile.avatar_url },
+                }}
+              />
+            ) : null}
+          </section>
+        }
+      />
     </article>
   );
 }

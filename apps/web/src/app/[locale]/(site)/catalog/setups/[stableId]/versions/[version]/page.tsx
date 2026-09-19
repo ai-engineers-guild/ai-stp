@@ -111,10 +111,12 @@ export default async function SetupVersionPage({ params }: PageProps) {
         </Badge>
       </div>
       <dl className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <dt className="text-muted-foreground text-sm">{t("lifecycle")}</dt>
-          <dd>{response.lifecycle}</dd>
-        </div>
+        {response.lifecycle !== "active" ? (
+          <div>
+            <dt className="text-muted-foreground text-sm">{t("lifecycle")}</dt>
+            <dd>{response.lifecycle}</dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-muted-foreground text-sm">{t("publishedAt")}</dt>
           <dd>{response.published_at}</dd>

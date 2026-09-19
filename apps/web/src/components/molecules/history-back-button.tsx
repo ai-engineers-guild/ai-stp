@@ -1,13 +1,16 @@
 "use client";
 
 import { Button } from "@/components/atoms/button";
-import { useRouter } from "@/lib/i18n/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { canGoBack, currentNavigationHref, getNavigationStorage } from "@/lib/navigation-history";
 import { UI } from "@/lib/ui-selectors";
 import { Icon } from "@/theme";
 
 export function HistoryBackButton({ label, fallback }: { label: string; fallback: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1];
+  const localizedFallback = locale === "en" || locale === "ru" ? `/${locale}${fallback}` : fallback;
 
   return (
     <Button
@@ -20,7 +23,7 @@ export function HistoryBackButton({ label, fallback }: { label: string; fallback
       onClick={() => {
         const storage = getNavigationStorage();
         if (canGoBack(storage, currentNavigationHref(window.location))) router.back();
-        else router.push(fallback);
+        else router.push(localizedFallback);
       }}
     >
       <Icon name="arrowLeft" size="sm" />

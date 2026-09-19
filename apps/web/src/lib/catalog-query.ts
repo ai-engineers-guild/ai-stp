@@ -48,6 +48,14 @@ export const CATALOG_WEB_QUERY_KEYS = frozenset([
   "family_id",
   "family_alignment",
   "member_harness_id",
+  "team_ids",
+  "project_ids",
+  "technology_ids",
+  "category_ids",
+  "owner_ids",
+  "maintainer_ids",
+  "assignment",
+  "corporate_verified",
 ]);
 
 /** Keys forwarded to the platform API search endpoints. */
@@ -71,6 +79,15 @@ export const CATALOG_API_QUERY_KEYS = frozenset([
   "family_id",
   "family_alignment",
   "member_harness_id",
+  "organization_id",
+  "team_ids",
+  "project_ids",
+  "technology_ids",
+  "category_ids",
+  "owner_ids",
+  "maintainer_ids",
+  "assignment",
+  "corporate_verified",
 ]);
 
 function frozenset(values: string[]): ReadonlySet<string> {
@@ -108,6 +125,14 @@ export type ParsedCatalogQuery = {
   familyId?: string;
   familyAlignment?: "aligned" | "diverged" | "unknown" | "missing";
   memberHarnessId?: string;
+  teamIds: string[];
+  projectIds: string[];
+  technologyIds: string[];
+  categoryIds: string[];
+  ownerIds: string[];
+  maintainerIds: string[];
+  assignment?: "direct" | "effective";
+  corporateVerified?: boolean;
   /** Always resolved; default {@link CATALOG_DEFAULT_PAGE_SIZE}. */
   pageSize: number;
   pageNumber: number;
@@ -172,6 +197,8 @@ export function parseCatalogSearchParams(
   const familyIdRaw = firstString(raw["family_id"])?.trim() || undefined;
   const familyAlignmentRaw = firstString(raw["family_alignment"])?.trim() || undefined;
   const memberHarnessRaw = firstString(raw["member_harness_id"])?.trim() || undefined;
+  const assignmentRaw = firstString(raw["assignment"])?.trim() || undefined;
+  const corporateVerifiedRaw = firstString(raw["corporate_verified"])?.trim() || undefined;
   const invalidSupport = [
     ...(supportTierRaw !== undefined && !["primary", "beta"].includes(supportTierRaw)
       ? [`support_tier=${supportTierRaw}`]
@@ -186,6 +213,12 @@ export function parseCatalogSearchParams(
       : []),
     ...(memberHarnessRaw !== undefined && !isHarnessFacet(memberHarnessRaw)
       ? [`member_harness_id=${memberHarnessRaw}`]
+      : []),
+    ...(assignmentRaw !== undefined && !["direct", "effective"].includes(assignmentRaw)
+      ? [`assignment=${assignmentRaw}`]
+      : []),
+    ...(corporateVerifiedRaw !== undefined && !["true", "false"].includes(corporateVerifiedRaw)
+      ? [`corporate_verified=${corporateVerifiedRaw}`]
       : []),
     ...verification
       .filter((value) => !verificationValues.has(value))
@@ -239,6 +272,12 @@ export function parseCatalogSearchParams(
   const harnessIds = normalizeValues(raw["harness_ids"]);
   const componentTypes = normalizeValues(raw["component_types"]);
   const authors = normalizeValues(raw["authors"]);
+  const teamIds = normalizeValues(raw["team_ids"]);
+  const projectIds = normalizeValues(raw["project_ids"]);
+  const technologyIds = normalizeValues(raw["technology_ids"]);
+  const categoryIds = normalizeValues(raw["category_ids"]);
+  const ownerIds = normalizeValues(raw["owner_ids"]);
+  const maintainerIds = normalizeValues(raw["maintainer_ids"]);
   const verifiedOnly =
     verification.length === 0 && ["1", "true"].includes(firstString(raw["verified_only"]) ?? "");
   if (
@@ -301,6 +340,18 @@ export function parseCatalogSearchParams(
         : {}),
       ...(memberHarnessRaw && isHarnessFacet(memberHarnessRaw)
         ? { memberHarnessId: memberHarnessRaw }
+        : {}),
+      teamIds,
+      projectIds,
+      technologyIds,
+      categoryIds,
+      ownerIds,
+      maintainerIds,
+      ...(assignmentRaw === "direct" || assignmentRaw === "effective"
+        ? { assignment: assignmentRaw }
+        : {}),
+      ...(corporateVerifiedRaw === "true" || corporateVerifiedRaw === "false"
+        ? { corporateVerified: corporateVerifiedRaw === "true" }
         : {}),
       pageSize,
       pageNumber,
@@ -484,6 +535,16 @@ export function catalogQueryToRecord(
   writeOptional(record, "family_id", query.familyId);
   writeOptional(record, "family_alignment", query.familyAlignment);
   writeOptional(record, "member_harness_id", query.memberHarnessId);
+  if (query.teamIds.length) record["team_ids"] = query.teamIds.join(",");
+  if (query.projectIds.length) record["project_ids"] = query.projectIds.join(",");
+  if (query.technologyIds.length) record["technology_ids"] = query.technologyIds.join(",");
+  if (query.categoryIds.length) record["category_ids"] = query.categoryIds.join(",");
+  if (query.ownerIds.length) record["owner_ids"] = query.ownerIds.join(",");
+  if (query.maintainerIds.length) record["maintainer_ids"] = query.maintainerIds.join(",");
+  writeOptional(record, "assignment", query.assignment);
+  if (query.corporateVerified !== undefined) {
+    record["corporate_verified"] = String(query.corporateVerified);
+  }
   if (query.resource === "all") {
     writeOptional(record, "setups_page", query.setupsPage ? String(query.setupsPage) : undefined);
     writeOptional(

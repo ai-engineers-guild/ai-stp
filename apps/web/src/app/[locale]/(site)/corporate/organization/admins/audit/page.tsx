@@ -6,6 +6,7 @@ import { readCorporateAudit, corporateAuditFilterValues } from "@/lib/api/corpor
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
+import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
 
@@ -42,42 +43,51 @@ export default async function CorporateAuditPage({
     <div className="space-y-6">
       <HistoryBackButton label={t("backToWorkspace")} fallback="/corporate/organization/admins" />
       <h1 className="text-3xl font-medium tracking-tight">{t("auditJournal")}</h1>
-      <form className="border-border bg-card grid gap-4 rounded-lg border p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
+      <form
+        id="audit-filters"
+        className="border-border bg-card grid gap-4 rounded-lg border p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5"
+      >
         {result.members ? (
           <div className="space-y-2">
             <Label htmlFor="audit-employee">{t("member")}</Label>
-            <select
-              id="audit-employee"
+            <SearchableMultiSelect
               name="actor_account_id"
-              defaultValue={filters.actor_account_id ?? ""}
-              className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-            >
-              <option value="">{auditLabels("allEmployees")}</option>
-              {result.members.items
+              label={auditLabels("allEmployees")}
+              searchLabel={auditLabels("searchEmployee")}
+              options={result.members.items
                 .filter((member) => member.display_name)
-                .map((member) => (
-                  <option key={member.account_id} value={member.account_id}>
-                    {member.display_name}
-                  </option>
-                ))}
-            </select>
+                .map((member) => ({
+                  value: member.account_id,
+                  label: member.display_name ?? member.account_id,
+                }))}
+              selected={filters.actor_account_id ? [filters.actor_account_id] : []}
+              form="audit-filters"
+              multiple={false}
+              modal
+              closeLabel={auditLabels("close")}
+            />
           </div>
         ) : null}
         <div className="space-y-2">
           <Label htmlFor="audit-action">{auditLabels("action")}</Label>
-          <select
+          <Input
             id="audit-action"
             name="action"
+            list="audit-actions"
             defaultValue={filters.action ?? ""}
-            className="border-input bg-background min-h-11 w-full rounded-sm border px-3 text-sm"
-          >
-            <option value="">{auditLabels("allActions")}</option>
+            placeholder={auditLabels("allActions")}
+          />
+          <datalist id="audit-actions">
             {actions.map((action) => (
               <option key={action} value={action}>
                 {action}
               </option>
             ))}
-          </select>
+          </datalist>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="audit-target">{auditLabels("target")}</Label>
+          <Input id="audit-target" name="target_id" defaultValue={filters.target_id ?? ""} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="audit-created-from">{auditLabels("from")}</Label>
@@ -106,21 +116,22 @@ export default async function CorporateAuditPage({
       <CorporateAuditPanel
         organizationId={result.context.organization.organization_id}
         audit={result.audit}
+        canExport={result.context.capabilities.includes("audit.export")}
         members={result.members?.items ?? []}
         filters={filters}
         labels={{
           title: t("auditJournal"),
           export: t("exportAudit"),
           exporting: t("exportingAudit"),
-          exportFormat: auditLabels("exportFormat"),
-          exportRange: auditLabels("exportRange"),
-          currentFilters: auditLabels("currentFilters"),
-          today: auditLabels("today"),
-          last7Days: auditLabels("last7Days"),
-          last30Days: auditLabels("last30Days"),
-          allEvents: auditLabels("allEvents"),
-          json: auditLabels("json"),
-          csv: auditLabels("csv"),
+          exportFormat: t("exportFormat"),
+          exportRange: t("exportRange"),
+          currentFilters: t("currentFilters"),
+          today: t("today"),
+          last7Days: t("last7Days"),
+          last30Days: t("last30Days"),
+          allEvents: t("allEvents"),
+          json: t("json"),
+          csv: t("csv"),
           noAudit: t("noAudit"),
           failed: common("apiUnavailable"),
         }}

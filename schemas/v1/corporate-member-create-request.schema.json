@@ -1,5 +1,33 @@
 {
   "$defs": {
+    "CorporateMemberCatalogAssignment": {
+      "additionalProperties": false,
+      "properties": {
+        "object_kind": {
+          "const": "component",
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "stable_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_kind",
+        "stable_id",
+        "version"
+      ],
+      "title": "CorporateMemberCatalogAssignment",
+      "type": "object"
+    },
     "IdempotencyKey": {
       "pattern": "^[A-Za-z0-9._~-]{16,128}$",
       "type": "string"
@@ -26,6 +54,15 @@
       "minimum": 1,
       "title": "Authorization Revision",
       "type": "integer"
+    },
+    "catalog_assignments": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateMemberCatalogAssignment"
+      },
+      "maxItems": 64,
+      "title": "Catalog Assignments",
+      "type": "array"
     },
     "display_name": {
       "maxLength": 80,
@@ -62,6 +99,15 @@
       ],
       "default": null,
       "title": "Job Title Id"
+    },
+    "project_ids": {
+      "items": {
+        "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Project Ids",
+      "type": "array"
     },
     "role": {
       "description": "Tenant-local role name.",

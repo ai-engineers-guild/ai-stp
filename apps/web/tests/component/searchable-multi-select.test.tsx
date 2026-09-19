@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -138,5 +138,29 @@ describe("SearchableMultiSelect", () => {
     await user.click(screen.getByText("Harness"));
     expect(tags).not.toHaveAttribute("open");
     expect(harness).toHaveAttribute("open", "");
+  });
+
+  it("closes a modal on cancel and close events", async () => {
+    const user = userEvent.setup();
+    render(
+      <SearchableMultiSelect
+        name="authors"
+        label="Authors"
+        searchLabel="Search authors"
+        options={["Ada"]}
+        selected={[]}
+        modal
+        closeLabel="Close"
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Authors" });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Authors" });
+    fireEvent(dialog, new Event("cancel", { bubbles: true, cancelable: true }));
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await user.click(trigger);
+    fireEvent(dialog, new Event("close"));
+    expect(trigger).toHaveFocus();
   });
 });

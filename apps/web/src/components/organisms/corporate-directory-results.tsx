@@ -18,7 +18,7 @@ import {
   type CorporateCatalogFacet,
   type CorporateCatalogFacetConfig,
 } from "./corporate-directory-types";
-import { useRouter } from "@/lib/i18n/navigation";
+import { usePathname, useRouter } from "@/lib/i18n/navigation";
 import { PageNav } from "@/components/organisms/catalog-page-nav";
 import type { CorporateDirectoryFacets } from "@/lib/api/generated/types.gen";
 
@@ -97,10 +97,18 @@ function restoreCatalogSelection(
   ) as Partial<Record<CorporateCatalogFacet, string[]>>;
 }
 
-function directoryLabels(t: (key: string) => string) {
+function directoryLabels(
+  t: (key: string) => string,
+  editPresentation: string,
+  share: string,
+  report: string,
+  publicVisibility: string,
+  privateVisibility: string,
+) {
   return {
     lead: t("lead"),
     ownerTeam: t("owner"),
+    operationalOwner: t("operationalOwner"),
     teams: t("teams"),
     projects: t("projects"),
     technologies: t("technologies"),
@@ -111,11 +119,16 @@ function directoryLabels(t: (key: string) => string) {
     owner: t("owner"),
     type: t("type"),
     moreActions: t("moreActions"),
+    openDetails: t("openDetails"),
+    edit: t("edit"),
+    editPresentation,
     copyId: t("copyId"),
-    copyUrl: t("copyUrl"),
-    copied: t("copied"),
+    share,
+    report,
     unknownEmployee: t("unknownEmployee"),
     notAvailable: t("notAvailable"),
+    publicVisibility,
+    privateVisibility,
   };
 }
 
@@ -157,34 +170,6 @@ function DirectoryItemList({
   );
 }
 
-function DirectoryPagination({
-  filters,
-  label,
-  pageNumber,
-  pageSize,
-  total,
-}: {
-  filters: string;
-  label: string;
-  pageNumber: number;
-  pageSize: number;
-  total: number;
-}) {
-  if (total <= pageSize) return null;
-  return (
-    <PageNav
-      label={label}
-      pageNumber={pageNumber}
-      totalPages={Math.ceil(total / pageSize)}
-      hrefFor={(page) => {
-        const params = new URLSearchParams(filters);
-        params.set("page", String(page));
-        return `?${params.toString()}`;
-      }}
-    />
-  );
-}
-
 function visibleDirectoryItems(
   items: readonly DirectoryItem[],
   query: string,
@@ -203,24 +188,7 @@ function visibleDirectoryItems(
   );
 }
 
-export function CorporateDirectoryResults({
-  resource,
-  items,
-  filters = "",
-  initialQuery = "",
-  addLabel,
-  cancelLabel,
-  adding = false,
-  onAdd,
-  catalogFacets = EMPTY_CATALOG_FACETS,
-  initialCatalogSelected = EMPTY_CATALOG_SELECTION,
-  serverPaginated = false,
-  pageNumber = 1,
-  pageSize = 24,
-  total,
-  paginationLabel = "Pagination",
-  facets,
-}: {
+type CorporateDirectoryResultsProps = {
   resource: DirectoryResource;
   items: readonly DirectoryItem[];
   filters?: string;
@@ -229,6 +197,7 @@ export function CorporateDirectoryResults({
   cancelLabel?: string | undefined;
   adding?: boolean | undefined;
   onAdd?: (() => void) | undefined;
+  addHref?: string | undefined;
   catalogFacets?: readonly CorporateCatalogFacetConfig[];
   initialCatalogSelected?: Partial<Record<CorporateCatalogFacet, string[]>>;
   serverPaginated?: boolean;
@@ -237,8 +206,24 @@ export function CorporateDirectoryResults({
   total?: number | undefined;
   paginationLabel?: string | undefined;
   facets?: CorporateDirectoryFacets;
-}) {
-  const t = useTranslations("hub");
+};
+
+function useDirectoryResultControls({
+  resource,
+  filters = "",
+  initialQuery = "",
+  catalogFacets = EMPTY_CATALOG_FACETS,
+  initialCatalogSelected = EMPTY_CATALOG_SELECTION,
+  serverPaginated = false,
+}: Pick<
+  CorporateDirectoryResultsProps,
+  | "resource"
+  | "filters"
+  | "initialQuery"
+  | "catalogFacets"
+  | "initialCatalogSelected"
+  | "serverPaginated"
+>) {
   const [query, setQuery] = useState(initialQuery);
   const [view, setView] = useState<"list" | "cards">(
     resource === "technologies" ? "list" : "cards",
@@ -249,6 +234,7 @@ export function CorporateDirectoryResults({
   const [returnFilters, setReturnFilters] = useState(filters);
   const [catalogSelected, setCatalogSelected] = useState(initialCatalogSelected);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     function restore() {
@@ -278,7 +264,7 @@ export function CorporateDirectoryResults({
     });
     if (serverPaginated && name !== "view") {
       url.searchParams.set("page", "1");
-      router.push(`${url.pathname}${url.search}`);
+      router.push(`${pathname}${url.search}`);
     } else {
       window.history.replaceState(window.history.state, "", url);
     }
@@ -310,16 +296,90 @@ export function CorporateDirectoryResults({
     persist("is_lead", value ? ["true"] : []);
   }
 
+  function changePageSize(value: number) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("page_size", String(value));
+    url.searchParams.set("page", "1");
+    setReturnFilters(url.searchParams.toString());
+    if (serverPaginated) router.push(`${pathname}${url.search}`);
+  }
+
   function applyCatalogFacets(values: Partial<Record<CorporateCatalogFacet, string[]>>) {
     const url = new URL(window.location.href);
+    url.searchParams.set("page", "1");
     for (const facet of catalogFacets) {
       url.searchParams.delete(facet.key);
       for (const value of values[facet.key] ?? []) url.searchParams.append(facet.key, value);
     }
     setCatalogSelected(values);
     setReturnFilters(url.searchParams.toString());
-    router.push(`${url.pathname}${url.search ? url.search : ""}`);
+    router.push(`${pathname}${url.search ? url.search : ""}`);
   }
+
+  return {
+    query,
+    view,
+    sort,
+    selected,
+    leadOnly,
+    returnFilters,
+    catalogSelected,
+    changeQuery,
+    changeFacet,
+    changeView,
+    changeSort,
+    changeLeadOnly,
+    changePageSize,
+    applyCatalogFacets,
+  };
+}
+
+export function CorporateDirectoryResults({
+  resource,
+  items,
+  filters = "",
+  initialQuery = "",
+  addLabel,
+  cancelLabel,
+  adding = false,
+  onAdd,
+  addHref,
+  catalogFacets = EMPTY_CATALOG_FACETS,
+  initialCatalogSelected = EMPTY_CATALOG_SELECTION,
+  serverPaginated = false,
+  pageNumber = 1,
+  pageSize = 24,
+  total,
+  paginationLabel = "Pagination",
+  facets,
+}: CorporateDirectoryResultsProps) {
+  const t = useTranslations("hub");
+  const common = useTranslations("common");
+  const objects = useTranslations("objects");
+  const controls = useDirectoryResultControls({
+    resource,
+    filters,
+    initialQuery,
+    catalogFacets,
+    initialCatalogSelected,
+    serverPaginated,
+  });
+  const {
+    query,
+    view,
+    sort,
+    selected,
+    leadOnly,
+    returnFilters,
+    catalogSelected,
+    changeQuery,
+    changeFacet,
+    changeView,
+    changeSort,
+    changeLeadOnly,
+    changePageSize,
+    applyCatalogFacets,
+  } = controls;
 
   const visible = visibleDirectoryItems(items, query, selected, leadOnly, sort);
   return (
@@ -344,29 +404,58 @@ export function CorporateDirectoryResults({
         cancelLabel={cancelLabel}
         adding={adding}
         onAdd={onAdd}
+        addHref={addHref}
         {...(facets ? { facets } : {})}
       />
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm" aria-live="polite">
           {serverPaginated ? (total ?? visible.length) : visible.length}{" "}
           {t(resource === "members" ? "employees" : resource)}
         </p>
+        {serverPaginated ? (
+          <label className="text-muted-foreground flex items-center gap-2 text-sm">
+            <span>{t("pageSize")}</span>
+            <select
+              value={pageSize}
+              onChange={(event) => {
+                changePageSize(Number(event.target.value));
+              }}
+              className="border-input bg-background text-foreground h-9 rounded-sm border px-2 text-sm"
+            >
+              {[10, 24, 48, 64].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </div>
       <DirectoryItemList
         resource={resource}
         items={visible}
-        labels={directoryLabels(t)}
+        labels={directoryLabels(
+          t,
+          objects("editPresentation"),
+          t("share"),
+          t("report"),
+          common("public"),
+          common("private"),
+        )}
         returnFilters={returnFilters}
         view={view}
         emptyLabel={t(items.length ? "noMatches" : "empty")}
       />
-      {serverPaginated && total ? (
-        <DirectoryPagination
-          filters={filters}
+      {serverPaginated && total && total > pageSize ? (
+        <PageNav
           label={paginationLabel}
           pageNumber={pageNumber}
-          pageSize={pageSize}
-          total={total}
+          totalPages={Math.ceil(total / pageSize)}
+          hrefFor={(page) => {
+            const params = new URLSearchParams(filters);
+            params.set("page", String(page));
+            return `?${params.toString()}`;
+          }}
         />
       ) : null}
     </section>

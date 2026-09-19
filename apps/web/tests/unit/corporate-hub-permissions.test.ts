@@ -22,6 +22,7 @@ it("shows administration for each supported administrative area", () => {
     "binding.list",
     "service_principal.list",
     "audit.list",
+    "job_title.list",
     "landscape.manage",
     "member.update",
     "member.delete",

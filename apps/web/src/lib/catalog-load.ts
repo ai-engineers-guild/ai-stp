@@ -17,6 +17,11 @@ export type CatalogReadDeps = {
   searchSetups: typeof searchSetups;
 };
 
+export type CatalogReadScope = {
+  sessionToken?: string;
+  organizationId?: string;
+};
+
 const defaultCatalogReadDeps: CatalogReadDeps = {
   listExternalProducts,
   searchComponents,
@@ -63,6 +68,14 @@ export function catalogSearchInput(
   if (query.countryCodes?.length) input.country_codes = query.countryCodes;
   if (query.updatedFrom) input.updated_from = query.updatedFrom;
   if (query.updatedTo) input.updated_to = query.updatedTo;
+  if (query.teamIds.length) input.team_ids = query.teamIds;
+  if (query.projectIds.length) input.project_ids = query.projectIds;
+  if (query.technologyIds.length) input.technology_ids = query.technologyIds;
+  if (query.categoryIds.length) input.category_ids = query.categoryIds;
+  if (query.ownerIds.length) input.owner_ids = query.ownerIds;
+  if (query.maintainerIds.length) input.maintainer_ids = query.maintainerIds;
+  if (query.assignment) input.assignment = query.assignment;
+  if (query.corporateVerified !== undefined) input.corporate_verified = query.corporateVerified;
   if (resource === "setups" && query.familyId) input.family_id = query.familyId;
   if (resource === "setups" && query.familyAlignment) {
     input.family_alignment = query.familyAlignment;
@@ -83,6 +96,7 @@ export function catalogSearchInput(
 export function startCatalogResourceReads(
   query: ParsedCatalogQuery,
   deps: CatalogReadDeps = defaultCatalogReadDeps,
+  scope: CatalogReadScope = {},
 ): {
   services: Promise<Awaited<ReturnType<typeof listExternalProducts>>["items"]>;
   components: Promise<ComponentListResponse | null>;
@@ -92,13 +106,18 @@ export function startCatalogResourceReads(
     .listExternalProducts()
     .then((result) => result.items)
     .catch(() => []);
+  const scopedInput = (resource: "components" | "setups") => ({
+    ...catalogSearchInput(query, resource),
+    ...(scope.sessionToken ? { sessionToken: scope.sessionToken } : {}),
+    ...(scope.organizationId ? { organization_id: scope.organizationId } : {}),
+  });
   const components =
     query.resource === "components" || query.resource === "all"
-      ? deps.searchComponents(catalogSearchInput(query, "components"))
+      ? deps.searchComponents(scopedInput("components"))
       : Promise.resolve(null);
   const setups =
     query.resource === "setups" || query.resource === "all"
-      ? deps.searchSetups(catalogSearchInput(query, "setups"))
+      ? deps.searchSetups(scopedInput("setups"))
       : Promise.resolve(null);
   // Observe immediately: callers may await optional facets before search results.
   // Keep the original rejected promises so failures still reach their error panel.

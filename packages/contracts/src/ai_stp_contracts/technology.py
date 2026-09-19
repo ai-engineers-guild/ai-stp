@@ -243,6 +243,7 @@ class TechnologyView(TechnologyMetadata):
     schema_version: Literal[1] = 1
     organization_id: OrganizationId
     technology_id: TechnologyId
+    owner_account_id: AccountId | None = None
     lifecycle: TechnologyLifecycle
     restore_lifecycle: Literal["draft", "active", "deprecated"] = "draft"
     revision: Annotated[int, Field(ge=1)]
