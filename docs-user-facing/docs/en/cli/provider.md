@@ -21,11 +21,11 @@ and apply still go through [Select](select.md) and [Install](install.md).
 | `ai-stp provider conformance` | `read` | `none` | check one provider against an explicitly selected protocol |
 | `ai-stp provider fetch` | `apply` | `none` | download an attested OpenNetwork provider and bind a closed release manifest |
 | `ai-stp provider trust` | `read` | `none` | report the pinned trust policy, and check one release against it |
-| `ai-stp provider network` | `read` | `none` | observed protocol-v2 network isolation on this machine |
+| provider network | `read` | `none` | observed protocol-v2 network isolation on this machine |
 | `ai-stp provider update plan` | `read` | `none` | describe replacing one harness's provider with the newest released version |
 | `ai-stp provider update apply` | `apply` | `plan_digest` | carry out exactly the replacement a plan described |
-| `ai-stp provider reinstall plan` | `read` | `none` | describe re-installing one exact provider version into the same path |
-| `ai-stp provider reinstall apply` | `apply` | `plan_digest` | carry out exactly the reinstallation a plan described |
+| provider reinstall plan | `read` | `none` | describe re-installing one exact provider version into the same path |
+| provider reinstall apply | `apply` | `plan_digest` | carry out exactly the reinstallation a plan described |
 | `ai-stp provider forget` | `apply` | `none` | drop the recorded provider choice so configuration and discovery decide again |
 
 `--json` is global. Always pass it.
@@ -101,7 +101,7 @@ Success fields: `harness_id`, `provider_id`, `provider_version`, `tag`,
 
 ## Trust and network
 
-```bash
+```text
 ai-stp provider trust --json
 ai-stp provider trust --manifest <release-manifest> --json
 ai-stp provider network --json
@@ -128,7 +128,7 @@ Apply adds `--expected-plan-digest`. Reinstall also takes `--version`: omit
 it to reinstall the version already there. Moving to the newest release is
 `provider update`, not reinstall.
 
-```bash
+```text
 ai-stp provider update plan --harness codex --json
 ai-stp provider update apply \
   --harness codex \
@@ -182,7 +182,7 @@ provider check
 → provider trust
 → provider fetch --harness <id>
 → provider conformance --harness <id> --executable <exe>
-→ install plan --provider <exe> --provider-manifest <path> …
+→ task start --intent install --idempotency-key install-session-01 --json
 ```
 
 Replace a current install:
@@ -232,12 +232,13 @@ does not make the binary trusted. Install plans that use it record
 - [Harnesses](../harnesses.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups provider commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups provider commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

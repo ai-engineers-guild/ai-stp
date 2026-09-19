@@ -22,7 +22,7 @@ import {
 } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { asVersionId, tryAsSetupId } from "@/lib/brands";
-import { registryVersion } from "@/lib/cli-copy";
+import { installStart, registryVersion } from "@/lib/cli-copy";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { versionPageMetadata } from "@/lib/seo/metadata";
 import { publicOrigin } from "@/lib/site";
@@ -38,7 +38,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return versionPageMetadata(`/${locale}/catalog/setups/${stableId}`, `${stableId}@${version}`);
 }
 
-// The page intentionally renders the complete immutable passport in one server component.
+async function loadGithubMetadata(
+  setupId: NonNullable<ReturnType<typeof tryAsSetupId>>,
+  version: string,
+) {
+  return readSetupGithubMetadata(setupId, asVersionId(version)).catch(() => ({
+    schema_version: 1 as const,
+    stars: null,
+    archived: null,
+  }));
+}
+
 export default async function SetupVersionPage({ params }: PageProps) {
   const { locale, stableId, version } = await params;
   setRequestLocale(locale);
@@ -66,11 +76,7 @@ export default async function SetupVersionPage({ params }: PageProps) {
   const catalogDetail = await readSetup(setupId).catch(() => null);
   const publisherId = catalogDetail?.summary.publisher_id || passport.owner_id;
   const harnesses = [passport.harness_id];
-  const metadata = await readSetupGithubMetadata(setupId, asVersionId(version)).catch(() => ({
-    schema_version: 1 as const,
-    stars: null,
-    archived: null,
-  }));
+  const metadata = await loadGithubMetadata(setupId, version);
   const { budget, failure: budgetFailure } = await loadContextBudget(
     readSetupContextBudget(setupId, asVersionId(version)),
   );
@@ -105,10 +111,12 @@ export default async function SetupVersionPage({ params }: PageProps) {
         </Badge>
       </div>
       <dl className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <dt className="text-muted-foreground text-sm">{t("lifecycle")}</dt>
-          <dd>{response.lifecycle}</dd>
-        </div>
+        {response.lifecycle !== "active" ? (
+          <div>
+            <dt className="text-muted-foreground text-sm">{t("lifecycle")}</dt>
+            <dd>{response.lifecycle}</dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-muted-foreground text-sm">{t("publishedAt")}</dt>
           <dd>{response.published_at}</dd>
@@ -178,15 +186,17 @@ export default async function SetupVersionPage({ params }: PageProps) {
         setupAuthor={{ accountId: publisherId }}
         t={t}
       />
-      <CliCopyBlock
-        command={registryVersion("setup", stableId, version)}
-        title={tCli("useTitle")}
-        description={canonical.cli_command}
+      <SetupVersionCliCopy
+        stableId={stableId}
+        version={version}
+        useTitle={tCli("useTitle")}
+        useBody={tCli("useBody")}
+        inspectTitle={tCli("inspectTitle")}
+        inspectBody={tCli("inspectBody")}
         copyLabel={tCli("copy")}
         copiedLabel={tCli("copied")}
         errorLabel={tCli("copyError")}
         docsLabel={tCli("docs")}
-        visibility="public"
         publicLabel={t("public")}
         privateLabel={t("private")}
       />
@@ -197,5 +207,62 @@ export default async function SetupVersionPage({ params }: PageProps) {
       </section>
       <SupportSummary support={response.support} labels={supportLabels(t)} />
     </article>
+  );
+}
+
+function SetupVersionCliCopy({
+  stableId,
+  version,
+  useTitle,
+  useBody,
+  inspectTitle,
+  inspectBody,
+  copyLabel,
+  copiedLabel,
+  errorLabel,
+  docsLabel,
+  publicLabel,
+  privateLabel,
+}: {
+  stableId: string;
+  version: string;
+  useTitle: string;
+  useBody: string;
+  inspectTitle: string;
+  inspectBody: string;
+  copyLabel: string;
+  copiedLabel: string;
+  errorLabel: string;
+  docsLabel: string;
+  publicLabel: string;
+  privateLabel: string;
+}) {
+  return (
+    <>
+      <CliCopyBlock
+        command={installStart()}
+        title={useTitle}
+        description={useBody}
+        copyLabel={copyLabel}
+        copiedLabel={copiedLabel}
+        errorLabel={errorLabel}
+        docsLabel={docsLabel}
+        visibility="public"
+        publicLabel={publicLabel}
+        privateLabel={privateLabel}
+      />
+      <CliCopyBlock
+        command={registryVersion("setup", stableId, version)}
+        title={inspectTitle}
+        description={inspectBody}
+        copyLabel={copyLabel}
+        copiedLabel={copiedLabel}
+        errorLabel={errorLabel}
+        docsLabel={docsLabel}
+        visibility="public"
+        publicLabel={publicLabel}
+        privateLabel={privateLabel}
+      />
+    </>
   );
 }

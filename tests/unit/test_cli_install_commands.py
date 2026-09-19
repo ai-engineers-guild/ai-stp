@@ -18,8 +18,8 @@ from typing import Any, cast
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from ai_stp_cli.commands import install
-from ai_stp_cli.commands import registry as registry_commands
+from ai_stp_cli.application import catalog as registry_commands
+from ai_stp_cli.application import install
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
     cache,
@@ -1342,9 +1342,10 @@ def test_v3_resume_recovers_prepared_transaction_to_exact_precondition(
     state["recovered_target"] = TARGET
     cast(list[str], state["calls"]).clear()
 
-    resumed = install.resume({"operation": planned.operation_id, "provider": executable}).payload
-
-    assert resumed.state == "rolled_back"
+    with pytest.raises(CliFailure) as raised:
+        install.resume({"operation": planned.operation_id, "provider": executable})
+    assert raised.value.code == "AI_STP_COMPENSATED"
+    assert raised.value.details["state"] == "rolled_back"
     assert cast(list[str], state["calls"]) == ["provider-info", "status", "recover-operation"]
 
 
@@ -1907,10 +1908,11 @@ def test_provider_target_compare_refusal_is_stale_not_partial(
     planned = install.plan({"proposal": proposal_id, "provider": executable}).payload
     install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
 
-    result = install.apply({"operation": planned.operation_id, "provider": executable}).payload
-
-    assert result.state == "stale"
-    assert [item.state_after for item in result.steps] == [
+    with pytest.raises(CliFailure) as raised:
+        install.apply({"operation": planned.operation_id, "provider": executable})
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.details["state"] == "stale"
+    assert [item.state_after for item in installation.events(registry, planned.operation_id)] == [
         "planned",
         "approved",
         "applying",
@@ -2632,10 +2634,13 @@ def test_a_provider_that_refuses_the_bundle_records_no_effect(
     executable = _provider(tmp_path, "p1", state="failed")
     planned = install.plan({"proposal": proposal_id, "provider": executable}).payload
     install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
-    done = install.apply({"operation": planned.operation_id, "provider": executable}).payload
-
-    assert done.state == "failed"
-    assert "applied_unverified" not in [item.state_after for item in done.steps]
+    with pytest.raises(CliFailure) as raised:
+        install.apply({"operation": planned.operation_id, "provider": executable})
+    assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
+    assert raised.value.details["state"] == "failed"
+    assert "applied_unverified" not in [
+        item.state_after for item in installation.events(registry, planned.operation_id)
+    ]
 
 
 def test_a_provider_reporting_partial_is_recorded_as_partial(
@@ -2645,8 +2650,11 @@ def test_a_provider_reporting_partial_is_recorded_as_partial(
     executable = _provider(tmp_path, "p1", state="partial")
     planned = install.plan({"proposal": proposal_id, "provider": executable}).payload
     install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
-    done = install.apply({"operation": planned.operation_id, "provider": executable}).payload
-    assert done.state == "partial"
+    with pytest.raises(CliFailure) as raised:
+        install.apply({"operation": planned.operation_id, "provider": executable})
+    assert raised.value.code == "AI_STP_PARTIAL_OPERATION"
+    assert raised.value.details["state"] == "partial"
+    assert raised.value.continuations[0].path == ["install", "recover"]
 
     report = install.recover({"operation": planned.operation_id}).payload
     assert report.next_actions
@@ -2870,10 +2878,14 @@ def test_a_provider_that_undid_its_change_is_recorded_as_rolled_back(
     executable = _provider(tmp_path, "p1", state="rolled_back")
     planned = install.plan({"proposal": proposal_id, "provider": executable}).payload
     install.approve({"operation": planned.operation_id, "plan-digest": planned.plan_digest})
-    done = install.apply({"operation": planned.operation_id, "provider": executable}).payload
-
-    assert done.state == "rolled_back"
-    assert "applied_unverified" not in [item.state_after for item in done.steps]
+    with pytest.raises(CliFailure) as raised:
+        install.apply({"operation": planned.operation_id, "provider": executable})
+    assert raised.value.code == "AI_STP_COMPENSATED"
+    assert raised.value.details["state"] == "rolled_back"
+    assert raised.value.continuations == []
+    assert "applied_unverified" not in [
+        item.state_after for item in installation.events(registry, planned.operation_id)
+    ]
 
 
 def test_a_provider_that_does_not_answer_json_is_refused(
@@ -2928,7 +2940,7 @@ def test_a_provider_call_that_never_returns_is_partial_and_says_so(
 def test_nothing_here_writes_a_harness_target(tmp_path: Path) -> None:
     """The one invariant this whole surface exists to keep."""
     del tmp_path
-    source = Path("apps/cli/src/ai_stp_cli/commands/install.py").read_text("utf-8")
+    source = Path("apps/cli/src/ai_stp_cli/application/install.py").read_text("utf-8")
     for verb in ("write_text(", "write_bytes(", "mkdir(", "rmtree", "unlink("):
         assert verb not in source
     assert "os" not in {name for name in dir(install) if not name.startswith("_")} or True
@@ -3266,7 +3278,8 @@ def test_real_environment_installs_two_harnesses_in_one_project(
     monkeypatch: pytest.MonkeyPatch,
     failure: str,
 ) -> None:
-    from ai_stp_cli.commands import install_transaction, preserved_setups
+    from ai_stp_cli.application import install_transaction
+    from ai_stp_cli.commands import preserved_setups
 
     providers = {
         "claude-code": os.environ.get("AI_STP_CLAUDE_PROVIDER_V3"),

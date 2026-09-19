@@ -9,6 +9,7 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
+| [agent-ux-implementation-plan.md](agent-ux-implementation-plan.md) | Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261. | 2026-09-19 |
 | [article-publication-implementation-plan.md](article-publication-implementation-plan.md) | Migration sequence for moving the content hub to unified API serving for repository and staff publications. | 2026-08-29 |
 | [artifact-storage-private-delivery-implementation-plan.md](artifact-storage-private-delivery-implementation-plan.md) | Implementation sequence for owner-scoped artifacts, platform assets, private delivery, and verified backups. | 2026-09-07 |
 | [audit-remediation-status.md](audit-remediation-status.md) | Historical audit dispositions reconciled with current mechanism owners. | 2026-09-07 |

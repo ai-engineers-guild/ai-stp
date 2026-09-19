@@ -156,10 +156,11 @@ services:
     environment:
       <<: *app-env
       AI_STP_API_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-}
-      # Keep OAuth on the local browser/API origins even when .env.dev contains
-      # deployment settings copied from another environment.
-      AI_STP_AUTH_PUBLIC_BASE_URL: http://localhost:3000
-      AI_STP_AUTH_OAUTH_REDIRECT_BASE_URL: http://localhost:8000
+      # Default OAuth to local browser/API origins; override these for a declared
+      # tunnel origin whose callback is registered with the provider.
+      AI_STP_AUTH_PUBLIC_BASE_URL: ${AI_STP_AUTH_PUBLIC_BASE_URL:-http://localhost:3000}
+      AI_STP_AUTH_OAUTH_REDIRECT_BASE_URL: >-
+        ${AI_STP_AUTH_OAUTH_REDIRECT_BASE_URL:-http://localhost:8000}
     env_file:
       - path: .env.dev
         required: false
@@ -253,6 +254,15 @@ services:
       # Keep compile cache off the Windows bind mount (major I/O win under Docker Desktop).
       NEXT_TELEMETRY_DISABLED: "1"
       AI_STP_USER_FACING_ROOT: /docs-user-facing
+    # The cache lives in a persistent Linux volume for Docker Desktop I/O speed.
+    # Clear it before boot so a long-lived HMR graph cannot survive a restart.
+    command:
+      - sh
+      - -c
+      - >-
+        mkdir -p /app/.next &&
+        find /app/.next -mindepth 1 -maxdepth 1 -exec rm -r -- {} + &&
+        exec node node_modules/next/dist/bin/next dev --hostname 0.0.0.0 --port 3000
     env_file:
       - path: .env.dev
         required: false

@@ -74,7 +74,7 @@ reviewer/
 └── reviewer.md                    # {name}.md at the package root
 ```
 
-When you start from `ai_stp`, scaffold first. The authoring directory is
+When you start from `ai_stp`, start the `author` intent. Do not type `component scaffold plan`. The authoring directory is
 wider than the published package: `discover` / `adopt` transfer `source/`
 when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree. Codex agents are TOML under `agents/`.
@@ -90,7 +90,15 @@ reviewer/                          # component-scaffold/3
     └── reviewer.md
 ```
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type agent \
   --language none \
@@ -133,7 +141,7 @@ There is no independent agent-role specification comparable to the
 [Agent Skills Specification](https://agentskills.io/specification). A
 skill is the portable workflow; an agent is the role.
 
-Cite `layout_source` from `ai-stp component discover --json` when
+Cite `layout_source` from the `author` intent envelope when
 classification is uncertain. Codex custom agents are documented only
 from `.codex/agents` — do not invent a second directory.
 
@@ -143,7 +151,7 @@ are not this kind's validator.
 ## Native layouts per harness
 
 Discovery only reports layouts that are declared. Exact paths on a
-machine come from `ai-stp component discover --json`. Each finding
+machine come from the `author` intent envelope. Each finding
 carries `layout_source`. If classification is uncertain, show that
 field; do not guess a neighbour's path.
 
@@ -167,10 +175,13 @@ The walker does not invent agent files from an adjacent directory.
 A single file in a directory-shaped layout needs no extra manifest —
 that is how Claude Code agents are authored, and adoption accepts them.
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover`. The engine finds the native tree.
 
 ## Versions are `X.Y`, not SemVer
 
@@ -238,20 +249,20 @@ ai-stp skill status --json
 **Author, adopt, publish:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Find, select, install:**
+**Install:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 An agent can also be an embedded member of a compose manifest. See
@@ -307,15 +318,14 @@ An agent can also be an embedded member of a compose manifest. See
    Put standing rules in [`instruction`](https://ai-stp.aiguild.space/en/docs/components) and procedures
    in [`skill`](https://ai-stp.aiguild.space/en/docs/components).
 3. Declare authorization needs in the passport. No secrets.
-4. Run `ai-stp component discover --root . --json` and read
-   `layout_source` on the finding.
-5. `component adopt --path <exact source_path>` — add `--kind agent` if
-   the path is claimed by more than one kind.
-6. Pin an exact public GitHub commit and subpath.
-7. `component passport validate` → `component version release` to mint
+4. Register the directory through
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` remain for recovery.
+5. Pin an exact public GitHub commit and subpath.
+6. `component passport validate` → `component version release` to mint
    immutable `X.Y`.
-8. Publish through [the publication path](https://ai-stp.aiguild.space/en/docs/components).
-9. In a setup, pin that `X.Y`. Updating later is a new setup version.
+7. Publish through [the publication path](https://ai-stp.aiguild.space/en/docs/components).
+8. In a setup, pin that `X.Y`. Updating later is a new setup version.
 
 Related: [Authoring](https://ai-stp.aiguild.space/en/docs/components),
 [Components](https://ai-stp.aiguild.space/en/docs/components), [`instruction`](https://ai-stp.aiguild.space/en/docs/components),

@@ -44,6 +44,7 @@ const sample: TechnologyLandscapeView = {
         schema_version: 1,
         organization_id: "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         technology_id: "technology_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+        owner_account_id: null,
         lifecycle: "active",
         restore_lifecycle: "draft",
         revision: 2,

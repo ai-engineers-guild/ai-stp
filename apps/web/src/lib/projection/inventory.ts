@@ -77,7 +77,12 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "corporate/organization/admins/settings", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins/audit", access: "session", presenter: "domain" },
   {
-    pattern: "corporate/organization/admins/members/:accountId",
+    pattern: "corporate/organization/admins/job-titles",
+    access: "session",
+    presenter: "domain",
+  },
+  {
+    pattern: "corporate/organization/admins/employees/:accountId",
     access: "session",
     presenter: "domain",
   },
@@ -90,6 +95,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   // paired with the physical page until the compatibility window is removed.
   { pattern: "corporate/components", access: "session", presenter: "domain" },
   { pattern: "corporate/technologies", access: "session", presenter: "domain" },
+  { pattern: "corporate/technologies/new", access: "session", presenter: "domain" },
   { pattern: "corporate/categories", access: "session", presenter: "domain" },
   { pattern: "corporate/categories/:categoryId", access: "session", presenter: "domain" },
   { pattern: "corporate/technologies/:technologyId", access: "session", presenter: "domain" },

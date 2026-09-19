@@ -106,7 +106,7 @@ registry version --kind component --id <id> --version 1.0
 
 | Что вы видите | Что это означает | Что делать |
 | --- | --- | --- |
-| `AI_STP_AUTH_REQUIRED` | нет выполненного входа | `auth login` |
+| `AI_STP_AUTH_REQUIRED` | нет выполненного входа | `task start --intent account --idempotency-key account-session-01 --json` |
 | `AI_STP_USER_DECISION_REQUIRED` | `--confirm` был пропущен | передайте `--confirm` после чтения preview |
 | `AI_STP_VALIDATION_ERROR` | отсутствует `--kind`, `--id`, `--version`, `--content-digest` или `--idempotency-key` | исправьте запрос |
 | `AI_STP_PLAN_STALE` | `--plan-digest` больше не совпадает с сохранённым preview | сделайте preview снова |
@@ -126,10 +126,12 @@ registry version --kind component --id <id> --version 1.0
 - [Доверие и безопасность](../trust-and-safety/index.md)
 - [Карта команд](commands.md)
 
-## Справка для машины — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
+
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
 
 Эта страница группирует команды отчётов для удобства поиска. Установленный CLI является источником флагов, схем и `next_actions`. Если эта страница и CLI расходятся, следуйте CLI.

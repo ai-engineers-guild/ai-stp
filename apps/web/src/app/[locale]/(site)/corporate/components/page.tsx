@@ -5,7 +5,11 @@ import { CorporateDirectory } from "@/components/organisms/corporate-directory";
 import { readCorporateContext, readCorporateDirectoryPages } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
 import { listCatalogAuthors, searchComponents } from "@/lib/api/catalog";
-import type { CatalogPageInfo, ComponentType } from "@/lib/api/generated/types.gen";
+import type {
+  CatalogPageInfo,
+  ComponentSummary,
+  ComponentType,
+} from "@/lib/api/generated/types.gen";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { safeCorporateQuery } from "@/lib/corporate-routes";
@@ -151,6 +155,7 @@ export default async function CorporateCatalogPage({
     owner_name?: string | null;
     tags?: readonly string[];
     version?: string;
+    catalog_item?: ComponentSummary;
   }> = [];
   let pageInfo: { page_number: number; page_size: number; total_items: number } | null = null;
   try {
@@ -199,6 +204,7 @@ export default async function CorporateCatalogPage({
       owner_name: authorNames.get(item.owner_account_id) || item.owner_handle || null,
       tags: item.latest_tags,
       version: item.latest_version,
+      catalog_item: item,
     }));
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;

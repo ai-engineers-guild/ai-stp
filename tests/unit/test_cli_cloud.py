@@ -15,14 +15,12 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports
 from ai_stp_cli.runtime import cli_version
 from ai_stp_cli.secrets import open_store
-from ai_stp_contracts.auth import (
-    OAUTH_PROVIDERS,
-    DeviceAuthorizationResponse,
-    DeviceTokenResponse,
-)
+from ai_stp_contracts.auth import DeviceAuthorizationResponse, DeviceTokenResponse
 from ai_stp_contracts.http import API_BASE_PATH
 from ai_stp_contracts.mock import MOCK_BASE_URL, build_transport
 from ai_stp_foundation.ids import new_id
+
+ACCOUNT_START = "task start --intent account --idempotency-key account-session-01 --json"
 
 #: The corpus fixes these, and the mock matches on the request body, so a test
 #: that invented its own values would simply not be answered.
@@ -473,7 +471,8 @@ def test_the_whole_sign_in_runs_against_the_mock(monkeypatch: pytest.MonkeyPatch
     # transport lives on the endpoint, so this is the same code path the real
     # platform will take.
     from ai_stp_cli import identity, paths
-    from ai_stp_cli.commands import auth, passport
+    from ai_stp_cli.application import auth
+    from ai_stp_cli.commands import passport
 
     monkeypatch.setattr(auth, "endpoint", _mock_endpoint)
     monkeypatch.setattr(login, "device_display_name", lambda: FIXTURE_NAME)
@@ -539,7 +538,7 @@ def test_the_whole_sign_in_runs_against_the_mock(monkeypatch: pytest.MonkeyPatch
 
 
 def test_completing_without_a_pending_sign_in_is_a_typed_answer() -> None:
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     with pytest.raises(CliFailure, match="no sign-in is waiting") as raised:
         auth.complete({})
@@ -548,7 +547,7 @@ def test_completing_without_a_pending_sign_in_is_a_typed_answer() -> None:
 
 @pytest.mark.parametrize("given", [None, "gitlab"])
 def test_an_unusable_provider_is_refused(given: object) -> None:
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     with pytest.raises(CliFailure, match="provider"):
         auth.begin({"provider": given})
@@ -556,7 +555,7 @@ def test_an_unusable_provider_is_refused(given: object) -> None:
 
 def test_a_declined_sign_in_clears_the_pending_record(monkeypatch: pytest.MonkeyPatch) -> None:
     # Leaving it pending would make the next `--await` poll a dead code.
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     monkeypatch.setattr(auth, "endpoint", _mock_endpoint)
     monkeypatch.setattr(login, "local_identity", lambda: (FIXTURE_DEVICE, FIXTURE_KEY, None))
@@ -600,7 +599,7 @@ def _logout_endpoint(
     *,
     attempts: int = 1,
 ) -> None:
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     monkeypatch.setattr(
         auth,
@@ -614,7 +613,8 @@ def _logout_endpoint(
 
 
 def test_logging_out_keeps_the_local_registry(monkeypatch: pytest.MonkeyPatch) -> None:
-    from ai_stp_cli.commands import auth, passport
+    from ai_stp_cli.application import auth
+    from ai_stp_cli.commands import passport
 
     passport.developer_init({})
     before = passport.developer_show({}).payload
@@ -634,7 +634,7 @@ def test_logging_out_revokes_the_session_on_the_server(monkeypatch: pytest.Monke
     # Dropping the local entry stops this installation from using the token; it
     # does not stop the token. A copy taken elsewhere would stay usable for the
     # rest of the session lifetime unless the server is told.
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     seen: list[tuple[str, str, str | None]] = []
 
@@ -659,7 +659,7 @@ def test_logging_out_offline_still_forgets_the_credential_and_says_so(
     # Refusing offline would leave the token on disk, which is worse than the
     # session outliving it. The difference belongs in the envelope, not in an
     # exit code.
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     def route(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("no route to host", request=request)
@@ -679,7 +679,7 @@ def test_logging_out_of_an_already_dead_session_warns_about_nothing(
 ) -> None:
     # The stored entry is stale rather than the sign-out incomplete: the state
     # the user asked for already holds, so there is nothing to report.
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     def route(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -707,7 +707,7 @@ def test_logging_out_of_an_already_dead_session_warns_about_nothing(
 def test_logging_out_without_a_session_asks_the_server_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     def route(request: httpx.Request) -> httpx.Response:  # pragma: no cover - must not run
         raise AssertionError("logout without a held session must not call the platform")
@@ -799,7 +799,7 @@ def test_the_local_identity_is_read_for_a_sign_in() -> None:
 
 
 def test_the_endpoint_comes_from_the_effective_configuration() -> None:
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
 
     assert auth.endpoint().base_url.startswith("https://")
 
@@ -982,7 +982,7 @@ def test_machine_completion_asks_once_and_keeps_the_pending_record(
     the pending record, although its comment spoke only of declined and expired
     — so one lost network reply destroyed a code the user had already been shown.
     """
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
     from ai_stp_cli.secrets import open_store
 
     asked: list[int] = []
@@ -1025,7 +1025,7 @@ def test_machine_completion_asks_once_and_keeps_the_pending_record(
 def test_only_a_decision_clears_the_pending_sign_in(
     code: str, survives: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
     from ai_stp_cli.secrets import open_store
 
     def refuse(*_args: object, **_kwargs: object) -> DeviceTokenResponse:
@@ -1050,7 +1050,7 @@ def test_only_a_decision_clears_the_pending_sign_in(
 
 def test_waiting_is_opt_in_and_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
     """`--wait` is for a person; it answers with the same schema either way."""
-    from ai_stp_cli.commands import auth
+    from ai_stp_cli.application import auth
     from ai_stp_cli.secrets import open_store
 
     asked: list[int] = []
@@ -1271,11 +1271,57 @@ def test_a_declined_authorization_is_not_answered_with_another_login() -> None:
     assert failure.next_actions == ["auth status --json"]
 
 
-def test_an_expired_authorization_restarts_the_request_for_any_provider() -> None:
-    failure = _refused("AI_STP_AUTHORIZATION_EXPIRED")
-    assert failure.next_actions == [
-        f"auth login --provider {name} --json" for name in OAUTH_PROVIDERS
+def test_auth_required_starts_the_account_intent() -> None:
+    failure = _refused("AI_STP_AUTH_REQUIRED")
+    assert failure.next_actions == [ACCOUNT_START]
+    assert failure.continuations[0].actor == "cli"
+    assert failure.continuations[0].argv == [
+        "task",
+        "start",
+        "--intent",
+        "account",
+        "--idempotency-key",
+        "account-session-01",
+        "--json",
     ]
+    assert all("auth login" not in action for action in failure.next_actions)
+
+
+def test_a_missing_local_session_starts_the_account_intent() -> None:
+    from ai_stp_cli.application.cloud_auth import required
+
+    with pytest.raises(CliFailure) as raised:
+        required("sync")
+    assert raised.value.code == "AI_STP_AUTH_REQUIRED"
+    assert raised.value.next_actions == [ACCOUNT_START]
+    assert raised.value.continuations[0].actor == "cli"
+    assert all("auth login" not in action for action in raised.value.next_actions)
+
+
+def test_an_expired_authorization_restarts_the_account_intent() -> None:
+    failure = _refused("AI_STP_AUTHORIZATION_EXPIRED")
+    assert failure.next_actions == [ACCOUNT_START]
+    assert [item.argv for item in failure.continuations] == [
+        [
+            "task",
+            "start",
+            "--intent",
+            "account",
+            "--idempotency-key",
+            "account-session-01",
+            "--json",
+        ]
+    ]
+    assert all("auth login" not in action for action in failure.next_actions)
+
+
+def test_a_pending_authorization_starts_the_account_intent() -> None:
+    failure = _refused("AI_STP_AUTHORIZATION_PENDING")
+    assert failure.next_actions == [ACCOUNT_START]
+    assert failure.continuations[0].actor == "cli"
+    assert failure.continuations[0].argv[3] == "account"
+    assert all("auth complete" not in action for action in failure.next_actions)
+    assert all("auth login" not in action for action in failure.next_actions)
 
 
 def test_a_revoked_device_keeps_the_reset_behind_its_decision_gate() -> None:
@@ -1283,15 +1329,13 @@ def test_a_revoked_device_keeps_the_reset_behind_its_decision_gate() -> None:
 
     The way back still stops at the user: `device reset` without `--confirm`
     refuses and says what it would discard, which is where that decision
-    belongs.
+    belongs. Sign-in after that is the account intent, not a guessed provider.
     """
     failure = _refused("AI_STP_DEVICE_REVOKED")
     assert failure.next_actions[0] == "device reset --confirm --json"
-    # Resuming needs a new key and a new sign-in, and the provider is not
-    # assumed to be GitHub.
-    assert failure.next_actions[1:] == [
-        f"auth login --provider {name} --json" for name in OAUTH_PROVIDERS
-    ]
+    assert failure.next_actions[1:] == [ACCOUNT_START]
+    assert failure.continuations == []
+    assert all("auth login" not in action for action in failure.next_actions)
 
 
 def test_a_body_outside_the_contract_is_the_platforms_problem_not_the_callers() -> None:

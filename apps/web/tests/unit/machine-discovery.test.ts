@@ -34,7 +34,9 @@ describe("machine discovery surfaces", () => {
 
   it("keeps agent onboarding safety-first", async () => {
     const body = await agents().text();
-    expect(body).toContain("ai-stp doctor --json");
+    expect(body).toContain("ai-stp task intents --json");
+    expect(body).toContain("that field is cli");
+    expect(body).toContain("You run");
     expect(body).toContain("Decide and execute reversible in-scope work yourself");
     expect(body).not.toContain("any external write");
   });

@@ -14,6 +14,13 @@ description: "Показать, предложить, обновить, пров
 Подсказки quality необязательны и механические. Паспорта разработчика и
 устройства — другая группа: [Паспорта](passport.md).
 
+Повседневная регистрация — intent `author`. Passport leaves ниже — expert
+recovery.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
 ## Таблица команд
 
 | Команда | Mutability | Confirmation | Когда |
@@ -116,6 +123,14 @@ ai-stp component passport quality --id <stable_id> --json
 
 ## Happy path
 
+Повседневный путь:
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery:
+
 ```text
 component adopt --path <exact>
 → component passport show --id <stable_id>
@@ -164,12 +179,13 @@ component adopt --path <exact>
 - [Доверие и безопасность](../trust-and-safety/index.md)
 - [Проверки безопасности](../security-checks.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды паспорта, чтобы человек их нашёл.
-Установленный CLI — источник флагов, схем и `next_actions`. Если страница
-и CLI расходятся, следуйте CLI.
+Если страница и CLI расходятся, следуйте CLI.

@@ -627,7 +627,7 @@ def test_an_adaptation_set_is_the_compatibility_claim() -> None:
 
 
 def test_select_reads_adaptation_harnesses_from_the_passport() -> None:
-    from ai_stp_cli.commands import select as select_commands
+    from ai_stp_cli.application import select as select_commands
 
     held = select_commands._adaptation_harnesses(  # pyright: ignore[reportPrivateUsage]
         {

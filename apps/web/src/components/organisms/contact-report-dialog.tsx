@@ -25,7 +25,7 @@ export function ContactReportDialog({
   onOpenChange,
   hideTrigger = false,
 }: {
-  kind: "component" | "setup" | "author";
+  kind: "component" | "setup" | "author" | "entity";
   target: string;
   label: string;
   triggerVariant?: "ghost" | "outline";
@@ -43,7 +43,9 @@ export function ContactReportDialog({
       ? "reportAuthorType"
       : kind === "setup"
         ? "reportSetupType"
-        : "reportComponentType",
+        : kind === "entity"
+          ? "reportEntityType"
+          : "reportComponentType",
   );
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -72,7 +74,7 @@ export function ContactReportDialog({
           <DialogDescription>{t("reportDialogHint")}</DialogDescription>
         </DialogHeader>
         <ContactForm
-          targetKind={kind === "author" ? "author" : kind}
+          targetKind={kind === "author" || kind === "entity" ? "other" : kind}
           target={target}
           defaultSubject={`${type}: ${target}`}
           reportType={type}

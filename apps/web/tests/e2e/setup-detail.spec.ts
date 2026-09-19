@@ -89,6 +89,14 @@ test.describe("setup detail composition", () => {
     await expect(page.getByRole("heading", { name: /Compatibility/ })).toHaveCount(0);
     await expectContextBudgetInRightRail(page);
     await expect(page.getByText("ai-stp select impact")).toHaveCount(0);
+    await expect(
+      page.getByText(
+        "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+      ),
+    ).toHaveCount(1);
+    await expect(
+      page.getByText(`ai-stp registry version --kind setup --id ${stableId}`),
+    ).toHaveCount(1);
     await expect(page.locator('a[href^="/en/catalog/components/"]')).toHaveCount(4);
 
     await expect(page.locator('[data-ui="component-overflow"]')).toHaveClass(/right-0/);

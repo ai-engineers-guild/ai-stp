@@ -10,9 +10,12 @@ export const REGISTRY_VERSION =
   "ai-stp registry version --kind {kind} --id {stable_id} --version {version}" as const;
 export const SELECT_IMPACT =
   "ai-stp select impact --setup-id {stable_id} --setup-version {version}" as const;
-export const COMPONENT_NEXT_STEP = "ai-stp component discover" as const;
-export const SETUP_NEXT_STEP = "ai-stp toolchain harnesses" as const;
-export const LOGIN = "ai-stp auth login --provider {provider}" as const;
+export const COMPONENT_NEXT_STEP = "ai-stp task start --intent author --idempotency-key author-session-01 --json" as const;
+export const SETUP_NEXT_STEP = "ai-stp task start --intent install --idempotency-key install-session-01 --json" as const;
+export const LOGIN = "ai-stp task start --intent account --idempotency-key account-session-01 --json" as const;
+export const INTENTS_BOOTSTRAP = "ai-stp task intents --json" as const;
+export const INITIALIZE_START = "ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json" as const;
+export const INITIALIZE_PROMPT = "After the CLI is installed, the coding agent runs first-run harness discoverability by executing: ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json" as const;
 
 export function registryShow(kind: ObjectKind, stableId: string): string {
   return REGISTRY_SHOW.replaceAll("{kind}", kind).replaceAll("{stable_id}", stableId);
@@ -37,8 +40,13 @@ export function ownerSetupNextStep(): string {
   return SETUP_NEXT_STEP;
 }
 
+export function installStart(): string {
+  return SETUP_NEXT_STEP;
+}
+
 export function login(provider: LoginProvider): string {
-  return LOGIN.replaceAll("{provider}", provider);
+  void provider;
+  return LOGIN;
 }
 
 export function objectKindFromId(stableId: string): ObjectKind {

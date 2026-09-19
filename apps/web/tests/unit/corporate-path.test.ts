@@ -20,6 +20,10 @@ it("prefixes shared corporate links once and preserves query strings", async () 
   }
   expect(corporateHref("/en/account")).toBe("/en/corporate/account");
   expect(corporateHref("/en/ai/account?tab=profile")).toBe("/en/ai/corporate/account?tab=profile");
+  expect(corporateHref("/publishers/account_01")).toBe("/corporate/employees/account_01");
+  expect(corporateHref("/en/corporate/publishers/account_01")).toBe(
+    "/en/corporate/employees/account_01",
+  );
   expect(corporateHref("/ru/corporate/account")).toBe("/ru/corporate/account");
   expect(corporateHref("/")).toBe("/corporate/overview");
   expect(corporateHref("https://docs.test")).toBe("https://docs.test");
@@ -28,7 +32,10 @@ it("prefixes shared corporate links once and preserves query strings", async () 
     "/en/ai/corporate/overview",
   );
   expect(corporateSharedPath("/ru/ai/corporate/account/profile")).toBe("/ru/ai/account/profile");
-  expect(corporateSharedPath("/en/corporate/catalog")).toBe("/en/catalog");
+  expect(corporateSharedPath("/en/corporate/catalog")).toBeNull();
+  expect(corporateSharedPath("/en/corporate/catalog/components/component_01")).toBe(
+    "/en/catalog/components/component_01",
+  );
   expect(corporateSharedPath("/en/corporate/organization/admins")).toBeNull();
   expect(corporateSharedPath("/en/corporate/technology-landscape")).toBeNull();
 });
@@ -43,25 +50,45 @@ it("preserves personal and packaged website URLs", async () => {
 it("rewrites corporate shared pages and retains private session gates", async () => {
   vi.stubEnv("AI_STP_COMPILED_FEATURE_PROFILE", "corporate_hub");
   const { NextRequest } = await import("next/server");
+  const { SESSION_COOKIE } = await import("@/lib/auth/cookies");
   const { default: middleware } = await import("@/middleware");
   const request = (page: string) => new NextRequest(`http://localhost${page}`);
   const legacy = middleware(request("/en/catalog?q=skill"));
   expect(legacy.headers.get("location")).toBe("http://localhost/en/corporate/catalog?q=skill");
   const catalog = middleware(request("/en/corporate/catalog?q=skill"));
-  expect(catalog.headers.get("x-middleware-rewrite")).toBe("http://localhost/en/catalog?q=skill");
-  expect(catalog.headers.get("x-middleware-request-x-pathname")).toBe("/en/catalog");
+  expect(catalog.headers.get("x-middleware-rewrite")).toBeNull();
+  expect(catalog.headers.get("x-middleware-request-x-pathname")).toBeNull();
+  const catalogDetailRequest = request(
+    "/en/corporate/catalog/components/component_060DCF6842CF14470513928E39",
+  );
+  catalogDetailRequest.cookies.set(SESSION_COOKIE, "presence-only");
+  const catalogDetail = middleware(catalogDetailRequest);
+  expect(catalogDetail.headers.get("x-middleware-rewrite")).toBe(
+    "http://localhost/en/catalog/components/component_060DCF6842CF14470513928E39",
+  );
   const privatePage = middleware(request("/ru/ai/corporate/account/profile?tab=links"));
   const login = new URL(privatePage.headers.get("location") ?? "");
   expect(login.pathname).toBe("/ru/ai/corporate/login");
   expect(login.searchParams.get("returnTo")).toBe("/ru/ai/corporate/account/profile?tab=links");
   const signedIn = request("/en/corporate/account");
-  const { SESSION_COOKIE } = await import("@/lib/auth/cookies");
   signedIn.cookies.set(SESSION_COOKIE, "presence-only");
   expect(middleware(signedIn).headers.get("x-middleware-rewrite")).toBe(
     "http://localhost/en/account",
   );
   expect(middleware(request("/en/corporate/catalog/components/component_missing")).status).toBe(
     404,
+  );
+  const legacyEmployee = middleware(
+    request("/en/corporate/organization/admins/members/account_01?tab=access"),
+  );
+  expect(legacyEmployee.status).toBe(308);
+  expect(legacyEmployee.headers.get("location")).toBe(
+    "http://localhost/en/corporate/organization/admins/employees/account_01?tab=access",
+  );
+  const legacyPublisher = middleware(request("/en/corporate/publishers/account_01?tab=objects"));
+  expect(legacyPublisher.status).toBe(308);
+  expect(legacyPublisher.headers.get("location")).toBe(
+    "http://localhost/en/corporate/employees/account_01?tab=objects",
   );
 
   const loopbackRequest = new NextRequest("http://localhost:6767/en/corporate/login", {

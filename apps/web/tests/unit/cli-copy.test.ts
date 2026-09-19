@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   DISTRIBUTION,
+  INITIALIZE_START,
   INSTALL_CLI,
+  INTENTS_BOOTSTRAP,
+  installStart,
   login,
   ownerComponentNextStep,
   ownerSetupNextStep,
@@ -33,10 +36,23 @@ describe("cli-copy templates", () => {
   });
 
   it("renders owner next steps and login without paths or secrets", () => {
-    expect(ownerComponentNextStep()).toBe("ai-stp component discover");
-    expect(ownerSetupNextStep()).toBe("ai-stp toolchain harnesses");
-    expect(login("github")).toBe("ai-stp auth login --provider github");
-    expect(login("google")).toBe("ai-stp auth login --provider google");
+    expect(ownerComponentNextStep()).toBe(
+      "ai-stp task start --intent author --idempotency-key author-session-01 --json",
+    );
+    expect(ownerSetupNextStep()).toBe(
+      "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    );
+    expect(installStart()).toBe(ownerSetupNextStep());
+    expect(login("github")).toBe(
+      "ai-stp task start --intent account --idempotency-key account-session-01 --json",
+    );
+    expect(login("google")).toBe(
+      "ai-stp task start --intent account --idempotency-key account-session-01 --json",
+    );
+    expect(INTENTS_BOOTSTRAP).toBe("ai-stp task intents --json");
+    expect(INITIALIZE_START).toBe(
+      "ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json",
+    );
   });
 
   it("installs the published distribution name", () => {

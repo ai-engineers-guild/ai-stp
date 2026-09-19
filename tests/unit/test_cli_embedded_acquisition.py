@@ -9,8 +9,8 @@ from typing import cast
 
 import pytest
 
+from ai_stp_cli.application import catalog as registry_commands
 from ai_stp_cli.cloud import catalog as cloud_catalog
-from ai_stp_cli.commands import registry as registry_commands
 from ai_stp_cli.commands.select import compile_setup_version_bundle
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import bundle

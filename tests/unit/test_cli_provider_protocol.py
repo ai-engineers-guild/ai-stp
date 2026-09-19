@@ -10,7 +10,8 @@ from typing import cast
 
 import pytest
 
-from ai_stp_cli.commands import install, select
+from ai_stp_cli.application import install
+from ai_stp_cli.commands import select
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.provider import conformance, protocol
 from ai_stp_foundation.canonical import JsonValue

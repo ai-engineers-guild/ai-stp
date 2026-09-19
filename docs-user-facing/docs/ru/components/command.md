@@ -64,7 +64,7 @@ run-tests/
 └── run-tests.md                   # {name}.md в корне пакета
 ```
 
-Когда вы начинаете из `ai_stp`, сначала сделайте scaffold. Авторский
+Когда вы начинаете из `ai_stp`, стартуйте intent `author`. Не набирайте `component scaffold plan`. Авторский
 каталог шире опубликованного пакета: `discover` / `adopt` переносят
 `source/` для portable и `projections/<harness>/` для конкретного харнесса,
 а не всё дерево.
@@ -80,7 +80,15 @@ run-tests/                         # component-scaffold/6
     └── run-tests.md
 ```
 
+Повседневное авторство:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (уже есть digest):
+
+```text
 ai-stp component scaffold plan \
   --type command \
   --language none \
@@ -106,10 +114,9 @@ ai-stp component scaffold apply \
 есть только у [`skill`](skill.md).
 
 Дайте command короткое имя, явное описание и ограниченные аргументы.
-Агент должен читать доступные commands из machine help, а не придумывать
-их из памяти — это правило для самого `ai-stp`
-(`ai-stp help --agent --json`) и правильная привычка для commands харнесса
-тоже.
+Агент должен читать доступные commands из continuation `argv` после
+`ai-stp task intents --json`, а не придумывать их из памяти — это правило
+для самого `ai-stp` и правильная привычка для commands харнесса тоже.
 
 ## Стандарты и фреймворки
 
@@ -117,7 +124,7 @@ ai-stp component scaffold apply \
 [Agent Skills Specification](https://agentskills.io/specification), нет.
 Skill — переносимый workflow; command — именованный вход.
 
-Ссылайтесь на `layout_source` из `ai-stp component discover --json`,
+Ссылайтесь на `layout_source` из конверта intent `author`,
 когда классификация неясна. Не угадывайте путь соседа.
 
 NVIDIA SkillSpector и Cisco Skill Scanner — сканеры skill. Они не
@@ -126,7 +133,7 @@ NVIDIA SkillSpector и Cisco Skill Scanner — сканеры skill. Они не
 ## Нативные layout по харнессам
 
 Discovery сообщает только объявленные layout. Точные пути на машине даёт
-`ai-stp component discover --json`. У каждой находки есть `layout_source`.
+конверт intent `author`. У каждой находки есть `layout_source`.
 Если классификация неясна, покажите это поле; не угадывайте путь соседа.
 
 Из матрицы discovery:
@@ -150,10 +157,13 @@ Discovery сообщает только объявленные layout. Точн�
 Одиночный файл в directory-shaped layout дополнительного манифеста не
 требует — так авторят commands Claude Code, и adopt их принимает.
 
+Expert recovery — повседневное авторство это intent `author`:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Не набирайте `component discover`. Движок сам находит нативное дерево.
 
 ## Версии — `X.Y`, не SemVer
 
@@ -216,26 +226,26 @@ ai-stp component passport validate --id <stable_id> --json
 **Не этот вид** — группы CLI `ai-stp` (см. [CLI](../cli/index.md)):
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
 **Автор, adopt, публикация:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Найти, выбрать, установить:**
+**Установить:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-просмотр каталога:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 Command может быть embedded-членом compose-манифеста. См.
@@ -287,14 +297,14 @@ Command может быть embedded-членом compose-манифеста. С
    ограниченные аргументы. Процедуру с assets положите в
    [`skill`](skill.md).
 3. Объявите в паспорте, что command меняет. Секретов нет.
-4. Запустите `ai-stp component discover --root . --json` и прочитайте
-   `layout_source` у находки.
-5. `component adopt --path <точный source_path>`.
-6. Закрепите точный публичный GitHub commit и подпуть.
-7. `component passport validate` → `component version release`, чтобы
+4. Зарегистрируйте каталог через
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` остаются для recovery.
+5. Закрепите точный публичный GitHub commit и подпуть.
+6. `component passport validate` → `component version release`, чтобы
    выпустить неизменяемый `X.Y`.
-8. Публикуйте через [путь публикации](../publishing/index.md).
-9. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия
+7. Публикуйте через [путь публикации](../publishing/index.md).
+8. В сетапе закрепите этот `X.Y`. Позднее обновление — новая версия
    сетапа.
 
 Связанное: [Авторство](../publishing/authoring.md),

@@ -58,6 +58,11 @@ draft: false
 uv tool install ai-stp-cli
 ai-stp doctor --json
 ai-stp version --json
+```
+
+Expert: каждый command path:
+
+```text
 ai-stp capabilities --json
 ```
 

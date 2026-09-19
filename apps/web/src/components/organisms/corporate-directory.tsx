@@ -217,13 +217,10 @@ export function CorporateDirectory({
         addLabel={showHeader && canCreate ? addLabel : undefined}
         cancelLabel={t("cancel")}
         adding={adding}
+        addHref={showHeader && canCreate ? createHref : undefined}
         onAdd={
           showHeader && canCreate
             ? () => {
-                if (createHref) {
-                  router.push(createHref);
-                  return;
-                }
                 setAdding((open) => !open);
               }
             : undefined

@@ -5,7 +5,15 @@ description: "Базовая диагностика ai_stp и безопасно
 
 # Диагностика
 
-Начинайте с команды:
+Повседневное восстановление для агента:
+
+```bash
+ai-stp task intents --json
+```
+
+Следуйте continuation `argv`. Не выгружайте полный реестр как прелюдию.
+
+Expert здоровье, если пользователь спросил, что сломано:
 
 ```bash
 ai-stp doctor --json
@@ -15,14 +23,15 @@ ai-stp doctor --json
 хранилища секретов и доступных возможностей. `doctor` завершается с кодом 0
 даже если установка ещё не готова; состояние — в теле ответа.
 
-Также полезно:
+Expert ориентация и полный реестр:
 
-```bash
+```text
 ai-stp capabilities --json
 ai-stp help --agent --json
 ```
 
-Если `help --agent` расходится с флагом на этой странице, прав CLI.
+Если `help --agent` расходится с флагом на этой странице, прав CLI. Неограниченный
+dump всё равно продолжает на `task intents`.
 
 ## PATH / команда не найдена
 
@@ -44,7 +53,7 @@ ai-stp version --json
 каталога. Авторизация нужна для приватных объектов, синхронизации, публикации,
 устройств, привязанных к облачной сессии, и grants.
 
-```bash
+```text
 ai-stp auth status --json
 ai-stp registry search --kind setup --query frontend --json
 ai-stp device init --json
@@ -60,7 +69,7 @@ ai-stp passport developer init --json
 Публичный каталог может быть доступен из кэша, если объект уже был подтверждён
 платформой.
 
-```bash
+```text
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry fetch --kind component --id <stable_id> --version 1.0 --json
 ai-stp registry acquire --id <setup_id> --version 1.0 --offline --json
@@ -73,17 +82,19 @@ ai-stp registry acquire --id <setup_id> --version 1.0 --offline --json
 
 ## Устаревший digest плана
 
-Apply повторяет план и отказывается, если digest больше не совпадает. Это
-защита, а не ошибка. Не проталкивайте старый digest.
+Если вы внутри задачи `install`, продолжайте её. Движок перепланирует.
+Не набирайте `install plan`, чтобы форсировать новый digest.
+
+Expert: apply именованного leaf повторяет план и отказывается, если
+digest больше не совпадает. Это защита, а не ошибка. Не проталкивайте
+старый digest.
 
 ```bash
-ai-stp setup compose plan --manifest setup.json --root . --json
-ai-stp install plan --setup <stable_id>@<X.Y> --json
+ai-stp task continue --json
 ```
 
-Постройте новый план, покажите его, передайте новый
-`--expected-plan-digest` (или `--plan-hash` / `--set-digest`). Если операцию
-уже одобрили, а байты под ней изменились, отмените её, пока apply не начался:
+Если expert-операция уже есть, а байты под ней изменились, отмените её,
+пока apply не начался:
 
 ```bash
 ai-stp install cancel --operation <id> --json
@@ -136,7 +147,7 @@ ai-stp doctor --json
 Выберите любой из семи выпускаемых харнессов или
 импортируйте и просматривайте локально без apply:
 
-```bash
+```text
 ai-stp setup import inspect --root <dir> --harness <id> --json
 ```
 
@@ -169,7 +180,7 @@ ai-stp device init --json
 Непроверенные объекты не участвуют в автоматической установке без явного
 согласия. Нет настройки «включать все непроверенные навсегда».
 
-```bash
+```text
 ai-stp consent list --json
 ai-stp consent allow --scope publisher --target <publisher_id> --json
 ai-stp consent allow --scope object_major --target <stable_id>@<major> --json

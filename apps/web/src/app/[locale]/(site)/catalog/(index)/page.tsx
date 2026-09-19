@@ -1,3 +1,5 @@
+/* eslint-disable max-lines -- canonical catalog route owns public and corporate projections. */
+
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
@@ -9,12 +11,22 @@ import type { CatalogAuthor } from "@/components/organisms/object-card";
 import { ApiError } from "@/lib/api/errors";
 import { listCatalogReactions } from "@/lib/api/reactions";
 import { listCatalogAuthors } from "@/lib/api/catalog";
+import { readCorporateContext, readCorporateDirectoryPages } from "@/lib/api/corporate";
 import { readAccount } from "@/lib/api/account";
 import { getOptionalSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { listOwnerObjects } from "@/lib/api/owner";
-import { loadPublisherProfiles, startCatalogResourceReads } from "@/lib/catalog-load";
+import {
+  loadPublisherProfiles,
+  startCatalogResourceReads,
+  type CatalogReadScope,
+} from "@/lib/catalog-load";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
+import { readCanonicalPathname } from "@/lib/projection/mode";
+import type {
+  CorporateCatalogFacetConfig,
+  DirectoryItem,
+} from "@/components/organisms/corporate-directory-types";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -64,6 +76,42 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   const { resource, includeExperimental, pageNumber, setupsPage, componentsPage } = query;
   const setupsPageNumber = setupsPage ?? pageNumber;
   const componentsPageNumber = componentsPage ?? pageNumber;
+  const sessionToken = await sessionCookieValue();
+  const canonicalPathname = await readCanonicalPathname();
+  const isCorporateCatalog = /\/corporate\/catalog\/?$/.test(canonicalPathname ?? "");
+  const catalogBasePath = isCorporateCatalog ? "/corporate/catalog" : "/catalog";
+  let corporateFacets: CorporateCatalogFacetConfig[] = [];
+  let catalogScope: CatalogReadScope = {};
+  const hub = isCorporateCatalog ? await getTranslations("hub") : null;
+  if (isCorporateCatalog && sessionToken) {
+    try {
+      const context = await readCorporateContext(sessionToken);
+      if (context) {
+        const [members, technologies] = await Promise.allSettled([
+          readCorporateDirectoryPages(sessionToken, context.organization.organization_id, {
+            resource: "members",
+            include_archived: false,
+          }),
+          readCorporateDirectoryPages(sessionToken, context.organization.organization_id, {
+            resource: "technologies",
+            include_archived: false,
+          }),
+        ]);
+        corporateFacets = buildCorporateCatalogFacets(
+          hub ?? (() => ""),
+          context,
+          members,
+          technologies,
+        );
+        catalogScope = {
+          sessionToken,
+          organizationId: context.organization.organization_id,
+        };
+      }
+    } catch {
+      // The public catalog remains usable if corporate facet data is unavailable.
+    }
+  }
 
   let errorMessage: string | null = null;
   let componentItems = [] as NonNullable<
@@ -86,7 +134,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   let componentTotalItems: number | null = null;
   let componentTotalPages: number | null = null;
   let authorProfiles: Record<string, CatalogAuthor> = {};
-  const started = startCatalogResourceReads(query);
+  const started = startCatalogResourceReads(query, undefined, catalogScope);
   const auxiliaryReads = Promise.all([
     started.services,
     listCatalogAuthors()
@@ -223,7 +271,6 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   };
 
   let likedIds: string[] = [];
-  const sessionToken = await sessionCookieValue();
   const session = sessionToken ? await getOptionalSession() : null;
   let privateItems = [] as Awaited<ReturnType<typeof listOwnerObjects>>["items"];
   if (sessionToken) {
@@ -291,6 +338,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
         <CatalogFilters
           query={query}
           locale={locale}
+          basePath={catalogBasePath}
           services={services}
           intro={t("subtitle")}
           labels={{
@@ -358,8 +406,10 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
             refineButton: t("refineButton"),
             queryCorrection: t("queryCorrection"),
             updatingLabel: t("updating"),
+            ...(hub ? { corporateFilters: hub("catalogGovernanceFilters") } : {}),
           }}
           authors={catalogAuthors}
+          corporateFacets={corporateFacets}
         />
       </div>
       {errorMessage ? (
@@ -401,7 +451,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
           componentsTotalItems={componentTotalItems}
           view={query.view}
           showExperimental={includeExperimental}
-          basePath="/catalog"
+          basePath={catalogBasePath}
           query={catalogQueryToRecord(query)}
           labels={labels}
           locale={locale}
@@ -413,4 +463,76 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
       )}
     </div>
   );
+}
+
+function buildCorporateCatalogFacets(
+  t: (key: string) => string,
+  context: NonNullable<Awaited<ReturnType<typeof readCorporateContext>>>,
+  memberDirectory: PromiseSettledResult<{ items: readonly DirectoryItem[] }>,
+  technologyDirectory: PromiseSettledResult<{ items: readonly DirectoryItem[] }>,
+): CorporateCatalogFacetConfig[] {
+  const members = memberDirectory.status === "fulfilled" ? memberDirectory.value.items : [];
+  const technologies =
+    technologyDirectory.status === "fulfilled" ? technologyDirectory.value.items : [];
+  const optionList = (items: readonly { id: string; name: string }[]) =>
+    [
+      ...new Map(items.map((item) => [item.id, { value: item.id, label: item.name }])).values(),
+    ].sort((left, right) => left.label.localeCompare(right.label));
+  return [
+    {
+      key: "team_ids",
+      label: t("teams"),
+      options: optionList(context.teams.map((team) => ({ id: team.team_id, name: team.name }))),
+    },
+    {
+      key: "project_ids",
+      label: t("projects"),
+      options: optionList(
+        context.projects.map((project) => ({ id: project.project_id, name: project.name })),
+      ),
+    },
+    { key: "technology_ids", label: t("technologies"), options: optionList(technologies) },
+    {
+      key: "category_ids",
+      label: t("categories"),
+      options: optionList(technologies.flatMap((item) => item.categories ?? [])),
+    },
+    {
+      key: "owner_ids",
+      label: t("catalogOwner"),
+      options: optionList([
+        { id: context.organization.organization_id, name: context.organization.display_name },
+        ...context.teams.map((team) => ({ id: team.team_id, name: team.name })),
+        ...context.projects.map((project) => ({ id: project.project_id, name: project.name })),
+        ...technologies,
+        ...members,
+      ]),
+    },
+    {
+      key: "maintainer_ids",
+      label: t("catalogMaintainer"),
+      options: optionList([
+        ...context.teams.map((team) => ({ id: team.team_id, name: team.name })),
+        ...members,
+      ]),
+    },
+    {
+      key: "assignment",
+      label: t("catalogAssignment"),
+      multiple: false,
+      options: [
+        { value: "direct", label: t("directAssignment") },
+        { value: "effective", label: t("effectiveAssignment") },
+      ],
+    },
+    {
+      key: "corporate_verified",
+      label: t("corporateVerification"),
+      multiple: false,
+      options: [
+        { value: "true", label: t("verified") },
+        { value: "false", label: t("notVerified") },
+      ],
+    },
+  ];
 }

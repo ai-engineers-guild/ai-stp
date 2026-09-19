@@ -8,8 +8,9 @@ const mocks = vi.hoisted(() => ({
   canGoBack: vi.fn(),
 }));
 
-vi.mock("@/lib/i18n/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({ back: mocks.back, push: mocks.push }),
+  usePathname: () => "/en/current",
 }));
 vi.mock("@/lib/navigation-history", () => ({
   canGoBack: mocks.canGoBack,
@@ -40,7 +41,7 @@ describe("HistoryBackButton", () => {
   it("uses the localized fallback when there is no in-app history", async () => {
     mocks.canGoBack.mockReturnValue(false);
     const user = userEvent.setup();
-    render(<HistoryBackButton label="Back" fallback="/en/fallback" />);
+    render(<HistoryBackButton label="Back" fallback="/fallback" />);
 
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(mocks.push).toHaveBeenCalledWith("/en/fallback");

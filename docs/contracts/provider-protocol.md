@@ -1,6 +1,6 @@
 ---
 description: "Commands, execution boundary, and state mapping of a public provider."
-last_verified: "2026-09-01"
+last_verified: "2026-09-16"
 ---
 
 # Provider protocol
@@ -349,6 +349,15 @@ Providers supporting complete preservation declare `capture_mode` in
 configuration install, replace, remove and explicit preservation. Missing support
 refuses instead of silently accepting a narrower backup. Program operations do
 not accept this field.
+
+### Instruction region patch
+
+Optional operation `patch_instruction_region` writes a marked user-global
+instruction section. Providers that implement it declare `instruction_section`
+in `plan_request_fields`. The CLI sends `--instruction-section` only to a
+provider that lists that field (`ADR-0125`). The value is the marked section
+bytes. ai-stp does not open harness finals. A provider that does not declare
+the operation or the field is `provider too old`, not a Python `open()`.
 
 The optional digest-bound plan object `native_capture` contains `base_root`,
 `roots`, `excluded`, `current_digest`, and nullable `restore_digest`. An absent

@@ -9,8 +9,17 @@ Target commands are the daily view of one project-and-harness pair. They
 read. They never update the target, never take a backup, and never restore
 one.
 
-`target rollback` **names** the previous confirmed version. Restoring uses
-`install plan --action rollback`. Reinstalling an earlier version through
+Everyday restore of the last working setup is the `switch` intent. Do not
+type `install plan --action rollback` unless you are recovering a stopped
+operation.
+
+```bash
+ai-stp task start --intent switch --idempotency-key switch-session-01 --json
+```
+
+Expert target reads below never restore. `target rollback` **names** the
+previous confirmed version. Restoring through `install plan --action rollback`
+stays expert recovery. Reinstalling an earlier version through
 `action=update` is not the same as restoring a backup.
 
 ## Command table
@@ -26,6 +35,8 @@ one.
 `--confirm` or a plan digest.
 
 ## Status
+
+Expert recovery:
 
 ```bash
 ai-stp target status --project <project_id> --harness codex --json
@@ -110,9 +121,11 @@ ai-stp target backups \
 ```
 
 Each copy carries `backup_ref`, the operation that took it, and the setup
-version installed at that moment. This command restores nothing. To restore:
+version installed at that moment. This command restores nothing.
 
-```bash
+Expert recovery (stopped rollback):
+
+```text
 ai-stp install plan \
   --action rollback \
   --backup-ref <exact> \
@@ -156,7 +169,7 @@ Daily:
 ```text
 target status --project <id> --harness <id>
 → target diff --project <id> --harness <id>   # if states include local_drift
-→ install plan …                              # if you decide to change it
+→ task start --intent install --idempotency-key install-session-01 --json
 ```
 
 After a successful apply:
@@ -169,7 +182,7 @@ target status --project <id> --harness <id>
 Before a risky change:
 
 ```text
-install plan --action backup … → approve --plan-digest → apply
+task start --intent switch --idempotency-key switch-session-01 --json
 → target backups --project <id> --harness <id>
 → target rollback --project <id> --harness <id>   # name, not restore
 ```
@@ -207,12 +220,13 @@ is checked separately; the switch happens after that check.
 - [Troubleshooting](../troubleshooting/index.md)
 - [Command map](commands.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups target commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups target commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

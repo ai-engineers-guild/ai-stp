@@ -351,8 +351,19 @@ async def test_directory_and_overview_hide_unreadable_names_and_preserve_team_le
         assert [ref["id"] for ref in page["facets"]["leads"]] == [people[0]["account_id"]]
         if resource == "teams":
             assert [ref["id"] for ref in page["facets"]["technologies"]] == [technology_ids[0]]
+            relation_filter = {"project_ids": visible_project["project_id"]}
         else:
             assert [ref["id"] for ref in page["facets"]["teams"]] == [visible_team["team_id"]]
+            relation_filter = {"team_ids": visible_team["team_id"]}
+        nested = await client.get(
+            f"{base}/directory",
+            params={"resource": resource, **relation_filter},
+            headers=lead_auth,
+        )
+        assert nested.status_code == 200, nested.text
+        assert nested.json()["items"] == page["items"]
+        assert nested.json()["total"] == page["total"] == 1
+        assert nested.json()["facets"] == page["facets"]
         tail = await client.get(
             f"{base}/directory",
             params={"resource": resource, "offset": 1, "limit": 1},

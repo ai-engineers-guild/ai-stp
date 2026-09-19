@@ -93,6 +93,55 @@ describe("corporate entity owner labels", () => {
     expect(screen.queryByText("hub.owner")).toBeNull();
   });
 
+  it("hides the normal active lifecycle state but keeps exceptional states visible", () => {
+    const { rerender } = render(
+      <CorporateEntityDetail
+        presentation={presentation}
+        description="Description"
+        title="Core"
+        resource="teams"
+        resourceId="operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        state="active"
+      >
+        <p>Main</p>
+      </CorporateEntityDetail>,
+    );
+
+    expect(screen.queryByText("active")).not.toBeInTheDocument();
+    rerender(
+      <CorporateEntityDetail
+        presentation={presentation}
+        description="Description"
+        title="Core"
+        resource="teams"
+        resourceId="operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+        state="suspended"
+      >
+        <p>Main</p>
+      </CorporateEntityDetail>,
+    );
+    expect(screen.getByText("suspended")).toBeVisible();
+  });
+
+  it("keeps readable entity actions available without presentation edit access", async () => {
+    render(
+      <CorporateEntityDetail
+        presentation={presentation}
+        description="Description"
+        title="Core"
+        resource="teams"
+        resourceId="operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+      >
+        <p>Main</p>
+      </CorporateEntityDetail>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "access.more" }));
+    expect(screen.getByRole("menuitem", { name: "hub.copyId" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "hub.share" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "hub.report" })).toBeVisible();
+  });
+
   it("uses the owning-team label for a project", () => {
     render(
       <CorporateEntityDetail

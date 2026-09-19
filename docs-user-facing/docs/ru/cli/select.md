@@ -13,20 +13,28 @@ Provider пишет нативное состояние позже, через [
 eligibility, доступа и безопасности. Пустой допустимый список с причинами
 рядом — честный ответ, не авария.
 
+Повседневный состав — intent `install` (каталожный сетап) или `change` /
+`author` (локальный граф). Eligibility, propose и confirm ниже — expert
+recovery.
+
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
 ## Таблица команд
 
 | Команда | Mutability | Confirmation | Когда |
 | --- | --- | --- | --- |
-| `ai-stp select eligibility` | `read` | `none` | каких кандидатов может использовать один harness, и почему каждый отказ |
-| `ai-stp select eligibility-matrix` | `read` | `none` | куда можно собрать один объект, для каждого поддерживаемого harness |
+| select eligibility | `read` | `none` | expert: каких кандидатов может использовать один harness, и почему каждый отказ |
+| select eligibility-matrix | `read` | `none` | куда можно собрать один объект, для каждого поддерживаемого harness |
 | `ai-stp select impact` | `read` | `none` | сравнить контекст, стоимость токенов и capabilities точных локальных версий |
 | `ai-stp select blast-radius` | `read` | `none` | локальные ссылки сетапа, проекта, устройства и target на компонент |
-| `ai-stp select propose` | `plan` | `none` | записать одно composition proposal; без версии, без target |
-| `ai-stp select confirm` | `apply` | `none` | заморозить одно proposal как частную версию сетапа, trace и pin |
+| select propose | `plan` | `none` | expert: записать одно composition proposal; без версии, без target |
+| select confirm | `apply` | `none` | expert: заморозить одно proposal как частную версию сетапа, trace и pin |
 | `ai-stp select cancel` | `apply` | `none` | закрыть одно proposal, не создавая версию |
 | `ai-stp select graph` | `read` | `none` | разрешить точное замыкание зависимостей или назвать каждую причину отказа |
 | `ai-stp select reports` | `read` | `none` | что выбрано, что конфликтует, что теряется |
-| `ai-stp select bundle` | `read` | `none` | скомпилировать детерминированный пакет; в target не писать |
+| select bundle | `read` | `none` | скомпилировать детерминированный пакет; в target не писать |
 | `ai-stp select session` | `read` | `none` | открытые proposal для проекта и harness и выбранная версия |
 
 `--json` глобальный. Всегда передавайте его. У `select confirm`
@@ -35,7 +43,9 @@ eligibility, доступа и безопасности. Пустой допус
 
 ## Eligibility
 
-```bash
+Expert recovery:
+
+```text
 ai-stp select eligibility --harness codex --json
 ai-stp select eligibility --harness codex --project . --json
 ai-stp select eligibility --harness codex --include-unverified --json
@@ -54,9 +64,9 @@ ai-stp select eligibility --harness codex --for-redistribution --json
 `capability_vocabulary_version`. `admissible_count: 0` с перечисленными
 отказами — успех.
 
-## Eligibility matrix
+## Expert recovery: eligibility matrix
 
-```bash
+```text
 ai-stp select eligibility-matrix --json
 ai-stp select eligibility-matrix --harness codex --harness claude-code --json
 ```
@@ -96,7 +106,7 @@ ai-stp select blast-radius \
 этого проекта как baseline, когда `--against-setup-id` нет. `--scenario` —
 одно из `update`, `deprecation`, `blocked`, `expired_evidence`, `advisory`.
 
-## Propose, session, confirm, cancel
+## Expert recovery: propose, session, confirm, cancel
 
 Proposal — короткоживущий точный объект сессии. Он истекает. Confirm
 замораживает частную версию сетапа. Cancel ничего не создаёт.
@@ -105,7 +115,7 @@ Proposal — короткоживущий точный объект сессии
 собирает сетап, который не проецирует файлы. `--empty` и `--member` вместе
 отклоняются.
 
-```bash
+```text
 ai-stp select session --harness codex --project . --json
 
 ai-stp select propose \
@@ -128,7 +138,7 @@ Propose возвращает сессию с `proposal_id`, `state` (`open`, `co
 
 ## Graph, reports, bundle
 
-```bash
+```text
 ai-stp select graph --proposal <proposal_id> --json
 ai-stp select graph --member component_...@1.0 --json
 
@@ -158,13 +168,21 @@ false, `digest` и `files` пусты, а `refusals` называет кажду
 
 ## Happy path
 
+Повседневный путь:
+
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert custom composition:
+
 ```text
 select eligibility --harness <id> --project .
 → select propose --harness <id> --member <id>@<X.Y>
 → select reports --harness <id> --proposal <proposal>
 → select graph --proposal <proposal>
 → select confirm --proposal <proposal>
-→ install plan --proposal <proposal> --provider <exe> …
+→ task start --intent install --idempotency-key install-session-01 --json
 ```
 
 Читайте `select session`, когда нужны открытое proposal и выбранная версия
@@ -210,12 +228,13 @@ select eligibility --harness <id> --project .
 - [Доверие и безопасность](../trust-and-safety/index.md)
 - [Карта команд](commands.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды выбора, чтобы человек их нашёл.
-Установленный CLI — источник флагов, схем и `next_actions`. Если страница
-и CLI расходятся, следуйте CLI.
+Если страница и CLI расходятся, следуйте CLI.

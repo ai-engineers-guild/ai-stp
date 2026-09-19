@@ -1,1 +1,1 @@
-export { default } from "../components/page";
+export { default, generateMetadata } from "../../catalog/(index)/page";

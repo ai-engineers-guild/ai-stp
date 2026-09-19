@@ -17,9 +17,9 @@ last_verified: "2026-08-03"
 | [catalog-support-evidence.md](catalog-support-evidence.md) | Safe public projection of harness support evidence in the catalog. | 2026-08-09 |
 | [catalog-usage-metrics.md](catalog-usage-metrics.md) | Wire semantics of public detail-view and artifact-download counters. | 2026-08-17 |
 | [cli-config.md](cli-config.md) | Global CLI configuration fields, defaults, and source precedence. | 2026-09-08 |
-| [cli-copy-templates.md](cli-copy-templates.md) | Canonical CLI templates for web UI copy blocks (SPEC-037). | 2026-08-13 |
+| [cli-copy-templates.md](cli-copy-templates.md) | Canonical CLI templates for web UI copy blocks (SPEC-037). | 2026-09-18 |
 | [cli-grants.md](cli-grants.md) | Client sequence for issuing, accepting, and revoking access grants. | 2026-08-13 |
-| [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-09-15 |
+| [cli-json.md](cli-json.md) | JSON envelope, error classes, and CLI machine-output rules. | 2026-09-16 |
 | [cli-owner-objects.md](cli-owner-objects.md) | Authorized reading of owner objects through the CLI. | 2026-08-13 |
 | [cli-publication.md](cli-publication.md) | Client-side publication plan sequence and the boundary of transmitted data. | 2026-09-08 |
 | [cli-self-update.md](cli-self-update.md) | Machine boundary for ai-stp CLI self-update: commands, plan fields, journal states. | 2026-09-08 |
@@ -47,7 +47,7 @@ last_verified: "2026-08-03"
 | [preserved-setups.md](preserved-setups.md) | Local setup identities, verified native recovery bindings and CLI selection. | 2026-09-07 |
 | [private-distribution.md](private-distribution.md) | Private upload, exact access reads and owner visibility plans shared with the platform owner. | 2026-09-08 |
 | [project-discovery.md](project-discovery.md) | Machine form of complete project discovery within an explicitly named scope. | 2026-08-09 |
-| [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-01 |
+| [provider-protocol.md](provider-protocol.md) | Commands, execution boundary, and state mapping of a public provider. | 2026-09-16 |
 | [provider-release.md](provider-release.md) | Provider release manifest, trust, verification, and rollback protection. | 2026-09-04 |
 | [public-profile.md](public-profile.md) | Public profile fields, revisions, avatar, and separation from the developer passport. | 2026-09-04 |
 | [report-case.md](report-case.md) | Private report case: allowed content, preview, states, and auditable moderator actions. | 2026-09-04 |

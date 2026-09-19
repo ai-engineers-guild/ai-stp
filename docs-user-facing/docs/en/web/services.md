@@ -105,7 +105,7 @@ is omitted, not shown as a broken card.
 
 There is no `ai-stp services` command. Catalog search is the twin:
 
-```bash
+```text
 ai-stp registry search --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry show --kind setup --id <stable_id> --json

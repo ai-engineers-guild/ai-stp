@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("@/lib/i18n/navigation", () => ({ Link: "a", useRouter: () => ({ push }) }));
+vi.mock("@/lib/i18n/navigation", () => ({
+  Link: "a",
+  useRouter: () => ({ push }),
+  usePathname: () => window.location.pathname.replace(/^\/en/, "") || "/",
+}));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 import {
   CorporateDirectoryResults,
@@ -65,6 +70,57 @@ describe("corporate directory filters", () => {
     );
   });
 
+  it("uses the server action projection for card actions", async () => {
+    const user = userEvent.setup();
+    render(
+      <CorporateDirectoryResults
+        resource="projects"
+        items={[
+          {
+            ...item,
+            available_actions: ["project.update", "entity_profile.update"],
+          },
+        ]}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "moreActions" }));
+    expect(screen.getByRole("menuitem", { name: "openDetails" })).toHaveAttribute(
+      "href",
+      "/corporate/projects/project",
+    );
+    expect(screen.getByRole("menuitem", { name: "edit" })).toHaveAttribute(
+      "href",
+      "/corporate/projects/project",
+    );
+    expect(screen.getByRole("menuitem", { name: "editPresentation" })).toHaveAttribute(
+      "href",
+      "/corporate/projects/project/edit",
+    );
+  });
+
+  it("does not invent privileged actions when the server projection is empty", async () => {
+    const user = userEvent.setup();
+    render(<CorporateDirectoryResults resource="teams" items={[{ id: "team", name: "Team" }]} />);
+    await user.click(screen.getByRole("button", { name: "moreActions" }));
+    expect(screen.queryByRole("menuitem", { name: "edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "editPresentation" })).not.toBeInTheDocument();
+  });
+
+  it("renders a normal create link when a dedicated create route is provided", () => {
+    render(
+      <CorporateDirectoryResults
+        resource="teams"
+        items={[]}
+        addLabel="addTeam"
+        addHref="/corporate/teams/new"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "addTeam" })).toHaveAttribute(
+      "href",
+      "/corporate/teams/new",
+    );
+  });
+
   it("renders catalog component metadata and the shared filter dialog", () => {
     render(
       <CorporateDirectoryResults
@@ -122,7 +178,7 @@ describe("corporate directory filters", () => {
     fireEvent.click(closeButton);
     fireEvent.click(screen.getByRole("button", { name: "applyFilters" }));
     expect(push).toHaveBeenCalledWith(
-      "/en/corporate/components?organization_id=org&sort=name&team_ids=team_mobile",
+      "/corporate/components?organization_id=org&sort=name&page=1&team_ids=team_mobile",
     );
   });
 
@@ -150,5 +206,6 @@ describe("corporate directory filters", () => {
       "aria-pressed",
       "true",
     );
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 });

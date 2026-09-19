@@ -15,19 +15,26 @@ description: "Искать и показывать публичный катал
 харнес, точную версию `X.Y`, линию доверия и обе независимые оси
 верификации, прежде чем что-либо выбирать.
 
+Повседневная установка из каталога — intent `install`. Search, fetch,
+acquire и port import ниже — expert recovery.
+
+```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
 ## Команды
 
 | Команда | Мутабельность | Подтверждение | Когда |
 | --- | --- | --- | --- |
-| `ai-stp registry search` | `read` | `none` | Поиск по публичному каталогу без учётной записи. |
+| registry search | `read` | `none` | Поиск по публичному каталогу без учётной записи. |
 | `ai-stp registry show` | `read` | `none` | Показать один объект каталога и его опубликованные версии. |
 | `ai-stp registry version` | `read` | `none` | Показать одну точную опубликованную версию и её верифицированный паспорт. |
 | `ai-stp registry fetch` | `apply` | `none` | Загрузить точные байты одной опубликованной версии в локальный кэш. |
-| `ai-stp registry acquire` | `apply` | `none` | Получить один точный опубликованный граф сетапа для локальной офлайн-компиляции. |
-| `ai-stp registry port discover` | `read` | `none` | Найти совместимые снапшоты SX и APM под одним указанным локальным корнем. |
-| `ai-stp registry port inspect` | `read` | `none` | Инспектировать одно отображение setup-store без импорта и без запуска его CLI. |
-| `ai-stp registry port plan` | `plan` | `none` | Предпросмотр локального импорта setup-store с привязкой к точным байтам манифеста. |
-| `ai-stp registry port import` | `apply` | `plan_digest` | Импортировать подтверждённый точный снапшот SX или APM только в локальный реестр. |
+| registry acquire | `apply` | `none` | Получить один точный опубликованный граф сетапа для локальной офлайн-компиляции. |
+| registry port discover | `read` | `none` | Найти совместимые снапшоты SX и APM под одним указанным локальным корнем. |
+| registry port inspect | `read` | `none` | Инспектировать одно отображение setup-store без импорта и без запуска его CLI. |
+| registry port plan | `plan` | `none` | Предпросмотр локального импорта setup-store с привязкой к точным байтам манифеста. |
+| registry port import | `apply` | `plan_digest` | Импортировать подтверждённый точный снапшот SX или APM только в локальный реестр. |
 
 `--kind` обязателен для `search`, `show`, `version` и `fetch`. Значение —
 `component` или `setup`. `--id` обязателен для `show`, `version`,
@@ -36,11 +43,11 @@ description: "Искать и показывать публичный катал
 import также требуют `--adapter` (`sx` или `apm`). Import требует
 `--expected-plan-digest`.
 
-## Типичный путь
+## Expert recovery: типичный путь
 
 Анонимные чтения каталога:
 
-```bash
+```text
 ai-stp registry search --kind component --json
 ai-stp registry show --kind component --id <stable_id> --json
 ai-stp registry version --kind component --id <stable_id> --version <version> --json
@@ -52,7 +59,7 @@ ai-stp registry version --kind component --id <stable_id> --version <version> --
 Чтобы поместить эти точные байты в локальный кэш, а затем получить граф
 сетапа:
 
-```bash
+```text
 ai-stp registry fetch --kind component --id <stable_id> --version <version> --json
 ai-stp registry acquire --id <stable_id> --version <version> --json
 ```
@@ -63,7 +70,7 @@ ai-stp registry acquire --id <stable_id> --version <version> --json
 Для импорта локального снапшота setup-store, без обращения к внешнему
 хранилищу и без записи таргета харнеса:
 
-```bash
+```text
 ai-stp registry port discover --root <root> --json
 ai-stp registry port inspect --root <root> --adapter sx --json
 ai-stp registry port plan --root <root> --adapter sx --json
@@ -77,13 +84,13 @@ ai-stp registry port import --root <root> --adapter sx --expected-plan-digest <p
 в `source`. Читайте `checked_at`. Не принимайте попадание в кэш за живой
 каталог.
 
-## Чтения каталога
+## Expert recovery: чтения каталога
 
 ### `registry search`
 
 Поиск по публичному каталогу без учётной записи.
 
-```bash
+```text
 ai-stp registry search --kind component --json
 ```
 
@@ -138,7 +145,7 @@ ai-stp registry version --kind component --id <stable_id> --version <version> --
 не может быть вычислен из другого. `authoritative` дополнительно
 требует оба, и эта импликация не заменяет чтение флагов.
 
-## Записи каталога в локальный кэш
+## Expert recovery: записи каталога в локальный кэш
 
 ### `registry fetch`
 
@@ -173,7 +180,7 @@ ai-stp registry fetch --kind component --id <stable_id> --version <version> --js
 
 Получить один точный опубликованный граф сетапа для локальной офлайн-компиляции.
 
-```bash
+```text
 ai-stp registry acquire --id <stable_id> --version <version> --json
 ```
 
@@ -202,7 +209,7 @@ ai-stp registry acquire --id <stable_id> --version <version> --json
 
 Найти совместимые снапшоты SX и APM под одним указанным локальным корнем.
 
-```bash
+```text
 ai-stp registry port discover --root <root> --json
 ```
 
@@ -215,7 +222,7 @@ ai-stp registry port discover --root <root> --json
 
 Инспектировать одно отображение setup-store без импорта и без запуска его CLI.
 
-```bash
+```text
 ai-stp registry port inspect --root <root> --adapter sx --json
 ```
 
@@ -227,7 +234,7 @@ ai-stp registry port inspect --root <root> --adapter sx --json
 Предпросмотр локального импорта setup-store с привязкой к точным байтам
 манифеста.
 
-```bash
+```text
 ai-stp registry port plan --root <root> --adapter sx --json
 ```
 
@@ -245,7 +252,7 @@ ai-stp registry port plan --root <root> --adapter sx --json
 Импортировать подтверждённый точный снапшот SX или APM только в локальный
 реестр.
 
-```bash
+```text
 ai-stp registry port import --root <root> --adapter sx --expected-plan-digest <plan-digest> --json
 ```
 

@@ -104,8 +104,7 @@ description: "Как читать публичную страницу сетап
 | Автор | издатель сетапа, `author_verified` |
 | Использование | просмотры страницы, скачивания артефакта |
 | Бюджет контекста | потенциальные токены always-loaded vs on-use участников |
-| Полный локальный отчёт | копия `ai-stp select impact --setup-id … --setup-version …` |
-| Копия CLI | `ai-stp registry version --kind setup --id … --version …` |
+| Копия CLI | повседневный `task start --intent install` в «Использовать через CLI»; inspect-копия `ai-stp registry version --kind setup --id … --version …` |
 | История версий | предложенные `X.Y`; пропуски намеренны |
 
 **Публичный JSON паспорта** — паспорт сетапа, включая список пинов.
@@ -131,7 +130,15 @@ Always-loaded участники входят каждый раз, когда с
 
 ## Соответствующие команды CLI
 
+Повседневная установка:
+
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert-чтение каталога и локальный impact:
+
+```text
 ai-stp registry show --kind setup --id <stable_id> --json
 ai-stp registry version --kind setup --id <stable_id> --version <x.y> --json
 ai-stp registry acquire --json
@@ -143,14 +150,6 @@ ai-stp link web --json
 для локальной офлайн-компиляции. `select impact` сравнивает контекст,
 стоимость токенов и возможности точных **локальных** версий сетапа —
 сайт только копирует команду.
-
-Состав и apply остаются в CLI:
-
-```bash
-ai-stp setup compose plan --json
-ai-stp select propose --json
-ai-stp install plan --json
-```
 
 Страницы: [Команды сетапа](../cli/setup.md),
 [Выбор](../cli/select.md), [Установка](../cli/install.md).
@@ -165,7 +164,7 @@ ai-stp install plan --json
 | Ошибка бюджета контекста | точный артефакт недоступен | сначала fetch (`registry acquire` / `registry fetch`) |
 | В жалобе нет digest | у latest нет digest паспорта | откройте `/versions/{version}` |
 | Лайк требует входа | нет сессии | [Войти](login.md) |
-| Установка из браузера | не предлагается | скопируйте CLI, затем provider apply |
+| Установка из браузера | не предлагается | скопируйте CLI, затем `task start --intent install` |
 
 Machine-проекция перечисляет назначение, целевую роль (или её
 отсутствие), позу, пины, линию доверия и два бита verified. Галерею

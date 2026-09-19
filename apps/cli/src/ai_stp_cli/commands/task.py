@@ -4,7 +4,11 @@ from collections.abc import Mapping
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import task as task_service
-from ai_stp_contracts.machine_help import TaskView
+from ai_stp_contracts.machine_help import TaskIntentsCatalog, TaskView
+
+
+def intents(parameters: Mapping[str, object]) -> Answer[TaskIntentsCatalog]:
+    return task_service.intents(parameters)
 
 
 def start(parameters: Mapping[str, object]) -> Answer[TaskView]:

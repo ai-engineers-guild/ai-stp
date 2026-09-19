@@ -37,6 +37,7 @@ import {
   presentPublisher,
   presentSetupDetail,
   presentSetupVersion,
+  presentSignedOutAccount,
 } from "@/lib/projection/presenters";
 import * as regionalPresenters from "@/lib/projection/regional-presenters";
 import * as pageFacts from "@/lib/projection/page-facts";
@@ -87,23 +88,12 @@ async function objectLabels() {
   };
 }
 
-/**
- * A generic document for a route that has no domain presenter yet: heading,
- * summary and the outgoing links of that section. Never a human tree
- * (REQ-3612).
- */
-async function generic(
-  namespace: string,
-  titleKey: string,
+async function signedOutAccountDoc(
+  namespace: "login" | "deviceLogin",
   links: readonly (readonly [string, string])[],
-  summaryKey?: string,
-): Promise<MachineDocument> {
+) {
   const t = await getTranslations(namespace);
-  return presentPage({
-    title: t(titleKey),
-    ...(summaryKey ? { summary: t(summaryKey) } : {}),
-    links,
-  });
+  return presentSignedOutAccount({ title: t("title"), summary: t("subtitle"), links });
 }
 
 const PUBLIC_ROUTES: MachineRoute[] = [
@@ -433,11 +423,11 @@ const PUBLIC_ROUTES: MachineRoute[] = [
   },
   {
     pattern: "login",
-    resolve: () => generic("login", "title", [["catalog", "/catalog"]], "subtitle"),
+    resolve: () => signedOutAccountDoc("login", [["catalog", "/catalog"]]),
   },
   {
     pattern: "device-login",
-    resolve: () => generic("deviceLogin", "title", [["devices", "/devices"]], "subtitle"),
+    resolve: () => signedOutAccountDoc("deviceLogin", [["devices", "/devices"]]),
   },
 ];
 

@@ -13,6 +13,13 @@ Parse ничего не скачивает. Resolve привязывает од�
 Поиск имён не выбирает кандидата. Команды evidence говорят об архивном
 состоянии репозитория, а не о том, безопасна ли версия.
 
+Повседневная регистрация — intent `author`. Source parse/resolve/search
+и evidence ниже — expert recovery.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
 ## Таблица команд
 
 | Команда | Mutability | Confirmation | Когда |
@@ -116,6 +123,14 @@ ai-stp component source evidence history --id <stable_id> --version 1.0 --limit 
 
 ## Happy path
 
+Повседневный путь:
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery:
+
 ```text
 component source parse --source owner/repo
 → component source resolve --source owner/repo
@@ -167,12 +182,13 @@ resolve.
 - [Реестр](registry.md)
 - [Публикация](../publishing/index.md)
 
-## Machine help — это парсер
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды источника, чтобы человек их нашёл.
-Установленный CLI — источник флагов, схем и `next_actions`. Если страница
-и CLI расходятся, следуйте CLI.
+Если страница и CLI расходятся, следуйте CLI.

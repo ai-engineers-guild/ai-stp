@@ -44,12 +44,19 @@ CLI — рабочая поверхность продукта. Он обнар�
 
 ## Machine help — это парсер
 
+Повседневное обнаружение:
+
 ```bash
+ai-stp task intents --json
+```
+
+Expert: полный реестр этой установки:
+
+```text
 ai-stp help --agent --json
 ```
 
-Документация группирует команды, чтобы человек нашёл страницу. Установленный
-CLI — источник флагов, схем и `next_actions`. Если страница и CLI расходятся,
+Документация группирует команды, чтобы человек нашёл страницу. Если страница и CLI расходятся,
 следуйте CLI.
 
 Полный список по одной строке на команду — [карта команд](commands.md).
@@ -72,7 +79,7 @@ CLI — источник флагов, схем и `next_actions`. Если ст
 | Реестр | [Реестр](registry.md) | поиск в каталоге, fetch, локальные port |
 | Компонент | [Команды компонента](component.md) | discover → паспорт → публикация |
 | Выбор | [Выбор](select.md) | eligibility, proposal, отчёты |
-| Установка | [Установка](install.md) | plan, approve, apply, recover |
+| Установка | [Установка](install.md) | intent install; expert recover/resume остаются |
 | Target | [Target](target.md) | ежедневный статус, diff, backup, именованный rollback |
 | Setup | [Команды сетапа](setup.md) | compose, импорт, update, публикация |
 | Provider | [Provider](provider.md) | бинарник, который пишет нативное состояние |
@@ -86,13 +93,15 @@ CLI — источник флагов, схем и `next_actions`. Если ст
 ## Рабочий цикл
 
 ```text
-doctor / capabilities / help --agent
-→ device + паспорт разработчика
-→ registry search / show
-→ select propose → confirm
-→ install plan → approve → apply
-→ target status
+task intents --json
+→ task start --intent <shipped> --idempotency-key <key> --json
+→ follow continuations (исполнять argv только когда actor равен cli)
+→ сообщить payload verification
 ```
+
+Expert leaves (`install plan` / `approve` / `apply`) остаются для recovery.
+Повседневные install, change и switch сливают эти шаги in-process под
+соответствующим intent.
 
 Агент пропускает шаг, только если предыдущий конверт уже сделал его ненужным.
 Механическую проверку он не пропускает.

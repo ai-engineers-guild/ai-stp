@@ -165,6 +165,13 @@ class CorporateOrganization(BaseModel):
     authorization_revision: Annotated[int, Field(ge=1)]
 
 
+class CorporateMemberCatalogAssignment(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    object_kind: Literal["component"]
+    stable_id: Annotated[str, Field(min_length=1, max_length=64)]
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+
+
 class CorporateMemberCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1
@@ -173,6 +180,10 @@ class CorporateMemberCreateRequest(BaseModel):
     display_name: Annotated[str, Field(min_length=1, max_length=80)]
     role: CorporateRole
     team_ids: Annotated[list[str], Field(max_length=64)] = Field(default_factory=list)
+    project_ids: Annotated[list[ProjectId], Field(max_length=64)] = Field(default_factory=list)
+    catalog_assignments: Annotated[
+        list[CorporateMemberCatalogAssignment], Field(max_length=64)
+    ] = []
     job_title_id: JobTitleId | None = None
     authorization_revision: Annotated[int, Field(ge=1)]
     idempotency_key: IdempotencyKey

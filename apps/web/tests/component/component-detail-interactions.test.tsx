@@ -202,6 +202,44 @@ describe("component detail interactions", () => {
     ).toBeInTheDocument();
   });
 
+  it("identifies YouTube and uploaded video previews in the carousel", () => {
+    render(
+      <ComponentMediaGallery
+        items={[
+          {
+            id: "youtube_example",
+            kind: "youtube",
+            url: "dQw4w9WgXcQ",
+            alt: "Walkthrough",
+            source_label: "YouTube",
+          },
+          {
+            id: "video_example",
+            kind: "video",
+            url: "/walkthrough.mp4",
+            alt: "Uploaded walkthrough",
+            source_label: "storage",
+          },
+        ]}
+        labels={{
+          gallery: "Media",
+          open: "Open media",
+          source: "Source",
+          close: "Close media",
+          typeYoutube: "YouTube preview",
+          typeVideo: "Video preview",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("YouTube preview")).toBeVisible();
+    expect(screen.getByText("Video preview")).toBeVisible();
+    expect(screen.getByRole("img", { name: "Walkthrough" })).toHaveAttribute(
+      "src",
+      "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+    );
+  });
+
   it("opens media in an accessible dialog without a bottom close control", async () => {
     const user = userEvent.setup();
     render(

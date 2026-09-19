@@ -1,34 +1,29 @@
 # Author
 
-User intents: scaffold a skill, adopt a tree, publish a component or setup.
+To register a local directory as a component, start the `author` intent.
+Do not type `ai-stp component adopt`, `ai-stp component scaffold plan`,
+`ai-stp component scaffold apply`, `ai-stp setup compose apply`, or
+`component materialize plan`.
+The engine freezes the directory as one embedded component and one new
+setup identity. It does not install the setup and does not mutate a saved
+setup in place.
 
-Resolve from machine help: `ai-stp component scaffold plan`,
-`ai-stp component scaffold apply`, `ai-stp component template render`,
-`ai-stp component source parse`, `ai-stp component adopt`,
-`ai-stp component passport validate`, `ai-stp component skill validate`,
-`ai-stp component version release`, `ai-stp component publish`,
-`ai-stp publication plan`, `ai-stp publication confirm`,
-`ai-stp setup publish plan`, `ai-stp attestation sign`.
+1. Pass `directory`, `harness_id`, `component_type`, `name`, and
+   `license_spdx` when known. Kinds come from `COMPONENT_TYPES` filtered
+   by that harness's native surfaces. Omitted fields become one typed
+   question each.
+2. Call `ai-stp task start` with intent `author` and execute continuation
+   `argv` only when `actor` is `cli`. Relay one blocked question through `ai-stp task answer`.
+3. Report the component id, the new setup id, and whether a new identity
+   was minted. Envelope `ok` alone is not enough. Install that pin with
+   the `install` intent when the user wants it on a target.
 
-Portable scaffolds keep editable native files in `source/`; read the scaffold
-result before choosing an adoption root. Replace every scaffold draft marker
-before compose or release. Run
-`ai-stp component skill validate` on the package directory (the directory with
-`SKILL.md` at its root), not the whole authoring tree. Publicity and access
-are a separate user decision.
-
-New releases and uploads default to private distribution. Invite recipients
-through the grant commands in machine help. To open an existing exact version,
-resolve `ai-stp publication visibility plan`, `ai-stp publication visibility
-status` and `ai-stp publication visibility confirm`; obtain the owner's explicit
-decision for the reviewed access effect. Preserve the version and passport
-digest. An unsupported server is a dependency failure, not permission to use
-public publication as a fallback.
-
-`setup compose` creates a private local setup and can resolve exact granted
-catalog pins through authenticated private access after an anonymous public miss.
-Review its plan digest before apply; public exposure remains a separate owner decision.
-
-A released version is an immutable snapshot. Publish the recorded artifact
-through publication plan/confirm; do not rebuild its bytes from a subsequently
-edited directory. Content changes require another version before publication.
+Scaffold, adopt, validate, and release stay expert. Resolve those families
+from machine help; do not type their plan/apply leaves. Publicity is a
+separate user decision: start the `publish` intent after `author`. Do not
+type `ai-stp publication plan`, `ai-stp publication confirm`,
+`setup publish plan`, or `setup publish confirm`. Provenance
+is the local filesystem; do not invent git history. Do not type a
+`github.com` remote. New publications default
+to private. A worker receipt is not a readable catalog result unless outcome
+`readable` is true.

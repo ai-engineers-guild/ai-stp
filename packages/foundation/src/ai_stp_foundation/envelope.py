@@ -15,6 +15,7 @@ optional additions within the supported major. Consumers parse through the
 ``*Reader`` variants, which ignore unknown optional fields instead of failing.
 """
 
+import shlex
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
@@ -28,6 +29,10 @@ type OperationId = Annotated[str, Field(pattern=stable_id_pattern("operation"))]
 #: Additive envelope fields introduced after the 1.0 required set. An older
 #: producer omits them; the wire schema must still accept that document.
 _ADDITIVE_OPTIONAL_FIELDS: frozenset[str] = frozenset({"continuations"})
+_ADDITIVE_CONTINUATION_FIELDS: frozenset[str] = frozenset({"argv", "actor"})
+
+
+type ContinuationActor = Literal["human", "agent", "cli", "external"]
 
 
 def _open_wire_object(schema: JsonSchemaValue) -> None:
@@ -39,33 +44,80 @@ def _open_wire_object(schema: JsonSchemaValue) -> None:
     schema["additionalProperties"] = True
 
 
+def _open_continuation(schema: JsonSchemaValue) -> None:
+    """Continuation wire: kind/path required; argv and actor are additive."""
+    properties = schema.get("properties", {})
+    schema["required"] = sorted(
+        name
+        for name in properties
+        if name not in _ADDITIVE_CONTINUATION_FIELDS and name not in {"arguments", "missing"}
+    )
+    schema["additionalProperties"] = True
+
+
 class Continuation(BaseModel):
     """One next step with bound values, and the names still missing.
 
-    ``next_actions`` remains the argv an older caller runs. This object is the
-    canonical form: a path this build declares, arguments already known, and
-    ``missing`` for anything the caller must still supply. A command that still
-    has holes is not emitted as runnable-looking argv.
+    ``argv`` is the execution form. ``continuation_command`` is a quoted display
+    string and is never eval input. ``next_actions`` remains that display string
+    for older callers.
     """
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=_open_continuation)
 
     kind: Literal["retry", "advance", "inspect", "blocked", "terminal"]
     path: Annotated[list[str], Field(min_length=1)]
-    arguments: dict[str, str] = Field(default_factory=dict)
+    arguments: dict[str, JsonValue] = Field(default_factory=dict)
     missing: list[str] = Field(default_factory=list)
+    argv: list[str] = Field(default_factory=list)
+    actor: ContinuationActor = "cli"
+
+
+def continuation_argv(item: Continuation) -> list[str]:
+    """Executable tokens for one continuation, never passed through a shell."""
+    if item.argv:
+        return list(item.argv)
+    if item.missing:
+        return ["help", "--path", item.path[0], "--json"]
+    tokens = list(item.path)
+    for name, value in item.arguments.items():
+        tokens.extend(_argument_tokens(name, value))
+    if "json" not in item.arguments:
+        tokens.append("--json")
+    return tokens
+
+
+def bound_continuation(item: Continuation) -> Continuation:
+    """Fill ``argv`` so a caller can exec the list without re-deriving it."""
+    tokens = continuation_argv(item)
+    if list(item.argv) == tokens:
+        return item
+    return item.model_copy(update={"argv": tokens})
+
+
+def _argument_tokens(name: str, value: JsonValue) -> list[str]:
+    flag = f"--{name}"
+    if value == "" or value is True:
+        return [flag]
+    if value is False:
+        return []
+    if isinstance(value, list):
+        tokens: list[str] = []
+        for item in value:
+            tokens.extend(_flag_value(flag, str(item)))
+        return tokens
+    return _flag_value(flag, str(value))
+
+
+def _flag_value(flag: str, text: str) -> list[str]:
+    if text.startswith("-"):
+        return [f"{flag}={text}"]
+    return [flag, text]
 
 
 def continuation_command(item: Continuation) -> str:
-    """Argv for one continuation, or a scoped help read when values are missing."""
-    if item.missing:
-        return f"help --path {item.path[0]} --json"
-    tokens = list(item.path)
-    for name, value in item.arguments.items():
-        tokens.append(f"--{name}" if value == "" else f"--{name} {value}")
-    if "json" not in item.arguments:
-        tokens.append("--json")
-    return " ".join(tokens)
+    """Quoted display of ``continuation_argv``. Not an eval input."""
+    return " ".join(shlex.quote(token) for token in continuation_argv(item))
 
 
 class CliError(BaseModel):
@@ -108,6 +160,12 @@ class ErrorEnvelope(BaseModel):
     continuations: list[Continuation] = Field(default_factory=list[Continuation])
 
 
+class ContinuationReader(Continuation):
+    """Compatible consumer parser for one continuation."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+
 class CliErrorReader(CliError):
     """Compatible consumer parser for the error payload."""
 
@@ -119,6 +177,10 @@ class SuccessEnvelopeReader(SuccessEnvelope):
 
     model_config = ConfigDict(extra="ignore", frozen=True)
 
+    continuations: list[ContinuationReader] = Field(  # pyright: ignore[reportIncompatibleVariableOverride]
+        default_factory=list[ContinuationReader]
+    )
+
 
 class ErrorEnvelopeReader(ErrorEnvelope):
     """Compatible consumer parser: unknown optional fields are ignored."""
@@ -128,3 +190,6 @@ class ErrorEnvelopeReader(ErrorEnvelope):
     # Narrowing to the tolerant reader is safe: the models are frozen, so the
     # invariant-override concern about later widening writes does not apply.
     error: CliErrorReader  # pyright: ignore[reportIncompatibleVariableOverride]
+    continuations: list[ContinuationReader] = Field(  # pyright: ignore[reportIncompatibleVariableOverride]
+        default_factory=list[ContinuationReader]
+    )

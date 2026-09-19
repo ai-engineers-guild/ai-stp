@@ -1619,6 +1619,7 @@ async def technology_view(db: AsyncSession, row: Technology) -> TechnologyView:
         {
             "organization_id": row.organization_id,
             "technology_id": row.id,
+            "owner_account_id": row.owner_account_id,
             "name": row.name,
             "description": row.description,
             "category_ids": categories,

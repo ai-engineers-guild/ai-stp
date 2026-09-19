@@ -2,13 +2,15 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { corporateMutationAction } from "@/actions/corporate";
-const { mutation, refresh } = vi.hoisted(() => ({
+const { mutation, refresh, push } = vi.hoisted(() => ({
   mutation: vi.fn<typeof corporateMutationAction>(),
   refresh: vi.fn(),
+  push: vi.fn(),
 }));
 vi.mock("@/actions/corporate", () => ({ corporateMutationAction: mutation }));
 vi.mock("@/lib/i18n/navigation", () => ({
-  useRouter: () => ({ refresh }),
+  useRouter: () => ({ refresh, push }),
+  usePathname: () => window.location.pathname.replace(/^\/en/, "") || "/",
   Link: ({ children, href, ...props }: { children: ReactNode; href: string }) => (
     <a href={href} {...props}>
       {children}
@@ -46,6 +48,29 @@ it("restores directory filters and carries them to the detail page", () => {
     "/corporate/teams/mobile?query=Mobile",
   );
   expect(screen.getByRole("link", { name: /legacy/ })).toBeVisible();
+});
+
+it("shows bounded server pagination and keeps page size in the URL", () => {
+  render(
+    <CorporateDirectory
+      resource="teams"
+      items={[{ id: "team-1", name: "Team one" }]}
+      organizationId="organization_fixture"
+      authorizationRevision={1}
+      csrfToken="fixture"
+      canCreate={false}
+      roles={[]}
+      serverPaginated
+      pageNumber={1}
+      pageSize={10}
+      total={18}
+      paginationLabel="Pagination"
+    />,
+  );
+  expect(screen.getByLabelText("Pagination")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "2" })).toHaveAttribute("href", "?page=2");
+  fireEvent.change(screen.getByLabelText("pageSize"), { target: { value: "24" } });
+  expect(push).toHaveBeenCalledWith("/?page_size=24&page=1");
 });
 
 it("restores visible rows on history navigation and preserves router history state", () => {

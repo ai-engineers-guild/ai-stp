@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_stp_cli.commands import registry as registry_commands
+from ai_stp_cli.application import catalog as registry_commands
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import store_ports
 from ai_stp_cli.local.database import configured_path, open_registry, transaction

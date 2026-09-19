@@ -14,6 +14,13 @@ They do not publish. They do not change `author_verified` or
 `component_verified`. Quality hints are optional and mechanical. The
 developer and device passports are a different group: [Passports](passport.md).
 
+Everyday registration is the `author` intent. Passport leaves below stay
+expert recovery.
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
 ## Command table
 
 | Command | Mutability | Confirmation | When |
@@ -115,6 +122,14 @@ publication.
 
 ## Happy path
 
+Everyday:
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery:
+
 ```text
 component adopt --path <exact>
 → component passport show --id <stable_id>
@@ -163,12 +178,13 @@ a success. The blockers are data.
 - [Trust and safety](../trust-and-safety/index.md)
 - [Security checks](../security-checks.md)
 
-## Machine help is the parser
+## Flags come from continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
-This page groups passport commands so a person can find them. The installed
-CLI is the source of flags, schemas, and `next_actions`. If this page and
+Do not dump `help --agent` as a prelude. Flags for a running task come from continuation `argv`.
+
+This page groups passport commands so a person can find them. If this page and
 the CLI disagree, follow the CLI.

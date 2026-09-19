@@ -442,6 +442,7 @@ export {
   type CorporateJobTitleUpdateRequest,
   type CorporateJobTitleView,
   type CorporateMember,
+  type CorporateMemberCatalogAssignment,
   type CorporateMemberCreateRequest,
   type CorporateMemberList,
   type CorporateMemberProfileRequest,

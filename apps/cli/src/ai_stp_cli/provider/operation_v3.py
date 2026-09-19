@@ -159,6 +159,7 @@ def plan_operation_arguments(
     target_scope: str = "global",
     accepted_request_fields: frozenset[str] = frozenset(),
     capture_mode: str | None = None,
+    instruction_section: str | None = None,
 ) -> tuple[str, ...]:
     """Build the `plan-operation` argv once, for every caller that needs one.
 
@@ -218,6 +219,16 @@ def plan_operation_arguments(
         if "capture_mode" not in accepted_request_fields:
             raise _refused("this provider does not declare complete native capture")
         arguments = (*arguments, "--capture-mode", capture_mode)
+    if instruction_section is not None:
+        if operation is not protocol_v3.Operation.PATCH_INSTRUCTION_REGION:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "only patch_instruction_region takes an instruction section",
+                details={"operation": operation.value},
+            )
+        if "instruction_section" not in accepted_request_fields:
+            raise _refused("this provider does not declare instruction section")
+        arguments = (*arguments, "--instruction-section", instruction_section)
     if permission_profile is not None:
         arguments = (*arguments, "--permission-profile", permission_profile)
     if bundle is not None:
@@ -354,7 +365,11 @@ def require_native_capture(
         if capture_mode is not None:
             raise _refused("the provider omitted the requested complete native capture")
         return
-    if operation in SOFTWARE_OPERATIONS or operation is protocol_v3.Operation.LAUNCH:
+    if (
+        operation in SOFTWARE_OPERATIONS
+        or operation is protocol_v3.Operation.LAUNCH
+        or operation is protocol_v3.Operation.PATCH_INSTRUCTION_REGION
+    ):
         raise _refused("this operation cannot bind complete native preservation")
     if not isinstance(native, dict) or set(native) - {"base_root"} != {
         "roots",

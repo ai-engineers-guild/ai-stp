@@ -13,12 +13,22 @@ and generated output must never enter a passport.
 A published version is immutable `X.Y`, not SemVer. Changing bytes means a
 new version.
 
-## Scaffold
+Everyday:
+
+```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+The scaffold / adopt / validate / release leaves below are expert recovery.
+
+## Expert recovery: scaffold
 
 Preview every file and digest, then apply the same inputs with the exact
 plan digest. The destination must not already exist.
 
-```bash
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type skill \
   --language none \
@@ -87,15 +97,13 @@ refuses a draft. Compose records SQLite. Compose is not install.
 The scaffold passport is a local patch: no invented source, no secrets, no
 permission to redistribute (`NOASSERTION` until you review a license).
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport show --id <stable_id> --json
-ai-stp component passport suggest --id <stable_id> --json
-ai-stp component passport update --id <stable_id> --expected-revision <rev> --from <patch.json> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component passport quality --id <stable_id> --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type discover / adopt / passport leaves. The engine registers the tree.
 
 `validate` lists every structural blocker to publishing. `quality` is optional
 authoring hints; it does not change trust or readiness.
@@ -154,12 +162,14 @@ installs the CLI's own Agent Skill.
 
 ## From a native tree you already have
 
-If the component already lives in a harness layout:
+If the component already lives in a harness layout, start the `author`
+intent. Discover and adopt below stay expert recovery:
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <exact source_path from the finding> --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover` or `component adopt`.
 
 Adoption accepts only a path discovery already named. A directory must carry
 a closed-set manifest (`SKILL.md`, `AGENTS.md`, `plugin.json`,

@@ -158,12 +158,13 @@ Eval permissions — это заявленная posture профиля. Это 
 - [Trust and safety](../trust-and-safety/index.md)
 - [Command map](commands.md)
 
-## Machine help — источник парсера
+## Флаги берутся из continuation argv
 
 ```bash
-ai-stp help --agent --json
+ai-stp task intents --json
 ```
 
+Не дампьте `help --agent` как прелюдию. Флаги текущей задачи — в continuation `argv`.
+
 Эта страница группирует команды eval, чтобы человек мог их найти.
-Установленный CLI — источник флагов, схем и `next_actions`. Если эта
-страница и CLI расходятся, следуйте CLI.
+Если эта страница и CLI расходятся, следуйте CLI.

@@ -280,7 +280,7 @@ def test_resume_never_offers_to_apply_again() -> None:
     import inspect
     import textwrap
 
-    from ai_stp_cli.commands import install as install_commands
+    from ai_stp_cli.application import install as install_commands
 
     # The commands it *invokes*, not the words in its prose. A text search finds
     # `apply-operation` in the docstring that exists to say it is never called,

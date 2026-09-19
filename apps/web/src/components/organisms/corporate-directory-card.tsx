@@ -1,10 +1,8 @@
 "use client";
 
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { toast } from "sonner";
-
 import { Badge } from "@/components/atoms/badge";
-import { Button } from "@/components/atoms/button";
+import { EntityDetailMenu } from "@/components/organisms/entity-detail-menu";
+import { ObjectCard } from "@/components/organisms/object-card";
 import { Link } from "@/lib/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "@/theme";
@@ -20,6 +18,7 @@ import {
 type Labels = {
   lead: string;
   ownerTeam: string;
+  operationalOwner: string;
   teams: string;
   projects: string;
   technologies: string;
@@ -30,11 +29,16 @@ type Labels = {
   owner: string;
   type: string;
   moreActions: string;
+  openDetails?: string;
+  edit?: string;
+  editPresentation?: string;
   unknownEmployee: string;
   notAvailable: string;
   copyId?: string;
-  copyUrl?: string;
-  copied?: string;
+  share?: string;
+  report?: string;
+  publicVisibility?: string;
+  privateVisibility?: string;
 };
 
 const resourceIcons: Record<Exclude<DirectoryResource, "components">, IconName> = {
@@ -129,6 +133,7 @@ function RelationColumn({
   references: readonly DirectoryRef[];
   returnFilters: string;
 }) {
+  if (!references.length) return null;
   return (
     <div className="border-border min-w-0 space-y-1 border-l pl-4 first:border-l-0 first:pl-0">
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -136,13 +141,9 @@ function RelationColumn({
         <span>{label}</span>
       </div>
       <div className="flex min-w-0 flex-wrap gap-2">
-        {references.length ? (
-          references.map((reference) => (
-            <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
-          ))
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        )}
+        {references.map((reference) => (
+          <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
+        ))}
       </div>
     </div>
   );
@@ -174,7 +175,7 @@ function CardFooter({
   returnFilters: string;
 }) {
   const footer = footerReferences(resource, item);
-  if (!footer) return null;
+  if (!footer || !footer.refs.length) return null;
   return (
     <div className="border-border mt-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t pt-4">
       <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
@@ -182,66 +183,57 @@ function CardFooter({
         <span>{labels[footer.label as keyof Labels]}</span>
       </div>
       <div className="flex min-w-0 flex-wrap justify-end gap-2">
-        {footer.refs.length ? (
-          footer.refs.map((reference) => (
-            <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
-          ))
-        ) : (
-          <span className="text-muted-foreground text-sm">{labels.notAvailable}</span>
-        )}
+        {footer.refs.map((reference) => (
+          <ReferenceChip key={reference.id} reference={reference} returnFilters={returnFilters} />
+        ))}
       </div>
     </div>
   );
 }
 
 function DirectoryActions({
+  resource,
   item,
   href,
   labels,
 }: {
+  resource: DirectoryResource;
   item: DirectoryItem;
   href: string;
   labels: Labels;
 }) {
-  async function copy(value: string) {
-    await navigator.clipboard.writeText(value);
-    toast.success(labels.copied ?? "Copied");
-  }
+  const actionKind =
+    resource === "members"
+      ? "member"
+      : resource === "teams"
+        ? "team"
+        : resource === "projects"
+          ? "project"
+          : resource === "technologies"
+            ? "technology"
+            : null;
+  const canUpdate = actionKind
+    ? item.available_actions?.includes(`${actionKind}.update`) === true
+    : false;
+  const canEditPresentation = item.available_actions?.includes("entity_profile.update") === true;
+  const baseHref = href.replace(/([?#].*)?$/, "");
+  const presentationHref = `${baseHref}/edit${href.includes("?") ? href.slice(href.indexOf("?")) : ""}`;
   return (
-    <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger asChild>
-        <Button variant="ghost" size="icon" aria-label={labels.moreActions}>
-          <Icon name="moreVertical" size="sm" />
-        </Button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={4}
-          className="border-border bg-popover text-popover-foreground z-50 min-w-48 rounded-lg border p-1 shadow-md"
-        >
-          <DropdownMenu.Item
-            className="hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
-            onSelect={() => {
-              const locale = window.location.pathname.match(/^\/(en|ru)(?=\/|$)/)?.[1] ?? "ru";
-              void copy(`${window.location.origin}/${locale}${href}`);
-            }}
-          >
-            <Icon name="link" size="sm" />
-            {labels.copyUrl ?? "Copy URL"}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className="hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
-            onSelect={() => {
-              void copy(item.id);
-            }}
-          >
-            <Icon name="copy" size="sm" />
-            {labels.copyId ?? "Copy ID"}
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <EntityDetailMenu
+      moreLabel={labels.moreActions}
+      openLabel={labels.openDetails}
+      openHref={href}
+      editLabel={labels.edit}
+      editHref={canUpdate ? href : undefined}
+      editPresentationLabel={labels.editPresentation}
+      editPresentationHref={canEditPresentation ? presentationHref : undefined}
+      entityId={item.id}
+      shareHref={baseHref}
+      copyIdLabel={labels.copyId}
+      shareLabel={labels.share}
+      reportLabel={labels.report}
+      reportTarget={`corporate:${resource}:${item.id}`}
+    />
   );
 }
 
@@ -250,6 +242,7 @@ export function CorporateDirectoryCard({
   item,
   labels,
   returnFilters,
+  view,
 }: {
   resource: DirectoryResource;
   item: DirectoryItem;
@@ -258,6 +251,27 @@ export function CorporateDirectoryCard({
   view: "list" | "cards";
 }) {
   const href = directoryHref(resource, item.id, returnFilters);
+  if (resource === "components" && item.catalog_item) {
+    return (
+      <li className="min-w-0">
+        <ObjectCard
+          kind="component"
+          item={item.catalog_item}
+          href={href}
+          view={view}
+          labels={{
+            harness: "",
+            tags: labels.categories,
+            type: labels.type,
+            componentKind: labels.type,
+            moreActions: labels.moreActions,
+            publicVisibility: labels.publicVisibility ?? "Public",
+            privateVisibility: labels.privateVisibility ?? "Private",
+          }}
+        />
+      </li>
+    );
+  }
   const title = item.name || (resource === "members" ? labels.unknownEmployee : item.name);
   const references = primaryReferences(resource, item);
   const technologyRelations =
@@ -265,7 +279,7 @@ export function CorporateDirectoryCard({
       <div className="border-border mt-5 grid min-w-0 gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-4">
         <RelationColumn
           icon="user"
-          label={labels.owner}
+          label={labels.operationalOwner}
           references={item.owner ? [item.owner] : []}
           returnFilters={returnFilters}
         />
@@ -347,7 +361,7 @@ export function CorporateDirectoryCard({
           </div>
         </div>
         <div className="absolute top-5 right-5 flex items-center gap-3">
-          <DirectoryActions item={item} href={href} labels={labels} />
+          <DirectoryActions resource={resource} item={item} href={href} labels={labels} />
         </div>
         <CardFooter resource={resource} item={item} labels={labels} returnFilters={returnFilters} />
       </article>

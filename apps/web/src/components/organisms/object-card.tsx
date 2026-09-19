@@ -267,6 +267,7 @@ export function ObjectCard({
         item={owner}
         href={href}
         actions={ownerActions}
+        view={view}
         publicLabel={labels.publicVisibility}
         privateLabel={labels.privateVisibility}
       />
@@ -466,12 +467,14 @@ function OwnerFallbackCard({
   item,
   href,
   actions,
+  view,
   publicLabel,
   privateLabel,
 }: {
   item: OwnerObjectSummary;
   href: string;
   actions: ReactNode;
+  view: "cards" | "list";
   publicLabel?: string | undefined;
   privateLabel?: string | undefined;
 }) {
@@ -479,10 +482,22 @@ function OwnerFallbackCard({
     <article
       data-ui={UI.catalog.card}
       data-kind={item.object_kind}
-      data-view="cards"
-      className="bg-card group border-border hover:bg-muted/30 relative flex h-full min-w-0 flex-col gap-3 overflow-x-hidden rounded-lg border p-4 shadow-sm transition-colors"
+      data-view={view}
+      className={cn(
+        "group relative min-w-0 overflow-x-hidden transition-colors",
+        view === "list"
+          ? "bg-background hover:bg-muted/35 px-4 py-3"
+          : "bg-card border-border hover:bg-muted/30 flex h-full flex-col gap-3 rounded-lg border p-4 shadow-sm",
+      )}
     >
-      <div className="flex min-w-0 items-start gap-3 pr-16">
+      <div
+        className={cn(
+          "min-w-0 items-start gap-3",
+          view === "list"
+            ? "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center md:grid-cols-[auto_minmax(0,1fr)_auto]"
+            : "flex pr-16",
+        )}
+      >
         <span
           className="bg-muted border-border text-foreground inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border"
           aria-hidden="true"
@@ -503,14 +518,14 @@ function OwnerFallbackCard({
             </Link>
           </h2>
           <p className="text-muted-foreground mt-1 font-mono text-xs break-all">{item.stable_id}</p>
+          {item.latest_version ? (
+            <span className="text-muted-foreground mt-1 block font-mono text-xs">
+              {item.latest_version}
+            </span>
+          ) : null}
         </div>
+        <div className="relative z-20">{actions}</div>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        {item.latest_version ? (
-          <span className="font-mono text-xs">{item.latest_version}</span>
-        ) : null}
-      </div>
-      <div className="relative z-20">{actions}</div>
       <VisibilityLabel
         className="absolute top-0 right-4 z-20"
         visibility={item.visibility}

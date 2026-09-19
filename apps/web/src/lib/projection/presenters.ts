@@ -9,7 +9,7 @@ import {
   type MachineBlock,
   type MachineDocument,
 } from "@/lib/projection/machine-document";
-import { registryCommand } from "@/lib/cli-copy";
+import { INITIALIZE_START, installStart, login, registryCommand } from "@/lib/cli-copy";
 import type { SetupVersionPassport } from "@/lib/api/generated/types.gen";
 import type { PublicObjectFacts } from "@/lib/projection/page-facts";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
@@ -103,6 +103,11 @@ function yesNo(value: boolean, labels: Labels): string {
   return value ? labels.yes : labels.no;
 }
 
+function catalogCliBlocks(inspect: string, labels: Labels): MachineBlock[] {
+  const install = installStart();
+  return [field(labels.install, install), code(install), field("inspect", inspect), code(inspect)];
+}
+
 export function presentLanding(input: {
   title: string;
   subtitle: string;
@@ -119,6 +124,8 @@ export function presentLanding(input: {
     link("Documentation", input.docsHref ?? "/docs"),
     heading(2, input.installHeading),
     code(input.installCommand),
+    field("initialize", INITIALIZE_START),
+    code(INITIALIZE_START),
   ];
   if (input.signIn) {
     doc.push(link(input.signIn, "/login"));
@@ -143,6 +150,8 @@ export function presentCatalog(input: {
   for (const [name, value] of input.queryFields ?? []) {
     doc.push(field(name, value));
   }
+  const install = installStart();
+  doc.push(field(input.labels.install, install), code(install));
 
   if (input.components.length === 0 && input.setups.length === 0) {
     if (input.emptyMessage) {
@@ -229,7 +238,7 @@ export function presentSetupDetail(input: {
   services?: string[];
 }): MachineDocument {
   const { summary, passportDigest, labels } = input;
-  const install = registryCommand(summary.stable_id, summary.latest_version);
+  const inspect = registryCommand(summary.stable_id, summary.latest_version);
   return [
     heading(1, `${summary.latest_name}@${summary.latest_version}`),
     paragraph(summary.latest_description),
@@ -257,9 +266,8 @@ export function presentSetupDetail(input: {
       : []),
     ...(input.countryCodes?.length ? [field("countries", input.countryCodes.join(", "))] : []),
     ...(input.services?.length ? [field("services", input.services.join(", "))] : []),
-    field(labels.install, install),
+    ...catalogCliBlocks(inspect, labels),
     ...usageMachineFields(summary.usage_metrics, labels),
-    code(install),
   ];
 }
 
@@ -320,7 +328,7 @@ function presentComponentObject(
       );
     }
   }
-  doc.push(field(labels.install, facts.install), code(facts.install));
+  doc.push(...catalogCliBlocks(facts.inspect, labels));
   return doc;
 }
 
@@ -411,7 +419,7 @@ export function presentSetupVersion(input: {
   labels: Labels;
   usage?: { detail_views_count: number; artifact_downloads_count: number } | null;
 }): MachineDocument {
-  const install = registryCommand(input.stableId, input.version);
+  const inspect = registryCommand(input.stableId, input.version);
   return [
     heading(1, `${input.name}@${input.version}`),
     paragraph(input.description),
@@ -431,8 +439,7 @@ export function presentSetupVersion(input: {
     field(input.labels.publisher ?? "publisher", input.ownerId),
     ...(input.tags.length ? [field(input.labels.tags ?? "tags", input.tags.join(", "))] : []),
     ...usageMachineFields(input.usage, input.labels),
-    field(input.labels.install, install),
-    code(install),
+    ...catalogCliBlocks(inspect, input.labels),
   ];
 }
 
@@ -578,6 +585,7 @@ export function presentPage(input: {
   title: string;
   summary?: string;
   fields?: readonly (readonly [string, string])[];
+  codes?: readonly string[];
   entries?: readonly MachineEntry[];
   sections?: readonly { heading: string; entries?: readonly MachineEntry[]; text?: string }[];
   links?: readonly (readonly [string, string])[];
@@ -586,6 +594,7 @@ export function presentPage(input: {
   const doc: MachineDocument = [heading(1, input.title)];
   if (input.summary) doc.push(paragraph(input.summary));
   for (const [name, value] of input.fields ?? []) doc.push(field(name, value));
+  for (const held of input.codes ?? []) doc.push(code(held));
 
   const pushEntries = (entries: readonly MachineEntry[]) => {
     for (const entry of entries) {
@@ -607,4 +616,20 @@ export function presentPage(input: {
 
   for (const [text, href] of input.links ?? []) doc.push(link(text, href));
   return doc;
+}
+
+/** Signed-out login and device-login documents: everyday account start (REQ-3627). */
+export function presentSignedOutAccount(input: {
+  title: string;
+  summary: string;
+  links: readonly (readonly [string, string])[];
+}): MachineDocument {
+  const held = login("github");
+  return presentPage({
+    title: input.title,
+    summary: input.summary,
+    fields: [["account", held]],
+    codes: [held],
+    links: input.links,
+  });
 }

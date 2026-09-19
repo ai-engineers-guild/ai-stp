@@ -13,11 +13,18 @@ description: "Создать, показать, проверить и измен
 чтение. `config init`, `config set` и `config unset` — apply. Ни одна
 из них не destructive.
 
+Повседневная первая запись catalogued instruction surface — intent
+`initialize`. `config init` ниже — expert recovery.
+
+```bash
+ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
+```
+
 ## Команды
 
 | Команда | Mutability | Confirmation | Когда |
 | --- | --- | --- | --- |
-| `ai-stp config init` | `apply` | `none` | создать файл конфигурации, если его нет, и в любом случае провалидировать |
+| config init | `apply` | `none` | создать файл конфигурации, если его нет, и в любом случае провалидировать |
 | `ai-stp config set` | `apply` | `none` | записать заявленные значения в файл конфигурации |
 | `ai-stp config unset` | `apply` | `none` | убрать заявленные значения, чтобы снова действовали значения по умолчанию |
 | `ai-stp config validate` | `read` | `none` | прочитать файл конфигурации и отказать, если его нельзя соблюсти |
@@ -31,16 +38,17 @@ description: "Создать, показать, проверить и измен
 ## Типичный путь
 
 ```bash
+ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json
+```
+
+Expert recovery (`config init` идемпотентен: если файл уже есть, команда
+проверяет его, а не заменяет):
+
+```text
 ai-stp config init --json
 ai-stp config show --json
 ai-stp config validate --json
 ```
-
-`config init` идемпотентен: если файл уже есть, команда проверяет его,
-а не заменяет. У каждого поля есть значение по умолчанию, поэтому
-файл *не обязан* существовать. Создавайте его, когда собираетесь
-менять значение или когда нужен файл на диске, на который укажет
-`doctor`.
 
 Чтобы изменить объявленное поле и увидеть, что источник теперь файл:
 
@@ -94,7 +102,7 @@ ai-stp config show --json
 
 Создать файл конфигурации, если его нет, и в любом случае провалидировать.
 
-```bash
+```text
 ai-stp config init --json
 ```
 

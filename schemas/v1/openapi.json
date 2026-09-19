@@ -3911,15 +3911,26 @@
         "type": "object"
       },
       "Continuation": {
-        "additionalProperties": false,
-        "description": "One next step with bound values, and the names still missing.\n\n``next_actions`` remains the argv an older caller runs. This object is the\ncanonical form: a path this build declares, arguments already known, and\n``missing`` for anything the caller must still supply. A command that still\nhas holes is not emitted as runnable-looking argv.",
+        "additionalProperties": true,
+        "description": "One next step with bound values, and the names still missing.\n\n``argv`` is the execution form. ``continuation_command`` is a quoted display\nstring and is never eval input. ``next_actions`` remains that display string\nfor older callers.",
         "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/ContinuationActor",
+            "default": "cli"
+          },
           "arguments": {
             "additionalProperties": {
-              "type": "string"
+              "$ref": "#/components/schemas/pydantic__types__JsonValue"
             },
             "title": "Arguments",
             "type": "object"
+          },
+          "argv": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Argv",
+            "type": "array"
           },
           "kind": {
             "enum": [
@@ -3954,6 +3965,15 @@
         ],
         "title": "Continuation",
         "type": "object"
+      },
+      "ContinuationActor": {
+        "enum": [
+          "human",
+          "agent",
+          "cli",
+          "external"
+        ],
+        "type": "string"
       },
       "CorporateAuditEntry": {
         "additionalProperties": true,
@@ -6627,6 +6647,34 @@
         "title": "CorporateMember",
         "type": "object"
       },
+      "CorporateMemberCatalogAssignment": {
+        "additionalProperties": false,
+        "properties": {
+          "object_kind": {
+            "const": "component",
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_kind",
+          "stable_id",
+          "version"
+        ],
+        "title": "CorporateMemberCatalogAssignment",
+        "type": "object"
+      },
       "CorporateMemberCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -6647,6 +6695,15 @@
             "minimum": 1,
             "title": "Authorization Revision",
             "type": "integer"
+          },
+          "catalog_assignments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateMemberCatalogAssignment"
+            },
+            "maxItems": 64,
+            "title": "Catalog Assignments",
+            "type": "array"
           },
           "display_name": {
             "maxLength": 80,
@@ -6683,6 +6740,15 @@
             ],
             "default": null,
             "title": "Job Title Id"
+          },
+          "project_ids": {
+            "items": {
+              "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Project Ids",
+            "type": "array"
           },
           "role": {
             "description": "Tenant-local role name.",
@@ -21821,6 +21887,19 @@
             "title": "Organization Id",
             "type": "string"
           },
+          "owner_account_id": {
+            "anyOf": [
+              {
+                "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Owner Account Id"
+          },
           "provenance": {
             "maxLength": 256,
             "title": "Provenance",
@@ -21875,6 +21954,7 @@
           "name",
           "official_urls",
           "organization_id",
+          "owner_account_id",
           "provenance",
           "redirect_id",
           "restore_lifecycle",
@@ -49324,6 +49404,7 @@
                           "name": "Bun",
                           "official_urls": [],
                           "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "owner_account_id": null,
                           "provenance": "manual",
                           "redirect_id": null,
                           "restore_lifecycle": "draft",
@@ -49567,6 +49648,7 @@
                       "name": "Bun",
                       "official_urls": [],
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": null,
                       "provenance": "manual",
                       "redirect_id": null,
                       "restore_lifecycle": "draft",
@@ -49784,6 +49866,7 @@
                       "name": "Bun",
                       "official_urls": [],
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": null,
                       "provenance": "manual",
                       "redirect_id": null,
                       "restore_lifecycle": "draft",
@@ -50034,6 +50117,7 @@
                       "name": "Bun",
                       "official_urls": [],
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": null,
                       "provenance": "manual",
                       "redirect_id": null,
                       "restore_lifecycle": "draft",
@@ -51153,6 +51237,7 @@
                       "name": "Bun",
                       "official_urls": [],
                       "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "owner_account_id": null,
                       "provenance": "manual",
                       "redirect_id": null,
                       "restore_lifecycle": "draft",
@@ -51412,6 +51497,7 @@
                         "name": "Bun",
                         "official_urls": [],
                         "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "owner_account_id": null,
                         "provenance": "manual",
                         "redirect_id": "technology_00000000000000000000000002",
                         "restore_lifecycle": "active",
@@ -51433,6 +51519,7 @@
                         "name": "npm CLI",
                         "official_urls": [],
                         "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "owner_account_id": null,
                         "provenance": "manual",
                         "redirect_id": null,
                         "restore_lifecycle": "draft",
@@ -51667,6 +51754,7 @@
                         "name": "Bun",
                         "official_urls": [],
                         "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "owner_account_id": null,
                         "provenance": "manual",
                         "redirect_id": null,
                         "restore_lifecycle": "draft",
@@ -51685,6 +51773,7 @@
                         "name": "npm CLI",
                         "official_urls": [],
                         "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "owner_account_id": null,
                         "provenance": "manual",
                         "redirect_id": null,
                         "restore_lifecycle": "draft",
@@ -54578,6 +54667,7 @@
                             "name": "Bun",
                             "official_urls": [],
                             "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                            "owner_account_id": null,
                             "provenance": "manual",
                             "redirect_id": null,
                             "restore_lifecycle": "draft",
@@ -54664,6 +54754,7 @@
                             "name": "Bun",
                             "official_urls": [],
                             "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                            "owner_account_id": null,
                             "provenance": "manual",
                             "redirect_id": null,
                             "restore_lifecycle": "draft",
@@ -54744,6 +54835,7 @@
                             "name": "Bun",
                             "official_urls": [],
                             "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                            "owner_account_id": null,
                             "provenance": "manual",
                             "redirect_id": null,
                             "restore_lifecycle": "draft",
@@ -54824,6 +54916,7 @@
                             "name": "Bun",
                             "official_urls": [],
                             "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                            "owner_account_id": null,
                             "provenance": "manual",
                             "redirect_id": null,
                             "restore_lifecycle": "draft",

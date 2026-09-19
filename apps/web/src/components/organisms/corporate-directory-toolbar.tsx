@@ -8,6 +8,7 @@ import { Input } from "@/components/atoms/input";
 import { SearchableMultiSelect } from "@/components/molecules/searchable-multi-select";
 import { RefineSurface } from "@/components/molecules/filter-surface";
 import { cn } from "@/lib/cn";
+import { Link } from "@/lib/i18n/navigation";
 import { Icon } from "@/theme";
 import {
   directoryFacetParams,
@@ -45,6 +46,7 @@ type Props = {
   cancelLabel?: string | undefined;
   adding?: boolean | undefined;
   onAdd?: (() => void) | undefined;
+  addHref?: string | undefined;
   facets?: CorporateDirectoryFacets;
 };
 
@@ -131,6 +133,7 @@ export function CorporateDirectoryToolbar({
   cancelLabel,
   adding = false,
   onAdd,
+  addHref,
   facets,
 }: Props) {
   const t = useTranslations("hub");
@@ -218,7 +221,16 @@ export function CorporateDirectoryToolbar({
         >
           <Icon name="sort" size="sm" />
         </Button>
-        {onAdd && addLabel ? (
+        {addHref && addLabel ? (
+          <Button asChild size="lg">
+            <Link href={addHref}>
+              <span aria-hidden="true" className="text-xl leading-none">
+                +
+              </span>
+              {addLabel}
+            </Link>
+          </Button>
+        ) : onAdd && addLabel ? (
           <Button type="button" size="lg" onClick={onAdd}>
             <span aria-hidden="true" className="text-xl leading-none">
               {adding ? "×" : "+"}

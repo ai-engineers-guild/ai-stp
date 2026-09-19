@@ -77,9 +77,14 @@ Confirm только human.
 ## Совпадающие команды CLI
 
 ```bash
-ai-stp publication plan --json
-ai-stp publication status --json
-ai-stp publication confirm --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
+```
+
+Expert leaves, если план уже построен (status/confirm на этой странице):
+
+```text
+ai-stp publication status --plan-id <plan_id> --json
+ai-stp publication confirm --plan-id <plan_id> --plan-hash <plan_hash> --confirm --json
 ai-stp attestation sign --json
 ai-stp owner version show --json
 ai-stp link web --json
@@ -92,9 +97,9 @@ ai-stp link web --json
 `explicit_flag`) подписывает тестовые данные, зависящие от учётных
 данных, **активным ключом устройства** — в браузере этого нет.
 
-Публикация сетапа — другая пара:
+Expert leaves публикации сетапа (просмотренный набор pin, затем сетап):
 
-```bash
+```text
 ai-stp setup publish plan --json
 ai-stp setup publish confirm --json
 ```
@@ -108,8 +113,8 @@ ai-stp setup publish confirm --json
 | --- | --- | --- |
 | План публикации не найден или недоступен. | плохой id или не ваше | начните с Objects или `publication status` |
 | Подтверждение недоступно | state ≠ `ready` или нет CSRF | подождите / обновите; перелогиньтесь, если нет CSRF |
-| Plan expired | `expires_at` прошёл | создайте новый план в CLI |
-| Начать публикацию нет на Objects | нет устройства или не разрешено | привяжите CLI-устройство; `publication plan` |
+| Plan expired | `expires_at` прошёл | start `publish` |
+| Начать публикацию нет на Objects | нет устройства или не разрешено | привяжите CLI-устройство; start `publish` |
 | Evidence пустой | нет дополнительных строк | всё равно читайте дайджест и хеш |
 | Хотите поменять файл | для этого хеша уже поздно | новая версия, новый план |
 | Browser «build» | не существует | только CLI |

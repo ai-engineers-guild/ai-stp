@@ -9,6 +9,7 @@ import httpx
 import pytest
 from tests.support.private_distribution import component_version, setup_version
 
+from ai_stp_cli.application import catalog as catalog_service
 from ai_stp_cli.cloud import catalog, private_access, session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.commands import component, registry, setup_compose, setup_publication
@@ -74,6 +75,7 @@ def test_private_graph_acquires_compiles_forks_and_retains_bytes_after_revocatio
     endpoint = Endpoint(
         "https://private.test", max_attempts=1, transport=httpx.MockTransport(serve)
     )
+    monkeypatch.setattr(catalog_service, "endpoint", lambda: endpoint)
     monkeypatch.setattr(registry, "endpoint", lambda: endpoint)
     monkeypatch.setattr(setup_publication, "endpoint", lambda: endpoint)
     with pytest.raises(CliFailure) as public_only:

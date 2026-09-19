@@ -11,6 +11,7 @@ import {
   CatalogFilterPanel,
   type CatalogFilterPanelLabels,
 } from "@/components/organisms/catalog-filter-panel";
+import type { CorporateCatalogFacetConfig } from "@/components/organisms/corporate-directory-types";
 import { CatalogSearchForm } from "@/components/organisms/catalog-search-form";
 import {
   appliedFilterChips,
@@ -61,7 +62,9 @@ type CatalogFiltersProps = {
     updatedTo?: string;
     clearUpdatedRange?: string;
     resourceBoth?: string;
+    corporateFilters?: string;
   };
+  corporateFacets?: readonly CorporateCatalogFacetConfig[];
 };
 
 const FILTER_QUERY_KEYS = new Set([
@@ -87,6 +90,14 @@ const FILTER_QUERY_KEYS = new Set([
   "country_codes",
   "updated_from",
   "updated_to",
+  "team_ids",
+  "project_ids",
+  "technology_ids",
+  "category_ids",
+  "owner_ids",
+  "maintainer_ids",
+  "assignment",
+  "corporate_verified",
 ]);
 
 function hrefFor(query: ParsedCatalogQuery, basePath = "/catalog") {
@@ -105,6 +116,7 @@ export function CatalogFilters({
   hideSearch = false,
   hideAuthorFilter = false,
   fixedAuthors = [],
+  corporateFacets = [],
 }: CatalogFiltersProps) {
   const [searchOpen, setSearchOpen] = useState(!hideSearch && Boolean(query.q));
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -211,6 +223,7 @@ export function CatalogFilters({
               authors={authors}
               locale={locale}
               hideAuthorFilter={hideAuthorFilter}
+              corporateFacets={corporateFacets}
             />
             <div className="border-border bg-card sticky bottom-0 mt-6 flex flex-wrap items-center justify-between gap-3 border-t py-5">
               <button

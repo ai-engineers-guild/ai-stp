@@ -8,6 +8,7 @@ import {
   presentDocs,
   presentLanding,
   presentPlatformContext,
+  presentSignedOutAccount,
 } from "@/lib/projection/presenters";
 import {
   presentCountry,
@@ -36,7 +37,7 @@ const PRESENTER_PATHS = [
 
 const PRIVATE_PATHS = ["/account", "/devices", "/objects", "/access", "/reports"] as const;
 
-describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
+describe("machine presenters (REQ-3609, REQ-3610, REQ-3608, REQ-3627)", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
     vi.stubEnv("AI_STP_API_BASE_URL", "http://localhost:8000");
@@ -101,6 +102,9 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
     expect(text).toContain("trust_lane: authoritative");
     expect(text).toContain("author_verified: Yes");
     expect(text).toContain("component_verified: No");
+    expect(text).toContain(
+      "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    );
     expect(text).toContain("ai-stp registry version --kind component --id cmp_x --version 1.2");
     expect(text).not.toMatch(/<img|image\/|avatar/i);
   });
@@ -117,6 +121,10 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
         installHeading: "Install the CLI",
       }),
       "en",
+    );
+    expect(landing).toContain("uv tool install ai-stp-cli");
+    expect(landing).toContain(
+      "ai-stp task start --intent initialize --idempotency-key initialize-session-01 --json",
     );
     expect(body).toContain("local_owner_or_pinned");
     expect(body).toContain(platform.trim().slice(0, 40));
@@ -192,6 +200,9 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
     );
     expect(text).toContain("q: hook");
     expect(text).toContain("component_type: hook");
+    expect(text).toContain(
+      "ai-stp task start --intent install --idempotency-key install-session-01 --json",
+    );
   });
 
   it("nests documentation pages under section headings", () => {
@@ -226,5 +237,20 @@ describe("machine presenters (REQ-3609, REQ-3610, REQ-3608)", () => {
     expect(pairedPath("https://docs.example.test", "machine", "ru")).toBe(
       "https://docs.example.test",
     );
+  });
+
+  it("puts the account start on the generic login document", () => {
+    const text = machineDocumentToText(
+      presentSignedOutAccount({
+        title: "Sign in",
+        summary: "Use the CLI",
+        links: [["catalog", "/catalog"]],
+      }),
+      "en",
+    );
+    expect(text).toContain(
+      "ai-stp task start --intent account --idempotency-key account-session-01 --json",
+    );
+    expect(text).toContain("[catalog](/en/ai/catalog)");
   });
 });

@@ -66,7 +66,7 @@ project-conventions/
 └── AGENTS.md
 ```
 
-When you start from `ai_stp`, scaffold first. The authoring directory is
+When you start from `ai_stp`, start the `author` intent. Do not type `component scaffold plan`. The authoring directory is
 wider than the published package: `discover` / `adopt` transfer `source/`
 when portable and `projections/<harness>/` when a harness was selected,
 not the whole tree.
@@ -85,7 +85,15 @@ project-conventions/                 # component-scaffold/6
 `source/AGENTS.md` is the canon. Claude Code projections use `CLAUDE.md`;
 Cursor uses `rules/<name>.mdc`. Do not invent a second wrapper directory.
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type instruction \
   --language none \
@@ -123,7 +131,7 @@ exists only for [`skill`](skill.md).
   Discovery treats a project-root `AGENTS.md` as an instruction, not as
   kind `agent`.
 - Harness pages that declared a layout appear on each finding as
-  `layout_source` from `ai-stp component discover --json`. Show that
+  `layout_source` from the `author` intent envelope. Show that
   field when classification is uncertain; do not guess a neighbour's
   path.
 - Contrast with the [Agent Skills Specification](https://agentskills.io/specification)
@@ -137,7 +145,7 @@ harness UI happens to display. Those are content of this kind or of
 ## Native layouts per harness
 
 Discovery only reports layouts that are declared. Exact paths on a
-machine come from `ai-stp component discover --json`. Each finding
+machine come from the `author` intent envelope. Each finding
 carries `layout_source` — the official document that declared the
 layout. If classification is uncertain, show that field; do not guess a
 neighbour's path.
@@ -159,10 +167,13 @@ Inside a proven Cursor plugin, discovery reads `rules` and classifies
 each file as `instruction`. It does not invent instruction files from an
 adjacent directory.
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover`. The engine finds the native tree.
 
 If the same path answers to more than one harness, name `--harness` on
 adopt. Use `portable` for the shared cross-product claim.
@@ -227,26 +238,28 @@ ai-stp component passport validate --id <stable_id> --json
 **Author, adopt, publish:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
 If discovery reported the path under more than one harness or kind:
 
-```bash
+Expert recovery:
+
+```text
 ai-stp component adopt --path <source_path> --harness portable --kind instruction --json
 ```
 
-**Find, select, install:**
+**Install:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 An instruction can also be an embedded member of a compose manifest. See
@@ -301,15 +314,14 @@ An instruction can also be an embedded member of a compose manifest. See
 2. Write standing rules only. Move a procedure to a [`skill`](skill.md);
    move a named shortcut to a [`command`](command.md).
 3. Declare what the text asks of the agent in the passport. No secrets.
-4. Run `ai-stp component discover --root . --json` and read
-   `layout_source` on the finding.
-5. `component adopt --path <exact source_path>` — add `--kind
-   instruction` if the path is claimed by more than one kind.
-6. Pin an exact public GitHub commit and subpath.
-7. `component passport validate` → `component version release` to mint
+4. Register the directory through
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` remain for recovery.
+5. Pin an exact public GitHub commit and subpath.
+6. `component passport validate` → `component version release` to mint
    immutable `X.Y`.
-8. Publish through [the publication path](../publishing/index.md).
-9. In a setup, pin that `X.Y`. Updating later is a new setup version.
+7. Publish through [the publication path](../publishing/index.md).
+8. In a setup, pin that `X.Y`. Updating later is a new setup version.
 
 Related: [Authoring](../publishing/authoring.md),
 [Components](index.md), [`agent`](agent.md), [`skill`](skill.md).

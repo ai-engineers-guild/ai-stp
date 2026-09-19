@@ -87,7 +87,15 @@ pre-tool-check/                    # component-scaffold/6
         └── handler.py
 ```
 
+Everyday:
+
 ```bash
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+```
+
+Expert recovery (already-held digest):
+
+```text
 ai-stp component scaffold plan \
   --type hook \
   --language python \
@@ -125,7 +133,7 @@ There is no independent hook specification comparable to the
 to [MCP](https://modelcontextprotocol.io). Each harness documents its
 own events.
 
-Cite `layout_source` from `ai-stp component discover --json` when
+Cite `layout_source` from the `author` intent envelope when
 classification is uncertain. Do not guess a neighbour's path, and do
 not treat an ordinary `src/hooks/useFoo.ts` or a business webhook as a
 harness hook — `unsupported` in the matrix does not become a filename
@@ -137,7 +145,7 @@ do not validate hooks.
 ## Native layouts per harness
 
 Discovery only reports layouts that are declared. Exact paths on a
-machine come from `ai-stp component discover --json`. Each finding
+machine come from the `author` intent envelope. Each finding
 carries `layout_source`. If classification is uncertain, show that
 field; do not guess a neighbour's path.
 
@@ -162,10 +170,13 @@ A Cursor pack is proven by `.cursor-plugin/plugin.json`. The walker
 does not create a hook finding from a neighbouring `hooks/` directory
 that the tree does not carry.
 
+Expert recovery — everyday authoring is the `author` intent:
+
 ```bash
-ai-stp component discover --root . --json
-ai-stp toolchain harness-capabilities --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
 ```
+
+Do not type `component discover`. The engine finds the native tree.
 
 ## Versions are `X.Y`, not SemVer
 
@@ -228,20 +239,20 @@ ai-stp component passport validate --id <stable_id> --json
 **Author, adopt, publish:**
 
 ```bash
-ai-stp component discover --root . --json
-ai-stp component adopt --path <source_path> --json
-ai-stp component passport validate --id <stable_id> --json
-ai-stp component version release --id <stable_id> --json
-ai-stp publication plan --id <stable_id> --version 1.0 --json
-ai-stp publication confirm --plan-id <id> --plan-hash <hash> --confirm --json
+ai-stp task start --intent author --idempotency-key author-session-01 --json
+ai-stp task start --intent publish --idempotency-key publish-session-01 --json
 ```
 
-**Find, select, install:**
+**Install:**
 
 ```bash
+ai-stp task start --intent install --idempotency-key install-session-01 --json
+```
+
+Expert catalog inspect:
+
+```text
 ai-stp registry search --kind component --query <name> --json
-ai-stp select eligibility --harness <id> --json
-ai-stp install plan --json
 ```
 
 A hook can also be an embedded member of a compose manifest. See
@@ -303,14 +314,14 @@ A hook can also be an embedded member of a compose manifest. See
    live under `projections/<harness>/`.
 3. Declare what the handler does, what it reads, and how to disable it
    in the passport. No secrets.
-4. Run `ai-stp component discover --root . --json` and read
-   `layout_source` on the finding.
-5. `component adopt --path <exact source_path>`.
-6. Pin an exact public GitHub commit and subpath.
-7. `component passport validate` → `component version release` to mint
+4. Register the directory through
+   `ai-stp task start --intent author --idempotency-key author-session-01 --json`.
+   Expert `component discover` / `component adopt` remain for recovery.
+5. Pin an exact public GitHub commit and subpath.
+6. `component passport validate` → `component version release` to mint
    immutable `X.Y`.
-8. Publish through [the publication path](../publishing/index.md).
-9. In a setup, pin that `X.Y`. Updating later is a new setup version.
+7. Publish through [the publication path](../publishing/index.md).
+8. In a setup, pin that `X.Y`. Updating later is a new setup version.
 
 Related: [Authoring](../publishing/authoring.md),
 [Components](index.md), [`command`](command.md), [`plugin`](plugin.md).

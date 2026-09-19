@@ -1,15 +1,26 @@
 {
   "$defs": {
     "Continuation": {
-      "additionalProperties": false,
-      "description": "One next step with bound values, and the names still missing.\n\n``next_actions`` remains the argv an older caller runs. This object is the\ncanonical form: a path this build declares, arguments already known, and\n``missing`` for anything the caller must still supply. A command that still\nhas holes is not emitted as runnable-looking argv.",
+      "additionalProperties": true,
+      "description": "One next step with bound values, and the names still missing.\n\n``argv`` is the execution form. ``continuation_command`` is a quoted display\nstring and is never eval input. ``next_actions`` remains that display string\nfor older callers.",
       "properties": {
+        "actor": {
+          "$ref": "#/$defs/ContinuationActor",
+          "default": "cli"
+        },
         "arguments": {
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/$defs/JsonValue"
           },
           "title": "Arguments",
           "type": "object"
+        },
+        "argv": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Argv",
+          "type": "array"
         },
         "kind": {
           "enum": [
@@ -44,6 +55,15 @@
       ],
       "title": "Continuation",
       "type": "object"
+    },
+    "ContinuationActor": {
+      "enum": [
+        "human",
+        "agent",
+        "cli",
+        "external"
+      ],
+      "type": "string"
     },
     "JsonValue": {},
     "OperationId": {

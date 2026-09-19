@@ -42,7 +42,7 @@ async function assertInstallCta(page: Page) {
   });
   await expect(heading).toBeVisible();
   const panel = heading.locator("xpath=ancestor::section[1]");
-  await expect(panel.locator("code")).toBeVisible();
+  await expect(panel.locator("code")).toContainText("task start --intent install");
   await expect(
     panel.getByRole("button", {
       name: /Copy|\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c/,

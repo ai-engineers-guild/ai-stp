@@ -3,9 +3,9 @@
 User intents: update ai-stp itself, PyPI wheel, CLI self-update, upgrade the
 installed `ai-stp` command.
 
-Resolve from machine help: `ai-stp update check`, `ai-stp update plan`,
-`ai-stp update apply`, `ai-stp update status`, `ai-stp update recover`,
-`ai-stp update rollback`.
+Resolve from machine help: `ai-stp update check` and `ai-stp update status`.
+Do not type `update plan` or `update apply`. Recover with
+`ai-stp update recover`. `ai-stp update rollback` stays expert.
 
 This family replaces the `ai-stp-cli` wheel through the installer that owns
 the installation. It does not update providers, harness programs, or setups.

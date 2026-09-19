@@ -842,7 +842,7 @@ def test_approved_index_release_rechecks_bound_provenance_before_apply(
     """The actual apply boundary accepts PEP 740 and refuses changed delivery evidence."""
     from contextlib import closing
 
-    from ai_stp_cli.commands import install
+    from ai_stp_cli.application import install
     from ai_stp_cli.local import installation
     from ai_stp_cli.local.database import configured_path, open_registry
     from ai_stp_cli.provider import build_attestation

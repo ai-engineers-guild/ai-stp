@@ -47,5 +47,4 @@ def _refused(message: str) -> CliFailure:
         "AI_STP_VALIDATION_ERROR",
         message,
         details={"contract": "deep_link_v1"},
-        next_actions=["help --agent --json"],
     )

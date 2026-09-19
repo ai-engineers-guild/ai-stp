@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
+from ai_stp_cli.cloud.client import login_actions, login_continuations
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.secrets import SecretStore, load_json, open_store, promote, store_json
 from ai_stp_contracts.machine_help import AuthStatus, SessionState
@@ -134,7 +135,8 @@ def load_pending(store: SecretStore) -> Pending | None:
             "AI_STP_VALIDATION_ERROR",
             "the pending sign-in record is unreadable",
             details={"exception": type(error).__name__},
-            next_actions=["auth login --provider google --json"],
+            next_actions=login_actions(),
+            continuations=login_continuations(),
         ) from error
 
 

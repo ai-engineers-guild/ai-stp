@@ -3278,6 +3278,24 @@ export type CorporateMember = {
 };
 
 /**
+ * CorporateMemberCatalogAssignment
+ */
+export type CorporateMemberCatalogAssignment = {
+  /**
+   * Object Kind
+   */
+  object_kind: "component";
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
+};
+
+/**
  * CorporateMemberCreateRequest
  */
 export type CorporateMemberCreateRequest = {
@@ -3289,6 +3307,10 @@ export type CorporateMemberCreateRequest = {
    * Authorization Revision
    */
   authorization_revision: number;
+  /**
+   * Catalog Assignments
+   */
+  catalog_assignments?: Array<CorporateMemberCatalogAssignment>;
   /**
    * Display Name
    */
@@ -3303,6 +3325,10 @@ export type CorporateMemberCreateRequest = {
    */
   job_title_id?: string | null;
   /**
+   * Project Ids
+   */
+  project_ids?: Array<string>;
+  /**
    * Role
    *
    * Tenant-local role name.
@@ -3315,7 +3341,7 @@ export type CorporateMemberCreateRequest = {
   /**
    * Team Ids
    */
-  team_ids?: Array<string>;
+  team_ids: Array<string>;
 };
 
 /**
@@ -11060,6 +11086,10 @@ export type TechnologyView = {
    * Organization Id
    */
   organization_id: string;
+  /**
+   * Owner Account Id
+   */
+  owner_account_id: string | null;
   /**
    * Provenance
    */
