@@ -142,9 +142,20 @@ async def test_job_titles_enforce_idempotency_revision_uniqueness_and_tenant_bou
     assert retired.status_code == 200, retired.text
     assert retired.json()["state"] == "retired"
     assert retired.json()["revision"] == 2
+    current_context = await client.get(
+        f"/v1/corporate/organizations/{organization_id}/context", headers=auth
+    )
+    assert current_context.status_code == 200, current_context.text
+    current_authorization_revision = current_context.json()["organization"][
+        "authorization_revision"
+    ]
     stale = await client.patch(
         f"{path}/{job_title_id}",
-        json={**update, "idempotency_key": "job-title-update-0002"},
+        json={
+            **update,
+            "authorization_revision": current_authorization_revision,
+            "idempotency_key": "job-title-update-0002",
+        },
         headers=auth,
     )
     assert stale.status_code == 409
@@ -515,7 +526,7 @@ async def test_corporate_core_lifecycle_and_tenant_boundary(
         f"/v1/corporate/organizations/{organization_id}/context", headers=staff_auth
     )
     assert staff_context.status_code == 200
-    assert [item["name"] for item in staff_context.json()["teams"]] == ["Platform"]
+    assert [item["name"] for item in staff_context.json()["teams"]] == ["Initial", "Platform"]
 
     membership_revision = staff_context.json()["organization"]["authorization_revision"]
     reassignment_payload = {

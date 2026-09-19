@@ -31,7 +31,7 @@ export function countAppliedFilters(query: ParsedCatalogQuery): number {
     query.categoryIds,
     query.ownerIds,
     query.maintainerIds,
-  ].reduce((total, values) => total + (Array.isArray(values) ? values.length : 0), 0);
+  ].reduce((total, values) => total + values.length, 0);
   if (query.assignment) n += 1;
   if (query.corporateVerified !== undefined) n += 1;
   if (!query.includeExperimental) n += 1;
@@ -227,14 +227,13 @@ export function appliedFilterChips(query: ParsedCatalogQuery): AppliedFilterChip
 }
 
 function appendCorporateChips(chips: AppliedFilterChip[], query: ParsedCatalogQuery) {
-  const list = <T>(values: readonly T[] | undefined): readonly T[] => values ?? [];
   const fields = [
-    ["team", "teamIds", list(query.teamIds)],
-    ["project", "projectIds", list(query.projectIds)],
-    ["technology", "technologyIds", list(query.technologyIds)],
-    ["category", "categoryIds", list(query.categoryIds)],
-    ["owner", "ownerIds", list(query.ownerIds)],
-    ["maintainer", "maintainerIds", list(query.maintainerIds)],
+    ["team", "teamIds", query.teamIds],
+    ["project", "projectIds", query.projectIds],
+    ["technology", "technologyIds", query.technologyIds],
+    ["category", "categoryIds", query.categoryIds],
+    ["owner", "ownerIds", query.ownerIds],
+    ["maintainer", "maintainerIds", query.maintainerIds],
   ] as const;
   for (const [prefix, field, values] of fields) {
     for (const value of values) {
@@ -251,17 +250,21 @@ function appendCorporateChips(chips: AppliedFilterChip[], query: ParsedCatalogQu
     }
   }
   if (query.assignment) {
+    const { assignment, ...withoutAssignment } = query;
+    void assignment;
     chips.push({
       key: "assignment",
       label: query.assignment,
-      without: { ...query, assignment: undefined, cursor: undefined, pageNumber: 1 },
+      without: { ...withoutAssignment, cursor: undefined, pageNumber: 1 },
     });
   }
   if (query.corporateVerified !== undefined) {
+    const { corporateVerified, ...withoutCorporateVerified } = query;
+    void corporateVerified;
     chips.push({
       key: "corporate_verified",
       label: query.corporateVerified ? "verified" : "not verified",
-      without: { ...query, corporateVerified: undefined, cursor: undefined, pageNumber: 1 },
+      without: { ...withoutCorporateVerified, cursor: undefined, pageNumber: 1 },
     });
   }
 }

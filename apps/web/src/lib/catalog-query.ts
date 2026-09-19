@@ -485,14 +485,6 @@ export function catalogQueryToRecord(
   query: ParsedCatalogQuery,
   extra: Record<string, string> = {},
 ): Record<string, string> {
-  const list = <T>(values: readonly T[] | undefined): readonly T[] =>
-    values ?? [];
-  const teamIds = list(query.teamIds);
-  const projectIds = list(query.projectIds);
-  const technologyIds = list(query.technologyIds);
-  const categoryIds = list(query.categoryIds);
-  const ownerIds = list(query.ownerIds);
-  const maintainerIds = list(query.maintainerIds);
   const record: Record<string, string> = {
     resource: query.resource,
     page_size: String(query.pageSize),
@@ -543,12 +535,12 @@ export function catalogQueryToRecord(
   writeOptional(record, "family_id", query.familyId);
   writeOptional(record, "family_alignment", query.familyAlignment);
   writeOptional(record, "member_harness_id", query.memberHarnessId);
-  if (teamIds.length) record["team_ids"] = teamIds.join(",");
-  if (projectIds.length) record["project_ids"] = projectIds.join(",");
-  if (technologyIds.length) record["technology_ids"] = technologyIds.join(",");
-  if (categoryIds.length) record["category_ids"] = categoryIds.join(",");
-  if (ownerIds.length) record["owner_ids"] = ownerIds.join(",");
-  if (maintainerIds.length) record["maintainer_ids"] = maintainerIds.join(",");
+  if (query.teamIds.length) record["team_ids"] = query.teamIds.join(",");
+  if (query.projectIds.length) record["project_ids"] = query.projectIds.join(",");
+  if (query.technologyIds.length) record["technology_ids"] = query.technologyIds.join(",");
+  if (query.categoryIds.length) record["category_ids"] = query.categoryIds.join(",");
+  if (query.ownerIds.length) record["owner_ids"] = query.ownerIds.join(",");
+  if (query.maintainerIds.length) record["maintainer_ids"] = query.maintainerIds.join(",");
   writeOptional(record, "assignment", query.assignment);
   if (query.corporateVerified !== undefined) {
     record["corporate_verified"] = String(query.corporateVerified);

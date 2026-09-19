@@ -53,7 +53,7 @@ def test_profile_boundary_rejects_blank_names_and_authority_fields() -> None:
             CorporateMemberProfileRequest.model_validate(invalid)
 
 
-def test_member_creation_requires_team_and_keeps_catalog_assignment_exact() -> None:
+def test_member_creation_allows_unassigned_members_and_keeps_catalog_assignment_exact() -> None:
     assignment: dict[str, str] = {
         "object_kind": "component",
         "stable_id": new_id("component"),
@@ -71,8 +71,9 @@ def test_member_creation_requires_team_and_keeps_catalog_assignment_exact() -> N
     }
     request = CorporateMemberCreateRequest.model_validate(payload)
     assert request.catalog_assignments[0].version == "1.0"
+    unassigned = CorporateMemberCreateRequest.model_validate({**payload, "team_ids": []})
+    assert unassigned.team_ids == []
     changes_list: tuple[dict[str, object], ...] = (
-        {"team_ids": []},
         {"catalog_assignments": [{**assignment, "version": "latest"}]},
         {"catalog_assignments": [{**assignment, "object_kind": "setup"}]},
     )
