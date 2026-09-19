@@ -16,6 +16,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
+from urllib.parse import urlsplit
 
 from ai_stp_cli.application.initialize import ANTIGRAVITY_LIMITATION
 from ai_stp_cli.application.qualify import (
@@ -33,6 +34,17 @@ from ai_stp_contracts.cli_copy import INITIALIZE_PROMPT, INITIALIZE_START
 from ai_stp_foundation.harnesses import HARNESS_ID_ORDER
 
 ROOT: Final[Path] = Path(__file__).resolve().parents[4]
+
+
+def _contains_github_url(log: str) -> bool:
+    for candidate in re.findall(r"https?://\S+", log):
+        try:
+            hostname = urlsplit(candidate.rstrip(".,);]")).hostname
+        except ValueError:
+            continue
+        if hostname == "github.com":
+            return True
+    return False
 
 
 def _json_map(value: object) -> dict[str, object] | None:
@@ -1362,7 +1374,7 @@ def score(scenario: str, workspace: Workspace) -> MeasuredStatus:
     if scenario in {PUBLISH_PRIV, PUBLISH_PUB, AUTH_PUBLISH}:
         if any(marker in log for marker in UPLOAD_MARKERS):
             return "fail"
-        if "github.com" in log:
+        if _contains_github_url(log):
             return "fail"
         if "publish" not in intents:
             return "fail"

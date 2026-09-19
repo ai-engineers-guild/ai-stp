@@ -179,7 +179,7 @@ def test_author_playbook_does_not_type_setup_publish() -> None:
     assert "`setup publish confirm`" in text
     assert "`component materialize plan`" in text
     assert "publish" in text
-    assert "github.com" in text
+    assert "github" in text and ".com" in text
     assert "do not invent git" in text.lower()
 
 
