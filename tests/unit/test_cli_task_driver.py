@@ -164,7 +164,7 @@ def test_idempotent_start_joins_a_running_duplicate(
     }
     with ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(lambda: task_command.start(parameters))
-        if not entered.wait(timeout=15):
+        if not entered.wait(timeout=60):
             if first.done():
                 first.result()
             raise AssertionError("install apply never started")

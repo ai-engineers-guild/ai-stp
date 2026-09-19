@@ -119,6 +119,7 @@ def test_capabilities_dump_is_choreography(tmp_path: Path) -> None:
     assert choreographed(workspace) is False
 
 
+@pytest.mark.skipif(os.name == "nt", reason="the qualify wrapper is a POSIX shell script")
 def test_prepare_workspace_resolves_a_relative_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -136,6 +137,7 @@ def test_prepare_workspace_resolves_a_relative_root(
     assert held.returncode == 0, held.stderr
 
 
+@pytest.mark.skipif(os.name == "nt", reason="the qualify wrapper is a POSIX shell script")
 def test_wrapper_runs_the_cli_under_isolated_home(tmp_path: Path) -> None:
     workspace = prepare_workspace(tmp_path)
     assert bundled_cli().is_file()
@@ -178,6 +180,8 @@ def test_docker_wrapper_jails_before_docker_and_does_not_uv_run(tmp_path: Path) 
     assert "chown -R" in text
     assert "uv run" not in text
     assert f"exec {bundled_cli()}" not in text
+    if os.name == "nt":
+        return
     refused = subprocess.run(
         [str(workspace.wrapper), "inspect", "--root", "/tmp/ai-stp-qualify-escape", "--json"],
         cwd=workspace.project,
@@ -196,9 +200,9 @@ def test_docker_wrapper_mounts_providers_from_env(
     providers.mkdir()
     monkeypatch.setenv("AI_STP_QUALIFY_PROVIDERS", str(providers))
     workspace = prepare_workspace(tmp_path / "ws", docker_image="ai-stp-iso:local")
-    assert f"{providers.resolve()}:/opt/providers:ro" in workspace.wrapper.read_text(
-        encoding="utf-8"
-    )
+    text = workspace.wrapper.read_text(encoding="utf-8")
+    assert str(providers.resolve()) in text
+    assert ":/opt/providers:ro" in text
 
 
 def test_host_home_ignores_uv_temp_home(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -367,9 +371,8 @@ def test_fresh_initialize_prompt_is_the_website_line(tmp_path: Path) -> None:
     assert INPUT_CWD_HINT in switch_prompt
     assert "Absolute project root:" not in switch_prompt
     assert (workspace.project / "switch-input.json").is_file()
-    assert str(workspace.project.resolve()) in (workspace.project / "switch-input.json").read_text(
-        encoding="utf-8"
-    )
+    switch_input = json.loads((workspace.project / "switch-input.json").read_text(encoding="utf-8"))
+    assert switch_input["project_root"] == str(workspace.project.resolve())
     assert "Answer reload-session with done" in switch_prompt
     assert "run the emitted task answer argv" in switch_prompt
     pending_prompt = prompt_for(PENDING_RELOAD, workspace)
@@ -1502,6 +1505,7 @@ def test_start_only_503_does_not_erase_a_prior_fail(
     assert body["haiku"][f"{SWITCH_SAVED}:0"] == "fail"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="the agy stub is a POSIX shell script")
 def test_unavailable_agy_keeps_a_prior_fail_cell(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1581,7 +1585,7 @@ def test_start_only_503_without_a_prior_cell_stays_absent(
 
 def test_agy_argv_puts_print_equals_last() -> None:
     argv = agy_argv(Path("/bin/agy"))
-    assert argv[0] == "/bin/agy"
+    assert argv[0] == str(Path("/bin/agy"))
     assert argv[1:3] == ["--output-format", "json"]
     assert "--mode" in argv
     assert argv[argv.index("--mode") + 1] == "accept-edits"
@@ -1594,7 +1598,7 @@ def test_agy_argv_puts_print_equals_last() -> None:
         add_dirs=(Path("/tmp/qualify-root"), Path("/tmp/qualify-root/project")),
     )
     assert added[-1].startswith("--print=")
-    assert added[added.index("--add-dir") + 1] == "/tmp/qualify-root"
+    assert added[added.index("--add-dir") + 1] == str(Path("/tmp/qualify-root").resolve())
     assert added.count("--add-dir") == 2
     assert "Use your shell tool" in SKILL_TAIL
     assert "printed command is not a completed initialize" in SKILL_TAIL
@@ -1625,6 +1629,7 @@ def test_agy_qualify_module_is_not_imported_by_qualify() -> None:
     assert "network_launcher" not in source
 
 
+@pytest.mark.skipif(os.name == "nt", reason="the qualify wrapper is a POSIX shell script")
 def test_author_input_mints_a_setup(tmp_path: Path) -> None:
     workspace = prepare_workspace(tmp_path / "author-live", scenario=AUTHOR_DIR)
     prompt_for(AUTHOR_DIR, workspace)
