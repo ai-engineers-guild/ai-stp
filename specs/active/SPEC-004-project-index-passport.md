@@ -1,6 +1,6 @@
 ---
 description: "SPEC-004: Project index and passport."
-last_verified: "2026-08-03"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-004: Project Index and Passport
