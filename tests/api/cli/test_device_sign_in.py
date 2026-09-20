@@ -13,6 +13,7 @@ from collections.abc import Callable
 
 import pytest
 from tests.api.cli.conftest import WebApprover
+from tests.support.asgi_sync import SyncAsgiServer
 
 from ai_stp_cli.cloud import login, session
 from ai_stp_cli.cloud.client import Endpoint
@@ -158,7 +159,7 @@ def test_an_expired_authorization_is_a_terminal_decision(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The server's expired answer clears the pending record — not a wait."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import UTC, datetime, timedelta
 
     from sqlalchemy import update
 
@@ -178,7 +179,7 @@ def test_an_expired_authorization_is_a_terminal_decision(
             await db.execute(
                 update(DeviceAuthorization)
                 .where(DeviceAuthorization.device_code == pending.device_code)
-                .values(expires_at=datetime.now(timezone.utc) - timedelta(seconds=1))
+                .values(expires_at=datetime.now(UTC) - timedelta(seconds=1))
             )
             await db.commit()
 
