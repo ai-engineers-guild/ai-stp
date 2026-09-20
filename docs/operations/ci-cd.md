@@ -1,6 +1,6 @@
 ---
 description: "Public repository checks, pull deployment, and exact-artifact release order."
-last_verified: "2026-09-10"
+last_verified: "2026-09-20"
 ---
 
 # CI and releases
@@ -75,6 +75,18 @@ descendant may satisfy a promotion that a later push overtook. The timeout is
 bounded in the workflow and must cover the measured serialized image-build and
 migration duration; an immediate read proves only whether a deployment already
 finished. A green promotion alone is not a green production proof.
+
+The job takes `AI_STP_PUBLIC_ORIGIN` and `AI_STP_DOCS_ORIGIN` from repository
+variables (bare HTTPS origins). An unset docs origin fails the job rather than
+skipping the published docs site. Host-side `require_deploy_env` in
+`deploy/lib.sh` is a separate gate: the timer refuses to recreate services when
+a required name is missing, including `AI_STP_STORAGE_ARTIFACT_BUCKET` and
+`AI_STP_STORAGE_ASSET_BUCKET`.
+
+GitHub Advanced Security CodeQL on a promotion PR into `main` is a separate
+record from `.github/workflows/codeql.yml`. A new high alert on the head blocks
+the promotion even when the workflow job is green. Prefix-matching a docs URL
+(`py/incomplete-url-substring-sanitization`) is that class of alert.
 
 ## Candidate and publication
 

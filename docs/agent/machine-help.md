@@ -1,6 +1,6 @@
 ---
 description: "CLI machine help as the source of available commands and schemas."
-last_verified: "2026-09-18"
+last_verified: "2026-09-20"
 ---
 
 # Machine help

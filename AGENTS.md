@@ -10,7 +10,7 @@ A system for creating, validating, storing, selecting, and installing complete A
 - `apps/api` — the `/v1` HTTP surface; `apps/worker` — asynchronous jobs;
 - `apps/platform` — persistence, queue, object storage, and domain services;
 - `apps/web` — Next.js over the generated contract client;
-- `packages/` — `foundation` (identifiers, canonicalization, digests, errors), `passports` (passport and revision models), `contracts` (machine contracts, schemas, machine help), `assurance` (author-attestation records);
+- `packages/` — `foundation` (identifiers, canonicalization, digests, errors), `passports` (passport and revision models), `contracts` (machine contracts, schemas, machine help), `assurance` (author-attestation records), `sources` (GitHub and bounded local source adapters);
 - `schemas/v1`, `provider-kit`, `skills/projections`, `docs/adr/index.md`, and `docs/index.md` are **generated**: edit the source, then run `just back-gen` or `just docs-gen`.
 
 ## Web UI component gate

@@ -16,6 +16,13 @@ or this runbook—only variable names and commands do.
 2. Copy `.env.prod.example` → `.env.prod` and fill in the actual secrets
    (at least 32 characters for `AI_STP_SESSION_SECRET` and
    `AI_STP_CATALOG_CURSOR_SIGNING_SECRET`). The file is gitignored.
+   `just infra-env-check` rehearses `require_deploy_env` against that file
+   without starting containers. The host timer runs the same check before it
+   recreates anything: a missing name fails every minute while the currently
+   healthy release keeps serving.
+   The storage split requires both `AI_STP_STORAGE_ARTIFACT_BUCKET` and
+   `AI_STP_STORAGE_ASSET_BUCKET`. During an upgrade they may equal the existing
+   `AI_STP_STORAGE_BUCKET` so objects already on the host stay reachable.
 3. Set `AI_STP_PUBLIC_HOST` to the public name of the deployment host (for ACME), or
    leave `localhost` for a local rehearsal.
 4. Pin the target commit: `git checkout <commit>` and

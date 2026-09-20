@@ -1,6 +1,6 @@
 ---
 description: "Build, verify, publish, yank, and recover a Python release."
-last_verified: "2026-09-06"
+last_verified: "2026-09-20"
 ---
 
 # Python package release

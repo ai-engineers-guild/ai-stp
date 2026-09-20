@@ -1,6 +1,6 @@
 ---
 description: "SPEC-080: Headless CLI application services, capability inventory, and the agent task contract."
-last_verified: "2026-09-18"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-080: CLI agent task contract

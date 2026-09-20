@@ -1,8 +1,8 @@
 # Single entry point for local checks. `just` is a maintainer convenience,
 # never a CI dependency: workflows write the recipe bodies out inline, and
 # tests/contract/test_gate_split_covers_the_gate.py proves the two unions
-# match. The conventions this file follows are the working copy's own
-# justfile standard; it does not ship in the public tree.
+# match. The conventions this file follows live in standards/just.md.
+# That directory is withheld from the public export.
 #
 # The file rests on a duality: `gen` writes, `check` reads. Everything else is
 # the same operations narrowed to one group.
