@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:eee2510b33682c7ceb426237bc2dd06904230f9a24aeed740c2a29032eb3726a",
+  "registry_digest": "sha256:f75ebfee03a4e2fb728abcaac3197f8fc051cf136325c764d229327580809dde",
   "global_options": [
     {
       "name": "json",
@@ -2121,6 +2121,151 @@
       "result_schema": "urn:ai-stp:schema:v1:cli-standard-inventory",
       "next_actions": [
         "help --path version --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "distribute"
+      ],
+      "summary": "Preview or apply one bulk assign/revoke distribution across the member and project targets of a source assignment. Dry-run reports targets, exclusions, and per-target results without mutating anything.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Source assignment identifier whose scope is expanded.",
+          "choices": []
+        },
+        {
+          "name": "action",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Bulk action to distribute.",
+          "choices": [
+            "assign",
+            "revoke"
+          ]
+        },
+        {
+          "name": "dry-run",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Preview targets and results without mutation.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Confirm applying the distribution. Required without --dry-run.",
+          "choices": []
+        },
+        {
+          "name": "expected-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Expected source assignment revision.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Expected organization authorization revision.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Durable idempotency key for the distribution.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:corporate-distribution-result",
+      "next_actions": [
+        "help --path corporate --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "distribution"
+      ],
+      "summary": "Read the latest per-target distribution state for one source assignment, including pending, installed, outdated, failed, and revoked lifecycle.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Source assignment identifier.",
+          "choices": []
+        },
+        {
+          "name": "offset",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Zero-based result offset.",
+          "choices": []
+        },
+        {
+          "name": "limit",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Maximum targets to return.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:corporate-distribution-state-list",
+      "next_actions": [
+        "help --path corporate --json"
       ]
     },
     {

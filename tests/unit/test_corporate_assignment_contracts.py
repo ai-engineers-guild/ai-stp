@@ -5,6 +5,10 @@ from pydantic import ValidationError
 
 from ai_stp_contracts.corporate import (
     CorporateCatalogAssignmentRequest,
+    CorporateDistributionRequest,
+    CorporateDistributionResult,
+    CorporateDistributionStateList,
+    CorporateDistributionStateQuery,
     CorporateEffectiveAssignmentQuery,
 )
 from ai_stp_foundation.ids import new_id
@@ -117,3 +121,137 @@ def test_effective_query_requires_typed_catalog_identity() -> None:
                 "stable_id": new_id("setup"),
             }
         )
+
+
+def _distribution_base() -> dict[str, object]:
+    return {
+        "source_assignment_id": new_id("operation"),
+        "action": "assign",
+        "dry_run": True,
+        "expected_revision": 1,
+        "authorization_revision": 1,
+        "idempotency_key": "distribution-fixture",
+    }
+
+
+def test_distribution_request_requires_typed_action_and_revisions() -> None:
+    payload = _distribution_base()
+    request = CorporateDistributionRequest.model_validate(payload)
+    assert request.action == "assign"
+    assert request.dry_run is True
+    changes: tuple[dict[str, object], ...] = (
+        {"action": "install"},
+        {"action": "grant"},
+        {"expected_revision": 0},
+        {"authorization_revision": -1},
+        {"source_assignment_id": ""},
+        {"install": True},
+        {"targets": []},
+    )
+    for change in changes:
+        with pytest.raises(ValidationError):
+            CorporateDistributionRequest.model_validate({**payload, **change})
+
+
+def test_distribution_result_carries_typed_target_outcomes() -> None:
+    result = CorporateDistributionResult.model_validate(
+        {
+            "schema_version": 1,
+            "organization_id": new_id("organization"),
+            "source_assignment_id": new_id("operation"),
+            "action": "revoke",
+            "dry_run": False,
+            "source_revision": 2,
+            "targets": [
+                {
+                    "target_kind": "employee",
+                    "target_id": new_id("account"),
+                    "result": "applied",
+                    "state": "revoked",
+                },
+                {
+                    "target_kind": "project",
+                    "target_id": new_id("remote_project"),
+                    "result": "conflicted",
+                    "overriding_assignment_id": new_id("operation"),
+                },
+            ],
+            "exclusions": [
+                {
+                    "target_kind": "employee",
+                    "target_id": new_id("account"),
+                    "reason": "membership_inactive",
+                }
+            ],
+            "counts": {
+                "applied": 1,
+                "skipped": 0,
+                "conflicted": 1,
+                "denied": 0,
+                "failed": 0,
+            },
+        }
+    )
+    assert result.targets[0].state == "revoked"
+    assert result.targets[1].result == "conflicted"
+    assert result.exclusions[0].reason == "membership_inactive"
+    for changes in (
+        {"result": "mutated"},
+        {"target_kind": "team"},
+        {"state": "installing"},
+    ):
+        with pytest.raises(ValidationError):
+            CorporateDistributionResult.model_validate(
+                {
+                    "schema_version": 1,
+                    "organization_id": new_id("organization"),
+                    "source_assignment_id": new_id("operation"),
+                    "action": "assign",
+                    "dry_run": False,
+                    "source_revision": 1,
+                    "targets": [
+                        {
+                            "target_kind": "employee",
+                            "target_id": new_id("account"),
+                            "result": "applied",
+                            **changes,
+                        }
+                    ],
+                }
+            )
+
+
+def test_distribution_state_query_and_list_are_bounded() -> None:
+    query = CorporateDistributionStateQuery.model_validate(
+        {"source_assignment_id": new_id("operation")}
+    )
+    assert query.limit == 128
+    with pytest.raises(ValidationError):
+        CorporateDistributionStateQuery.model_validate(
+            {"source_assignment_id": new_id("operation"), "limit": 0}
+        )
+    with pytest.raises(ValidationError):
+        CorporateDistributionStateQuery.model_validate(
+            {"source_assignment_id": new_id("operation"), "limit": 257}
+        )
+    state = CorporateDistributionStateList.model_validate(
+        {
+            "schema_version": 1,
+            "organization_id": new_id("organization"),
+            "source_assignment_id": new_id("operation"),
+            "source_revision": 4,
+            "source_state": "retired",
+            "items": [
+                {
+                    "target_kind": "employee",
+                    "target_id": new_id("account"),
+                    "result": "applied",
+                    "state": "revoked",
+                    "operation_revision": 4,
+                }
+            ],
+            "total": 1,
+        }
+    )
+    assert state.source_state == "retired"
+    assert state.items[0].state == "revoked"

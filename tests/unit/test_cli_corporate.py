@@ -5,8 +5,16 @@ import pytest
 
 from ai_stp_cli.cloud import corporate, session
 from ai_stp_cli.cloud.client import Endpoint
-from ai_stp_cli.cloud.corporate import effective_assignment
+from ai_stp_cli.cloud.corporate import (
+    assignment_distribution,
+    distribute_assignment,
+    effective_assignment,
+)
 from ai_stp_contracts.corporate import (
+    CorporateDistributionRequest,
+    CorporateDistributionResult,
+    CorporateDistributionStateList,
+    CorporateDistributionStateQuery,
     CorporateEffectiveAssignment,
     CorporateEffectiveAssignmentQuery,
 )
@@ -137,3 +145,249 @@ def test_effective_command_passes_the_typed_query_to_the_transport(
     assert request.harness == "codex"
     assert result.payload.source_scope == "project"
     assert result.payload.version == "2.0"
+
+
+def test_distribute_assignment_posts_the_shared_contract() -> None:
+    organization_id = new_id("organization")
+    source_id = new_id("operation")
+    seen: dict[str, str] = {}
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.path
+        seen["method"] = request.method
+        seen["body"] = request.read().decode()
+        return httpx.Response(
+            200,
+            json={
+                "schema_version": 1,
+                "distribution_id": "catalog-distribution-0001",
+                "organization_id": organization_id,
+                "source_assignment_id": source_id,
+                "action": "assign",
+                "dry_run": False,
+                "source_revision": 3,
+                "targets": [
+                    {
+                        "target_kind": "employee",
+                        "target_id": new_id("account"),
+                        "result": "applied",
+                        "state": "pending",
+                    }
+                ],
+                "exclusions": [],
+                "counts": {
+                    "applied": 1,
+                    "skipped": 0,
+                    "conflicted": 0,
+                    "denied": 0,
+                    "failed": 0,
+                },
+            },
+        )
+
+    endpoint = Endpoint(base_url=MOCK_BASE_URL, transport=httpx.MockTransport(answer))
+    result = distribute_assignment(
+        endpoint,
+        "token",
+        organization_id,
+        CorporateDistributionRequest(
+            source_assignment_id=source_id,
+            action="assign",
+            dry_run=False,
+            expected_revision=3,
+            authorization_revision=1,
+            idempotency_key="catalog-distribution-0001",
+        ),
+    )
+    assert seen["method"] == "POST"
+    assert seen["path"].endswith("/catalog-assignments/distribution")
+    assert '"expected_revision":3' in seen["body"]
+    assert result.distribution_id == "catalog-distribution-0001"
+    assert result.counts.applied == 1
+    assert result.targets[0].state == "pending"
+
+
+def test_assignment_distribution_reads_the_shared_contract() -> None:
+    organization_id = new_id("organization")
+    source_id = new_id("operation")
+    seen: dict[str, str] = {}
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.path
+        seen["query"] = str(request.url.query)
+        return httpx.Response(
+            200,
+            json={
+                "schema_version": 1,
+                "organization_id": organization_id,
+                "source_assignment_id": source_id,
+                "source_revision": 2,
+                "source_state": "current",
+                "items": [
+                    {
+                        "target_kind": "project",
+                        "target_id": new_id("remote_project"),
+                        "result": "applied",
+                        "state": "outdated",
+                        "operation_revision": 1,
+                    }
+                ],
+                "total": 1,
+            },
+        )
+
+    endpoint = Endpoint(base_url=MOCK_BASE_URL, transport=httpx.MockTransport(answer))
+    result = assignment_distribution(
+        endpoint,
+        "token",
+        organization_id,
+        CorporateDistributionStateQuery(source_assignment_id=source_id, limit=10),
+    )
+    assert seen["path"].endswith("/catalog-assignments/distribution")
+    assert "limit=10" in seen["query"]
+    assert result.source_revision == 2
+    assert result.items[0].state == "outdated"
+
+
+def test_distribute_command_requires_confirmation_without_dry_run() -> None:
+    from ai_stp_cli.commands import corporate as command
+    from ai_stp_cli.errors import CliFailure
+
+    with pytest.raises(CliFailure, match="explicit confirmation"):
+        command.distribute(
+            {
+                "organization": new_id("organization"),
+                "source": new_id("operation"),
+                "action": "assign",
+                "expected-revision": "1",
+                "authorization-revision": "1",
+                "idempotency-key": "catalog-distribution-0002",
+            }
+        )
+
+
+def test_distribute_command_passes_the_typed_request_to_the_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ai_stp_cli.commands import corporate as command
+
+    account_id = new_id("account")
+    organization_id = new_id("organization")
+    source_id = new_id("operation")
+    seen: dict[str, object] = {}
+
+    def authenticated(_purpose: str) -> session.Session:
+        return session.Session(
+            account_id=account_id,
+            device_id=new_id("device"),
+            access_token="bearer",
+            refresh_token="refresh",
+            expires_at="2099-01-01T00:00:00.000Z",
+        )
+
+    def distributed(
+        _endpoint: Endpoint,
+        _token: str,
+        organization: str,
+        request: CorporateDistributionRequest,
+    ) -> CorporateDistributionResult:
+        seen["organization"] = organization
+        seen["request"] = request
+        return CorporateDistributionResult.model_validate(
+            {
+                "schema_version": 1,
+                "distribution_id": request.idempotency_key,
+                "organization_id": organization,
+                "source_assignment_id": request.source_assignment_id,
+                "action": request.action,
+                "dry_run": request.dry_run,
+                "source_revision": request.expected_revision,
+                "targets": [],
+                "exclusions": [],
+                "counts": {},
+            }
+        )
+
+    monkeypatch.setattr(command, "_session", authenticated)
+    monkeypatch.setattr(corporate, "distribute_assignment", distributed)
+
+    result = command.distribute(
+        {
+            "organization": organization_id,
+            "source": source_id,
+            "action": "revoke",
+            "confirm": True,
+            "expected-revision": "2",
+            "authorization-revision": "1",
+            "idempotency-key": "catalog-distribution-0003",
+        }
+    )
+
+    assert seen["organization"] == organization_id
+    request = seen["request"]
+    assert isinstance(request, CorporateDistributionRequest)
+    assert request.source_assignment_id == source_id
+    assert request.action == "revoke"
+    assert request.dry_run is False
+    assert request.expected_revision == 2
+    assert result.payload.action == "revoke"
+
+
+def test_distribution_command_passes_the_typed_query_to_the_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ai_stp_cli.commands import corporate as command
+
+    account_id = new_id("account")
+    organization_id = new_id("organization")
+    source_id = new_id("operation")
+    seen: dict[str, object] = {}
+
+    def authenticated(_purpose: str) -> session.Session:
+        return session.Session(
+            account_id=account_id,
+            device_id=new_id("device"),
+            access_token="bearer",
+            refresh_token="refresh",
+            expires_at="2099-01-01T00:00:00.000Z",
+        )
+
+    def listed(
+        _endpoint: Endpoint,
+        _token: str,
+        organization: str,
+        request: CorporateDistributionStateQuery,
+    ) -> CorporateDistributionStateList:
+        seen["organization"] = organization
+        seen["request"] = request
+        return CorporateDistributionStateList.model_validate(
+            {
+                "schema_version": 1,
+                "organization_id": organization,
+                "source_assignment_id": request.source_assignment_id,
+                "source_revision": 1,
+                "source_state": "current",
+                "items": [],
+                "total": 0,
+            }
+        )
+
+    monkeypatch.setattr(command, "_session", authenticated)
+    monkeypatch.setattr(corporate, "assignment_distribution", listed)
+
+    result = command.distribution(
+        {
+            "organization": organization_id,
+            "source": source_id,
+            "offset": "5",
+            "limit": "25",
+        }
+    )
+
+    assert seen["organization"] == organization_id
+    request = seen["request"]
+    assert isinstance(request, CorporateDistributionStateQuery)
+    assert request.source_assignment_id == source_id
+    assert request.offset == 5
+    assert request.limit == 25
+    assert result.payload.total == 0

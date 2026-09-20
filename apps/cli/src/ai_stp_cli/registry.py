@@ -640,6 +640,86 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path grant --json",),
     ),
     Declaration(
+        path=["corporate", "assignment", "distribute"],
+        summary=(
+            "Preview or apply one bulk assign/revoke distribution across the "
+            "member and project targets of a source assignment. Dry-run "
+            "reports targets, exclusions, and per-target results without "
+            "mutating anything."
+        ),
+        result_schema="urn:ai-stp:schema:v1:corporate-distribution-result",
+        handler="corporate:distribute",
+        mutability="apply",
+        confirmation="explicit_flag",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option(
+                "source",
+                "string",
+                "Source assignment identifier whose scope is expanded.",
+                required=True,
+            ),
+            option(
+                "action",
+                "string",
+                "Bulk action to distribute.",
+                required=True,
+                choices=("assign", "revoke"),
+            ),
+            option(
+                "dry-run",
+                "boolean",
+                "Preview targets and results without mutation.",
+            ),
+            option(
+                "confirm",
+                "boolean",
+                "Confirm applying the distribution. Required without --dry-run.",
+            ),
+            option(
+                "expected-revision",
+                "integer",
+                "Expected source assignment revision.",
+                required=True,
+            ),
+            option(
+                "authorization-revision",
+                "integer",
+                "Expected organization authorization revision.",
+                required=True,
+            ),
+            option(
+                "idempotency-key",
+                "string",
+                "Durable idempotency key for the distribution.",
+                required=True,
+            ),
+        ),
+        next_actions=("help --path corporate --json",),
+    ),
+    Declaration(
+        path=["corporate", "assignment", "distribution"],
+        summary=(
+            "Read the latest per-target distribution state for one source "
+            "assignment, including pending, installed, outdated, failed, and "
+            "revoked lifecycle."
+        ),
+        result_schema="urn:ai-stp:schema:v1:corporate-distribution-state-list",
+        handler="corporate:distribution",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option(
+                "source",
+                "string",
+                "Source assignment identifier.",
+                required=True,
+            ),
+            option("offset", "integer", "Zero-based result offset."),
+            option("limit", "integer", "Maximum targets to return."),
+        ),
+        next_actions=("help --path corporate --json",),
+    ),
+    Declaration(
         path=["corporate", "assignment", "effective"],
         summary=(
             "Resolve the winning corporate assignment for one employee and "

@@ -223,6 +223,107 @@ class CorporateEffectiveAssignment(BaseModel):
     candidates: Annotated[list[CorporateEffectiveAssignmentCandidate], Field(max_length=256)] = []
 
 
+DistributionAction = Literal["assign", "revoke"]
+DistributionTargetKind = Literal["employee", "project"]
+DistributionTargetResult = Literal["applied", "skipped", "conflicted", "denied", "failed"]
+DistributionLifecycle = Literal["pending", "installed", "outdated", "failed", "revoked"]
+
+
+class CorporateDistributionRequest(BaseModel):
+    """Preview or apply one bulk assign/revoke over a source assignment's targets."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    source_assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
+    action: DistributionAction
+    dry_run: bool = False
+    expected_revision: Annotated[int, Field(ge=1)]
+    authorization_revision: Annotated[int, Field(ge=1)]
+    idempotency_key: IdempotencyKey
+
+
+class CorporateDistributionTargetResult(BaseModel):
+    """One resolved target's durable result and derived distribution state."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    target_kind: DistributionTargetKind
+    target_id: str
+    result: DistributionTargetResult
+    state: DistributionLifecycle | None = None
+    diagnostic: str | None = None
+    overriding_assignment_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+
+
+class CorporateDistributionExclusion(BaseModel):
+    """A member or project considered during expansion and excluded with a reason."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    target_kind: DistributionTargetKind
+    target_id: str
+    reason: str
+
+
+class CorporateDistributionCounts(BaseModel):
+    """Per-result totals across the resolved target set."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    applied: Annotated[int, Field(ge=0)] = 0
+    skipped: Annotated[int, Field(ge=0)] = 0
+    conflicted: Annotated[int, Field(ge=0)] = 0
+    denied: Annotated[int, Field(ge=0)] = 0
+    failed: Annotated[int, Field(ge=0)] = 0
+
+
+class CorporateDistributionResult(BaseModel):
+    """Preview or durable outcome of one bulk distribution request."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    distribution_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    organization_id: OrganizationId
+    source_assignment_id: str
+    action: DistributionAction
+    dry_run: bool
+    source_revision: Annotated[int, Field(ge=1)]
+    targets: Annotated[list[CorporateDistributionTargetResult], Field(max_length=1024)] = []
+    exclusions: Annotated[list[CorporateDistributionExclusion], Field(max_length=1024)] = []
+    counts: CorporateDistributionCounts = CorporateDistributionCounts()
+
+
+class CorporateDistributionStateQuery(BaseModel):
+    """Bounded read of one source assignment's per-target distribution state."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    source_assignment_id: Annotated[str, Field(min_length=1, max_length=64)]
+    offset: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=256)] = 128
+
+
+class CorporateDistributionState(BaseModel):
+    """Current derived distribution state for one member or project target."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    target_kind: DistributionTargetKind
+    target_id: str
+    result: DistributionTargetResult
+    state: DistributionLifecycle | None = None
+    operation_revision: Annotated[int, Field(ge=1)]
+    diagnostic: str | None = None
+
+
+class CorporateDistributionStateList(BaseModel):
+    """Per-target distribution state for one source assignment."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    source_assignment_id: str
+    source_revision: Annotated[int, Field(ge=1)]
+    source_state: AssignmentState
+    items: list[CorporateDistributionState]
+    total: Annotated[int, Field(ge=0)]
+
+
 class CorporateBootstrapRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1

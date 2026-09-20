@@ -978,6 +978,66 @@ class CorporateCatalogAssignment(Base):
     )
 
 
+class CorporateAssignmentDistribution(Base):
+    """Derived per-target result of one bulk assign/revoke operation (ADR-0195).
+
+    Keyed by source assignment, target, and the source assignment's operation
+    revision at distribution time. The row records the outcome and a safe
+    diagnostic only; the source assignment remains the policy, so no selector,
+    version, or harness field is duplicated here.
+    """
+
+    __tablename__ = "corporate_assignment_distribution"
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "organization_id",
+            "source_assignment_id",
+            "target_kind",
+            "target_id",
+            "operation_revision",
+        ),
+        CheckConstraint(
+            "target_kind in ('employee','project')", name="ck_distribution_target_kind"
+        ),
+        CheckConstraint("action in ('assign','revoke')", name="ck_distribution_action"),
+        CheckConstraint(
+            "result in ('applied','skipped','conflicted','denied','failed')",
+            name="ck_distribution_result",
+        ),
+        CheckConstraint(
+            "state in ('pending','installed','outdated','failed','revoked')",
+            name="ck_distribution_state",
+        ),
+        CheckConstraint("operation_revision >= 1", name="ck_distribution_operation_revision"),
+        ForeignKeyConstraint(
+            ["source_assignment_id"],
+            ["corporate_catalog_assignment.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id"],
+            ["organization.id"],
+            ondelete="RESTRICT",
+        ),
+    )
+
+    organization_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_assignment_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    operation_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str] = mapped_column(String(8), nullable=False)
+    result: Mapped[str] = mapped_column(String(16), nullable=False)
+    #: NULL when the target has no distribution lifecycle (skipped/conflicted/denied).
+    state: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    diagnostic: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    overriding_assignment_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class CorporateCatalogMaintainer(Base):
     """Retained employee/team maintainer relation for a stable catalog object."""
 

@@ -143,6 +143,9 @@ import type {
   DisconnectGithubData,
   DisconnectGithubErrors,
   DisconnectGithubResponses,
+  DistributeCorporateCatalogAssignmentData,
+  DistributeCorporateCatalogAssignmentErrors,
+  DistributeCorporateCatalogAssignmentResponses,
   ExchangeDeviceCodeData,
   ExchangeDeviceCodeErrors,
   ExchangeDeviceCodeResponses,
@@ -338,6 +341,9 @@ import type {
   ReadContentRepositoryStateErrors,
   ReadContentRepositoryStateResponses,
   ReadContentResponses,
+  ReadCorporateAssignmentDistributionData,
+  ReadCorporateAssignmentDistributionErrors,
+  ReadCorporateAssignmentDistributionResponses,
   ReadCorporateBindingData,
   ReadCorporateBindingErrors,
   ReadCorporateBindingResponses,
@@ -1583,6 +1589,50 @@ export const writeCorporateCatalogAssignment = <ThrowOnError extends boolean = f
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/catalog-assignments",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Read per-target distribution state for one source assignment.
+ */
+export const readCorporateAssignmentDistribution = <ThrowOnError extends boolean = false>(
+  options: Options<ReadCorporateAssignmentDistributionData, ThrowOnError>,
+): RequestResult<
+  ReadCorporateAssignmentDistributionResponses,
+  ReadCorporateAssignmentDistributionErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ReadCorporateAssignmentDistributionResponses,
+    ReadCorporateAssignmentDistributionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+    ...options,
+  });
+
+/**
+ * Preview or apply one bulk assign/revoke distribution across the source assignment scope.
+ */
+export const distributeCorporateCatalogAssignment = <ThrowOnError extends boolean = false>(
+  options: Options<DistributeCorporateCatalogAssignmentData, ThrowOnError>,
+): RequestResult<
+  DistributeCorporateCatalogAssignmentResponses,
+  DistributeCorporateCatalogAssignmentErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    DistributeCorporateCatalogAssignmentResponses,
+    DistributeCorporateCatalogAssignmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution",
     ...options,
     headers: {
       "Content-Type": "application/json",

@@ -6435,6 +6435,473 @@
         "title": "CorporateDirectoryView",
         "type": "object"
       },
+      "CorporateDistributionCounts": {
+        "additionalProperties": true,
+        "description": "Per-result totals across the resolved target set.",
+        "properties": {
+          "applied": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Applied",
+            "type": "integer"
+          },
+          "conflicted": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Conflicted",
+            "type": "integer"
+          },
+          "denied": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Denied",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "skipped": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "applied",
+          "conflicted",
+          "denied",
+          "failed",
+          "skipped"
+        ],
+        "title": "CorporateDistributionCounts",
+        "type": "object"
+      },
+      "CorporateDistributionExclusion": {
+        "additionalProperties": true,
+        "description": "A member or project considered during expansion and excluded with a reason.",
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_kind": {
+            "enum": [
+              "employee",
+              "project"
+            ],
+            "title": "Target Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "target_id",
+          "target_kind"
+        ],
+        "title": "CorporateDistributionExclusion",
+        "type": "object"
+      },
+      "CorporateDistributionRequest": {
+        "additionalProperties": false,
+        "description": "Preview or apply one bulk assign/revoke over a source assignment's targets.",
+        "properties": {
+          "action": {
+            "enum": [
+              "assign",
+              "revoke"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "authorization_revision": {
+            "minimum": 1,
+            "title": "Authorization Revision",
+            "type": "integer"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "expected_revision": {
+            "minimum": 1,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "source_assignment_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Source Assignment Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_assignment_id",
+          "action",
+          "expected_revision",
+          "authorization_revision",
+          "idempotency_key"
+        ],
+        "title": "CorporateDistributionRequest",
+        "type": "object"
+      },
+      "CorporateDistributionResult": {
+        "additionalProperties": true,
+        "description": "Preview or durable outcome of one bulk distribution request.",
+        "properties": {
+          "action": {
+            "enum": [
+              "assign",
+              "revoke"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/CorporateDistributionCounts",
+            "default": {
+              "applied": 0,
+              "conflicted": 0,
+              "denied": 0,
+              "failed": 0,
+              "skipped": 0
+            }
+          },
+          "distribution_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Distribution Id"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "exclusions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDistributionExclusion"
+            },
+            "maxItems": 1024,
+            "title": "Exclusions",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "source_assignment_id": {
+            "title": "Source Assignment Id",
+            "type": "string"
+          },
+          "source_revision": {
+            "minimum": 1,
+            "title": "Source Revision",
+            "type": "integer"
+          },
+          "targets": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateDistributionTargetResult"
+            },
+            "maxItems": 1024,
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "counts",
+          "distribution_id",
+          "dry_run",
+          "exclusions",
+          "organization_id",
+          "schema_version",
+          "source_assignment_id",
+          "source_revision",
+          "targets"
+        ],
+        "title": "CorporateDistributionResult",
+        "type": "object"
+      },
+      "CorporateDistributionState": {
+        "additionalProperties": true,
+        "description": "Current derived distribution state for one member or project target.",
+        "properties": {
+          "diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Diagnostic"
+          },
+          "operation_revision": {
+            "minimum": 1,
+            "title": "Operation Revision",
+            "type": "integer"
+          },
+          "result": {
+            "enum": [
+              "applied",
+              "skipped",
+              "conflicted",
+              "denied",
+              "failed"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "installed",
+                  "outdated",
+                  "failed",
+                  "revoked"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "State"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_kind": {
+            "enum": [
+              "employee",
+              "project"
+            ],
+            "title": "Target Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "diagnostic",
+          "operation_revision",
+          "result",
+          "state",
+          "target_id",
+          "target_kind"
+        ],
+        "title": "CorporateDistributionState",
+        "type": "object"
+      },
+      "CorporateDistributionStateList": {
+        "additionalProperties": true,
+        "description": "Per-target distribution state for one source assignment.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorporateDistributionState"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "source_assignment_id": {
+            "title": "Source Assignment Id",
+            "type": "string"
+          },
+          "source_revision": {
+            "minimum": 1,
+            "title": "Source Revision",
+            "type": "integer"
+          },
+          "source_state": {
+            "enum": [
+              "current",
+              "retired"
+            ],
+            "title": "Source State",
+            "type": "string"
+          },
+          "total": {
+            "minimum": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "organization_id",
+          "schema_version",
+          "source_assignment_id",
+          "source_revision",
+          "source_state",
+          "total"
+        ],
+        "title": "CorporateDistributionStateList",
+        "type": "object"
+      },
+      "CorporateDistributionStateQuery": {
+        "additionalProperties": false,
+        "description": "Bounded read of one source assignment's per-target distribution state.",
+        "properties": {
+          "limit": {
+            "default": 128,
+            "maximum": 256,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "source_assignment_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Source Assignment Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_assignment_id"
+        ],
+        "title": "CorporateDistributionStateQuery",
+        "type": "object"
+      },
+      "CorporateDistributionTargetResult": {
+        "additionalProperties": true,
+        "description": "One resolved target's durable result and derived distribution state.",
+        "properties": {
+          "diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Diagnostic"
+          },
+          "overriding_assignment_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Overriding Assignment Id"
+          },
+          "result": {
+            "enum": [
+              "applied",
+              "skipped",
+              "conflicted",
+              "denied",
+              "failed"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "installed",
+                  "outdated",
+                  "failed",
+                  "revoked"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "State"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_kind": {
+            "enum": [
+              "employee",
+              "project"
+            ],
+            "title": "Target Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "diagnostic",
+          "overriding_assignment_id",
+          "result",
+          "state",
+          "target_id",
+          "target_kind"
+        ],
+        "title": "CorporateDistributionTargetResult",
+        "type": "object"
+      },
       "CorporateEffectiveAssignment": {
         "additionalProperties": true,
         "description": "The winning assignment, its source, and the exact resolved coordinate.",
@@ -36015,6 +36482,499 @@
           }
         ],
         "summary": "Assign or retire a catalog line with an exact or latest selector, without granting access."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution": {
+      "get": {
+        "operationId": "readCorporateAssignmentDistribution",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 128,
+              "maximum": 256,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_assignment_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Source Assignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "readCorporateAssignmentDistribution.corporate": {
+                    "summary": "Distribution state reports the latest per-target lifecycle for one source assignment.",
+                    "value": {
+                      "items": [
+                        {
+                          "diagnostic": null,
+                          "operation_revision": 1,
+                          "result": "applied",
+                          "state": "pending",
+                          "target_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "target_kind": "employee"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "schema_version": 1,
+                      "source_assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "source_revision": 1,
+                      "source_state": "current",
+                      "total": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateDistributionStateList"
+                }
+              }
+            },
+            "description": "Read per-target distribution state for one source assignment.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read per-target distribution state for one source assignment."
+      },
+      "post": {
+        "operationId": "distributeCorporateCatalogAssignment",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Client-chosen key; a retry must not become a second effect.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "distributeCorporateCatalogAssignment.corporate": {
+                  "summary": "A bulk assign preview reports per-target results, exclusions, and counts without mutating state.",
+                  "value": {
+                    "action": "assign",
+                    "authorization_revision": 1,
+                    "dry_run": true,
+                    "expected_revision": 1,
+                    "idempotency_key": "catalog-distribution-0001",
+                    "schema_version": 1,
+                    "source_assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorporateDistributionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "distributeCorporateCatalogAssignment.corporate": {
+                    "summary": "A bulk assign preview reports per-target results, exclusions, and counts without mutating state.",
+                    "value": {
+                      "action": "assign",
+                      "counts": {
+                        "applied": 1,
+                        "conflicted": 1,
+                        "denied": 0,
+                        "failed": 0,
+                        "skipped": 0
+                      },
+                      "distribution_id": null,
+                      "dry_run": true,
+                      "exclusions": [
+                        {
+                          "reason": "membership_inactive",
+                          "target_id": "account_03JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "target_kind": "employee"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "schema_version": 1,
+                      "source_assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "source_revision": 1,
+                      "targets": [
+                        {
+                          "diagnostic": null,
+                          "overriding_assignment_id": null,
+                          "result": "applied",
+                          "state": "pending",
+                          "target_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "target_kind": "employee"
+                        },
+                        {
+                          "diagnostic": "individual exception is authoritative",
+                          "overriding_assignment_id": "operation_02JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "result": "conflicted",
+                          "state": null,
+                          "target_id": "account_02JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "target_kind": "employee"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateDistributionResult"
+                }
+              }
+            },
+            "description": "Preview or apply one bulk assign/revoke distribution across the source assignment scope.",
+            "headers": {
+              "ETag": {
+                "description": "Current version, for a later If-Match.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Operation-Id": {
+                "description": "Durable operation id of this mutation.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Preview or apply one bulk assign/revoke distribution across the source assignment scope."
       }
     },
     "/v1/corporate/organizations/{organization_id}/catalog-assignments/effective": {

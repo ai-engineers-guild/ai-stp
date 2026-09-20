@@ -4,7 +4,10 @@
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, UniqueConstraint
 
-from ai_stp_platform.organization_models import CorporateCatalogAssignment
+from ai_stp_platform.organization_models import (
+    CorporateAssignmentDistribution,
+    CorporateCatalogAssignment,
+)
 
 
 def test_assignment_storage_restricts_subjects_to_the_same_tenant() -> None:
@@ -53,3 +56,38 @@ def test_assignment_storage_supports_latest_and_organization_scope() -> None:
     assert table.c.passport_digest.nullable
     organization_scope = {index.name for index in table.indexes if index.unique}
     assert "uq_corporate_assignment_organization" in organization_scope
+
+
+def test_distribution_storage_is_derived_and_never_copies_policy() -> None:
+    table = CorporateAssignmentDistribution.__table__
+    assert {column.name for column in table.primary_key.columns} == {
+        "organization_id",
+        "source_assignment_id",
+        "target_kind",
+        "target_id",
+        "operation_revision",
+    }
+    # Derived rows must not duplicate the source assignment's policy fields:
+    # the source row stays the single owner of selector, coordinate, and
+    # condition (ADR-0195).
+    for copied in ("selector", "version", "passport_digest", "harness", "object_kind"):
+        assert copied not in table.c
+    checks = {
+        constraint.name
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+    assert {
+        "ck_distribution_target_kind",
+        "ck_distribution_action",
+        "ck_distribution_result",
+        "ck_distribution_state",
+        "ck_distribution_operation_revision",
+    } <= checks
+    keys = {
+        tuple(element.target_fullname for element in constraint.elements)
+        for constraint in table.constraints
+        if isinstance(constraint, ForeignKeyConstraint)
+    }
+    assert ("corporate_catalog_assignment.id",) in keys
+    assert ("organization.id",) in keys

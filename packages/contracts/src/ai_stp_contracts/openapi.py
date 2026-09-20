@@ -126,6 +126,14 @@ from ai_stp_contracts.corporate import (
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateDistributionCounts,
+    CorporateDistributionExclusion,
+    CorporateDistributionRequest,
+    CorporateDistributionResult,
+    CorporateDistributionState,
+    CorporateDistributionStateList,
+    CorporateDistributionStateQuery,
+    CorporateDistributionTargetResult,
     CorporateEffectiveAssignment,
     CorporateEffectiveAssignmentCandidate,
     CorporateEffectiveAssignmentQuery,
@@ -1384,6 +1392,31 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         summary=("Resolve the winning applicable assignment for one employee and catalog line."),
         response=CorporateEffectiveAssignment,
         query=CorporateEffectiveAssignmentQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+        operation_id="distributeCorporateCatalogAssignment",
+        summary=(
+            "Preview or apply one bulk assign/revoke distribution across the "
+            "source assignment scope."
+        ),
+        response=CorporateDistributionResult,
+        body=CorporateDistributionRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+        requires_precondition=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+        operation_id="readCorporateAssignmentDistribution",
+        summary=("Read per-target distribution state for one source assignment."),
+        response=CorporateDistributionStateList,
+        query=CorporateDistributionStateQuery,
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
     ),
@@ -3096,6 +3129,10 @@ NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
     CorporateAuditEntry,
     CorporateCatalogUsage,
     CorporateEffectiveAssignmentCandidate,
+    CorporateDistributionTargetResult,
+    CorporateDistributionExclusion,
+    CorporateDistributionCounts,
+    CorporateDistributionState,
 )
 
 

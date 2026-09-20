@@ -3138,6 +3138,258 @@ export type CorporateDirectoryView = {
 };
 
 /**
+ * CorporateDistributionCounts
+ *
+ * Per-result totals across the resolved target set.
+ */
+export type CorporateDistributionCounts = {
+  /**
+   * Applied
+   */
+  applied: number;
+  /**
+   * Conflicted
+   */
+  conflicted: number;
+  /**
+   * Denied
+   */
+  denied: number;
+  /**
+   * Failed
+   */
+  failed: number;
+  /**
+   * Skipped
+   */
+  skipped: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionExclusion
+ *
+ * A member or project considered during expansion and excluded with a reason.
+ */
+export type CorporateDistributionExclusion = {
+  /**
+   * Reason
+   */
+  reason: string;
+  /**
+   * Target Id
+   */
+  target_id: string;
+  /**
+   * Target Kind
+   */
+  target_kind: "employee" | "project";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionRequest
+ *
+ * Preview or apply one bulk assign/revoke over a source assignment's targets.
+ */
+export type CorporateDistributionRequest = {
+  /**
+   * Action
+   */
+  action: "assign" | "revoke";
+  /**
+   * Authorization Revision
+   */
+  authorization_revision: number;
+  /**
+   * Dry Run
+   */
+  dry_run?: boolean;
+  /**
+   * Expected Revision
+   */
+  expected_revision: number;
+  idempotency_key: IdempotencyKey;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Source Assignment Id
+   */
+  source_assignment_id: string;
+};
+
+/**
+ * CorporateDistributionResult
+ *
+ * Preview or durable outcome of one bulk distribution request.
+ */
+export type CorporateDistributionResult = {
+  /**
+   * Action
+   */
+  action: "assign" | "revoke";
+  counts: CorporateDistributionCounts;
+  /**
+   * Distribution Id
+   */
+  distribution_id: string | null;
+  /**
+   * Dry Run
+   */
+  dry_run: boolean;
+  /**
+   * Exclusions
+   */
+  exclusions: Array<CorporateDistributionExclusion>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Source Assignment Id
+   */
+  source_assignment_id: string;
+  /**
+   * Source Revision
+   */
+  source_revision: number;
+  /**
+   * Targets
+   */
+  targets: Array<CorporateDistributionTargetResult>;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionState
+ *
+ * Current derived distribution state for one member or project target.
+ */
+export type CorporateDistributionState = {
+  /**
+   * Diagnostic
+   */
+  diagnostic: string | null;
+  /**
+   * Operation Revision
+   */
+  operation_revision: number;
+  /**
+   * Result
+   */
+  result: "applied" | "skipped" | "conflicted" | "denied" | "failed";
+  /**
+   * State
+   */
+  state: "pending" | "installed" | "outdated" | "failed" | "revoked" | null;
+  /**
+   * Target Id
+   */
+  target_id: string;
+  /**
+   * Target Kind
+   */
+  target_kind: "employee" | "project";
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionStateList
+ *
+ * Per-target distribution state for one source assignment.
+ */
+export type CorporateDistributionStateList = {
+  /**
+   * Items
+   */
+  items: Array<CorporateDistributionState>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Source Assignment Id
+   */
+  source_assignment_id: string;
+  /**
+   * Source Revision
+   */
+  source_revision: number;
+  /**
+   * Source State
+   */
+  source_state: "current" | "retired";
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateDistributionStateQuery
+ *
+ * Bounded read of one source assignment's per-target distribution state.
+ */
+export type CorporateDistributionStateQuery = {
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+  /**
+   * Source Assignment Id
+   */
+  source_assignment_id: string;
+};
+
+/**
+ * CorporateDistributionTargetResult
+ *
+ * One resolved target's durable result and derived distribution state.
+ */
+export type CorporateDistributionTargetResult = {
+  /**
+   * Diagnostic
+   */
+  diagnostic: string | null;
+  /**
+   * Overriding Assignment Id
+   */
+  overriding_assignment_id: string | null;
+  /**
+   * Result
+   */
+  result: "applied" | "skipped" | "conflicted" | "denied" | "failed";
+  /**
+   * State
+   */
+  state: "pending" | "installed" | "outdated" | "failed" | "revoked" | null;
+  /**
+   * Target Id
+   */
+  target_id: string;
+  /**
+   * Target Kind
+   */
+  target_kind: "employee" | "project";
+  [key: string]: unknown;
+};
+
+/**
  * CorporateEffectiveAssignment
  *
  * The winning assignment, its source, and the exact resolved coordinate.
@@ -15155,6 +15407,143 @@ export type WriteCorporateCatalogAssignmentResponses = {
 
 export type WriteCorporateCatalogAssignmentResponse =
   WriteCorporateCatalogAssignmentResponses[keyof WriteCorporateCatalogAssignmentResponses];
+
+export type ReadCorporateAssignmentDistributionData = {
+  body?: never;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Source Assignment Id
+     */
+    source_assignment_id: string;
+  };
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution";
+};
+
+export type ReadCorporateAssignmentDistributionErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type ReadCorporateAssignmentDistributionError =
+  ReadCorporateAssignmentDistributionErrors[keyof ReadCorporateAssignmentDistributionErrors];
+
+export type ReadCorporateAssignmentDistributionResponses = {
+  /**
+   * Read per-target distribution state for one source assignment.
+   */
+  200: CorporateDistributionStateList;
+};
+
+export type ReadCorporateAssignmentDistributionResponse =
+  ReadCorporateAssignmentDistributionResponses[keyof ReadCorporateAssignmentDistributionResponses];
+
+export type DistributeCorporateCatalogAssignmentData = {
+  body: CorporateDistributionRequest;
+  headers: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+    /**
+     * Client-chosen key; a retry must not become a second effect.
+     */
+    "Idempotency-Key": string;
+    /**
+     * Expected ETag. A stale value fails AI_STP_PRECONDITION_FAILED.
+     */
+    "If-Match": string;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/distribution";
+};
+
+export type DistributeCorporateCatalogAssignmentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type DistributeCorporateCatalogAssignmentError =
+  DistributeCorporateCatalogAssignmentErrors[keyof DistributeCorporateCatalogAssignmentErrors];
+
+export type DistributeCorporateCatalogAssignmentResponses = {
+  /**
+   * Preview or apply one bulk assign/revoke distribution across the source assignment scope.
+   */
+  200: CorporateDistributionResult;
+};
+
+export type DistributeCorporateCatalogAssignmentResponse =
+  DistributeCorporateCatalogAssignmentResponses[keyof DistributeCorporateCatalogAssignmentResponses];
 
 export type ReadCorporateEffectiveAssignmentData = {
   body?: never;

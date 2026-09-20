@@ -1,0 +1,256 @@
+{
+  "$defs": {
+    "CorporateDistributionCounts": {
+      "additionalProperties": true,
+      "description": "Per-result totals across the resolved target set.",
+      "properties": {
+        "applied": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Applied",
+          "type": "integer"
+        },
+        "conflicted": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Conflicted",
+          "type": "integer"
+        },
+        "denied": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Denied",
+          "type": "integer"
+        },
+        "failed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "skipped": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Skipped",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "applied",
+        "conflicted",
+        "denied",
+        "failed",
+        "skipped"
+      ],
+      "title": "CorporateDistributionCounts",
+      "type": "object"
+    },
+    "CorporateDistributionExclusion": {
+      "additionalProperties": true,
+      "description": "A member or project considered during expansion and excluded with a reason.",
+      "properties": {
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_kind": {
+          "enum": [
+            "employee",
+            "project"
+          ],
+          "title": "Target Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "target_id",
+        "target_kind"
+      ],
+      "title": "CorporateDistributionExclusion",
+      "type": "object"
+    },
+    "CorporateDistributionTargetResult": {
+      "additionalProperties": true,
+      "description": "One resolved target's durable result and derived distribution state.",
+      "properties": {
+        "diagnostic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diagnostic"
+        },
+        "overriding_assignment_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Overriding Assignment Id"
+        },
+        "result": {
+          "enum": [
+            "applied",
+            "skipped",
+            "conflicted",
+            "denied",
+            "failed"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "enum": [
+                "pending",
+                "installed",
+                "outdated",
+                "failed",
+                "revoked"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_kind": {
+          "enum": [
+            "employee",
+            "project"
+          ],
+          "title": "Target Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "diagnostic",
+        "overriding_assignment_id",
+        "result",
+        "state",
+        "target_id",
+        "target_kind"
+      ],
+      "title": "CorporateDistributionTargetResult",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-distribution-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Preview or durable outcome of one bulk distribution request.",
+  "properties": {
+    "action": {
+      "enum": [
+        "assign",
+        "revoke"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "counts": {
+      "$ref": "#/$defs/CorporateDistributionCounts",
+      "default": {
+        "applied": 0,
+        "conflicted": 0,
+        "denied": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "distribution_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Distribution Id"
+    },
+    "dry_run": {
+      "title": "Dry Run",
+      "type": "boolean"
+    },
+    "exclusions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateDistributionExclusion"
+      },
+      "maxItems": 1024,
+      "title": "Exclusions",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_assignment_id": {
+      "title": "Source Assignment Id",
+      "type": "string"
+    },
+    "source_revision": {
+      "minimum": 1,
+      "title": "Source Revision",
+      "type": "integer"
+    },
+    "targets": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateDistributionTargetResult"
+      },
+      "maxItems": 1024,
+      "title": "Targets",
+      "type": "array"
+    }
+  },
+  "required": [
+    "action",
+    "counts",
+    "distribution_id",
+    "dry_run",
+    "exclusions",
+    "organization_id",
+    "schema_version",
+    "source_assignment_id",
+    "source_revision",
+    "targets"
+  ],
+  "title": "CorporateDistributionResult",
+  "type": "object"
+}

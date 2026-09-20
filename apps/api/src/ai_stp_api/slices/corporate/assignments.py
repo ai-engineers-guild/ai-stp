@@ -13,6 +13,7 @@ from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.corporate import service
 from ai_stp_contracts.corporate import (
     AssignmentSelector,
+    AssignmentState,
     AssignmentSubjectKind,
     CorporateCatalogAssignment,
     CorporateCatalogAssignmentList,
@@ -21,9 +22,20 @@ from ai_stp_contracts.corporate import (
     CorporateCatalogUsage,
     CorporateCatalogUsageList,
     CorporateCatalogUsageQuery,
+    CorporateDistributionCounts,
+    CorporateDistributionExclusion,
+    CorporateDistributionRequest,
+    CorporateDistributionResult,
+    CorporateDistributionState,
+    CorporateDistributionStateList,
+    CorporateDistributionStateQuery,
+    CorporateDistributionTargetResult,
     CorporateEffectiveAssignment,
     CorporateEffectiveAssignmentCandidate,
     CorporateEffectiveAssignmentQuery,
+    DistributionLifecycle,
+    DistributionTargetKind,
+    DistributionTargetResult,
 )
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
@@ -32,15 +44,24 @@ from ai_stp_platform.catalog_read import get_visible_metadata, get_visible_objec
 from ai_stp_platform.corporate_authorization import has_corporate_permission
 from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
+    CorporateAssignmentDistribution as DistributionRow,
+)
+from ai_stp_platform.organization_models import (
     CorporateCatalogAssignment as AssignmentRow,
 )
 from ai_stp_platform.organization_models import (
     CorporateProject,
+    CorporateProjectMember,
     CorporateTeam,
     CorporateTeamMember,
     OrganizationMembership,
 )
-from ai_stp_platform.technology_models import Technology
+from ai_stp_platform.technology_models import (
+    ProjectTeamRelation,
+    ProjectTechnologyRelation,
+    Technology,
+    TechnologyTeamResponsibility,
+)
 
 UsageSubjectKind = Literal["employee", "team", "project", "technology"]
 
@@ -778,4 +799,641 @@ async def resolve_effective(
         passport_digest=resolved_digest,
         harness=cast(HarnessId | None, winner.harness) if winner is not None else None,
         candidates=candidates,
+    )
+
+
+# ADR-0195: per-source-scope write authorization for distribution.
+_DISTRIBUTE_PERMISSIONS = {
+    "employee": ("member.manage", "organization"),
+    "team": ("team.update", "team"),
+    "project": ("project.update", "project"),
+    "technology": ("technology.update", "technology"),
+    "organization": ("organization.manage", "organization"),
+}
+# Read authorization for the distribution-state endpoint.
+_DISTRIBUTION_READ_PERMISSIONS = {
+    "team": ("team.read", "team"),
+    "project": ("project.read", "project"),
+    "technology": ("technology.read", "technology"),
+    "organization": ("organization.read", "organization"),
+}
+
+
+async def _expand_targets(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    kind: AssignmentSubjectKind,
+    identity: str | None,
+) -> tuple[list[str], list[str], list[CorporateDistributionExclusion]]:
+    """Resolve the source scope into employee/project targets plus exclusions.
+
+    Employees are always resolved through an active membership; projects are
+    limited to active corporate projects. Inactive or foreign scope members are
+    returned as exclusions instead of targets (REQ-8511).
+    """
+    active_member_ids = select(OrganizationMembership.account_id).where(
+        OrganizationMembership.organization_id == organization_id,
+        OrganizationMembership.state == "active",
+    )
+    members: set[str] = set()
+    projects: set[str] = set()
+    exclusions: list[CorporateDistributionExclusion] = []
+    if kind == "employee":
+        membership = await db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.account_id == identity,
+            )
+        )
+        if membership is None or membership.state != "active":
+            exclusions.append(
+                CorporateDistributionExclusion(
+                    target_kind="employee",
+                    target_id=identity or "",
+                    reason="membership_inactive",
+                )
+            )
+        else:
+            members.add(membership.account_id)
+    elif kind == "team":
+        members.update(
+            (
+                await db.scalars(
+                    select(CorporateTeamMember.account_id).where(
+                        CorporateTeamMember.organization_id == organization_id,
+                        CorporateTeamMember.team_id == identity,
+                        CorporateTeamMember.account_id.in_(active_member_ids),
+                    )
+                )
+            ).all()
+        )
+        projects.update(
+            (
+                await db.scalars(
+                    select(ProjectTeamRelation.project_id)
+                    .join(
+                        CorporateProject,
+                        (CorporateProject.organization_id == ProjectTeamRelation.organization_id)
+                        & (CorporateProject.id == ProjectTeamRelation.project_id),
+                    )
+                    .where(
+                        ProjectTeamRelation.organization_id == organization_id,
+                        ProjectTeamRelation.team_id == identity,
+                        ProjectTeamRelation.state == "current",
+                        CorporateProject.state == "active",
+                    )
+                )
+            ).all()
+        )
+    elif kind == "project":
+        members.update(
+            (
+                await db.scalars(
+                    select(CorporateProjectMember.account_id).where(
+                        CorporateProjectMember.organization_id == organization_id,
+                        CorporateProjectMember.project_id == identity,
+                        CorporateProjectMember.account_id.in_(active_member_ids),
+                    )
+                )
+            ).all()
+        )
+        project = await db.scalar(
+            select(CorporateProject).where(
+                CorporateProject.organization_id == organization_id,
+                CorporateProject.id == identity,
+            )
+        )
+        if project is None or project.state != "active":
+            exclusions.append(
+                CorporateDistributionExclusion(
+                    target_kind="project",
+                    target_id=identity or "",
+                    reason="project_inactive",
+                )
+            )
+        else:
+            projects.add(project.id)
+    elif kind == "technology":
+        team_ids = (
+            await db.scalars(
+                select(TechnologyTeamResponsibility.team_id).where(
+                    TechnologyTeamResponsibility.organization_id == organization_id,
+                    TechnologyTeamResponsibility.technology_id == identity,
+                    TechnologyTeamResponsibility.state == "current",
+                )
+            )
+        ).all()
+        if team_ids:
+            members.update(
+                (
+                    await db.scalars(
+                        select(CorporateTeamMember.account_id).where(
+                            CorporateTeamMember.organization_id == organization_id,
+                            CorporateTeamMember.team_id.in_(team_ids),
+                            CorporateTeamMember.account_id.in_(active_member_ids),
+                        )
+                    )
+                ).all()
+            )
+        projects.update(
+            (
+                await db.scalars(
+                    select(ProjectTechnologyRelation.project_id)
+                    .join(
+                        CorporateProject,
+                        (
+                            CorporateProject.organization_id
+                            == ProjectTechnologyRelation.organization_id
+                        )
+                        & (CorporateProject.id == ProjectTechnologyRelation.project_id),
+                    )
+                    .where(
+                        ProjectTechnologyRelation.organization_id == organization_id,
+                        ProjectTechnologyRelation.technology_id == identity,
+                        ProjectTechnologyRelation.state == "current",
+                        CorporateProject.state == "active",
+                    )
+                )
+            ).all()
+        )
+        if projects:
+            members.update(
+                (
+                    await db.scalars(
+                        select(CorporateProjectMember.account_id).where(
+                            CorporateProjectMember.organization_id == organization_id,
+                            CorporateProjectMember.project_id.in_(projects),
+                            CorporateProjectMember.account_id.in_(active_member_ids),
+                        )
+                    )
+                ).all()
+            )
+    else:
+        members.update((await db.scalars(active_member_ids)).all())
+        projects.update(
+            (
+                await db.scalars(
+                    select(CorporateProject.id).where(
+                        CorporateProject.organization_id == organization_id,
+                        CorporateProject.state == "active",
+                    )
+                )
+            ).all()
+        )
+    return sorted(members), sorted(projects), exclusions
+
+
+def _derive_state(row: DistributionRow, *, source: AssignmentRow) -> DistributionLifecycle | None:
+    """Derived lifecycle for a stored distribution row (REQ-8515).
+
+    Non-applied results never carry a lifecycle. A stored ``pending`` row whose
+    source revision advanced becomes ``outdated``; anything applied under a
+    retired source reports ``revoked``. ``installed`` is only ever observed from
+    the stored row — distribution never mutates provider-owned harness state.
+    """
+    if row.result == "failed":
+        return "failed"
+    if row.result != "applied":
+        return None
+    if source.state == "retired":
+        return "revoked"
+    if row.state == "pending" and row.operation_revision < source.revision:
+        return "outdated"
+    return cast(DistributionLifecycle, row.state)
+
+
+async def _target_authorized(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    target_kind: DistributionTargetKind,
+    target_id: str,
+) -> bool:
+    if target_kind == "employee":
+        return await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=ctx.account_id,
+            permission="member.manage",
+            scope_kind="organization",
+            scope_id=organization_id,
+        )
+    return await has_corporate_permission(
+        db,
+        organization_id=organization_id,
+        principal_type="user",
+        principal_id=ctx.account_id,
+        permission="project.update",
+        scope_kind="project",
+        scope_id=target_id,
+    )
+
+
+async def distribute_assignment(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    payload: CorporateDistributionRequest,
+    request_id: str | None,
+) -> CorporateDistributionResult:
+    """Preview or apply one bulk assignment distribution (ADR-0195).
+
+    Expansion, exclusion, override, per-target authorization, and result
+    classification are identical for dry-run and apply; apply additionally
+    mutates the source (revoke retires it), persists applied outcomes plus
+    best-effort failed ledger rows, and stores the idempotent receipt. A
+    skipped/conflicted/denied plan is visible in the result and its receipt
+    but must never mask an earlier applied row or collide with it on the
+    composite key.
+    Distribution rows never copy the source selector/version/harness
+    policy and never touch provider state.
+    """
+    source = await db.scalar(
+        select(AssignmentRow).where(
+            AssignmentRow.id == payload.source_assignment_id,
+            AssignmentRow.organization_id == organization_id,
+        )
+    )
+    if source is None:
+        raise ApiError(
+            ErrorCategory.PERMISSION,
+            "source assignment is unavailable",
+        )
+    kind, identity = _row_scope(source)
+    permission, scope_kind = _DISTRIBUTE_PERMISSIONS[kind]
+    scope_id = identity if scope_kind != "organization" else organization_id
+    if payload.dry_run:
+        organization, _ = await service.authorize(
+            db,
+            ctx=ctx,
+            organization_id=organization_id,
+            permission=permission,
+            scope_kind=scope_kind,
+            scope_id=scope_id,
+        )
+        if payload.authorization_revision != organization.policy_revision:
+            raise ApiError(
+                ErrorCategory.PRECONDITION,
+                "capability revision is stale",
+            )
+    else:
+        _, receipt = await service.authorize_idempotent(
+            db,
+            ctx=ctx,
+            organization_id=organization_id,
+            permission=permission,
+            scope_kind=scope_kind,
+            scope_id=scope_id,
+            authorization_revision=payload.authorization_revision,
+            idempotency_key=payload.idempotency_key,
+            operation="catalog_assignment.distribute",
+            fingerprint=service.mutation_fingerprint(
+                payload.model_dump(mode="json", exclude={"idempotency_key"})
+            ),
+            request_id=request_id,
+        )
+        if receipt is not None:
+            return CorporateDistributionResult.model_validate(receipt.response_body)
+    # Revision and state preconditions run after the receipt check so an
+    # idempotent revoke retry replays instead of tripping over the revision
+    # its first application bumped.
+    if source.revision != payload.expected_revision:
+        raise ApiError(
+            ErrorCategory.PRECONDITION,
+            "assignment revision is stale",
+        )
+    if source.state != "current":
+        raise ApiError(
+            ErrorCategory.PRECONDITION,
+            "source assignment is retired",
+        )
+    members, projects, exclusions = await _expand_targets(
+        db, organization_id=organization_id, kind=kind, identity=identity
+    )
+    target_pairs: list[tuple[DistributionTargetKind, str]] = cast(
+        list[tuple[DistributionTargetKind, str]],
+        [("employee", member) for member in members]
+        + [("project", project) for project in projects],
+    )
+    # Individual overrides: rows at the target's own scope for the same line.
+    # A NULL-harness override applies unconditionally; a conditional one only
+    # conflicts when it matches the source condition (ADR-0194/ADR-0195).
+    scope_clauses: list[ColumnElement[bool]] = []
+    if members:
+        scope_clauses.append(AssignmentRow.account_id.in_(members))
+    if projects:
+        scope_clauses.append(AssignmentRow.project_id.in_(projects))
+    overrides: dict[tuple[DistributionTargetKind, str], AssignmentRow] = {}
+    if scope_clauses:
+        harness_filter = (
+            AssignmentRow.harness.is_(None)
+            if source.harness is None
+            else or_(
+                AssignmentRow.harness.is_(None),
+                AssignmentRow.harness == source.harness,
+            )
+        )
+        override_rows = (
+            await db.scalars(
+                select(AssignmentRow).where(
+                    AssignmentRow.organization_id == organization_id,
+                    AssignmentRow.object_kind == source.object_kind,
+                    AssignmentRow.stable_id == source.stable_id,
+                    AssignmentRow.id != source.id,
+                    or_(*scope_clauses),
+                    harness_filter,
+                )
+            )
+        ).all()
+        for row in override_rows:
+            key: tuple[DistributionTargetKind, str]
+            if row.account_id is not None:
+                key = ("employee", row.account_id)
+            else:
+                key = ("project", row.project_id or "")
+            overrides[key] = row
+    existing = (
+        await db.scalars(
+            select(DistributionRow).where(
+                DistributionRow.organization_id == organization_id,
+                DistributionRow.source_assignment_id == source.id,
+            )
+        )
+    ).all()
+    # Revoke eligibility and assign-suppression look at the latest *applied*
+    # row per target: a later conflicted/denied/failed result must not mask a
+    # still-outstanding earlier distribution.
+    live_by_target: dict[tuple[DistributionTargetKind, str], DistributionRow] = {}
+    for row in existing:
+        if row.result != "applied":
+            continue
+        key = (cast(DistributionTargetKind, row.target_kind), row.target_id)
+        current = live_by_target.get(key)
+        if current is None or current.operation_revision < row.operation_revision:
+            live_by_target[key] = row
+    existing_by_key = {
+        (row.target_kind, row.target_id, row.operation_revision): row for row in existing
+    }
+    source_revision = source.revision
+    operation_revision = source_revision + 1 if payload.action == "revoke" else source_revision
+    plans: list[CorporateDistributionTargetResult] = []
+    for target_kind, target_id in target_pairs:
+        authorized = await _target_authorized(
+            db,
+            ctx=ctx,
+            organization_id=organization_id,
+            target_kind=target_kind,
+            target_id=target_id,
+        )
+        override = overrides.get((target_kind, target_id))
+        live = live_by_target.get((target_kind, target_id))
+        live_pending = (
+            live is not None
+            and live.result == "applied"
+            and live.state in ("pending", "installed", "outdated")
+        )
+        if not authorized:
+            plans.append(
+                CorporateDistributionTargetResult(
+                    target_kind=target_kind,
+                    target_id=target_id,
+                    result="denied",
+                    diagnostic="target scope is not authorized",
+                )
+            )
+        elif override is not None and (override.state == "current" or payload.action == "assign"):
+            plans.append(
+                CorporateDistributionTargetResult(
+                    target_kind=target_kind,
+                    target_id=target_id,
+                    result="conflicted",
+                    diagnostic="individual exception is authoritative",
+                    overriding_assignment_id=override.id,
+                )
+            )
+        elif payload.action == "assign":
+            if live is not None and live.operation_revision == source_revision:
+                plans.append(
+                    CorporateDistributionTargetResult(
+                        target_kind=target_kind,
+                        target_id=target_id,
+                        result="skipped",
+                        state=_derive_state(live, source=source),
+                        diagnostic="already distributed at this revision",
+                    )
+                )
+            else:
+                plans.append(
+                    CorporateDistributionTargetResult(
+                        target_kind=target_kind,
+                        target_id=target_id,
+                        result="applied",
+                        state="pending",
+                    )
+                )
+        elif live_pending:
+            plans.append(
+                CorporateDistributionTargetResult(
+                    target_kind=target_kind,
+                    target_id=target_id,
+                    result="applied",
+                    state="revoked",
+                )
+            )
+        else:
+            plans.append(
+                CorporateDistributionTargetResult(
+                    target_kind=target_kind,
+                    target_id=target_id,
+                    result="skipped",
+                    diagnostic="no live distribution",
+                )
+            )
+    if not payload.dry_run:
+        if payload.action == "revoke":
+            source.state = "retired"
+            source.revision += 1
+            await db.flush()
+        for index, plan in enumerate(plans):
+            if plan.result != "applied":
+                continue
+            # A durable row can only already exist at this operation revision
+            # as a failed outcome from an earlier apply; finalizing it in place
+            # lets a retry heal instead of colliding on the composite key.
+            prior = existing_by_key.get((plan.target_kind, plan.target_id, operation_revision))
+            try:
+                async with db.begin_nested():
+                    if prior is not None:
+                        prior.action = payload.action
+                        prior.result = "applied"
+                        prior.state = plan.state
+                        prior.diagnostic = plan.diagnostic
+                        prior.overriding_assignment_id = plan.overriding_assignment_id
+                    else:
+                        db.add(
+                            DistributionRow(
+                                organization_id=organization_id,
+                                source_assignment_id=source.id,
+                                target_kind=plan.target_kind,
+                                target_id=plan.target_id,
+                                operation_revision=operation_revision,
+                                action=payload.action,
+                                result="applied",
+                                state=plan.state,
+                                diagnostic=plan.diagnostic,
+                                overriding_assignment_id=plan.overriding_assignment_id,
+                            )
+                        )
+            except Exception:
+                plans[index] = plan.model_copy(
+                    update={
+                        "result": "failed",
+                        "state": "failed",
+                        "diagnostic": "distribution record failed",
+                    }
+                )
+                try:
+                    async with db.begin_nested():
+                        if prior is not None:
+                            prior.action = payload.action
+                            prior.result = "failed"
+                            prior.state = "failed"
+                            prior.diagnostic = "distribution record failed"
+                        else:
+                            db.add(
+                                DistributionRow(
+                                    organization_id=organization_id,
+                                    source_assignment_id=source.id,
+                                    target_kind=plan.target_kind,
+                                    target_id=plan.target_id,
+                                    operation_revision=operation_revision,
+                                    action=payload.action,
+                                    result="failed",
+                                    state="failed",
+                                    diagnostic="distribution record failed",
+                                )
+                            )
+                except Exception:
+                    pass
+        await emit_audit(
+            db,
+            actor_account_id=ctx.account_id,
+            organization_id=organization_id,
+            action=f"catalog_assignment.{payload.action}.distribute",
+            target_table="corporate_assignment_distribution",
+            target_id=source.id,
+            request_id=request_id,
+            payload={
+                "action": payload.action,
+                "targets": len(plans),
+                "applied": sum(1 for plan in plans if plan.result == "applied"),
+            },
+        )
+    counts = CorporateDistributionCounts(
+        applied=sum(1 for plan in plans if plan.result == "applied"),
+        skipped=sum(1 for plan in plans if plan.result == "skipped"),
+        conflicted=sum(1 for plan in plans if plan.result == "conflicted"),
+        denied=sum(1 for plan in plans if plan.result == "denied"),
+        failed=sum(1 for plan in plans if plan.result == "failed"),
+    )
+    result = CorporateDistributionResult(
+        distribution_id=None if payload.dry_run else payload.idempotency_key,
+        organization_id=organization_id,
+        source_assignment_id=source.id,
+        action=payload.action,
+        dry_run=payload.dry_run,
+        source_revision=source_revision,
+        targets=plans,
+        exclusions=exclusions,
+        counts=counts,
+    )
+    if not payload.dry_run:
+        await service.store_mutation_receipt(
+            db,
+            organization_id=organization_id,
+            key=payload.idempotency_key,
+            operation="catalog_assignment.distribute",
+            fingerprint=service.mutation_fingerprint(
+                payload.model_dump(mode="json", exclude={"idempotency_key"})
+            ),
+            response=result,
+        )
+    return result
+
+
+async def list_distribution(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    query: CorporateDistributionStateQuery,
+    request_id: str | None,
+) -> CorporateDistributionStateList:
+    """Latest per-target distribution state for one source assignment."""
+    source = await db.scalar(
+        select(AssignmentRow).where(
+            AssignmentRow.id == query.source_assignment_id,
+            AssignmentRow.organization_id == organization_id,
+        )
+    )
+    if source is None:
+        raise ApiError(
+            ErrorCategory.PERMISSION,
+            "source assignment is unavailable",
+        )
+    kind, identity = _row_scope(source)
+    if kind == "employee":
+        await service.read_member(
+            db,
+            ctx=ctx,
+            organization_id=organization_id,
+            account_id=identity or "",
+            request_id=request_id,
+        )
+    else:
+        permission, scope_kind = _DISTRIBUTION_READ_PERMISSIONS[kind]
+        await service.authorize(
+            db,
+            ctx=ctx,
+            organization_id=organization_id,
+            permission=permission,
+            scope_kind=scope_kind,
+            scope_id=identity if scope_kind != "organization" else organization_id,
+        )
+    rows = (
+        await db.scalars(
+            select(DistributionRow).where(
+                DistributionRow.organization_id == organization_id,
+                DistributionRow.source_assignment_id == source.id,
+            )
+        )
+    ).all()
+    latest: dict[tuple[str, str], DistributionRow] = {}
+    for row in rows:
+        key = (row.target_kind, row.target_id)
+        current = latest.get(key)
+        if current is None or current.operation_revision < row.operation_revision:
+            latest[key] = row
+    items = [
+        CorporateDistributionState(
+            target_kind=cast(DistributionTargetKind, row.target_kind),
+            target_id=row.target_id,
+            result=cast(DistributionTargetResult, row.result),
+            state=_derive_state(row, source=source),
+            operation_revision=row.operation_revision,
+            diagnostic=row.diagnostic,
+        )
+        for _, row in sorted(latest.items())
+    ]
+    return CorporateDistributionStateList(
+        organization_id=organization_id,
+        source_assignment_id=source.id,
+        source_revision=source.revision,
+        source_state=cast(AssignmentState, source.state),
+        items=items[query.offset : query.offset + query.limit],
+        total=len(items),
     )
