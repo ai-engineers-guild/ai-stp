@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import io
-import zipfile
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import cast
@@ -14,16 +12,25 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from tests.support.component_passports import adaptation_fields
 from tests.support.private_distribution import component_version, setup_version
+from tests.support.publication_artifacts import (
+    ARTIFACT_BY_DIGEST,
+    CLEAN_ARTIFACT,
+    CLEAN_ARTIFACT_B,
+    DIGEST,
+    DIGEST2,
+    PROJECTION_ARTIFACT,
+    PROJECTION_DIGEST,
+)
+from tests.support.publication_artifacts import (
+    publication_passport as _passport,
+)
 
 from ai_stp_api.app import create_app
 from ai_stp_api.errors import CATEGORY_STATUS, ErrorCategory
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
-from ai_stp_foundation.digests import digest_bytes
 from ai_stp_foundation.ids import new_id
-from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_platform.external_catalog_admin import apply_case as apply_catalog_request
 from ai_stp_platform.models import (
     Account,
@@ -44,7 +51,6 @@ from ai_stp_platform.safety.workdir import MAX_ARTIFACT_BYTES
 from ai_stp_platform.settings import StorageSettings
 from ai_stp_platform.storage.memory import MemoryObjectClient
 from ai_stp_platform.storage.object_store import (
-    ARTIFACT_DIGEST_DOMAIN,
     ImmutableObjectStore,
 )
 from ai_stp_worker.handlers import resolve
@@ -53,24 +59,8 @@ from ai_stp_worker.handlers.deliver_invitation import MAIL_PORT
 pytestmark = pytest.mark.platform
 
 
-def _skill_zip(body: str) -> bytes:
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr("SKILL.md", body)
-    return buf.getvalue()
-
-
-# Real content digests so safety validate can fetch and re-hash bytes.
-CLEAN_ARTIFACT = _skill_zip("# demo-skill\n\nClean publication fixture.\n")
-CLEAN_ARTIFACT_B = _skill_zip("# demo-skill-b\n\nSecond publication fixture.\n")
-DIGEST = digest_bytes(ARTIFACT_DIGEST_DOMAIN, CLEAN_ARTIFACT)
-DIGEST2 = digest_bytes(ARTIFACT_DIGEST_DOMAIN, CLEAN_ARTIFACT_B)
-ARTIFACT_BY_DIGEST = {
-    DIGEST: CLEAN_ARTIFACT,
-    DIGEST2: CLEAN_ARTIFACT_B,
-}
-PROJECTION_ARTIFACT = b"codex projection bytes"
-PROJECTION_DIGEST = digest_bytes(ARTIFACT_DIGEST_DOMAIN, PROJECTION_ARTIFACT)
+# Artifact bytes, digests and the passport builder live in
+# tests/support/publication_artifacts.py — shared with the CLI boundary tests.
 
 
 @pytest.fixture(autouse=True)
@@ -125,68 +115,6 @@ def _publication_artifact_store(monkeypatch: pytest.MonkeyPatch) -> None:
         "ai_stp_platform.safety.adapters.skill_gate.run_cli",
         _clean_scan,
     )
-
-
-def _passport(
-    *,
-    owner_id: str,
-    version: str = "1.0",
-    digest: str = DIGEST,
-    requires_credentials: bool = False,
-    extra_projection: bool = False,
-) -> dict[str, object]:
-    payload = ARTIFACT_BY_DIGEST.get(digest, CLEAN_ARTIFACT)
-    passport: dict[str, object] = {
-        "schema_version": 1,
-        "kind": "component",
-        "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
-        "revision_id": "revision_" + "0" * 64,
-        "parent_revision_ids": [],
-        "owner_id": owner_id,
-        "created_at": "2026-08-10T00:00:00.000Z",
-        "visibility": "public",
-        "facts": {},
-        "name": "demo-skill",
-        "description": "Demo publication component.",
-        "version": version,
-        "tags": ["review"],
-        "license": {"spdx_id": "MIT", "redistribution_allowed": True},
-        "source": {
-            "repository": "https://github.com/example/demo",
-            "commit": "a" * 40,
-            "path": "skills/demo",
-        },
-        "artifact": {"digest": digest, "size_bytes": len(payload)},
-        "requires_credentials": requires_credentials,
-        "requires_authorization": "none",
-        "permissions": {"filesystem": [], "network": [], "process": []},
-        "external_endpoints": [],
-        "compatibility_evidence_refs": [],
-        **adaptation_fields(digest=digest, size=len(payload)),
-        "required_env": [],
-        "component_type": "skill",
-        "provides_capabilities": [],
-        "requires_components": [],
-        "requires_capabilities": [],
-        "conflicts": {
-            "paths": [],
-            "commands": [],
-            "hooks": [],
-            "mcp": [],
-            "agents": [],
-            "plugins": [],
-        },
-    }
-    if extra_projection:
-        adaptations = cast(list[object], passport["adaptations"])
-        extra = adaptation_fields(
-            digest=PROJECTION_DIGEST,
-            size=len(PROJECTION_ARTIFACT),
-            harness_id="codex",
-        )["adaptations"]
-        passport["adaptations"] = [*adaptations, *cast(list[object], extra)]
-    passport["revision_id"] = derive_revision_id(passport)  # type: ignore[arg-type]
-    return passport
 
 
 @pytest_asyncio.fixture
