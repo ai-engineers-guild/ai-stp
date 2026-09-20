@@ -15,6 +15,7 @@ they are withheld from the public export in
 | --- | --- | --- |
 | [just.md](just.md) | `just` command runner | version contract, file structure, naming taxonomy, settings and attribute policy, the local-only/CI parity boundary |
 | [docker.md](docker.md) | Docker + Compose + deploy chain | digest pinning, apt/apk policy, image/context rules, compose invariants, pull-model deployment, the `infra-*` just surface |
+| [setup-systems.md](setup-systems.md) | Seven Rust setup-system providers + protocol v3 | kit/version contract, reader-first rollout order, pinned trust policy, per-tag evidence |
 
 ## Writing a standard
 
