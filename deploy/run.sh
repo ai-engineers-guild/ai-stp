@@ -12,7 +12,8 @@
 # the wrong port and call a healthy stack broken.
 set -euo pipefail
 
-readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly ROOT
 cd "${ROOT}"
 
 if [[ -f "${ROOT}/.deploy-env" ]]; then

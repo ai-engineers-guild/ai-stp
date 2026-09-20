@@ -121,6 +121,8 @@ either path (`ADR-0147`).
 
 Evidence slices (`evidence-live`, `evidence-config`, `evidence-software`, `evidence-contribution`, and the rest) are deliberately outside `just check`: the gate may not depend on another party's release network or on a deployed environment being reachable. Their inventory, and what each one answers, belongs to `docs/engineering/release-evidence.md`.
 
+The justfile's own conventions — naming taxonomy, settings and attribute policy, and the local-only/CI parity boundary — live in `standards/just.md`; `standards/` collects one document per technology in the stack.
+
 Do not claim a check passed unless it ran in a real checkout. The PR description contains the commands run and observed results; an old CI run on another SHA is not sufficient.
 
 ## Done

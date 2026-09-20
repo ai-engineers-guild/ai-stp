@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -150,6 +151,31 @@ def test_prod_compose_worker_safety_and_rustfs_health() -> None:
     assert "service_healthy" in text
 
 
+def test_every_long_running_prod_service_reports_health() -> None:
+    """`restart: always` revives a dead process; it cannot describe a wedged one.
+
+    `docs` was the one long-running service without a healthcheck, so
+    `docker compose ps` reported it `running` while saying nothing about the
+    only question a static site can answer — does it serve. One-shot jobs
+    (`restart: "no"`) are exempt: their health is their exit code.
+    """
+    text = _read("docker-compose.prod.yml")
+    services = text.split("services:\n", 1)[1].split("\nnetworks:\n", 1)[0]
+    missing: list[str] = []
+    for block in re.split(r"\n  (?=\S)", services):
+        name = block.split(":", 1)[0].strip()
+        if not name or name.startswith("#"):
+            continue
+        executable = "\n".join(
+            line for line in block.splitlines() if not line.lstrip().startswith("#")
+        )
+        if 'restart: "no"' in executable:
+            continue
+        if "restart: always" in executable and "healthcheck:" not in executable:
+            missing.append(name)
+    assert not missing, missing
+
+
 def test_worker_safety_dockerfile_enables_external_cli() -> None:
     text = _read("Dockerfile.worker-safety")
     assert "AI_STP_SAFETY_EXTERNAL_CLI=1" in text
@@ -243,3 +269,30 @@ def test_no_compose_file_resolves_an_image_by_a_moving_tag() -> None:
             _, _, tag = reference.rpartition(":")
             assert tag and tag != reference, f"{name}: {reference} has no tag"
             assert tag != "latest", f"{name}: {reference} resolves through a moving tag"
+
+
+def test_third_party_prod_services_receive_only_their_own_credentials() -> None:
+    """`env_file` hands the whole `.env.prod` to whatever image it lands in.
+
+    Postgres and RustFS are third-party images; giving them the file also gave
+    them the OAuth client secrets, the session secret and the GitHub tokens,
+    none of which their entrypoints read. Each receives exactly the keys its
+    own image consumes, interpolated by Compose from the same `.env.prod` the
+    deploy passes with `--env-file`. First-party services keep `env_file`:
+    their own code reads the rest — six of them, and counting pins the set.
+    """
+    executable = _executable("docker-compose.prod.yml")
+    postgres = executable.split("\n  postgres:\n", 1)[1].split("\n  rustfs:\n", 1)[0]
+    assert "env_file:" not in postgres
+    for key in ("POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"):
+        assert f"{key}: ${{{key}}}" in postgres
+    assert "AI_STP_" not in postgres
+
+    rustfs = executable.split("\n  rustfs:\n", 1)[1].split("\n  migrate:\n", 1)[0]
+    assert "env_file:" not in rustfs
+    for key in ("RUSTFS_ACCESS_KEY", "RUSTFS_SECRET_KEY"):
+        assert f"{key}: ${{{key}}}" in rustfs
+    assert "AI_STP_" not in rustfs
+
+    # migrate, seed, api, content-import, worker, web — and no seventh service.
+    assert executable.count("env_file:") == 6

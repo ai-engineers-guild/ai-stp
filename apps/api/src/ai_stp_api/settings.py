@@ -220,7 +220,7 @@ class CatalogSettings(BaseSettings):
 
     ``cursor_signing_secret`` is a dedicated env secret (not committed). When
     unset in local tests, callers inject a value; production must set
-    ``AI_STP_CATALOG_CURSOR_SECRET``.
+    ``AI_STP_CATALOG_CURSOR_SIGNING_SECRET``.
     """
 
     model_config = SettingsConfigDict(env_prefix="AI_STP_CATALOG_", extra="ignore")

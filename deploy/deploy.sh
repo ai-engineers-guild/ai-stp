@@ -71,11 +71,12 @@ if [[ ${COMMIT} == "unknown" && -n ${AI_STP_API_GIT_COMMIT:-} ]]; then
 fi
 export AI_STP_API_GIT_COMMIT="${AI_STP_API_GIT_COMMIT:-${COMMIT}}"
 
-# Web waits for the repository content import to complete. Without its shared
-# token the one-shot refuses, and Compose then leaves web stopped behind the
-# failed dependency. Check the precondition before build, migration or any
-# container recreation so a missing secret cannot take the current site down.
-require_env_value "AI_STP_CONTENT_IMPORT_TOKEN"
+# Every value a serving container refuses to start without is checked here —
+# before build, migration or any recreation, so a missing or placeholder
+# secret leaves the currently healthy release serving traffic. Nothing inside
+# sources or prints the environment file; `just infra-env-check` rehearses
+# the same contract locally.
+require_deploy_env
 
 # An interrupted run leaves this marker. Every stage below is idempotent, so
 # recovery deterministically restarts the forward path instead of guessing
