@@ -12,10 +12,12 @@ from ai_stp_cli.commands import machine_help
 from ai_stp_cli.commands import task as task_command
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.registry import command_paths
-from ai_stp_contracts.machine_help import TaskView
+from ai_stp_contracts.machine_help import TaskChangeInput, TaskInstallInput, TaskView
 from ai_stp_contracts.schemas import EXPORTED_MODELS
 from ai_stp_foundation.harnesses import HARNESS_IDS
+from ai_stp_foundation.ids import stable_id_pattern
 from ai_stp_foundation.schemas import schema_id
+from ai_stp_foundation.versioning import VERSION_PATTERN
 
 KEY = "schema-discovery-01"
 
@@ -127,6 +129,51 @@ def test_invalid_task_input_names_the_fields_and_the_schema(tmp_path: Path) -> N
         "urn:ai-stp:schema:v1:cli-task-input-install",
         "--json",
     ]
+
+
+def test_input_schema_declares_the_id_and_version_formats() -> None:
+    # The schema is the contract the agent reads; a format the drain enforces
+    # must be visible there, not discovered by a failed task.
+    install = TaskInstallInput.model_json_schema()
+    setup_id = next(
+        item for item in install["properties"]["setup_id"]["anyOf"] if item.get("type") == "string"
+    )
+    assert setup_id["pattern"] == stable_id_pattern("setup")
+    change = TaskChangeInput.model_json_schema()
+    component_id = next(
+        item
+        for item in change["properties"]["component_id"]["anyOf"]
+        if item.get("type") == "string"
+    )
+    assert component_id["pattern"] == stable_id_pattern("component")
+    version = next(
+        item
+        for item in install["properties"]["setup_version"]["anyOf"]
+        if item.get("type") == "string"
+    )
+    assert version["pattern"] == VERSION_PATTERN
+
+
+def test_malformed_setup_id_is_refused_at_the_input_boundary(tmp_path: Path) -> None:
+    # Before the pattern lived in the schema, `demo-setup` passed validation
+    # and the drain failed the task on `is_valid_id` — the same refusal, but
+    # paid for with a failed task row and no pointer to the field's format.
+    place = tmp_path / "input.json"
+    place.write_text(
+        '{"harness_id": "codex", "setup_id": "demo-setup", "setup_version": "1.0"}',
+        encoding="utf-8",
+    )
+    with pytest.raises(CliFailure) as raised:
+        task_command.start({"intent": "install", "idempotency-key": KEY, "input": str(place)})
+    failure = raised.value
+    assert failure.code == "AI_STP_VALIDATION_ERROR"
+    errors = failure.details["errors"]
+    assert isinstance(errors, list)
+    by_pointer = {str(item["pointer"]): item for item in errors if isinstance(item, dict)}
+    assert by_pointer["#/setup_id"]["issue"] == "string_pattern_mismatch"
+    # The pattern is the teachable part; the rejected value stays out.
+    assert "setup_" in str(by_pointer["#/setup_id"]["detail"])
+    assert "demo-setup" not in str(by_pointer["#/setup_id"]["detail"])
 
 
 def test_yaml_input_document_parses(tmp_path: Path) -> None:

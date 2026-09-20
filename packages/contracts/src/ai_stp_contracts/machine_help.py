@@ -43,6 +43,7 @@ from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.errors import ErrorHandling, ExitClass
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import stable_id_pattern
+from ai_stp_foundation.versioning import VERSION_PATTERN
 from ai_stp_passports.versions import ComponentType
 
 #: State effects are independent of task authority and the confirmation binding
@@ -435,8 +436,8 @@ class TaskInstallInput(BaseModel):
     schema_version: Literal[1] = 1
     harness_id: HarnessId | None = None
     project_root: str | None = None
-    setup_id: str | None = None
-    setup_version: str | None = None
+    setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
+    setup_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
 
 
 class TaskChangeInput(BaseModel):
@@ -447,10 +448,10 @@ class TaskChangeInput(BaseModel):
     schema_version: Literal[1] = 1
     harness_id: HarnessId | None = None
     project_root: str | None = None
-    setup_id: str | None = None
-    setup_version: str | None = None
-    component_id: str | None = None
-    component_version: str | None = None
+    setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
+    setup_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    component_id: Annotated[str, Field(pattern=stable_id_pattern("component"))] | None = None
+    component_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     action: Literal["add", "remove"] | None = None
 
 
@@ -475,7 +476,7 @@ class TaskSwitchInput(BaseModel):
     schema_version: Literal[1] = 1
     harness_id: HarnessId | None = None
     project_root: str | None = None
-    preserved_setup_id: str | None = None
+    preserved_setup_id: Annotated[str, Field(pattern=stable_id_pattern("setup"))] | None = None
     reload_session: str | None = None
 
 
@@ -498,7 +499,7 @@ class TaskPublishInput(BaseModel):
 
     schema_version: Literal[1] = 1
     object_id: str | None = None
-    object_version: str | None = None
+    object_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
     visibility: Literal["public", "private"] | None = None
     directory: str | None = None
     provider: Literal["google", "github"] | None = None

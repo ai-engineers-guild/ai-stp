@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from contextlib import closing
 from pathlib import Path
 from typing import cast
 
@@ -109,7 +110,8 @@ def _request(
             loaded: object = json.loads(response.read().decode("utf-8"))
             return int(response.status), _as_object(loaded)
     except urllib.error.HTTPError as error:
-        raw = error.read().decode("utf-8")
+        with closing(error):
+            raw = error.read().decode("utf-8")
         try:
             parsed: object = json.loads(raw)
         except json.JSONDecodeError:

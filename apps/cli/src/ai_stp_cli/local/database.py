@@ -1512,18 +1512,18 @@ def open_readonly(path: Path) -> sqlite3.Connection:
         )
     connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
-    connection.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MILLISECONDS}")
     try:
+        connection.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MILLISECONDS}")
         # The first read is what initializes WAL access, and in WAL mode it
         # needs the `-shm` index created beside the file — a directory write.
         # Probed here so the fallback below is taken while the failure is
         # still this function's to explain.
         connection.execute("SELECT 1 FROM sqlite_schema LIMIT 1").fetchone()
     except sqlite3.OperationalError as error:
+        connection.close()
         text = str(error).lower()
         if "readonly database" not in text and "unable to open database file" not in text:
             raise
-        connection.close()
         if (path.parent / (path.name + "-wal")).exists():
             # A live WAL session exists that this reader cannot join without
             # the shared index; pretending the file is frozen would read a
@@ -1537,6 +1537,9 @@ def open_readonly(path: Path) -> sqlite3.Connection:
         # directory without write permission.
         connection = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
         connection.row_factory = sqlite3.Row
+    except BaseException:
+        connection.close()
+        raise
     return connection
 
 

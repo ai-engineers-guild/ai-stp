@@ -100,10 +100,11 @@ def invalid_parameters(error: ValidationError) -> CliFailure:
     failure` with an empty `next_actions` — `registry search --query ""` said
     the CLI had broken rather than that `q` may not be empty.
 
-    Only the field path travels. `ValidationError.errors()` also carries the
-    rejected `input`, and `SPEC-011` REQ-1108 keeps caller values out of output
-    and logs: the offending value may be exactly the credential someone
-    mistyped into a flag.
+    The rejected value never travels. `ValidationError.errors()` also carries
+    the rejected `input`, and `SPEC-011` REQ-1108 keeps caller values out of
+    output and logs: the offending value may be exactly the credential someone
+    mistyped into a flag. The message travels because it names the constraint —
+    for a literal that is the whole closed choice set.
     """
     fields = sorted({".".join(str(part) for part in item["loc"]) for item in error.errors()} - {""})
     named = ", ".join(fields)

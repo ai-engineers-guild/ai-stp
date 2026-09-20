@@ -340,6 +340,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("registry",): "Inspect catalog identity. Everyday bytes go through the install intent.",
     ("registry", "port"): "Import a setup captured elsewhere into this registry.",
     ("report",): "Report an object to the catalogue's moderators.",
+    ("schema",): "Resolve the schema ids every payload names to JSON Schema documents.",
     ("select",): "Everyday composition is the install intent.",
     ("setup",): "Whole setups: change, install, or recover a preserved copy.",
     ("setup", "compose"): "Freeze a new setup from catalog and embedded sources.",
