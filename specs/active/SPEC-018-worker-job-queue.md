@@ -1,6 +1,6 @@
 ---
 description: "SPEC-018: Background worker and PostgreSQL job queue."
-last_verified: "2026-08-31"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-018: Background worker and PostgreSQL job queue

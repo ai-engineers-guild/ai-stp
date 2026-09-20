@@ -1,6 +1,6 @@
 ---
 description: "SPEC-019: Runtime deployment and operation."
-last_verified: "2026-08-10"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-019: Runtime deployment and operation
