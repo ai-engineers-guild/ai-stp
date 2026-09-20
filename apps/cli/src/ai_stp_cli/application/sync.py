@@ -590,7 +590,7 @@ def _push_consent(
         raise CliFailure(
             "AI_STP_NOT_FOUND",
             "no consent record is known by that identifier",
-            next_actions=["component consent list --json"],
+            next_actions=["consent list --json"],
         )
     entity = consent.entity_id(record.scope, record.target)
     if record.active:
