@@ -1,6 +1,6 @@
 ---
 description: "SPEC-044: GitHub archived state as local evidence of obsolescence."
-last_verified: "2026-08-13"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-044: GitHub archive evidence

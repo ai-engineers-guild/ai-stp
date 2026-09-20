@@ -1,6 +1,6 @@
 ---
 description: "SPEC-045: Federated source descriptors and external observation boundaries."
-last_verified: "2026-08-16"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-045: Federated source boundaries
