@@ -30,7 +30,7 @@ from ai_stp_cli.application.inspect import (
 from ai_stp_cli.application.install_task import drain as drain_install
 from ai_stp_cli.application.publish import drain as drain_publish
 from ai_stp_cli.application.switch import drain as drain_switch
-from ai_stp_cli.errors import CliFailure, internal_failure
+from ai_stp_cli.errors import CliFailure, field_issues, internal_failure
 from ai_stp_cli.local import agent_tasks
 from ai_stp_cli.local.agent_tasks import StoredTask
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
@@ -135,7 +135,12 @@ def start(parameters: Mapping[str, object]) -> Answer[TaskView]:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
             "the task input is not valid",
-            details={"intent": intent, "fields": _field_issues(error), "schema": schema_urn},
+            details={
+                "intent": intent,
+                "fields": _field_names(error),
+                "errors": field_issues(error),
+                "schema": schema_urn,
+            },
             continuations=[
                 Continuation(
                     kind="inspect",
@@ -441,17 +446,16 @@ def _as_object(value: object) -> dict[str, JsonValue]:
     return {str(key): cast(JsonValue, item) for key, item in items.items()}
 
 
-def _field_issues(error: ValidationError) -> str:
-    """`path:issue` pairs — field names and violation types, never values.
+def _field_names(error: ValidationError) -> str:
+    """Comma-joined field names — the house `details.fields` convention.
 
-    The rejected value stays out of the error: it may be a path or a secret the
-    caller pasted, and `details` travels into task records and logs.
+    `details.errors` next to it carries the structured form (pointer, issue,
+    detail); this member stays a plain string because every other refusal in
+    the CLI spells `fields` that way and a sync reader consumes it as one.
     """
-    parts: list[str] = []
-    for issue in error.errors():
-        location = ".".join(str(part) for part in issue["loc"]) or "input"
-        parts.append(f"{location}:{issue['type']}")
-    return ";".join(parts)
+    return ", ".join(
+        sorted({".".join(str(part) for part in item["loc"]) for item in error.errors()} - {""})
+    )
 
 
 def _unique_pairs(pairs: list[tuple[object, object]]) -> dict[object, object]:

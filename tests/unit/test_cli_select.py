@@ -1021,7 +1021,7 @@ def test_a_proposal_with_no_members_is_refused_unless_the_emptiness_is_named(
         select.propose({"harness": "claude-code", "project": str(tmp_path)})
     assert raised.value.code == "AI_STP_VALIDATION_ERROR"
     assert "composes nothing" in raised.value.message
-    assert "--empty" in raised.value.details["empty_is_deliberate"]
+    assert "--empty" in str(raised.value.details["empty_is_deliberate"])
 
 
 def test_an_empty_proposal_cannot_also_name_members(

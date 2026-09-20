@@ -147,22 +147,42 @@ def registry(parameters: Mapping[str, object]) -> Answer[MachineHelp]:
     return Answer(payload)
 
 
-def schema_list(_parameters: Mapping[str, object]) -> Answer[CliSchemaIndex]:
+def schema_list(parameters: Mapping[str, object]) -> Answer[CliSchemaIndex]:
     """Every exported schema id this build resolves.
 
     The same `EXPORTED_MODELS` map the generated `schemas/v1` files are written
     from, read at runtime — so the index can name a schema that has no file
     drift, and `schema show` answers the same document the gate publishes.
+
+    `--find` keeps the index small in a context window: names only, since every
+    URN and file name is the name plus a fixed affix.
     """
     from ai_stp_contracts.schemas import EXPORTED_MODELS
     from ai_stp_foundation.schemas import schema_id
 
+    needle = str(parameters.get("find") or "").strip().lower()
+    names = sorted(EXPORTED_MODELS)
+    if needle:
+        names = [name for name in names if needle in name]
+        if not names:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no exported schema name mentions that text",
+                details={"find": needle},
+                continuations=[
+                    Continuation(
+                        kind="inspect",
+                        path=["schema", "list"],
+                        argv=["schema", "list", "--json"],
+                        actor="cli",
+                    )
+                ],
+                next_actions=["schema list --json"],
+            )
     return Answer(
         CliSchemaIndex(
             cli_version=cli_version(),
-            schemas=[
-                CliSchemaEntry(name=name, urn=schema_id(name)) for name in sorted(EXPORTED_MODELS)
-            ],
+            schemas=[CliSchemaEntry(name=name, urn=schema_id(name)) for name in names],
         )
     )
 
@@ -173,8 +193,11 @@ def schema_show(parameters: Mapping[str, object]) -> Answer[CliSchemaDocument]:
     `--id` accepts the bare name (`cli-task-input-install`), the full URN an
     `input_schema` or `result_schema` member carries, or the generated file
     name. Anything else is refused rather than guessed at — an agent that got
-    a near-miss id is told so, with the index one continuation away.
+    a near-miss id is told so, with the closest names in `details.candidates`
+    and the index one continuation away.
     """
+    import difflib
+
     from ai_stp_contracts.schemas import EXPORTED_MODELS
     from ai_stp_foundation.schemas import schema_id
 
@@ -182,18 +205,23 @@ def schema_show(parameters: Mapping[str, object]) -> Answer[CliSchemaDocument]:
     name = requested.removeprefix("urn:ai-stp:schema:v1:").removesuffix(".schema.json")
     model = EXPORTED_MODELS.get(name)
     if model is None:
-        continuation = Continuation(
-            kind="inspect",
-            path=["schema", "list"],
-            argv=["schema", "list", "--json"],
-            actor="cli",
+        candidates = cast(
+            list[JsonValue], difflib.get_close_matches(name, sorted(EXPORTED_MODELS), n=3)
         )
+        find = str(candidates[0]) if candidates else name.split("-")[0]
         raise CliFailure(
             "AI_STP_NOT_FOUND",
             "no exported schema has that id",
-            details={"id": requested},
-            continuations=[continuation],
-            next_actions=["schema list --json"],
+            details={"id": requested, "candidates": candidates},
+            continuations=[
+                Continuation(
+                    kind="inspect",
+                    path=["schema", "list"],
+                    arguments={"find": find},
+                    actor="cli",
+                )
+            ],
+            next_actions=[f"schema list --find {find} --json"],
         )
     document = model if isinstance(model, dict) else model.model_json_schema()
     return Answer(

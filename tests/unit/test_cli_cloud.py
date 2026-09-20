@@ -1265,5 +1265,5 @@ def test_a_forwarded_detail_cannot_become_a_payload() -> None:
     ):
         client.call(http, "GET", "/health/live", DeviceAuthorizationResponse, attempts=1)
 
-    assert len(raised.value.details["reason"]) == client.DETAIL_LIMIT
+    assert len(str(raised.value.details["reason"])) == client.DETAIL_LIMIT
     assert raised.value.details["fields"] == "body.a, body.b"

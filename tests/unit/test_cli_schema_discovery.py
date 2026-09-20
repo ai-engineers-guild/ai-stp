@@ -54,11 +54,27 @@ def test_schema_show_resolves_the_urn_task_intents_emits() -> None:
 
 def test_schema_show_unknown_id_is_a_typed_refusal() -> None:
     with pytest.raises(CliFailure) as raised:
-        machine_help.schema_show({"id": "cli-no-such-schema"})
+        machine_help.schema_show({"id": "cli-task-input-instal"})
     failure = raised.value
     assert failure.code == "AI_STP_NOT_FOUND"
-    assert failure.details["id"] == "cli-no-such-schema"
-    assert failure.continuations[0].argv == ["schema", "list", "--json"]
+    assert failure.details["id"] == "cli-task-input-instal"
+    candidates = failure.details["candidates"]
+    assert isinstance(candidates, list)
+    assert "cli-task-input-install" in candidates
+    continuation = failure.continuations[0]
+    assert continuation.actor == "cli"
+    assert continuation.path == ["schema", "list"]
+
+
+def test_schema_list_find_filters_names() -> None:
+    found = machine_help.schema_list({"find": "cli-task-input"}).payload
+    assert {entry.name for entry in found.schemas} == {
+        f"cli-task-input-{name}" for name in SHIPPED_INTENT_NAMES
+    }
+
+    with pytest.raises(CliFailure) as raised:
+        machine_help.schema_list({"find": "zzz-no-such-schema"})
+    assert raised.value.code == "AI_STP_NOT_FOUND"
 
 
 def test_task_intents_describe_input_fields() -> None:
@@ -88,8 +104,15 @@ def test_invalid_task_input_names_the_fields_and_the_schema(tmp_path: Path) -> N
     failure = raised.value
     assert failure.code == "AI_STP_VALIDATION_ERROR"
     assert failure.details["schema"] == "urn:ai-stp:schema:v1:cli-task-input-install"
-    assert "bogus:extra_forbidden" in failure.details["fields"]
-    assert "harness_id:" in failure.details["fields"]
+    assert failure.details["fields"] == "bogus, harness_id"
+    errors = failure.details["errors"]
+    assert isinstance(errors, list)
+    by_pointer = {str(item["pointer"]): item for item in errors if isinstance(item, dict)}
+    assert by_pointer["#/bogus"]["issue"] == "extra_forbidden"
+    assert by_pointer["#/harness_id"]["issue"] == "literal_error"
+    for item in by_pointer.values():
+        # Constraints may be named; the rejected value never is.
+        assert "not-a-harness" not in str(item["detail"])
     continuation = failure.continuations[0]
     assert continuation.actor == "cli"
     assert continuation.arguments == {"id": "urn:ai-stp:schema:v1:cli-task-input-install"}

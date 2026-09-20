@@ -7,12 +7,14 @@ the public one — `SPEC-011` REQ-1102 makes the classes stable, so they cannot 
 whatever Click happened to raise.
 """
 
+from collections.abc import Mapping
 from typing import Final
 
 from pydantic import ValidationError
 
 from ai_stp_cli.application.continuations import bind_continuation
 from ai_stp_cli.i18n import localize
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.envelope import Continuation, continuation_command
 from ai_stp_foundation.errors import exit_class_for
 
@@ -37,7 +39,7 @@ class CliFailure(Exception):
         message: str,
         *,
         retryable: bool = False,
-        details: dict[str, str] | None = None,
+        details: Mapping[str, JsonValue] | None = None,
         next_actions: list[str] | None = None,
         continuations: list[Continuation] | None = None,
         operation_id: str | None = None,
@@ -47,7 +49,7 @@ class CliFailure(Exception):
         self.code = code
         self.message = text
         self.retryable = retryable
-        self.details = details or {}
+        self.details: dict[str, JsonValue] = dict(details or {})
         self.operation_id = operation_id
         self.continuations = list(continuations or [])
         derived = [continuation_command(bind_continuation(item)) for item in self.continuations]
@@ -66,6 +68,27 @@ def internal_failure(error: BaseException) -> CliFailure:
         INTERNAL_MESSAGE,
         details={"exception": type(error).__name__},
     )
+
+
+def field_issues(error: ValidationError) -> list[JsonValue]:
+    """Per-field issues of a rejected input, RFC 9457 `errors[]` shape.
+
+    `pointer` is a JSON Pointer (RFC 6901) into the input document; `issue` is
+    the pydantic violation type; `detail` is pydantic's own message, which names
+    constraints — e.g. the closed choice set for a literal — and never the
+    rejected value. That last property is load-bearing: `input` also travels in
+    `errors()` and stays out on purpose (SPEC-011 REQ-1108).
+    """
+    issues: list[JsonValue] = []
+    for item in error.errors():
+        segments = [str(part).replace("~", "~0").replace("/", "~1") for part in item["loc"]]
+        issue: dict[str, JsonValue] = {
+            "pointer": "#/" + "/".join(segments) if segments else "#",
+            "issue": str(item["type"]),
+            "detail": str(item["msg"]),
+        }
+        issues.append(issue)
+    return issues
 
 
 def invalid_parameters(error: ValidationError) -> CliFailure:
@@ -87,7 +110,7 @@ def invalid_parameters(error: ValidationError) -> CliFailure:
     return CliFailure(
         "AI_STP_VALIDATION_ERROR",
         "a supplied value is not valid for this command",
-        details={"fields": named},
+        details={"fields": named, "errors": field_issues(error)},
     )
 
 

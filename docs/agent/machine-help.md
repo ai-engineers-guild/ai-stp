@@ -47,12 +47,16 @@ know the family name reaches the same descriptors without the full dump.
 `schema list` and `schema show --id <name|urn|file>` answer **what shape a
 payload or task input has**: every `result_schema` and `input_schema` URN the
 CLI emits resolves through them at runtime to the same JSON Schema the
-`schemas/v1` gate publishes. A `task intents` descriptor also carries
+`schemas/v1` gate publishes. `schema list --find <text>` keeps only the names
+containing the text; a `schema show` miss names the closest ids in
+`details.candidates`. A bare `schema` or an invented `schema` verb steers to
+`schema list`. A `task intents` descriptor also carries
 `input_fields`, the flat name/required/choices list derived from the same
 validation model, so choosing an intent and shaping `--input` take one call.
-`--input` itself accepts a JSON or YAML object; a validation refusal names the
-rejected fields (`path:issue`, never the values) and continues to the matching
-`schema show` argv.
+`--input` itself accepts a JSON or YAML object with duplicate keys refused; a
+validation refusal names the rejected fields and carries `details.errors` —
+`{pointer, issue, detail}` entries in the RFC 9457 `errors[]` shape, never the
+rejected values — and continues to the matching `schema show` argv.
 
 Both responses are assembled from the same registry in `apps/cli`, so they cannot disagree about which commands exist.
 

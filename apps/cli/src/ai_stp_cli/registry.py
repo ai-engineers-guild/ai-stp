@@ -835,6 +835,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         summary="List every exported schema id this build resolves.",
         result_schema="urn:ai-stp:schema:v1:cli-schema-index",
         handler="machine_help:schema_list",
+        parameters=(
+            option(
+                "find",
+                "string",
+                "Keep only schema names containing this text.",
+            ),
+        ),
         next_actions=("schema show --id cli-task-intents --json",),
     ),
     Declaration(
