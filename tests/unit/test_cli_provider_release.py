@@ -726,7 +726,7 @@ def test_a_manifest_missing_a_field_names_it(tmp_path: Path) -> None:
     place.write_text(json.dumps({"provider_id": "claude-code"}), encoding="utf-8")
     with pytest.raises(CliFailure) as raised:
         select.provider_trust({"manifest": str(place)})
-    assert "provider_version" in raised.value.details["missing"]
+    assert "provider_version" in str(raised.value.details["missing"])
 
 
 def test_a_manifest_that_is_not_json_is_refused(tmp_path: Path) -> None:
@@ -790,7 +790,7 @@ def test_a_duplicate_manifest_field_is_refused_before_signature_verification() -
     with pytest.raises(CliFailure) as raised:
         release.parse_manifest(duplicated)
 
-    assert "duplicate JSON field: provider_id" in raised.value.details["detail"]
+    assert "duplicate JSON field: provider_id" in str(raised.value.details["detail"])
 
 
 def test_a_canonical_manifest_round_trips_without_changing_identity() -> None:

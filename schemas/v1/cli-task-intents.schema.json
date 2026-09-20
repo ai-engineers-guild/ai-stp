@@ -1,9 +1,58 @@
 {
   "$defs": {
+    "ParameterType": {
+      "enum": [
+        "string",
+        "boolean",
+        "integer"
+      ],
+      "type": "string"
+    },
+    "TaskInputField": {
+      "additionalProperties": true,
+      "description": "One field of one intent's `--input` document, flattened for callers.\n\n`input_schema` names the authoritative JSON Schema, resolvable through\n`schema show`; this flat list exists so choosing an intent takes one call,\nnot two. It is derived from the same model, so the two cannot disagree.",
+      "properties": {
+        "choices": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Choices",
+          "type": "array"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "value_type": {
+          "$ref": "#/$defs/ParameterType"
+        }
+      },
+      "required": [
+        "choices",
+        "name",
+        "required",
+        "value_type"
+      ],
+      "title": "TaskInputField",
+      "type": "object"
+    },
     "TaskIntentDescriptor": {
       "additionalProperties": true,
       "description": "One shipped intent the Skill may start.",
       "properties": {
+        "input_fields": {
+          "items": {
+            "$ref": "#/$defs/TaskInputField"
+          },
+          "title": "Input Fields",
+          "type": "array"
+        },
         "input_schema": {
           "minLength": 1,
           "title": "Input Schema",
@@ -21,6 +70,7 @@
         }
       },
       "required": [
+        "input_fields",
         "input_schema",
         "name",
         "when"

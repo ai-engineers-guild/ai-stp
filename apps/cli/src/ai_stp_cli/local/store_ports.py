@@ -17,6 +17,7 @@ from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import components
 from ai_stp_cli.local.passports import moment
 from ai_stp_cli.paths import redact_home
+from ai_stp_cli.yaml_documents import UniqueSafeLoader
 from ai_stp_contracts.store_ports import (
     APM_CONTRACT_URL,
     SX_CONTRACT_URL,
@@ -237,7 +238,7 @@ def _snapshot(root: Path, adapter: str) -> Snapshot:
                     details={"found": str(version), "supported": "2"},
                 )
         else:
-            parsed = yaml.load(payload.decode("utf-8"), Loader=_UniqueSafeLoader)
+            parsed = yaml.load(payload.decode("utf-8"), Loader=UniqueSafeLoader)
             if not isinstance(parsed, dict):
                 raise ValueError("root is not an object")
             document = cast(dict[str, object], parsed)
@@ -719,28 +720,6 @@ def _read_regular(path: Path) -> bytes:
     finally:
         if descriptor is not None:
             os.close(descriptor)
-
-
-class _UniqueSafeLoader(yaml.SafeLoader):
-    pass
-
-
-def _unique_mapping(loader: yaml.Loader, node: yaml.Node, deep: bool = False) -> object:
-    pairs = cast(
-        list[tuple[object, object]],
-        loader.construct_pairs(node, deep=deep),  # pyright: ignore[reportUnknownMemberType]
-    )
-    result: dict[object, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise yaml.constructor.ConstructorError(
-                None, None, f"duplicate key: {key}", node.start_mark
-            )
-        result[key] = value
-    return result
-
-
-_UniqueSafeLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _unique_mapping)
 
 
 def _omitted(identity: str, external_type: str, reason: str) -> StorePortMapping:

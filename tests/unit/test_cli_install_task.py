@@ -480,7 +480,7 @@ def test_install_drain_failure_names_the_task(
                 ),
             }
         )
-    assert raised.value.details.get("task", "").startswith("task_")
+    assert str(raised.value.details.get("task", "")).startswith("task_")
     assert raised.value.details.get("state") == "failed"
     assert raised.value.next_actions == ["install recover --operation operation_01 --json"]
 

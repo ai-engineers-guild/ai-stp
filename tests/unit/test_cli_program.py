@@ -294,4 +294,4 @@ def test_a_shebang_that_resolves_through_path_is_refused_with_the_reason() -> No
             cli_program.invoke(connection, stable_id=member[0], version="1.0", arguments=())
 
     assert raised.value.code == "AI_STP_CONFLICT"
-    assert "python3" in raised.value.details["interpreter"]
+    assert "python3" in str(raised.value.details["interpreter"])

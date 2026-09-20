@@ -2252,7 +2252,7 @@ def test_plan_refuses_an_unpinned_release_before_the_provider_is_spawned(
         )
 
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
-    assert "release_not_pinned" in raised.value.details["refusals"]
+    assert "release_not_pinned" in str(raised.value.details["refusals"])
 
 
 def test_resume_refuses_a_release_unpinned_after_the_plan_before_provider_spawn(
@@ -2299,7 +2299,7 @@ def test_resume_refuses_a_release_unpinned_after_the_plan_before_provider_spawn(
         install.resume({"operation": planned.operation_id, "provider": executable})
 
     assert raised.value.code == "AI_STP_PRECONDITION_FAILED"
-    assert "release_not_pinned" in raised.value.details["refusals"]
+    assert "release_not_pinned" in str(raised.value.details["refusals"])
 
 
 def test_resume_refuses_a_release_revoked_after_the_plan_before_provider_spawn(

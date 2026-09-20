@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-schema-document",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One exported schema resolved to its JSON Schema document.",
+  "properties": {
+    "cli_version": {
+      "minLength": 1,
+      "title": "Cli Version",
+      "type": "string"
+    },
+    "document": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Document",
+      "type": "object"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "urn": {
+      "minLength": 1,
+      "title": "Urn",
+      "type": "string"
+    }
+  },
+  "required": [
+    "cli_version",
+    "document",
+    "name",
+    "schema_version",
+    "urn"
+  ],
+  "title": "CliSchemaDocument",
+  "type": "object"
+}
