@@ -159,7 +159,8 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | `docs/engineering/` working rules — `coding-rules`, `dependency-policy`, `failure-catalog`, `git-workflow`, `quality-gates`, `repository-structure`, `schema-evolution`, `tech-debt-rules`, `tech-stack`, `testing`, `web-quality`, `github-connector-operations`, `release-evidence` | code-backed | Rules the gate or the team enforces today |
 | `docs/archive/*-implementation-plan.md` — `article-publication`, `artifact-storage-private-delivery`, `github-connector`, `official-registry-identity-and-requests`, `seo-publication` | historical | Plans whose code ships; archived 2026-09-20 |
 | `docs/engineering/agent-ux-implementation-plan.md` | unclassified | Live contract of open epic #261; not shipped, not dead |
-| `docs/engineering/` evidence/status — `audit-remediation-status`, `implementation-roadmap`, `catalog-search-benchmark`, `cli-performance`, `real-provider-evidence`, `first-party-corpus`, `federated-source-threat-model`, `runner-separation-readiness` | unclassified | Snapshot/proof docs; need a read before a label |
+| `docs/engineering/` working evidence — `implementation-roadmap`, `catalog-search-benchmark`, `cli-performance`, `real-provider-evidence`, `first-party-corpus`, `federated-source-threat-model` | code-backed | Live procedure/plan/threat-model docs read 2026-09-20 |
+| `docs/archive/audit-remediation-status.md`, `docs/archive/runner-separation-readiness.md` | historical | A retained audit disposition and a dated readiness snapshot; archived 2026-09-20. The contract test retargeted to the archive path now guards its immutability |
 | `docs/engineering/corporate-*` | colleague | frozen |
 | `docs/contracts/` (60 files) | unclassified | Phase-2 pass folds schema-duplicates; sequences, closed lists, and authority prose stay |
 | `docs/product/`, `docs/architecture/`, `docs/agent/` | unclassified | Current-zone docs; expected mostly code-backed after a read |
