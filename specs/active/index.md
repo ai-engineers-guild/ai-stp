@@ -54,9 +54,9 @@ last_verified: "2026-08-03"
 | [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-09-20 |
 | [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state as local evidence of obsolescence. | 2026-09-20 |
 | [SPEC-045-federated-source-boundaries.md](SPEC-045-federated-source-boundaries.md) | SPEC-045: Federated source descriptors and external observation boundaries. | 2026-09-20 |
-| [SPEC-046-web-feature-registry-and-content-hub.md](SPEC-046-web-feature-registry-and-content-hub.md) | SPEC-046: Typed web deploy profiles and a disableable content hub. | 2026-08-29 |
-| [SPEC-047-web-backend-consumer-surfaces.md](SPEC-047-web-backend-consumer-surfaces.md) | SPEC-047: Web/backend consumer surfaces for canonical CLI contracts and catalog delivery. | 2026-08-15 |
-| [SPEC-048-web-rsc-cache-and-fetch-boundaries.md](SPEC-048-web-rsc-cache-and-fetch-boundaries.md) | SPEC-048: Fast RSC catalog, explicit public/private fetch boundaries, and controlled prefetch. | 2026-08-15 |
+| [SPEC-046-web-feature-registry-and-content-hub.md](SPEC-046-web-feature-registry-and-content-hub.md) | SPEC-046: Typed web deploy profiles and a disableable content hub. | 2026-09-20 |
+| [SPEC-047-web-backend-consumer-surfaces.md](SPEC-047-web-backend-consumer-surfaces.md) | SPEC-047: Web/backend consumer surfaces for canonical CLI contracts and catalog delivery. | 2026-09-20 |
+| [SPEC-048-web-rsc-cache-and-fetch-boundaries.md](SPEC-048-web-rsc-cache-and-fetch-boundaries.md) | SPEC-048: Fast RSC catalog, explicit public/private fetch boundaries, and controlled prefetch. | 2026-09-20 |
 | [SPEC-049-on-demand-github-and-web-context-budget.md](SPEC-049-on-demand-github-and-web-context-budget.md) | SPEC-049: On-demand GitHub metadata, CLI-only blast radius, and an honest context budget in Web. | 2026-08-16 |
 | [SPEC-050-external-catalog-enrichment.md](SPEC-050-external-catalog-enrichment.md) | SPEC-050: Safe catalog enrichment with observable metadata from external catalogs. | 2026-08-16 |
 | [SPEC-051-public-catalog-usage-counters.md](SPEC-051-public-catalog-usage-counters.md) | SPEC-051: Private events and public catalog view and download counters. | 2026-08-16 |
