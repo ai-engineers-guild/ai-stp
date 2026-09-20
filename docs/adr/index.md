@@ -194,6 +194,7 @@ last_verified: "2026-08-03"
 | [ADR-0194-effective-corporate-catalog-assignments.md](ADR-0194-effective-corporate-catalog-assignments.md) | Deterministic effective corporate catalog assignments and exact install plans. | 2026-09-19 |
 | [ADR-0195-bulk-corporate-distribution.md](ADR-0195-bulk-corporate-distribution.md) | Idempotent, observable bulk distribution of corporate assignments. | 2026-09-19 |
 | [ADR-0196-corporate-assignment-plan.md](ADR-0196-corporate-assignment-plan.md) | Deterministic install/update planning over effective corporate assignments. | 2026-09-20 |
+| [ADR-0197-managed-installation-verification.md](ADR-0197-managed-installation-verification.md) | Read-only verification that a managed target still carries the organization-approved setup and components. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
 <!-- END CONTENTS -->

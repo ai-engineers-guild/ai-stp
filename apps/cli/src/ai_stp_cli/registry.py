@@ -792,6 +792,66 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path corporate --json", "help --path install --json"),
     ),
     Declaration(
+        path=["corporate", "assignment", "verify"],
+        summary=(
+            "Verify that a managed target still carries exactly the "
+            "organization-approved setup and components. Compares the verified "
+            "installation record, the cached bundle manifest, and the live "
+            "provider status against the corporate assignment plan, classifies "
+            "every difference, and changes nothing."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-managed-verification",
+        handler="corporate:verify",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option(
+                "account",
+                "string",
+                "Employee account identifier. Defaults to the signed-in account.",
+            ),
+            option(
+                "harness",
+                "string",
+                "Target harness the verification is evaluated for.",
+                required=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+            option(
+                "local-project",
+                "string",
+                "Local project identifier or root whose managed target is verified.",
+                required=True,
+            ),
+            option("project", "string", "Corporate project context."),
+            option("technology", "string", "Corporate technology context."),
+            option(
+                "offline",
+                "boolean",
+                "Skip the corporate assignment evaluation; verify local "
+                "evidence only. The verdict can then be at most unverifiable.",
+            ),
+            option(
+                "provider",
+                "string",
+                "Provider executable whose status observation is included when available.",
+            ),
+            option(
+                "protocol-version",
+                "integer",
+                "Provider protocol version for the status observation.",
+            ),
+            option(
+                "unverified-provider",
+                "boolean",
+                "Accept a provider that carries no signed release manifest.",
+            ),
+        ),
+        next_actions=(
+            "target diff --project <id> --harness <id> --json",
+            "corporate assignment plan --organization <id> --harness <id> --json",
+        ),
+    ),
+    Declaration(
         path=["report", "preview"],
         summary="Prepare and show the exact bounded report payload without sending it.",
         result_schema="urn:ai-stp:schema:v1:cli-report-preview",

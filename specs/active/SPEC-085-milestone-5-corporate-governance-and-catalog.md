@@ -165,6 +165,32 @@ by this specification.
   Web, CLI, and CI consume the same generated plan contract; executing a plan
   remains the existing install transaction with its own approval and durable
   record.
+- `REQ-8520`: `corporate assignment verify` names the organization, the
+  employee (defaulting to the signed-in account), the optional project and
+  technology context, the target harness, and the local project whose managed
+  target is verified. Evidence is the durable provider-verified installation
+  record, the cached HarnessBundle manifest, the recomputed managed-path
+  digests, and the provider's own status observation when available; the
+  result binds tenant, account, project, technology, and harness.
+- `REQ-8521`: Verification classifies every installed setup and component line
+  by exact coordinates - stable identity, kind, version, and passport digest -
+  and every managed path as `unchanged`, `locally_modified`, `missing`,
+  `extra`, `unverifiable`, or `expected_change`. A later provider-verified
+  installation on the same provider target is the authorized baseline and is
+  `expected_change`, never tampering. The single verdict is `pass`, `fail`,
+  `outdated`, `revoked`, `unsupported`, `not_enrolled`, or `unverifiable`.
+- `REQ-8522`: A proven local difference is `fail` regardless of policy state;
+  an unreachable or skipped assignment layer is `unverifiable`, never `pass`.
+  `--offline` verifies local evidence alone. Revoked or policy-disallowed
+  coordinates report `revoked`, coordinates behind the effective assignment
+  report `outdated`, and a target with no verified installation or no
+  effective setup assignment reports `not_enrolled`.
+- `REQ-8523`: Verification is read-only: it never repairs, applies, rolls
+  back, or asks a provider to write, and it preserves the provider
+  plan/apply/status/recovery contracts. Diagnostics carry coordinates,
+  expected and observed digests, classifications, timestamps, and evidence
+  references only - never repository contents, prompts, secrets, complete
+  files, or absolute local paths.
 
 ## States and errors
 
@@ -248,3 +274,7 @@ schemas and clients are updated only by repository generators.
 | `REQ-8517` | Plan service tests cover every outcome/action pair, `latest` resolution to exact coordinates, unsupported coordinates, employee exceptions and revocations, and source explainability. |
 | `REQ-8518` | Plan tests cover sorted items, absent wall-clock fields, and identical output for identical policy and materialized inputs. |
 | `REQ-8519` | Plan service/API tests and the CLI command test cover the no-mutation guarantee; contract tests cover the shared generated plan schema consumed by Web, CLI, and CI. |
+| `REQ-8520` | CLI verification tests cover context binding, the session-account default, the verified-record plus manifest plus provider-status evidence layers, and the not-enrolled verdicts for absent local state. |
+| `REQ-8521` | CLI verification tests cover setup and component coordinate checks, modified/missing/extra managed paths, and the expected-change verdict for a later authorized installation on the same provider target. |
+| `REQ-8522` | CLI verification tests cover verdict precedence (proven drift over policy states), offline and unreachable-layer behavior, and the revoked/outdated/unsupported/not-enrolled outcomes. |
+| `REQ-8523` | CLI verification tests assert the operation log and target bytes are untouched and the rendered result carries no local paths or file content; contract tests pin the generated verdict schema. |

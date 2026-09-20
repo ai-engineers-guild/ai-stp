@@ -14,6 +14,7 @@ from contextlib import closing
 from typing import cast
 
 from ai_stp_cli.answer import Answer
+from ai_stp_cli.application import managed_verify
 from ai_stp_cli.cloud import corporate, session
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
@@ -31,6 +32,7 @@ from ai_stp_contracts.corporate import (
     CorporateEffectiveAssignmentQuery,
     CorporatePlanMaterializedItem,
 )
+from ai_stp_contracts.machine_help import ManagedVerification
 
 
 def _required(parameters: Mapping[str, object], name: str) -> str:
@@ -235,4 +237,21 @@ def plan(parameters: Mapping[str, object]) -> Answer[CorporateAssignmentPlan]:
         corporate.assignment_plan(
             endpoint(), held.access_token, _required(parameters, "organization"), request
         )
+    )
+
+
+def verify(parameters: Mapping[str, object]) -> Answer[ManagedVerification]:
+    """Prove the managed target still carries exactly the authorized content.
+
+    Compares the verified installation record, the cached bundle manifest and
+    the provider's own status against the corporate assignment plan, and
+    classifies what it finds. It reads and reports; it never repairs,
+    reinstalls, or asks a provider to write.
+    """
+    held = _session("corporate assignment verify")
+    return managed_verify.verify_managed(
+        parameters,
+        endpoint_url=endpoint(),
+        access_token=held.access_token,
+        account_id=_optional(parameters, "account") or held.account_id,
     )

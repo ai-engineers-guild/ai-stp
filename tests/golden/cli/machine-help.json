@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:e22df71c4429fd95d9950b294ea09bf4072dc29564aada92687715fb8a8518f1",
+  "registry_digest": "sha256:db7a4668af98ad80a7b68db7e4abaa2bb844119a87593e52d1313485afb8514d",
   "global_options": [
     {
       "name": "json",
@@ -2446,6 +2446,122 @@
       "next_actions": [
         "help --path corporate --json",
         "help --path install --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "verify"
+      ],
+      "summary": "Verify that a managed target still carries exactly the organization-approved setup and components. Compares the verified installation record, the cached bundle manifest, and the live provider status against the corporate assignment plan, classifies every difference, and changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "account",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Employee account identifier. Defaults to the signed-in account.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Target harness the verification is evaluated for.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "local-project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Local project identifier or root whose managed target is verified.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate project context.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate technology context.",
+          "choices": []
+        },
+        {
+          "name": "offline",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Skip the corporate assignment evaluation; verify local evidence only. The verdict can then be at most unverifiable.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider executable whose status observation is included when available.",
+          "choices": []
+        },
+        {
+          "name": "protocol-version",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider protocol version for the status observation.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Accept a provider that carries no signed release manifest.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-managed-verification",
+      "next_actions": [
+        "target diff --project <id> --harness <id> --json",
+        "corporate assignment plan --organization <id> --harness <id> --json"
       ]
     },
     {

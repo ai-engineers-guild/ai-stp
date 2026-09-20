@@ -5,7 +5,7 @@ last_verified: "2026-09-20"
 
 # ADR-0196: Corporate assignment plan
 
-Status: accepted. Extends ADR-0194 and ADR-0195.
+Status: accepted. Extends ADR-0194 and ADR-0195; extended by ADR-0197.
 
 ## Context
 

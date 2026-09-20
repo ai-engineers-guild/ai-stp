@@ -42,6 +42,7 @@ INSPECT: Final[frozenset[tuple[str, ...]]] = _paths(
     "corporate assignment distribution",
     "corporate assignment effective",
     "corporate assignment plan",
+    "corporate assignment verify",
     "doctor",
     "environment inspect",
     "help",

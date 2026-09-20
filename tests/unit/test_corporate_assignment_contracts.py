@@ -13,6 +13,7 @@ from ai_stp_contracts.corporate import (
     CorporateDistributionStateQuery,
     CorporateEffectiveAssignmentQuery,
 )
+from ai_stp_contracts.machine_help import ManagedVerification, ManagedVerificationItem
 from ai_stp_foundation.ids import new_id
 
 
@@ -370,4 +371,72 @@ def test_plan_carries_typed_outcomes_and_exact_coordinates() -> None:
                     ],
                     "total": 1,
                 }
+            )
+
+
+def test_managed_verification_binds_context_and_classifies_items() -> None:
+    verification = ManagedVerification.model_validate(
+        {
+            "schema_version": 1,
+            "status": "fail",
+            "project_id": "project_local",
+            "harness_id": "claude-code",
+            "organization_id": new_id("organization"),
+            "account_id": new_id("account"),
+            "target_id": "project_local:claude-code",
+            "operation_id": new_id("operation"),
+            "verified_at": "2026-09-19T10:00:00.000Z",
+            "checked_at": "2026-09-20T10:00:00.000Z",
+            "corporate": "evaluated",
+            "verified_target_digest": "sha256:" + "0" * 64,
+            "observed_target_digest": "sha256:" + "f" * 64,
+            "items": [
+                {
+                    "schema_version": 1,
+                    "subject": "component",
+                    "stable_id": new_id("component"),
+                    "component_kind": "skill",
+                    "version": "1.0",
+                    "passport_digest": "sha256:" + "b" * 64,
+                    "classification": "locally_modified",
+                    "outcome": "installed",
+                },
+                {
+                    "schema_version": 1,
+                    "subject": "path",
+                    "path": "skills/review/SKILL.md",
+                    "change": "modified",
+                    "expected_digest": "sha256:" + "a" * 64,
+                    "observed_digest": "sha256:" + "c" * 64,
+                    "classification": "locally_modified",
+                },
+            ],
+            "diagnostics": ["a managed file changed outside the provider path"],
+        }
+    )
+    assert verification.status == "fail"
+    assert verification.items[0].outcome == "installed"
+    assert verification.items[1].path == "skills/review/SKILL.md"
+    for changes in (
+        {"status": "dirty"},
+        {"corporate": "cached"},
+    ):
+        with pytest.raises(ValidationError):
+            ManagedVerification.model_validate(
+                {
+                    "schema_version": 1,
+                    "status": "pass",
+                    "project_id": "project_local",
+                    "harness_id": "claude-code",
+                    **changes,
+                }
+            )
+    for changes in (
+        {"classification": "tampered"},
+        {"subject": "file"},
+        {"outcome": "deploy"},
+    ):
+        with pytest.raises(ValidationError):
+            ManagedVerificationItem.model_validate(
+                {"schema_version": 1, "subject": "setup", "classification": "unchanged", **changes}
             )

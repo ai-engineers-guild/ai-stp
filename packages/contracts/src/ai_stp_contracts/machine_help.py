@@ -33,6 +33,7 @@ from ai_stp_contracts.catalog import (
     SetupSummary,
     VersionListEntry,
 )
+from ai_stp_contracts.corporate import PlanOutcome
 from ai_stp_contracts.http import Timestamp, open_wire_object
 from ai_stp_contracts.private_access import PrivateVersionTrust
 from ai_stp_contracts.publication import ObjectKind as PublicationObjectKind
@@ -3232,6 +3233,88 @@ class TargetDiff(BaseModel):
     changes: list[str] = []
     managed_detail: Literal["not_applicable", "available", "unavailable"] = "not_applicable"
     managed_changes: list[ManagedPathChange] = []
+
+
+class ManagedVerificationItem(BaseModel):
+    """One managed line or drifted path, classified against authorized records.
+
+    Setup and component items carry the expected coordinates; path items carry
+    the file-level proof. Coordinates, relative paths and digests only — never
+    file content, never an absolute local path.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal[1] = 1
+    subject: Literal["setup", "component", "path"]
+    stable_id: str = ""
+    component_kind: str = ""
+    version: str = ""
+    revision_id: str = ""
+    passport_digest: str = ""
+    path: str = ""
+    change: Literal["", "added", "modified", "deleted"] = ""
+    expected_digest: str = ""
+    observed_digest: str = ""
+    classification: Literal[
+        "unchanged",
+        "locally_modified",
+        "missing",
+        "extra",
+        "unverifiable",
+        "expected_change",
+    ]
+    #: The corporate plan outcome for the line, when the assignment layer was
+    #: reached. Empty means the verdict rests on local evidence alone.
+    outcome: PlanOutcome | Literal[""] = ""
+    diagnostic: str = ""
+
+
+class ManagedVerification(BaseModel):
+    """Whether a managed target still matches its authorized installed record.
+
+    `status` is the one verdict a CI gate reads; `items` is the evidence behind
+    it. The answer binds the check to tenant, account, project, context and
+    harness, and carries coordinates, digests and timestamps only — a
+    verification report must never contain file content.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    status: Literal[
+        "pass",
+        "fail",
+        "outdated",
+        "revoked",
+        "unsupported",
+        "not_enrolled",
+        "unverifiable",
+    ]
+    project_id: Annotated[str, Field(min_length=1)]
+    harness_id: HarnessId
+    organization_id: str = ""
+    account_id: str = ""
+    remote_project_id: str = ""
+    technology_id: str = ""
+    target_id: str = ""
+
+    #: The verified installation the check compared against, and when the
+    #: check itself ran. Both are evidence, never instructions.
+    operation_id: str = ""
+    verified_at: str = ""
+    checked_at: str = ""
+
+    #: `evaluated` — the assignment layer answered; `offline` — the caller
+    #: asked to skip it; `unavailable` — it could not be reached. The local
+    #: verdict is reported either way.
+    corporate: Literal["evaluated", "offline", "unavailable"] = "evaluated"
+
+    verified_target_digest: str = ""
+    observed_target_digest: str = ""
+    shadowed_surfaces: list[ShadowedSurface] = []
+    items: list[ManagedVerificationItem] = []
+    diagnostics: list[str] = []
 
 
 class RollbackTarget(BaseModel):

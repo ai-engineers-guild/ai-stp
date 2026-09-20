@@ -5,7 +5,7 @@ last_verified: "2026-09-19"
 
 # ADR-0194: Effective corporate catalog assignments
 
-Status: accepted. Supersedes ADR-0185; extends ADR-0191; extended by ADR-0195
+Status: accepted. Supersedes ADR-0185; extends ADR-0191; extended by ADR-0195, ADR-0196, ADR-0197
 for bulk corporate distribution.
 
 ## Context
