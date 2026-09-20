@@ -124,7 +124,7 @@ def sign(parameters: Mapping[str, object]) -> Answer[CliSignedAttestation]:
                 Continuation(
                     kind="advance",
                     path=["attestation", "sign"],
-                    arguments={**arguments, "confirm": ""},
+                    arguments={**arguments, "confirm": True},
                     missing=missing,
                 )
             ],

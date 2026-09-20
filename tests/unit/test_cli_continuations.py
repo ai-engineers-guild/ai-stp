@@ -121,6 +121,30 @@ def test_boolean_options_emit_a_flag_only_for_true() -> None:
     assert _parse(declined)["wait"] is False
 
 
+def test_an_empty_string_on_a_declared_flag_is_the_flag_sentinel() -> None:
+    """Producers emitted `"confirm": ""` to mean flag-present; a declared
+    boolean cannot hold a valued empty string, so it binds to `--confirm`
+    while a string parameter keeps `""` as data (the test above)."""
+    item = Continuation(
+        kind="advance",
+        path=["harness", "remove"],
+        arguments={"harness": "codex", "prefix": "/p", "target": "/t", "confirm": ""},
+    )
+    assert bind_continuation(item).argv == [
+        "harness",
+        "remove",
+        "--harness",
+        "codex",
+        "--prefix",
+        "/p",
+        "--target",
+        "/t",
+        "--confirm",
+        "--json",
+    ]
+    assert _parse(item)["confirm"] is True
+
+
 def test_dash_prefixed_values_use_the_equals_form() -> None:
     item = Continuation(
         kind="advance",

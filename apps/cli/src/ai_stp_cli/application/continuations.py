@@ -65,7 +65,9 @@ def _parameter_tokens(parameter: CommandParameter, value: JsonValue) -> list[str
         values = value if isinstance(value, list) else [value]
         return [str(item) for item in values]
     if parameter.value_type == "boolean":
-        if value is True:
+        if value is True or value == "":
+            # A declared flag cannot hold a valued empty string — "" is the
+            # older producers' flag-present sentinel, kept readable.
             return [flag]
         if value is False:
             return []
