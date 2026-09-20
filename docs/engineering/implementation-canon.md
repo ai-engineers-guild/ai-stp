@@ -180,7 +180,8 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | `tests/unit/test_cli_reports.py` | keep | Preview durability, digest gate and fail-closed diagnostics; create/list/read and idempotent replay moved to `tests/api/cli/test_reports.py` against the real `/v1/requests` routes |
 | `tests/unit/test_cli_publication.py` | keep | Wire/retry/local gates only; plan create/bind/confirm journeys moved to `tests/api/cli/test_publication.py` against the real `/v1/publications/plans` routes |
 | `tests/unit/test_cli_private_distribution.py` | keep | Off-contract refusal and changed-hash gate only; `publication plan`/`visibility` journeys moved to `tests/api/cli/test_private_distribution.py` — the first command-level (not transport-level) real boundary, sending a locally authored passport |
-| `tests/unit/test_cli_sync_transport.py`, `test_cli_artifact.py` | replace | `/v1`-mock journeys (sync pull/push, artifact fetch); the routes exist in the real app — migration to `tests/api/cli/` pending |
+| `tests/unit/test_cli_artifact.py` | keep | Client-local fault injection only (truncation, flood, timeout, tampered cache, wire path); the fetch journeys moved to `tests/api/cli/test_artifact.py` against the real artifact route and object store |
+| `tests/unit/test_cli_sync_transport.py` | replace | `/v1`-mock journeys (sync pull/push); the routes exist in the real app — migration to `tests/api/cli/` pending |
 | `tests/unit/test_cli_commands.py` | keep | Environment fault injection (`shutil.which`, `sys.version_info`, wheel metadata) against real local state — no fake server |
 | `tests/unit/test_cli_local_registry.py` | keep | Failure injection (`MIGRATIONS`, `commit`) on the real SQLite registry — doubles simulate faults, not a service |
 | `tests/unit/test_cli_projects.py` | keep | Real filesystem discovery; one `DISCOVERY_ENTRIES` bound override |
