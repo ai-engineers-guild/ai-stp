@@ -38,7 +38,7 @@ last_verified: "2026-08-03"
 | [SPEC-027-web-publication-access-moderation.md](SPEC-027-web-publication-access-moderation.md) | SPEC-027: Web UI for owned objects, publication, rights, reports, and minimal moderation. | 2026-08-08 |
 | [SPEC-028-public-profile-media-and-preview.md](SPEC-028-public-profile-media-and-preview.md) | SPEC-028: Author public profile, safe avatars, and preview. | 2026-09-07 |
 | [SPEC-029-versioned-markdown-descriptions.md](SPEC-029-versioned-markdown-descriptions.md) | SPEC-029: Immutable safe Markdown descriptions for versions. | 2026-09-20 |
-| [SPEC-030-cli-web-deep-links.md](SPEC-030-cli-web-deep-links.md) | SPEC-030: Canonical bidirectional links between CLI and web. | 2026-08-09 |
+| [SPEC-030-cli-web-deep-links.md](SPEC-030-cli-web-deep-links.md) | SPEC-030: Canonical bidirectional links between CLI and web. | 2026-09-20 |
 | [SPEC-031-public-documents-policies-and-errors.md](SPEC-031-public-documents-policies-and-errors.md) | SPEC-031: Public documents, versioned policies, and error pages. | 2026-08-08 |
 | [SPEC-032-production-readiness-governance.md](SPEC-032-production-readiness-governance.md) | SPEC-032: Evidence-based production readiness, data governance, abuse protection, and recovery. | 2026-09-12 |
 | [SPEC-033-beta-support-evidence-and-labels.md](SPEC-033-beta-support-evidence-and-labels.md) | SPEC-033: Public beta-support labels, evidence, and freshness. | 2026-09-05 |
@@ -47,10 +47,10 @@ last_verified: "2026-08-03"
 | [SPEC-036-machine-projection-route-and-documents.md](SPEC-036-machine-projection-route-and-documents.md) | SPEC-036: Addressable machine projection web and page machine documents. | 2026-09-18 |
 | [SPEC-037-catalog-navigation-and-onboarding.md](SPEC-037-catalog-navigation-and-onboarding.md) | SPEC-037: Compact catalog, owner/public navigation, and CLI onboarding. | 2026-09-18 |
 | [SPEC-038-cli-publication-access-reports.md](SPEC-038-cli-publication-access-reports.md) | SPEC-038: CLI client for publication, access rights, and reports. | 2026-09-07 |
-| [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI synchronization of the private registry between devices. | 2026-08-13 |
+| [SPEC-039-cli-private-sync.md](SPEC-039-cli-private-sync.md) | SPEC-039: CLI synchronization of the private registry between devices. | 2026-09-20 |
 | [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-09-06 |
 | [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-09-05 |
-| [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-08-13 |
+| [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-09-20 |
 | [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-08-15 |
 | [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state as local evidence of obsolescence. | 2026-08-13 |
 | [SPEC-045-federated-source-boundaries.md](SPEC-045-federated-source-boundaries.md) | SPEC-045: Federated source descriptors and external observation boundaries. | 2026-08-16 |

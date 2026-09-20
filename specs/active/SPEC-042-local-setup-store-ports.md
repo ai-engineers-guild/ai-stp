@@ -1,6 +1,6 @@
 ---
 description: "SPEC-042: Local versioned ports for controlled SX and APM import."
-last_verified: "2026-08-13"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-042: Local setup-store ports
