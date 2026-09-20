@@ -1051,6 +1051,9 @@ async def authorize_idempotent(
             if receipt_scope_id is None and operation not in {
                 "entity.profile.upload",
                 "entity.profile.update",
+                # The source assignment is the scoped object; its scope id is
+                # part of the fingerprint but is not repeated in the result.
+                "catalog_assignment.distribute",
             }:
                 raise ApiError(ErrorCategory.CONFLICT, "idempotency key was reused")
             if receipt_scope_id is not None and receipt_scope_id != scope_id:

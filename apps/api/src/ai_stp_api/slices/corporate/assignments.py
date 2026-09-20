@@ -1100,15 +1100,12 @@ async def distribute_assignment(
     # Revision and state preconditions run after the receipt check so an
     # idempotent revoke retry replays instead of tripping over the revision
     # its first application bumped.
+    if source.state != "current":
+        raise ApiError(ErrorCategory.CONFLICT, "source assignment is retired")
     if source.revision != payload.expected_revision:
         raise ApiError(
             ErrorCategory.PRECONDITION,
             "assignment revision is stale",
-        )
-    if source.state != "current":
-        raise ApiError(
-            ErrorCategory.PRECONDITION,
-            "source assignment is retired",
         )
     members, projects, exclusions = await _expand_targets(
         db, organization_id=organization_id, kind=kind, identity=identity
@@ -1204,7 +1201,7 @@ async def distribute_assignment(
                     diagnostic="target scope is not authorized",
                 )
             )
-        elif override is not None and (override.state == "current" or payload.action == "assign"):
+        elif override is not None and payload.action == "assign":
             plans.append(
                 CorporateDistributionTargetResult(
                     target_kind=target_kind,
