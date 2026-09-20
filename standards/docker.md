@@ -72,12 +72,21 @@ rollback-safe.
    ignore for that build — `apps/web/Dockerfile.prod.dockerignore` is what
    lets the web image see `apps/web/` while the platform images cannot.
    Adding a Dockerfile means deciding which ignore file governs it.
-8. **Secrets never enter images or build args.** `ARG`/`ENV` hold
-   build-time placeholders only (`AI_STP_SESSION_SECRET` is a literal
-   placeholder by design); real secrets arrive via `env_file` at runtime.
-   `deploy.sh` checks required env values with `require_env_value` —
-   greps, never `source`s — *before* any build or container recreation, so
-   a missing secret leaves the healthy release serving.
+8. **Secrets never enter images or build args, and reach only the services
+   that consume them.** `ARG`/`ENV` hold build-time placeholders only
+   (`AI_STP_SESSION_SECRET` is a literal placeholder by design); real
+   secrets arrive via `env_file` at runtime — and only into first-party
+   services. Third-party images (postgres, rustfs) get exactly the keys
+   their entrypoints consume through `environment:` interpolation, which
+   the deploy's `--env-file` resolves. `deploy.sh` preflights the whole
+   startup contract *before* any build or recreation — `require_env_value`
+   (present, non-empty, not the `CHANGE_ME` placeholder stem),
+   `require_env_secret` (the pydantic/zod `min_length=32` fields),
+   `require_env_public_origin` (no `*.example.invalid` or loopback host
+   ships to browsers), `require_env_pair_equal` (the API storage pair must
+   equal the RustFS pair) and `refuse_env_placeholder` on optional
+   credentials — grepping, never `source`ing or printing, so a missing or
+   placeholder secret leaves the healthy release serving.
 9. **Compose is the unit of validation.** `docker compose config -q` must
    pass for `docker-compose.prod.yml`, `docker-compose.dev.yml`, and every
    overlay combination the runbooks use (dev+corporate, dev+seo-enrichment
@@ -132,7 +141,7 @@ rollback-safe.
 | Multi-stage builds | **required** | toolchains (`bun`, `golang`, `uv`) never reach runtime stages |
 | `uv sync --locked --no-dev --no-cache` | **required** for Python deps | the lockfile is the contract; `--no-cache` keeps layers clean |
 | `COPY --chown=` / `--from=` | **required** for copied trees | no recursive `chown -R` on multi-hundred-MB trees (was a hung build step) |
-| `env_file` with `required: false` | **accepted** | lets `compose config`/`build` work without secrets; `deploy.sh` checks required keys itself |
+| `env_file` with `required: false` | **accepted** on first-party services only | lets `compose config`/`build` work without secrets; third-party images get explicit `environment:` keys; `deploy.sh` checks required keys itself |
 | `x-` extension anchors (`x-app-env`) | **accepted** in dev compose | one env block across services |
 | Compose `profiles` | **accepted** for opt-in stacks | `seo_enrichment` services start only when asked |
 | `!override` on volume lists | **accepted** for overlays | corporate-local replaces dev mounts deliberately |

@@ -169,6 +169,7 @@ def verify(
     expected_commit: str,
     expected_schema: str,
     expected_environment: str,
+    docs_origin: str | None = None,
     fetch: Callable[[str, int], tuple[int, bytes]] = _default_fetch,
     commit_accepted: Callable[[str], bool] | None = None,
 ) -> None:
@@ -226,10 +227,23 @@ def verify(
     if status != 200:
         raise VerificationError(f"web root returned HTTP {status}")
 
+    # The docs site is a third published service on its own hostname. It serves
+    # static files, so a 200 on `/` is the whole public proof — the same
+    # silence a wedged container produces is what this probe would otherwise
+    # call a green deployment.
+    if docs_origin is not None:
+        docs_origin = validated_origin(docs_origin)
+        status, _body = _fetched(fetch, docs_origin + "/", MAX_WEB_BYTES)
+        if status != 200:
+            raise VerificationError(f"docs root returned HTTP {status}")
+
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--origin", required=True)
+    # The docs site answers on its own hostname; an unset variable fails the
+    # job rather than quietly skipping the third published service.
+    parser.add_argument("--docs-origin", required=True)
     parser.add_argument("--expected-commit", required=True)
     # Named rather than derived from the checkout: the clone is shallow and its
     # remote is not the fact this needs. Only used to ask which commit contains
@@ -325,6 +339,7 @@ def main(argv: list[str] | None = None) -> int:
                 expected_commit=args.expected_commit,
                 expected_schema=expected_schema,
                 expected_environment=args.expected_environment,
+                docs_origin=args.docs_origin,
                 commit_accepted=lambda deployed: contains(
                     args.expected_commit, deployed, repository=args.repository
                 ),

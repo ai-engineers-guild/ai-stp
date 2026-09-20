@@ -87,6 +87,13 @@ def test_the_deploy_workflow_keeps_the_guarantees_it_inherited() -> None:
     assert "--expected-environment prod" in workflow
     assert "needs: promote" in executable
 
+    # The docs site is the third published service, on its own hostname. Its
+    # origin is a repository variable like the main one, and the job fails on
+    # an unset variable rather than quietly skipping the probe.
+    assert "--docs-origin" in workflow
+    assert "vars.AI_STP_DOCS_ORIGIN" in workflow
+    assert 'test -n "${DOCS_ORIGIN}"' in workflow
+
     # A deployment interrupted between transfer and health check leaves a state
     # no verdict describes.
     assert "cancel-in-progress: false" in workflow
@@ -195,25 +202,96 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
         assert directive in service, directive
 
 
-def test_required_content_import_secret_is_checked_before_any_deploy_effect() -> None:
-    """A missing importer token must leave the currently healthy web running.
+def test_required_secrets_are_checked_before_any_deploy_effect() -> None:
+    """A missing or placeholder secret must leave the healthy release serving.
 
     The importer itself fails closed without the token, but web waits for that
     one-shot. Discovering the missing value after ``compose up`` left web in
     ``Created`` and production on 502 while the next minute-timer rebuilt every
     image. The deployer owns the ordering: validate the precondition before it
-    records progress, builds, migrates or recreates anything.
+    records progress, builds, migrates or recreates anything — for every value
+    a serving container refuses to boot without, not only the token.
     """
     deploy = Path("deploy/deploy.sh").read_text(encoding="utf-8")
-    preflight = 'require_env_value "AI_STP_CONTENT_IMPORT_TOKEN"'
-    assert preflight in deploy
-    assert deploy.index(preflight) < deploy.index('record_deploy_stage "${COMMIT}" "started"')
-    assert deploy.index(preflight) < deploy.index("compose build")
-
     library = Path("deploy/lib.sh").read_text(encoding="utf-8")
+    preflight = library.split("require_deploy_env()", maxsplit=1)[1].split("\n}\n", maxsplit=1)[0]
+    required = [
+        "AI_STP_API_ENVIRONMENT",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_DB",
+        "AI_STP_DB_URL",
+        "AI_STP_STORAGE_ENDPOINT",
+        "AI_STP_STORAGE_ACCESS_KEY_ID",
+        "AI_STP_STORAGE_SECRET_ACCESS_KEY",
+        "AI_STP_STORAGE_ARTIFACT_BUCKET",
+        "AI_STP_STORAGE_ASSET_BUCKET",
+        "RUSTFS_ACCESS_KEY",
+        "RUSTFS_SECRET_KEY",
+        "AI_STP_CONTENT_IMPORT_TOKEN",
+    ]
+    value_block = preflight.split("for required_name in", maxsplit=1)[1].split("done", maxsplit=1)[
+        0
+    ]
+    for name in required:
+        assert name in value_block, name
+    secret_block = preflight.split("for required_secret in", maxsplit=1)[1].split(
+        "done", maxsplit=1
+    )[0]
+    for name in (
+        "AI_STP_AUTH_SECRET_KEY",
+        "AI_STP_CATALOG_CURSOR_SIGNING_SECRET",
+        "AI_STP_SESSION_SECRET",
+    ):
+        assert name in secret_block, name
+    origin_block = preflight.split("for required_origin in", maxsplit=1)[1].split(
+        "done", maxsplit=1
+    )[0]
+    for name in (
+        "NEXT_PUBLIC_APP_URL",
+        "AI_STP_USER_DOCS_URL",
+        "AI_STP_AUTH_PUBLIC_BASE_URL",
+    ):
+        assert name in origin_block, name
+    # The API pair and the store pair must agree, and optional credentials that
+    # were copied out of the example file are worse than absent ones.
+    assert "require_env_pair_equal AI_STP_STORAGE_ACCESS_KEY_ID RUSTFS_ACCESS_KEY" in preflight
+    assert "require_env_pair_equal AI_STP_STORAGE_SECRET_ACCESS_KEY RUSTFS_SECRET_KEY" in preflight
+    assert "AI_STP_WORKER_GITHUB_TOKEN" in preflight
+    assert "refuse_env_placeholder" in preflight
+    assert 'require_env_value "${required_name}"' in preflight
+    assert 'require_env_secret "${required_secret}"' in preflight
+    assert 'require_env_public_origin "${required_origin}"' in preflight
+    # The deployer calls the shared contract before recording progress,
+    # building, migrating or recreating anything.
+    assert deploy.index("require_deploy_env") < deploy.index(
+        'record_deploy_stage "${COMMIT}" "started"'
+    )
+    assert deploy.index("require_deploy_env") < deploy.index("compose build")
     helper = library.split("require_env_value()", maxsplit=1)[1].split("\n}\n", maxsplit=1)[0]
     assert "source " not in helper
     assert "grep -Eq" in helper
+    assert "*CHANGE_ME*" in helper
+    secret = library.split("require_env_secret()", maxsplit=1)[1].split("\n}\n", maxsplit=1)[0]
+    assert "CHANGE_ME*" in secret
+    assert "-ge 32" in secret
+    assert "${value}" not in secret.split("die", maxsplit=1)[-1]
+    origin = library.split("require_env_public_origin()", maxsplit=1)[1].split("\n}\n", maxsplit=1)[
+        0
+    ]
+    assert "*example.invalid*" in origin
+    assert "*localhost*" in origin
+    pair = library.split("require_env_pair_equal()", maxsplit=1)[1].split("\n}\n", maxsplit=1)[0]
+    assert "env_file_value" in pair
+    # Values are compared through command substitution, never echoed: no
+    # output statement may interpolate the read value or the file lookup.
+    for fn in ("require_env_value", "require_env_secret", "require_env_pair_equal"):
+        body = library.split(f"{fn}()", maxsplit=1)[1].split("\n}\n", maxsplit=1)[0]
+        for line in body.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(("die ", "echo ", "printf ")):
+                assert "${value}" not in line, (fn, line)
+                assert "$(env_file_value" not in line, (fn, line)
 
 
 def test_storage_cutover_and_backups_fail_closed() -> None:
@@ -294,7 +372,13 @@ def test_deployment_verification_reports_only_declared_probe_origins() -> None:
 
     assert "${API_BASE}" in success
     assert "${WEB_BASE}" in success
+    assert "${DOCS_BASE}" in success
     assert "${BASE}" not in success
+
+    # The docs site is published beside web and api; a verify that does not
+    # probe it reports green for a host that serves a broken docs hostname.
+    assert "AI_STP_VERIFY_DOCS_URL" in script
+    assert '"${DOCS_BASE}/"' in script
 
     # Compose reports the web container started before its first HTTP accept.
     # Two real rolls hit connection reset/empty reply at this exact probe and
@@ -553,9 +637,27 @@ def test_a_deploy_overtaken_by_a_newer_one_is_not_a_failure() -> None:
         expected_commit=older,
         expected_schema="0005",
         expected_environment="prod",
+        docs_origin="https://docs.nddev.asia",
         fetch=fetch,
         commit_accepted=lambda deployed: deployed == newer,
     )
+
+    # A docs host that does not serve is a deployment defect, not a detail.
+    def docs_broken(url: str, _limit: int) -> tuple[int, bytes]:
+        if url.startswith("https://docs.nddev.asia"):
+            return 503, b""
+        return fetch(url, _limit)
+
+    with pytest.raises(verify_public.VerificationError, match="docs root"):
+        verify_public.verify(
+            "https://nddev.asia",
+            expected_commit=older,
+            expected_schema="0005",
+            expected_environment="prod",
+            docs_origin="https://docs.nddev.asia",
+            fetch=docs_broken,
+            commit_accepted=lambda deployed: deployed == newer,
+        )
 
     # Unrelated is still a failure, and the default is still exact equality.
     with pytest.raises(verify_public.VerificationError, match="deployed git_commit"):
