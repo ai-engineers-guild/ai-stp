@@ -87,8 +87,10 @@ commits in `releases/`: otherwise, the full archive of every SHA accumulates wit
 
 It follows that the deployment owns neither an SSH key, nor a host address,
 nor a pinned `known_hosts`: the connection that required them no longer exists.
-The only value the workflow takes from the repository is the
-`AI_STP_PUBLIC_ORIGIN` variable, an input to `deploy/verify_public.py`.
+The only values the workflow takes from the repository are the
+`AI_STP_PUBLIC_ORIGIN` and `AI_STP_DOCS_ORIGIN` variables, inputs to
+`deploy/verify_public.py` — one bare HTTPS origin per published site, and an
+unset variable fails the job rather than skipping a published service.
 
 The separation of trust domains from `ADR-0046` rests on three assertions:
 
