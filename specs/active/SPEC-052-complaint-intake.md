@@ -1,6 +1,6 @@
 ---
 description: "SPEC-052: Public intake of complaints about an author, catalog object, or arbitrary target."
-last_verified: "2026-08-22"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-052: Public complaint intake

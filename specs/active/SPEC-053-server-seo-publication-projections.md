@@ -1,6 +1,6 @@
 ---
 description: "SPEC-053: Server-side SEO revisions for components, setups, articles, services, and countries."
-last_verified: "2026-08-29"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-053: Server-side SEO pipeline for public entities

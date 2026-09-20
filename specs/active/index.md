@@ -57,13 +57,13 @@ last_verified: "2026-08-03"
 | [SPEC-046-web-feature-registry-and-content-hub.md](SPEC-046-web-feature-registry-and-content-hub.md) | SPEC-046: Typed web deploy profiles and a disableable content hub. | 2026-09-20 |
 | [SPEC-047-web-backend-consumer-surfaces.md](SPEC-047-web-backend-consumer-surfaces.md) | SPEC-047: Web/backend consumer surfaces for canonical CLI contracts and catalog delivery. | 2026-09-20 |
 | [SPEC-048-web-rsc-cache-and-fetch-boundaries.md](SPEC-048-web-rsc-cache-and-fetch-boundaries.md) | SPEC-048: Fast RSC catalog, explicit public/private fetch boundaries, and controlled prefetch. | 2026-09-20 |
-| [SPEC-049-on-demand-github-and-web-context-budget.md](SPEC-049-on-demand-github-and-web-context-budget.md) | SPEC-049: On-demand GitHub metadata, CLI-only blast radius, and an honest context budget in Web. | 2026-08-16 |
-| [SPEC-050-external-catalog-enrichment.md](SPEC-050-external-catalog-enrichment.md) | SPEC-050: Safe catalog enrichment with observable metadata from external catalogs. | 2026-08-16 |
-| [SPEC-051-public-catalog-usage-counters.md](SPEC-051-public-catalog-usage-counters.md) | SPEC-051: Private events and public catalog view and download counters. | 2026-08-16 |
-| [SPEC-052-complaint-intake.md](SPEC-052-complaint-intake.md) | SPEC-052: Public intake of complaints about an author, catalog object, or arbitrary target. | 2026-08-22 |
-| [SPEC-053-server-seo-publication-projections.md](SPEC-053-server-seo-publication-projections.md) | SPEC-053: Server-side SEO revisions for components, setups, articles, services, and countries. | 2026-08-29 |
-| [SPEC-054-hybrid-article-publication.md](SPEC-054-hybrid-article-publication.md) | SPEC-054: Unified server-side publication of repository- and staff-authored articles. | 2026-08-29 |
-| [SPEC-055-legal-account-onboarding.md](SPEC-055-legal-account-onboarding.md) | SPEC-055: Versioned legal policies and required account onboarding. | 2026-08-31 |
+| [SPEC-049-on-demand-github-and-web-context-budget.md](SPEC-049-on-demand-github-and-web-context-budget.md) | SPEC-049: On-demand GitHub metadata, CLI-only blast radius, and an honest context budget in Web. | 2026-09-20 |
+| [SPEC-050-external-catalog-enrichment.md](SPEC-050-external-catalog-enrichment.md) | SPEC-050: Safe catalog enrichment with observable metadata from external catalogs. | 2026-09-20 |
+| [SPEC-051-public-catalog-usage-counters.md](SPEC-051-public-catalog-usage-counters.md) | SPEC-051: Private events and public catalog view and download counters. | 2026-09-20 |
+| [SPEC-052-complaint-intake.md](SPEC-052-complaint-intake.md) | SPEC-052: Public intake of complaints about an author, catalog object, or arbitrary target. | 2026-09-20 |
+| [SPEC-053-server-seo-publication-projections.md](SPEC-053-server-seo-publication-projections.md) | SPEC-053: Server-side SEO revisions for components, setups, articles, services, and countries. | 2026-09-20 |
+| [SPEC-054-hybrid-article-publication.md](SPEC-054-hybrid-article-publication.md) | SPEC-054: Unified server-side publication of repository- and staff-authored articles. | 2026-09-20 |
+| [SPEC-055-legal-account-onboarding.md](SPEC-055-legal-account-onboarding.md) | SPEC-055: Versioned legal policies and required account onboarding. | 2026-09-20 |
 | [SPEC-056-official-upstream-components.md](SPEC-056-official-upstream-components.md) | SPEC-056: Curated GitHub component snapshots published by AI STP Official. | 2026-09-04 |
 | [SPEC-057-embedded-component-sources.md](SPEC-057-embedded-component-sources.md) | SPEC-057: Exact external and local components embedded in setup definitions. | 2026-09-04 |
 | [SPEC-058-multi-root-installation-transactions.md](SPEC-058-multi-root-installation-transactions.md) | SPEC-058: Recoverable consumer coordination of one setup across multiple provider roots. | 2026-09-15 |
