@@ -9,46 +9,27 @@ serves.
 
 from __future__ import annotations
 
-import httpx
+from collections.abc import Callable
+
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from tests.api.cli.conftest import WebApprover
 from tests.support.asgi_sync import SyncAsgiServer
 
-from ai_stp_api.session import issue_session
 from ai_stp_cli.cloud import login, session
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.secrets import open_store
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform.models import Account
 
 DEVICE_ID = new_id("device")
 PUBLIC_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
-
-async def _seed_web_session(sessionmaker: async_sessionmaker[AsyncSession], account_id: str) -> str:
-    """An account with a browser session — the approver side of the flow."""
-    async with sessionmaker() as db:
-        db.add(Account(id=account_id))
-        issued = await issue_session(db, account_id=account_id, device_id=None, ttl_seconds=3600)
-        await db.commit()
-        return issued.raw_token
-
-
-def _approve(server: SyncAsgiServer, user_code: str, session_token: str) -> httpx.Response:
-    """The browser side: approve the user code under the seeded web session."""
-    assert server.transport is not None
-    with httpx.Client(
-        transport=server.transport,
-        base_url="http://127.0.0.1",
-        headers={"Authorization": f"Bearer {session_token}"},
-    ) as web:
-        return web.post("/v1/auth/device/approve", json={"user_code": user_code})
+ApproverFactory = Callable[[], WebApprover]
 
 
 def test_sign_in_pending_then_approved(
-    cli_server: SyncAsgiServer,
     cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The application-level journey: begin → approve → complete → revoke."""
@@ -56,9 +37,7 @@ def test_sign_in_pending_then_approved(
     from ai_stp_cli.commands import passport
 
     monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
-    sessionmaker = cli_server.app.state.sessionmaker
-    account_id = new_id("account")
-    web_token = cli_server.call(_seed_web_session, sessionmaker, account_id)
+    approver = web_approver()
 
     passport.developer_init({})
     before = passport.developer_show({}).payload
@@ -72,16 +51,16 @@ def test_sign_in_pending_then_approved(
         auth.complete({})
     assert pending.value.code == "AI_STP_AUTHORIZATION_PENDING"
 
-    approved = _approve(cli_server, approval.user_code, web_token)
+    approved = approver.approve(approval.user_code)
     assert approved.status_code == 200, approved.text
 
     finished = auth.complete({}).payload
     assert finished.state == "authenticated"
-    assert finished.account_id == account_id
+    assert finished.account_id == approver.account_id
 
     # `ADR-0060`: ownership moves onto the server's account, as a revision.
     after = passport.developer_show({}).payload
-    assert after.owner_id == account_id
+    assert after.owner_id == approver.account_id
     assert after.owner_id != before.owner_id
     assert after.parent_revision_ids == [before.revision_id]
 
@@ -97,18 +76,15 @@ def test_sign_in_pending_then_approved(
 
 
 def test_approve_with_an_unknown_code_is_a_typed_answer(
-    cli_server: SyncAsgiServer, cli_endpoint: Endpoint
+    web_approver: ApproverFactory,
 ) -> None:
-    sessionmaker = cli_server.app.state.sessionmaker
-    web_token = cli_server.call(_seed_web_session, sessionmaker, new_id("account"))
-
-    response = _approve(cli_server, "XXXX-YYYY", web_token)
+    response = web_approver().approve("XXXX-YYYY")
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "AI_STP_NOT_FOUND"
 
 
 def test_pending_polls_are_not_paced_but_a_success_is(
-    cli_server: SyncAsgiServer, cli_endpoint: Endpoint
+    cli_endpoint: Endpoint, web_approver: ApproverFactory
 ) -> None:
     """The server persists `last_poll_at` only on a committed request.
 
@@ -117,9 +93,7 @@ def test_pending_polls_are_not_paced_but_a_success_is(
     time. A *successful* exchange commits `last_poll_at`, and a re-poll inside
     the interval is rate limited before the consumed-status check.
     """
-    sessionmaker = cli_server.app.state.sessionmaker
-    account_id = new_id("account")
-    web_token = cli_server.call(_seed_web_session, sessionmaker, account_id)
+    approver = web_approver()
 
     started = login.start(cli_endpoint, "github")
     for _ in range(2):
@@ -133,7 +107,7 @@ def test_pending_polls_are_not_paced_but_a_success_is(
             )
         assert pending.value.code == "AI_STP_AUTHORIZATION_PENDING"
 
-    assert _approve(cli_server, started.user_code, web_token).status_code == 200
+    assert approver.approve(started.user_code).status_code == 200
     tokens = login.exchange(
         cli_endpoint,
         started,
@@ -141,7 +115,7 @@ def test_pending_polls_are_not_paced_but_a_success_is(
         public_key=PUBLIC_KEY,
         display_name="boundary-test",
     )
-    assert tokens.account_id == account_id
+    assert tokens.account_id == approver.account_id
 
     with pytest.raises(CliFailure) as limited:
         login.exchange(
@@ -152,3 +126,97 @@ def test_pending_polls_are_not_paced_but_a_success_is(
             display_name="boundary-test",
         )
     assert limited.value.code == "AI_STP_RATE_LIMITED"
+
+
+def test_a_pending_answer_keeps_the_pending_record(
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A machine `complete` asks once; "not yet" must not destroy the code.
+
+    The corpus-mock version stubbed `login.exchange` to prove the bookkeeping.
+    Against the real server the pending answer is produced, not simulated.
+    """
+    from ai_stp_cli.application import auth
+
+    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
+    web_approver()  # the account exists; the code is simply never approved
+
+    auth.begin({"provider": "github"})
+    store, _warning = open_store()
+    assert session.load_pending(store) is not None
+
+    with pytest.raises(CliFailure) as raised:
+        auth.complete({})
+    assert raised.value.code == "AI_STP_AUTHORIZATION_PENDING"
+    assert session.load_pending(store) is not None, "a pending sign-in was destroyed"
+
+
+def test_an_expired_authorization_is_a_terminal_decision(
+    cli_server: SyncAsgiServer,
+    cli_endpoint: Endpoint,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The server's expired answer clears the pending record — not a wait."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import update
+
+    from ai_stp_cli.application import auth
+    from ai_stp_platform.models import DeviceAuthorization
+
+    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
+    auth.begin({"provider": "github"})
+    store, _warning = open_store()
+    pending = session.load_pending(store)
+    assert pending is not None
+
+    sessionmaker = cli_server.app.state.sessionmaker
+
+    async def expire() -> None:
+        async with sessionmaker() as db:
+            await db.execute(
+                update(DeviceAuthorization)
+                .where(DeviceAuthorization.device_code == pending.device_code)
+                .values(expires_at=datetime.now(UTC) - timedelta(seconds=1))
+            )
+            await db.commit()
+
+    cli_server.call(expire)
+
+    with pytest.raises(CliFailure) as raised:
+        auth.complete({})
+    assert raised.value.code == "AI_STP_AUTHORIZATION_EXPIRED"
+    assert session.load_pending(store) is None
+
+
+def test_waiting_is_opt_in_and_bounded(
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`--wait` polls the real server until its own deadline, then gives up.
+
+    The pending record's `expires_in`/`interval` drive the bound — shortening
+    them keeps the test at seconds rather than minutes. Each poll is a real
+    exchange; the server keeps answering pending because nobody approves.
+    """
+    import dataclasses
+
+    from ai_stp_cli.application import auth
+
+    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
+    web_approver()
+
+    auth.begin({"provider": "github"})
+    store, _warning = open_store()
+    pending = session.load_pending(store)
+    assert pending is not None
+    session.save_pending(store, dataclasses.replace(pending, interval=1, expires_in=2))
+
+    with pytest.raises(CliFailure) as raised:
+        auth.complete({"wait": True})
+    assert raised.value.code == "AI_STP_AUTHORIZATION_EXPIRED"
+    # Expiry is a decision, so the record is gone.
+    assert session.load_pending(store) is None

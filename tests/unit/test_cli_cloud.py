@@ -1,4 +1,11 @@
-"""The cloud boundary, driven entirely by the `#71` mock: no server exists yet."""
+"""The cloud client boundary: wire cases, retry/pacing rules, local session state.
+
+The sign-in journey lives in `tests/api/cli/test_device_sign_in.py` and the
+account drain in `tests/api/cli/test_account_tasks.py` — both against the real
+`/v1` app. Here the `#71` corpus remains what `#75` built it for: wire examples
+a client must accept or refuse, plus the local credential/session rules that
+never needed a server.
+"""
 
 import dataclasses
 import json
@@ -483,25 +490,6 @@ def test_an_unusable_provider_is_refused(given: object) -> None:
         auth.begin({"provider": given})
 
 
-def test_a_declined_sign_in_clears_the_pending_record(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Leaving it pending would make the next `--await` poll a dead code.
-    from ai_stp_cli.application import auth
-
-    monkeypatch.setattr(auth, "endpoint", _mock_endpoint)
-    monkeypatch.setattr(login, "local_identity", lambda: (FIXTURE_DEVICE, FIXTURE_KEY, None))
-    monkeypatch.setattr(login, "device_display_name", lambda: FIXTURE_NAME)
-
-    store, _warning = open_store()
-    session.save_pending(
-        store,
-        session.Pending(provider="google", device_code=EXPIRED_CODE, interval=1, expires_in=60),
-    )
-    with pytest.raises(CliFailure) as raised:
-        auth.complete({})
-    assert raised.value.code == "AI_STP_AUTHORIZATION_EXPIRED"
-    assert session.load_pending(store) is None
-
-
 def _hold_session(token: str = "a") -> None:
     """Give this installation a usable cloud session to sign out of."""
     store, _warning = open_store()
@@ -902,44 +890,6 @@ def test_signing_in_survives_the_next_environment_change(monkeypatch: pytest.Mon
     assert local_passports.owner().account_id == account
 
 
-def test_machine_completion_asks_once_and_keeps_the_pending_record(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The two halves of the defect, in one test.
-
-    It polled for up to fifteen minutes, holding an agent for as long as a
-    person took to reach a browser. And it caught every typed failure to clear
-    the pending record, although its comment spoke only of declined and expired
-    — so one lost network reply destroyed a code the user had already been shown.
-    """
-    from ai_stp_cli.application import auth
-    from ai_stp_cli.secrets import open_store
-
-    asked: list[int] = []
-
-    def pending_once(*_args: object, **_kwargs: object) -> DeviceTokenResponse:
-        asked.append(1)
-        raise CliFailure("AI_STP_AUTHORIZATION_PENDING", "not yet")
-
-    monkeypatch.setattr(auth, "endpoint", _mock_endpoint)
-    monkeypatch.setattr(login, "device_display_name", lambda: FIXTURE_NAME)
-    monkeypatch.setattr(login, "local_identity", lambda: (FIXTURE_DEVICE, FIXTURE_KEY, None))
-    monkeypatch.setattr(login, "exchange", pending_once)
-
-    store, _warning = open_store()
-    session.save_pending(
-        store,
-        session.Pending(provider="google", device_code=PENDING_CODE, interval=1, expires_in=60),
-    )
-
-    with pytest.raises(CliFailure) as raised:
-        auth.complete({})
-
-    assert raised.value.code == "AI_STP_AUTHORIZATION_PENDING"
-    assert asked == [1], "a machine call must ask exactly once"
-    assert session.load_pending(store) is not None, "a pending sign-in was destroyed"
-
-
 @pytest.mark.parametrize(
     ("code", "survives"),
     [
@@ -976,43 +926,6 @@ def test_only_a_decision_clears_the_pending_sign_in(
         auth.complete({})
 
     assert (session.load_pending(store) is not None) is survives
-
-
-def test_waiting_is_opt_in_and_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`--wait` is for a person; it answers with the same schema either way."""
-    from ai_stp_cli.application import auth
-    from ai_stp_cli.secrets import open_store
-
-    asked: list[int] = []
-
-    def pending(*_args: object, **_kwargs: object) -> DeviceTokenResponse:
-        asked.append(1)
-        raise CliFailure("AI_STP_AUTHORIZATION_PENDING", "not yet")
-
-    monkeypatch.setattr(auth, "endpoint", _mock_endpoint)
-    monkeypatch.setattr(login, "device_display_name", lambda: FIXTURE_NAME)
-    monkeypatch.setattr(login, "local_identity", lambda: (FIXTURE_DEVICE, FIXTURE_KEY, None))
-    monkeypatch.setattr(login, "exchange", pending)
-    import time as time_module
-
-    def instantly(seconds: float) -> None:
-        """The wait is bounded by the deadline, not by real elapsed time."""
-
-    monkeypatch.setattr(time_module, "sleep", instantly)
-
-    store, _warning = open_store()
-    session.save_pending(
-        store,
-        session.Pending(provider="google", device_code=PENDING_CODE, interval=1, expires_in=2),
-    )
-
-    with pytest.raises(CliFailure) as raised:
-        auth.complete({"wait": True})
-
-    assert raised.value.code == "AI_STP_AUTHORIZATION_EXPIRED"
-    assert len(asked) > 1, "waiting asked only once"
-    # Expiry is a decision, so the record is gone.
-    assert session.load_pending(store) is None
 
 
 def test_one_logical_start_carries_one_key_through_every_attempt() -> None:
