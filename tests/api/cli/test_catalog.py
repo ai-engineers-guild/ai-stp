@@ -14,30 +14,12 @@ import json
 
 import httpx
 import pytest
-from tests.support.asgi_sync import SyncAsgiServer
-from tests.support.catalog_seed import (
-    FIXTURE_COMPONENT_ID,
-    FIXTURE_SETUP_ID,
-    load_fixture_seed,
-)
+from tests.support.catalog_seed import FIXTURE_COMPONENT_ID, FIXTURE_SETUP_ID
 
 from ai_stp_cli.cloud import catalog
 from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache
-
-
-@pytest.fixture()
-def seeded_catalog(cli_server: SyncAsgiServer) -> None:
-    """The frozen corpus, written through the platform's own upsert path."""
-    sessionmaker = cli_server.app.state.sessionmaker
-
-    async def seed() -> None:
-        async with sessionmaker() as db:
-            await load_fixture_seed(db)
-            await db.commit()
-
-    cli_server.call(seed)
 
 
 def _offline() -> Endpoint:

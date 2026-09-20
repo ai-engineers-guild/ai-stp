@@ -17,6 +17,7 @@ import httpx
 import pytest
 from tests.support.api_settings import make_settings, make_test_auth
 from tests.support.asgi_sync import SyncAsgiServer
+from tests.support.catalog_seed import load_fixture_seed
 from tests.support.postgres import (
     TEST_DB_ENV,
     isolated_database,
@@ -78,6 +79,34 @@ def cli_endpoint(cli_server: SyncAsgiServer) -> Endpoint:
     """The endpoint the CLI cloud layer calls; loopback HTTP is permitted."""
     assert cli_server.transport is not None
     return Endpoint("http://127.0.0.1", transport=cli_server.transport)
+
+
+@pytest.fixture()
+def seeded_catalog(cli_server: SyncAsgiServer) -> None:
+    """The frozen corpus, written through the platform's own upsert path."""
+    sessionmaker = cli_server.app.state.sessionmaker
+
+    async def seed() -> None:
+        async with sessionmaker() as db:
+            await load_fixture_seed(db)
+            await db.commit()
+
+    cli_server.call(seed)
+
+
+def issue_token(cli_server: SyncAsgiServer, account_id: str) -> str:
+    """A raw bearer token for an account the database already holds."""
+    sessionmaker = cli_server.app.state.sessionmaker
+
+    async def issue() -> str:
+        async with sessionmaker() as db:
+            issued = await issue_session(
+                db, account_id=account_id, device_id=None, ttl_seconds=3600
+            )
+            await db.commit()
+            return issued.raw_token
+
+    return cli_server.call(issue)
 
 
 @dataclass(frozen=True)
