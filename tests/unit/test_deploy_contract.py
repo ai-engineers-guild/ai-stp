@@ -95,6 +95,12 @@ def test_the_deploy_workflow_keeps_the_guarantees_it_inherited() -> None:
     assert "vars.AI_STP_DOCS_ORIGIN" in workflow
     assert 'test -n "${DOCS_ORIGIN}"' in workflow
 
+    runbook = Path("docs/operations/runbooks/deploy.md").read_text(encoding="utf-8")
+    assert "AI_STP_PUBLIC_ORIGIN" in runbook
+    assert "AI_STP_DOCS_ORIGIN" in runbook
+    assert "AI_STP_CATALOG_CURSOR_SIGNING_SECRET" in runbook
+    assert "AI_STP_CATALOG_CURSOR_SECRET" not in runbook
+
     # A deployment interrupted between transfer and health check leaves a state
     # no verdict describes.
     assert "cancel-in-progress: false" in workflow
