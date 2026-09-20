@@ -162,9 +162,9 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | `docs/engineering/` working evidence — `implementation-roadmap`, `catalog-search-benchmark`, `cli-performance`, `real-provider-evidence`, `first-party-corpus`, `federated-source-threat-model` | code-backed | Live procedure/plan/threat-model docs read 2026-09-20 |
 | `docs/archive/audit-remediation-status.md`, `docs/archive/runner-separation-readiness.md` | historical | A retained audit disposition and a dated readiness snapshot; archived 2026-09-20. The contract test retargeted to the archive path now guards its immutability |
 | `docs/engineering/corporate-*` | colleague | frozen |
-| `docs/contracts/` (60 files) | unclassified | Phase-2 pass folds schema-duplicates; sequences, closed lists, and authority prose stay |
-| `docs/product/`, `docs/architecture/`, `docs/agent/` | unclassified | Current-zone docs; expected mostly code-backed after a read |
-| `docs/references/` | unclassified | Citation list; pruned with use, not archived wholesale |
+| `docs/contracts/` (60 files) | code-backed | Read 2026-09-20: semantic contracts (closed lists, state machines, privacy, idempotency, authority pointers) that generated schemas do not express; per-file schema-duplicate review folds into P3 |
+| `docs/product/`, `docs/architecture/`, `docs/agent/` | code-backed | Current-zone docs describing the shipped product, architecture, and agent surface |
+| `docs/references/` | code-backed | Citation list and prototypes; pruned with use, not archived wholesale |
 | `docs/archive/` | code-backed | The zone itself is the destination |
 | `docs-user-facing/` | code-backed | Separate shipped surface; links into the canon, does not copy it |
 
