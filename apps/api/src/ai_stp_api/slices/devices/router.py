@@ -23,6 +23,7 @@ from ai_stp_api.slices.devices.service import (
     list_devices,
     register_device,
     revoke_device,
+    stored_summaries,
 )
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.models import Device
@@ -58,20 +59,16 @@ def _device_etag(device: Device) -> str:
     return f'W/"{digest}"'
 
 
-def _device_record(device: Device, *, display_name: str | None = None) -> dict[str, object]:
-    """Map storage Device to OpenAPI DeviceRecord resource."""
+def _device_record(
+    device: Device, *, summary: dict[str, object] | None = None
+) -> dict[str, object]:
+    """Map storage Device to OpenAPI DeviceRecord resource.
+
+    `summary` is the closed document the device published through sync, or
+    nothing — the contract shows it only "when the device has published one",
+    and a fabricated operating system is worse than an absent one.
+    """
     last = device.last_seen_at or device.created_at
-    summary: dict[str, object] | None = None
-    if display_name:
-        summary = {
-            "schema_version": 1,
-            "display_name": display_name,
-            "operating_system": "linux",
-            "architecture": "x86_64",
-            "detected_harnesses": [],
-            "toolchain_profile_version": "unknown",
-            "summary_updated_at": _wire_ts(last),
-        }
     return {
         "schema_version": 1,
         "device_id": device.id,
@@ -124,7 +121,8 @@ async def device_register(
     device = await db.get(Device, summary.id)
     if device is None:
         raise ApiError(ErrorCategory.INTERNAL, "device missing after register")
-    record = _device_record(device, display_name=body.display_name)
+    synced = await stored_summaries(db, account_id=ctx.account_id, device_ids=[device.id])
+    record = _device_record(device, summary=synced.get(device.id))
     return JSONResponse(
         content={"schema_version": 1, "device": record, "created": created},
         status_code=201 if created else 200,
@@ -147,12 +145,16 @@ async def device_list(
         subject_account_id=account_id,
         admin_reason=x_admin_reason,
     )
+    target = account_id or ctx.account_id
+    synced = await stored_summaries(
+        db, account_id=target, device_ids=[summary.id for summary in summaries]
+    )
     items: list[dict[str, object]] = []
     for summary in summaries:
         device = await db.get(Device, summary.id)
         if device is None:
             continue
-        items.append(_device_record(device, display_name=summary.display_name))
+        items.append(_device_record(device, summary=synced.get(device.id)))
     # Newest activity first (contract).
     items.sort(key=lambda row: str(row.get("last_active_at") or ""), reverse=True)
     return JSONResponse(
@@ -194,12 +196,13 @@ async def device_revoke(
     if if_match.strip() != current:
         raise ApiError(ErrorCategory.PRECONDITION, "precondition failed")
 
-    summary = await revoke_device(db, ctx=ctx, device_id=device_id)
+    await revoke_device(db, ctx=ctx, device_id=device_id)
     await db.refresh(device)
+    synced = await stored_summaries(db, account_id=device.account_id, device_ids=[device.id])
     now = datetime.now(UTC)
     body = {
         "schema_version": 1,
-        "device": _device_record(device, display_name=summary.display_name),
+        "device": _device_record(device, summary=synced.get(device.id)),
         "revoked_at": _wire_ts(device.updated_at or now),
     }
     return JSONResponse(content=body, status_code=200)

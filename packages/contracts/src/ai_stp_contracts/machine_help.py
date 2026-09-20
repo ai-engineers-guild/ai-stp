@@ -1876,6 +1876,11 @@ class ConsentRecord(BaseModel):
     schema_version: Literal[1] = 1
     consent_id: Annotated[str, Field(min_length=1)]
 
+    #: The `unverified_consent` sync entity this record answers to — derived
+    #: from scope and target, so it is identical on every device of the
+    #: account. `sync push --id` takes it.
+    sync_entity_id: Annotated[str, Field(min_length=1)]
+
     #: Three forms and no fourth. "Everything unverified, forever" does not
     #: exist: `task` names the authorized full-auto profile, not a wildcard.
     scope: Literal["publisher", "object_major", "task"]

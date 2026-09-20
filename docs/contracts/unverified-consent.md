@@ -63,6 +63,15 @@ Records belong to the user, are stored in the local registry, and synchronize
 as ordinary revisioned entities. A record contains no secrets or environment
 values.
 
+On the wire a record is an `unverified_consent` event whose entity is derived
+from the scope and target — `consent_<sha256(scope, target)>` — so every device
+of the account addresses the same logical record. An `upsert` payload carries
+the record fields; a `tombstone` carries scope, target, and revocation time.
+Both shapes are declared in `ai_stp_contracts.sync` and validated at intake,
+so a record the contract does not define never enters the stream and cannot
+wedge a pulling device. `consent list` reports the entity id, and
+`sync push --id <entity>` publishes the record's current state.
+
 ## Invalidating events
 
 A `publisher` or `object_major` record stops covering a version if, compared
