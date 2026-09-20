@@ -1,14 +1,18 @@
-"""Report commands preserve exact previews, privacy and replay state."""
+"""Report commands: preview durability, privacy scanning, and replay state locally.
+
+The transport journey (create/list/read against `/v1/requests`, including the
+server's own idempotent replay and cross-account privacy) moved to
+`tests/api/cli/test_reports.py`. What remains never needs a server: previews
+are durable in the local registry, confirm is gated on the exact plan digest,
+diagnostics are scanned before a plan is written, and the `_submit` seam is
+where a lost answer is injected."""
 
 from contextlib import closing
 from pathlib import Path
 
-import httpx
 import pytest
 
-from ai_stp_cli.cloud import reports as transport
 from ai_stp_cli.cloud import session
-from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local.database import open_registry
 from ai_stp_contracts.reports import ReportCaseCreateRequest, ReportCaseResponse
@@ -42,33 +46,6 @@ def _result() -> ReportCaseResponse:
         state="submitted",
         created_at="2026-08-13T00:00:00.000Z",
     )
-
-
-def test_report_transport_uses_only_the_authenticated_contract_routes() -> None:
-    seen: list[tuple[str, str, str | None]] = []
-
-    def route(request: httpx.Request) -> httpx.Response:
-        seen.append((request.method, request.url.path, request.headers.get("Authorization")))
-        if request.method == "GET":
-            return httpx.Response(200, json={"schema_version": 1, "items": []})
-        return httpx.Response(201, json=_result().model_dump(mode="json"))
-
-    endpoint = Endpoint(BASE, transport=httpx.MockTransport(route))
-    request = ReportCaseCreateRequest(
-        object_kind="component",
-        stable_id=STABLE,
-        version="1.0",
-        content_digest=DIGEST,
-        validation_snapshot_ids=[],
-        idempotency_key=KEY,
-    )
-    transport.create(endpoint, "bearer", request)
-    transport.list_all(endpoint, "bearer")
-
-    assert seen == [
-        ("POST", "/v1/requests", "Bearer bearer"),
-        ("GET", "/v1/requests", "Bearer bearer"),
-    ]
 
 
 def test_preview_is_durable_and_confirm_reuses_it_after_an_unknown_result(

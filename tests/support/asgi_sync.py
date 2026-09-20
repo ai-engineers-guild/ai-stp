@@ -65,7 +65,11 @@ class SyncAsgiTransport(httpx.BaseTransport):
 
         scope: dict[str, Any] = {
             "type": "http",
-            "asgi": {"version": "3.0"},
+            # spec_version 2.4+: Starlette streams directly. Without it the
+            # response races listen_for_disconnect, and this receive answers
+            # disconnect on its second call — cancelling stream_response
+            # mid-flight and alternating full/empty bodies.
+            "asgi": {"version": "3.0", "spec_version": "2.5"},
             "http_version": "1.1",
             "method": request.method,
             "scheme": request.url.scheme,

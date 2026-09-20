@@ -1,4 +1,10 @@
-"""Fetching artifact bytes: verified against the passport, cached by content."""
+"""Fetching artifact bytes: verified against the passport, cached by content.
+
+The end-to-end journeys — real route, real object store, bearer for a private
+object — live in `tests/api/cli/test_artifact.py`. What stays here is what a
+server cannot be told to do: truncate a stream, flood it, time it out, answer
+with a refusal body, or corrupt what the cache already holds.
+"""
 
 import hashlib
 import os
@@ -63,12 +69,6 @@ def test_a_raw_sha_from_an_artifact_ref_is_refused_for_the_same_bytes() -> None:
     assert not cache.version_artifact_path(raw_digest).exists()
 
 
-def test_the_bytes_are_verified_and_kept_under_their_digest() -> None:
-    path = catalog.fetch_artifact(MOCK, "component", OBJECT, "1.0", REF, transport=_serving(BYTES))
-    assert path.read_bytes() == BYTES
-    assert path == cache.version_artifact_path(DIGEST)
-
-
 def test_private_artifact_fetch_uses_the_held_bearer() -> None:
     seen: list[str | None] = []
 
@@ -87,18 +87,6 @@ def test_private_artifact_fetch_uses_the_held_bearer() -> None:
     )
     assert path.read_bytes() == BYTES
     assert seen == ["Bearer private-session-token"]
-
-
-def test_a_second_fetch_does_not_use_the_network() -> None:
-    catalog.fetch_artifact(MOCK, "component", OBJECT, "1.0", REF, transport=_serving(BYTES))
-
-    def refuse(_request: httpx.Request) -> httpx.Response:
-        raise AssertionError("a cached artifact must not be fetched again")
-
-    again = catalog.fetch_artifact(
-        MOCK, "component", OBJECT, "1.0", REF, transport=httpx.MockTransport(refuse)
-    )
-    assert again.read_bytes() == BYTES
 
 
 def test_bytes_that_do_not_hash_to_the_passport_are_refused_and_not_kept() -> None:

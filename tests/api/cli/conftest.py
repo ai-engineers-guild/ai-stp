@@ -17,6 +17,7 @@ import httpx
 import pytest
 from tests.support.api_settings import make_settings, make_test_auth
 from tests.support.asgi_sync import SyncAsgiServer
+from tests.support.catalog_seed import load_fixture_seed
 from tests.support.postgres import (
     TEST_DB_ENV,
     isolated_database,
@@ -26,7 +27,10 @@ from tests.support.postgres import (
 
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
+from ai_stp_cli.cloud import session
 from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.cloud.session import Session as CliSession
+from ai_stp_cli.secrets import open_store
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account
 
@@ -80,6 +84,34 @@ def cli_endpoint(cli_server: SyncAsgiServer) -> Endpoint:
     return Endpoint("http://127.0.0.1", transport=cli_server.transport)
 
 
+@pytest.fixture()
+def seeded_catalog(cli_server: SyncAsgiServer) -> None:
+    """The frozen corpus, written through the platform's own upsert path."""
+    sessionmaker = cli_server.app.state.sessionmaker
+
+    async def seed() -> None:
+        async with sessionmaker() as db:
+            await load_fixture_seed(db)
+            await db.commit()
+
+    cli_server.call(seed)
+
+
+def issue_token(cli_server: SyncAsgiServer, account_id: str) -> str:
+    """A raw bearer token for an account the database already holds."""
+    sessionmaker = cli_server.app.state.sessionmaker
+
+    async def issue() -> str:
+        async with sessionmaker() as db:
+            issued = await issue_session(
+                db, account_id=account_id, device_id=None, ttl_seconds=3600
+            )
+            await db.commit()
+            return issued.raw_token
+
+    return cli_server.call(issue)
+
+
 @dataclass(frozen=True)
 class WebApprover:
     """The browser side of device auth: an account holding a web session."""
@@ -120,3 +152,37 @@ def web_approver(cli_server: SyncAsgiServer) -> Callable[[], WebApprover]:
         return WebApprover(account_id=account_id, token=token, approve=approve)
 
     return build
+
+
+@pytest.fixture()
+def device_session(
+    cli_endpoint: Endpoint,
+    web_approver: Callable[[], WebApprover],
+    monkeypatch: pytest.MonkeyPatch,
+) -> CliSession:
+    """A real device-bound session produced by the sign-in flow itself.
+
+    Publication requires an active device on the session, so issuing a bare
+    token is not enough — the device flow registers the key pair, the web
+    approver binds the account, and the CLI persists the credential.
+    """
+    from ai_stp_cli.application import auth
+    from ai_stp_cli.commands import passport as passport_cmd
+
+    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
+    approver = web_approver()
+    # A developer passport exists before sign-in so `complete` can rebind its
+    # owner to the approved account — the same sequence the real journey takes.
+    passport_cmd.developer_init({})
+    approval = auth.begin({"provider": "github"}).payload
+    assert approval.user_code
+    approved = approver.approve(approval.user_code)
+    assert approved.status_code == 200, approved.text
+    finished = auth.complete({}).payload
+    assert finished.state == "authenticated"
+
+    store, _warning = open_store()
+    held = session.load(store)
+    assert held is not None
+    assert held.account_id == approver.account_id
+    return held
