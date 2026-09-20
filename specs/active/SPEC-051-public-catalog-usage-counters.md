@@ -1,6 +1,6 @@
 ---
 description: "SPEC-051: Private events and public catalog view and download counters."
-last_verified: "2026-08-16"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-051: Public catalog usage counters

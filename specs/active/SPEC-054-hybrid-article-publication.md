@@ -1,6 +1,6 @@
 ---
 description: "SPEC-054: Unified server-side publication of repository- and staff-authored articles."
-last_verified: "2026-08-29"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-054: Hybrid article publication through the platform
