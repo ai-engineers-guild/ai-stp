@@ -173,11 +173,11 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | Path | Tag | Reason |
 | --- | --- | --- |
 | `tests/unit/test_cli_cloud.py` | replace | Strangler in progress: the sign-in journey moved to `tests/api/cli/test_device_sign_in.py` (real app over PostgreSQL); what remains exercises the `#71` corpus as wire cases — corpus-pure tests stay, journey tests keep moving |
-| `tests/unit/test_cli_catalog.py` | replace | `#71` corpus as a fake catalogue for CLI journeys |
+| `tests/unit/test_cli_catalog.py` | keep | Client-boundary only after strangler: injected transports (offline, tampered, cursor opacity) and local cache rules; journeys moved to `tests/api/cli/test_catalog.py` over the real seeded catalog |
 | `tests/unit/test_cli_account.py` | replace | Account journeys through the `#71` mock |
-| `tests/unit/test_cli_commands.py` | replace | Command journeys against the mock boundary |
-| `tests/unit/test_cli_local_registry.py` | replace | Registry journeys through mock-era doubles |
-| `tests/unit/test_cli_projects.py` | replace | Project journeys through mock-era doubles |
+| `tests/unit/test_cli_commands.py` | keep | Environment fault injection (`shutil.which`, `sys.version_info`, wheel metadata) against real local state — no fake server |
+| `tests/unit/test_cli_local_registry.py` | keep | Failure injection (`MIGRATIONS`, `commit`) on the real SQLite registry — doubles simulate faults, not a service |
+| `tests/unit/test_cli_projects.py` | keep | Real filesystem discovery; one `DISCOVERY_ENTRIES` bound override |
 | `tests/unit/platform/test_safety_adapter_edges.py` | keep | Adapter edge-branch tests on real inputs; renamed from `test_safety_coverage_boost.py` (the name described intent, not the tests). Blanket pyright suppression removed; S3 stays mocked as a true external boundary |
 | `tests/contract/test_cli_process.py` | keep | Real CLI process |
 | `tests/api/cli/` | keep | CLI↔API boundary: the real `/v1` app served synchronously (`tests/support/asgi_sync.py`) over an isolated migrated PostgreSQL database (`tests/support/postgres.py`, shared by the platform conftests) |
