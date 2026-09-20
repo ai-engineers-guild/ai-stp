@@ -1,4 +1,4 @@
-"""Safe markdown pipeline (SPEC-029) — deep negative/positive corpus."""
+"""Documents-profile markdown pipeline (SPEC-031 REQ-3106) — negative/positive cases."""
 
 from __future__ import annotations
 

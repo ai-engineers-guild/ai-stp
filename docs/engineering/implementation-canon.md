@@ -88,7 +88,7 @@ owning code.
 | SPEC-026 | code-backed | `slices/publish`, `slices/grants`, `slices/reports` |
 | SPEC-027 | code-backed | `apps/web` owned-objects UI |
 | SPEC-028 | code-backed | `slices/profile` + web public profile |
-| SPEC-029 | code-backed | `contracts/safe_markdown.py` |
+| SPEC-029 | code-backed | `passports/markdown.py` (strict profile) + `apps/web` `lib/markdown/passport.ts` (corpus-parity port, added 2026-09-20); documents renderer `contracts/safe_markdown.py` belongs to SPEC-031 REQ-3106 |
 | SPEC-030 | code-backed | `commands/link.py`, `contracts/web_projections.py`, registry deep links |
 | SPEC-031 | code-backed | `slices/documents` |
 | SPEC-032 | code-backed | `slices/health`, `platform/safety`, ops runbooks |

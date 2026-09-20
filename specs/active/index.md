@@ -37,7 +37,7 @@ last_verified: "2026-08-03"
 | [SPEC-026-publication-validation-grants-reports.md](SPEC-026-publication-validation-grants-reports.md) | SPEC-026: Server-side publication, validation jobs, grants, reports, and staff audit. | 2026-09-07 |
 | [SPEC-027-web-publication-access-moderation.md](SPEC-027-web-publication-access-moderation.md) | SPEC-027: Web UI for owned objects, publication, rights, reports, and minimal moderation. | 2026-08-08 |
 | [SPEC-028-public-profile-media-and-preview.md](SPEC-028-public-profile-media-and-preview.md) | SPEC-028: Author public profile, safe avatars, and preview. | 2026-09-07 |
-| [SPEC-029-versioned-markdown-descriptions.md](SPEC-029-versioned-markdown-descriptions.md) | SPEC-029: Immutable safe Markdown descriptions for versions. | 2026-08-09 |
+| [SPEC-029-versioned-markdown-descriptions.md](SPEC-029-versioned-markdown-descriptions.md) | SPEC-029: Immutable safe Markdown descriptions for versions. | 2026-09-20 |
 | [SPEC-030-cli-web-deep-links.md](SPEC-030-cli-web-deep-links.md) | SPEC-030: Canonical bidirectional links between CLI and web. | 2026-08-09 |
 | [SPEC-031-public-documents-policies-and-errors.md](SPEC-031-public-documents-policies-and-errors.md) | SPEC-031: Public documents, versioned policies, and error pages. | 2026-08-08 |
 | [SPEC-032-production-readiness-governance.md](SPEC-032-production-readiness-governance.md) | SPEC-032: Evidence-based production readiness, data governance, abuse protection, and recovery. | 2026-09-12 |
