@@ -1,6 +1,6 @@
 ---
 description: "SPEC-023: Web login, account profile and device management."
-last_verified: "2026-08-17"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-023: Web login, account and device profile

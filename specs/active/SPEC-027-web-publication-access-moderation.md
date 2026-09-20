@@ -1,6 +1,6 @@
 ---
 description: "SPEC-027: Web UI for owned objects, publication, rights, reports, and minimal moderation."
-last_verified: "2026-08-08"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-027: Web UI for owned objects, publication, rights, reports, and moderation

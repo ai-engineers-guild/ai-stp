@@ -1,6 +1,6 @@
 ---
 description: "SPEC-031: Public documents, versioned policies, and error pages."
-last_verified: "2026-08-08"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-031: Documents, policies, and error pages

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-003: Developer passport and public projection."
-last_verified: "2026-08-29"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-003: Developer Passport and Public Projection
