@@ -340,6 +340,7 @@ _GROUP_SUMMARIES: Final[dict[tuple[str, ...], str]] = {
     ("registry",): "Inspect catalog identity. Everyday bytes go through the install intent.",
     ("registry", "port"): "Import a setup captured elsewhere into this registry.",
     ("report",): "Report an object to the catalogue's moderators.",
+    ("schema",): "Resolve the schema ids every payload names to JSON Schema documents.",
     ("select",): "Everyday composition is the install intent.",
     ("setup",): "Whole setups: change, install, or recover a preserved copy.",
     ("setup", "compose"): "Freeze a new setup from catalog and embedded sources.",
@@ -873,6 +874,21 @@ def _invented_task_verb_failure() -> CliFailure:
     )
 
 
+def _schema_verbs_failure() -> CliFailure:
+    continuation = Continuation(
+        kind="inspect",
+        path=["schema", "list"],
+        argv=["schema", "list", "--json"],
+        actor="cli",
+    )
+    return CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        "the schema verbs are list and show",
+        continuations=[continuation],
+        next_actions=["schema list --json"],
+    )
+
+
 def _start_intent_parse_failure(command_words: Sequence[str], message: str) -> CliFailure | None:
     """A start without a shipped intent lists the catalog, not Click's choice dump."""
     if _declared_path(_leading_words(command_words)) != ("task", "start"):
@@ -912,6 +928,8 @@ def _click_failure(arguments: list[str], failure: click.ClickException) -> CliFa
     words = _leading_words(command_words)
     if words[:1] == ["task"] and _declared_path(words) is None:
         return _invented_task_verb_failure()
+    if words[:1] == ["schema"] and _declared_path(words) is None:
+        return _schema_verbs_failure()
     missing_intent = _start_intent_parse_failure(command_words, failure.format_message())
     if missing_intent is not None:
         return missing_intent

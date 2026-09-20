@@ -346,7 +346,7 @@ def test_initialize_drain_failure_drops_expert_next_actions(
             }
         )
     assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
-    assert raised.value.details.get("task", "").startswith("task_")
+    assert str(raised.value.details.get("task", "")).startswith("task_")
     assert raised.value.details.get("state") == "failed"
     assert raised.value.next_actions == []
 

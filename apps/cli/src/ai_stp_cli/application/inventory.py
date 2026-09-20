@@ -42,6 +42,8 @@ INSPECT: Final[frozenset[tuple[str, ...]]] = _paths(
     "doctor",
     "environment inspect",
     "help",
+    "schema list",
+    "schema show",
     "task intents",
     "telemetry show",
     "toolchain harness-capabilities",

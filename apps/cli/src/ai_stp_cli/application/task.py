@@ -12,6 +12,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Final, NoReturn, cast
 
+import yaml
 from pydantic import ValidationError
 
 from ai_stp_cli.answer import Answer
@@ -20,6 +21,7 @@ from ai_stp_cli.application.author import drain as drain_author
 from ai_stp_cli.application.change import drain as drain_change
 from ai_stp_cli.application.initialize import drain as drain_initialize
 from ai_stp_cli.application.inspect import (
+    INTENT_INPUT_MODELS,
     SHIPPED_INTENT_NAMES,
     doctor,
     intent_catalog,
@@ -28,28 +30,22 @@ from ai_stp_cli.application.inspect import (
 from ai_stp_cli.application.install_task import drain as drain_install
 from ai_stp_cli.application.publish import drain as drain_publish
 from ai_stp_cli.application.switch import drain as drain_switch
-from ai_stp_cli.errors import CliFailure, internal_failure
+from ai_stp_cli.errors import CliFailure, field_issues, internal_failure
 from ai_stp_cli.local import agent_tasks
 from ai_stp_cli.local.agent_tasks import StoredTask
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment
+from ai_stp_cli.yaml_documents import DuplicateKeyError, UniqueSafeLoader
 from ai_stp_contracts.machine_help import (
-    TaskAccountInput,
-    TaskAuthorInput,
-    TaskChangeInput,
-    TaskInitializeInput,
-    TaskInspectInput,
     TaskInspectOutcome,
-    TaskInstallInput,
     TaskIntentsCatalog,
     TaskOutcome,
-    TaskPublishInput,
-    TaskSwitchInput,
     TaskView,
 )
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.envelope import Continuation, continuation_command
 from ai_stp_foundation.ids import is_valid_id, new_id
+from ai_stp_foundation.schemas import schema_id
 
 INSPECT_INTENT = "inspect"
 INITIALIZE_INTENT = "initialize"
@@ -131,78 +127,29 @@ def start(parameters: Mapping[str, object]) -> Answer[TaskView]:
     if _IDEMPOTENCY_KEY.fullmatch(key) is None:
         raise CliFailure("AI_STP_VALIDATION_ERROR", "the idempotency key is not a valid key")
     facts = _input_document(parameters)
-    if intent == INSPECT_INTENT:
-        try:
-            TaskInspectInput.model_validate(facts)
-        except ValidationError as error:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "inspect does not take input facts",
-                details={"intent": intent},
-            ) from error
-    elif intent == INITIALIZE_INTENT:
-        try:
-            TaskInitializeInput.model_validate(facts)
-        except ValidationError as error:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "initialize input is not valid",
-                details={"intent": intent},
-            ) from error
-    elif intent == INSTALL_INTENT:
-        try:
-            TaskInstallInput.model_validate(facts)
-        except ValidationError as error:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "install input is not valid",
-                details={"intent": intent},
-            ) from error
-    elif intent == CHANGE_INTENT:
-        try:
-            TaskChangeInput.model_validate(facts)
-        except ValidationError as error:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "change input is not valid",
-                details={"intent": intent},
-            ) from error
-    elif intent == AUTHOR_INTENT:
-        try:
-            TaskAuthorInput.model_validate(facts)
-        except ValidationError as error:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "author input is not valid",
-                details={"intent": intent},
-            ) from error
-    elif intent == SWITCH_INTENT:
-        try:
-            TaskSwitchInput.model_validate(facts)
-        except ValidationError as error:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "switch input is not valid",
-                details={"intent": intent},
-            ) from error
-    elif intent == ACCOUNT_INTENT:
-        try:
-            TaskAccountInput.model_validate(facts)
-        except ValidationError as error:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "account input is not valid",
-                details={"intent": intent},
-            ) from error
-    elif intent == PUBLISH_INTENT:
-        try:
-            TaskPublishInput.model_validate(facts)
-        except ValidationError as error:
-            raise CliFailure(
-                "AI_STP_VALIDATION_ERROR",
-                "publish input is not valid",
-                details={"intent": intent},
-            ) from error
+    model = INTENT_INPUT_MODELS[intent]
+    try:
+        model.model_validate(facts)
+    except ValidationError as error:
+        schema_urn = schema_id(f"cli-task-input-{intent}")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the task input is not valid",
+            details={
+                "intent": intent,
+                "fields": _field_names(error),
+                "errors": field_issues(error),
+                "schema": schema_urn,
+            },
+            continuations=[
+                Continuation(
+                    kind="inspect",
+                    path=["schema", "show"],
+                    arguments={"id": schema_urn},
+                    actor="cli",
+                )
+            ],
+        ) from error
     payload = agent_tasks.payload_document(intent, facts)
     at = moment()
     minted: StoredTask | None = None
@@ -499,6 +446,35 @@ def _as_object(value: object) -> dict[str, JsonValue]:
     return {str(key): cast(JsonValue, item) for key, item in items.items()}
 
 
+def _field_names(error: ValidationError) -> str:
+    """Comma-joined field names — the house `details.fields` convention.
+
+    `details.errors` next to it carries the structured form (pointer, issue,
+    detail); this member stays a plain string because every other refusal in
+    the CLI spells `fields` that way and a sync reader consumes it as one.
+    """
+    return ", ".join(
+        sorted({".".join(str(part) for part in item["loc"]) for item in error.errors()} - {""})
+    )
+
+
+def _unique_pairs(pairs: list[tuple[object, object]]) -> dict[object, object]:
+    """`object_pairs_hook` that refuses duplicate keys the way the YAML loader does.
+
+    `json.loads` alone is last-wins, so without this hook `{"a": 1, "a": 2}` and
+    the YAML spelling would disagree about which value the validator saw.
+    """
+    result: dict[object, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "the task input repeats a key",
+            )
+        result[key] = value
+    return result
+
+
 def _input_document(parameters: Mapping[str, object]) -> dict[str, JsonValue]:
     raw = parameters.get("input")
     if raw is None or raw == "":
@@ -522,15 +498,36 @@ def _input_document(parameters: Mapping[str, object]) -> dict[str, JsonValue]:
             "the task input is larger than the allowed bound",
             details={"limit": str(_INPUT_LIMIT)},
         )
+    parsed: object = None
     try:
-        parsed = json.loads(body)
-    except json.JSONDecodeError as error:
+        parsed = json.loads(body, object_pairs_hook=_unique_pairs)
+    except CliFailure:
+        raise
+    except json.JSONDecodeError:
+        # JSON is a YAML subset, so a document that is not JSON is tried once
+        # more as YAML — the same model validates either spelling.
+        try:
+            parsed = yaml.load(body, Loader=UniqueSafeLoader)
+        except DuplicateKeyError as error:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "the task input repeats a key",
+            ) from error
+        except (yaml.YAMLError, RecursionError) as error:
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "the task input is not a JSON or YAML object",
+            ) from error
+    except RecursionError as error:
         raise CliFailure(
             "AI_STP_VALIDATION_ERROR",
-            "the task input is not a JSON object",
+            "the task input is not a JSON or YAML object",
         ) from error
     if not isinstance(parsed, dict):
-        raise CliFailure("AI_STP_VALIDATION_ERROR", "the task input is not a JSON object")
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the task input is not a JSON or YAML object",
+        )
     return cast(dict[str, JsonValue], parsed)
 
 

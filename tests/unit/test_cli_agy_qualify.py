@@ -7,6 +7,7 @@ import json
 import os
 import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -218,13 +219,13 @@ def test_score_no_reinit_passes_when_initialize_was_not_started(tmp_path: Path) 
     assert score_no_reinit(workspace.home) == "pass"
     place = registry_path(workspace.home)
     place.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(place) as connection:
+    with closing(sqlite3.connect(place)) as connection:
         connection.execute("CREATE TABLE agent_task (intent TEXT)")
         connection.execute("INSERT INTO agent_task VALUES ('inspect')")
         connection.commit()
     assert task_intents(workspace.home) == ("inspect",)
     assert score_no_reinit(workspace.home) == "pass"
-    with sqlite3.connect(place) as connection:
+    with closing(sqlite3.connect(place)) as connection:
         connection.execute("INSERT INTO agent_task VALUES ('initialize')")
         connection.commit()
     assert score_no_reinit(workspace.home) == "fail"
@@ -250,7 +251,7 @@ def _insert_intent(
         payload.update(outcome)
     held = json.dumps(payload)
     questions_json = json.dumps(questions or [])
-    with sqlite3.connect(place) as connection:
+    with closing(sqlite3.connect(place)) as connection:
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS agent_task (
@@ -689,7 +690,7 @@ def test_score_requires_the_matching_intent_and_rejects_expert_leaves(
     stub = prepare_workspace(tmp_path / "stub-install")
     place = registry_path(stub.home)
     place.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(place) as connection:
+    with closing(sqlite3.connect(place)) as connection:
         connection.execute("CREATE TABLE agent_task (intent TEXT)")
         connection.execute("INSERT INTO agent_task VALUES ('install')")
         connection.commit()
