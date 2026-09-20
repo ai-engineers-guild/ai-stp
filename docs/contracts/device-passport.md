@@ -52,6 +52,8 @@ The permitted device summary has a closed field set:
 
 Secret values, environment-variable values, and absolute paths are not included in the summary. Device pages on the web show only this summary; the public profile remains a separate object under `ADR-0023` and receives no device data.
 
+`sync push --id <device-passport>` publishes the summary as a `device_summary` event bound to the session device; the passport itself never leaves the machine. `GET /v1/devices` serves the stored summary or none — a device that never published one is listed without it, never with invented fields.
+
 ## Use in selection
 
 Selection input is assembled from the developer passport, the current device passport, the current project passport, and the selected harness. Selection requirements belong to `SPEC-006`; this contract only establishes that environment facts come from the device passport, not the developer passport.

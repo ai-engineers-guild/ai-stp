@@ -14,8 +14,9 @@ from ai_stp_api.settings import AuthSettings
 from ai_stp_api.slices.devices.challenge import issue_challenge, message_to_sign, verify_challenge
 from ai_stp_api.slices.devices.crypto import normalize_public_key, verify_ed25519
 from ai_stp_api.slices.devices.domain import DeviceState, DeviceSummary
+from ai_stp_contracts.identity import DeviceSummary as SyncedDeviceSummary
 from ai_stp_foundation.ids import new_id
-from ai_stp_platform.models import AccountSession, Device
+from ai_stp_platform.models import AccountSession, Device, SyncEntityHead, SyncRevision
 
 
 def _to_summary(device: Device, *, display_name: str | None = None) -> DeviceSummary:
@@ -149,6 +150,53 @@ async def list_devices(
         select(Device).where(Device.account_id == target).order_by(Device.created_at.asc())
     )
     return [_to_summary(row) for row in result.scalars().all()]
+
+
+async def stored_summaries(
+    db: AsyncSession,
+    *,
+    account_id: str,
+    device_ids: list[str],
+) -> dict[str, dict[str, object]]:
+    """The `device_summary` each device last published through sync, if it did.
+
+    The head revision is what counts: a tombstoned summary is retracted and
+    answers nothing. What is served is the validated closed document projected
+    to its declared fields — the payload reached the ledger through intake
+    validation, and read-side projection keeps even that vetted payload inside
+    the field list the contract permits.
+    """
+    if not device_ids:
+        return {}
+    heads = await db.execute(
+        select(SyncEntityHead.entity_id, SyncEntityHead.revision_id).where(
+            SyncEntityHead.account_id == account_id,
+            SyncEntityHead.entity_id.in_(device_ids),
+        )
+    )
+    by_revision = {row.revision_id: row.entity_id for row in heads.all()}
+    if not by_revision:
+        return {}
+    rows = await db.execute(
+        select(SyncRevision.revision_id, SyncRevision.payload).where(
+            SyncRevision.account_id == account_id,
+            SyncRevision.revision_id.in_(list(by_revision)),
+            SyncRevision.entity_kind == "device_summary",
+            SyncRevision.operation == "upsert",
+        )
+    )
+    declared = set(SyncedDeviceSummary.model_fields)
+    summaries: dict[str, dict[str, object]] = {}
+    for revision_id_value, payload in rows.all():
+        try:
+            summary = SyncedDeviceSummary.model_validate(payload)
+        except ValueError:
+            continue
+        rendered = summary.model_dump(mode="json")
+        summaries[by_revision[revision_id_value]] = {
+            key: rendered[key] for key in declared if key in rendered
+        }
+    return summaries
 
 
 async def revoke_device(

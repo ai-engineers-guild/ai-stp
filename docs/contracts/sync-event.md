@@ -15,6 +15,8 @@ Content is transmitted separately or within the event according to the entity sc
 
 The server validates the account, device, revocation, entity permission, schema, hash, parents, and expected head. Reusing an idempotency key returns the previous result.
 
+Two entity kinds are closed-shape documents and are shape-validated at intake, not on read: a `device_summary` upsert must be the declared `DeviceSummary`, and an `unverified_consent` event must be the declared upsert or tombstone payload (`ai_stp_contracts.sync`). A malformed closed-shape event is `rejected` and never enters the stream, so it cannot wedge a pulling device on the page boundary.
+
 ## Entities allowed in MVP
 
 Server flow #179 accepts only `DeveloperPassport`, the allowed summary of the

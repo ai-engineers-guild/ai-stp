@@ -67,6 +67,11 @@
           "title": "Scope",
           "type": "string"
         },
+        "sync_entity_id": {
+          "minLength": 1,
+          "title": "Sync Entity Id",
+          "type": "string"
+        },
         "target": {
           "minLength": 1,
           "title": "Target",
@@ -83,6 +88,7 @@
         "revoked_at",
         "schema_version",
         "scope",
+        "sync_entity_id",
         "target"
       ],
       "title": "ConsentRecord",
