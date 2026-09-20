@@ -178,7 +178,7 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | `tests/unit/test_cli_commands.py` | replace | Command journeys against the mock boundary |
 | `tests/unit/test_cli_local_registry.py` | replace | Registry journeys through mock-era doubles |
 | `tests/unit/test_cli_projects.py` | replace | Project journeys through mock-era doubles |
-| `tests/unit/platform/test_safety_coverage_boost.py` | replace | Named bulk coverage, not a behavior |
+| `tests/unit/platform/test_safety_adapter_edges.py` | keep | Adapter edge-branch tests on real inputs; renamed from `test_safety_coverage_boost.py` (the name described intent, not the tests). Blanket pyright suppression removed; S3 stays mocked as a true external boundary |
 | `tests/contract/test_cli_process.py` | keep | Real CLI process |
 | `tests/unit/test_http_contract.py`, `test_catalog_contract.py`, `test_auth_identity_contract.py`, `test_health_contract.py` | keep | Wire-parity of `packages/contracts` against the `#71` corpus as fixture data, not as a fake server |
 | `tests/unit/platform/test_catalog_seed.py`, `tests/support/catalog_seed.py` | keep | Real seed path against the corpus |
