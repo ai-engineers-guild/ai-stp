@@ -172,7 +172,7 @@ Cluster-level labels; per-file refinement happens in phase 2.
 
 | Path | Tag | Reason |
 | --- | --- | --- |
-| `tests/unit/test_cli_cloud.py` | replace | Strangler in progress: the sign-in journey moved to `tests/api/cli/test_device_sign_in.py` (real app over PostgreSQL); what remains exercises the `#71` corpus as wire cases — corpus-pure tests stay, journey tests keep moving |
+| `tests/unit/test_cli_cloud.py` | keep | The `#71` corpus as wire cases — malformed/refused/slow responses a client must reject — plus retry pacing and local session rules; the sign-in and account journeys live in `tests/api/cli/` against the real app |
 | `tests/unit/test_cli_catalog.py` | keep | Client-boundary only after strangler: injected transports (offline, tampered, cursor opacity) and local cache rules; journeys moved to `tests/api/cli/test_catalog.py` over the real seeded catalog |
 | `tests/unit/test_cli_account.py` | keep | Application-seam stubs (`begin`/`complete_once`/`sync_now`) for question shape, replay, and the decline path the API deliberately does not expose; journeys moved to `tests/api/cli/test_account_tasks.py` |
 | `tests/unit/test_cli_owner.py` | keep | Command-registry declaration only; the list/detail/version journeys moved to `tests/api/cli/test_owner.py` against the real `/v1/owner` routes over the seeded corpus |
@@ -181,7 +181,7 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | `tests/unit/test_cli_publication.py` | keep | Wire/retry/local gates only; plan create/bind/confirm journeys moved to `tests/api/cli/test_publication.py` against the real `/v1/publications/plans` routes |
 | `tests/unit/test_cli_private_distribution.py` | keep | Off-contract refusal and changed-hash gate only; `publication plan`/`visibility` journeys moved to `tests/api/cli/test_private_distribution.py` — the first command-level (not transport-level) real boundary, sending a locally authored passport |
 | `tests/unit/test_cli_artifact.py` | keep | Client-local fault injection only (truncation, flood, timeout, tampered cache, wire path); the fetch journeys moved to `tests/api/cli/test_artifact.py` against the real artifact route and object store |
-| `tests/unit/test_cli_sync_transport.py` | replace | `/v1`-mock journeys (sync pull/push); the routes exist in the real app — migration to `tests/api/cli/` pending |
+| `tests/unit/test_cli_sync_transport.py` | keep | Real-SQLite local seams (event preparation, page application, cursors, merge mechanics) plus `MockTransport` at the client seam only (receipt recording, retry, revocation mapping); push/pull/conflict/merge journeys moved to `tests/api/cli/test_sync.py` against the real `/v1/sync` routes — where a conflicted ancestor blocking its own merge surfaced and was fixed |
 | `tests/unit/test_cli_commands.py` | keep | Environment fault injection (`shutil.which`, `sys.version_info`, wheel metadata) against real local state — no fake server |
 | `tests/unit/test_cli_local_registry.py` | keep | Failure injection (`MIGRATIONS`, `commit`) on the real SQLite registry — doubles simulate faults, not a service |
 | `tests/unit/test_cli_projects.py` | keep | Real filesystem discovery; one `DISCOVERY_ENTRIES` bound override |
