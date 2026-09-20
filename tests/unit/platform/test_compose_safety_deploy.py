@@ -269,3 +269,30 @@ def test_no_compose_file_resolves_an_image_by_a_moving_tag() -> None:
             _, _, tag = reference.rpartition(":")
             assert tag and tag != reference, f"{name}: {reference} has no tag"
             assert tag != "latest", f"{name}: {reference} resolves through a moving tag"
+
+
+def test_third_party_prod_services_receive_only_their_own_credentials() -> None:
+    """`env_file` hands the whole `.env.prod` to whatever image it lands in.
+
+    Postgres and RustFS are third-party images; giving them the file also gave
+    them the OAuth client secrets, the session secret and the GitHub tokens,
+    none of which their entrypoints read. Each receives exactly the keys its
+    own image consumes, interpolated by Compose from the same `.env.prod` the
+    deploy passes with `--env-file`. First-party services keep `env_file`:
+    their own code reads the rest — six of them, and counting pins the set.
+    """
+    executable = _executable("docker-compose.prod.yml")
+    postgres = executable.split("\n  postgres:\n", 1)[1].split("\n  rustfs:\n", 1)[0]
+    assert "env_file:" not in postgres
+    for key in ("POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"):
+        assert f"{key}: ${{{key}}}" in postgres
+    assert "AI_STP_" not in postgres
+
+    rustfs = executable.split("\n  rustfs:\n", 1)[1].split("\n  migrate:\n", 1)[0]
+    assert "env_file:" not in rustfs
+    for key in ("RUSTFS_ACCESS_KEY", "RUSTFS_SECRET_KEY"):
+        assert f"{key}: ${{{key}}}" in rustfs
+    assert "AI_STP_" not in rustfs
+
+    # migrate, seed, api, content-import, worker, web — and no seventh service.
+    assert executable.count("env_file:") == 6

@@ -35,15 +35,151 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "required command missing: $1"
 }
 
+env_file_value() {
+  # Print the value of one key from the deploy environment file (first
+  # definition wins, as for a sourced file). Never logs; callers compare or
+  # measure, they do not echo. An absent key prints nothing and does not
+  # fail: under `pipefail` grep's no-match would otherwise kill the caller
+  # silently, which is exactly how an optional credential check must not die.
+  local name="$1"
+  local path="${AI_STP_ROOT}/${AI_STP_ENV_FILE}"
+  LC_ALL=C grep -E "^${name}=" "${path}" 2>/dev/null | head -n1 | cut -d= -f2- || true
+}
+
 require_env_value() {
   # Check presence without sourcing or printing the environment file. A deploy
   # secret may contain shell metacharacters and is data, never executable
   # configuration. Refuse before any service is recreated so a missing
   # precondition leaves the currently healthy release serving traffic.
+  #
+  # A `*CHANGE_ME*` value is also refused here: the example file is the only
+  # origin of that stem, and a verbatim copy is the failure mode this guard
+  # exists for — `POSTGRES_PASSWORD=CHANGE_ME` and `AI_STP_DB_URL` with the
+  # same embedded password agree with each other and deploy "green" on
+  # published credentials.
   local name="$1"
   local path="${AI_STP_ROOT}/${AI_STP_ENV_FILE}"
+  local value
   [[ -f "${path}" ]] || die "required deploy environment file missing: ${AI_STP_ENV_FILE}"
   LC_ALL=C grep -Eq "^${name}=.+$" "${path}" || die "required deploy environment value missing: ${name}"
+  value="$(env_file_value "${name}")"
+  case "${value}" in
+    *CHANGE_ME*) die "deploy value still holds the example placeholder: ${name}" ;;
+  esac
+}
+
+refuse_env_placeholder() {
+  # Optional values are skipped when empty, but a copied `CHANGE_ME` is worse
+  # than empty: `AI_STP_WORKER_GITHUB_TOKEN=CHANGE_ME` does not mean
+  # "unauthenticated", it means an invalid token sent to api.github.com.
+  local name="$1"
+  local value
+  value="$(env_file_value "${name}")"
+  case "${value}" in
+    *CHANGE_ME*) die "optional deploy value still holds the example placeholder: ${name}" ;;
+  esac
+}
+
+require_env_secret() {
+  # Presence alone is not enough for the values pydantic/zod gate at boot:
+  # `min_length=32` fields refuse to start the app, and the example file's
+  # `CHANGE_ME*` stem is worse than missing — a verbatim copy ships a secret
+  # every reader of the public repository can mint. The value is compared,
+  # never printed.
+  local name="$1"
+  local value
+  require_env_value "${name}"
+  value="$(env_file_value "${name}")"
+  case "${value}" in
+    CHANGE_ME*) die "deploy secret still holds the example placeholder: ${name}" ;;
+  esac
+  [[ ${#value} -ge 32 ]] || die "deploy secret shorter than 32 characters: ${name}"
+}
+
+require_env_public_origin() {
+  # A browser-facing URL ships in responses and build artifacts, so the
+  # example's `*.example.invalid` hosts and the settings' `localhost`
+  # defaults are deployment defects, not working configuration. Refuse them
+  # the same way a missing value is refused: before any effect.
+  local name="$1"
+  local value
+  require_env_value "${name}"
+  value="$(env_file_value "${name}")"
+  case "${value}" in
+    *example.invalid* | *localhost* | *127.0.0.1*)
+      die "deploy public origin still holds a placeholder or loopback host: ${name}"
+      ;;
+  esac
+}
+
+require_env_pair_equal() {
+  # The API authenticates to the internal object store with the storage pair,
+  # and the store expects its own pair; when the two differ the deployment
+  # passes every probe and then fails on the first object write. Compare the
+  # values, never print them.
+  local left="$1"
+  local right="$2"
+  require_env_value "${left}"
+  require_env_value "${right}"
+  [[ "$(env_file_value "${left}")" == "$(env_file_value "${right}")" ]] ||
+    die "deploy values must match but differ: ${left} vs ${right}"
+}
+
+require_deploy_env() {
+  # The whole startup contract of the serving stack, checked by name — never
+  # sourced, never printed. `deploy.sh` runs this before recording progress,
+  # building, migrating or recreating anything, so a missing or placeholder
+  # secret leaves the currently healthy release serving traffic. The same
+  # function backs `just infra-env-check`, the operator's rehearsal.
+  local required_name required_secret required_origin optional_value
+  for required_name in \
+    AI_STP_API_ENVIRONMENT \
+    POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB \
+    AI_STP_DB_URL \
+    AI_STP_STORAGE_ENDPOINT AI_STP_STORAGE_ACCESS_KEY_ID AI_STP_STORAGE_SECRET_ACCESS_KEY \
+    AI_STP_STORAGE_ARTIFACT_BUCKET AI_STP_STORAGE_ASSET_BUCKET \
+    RUSTFS_ACCESS_KEY RUSTFS_SECRET_KEY \
+    AI_STP_CONTENT_IMPORT_TOKEN; do
+    require_env_value "${required_name}"
+  done
+  # The pydantic and zod `min_length=32` fields: auth key, cursor secret,
+  # session secret. `AI_STP_API_ENVIRONMENT` is required above because its
+  # absence defaults to `dev` — the one value that lets fixture seeding into
+  # a serving stack. The importer token is required because web waits on the
+  # one-shot, and without it Compose leaves web stopped behind the failed
+  # dependency.
+  for required_secret in \
+    AI_STP_AUTH_SECRET_KEY \
+    AI_STP_CATALOG_CURSOR_SIGNING_SECRET \
+    AI_STP_SESSION_SECRET; do
+    require_env_secret "${required_secret}"
+  done
+  # Browser-facing origins. The compose defaults (`*.example.invalid`) and the
+  # settings default (`localhost`) would ship on the public site — a green
+  # deploy with a broken canonical URL and dead OAuth redirects.
+  for required_origin in \
+    NEXT_PUBLIC_APP_URL \
+    AI_STP_USER_DOCS_URL \
+    AI_STP_AUTH_PUBLIC_BASE_URL; do
+    require_env_public_origin "${required_origin}"
+  done
+  # The API and the internal object store must authenticate with the same pair.
+  require_env_pair_equal AI_STP_STORAGE_ACCESS_KEY_ID RUSTFS_ACCESS_KEY
+  require_env_pair_equal AI_STP_STORAGE_SECRET_ACCESS_KEY RUSTFS_SECRET_KEY
+  # Optional credentials are allowed to stay empty — an absent GitHub token is
+  # a rate limit, not a failure — but a leftover placeholder is a bad
+  # credential, which fails where empty would have worked.
+  for optional_value in \
+    AI_STP_WORKER_GITHUB_TOKEN \
+    AI_STP_AUTH_GOOGLE_CLIENT_SECRET \
+    AI_STP_AUTH_GITHUB_CLIENT_SECRET \
+    AI_STP_GITHUB_CONNECTOR_CLIENT_SECRET \
+    AI_STP_GITHUB_CONNECTOR_ENCRYPTION_KEY \
+    AI_STP_CORPORATE_BOOTSTRAP_SECRET \
+    AI_STP_SEO_ENRICHMENT_CREDENTIAL \
+    AI_STP_CLIPROXY_API_KEY; do
+    refuse_env_placeholder "${optional_value}"
+  done
 }
 
 compose() {

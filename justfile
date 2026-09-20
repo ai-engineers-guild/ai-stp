@@ -761,6 +761,16 @@ infra-static:
     docker compose -f docker-compose.dev.yml -f docker-compose.corporate-local.yml config -q
     docker compose -f docker-compose.dev.yml -f docker-compose.seo-enrichment.yml --profile seo_enrichment config -q
 
+# The same contract deploy.sh enforces on the host, run against the local
+# `.env.prod` before a deploy window: required values present and non-
+# placeholder, 32-char secrets long enough, public origins real, the
+# storage/RustFS pair equal. It never sources or prints the file, and a repo
+# without `.env.prod` reports exactly which key is missing.
+[doc('Rehearse the deploy secret preflight against a local .env.prod')]
+[group('infra')]
+infra-env-check:
+    bash -c 'source deploy/lib.sh && require_deploy_env && echo "deploy environment contract holds"'
+
 # Builds the production images the way the deployment host does — from this
 # checkout, no registry push, `.env.prod` not required: build args carry
 # defaults and `env_file` is `required: false` precisely so config and build

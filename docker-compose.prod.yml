@@ -7,9 +7,15 @@
 services:
   postgres:
     image: postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
-    env_file:
-      - path: .env.prod
-        required: false
+    # Only the three keys the entrypoint consumes are injected. `env_file`
+    # would hand the whole `.env.prod` — OAuth secrets, the session secret,
+    # GitHub tokens — to a third-party image that has no use for them.
+    # Additional POSTGRES_* tuning belongs in this block explicitly; deploy
+    # preflight guarantees the three values are present and non-placeholder.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks: [internal]
@@ -33,10 +39,13 @@ services:
     # production host; it self-reports `1.0.0-beta.8`. Moving it is a deliberate
     # edit that shows up in a diff, which is the whole point.
     image: rustfs/rustfs@sha256:fa19210ac4697c79d7ccca1ec9b0eb91aebacc6691991ffb14014bb3c67e6cc3
-    # RUSTFS_ACCESS_KEY / RUSTFS_SECRET_KEY must match AI_STP_STORAGE_* in .env.prod.
-    env_file:
-      - path: .env.prod
-        required: false
+    # The store receives exactly its own credential pair — which must equal the
+    # AI_STP_STORAGE_* pair the API uses, and the deploy preflight compares
+    # them before any effect. As with postgres, `env_file` would leak every
+    # application secret into this third-party image's environment.
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY}
     volumes:
       - rustfs:/data
     networks: [internal]
