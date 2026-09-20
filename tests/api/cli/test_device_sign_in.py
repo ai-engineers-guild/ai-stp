@@ -125,3 +125,97 @@ def test_pending_polls_are_not_paced_but_a_success_is(
             display_name="boundary-test",
         )
     assert limited.value.code == "AI_STP_RATE_LIMITED"
+
+
+def test_a_pending_answer_keeps_the_pending_record(
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A machine `complete` asks once; "not yet" must not destroy the code.
+
+    The corpus-mock version stubbed `login.exchange` to prove the bookkeeping.
+    Against the real server the pending answer is produced, not simulated.
+    """
+    from ai_stp_cli.application import auth
+
+    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
+    web_approver()  # the account exists; the code is simply never approved
+
+    auth.begin({"provider": "github"})
+    store, _warning = open_store()
+    assert session.load_pending(store) is not None
+
+    with pytest.raises(CliFailure) as raised:
+        auth.complete({})
+    assert raised.value.code == "AI_STP_AUTHORIZATION_PENDING"
+    assert session.load_pending(store) is not None, "a pending sign-in was destroyed"
+
+
+def test_an_expired_authorization_is_a_terminal_decision(
+    cli_server: SyncAsgiServer,
+    cli_endpoint: Endpoint,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The server's expired answer clears the pending record — not a wait."""
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import update
+
+    from ai_stp_cli.application import auth
+    from ai_stp_platform.models import DeviceAuthorization
+
+    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
+    auth.begin({"provider": "github"})
+    store, _warning = open_store()
+    pending = session.load_pending(store)
+    assert pending is not None
+
+    sessionmaker = cli_server.app.state.sessionmaker
+
+    async def expire() -> None:
+        async with sessionmaker() as db:
+            await db.execute(
+                update(DeviceAuthorization)
+                .where(DeviceAuthorization.device_code == pending.device_code)
+                .values(expires_at=datetime.now(timezone.utc) - timedelta(seconds=1))
+            )
+            await db.commit()
+
+    cli_server.call(expire)
+
+    with pytest.raises(CliFailure) as raised:
+        auth.complete({})
+    assert raised.value.code == "AI_STP_AUTHORIZATION_EXPIRED"
+    assert session.load_pending(store) is None
+
+
+def test_waiting_is_opt_in_and_bounded(
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`--wait` polls the real server until its own deadline, then gives up.
+
+    The pending record's `expires_in`/`interval` drive the bound — shortening
+    them keeps the test at seconds rather than minutes. Each poll is a real
+    exchange; the server keeps answering pending because nobody approves.
+    """
+    import dataclasses
+
+    from ai_stp_cli.application import auth
+
+    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
+    web_approver()
+
+    auth.begin({"provider": "github"})
+    store, _warning = open_store()
+    pending = session.load_pending(store)
+    assert pending is not None
+    session.save_pending(store, dataclasses.replace(pending, interval=1, expires_in=2))
+
+    with pytest.raises(CliFailure) as raised:
+        auth.complete({"wait": True})
+    assert raised.value.code == "AI_STP_AUTHORIZATION_EXPIRED"
+    # Expiry is a decision, so the record is gone.
+    assert session.load_pending(store) is None
