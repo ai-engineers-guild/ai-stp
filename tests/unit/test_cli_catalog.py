@@ -1,4 +1,11 @@
-"""The public catalogue and its cache, driven by the `#71` corpus."""
+"""Client-boundary catalogue behaviour: injected transports, corpus wire bodies.
+
+The browse/show/version journeys moved to `tests/api/cli/test_catalog.py`,
+which serves the frozen corpus from the real `/v1` application. What remains
+here exercises the client against conditions a server cannot be asked to
+produce — dropped connections, tampered bodies, cursor opacity — plus the
+local cache's own rules.
+"""
 
 import json
 from collections.abc import Iterator
@@ -11,119 +18,10 @@ from ai_stp_cli.cloud.client import Endpoint
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import cache
 from ai_stp_contracts.fixtures import load_cases
-from ai_stp_contracts.mock import MOCK_BASE_URL, build_transport
+from ai_stp_contracts.mock import MOCK_BASE_URL
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.versions import ComponentVersionPassport
-
-
-def mock() -> Endpoint:
-    return Endpoint(MOCK_BASE_URL, transport=build_transport())
-
-
-def _component_id() -> str:
-    """The identifier the corpus actually serves a detail for."""
-    for case in load_cases():
-        if case.operation_id == "readComponent" and case.kind == "positive":
-            return str(case.request.path_params["stable_id"])
-    raise AssertionError("the corpus has no readComponent case")
-
-
-#: The corpus serves component search only for this query; a bare search has
-#: only `invalid_response` cases, which the mock refuses to answer by design.
-SERVED_QUERY = "pytest"
-
-
-def test_an_anonymous_search_returns_the_seeded_catalogue() -> None:
-    result = catalog.search(mock(), "component", query=SERVED_QUERY)
-    assert result.source == "online"
-    assert result.kind == "component"
-    assert result.checked_at.endswith("Z")
-    # Search is not cached: a page is a view over a moving collection.
-    assert not cache.cache_dir().exists()
-
-
-def test_setups_and_components_are_separate_halves() -> None:
-    setups = catalog.search(mock(), "setup")
-    assert setups.kind == "setup"
-    # `#71` gave each half its own route and its own cursor, so a page is about
-    # one of them and never spans both.
-    assert setups.next_cursor is None or isinstance(setups.next_cursor, str)
-
-
-def test_the_experimental_lane_stays_in_its_own_section() -> None:
-    # `ADR-0016`: an experimental candidate appearing among authoritative ones
-    # would have been silently promoted.
-    result = catalog.search(mock(), "component", query=SERVED_QUERY, include_experimental=True)
-    assert not {item.stable_id for item in result.items} & {
-        item.stable_id for item in result.experimental
-    }
-
-
-def test_showing_an_object_returns_it_and_caches_it() -> None:
-    stable_id = _component_id()
-    view = catalog.show(mock(), "component", stable_id)
-    assert view.source == "online"
-    assert view.summary.stable_id == stable_id
-    assert view.versions
-    # Versions are not contiguous by design: hiding one does not free its number.
-    assert len({entry.version for entry in view.versions}) == len(view.versions)
-
-    entry = cache.load(cache.key_for("component", stable_id))
-    assert entry is not None
-    assert entry.checked_at == view.checked_at
-
-
-def test_an_unreachable_platform_falls_back_to_the_cache_and_says_so() -> None:
-    stable_id = _component_id()
-    fresh = catalog.show(mock(), "component", stable_id)
-
-    def offline(_request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("no route")
-
-    cached = catalog.show(
-        Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(offline)),
-        "component",
-        stable_id,
-    )
-    assert cached.source == "cache"
-    assert cached.summary == fresh.summary
-    # The moment the platform answered, not now: this is what stops a cached
-    # view claiming to describe the current cloud state.
-    assert cached.checked_at == fresh.checked_at
-
-
-def test_an_unreachable_platform_with_nothing_cached_is_a_typed_failure() -> None:
-    # `offline-capability.md` forbids turning absence of network into an empty
-    # successful result.
-    def offline(_request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("no route")
-
-    with pytest.raises(CliFailure) as raised:
-        catalog.show(
-            Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(offline)),
-            "component",
-            _component_id(),
-        )
-    assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
-
-
-def test_an_answer_is_never_served_from_the_cache() -> None:
-    # A 404 is a decision. Answering it from a stale cache would resurrect an
-    # object the catalogue has stopped offering.
-    stable_id = _component_id()
-    catalog.show(mock(), "component", stable_id)
-
-    def gone(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, json={"error": {"code": "AI_STP_NOT_FOUND", "message": "no"}})
-
-    with pytest.raises(CliFailure) as raised:
-        catalog.show(
-            Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(gone)),
-            "component",
-            stable_id,
-        )
-    assert raised.value.code == "AI_STP_NOT_FOUND"
 
 
 def test_a_cache_key_is_safe_to_use_as_a_file_name() -> None:
@@ -220,18 +118,6 @@ def test_showing_without_an_identifier_is_refused() -> None:
         registry_commands.show({"kind": "component"})
 
 
-def test_the_commands_read_and_write_nothing_local(monkeypatch: pytest.MonkeyPatch) -> None:
-    # `#76`: a read command must not create a setup version or touch a harness
-    # target. The registry file is the durable local state, and it stays absent.
-    from ai_stp_cli.application import catalog as registry_commands
-    from ai_stp_cli.local.database import configured_path
-
-    monkeypatch.setattr(registry_commands, "endpoint", mock)
-    registry_commands.search({"kind": "component", "query": SERVED_QUERY})
-    registry_commands.show({"kind": "component", "id": _component_id()})
-    assert not configured_path().exists()
-
-
 def test_a_page_walk_visits_each_object_once(monkeypatch: pytest.MonkeyPatch) -> None:
     # Two fixed pages, so the property under test is the walk itself rather than
     # the corpus: a cursor that repeated an object would be visible here.
@@ -268,16 +154,6 @@ def _version_case() -> tuple[str, str]:
             params = case.request.path_params
             return str(params["stable_id"]), str(params["version"])
     raise AssertionError("the corpus has no readComponentVersion case")
-
-
-def test_an_exact_version_is_verified_against_its_published_digest() -> None:
-    stable_id, number = _version_case()
-    view = catalog.version(mock(), "component", stable_id, number)
-    assert view.source == "online"
-    assert view.passport_digest.startswith("sha256:")
-    assert view.passport
-    # The check is the point of fetching a version at all.
-    assert cache.digest_of(view.passport) == view.passport_digest
 
 
 def test_an_authorized_private_version_never_populates_the_anonymous_cache() -> None:
@@ -411,72 +287,11 @@ def test_a_substituted_passport_is_refused_and_not_cached() -> None:
     assert cache.load(key) is None
 
 
-def test_a_cached_version_is_verified_again_on_the_way_out() -> None:
-    # A check performed only on arrival protects only the arrival; a cache entry
-    # can be edited on disk afterwards.
-    stable_id, number = _version_case()
-    catalog.version(mock(), "component", stable_id, number)
-
-    key = cache.key_for("component-version", f"{stable_id}@{number}")
-    entry = cache.load(key)
-    assert entry is not None
-    document = json.loads(json.dumps(entry.document))
-    assert document["passport"]["name"] != "edited on disk"
-    document["passport"]["name"] = "edited on disk"
-    cache.store(key, document, checked_at=entry.checked_at)
-
-    def offline(_request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("no route")
-
-    with pytest.raises(CliFailure, match="does not match the digest"):
-        catalog.version(
-            Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(offline)),
-            "component",
-            stable_id,
-            number,
-        )
-
-
-def test_a_version_falls_back_to_a_sound_cache_when_the_platform_is_away() -> None:
-    stable_id, number = _version_case()
-    fresh = catalog.version(mock(), "component", stable_id, number)
-
-    def offline(_request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("no route")
-
-    cached = catalog.version(
-        Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(offline)),
-        "component",
-        stable_id,
-        number,
-    )
-    assert cached.source == "cache"
-    assert cached.checked_at == fresh.checked_at
-    assert cached.passport == fresh.passport
-
-
 def test_a_version_needs_both_an_identifier_and_a_number() -> None:
     from ai_stp_cli.application import catalog as registry_commands
 
     with pytest.raises(CliFailure, match="both required"):
         registry_commands.version({"kind": "component", "id": "x"})
-
-
-def test_a_version_the_catalogue_refuses_is_not_served_from_the_cache() -> None:
-    stable_id, number = _version_case()
-    catalog.version(mock(), "component", stable_id, number)
-
-    def gone(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, json={"error": {"code": "AI_STP_NOT_FOUND", "message": "no"}})
-
-    with pytest.raises(CliFailure) as raised:
-        catalog.version(
-            Endpoint(MOCK_BASE_URL, max_attempts=1, transport=httpx.MockTransport(gone)),
-            "component",
-            stable_id,
-            number,
-        )
-    assert raised.value.code == "AI_STP_NOT_FOUND"
 
 
 def test_a_version_with_nothing_cached_and_no_platform_is_a_typed_failure() -> None:
@@ -492,18 +307,6 @@ def test_a_version_with_nothing_cached_and_no_platform_is_a_typed_failure() -> N
             number,
         )
     assert raised.value.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
-
-
-def test_a_setup_version_takes_the_same_path() -> None:
-    from ai_stp_contracts.fixtures import load_cases as cases
-
-    served = next(
-        c for c in cases() if c.operation_id == "readSetupVersion" and c.kind == "positive"
-    )
-    params = served.request.path_params
-    view = catalog.version(mock(), "setup", str(params["stable_id"]), str(params["version"]))
-    assert view.kind == "setup"
-    assert cache.digest_of(view.passport) == view.passport_digest
 
 
 def test_an_out_of_range_limit_names_the_flag_a_person_typed() -> None:
