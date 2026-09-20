@@ -1,6 +1,6 @@
 ---
 description: "Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261."
-last_verified: "2026-09-19"
+last_verified: "2026-09-20"
 ---
 
 # Agent UX implementation plan
@@ -18,69 +18,55 @@ prompt, a Haiku-class agent operates ai-stp. The agent picks an intent,
 relays answers, and reports verification. The CLI owns acquisition,
 composition, backup, plan, approve, apply, verify, retries, and recovery.
 
-## Checkpoint (2026-09-19)
+## Checkpoint (2026-09-20)
 
-The agent-first CLI is on
-`feat/agent-task-lifecycle` as PR
-[#297](https://github.com/ai-engineers-guild/ai-stp/pull/297). This agent
-does not merge. Epic #261–#275 stay OPEN. Do not touch colleague issues
-(#254, #256, #291, #300).
+Eight drained intents are on GitHub `main` (PR
+[#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged
+2026-09-19). Source and PyPI `ai-stp-cli` are `0.0.23`. Epic #261–#275 stay
+OPEN. Do not touch colleague issues (#254, #256) or
+`feat/milestone-6-b2b-03`.
 
 | Object | Identity |
 | --- | --- |
-| Branch | `feat/agent-task-lifecycle` at `541d6e14` (includes `4a1d9752` env-bin `bundled_cli()` fix; probe-in-fill was tried and reverted — `--probe` stays opt-in by design) |
-| PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) into `dev`. Not merged; mergeable |
-| `origin/dev` at verify | `80db1e9d` (#300). Already merged into the branch; merge-base is `80db1e9d` |
-| Released CLI | still `0.0.22`. No PyPI cut |
-| Provider kit | `0.2.13` recorded in `tests/golden/provider-kit/identity-ledger.json` |
+| Line | GitHub `main` / `dev`. Work branch `feat/agent-task-lifecycle` is gone |
+| PR | [#297](https://github.com/ai-engineers-guild/ai-stp/pull/297) merged into `dev`, then promoted |
+| Released CLI | `0.0.23` on PyPI (`apps/cli/pyproject.toml` matches) |
+| Provider kit | `0.2.13` in `tests/golden/provider-kit/identity-ledger.json` |
 | Issues | #261–#275 OPEN. setup-systems #316 OPEN. Never close #256. Draft #254: do not touch |
-| Haiku 20×5 | overlay 53 pass / 0 fail / 47 unrun. Durable `--fill` restarted with `--docker-image ai-stp-iso:local`; agy capacity 503 at restart. Not a ship gate |
-
-### Gates observed on this host (2026-09-18)
-
-| Gate | Result |
-| --- | --- |
-| `just docs-static` + `docs-test` + `docs-build` + `docs-regress` | pass (`HOME=/home/rldyourmnd` for mermaid) |
-| `just back-static` | pass |
-| `just back-test` | 6923 passed, 485 skipped, 4 failed on first full run. Then `test_cli_private_catalog` was patched onto `application.catalog.endpoint` and re-ran green. Left on this host: actionlint SC2015 on private `.github/workflows/branch-policy.yml` (CI skips when actionlint is absent), two bwrap `RTM_NEWADDR` probes |
-| `just back-resource` | pass |
-| `just back-regress` | pass after Skill canary `task intents --json` |
-| `just web-static` | pass |
-| `just web-test` | pass |
-| `just web-regress` | 224 passed, 8 skipped |
-| `just web-feature-profiles` | pass |
-| `just security` | pass under bun `1.4.0` |
-| Slice 9 Haiku fill | **skipped** (restarted 2026-09-19) |
-| focused `pytest tests/unit/test_cli_agy_qualify.py` on `541d6e14` | 44 passed |
+| Haiku 20×5 | last overlay 53 pass / 0 fail / 47 unrun. No ≥95/100 claim. Not a ship gate |
+| Branch-policy SC2015 | closed in [#304](https://github.com/ai-engineers-guild/ai-stp/pull/304) |
 
 ### Live CLI
 
 - Root `--help` Commands: **`task` only**. Expert leaves stay invokable, hidden from the dump.
-- Eight shipped intents. `cli_version` `0.0.22`.
-- Inventory leftover **0**. `component publish` stays `task_pending`.
+- Eight shipped intents (`SHIPPED_INTENT_NAMES`): `inspect`, `initialize`,
+  `install`, `change`, `author`, `switch`, `account`, `publish`.
+- `component publish` stays `task_pending`.
 - `application/` does not import `ai_stp_cli.commands` (ADR-0181).
 
 ### Slices vs ship
 
 | Slice | Code | Qualify / ship |
 | --- | --- | --- |
-| 0 land kernel | on the branch + PR #297 | owner merge into `dev`, not this agent |
-| 1–8 | committed on the branch | Haiku overlay 53/100 pass, fill running |
-| 9 qualify + promote | runner exists; fill restarted under Docker | no ≥95/100 claim; no wheel promotion; no PyPI |
+| 0 land kernel | on `main` via #297 | done |
+| 1–8 | on `main` | Haiku overlay 53/100; fill not a current gate |
+| 9 qualify + next cut | runner exists | no ≥95/100; native win/mac `not_run`; next wheel after qualify of clean bytes |
 
-Last scored Haiku cells (overlay `.tmp/qualify-measured.json`): 5/5 initialize/install-pin/install-open/change/login-skipped/login-idle/publish-private/author; switch 4/5; no-reinit 4/5; publish-public 3/5; relative-root 2/5; eight scenarios at 0/5.
+Last scored Haiku cells (overlay `.tmp/qualify-measured.json`, still the last
+measurement): 5/5 initialize/install-pin/install-open/change/login-skipped/login-idle/publish-private/author; switch 4/5; no-reinit 4/5; publish-public 3/5; relative-root 2/5; eight scenarios at 0/5.
 
 ### Remaining to close the epic (do not shrink)
 
-1. **Owner merge** of PR #297 into `dev`. This agent does not merge.
-2. **Slice 9 Haiku**: ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch. Fill restarted under Docker; agy 503 window open at restart.
-3. **Native win/mac** stay `not_run` on this host. Host bwrap `RTM_NEWADDR`; Docker ENFORCED is the isolation path here.
-4. **Clean-tree wheel/extra**, promotion of **those** bytes, PyPI **0.0.23** — off until qualify of clean bytes.
-5. **setup-systems #316**: do not tag / `publish_public_trees` until released CLI `0.0.23` accepts kit `0.2.13`. Installed `0.0.72` stays.
-6. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
-7. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
+1. **Slice 9 Haiku**: ≥95/100, no scenario <4/5, 5/5 on initialize / install / change / switch.
+2. **Native win/mac** stay `not_run` here. Docker ENFORCED is the isolation path on this host.
+3. **Next CLI cut** after qualify of clean bytes. `0.0.23` is already on PyPI from #302/#303; do not treat that cut as Haiku-qualified.
+4. **setup-systems #316** stays OPEN. Public `NDDev-OpenNetwork/*-setup-system` tags are `0.0.73` (2026-09-19) and vendor kit `0.2.13` (same aggregate digest as this tree). A local `0.0.72` install is not the public tag. Do not close #316 from this plan.
+5. Issue comments with SHA; close only for measured scope. **Never close #256**. Do not touch #254.
+6. `component publish` stays `task_pending`. Do not compact `help --agent`. Do not shrink capabilities `command_paths` (REQ-8006).
 
 ## 0. How this plan was locked
+
+Lock-in snapshot 2026-09-15 (historical). Current identity is the checkpoint above.
 
 Re-checked 2026-09-15 against `feat/agent-task-lifecycle` @
 `6f19972f0998fa705cb145fc6846d370bd894ca6`, `origin/dev` @
@@ -99,15 +85,15 @@ External practice used (not copied as a second normative system):
 | Cursor Rules (2026) | File-based global rules live under the catalogued home `rules/` as `.mdc` with `alwaysApply: true`. Settings “User Rules” are **not a file** | Project `AGENTS.md` (multi-root leak); inventing `~/.cursor/AGENTS.md` (not loaded) |
 | Agent-first CLI skill + Claude `ant` CLI (2026) | JSON in/out; stdin JSON merged with flags (flags win); argv not shell-eval; no hidden TTY prompts; semantic exit codes | Interactive `y/n`; colorized-only output |
 
-## 1. Kernel at `6f19972f` (committed tip, not the work tree)
+## 1. Kernel at `6f19972f` (lock-in snapshot 2026-09-15, not current `main`)
 
-| Object | Identity |
+| Object | Identity then |
 | --- | --- |
-| Work branch | `feat/agent-task-lifecycle` @ `6f19972f` |
-| `origin/dev` | `de37d6f3` after #277 (typed continuations exist; **no** PyPI cut) |
-| Open PRs | [#279](https://github.com/ai-engineers-guild/ai-stp/pull/279) envelope truth; [#280](https://github.com/ai-engineers-guild/ai-stp/pull/280) inspect engine (contains #279) |
-| Released CLI | `0.0.22`. Source merge ≠ installed CLI |
-| Issues | #261–#275 OPEN, 0 PR comments on #262. setup-systems #316 OPEN. #256 OPEN (never close from this epic). Draft #254 colleague / B2B: do not touch |
+| Work branch | `feat/agent-task-lifecycle` @ `6f19972f` (gone; kernel is on `main` via #297) |
+| `origin/dev` then | `de37d6f3` after #277 (typed continuations exist; **no** PyPI cut at that date) |
+| Open PRs then | [#279](https://github.com/ai-engineers-guild/ai-stp/pull/279) envelope truth; [#280](https://github.com/ai-engineers-guild/ai-stp/pull/280) inspect engine (contains #279) |
+| Released CLI then | `0.0.22`. Current PyPI is `0.0.23` |
+| Issues | #261–#275 OPEN. setup-systems #316 OPEN. #256 OPEN (never close from this epic). Draft #254 colleague / B2B: do not touch |
 
 Kernel that already exists and must be **evolved**, not replaced:
 
@@ -336,8 +322,9 @@ Skill + website rewrite ships in the **same wheel** as all of:
 5. `install` of one public setup → independent native verification.
 6. Login skipped. Network spy shows no publication/sync/revision-push.
 
-Until that wheel exists, keep current Skill playbooks so 0.0.22-era
-behavior is not stranded on an inspect-only surface.
+Until a Haiku-qualified wheel exists, keep current Skill playbooks so
+pre-task-engine installs are not stranded on an inspect-only surface.
+`0.0.23` on PyPI is the current reader, not that qualify gate.
 
 ### 2.7 Derived setups
 

@@ -1,6 +1,6 @@
 ---
 description: "Public compatibility snapshot for seven provider systems and ai_stp."
-last_verified: "2026-09-04"
+last_verified: "2026-09-20"
 ---
 
 # Provider integration state
@@ -12,10 +12,14 @@ release, capability, and evidence facts.
 ## Active release
 
 The active public tag for the seven `NDDev-OpenNetwork/*-setup-system`
-repositories is `0.0.65`. Each GitHub Release contains seven assets (six native
-binaries and `SHA256SUMS`), read back from GitHub. The consumer kit identity
-vendored into those trees is `0.2.9`
-(`sha256:8abeee1e3469b84b57492ad7d73d794416bca439e381becc0d36ea703bded33b`).
+repositories is `0.0.73` (published 2026-09-19). Each GitHub Release contains
+seven assets (six native binaries and `SHA256SUMS`), read back from GitHub.
+Those trees vendor consumer kit `0.2.13`
+(`sha256:e2a35eaf2e0f834913962d9a6337948eeb78290b4ad8c3af7674620215610b0e`),
+which matches `provider-kit/v3/KIT-IDENTITY.json` and
+`tests/golden/provider-kit/identity-ledger.json` in this repository.
+`0.0.72` remains a prior public tag (2026-09-16); it is not the current
+release.
 
 ## Capabilities
 
@@ -32,18 +36,24 @@ vendored into those trees is `0.2.9`
   provider digest an unmanaged workspace the way its workspace plan does.
   Accepted by the consumer first, published by the kit, then declared by a
   provider — the `ADR-0125` order, because `provider-info` is compared by exact
-  membership. All seven `0.0.65` providers declare `plan_request_fields`
+  membership. All seven `0.0.65` providers declared `plan_request_fields`
   `{target_scope, end_state}` and `status_request_fields` `{target_scope}`.
+  Kit `0.2.13` additionally accepts `instruction_section` and the optional
+  `patch_instruction_region` operation; a bound provider that does not
+  declare that operation leaves `initialize` blocked.
 
 ## Evidence
 
-On linux/x86_64, `provider conformance --protocol-version 3` against the
-attested `0.0.65` bytes reports seven `conforms: true` (Antigravity 46,
-Claude Code 44, Codex 60, Cursor 62, Grok Build 44, OpenCode 44, Pi 43).
+This pass did not re-run `provider conformance` against `0.0.73`. Historical
+linux/x86_64 counts against attested `0.0.65` bytes were seven
+`conforms: true` (Antigravity 46, Claude Code 44, Codex 60, Cursor 62,
+Grok Build 44, OpenCode 44, Pi 43). Those numbers are not evidence for
+`0.0.73`.
 
-Exact-current provider plan/digest/apply/update/rollback operations passed 6/6
-for all seven systems. The Pi oracle compares pre/post launch output because
-both exact vendor releases return `0.0.0` for `--version` on Windows.
+Historical: plan/digest/apply/update/rollback operations passed 6/6 for all
+seven systems against the `0.0.65` line. The Pi oracle compares pre/post
+launch output because both exact vendor releases return `0.0.0` for
+`--version` on Windows. That 6/6 count was not re-run against `0.0.73`.
 
 All three operating systems deny network access by device: Linux uses
 Bubblewrap, Windows AppContainer, and macOS the system `sandbox-exec` after a

@@ -9,7 +9,7 @@ last_verified: "2026-08-03"
 
 | Document | Description | Verified |
 | -------- | ----- | ------- |
-| [agent-ux-implementation-plan.md](agent-ux-implementation-plan.md) | Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261. | 2026-09-19 |
+| [agent-ux-implementation-plan.md](agent-ux-implementation-plan.md) | Target implementation plan for the agent-first CLI: weakest-model loop, shared task engine, and the website-to-native journeys in epic #261. | 2026-09-20 |
 | [article-publication-implementation-plan.md](article-publication-implementation-plan.md) | Migration sequence for moving the content hub to unified API serving for repository and staff publications. | 2026-08-29 |
 | [artifact-storage-private-delivery-implementation-plan.md](artifact-storage-private-delivery-implementation-plan.md) | Implementation sequence for owner-scoped artifacts, platform assets, private delivery, and verified backups. | 2026-09-07 |
 | [audit-remediation-status.md](audit-remediation-status.md) | Historical audit dispositions reconciled with current mechanism owners. | 2026-09-07 |
@@ -23,15 +23,15 @@ last_verified: "2026-08-03"
 | [failure-catalog.md](failure-catalog.md) | Historical failure lessons extracted from retired experiments, with current regression owners. | 2026-09-04 |
 | [federated-source-threat-model.md](federated-source-threat-model.md) | Threat model for federated local ports and metadata adapters. | 2026-08-16 |
 | [first-party-corpus.md](first-party-corpus.md) | Rebuilding and publishing the first-party corpus from exact attested setup-system releases. | 2026-09-07 |
-| [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-09-12 |
+| [git-workflow.md](git-workflow.md) | Rules for branches, commits, pull requests, and cross-repository changes. | 2026-09-20 |
 | [github-connector-implementation-plan.md](github-connector-implementation-plan.md) | Implementation and verification sequence for GitHub Connector issues 181 through 186. | 2026-09-08 |
 | [github-connector-operations.md](github-connector-operations.md) | Operator runbook for the single GitHub App used by source access and repository actions. | 2026-09-09 |
-| [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-08 |
+| [implementation-roadmap.md](implementation-roadmap.md) | Current ai_stp status and the ordered plan for remaining work. | 2026-09-20 |
 | [official-registry-identity-and-requests-implementation-plan.md](official-registry-identity-and-requests-implementation-plan.md) | Implementation sequence for unique public identities, the Git-owned Official registry, recoverable updates, and unified ownership and verification requests. | 2026-09-04 |
-| [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-10 |
+| [quality-gates.md](quality-gates.md) | Required checks and release evidence. | 2026-09-20 |
 | [real-provider-evidence.md](real-provider-evidence.md) | How to run the full lifecycle against released providers and what is checked in the process. | 2026-08-29 |
 | [release-evidence.md](release-evidence.md) | Required release evidence for the CLI, platform, and providers. | 2026-09-08 |
-| [repository-structure.md](repository-structure.md) | Target monorepository structure and code ownership rules. | 2026-08-05 |
+| [repository-structure.md](repository-structure.md) | Target monorepository structure and code ownership rules. | 2026-09-20 |
 | [runner-separation-readiness.md](runner-separation-readiness.md) | Dated images of inventory of separate CI/deploy trust domains and the solutions that replaced the planned barrier. | 2026-08-16 |
 | [schema-evolution.md](schema-evolution.md) | Versioning, compatibility, and migration of persisted and transmitted schemas. | 2026-08-03 |
 | [seo-publication-implementation-plan.md](seo-publication-implementation-plan.md) | Procedure for implementing the server-side SEO loop without mixing domain publication and model enrichment. | 2026-08-29 |

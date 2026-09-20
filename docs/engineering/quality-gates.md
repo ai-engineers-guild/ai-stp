@@ -1,6 +1,6 @@
 ---
 description: "Required checks and release evidence."
-last_verified: "2026-09-10"
+last_verified: "2026-09-20"
 ---
 
 # Quality gates
@@ -240,6 +240,7 @@ prefix is mandatory:
 | `docs-*` | documentation foundation: specs, ADRs, `docs/`, MkDocs | `docs-check` |
 | `back-*` | Python: `packages/`, `apps/api`, `apps/platform`, `apps/cli`, `tests/` | `back-check` |
 | `web-*` | `apps/web` | `web-check` |
+| `infra-*` | Docker images, Compose stacks, host-side deploy chain | `infra-check` — not in `just check` |
 
 Each group uses the same verbs, so commands are derived rather than memorized:
 
@@ -255,15 +256,18 @@ Each group uses the same verbs, so commands are derived rather than memorized:
 No `-check` recipe writes anything: generated/source divergence is caught in
 `-static` and fixed by an explicit `-gen` call. Each recipe remains independently
 callable so a failure can be reproduced precisely without running neighboring
-groups. The full convention set for the file — settings and attribute policy,
-parameter documentation, and the checklist for adding a recipe — is the working
-copy's own justfile standard; it does not ship in the public tree.
+groups. The full convention set — settings and attribute policy, parameter
+documentation, and the checklist for adding a recipe — lives in
+`standards/just.md`. That directory is withheld from the public export
+(`release_scripts/public_manifest.toml`). `standards/docker.md` owns the
+`infra-*` surface.
 
 Outside the groups are `setup`, `hooks`, `gen`, `check`, `pre-commit`, and
-`security`. No aliases are added: `ci` and `pre-push` were second names for `check`
-and were removed. The Git pre-commit hook calls fast `just pre-commit`; there is
-no pre-push hook for the expensive suites, and full `just check` remains the CI
-gate.
+`security`. `infra-*` is a group, but it is deliberately not in `check`: it
+needs Docker, which is not universal. No aliases are added: `ci` and `pre-push`
+were second names for `check` and were removed. The Git pre-commit hook calls
+fast `just pre-commit`; there is no pre-push hook for the expensive suites, and
+full `just check` remains the CI gate.
 
 `security` is repository-wide, not group-specific: the dependency scanner is
 currently one tool (`bun audit`). A Python scanner is added to the same recipe when
