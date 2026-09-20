@@ -462,79 +462,9 @@ def _mock_endpoint() -> Endpoint:
     return Endpoint(MOCK_BASE_URL, transport=build_transport())
 
 
-def _always_opens(_started: login.Started, **_options: object) -> bool:
-    return True
-
-
-def test_the_whole_sign_in_runs_against_the_mock(monkeypatch: pytest.MonkeyPatch) -> None:
-    # `#75` requires the CLI to be exercisable before a server exists. The
-    # transport lives on the endpoint, so this is the same code path the real
-    # platform will take.
-    from ai_stp_cli import identity, paths
-    from ai_stp_cli.application import auth
-    from ai_stp_cli.commands import passport
-
-    monkeypatch.setattr(auth, "endpoint", _mock_endpoint)
-    monkeypatch.setattr(login, "device_display_name", lambda: FIXTURE_NAME)
-    monkeypatch.setattr(login, "open_browser", _always_opens)
-
-    # The mock answers only for the fixture's device identity, so this run
-    # adopts it rather than inventing one the corpus never agreed to. The key
-    # moves with the record: they are minted together and named after each
-    # other, so rewriting one alone would leave an identity that cannot sign.
-    from ai_stp_cli import secrets as secrets_module
-
-    current, _ = identity.load_or_create()
-    store = secrets_module.FileStore()
-    minted = store.get(identity.key_entry(current.device_id))
-    assert minted is not None
-    store.put(identity.key_entry(FIXTURE_DEVICE), minted)
-    paths.write_private(
-        paths.device_file(),
-        f'{{"device_id": "{FIXTURE_DEVICE}", "created_at": "{current.created_at}", '
-        '"state": "active", "retired": []}',
-    )
-    monkeypatch.setattr(
-        login,
-        "local_identity",
-        lambda: (FIXTURE_DEVICE, FIXTURE_KEY, None),
-    )
-
-    passport.developer_init({})
-    before = passport.developer_show({}).payload
-
-    # Not asked for, so not opened. `webbrowser.open` launches the desktop's
-    # declared default and waits for it: a machine command that promised to
-    # print a code and return instead hung for six minutes and forty seconds on
-    # a machine whose default is slow to start, and the browser that opened was
-    # not the one anybody wanted. The contract already required `user_code` and
-    # `verification_uri` so the caller can decide.
-    quiet = auth.begin({"provider": "google"}).payload
-    assert quiet.browser_opened is False
-
-    started = auth.begin({"provider": "google", "open-browser": True}).payload
-    assert started.user_code
-    assert started.browser_opened is True
-    assert started.device_id == FIXTURE_DEVICE
-
-    store, _warning = open_store()
-    pending = session.load_pending(store)
-    assert pending is not None
-    # The corpus fixes which code is approved; the started one is the mock's.
-    session.save_pending(store, dataclasses.replace(pending, device_code=APPROVED_CODE))
-
-    finished = auth.complete({}).payload
-    assert finished.state == "authenticated"
-    assert finished.account_id
-
-    # `ADR-0060`: ownership moves onto the server's account, as a revision.
-    after = passport.developer_show({}).payload
-    assert after.owner_id == finished.account_id
-    assert after.owner_id != before.owner_id
-    assert after.parent_revision_ids == [before.revision_id]
-
-    # The pending record is consumed, not left to be polled again.
-    assert session.load_pending(store) is None
+# The sign-in journey runs against the real application in
+# `tests/api/cli/test_device_sign_in.py`. What remains here exercises the
+# client against the `#71` corpus — wire cases, not a fake server.
 
 
 def test_completing_without_a_pending_sign_in_is_a_typed_answer() -> None:
