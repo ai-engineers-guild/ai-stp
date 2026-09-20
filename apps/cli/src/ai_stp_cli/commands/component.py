@@ -13,7 +13,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from ai_stp_cli import identity
+from ai_stp_cli import config, identity
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import (
@@ -65,6 +65,7 @@ from ai_stp_contracts.machine_help import (
     VersionLine,
 )
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.envelope import Continuation
 from ai_stp_foundation.ids import new_id
 
 
@@ -608,6 +609,27 @@ def forget(parameters: Mapping[str, object]) -> Answer[PassportView]:
         return Answer(work(connection))
 
 
+def _sync_push_continuation(entity_id: str) -> tuple[Continuation, ...]:
+    """The push step for a just-changed sync entity, when sync is on.
+
+    Consent records are account-level entities: a grant or revocation exists
+    locally the moment the command returns, and the continuation names the
+    exact entity id so the caller does not have to derive it. Sync off means
+    no step — pushing what was never going to sync would be a lie about where
+    the record lives.
+    """
+    _catalog, sync_enabled = config.catalog_and_sync_enabled()
+    if not sync_enabled:
+        return ()
+    return (
+        Continuation(
+            kind="advance",
+            path=["sync", "push"],
+            arguments={"id": entity_id, "confirm": True},
+        ),
+    )
+
+
 def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
     """Record a durable consent to unverified objects, or full-task authority.
 
@@ -633,7 +655,7 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             details={"scope": str(scope), "allowed": ", ".join(sorted(consent.SCOPES))},
         )
 
-    def work(connection: sqlite3.Connection) -> ConsentRecord:
+    def work(connection: sqlite3.Connection) -> consent.Record:
         if str(scope) == consent.SCOPE_TASK:
             # Task authority is a named profile, not a fingerprint of objects.
             # Requiring a matching registration would make the grant unwritable
@@ -650,7 +672,7 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
                 origin="component consent allow",
                 at=moment(),
             )
-            return _record(record)
+            return record
         # The contract asks for "the fingerprint of the candidate at the moment
         # of consent", so the shape is read from the objects the target
         # actually covers right now. It used to record `fingerprint_of({})`
@@ -679,10 +701,14 @@ def consent_allow(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             origin="component consent allow",
             at=moment(),
         )
-        return _record(record)
+        return record
 
     with closing(open_registry(configured_path(), create=True)) as connection:
-        return Answer(work(connection))
+        record = work(connection)
+    return Answer(
+        _record(record),
+        continuations=_sync_push_continuation(consent.entity_id(record.scope, record.target)),
+    )
 
 
 def _covered_by(
@@ -727,7 +753,7 @@ def consent_revoke(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
             details={"scope": str(scope), "allowed": ", ".join(sorted(consent.SCOPES))},
         )
 
-    def work(connection: sqlite3.Connection) -> ConsentRecord:
+    def work(connection: sqlite3.Connection) -> consent.Record:
         consent.revoke(connection, scope=str(scope), target=str(target), at=moment())
         record = consent.held(connection, scope=str(scope), target=str(target))
         if record is None:
@@ -736,10 +762,14 @@ def consent_revoke(parameters: Mapping[str, object]) -> Answer[ConsentRecord]:
                 "no consent record covers that target",
                 details={"scope": str(scope), "target": str(target)},
             )
-        return _record(record)
+        return record
 
     with closing(open_registry(configured_path(), create=True)) as connection:
-        return Answer(work(connection))
+        record = work(connection)
+    return Answer(
+        _record(record),
+        continuations=_sync_push_continuation(consent.entity_id(record.scope, record.target)),
+    )
 
 
 def consent_list(_parameters: Mapping[str, object]) -> Answer[ConsentSummary]:
@@ -756,6 +786,7 @@ def consent_list(_parameters: Mapping[str, object]) -> Answer[ConsentSummary]:
 def _record(record: consent.Record) -> ConsentRecord:
     return ConsentRecord(
         consent_id=record.consent_id,
+        sync_entity_id=consent.entity_id(record.scope, record.target),
         scope=record.scope,  # pyright: ignore[reportArgumentType]
         target=record.target,
         decided_by=record.decided_by,

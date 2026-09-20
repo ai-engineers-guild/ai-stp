@@ -9,7 +9,7 @@ and payload policy enforced by the server application layer.
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ai_stp_contracts.auth import AccountId, DeviceId
 from ai_stp_contracts.http import (
@@ -23,6 +23,7 @@ from ai_stp_contracts.http import (
     open_wire_object,
     strict_request_object,
 )
+from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.revisions import REVISION_ID_PATTERN
 
@@ -175,3 +176,55 @@ class SyncPullResponse(BaseModel):
     schema_version: Literal[1] = 1
     items: Annotated[list[SyncStreamEvent], Field(max_length=PAGE_SIZE_MAX)]
     page: PageInfo
+
+
+#: The three consent scopes the contract defines — closed here so both the
+#: server intake and every pulling device refuse a fourth (`unverified-consent.md`).
+type ConsentScope = Literal["publisher", "object_major", "task"]
+
+#: The only `task` target. Any other string under `task` is a wildcard by
+#: another name, and the wire must not carry it.
+CONSENT_TASK_TARGET: str = "full-auto"
+
+
+class ConsentUpsertPayload(BaseModel):
+    """The `unverified_consent` payload for an `upsert` event.
+
+    One shape for the writer and every reader: the server refuses a malformed
+    record at intake so it can never wedge a pull, and a device applies exactly
+    what this model admits — nothing looser and nothing extra.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    scope: ConsentScope
+    target: Annotated[str, Field(min_length=1, max_length=128)]
+    fingerprint: Annotated[dict[str, JsonValue], Field(max_length=32)]
+    observed: Annotated[list[Annotated[str, Field(max_length=256)]], Field(max_length=256)]
+    decided_by: Annotated[str, Field(min_length=1, max_length=128)]
+    origin: Annotated[str, Field(min_length=1, max_length=256)]
+    created_at: Timestamp
+
+    @model_validator(mode="after")
+    def _task_target(self) -> "ConsentUpsertPayload":
+        if self.scope == "task" and self.target != CONSENT_TASK_TARGET:
+            raise ValueError("task consent names only the authorized full-auto profile")
+        return self
+
+
+class ConsentTombstonePayload(BaseModel):
+    """The `unverified_consent` payload for a `tombstone` event."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    scope: ConsentScope
+    target: Annotated[str, Field(min_length=1, max_length=128)]
+    revoked_at: Timestamp | None = None
+
+    @model_validator(mode="after")
+    def _task_target(self) -> "ConsentTombstonePayload":
+        if self.scope == "task" and self.target != CONSENT_TASK_TARGET:
+            raise ValueError("task consent names only the authorized full-auto profile")
+        return self

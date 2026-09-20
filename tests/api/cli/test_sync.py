@@ -424,3 +424,226 @@ def test_an_event_bound_to_another_device_is_refused(
             SyncPushRequest(events=[event]),
         )
     assert refused.value.code == "AI_STP_VALIDATION_ERROR"
+
+
+def _device_passport_content(stable_id: str, *, owner_id: str) -> dict[str, JsonValue]:
+    def fact(value: JsonValue) -> dict[str, JsonValue]:
+        return {
+            "value": value,
+            "origin": "observed",
+            "confirmation": "none",
+            "source_refs": [],
+            "observed_at": AT,
+            "confirmed_at": None,
+            "confidence": None,
+        }
+
+    return {
+        "schema_version": 1,
+        "kind": "device",
+        "stable_id": stable_id,
+        "owner_id": owner_id,
+        "created_at": AT,
+        "visibility": "private",
+        "parent_revision_ids": [],
+        "facts": {
+            "operating_system": fact("linux"),
+            "architecture": fact("x86_64"),
+            "harness_installations": fact(
+                [{"harness_id": "claude-code", "installations": [{"version": "2.0.0"}]}]
+            ),
+        },
+    }
+
+
+def _sealed_event(
+    *,
+    account_id: str,
+    device_id: str,
+    entity_id: str,
+    entity_kind: str,
+    operation: str,
+    payload: dict[str, object],
+    parents: list[str] | None = None,
+    expected_head: str | None = None,
+) -> SyncEvent:
+    from ai_stp_cli.cloud import login
+    from ai_stp_foundation.digests import digest_canonical
+    from ai_stp_foundation.revisions import revision_id
+
+    sealed: dict[str, JsonValue] = {
+        "schema_version": 1,
+        "entity_id": entity_id,
+        "entity_kind": entity_kind,
+        "parent_revision_ids": cast(list[JsonValue], parents or []),
+        "operation": operation,
+        "payload": cast(JsonValue, payload),
+        "device_id": device_id,
+        "actor_id": account_id,
+        "created_at": AT,
+    }
+    return SyncEvent(
+        event_id=f"event_{new_id('request').removeprefix('request_')}",
+        entity_id=entity_id,
+        entity_kind=entity_kind,  # pyright: ignore[reportArgumentType]
+        revision_id=revision_id(sealed),
+        parent_revision_ids=parents or [],
+        device_id=device_id,
+        actor_id=account_id,
+        operation=operation,  # pyright: ignore[reportArgumentType]
+        content_digest=digest_canonical("ai-stp:revision:v1", cast(JsonValue, payload)),
+        created_at=AT,
+        idempotency_key=login.new_idempotency_key(),
+        expected_head_revision_id=expected_head,
+        payload=payload,
+    )
+
+
+def test_device_summary_publishes_through_sync_and_reads_back_on_devices(
+    cli_endpoint: Endpoint,
+    cli_server: SyncAsgiServer,
+    device_session: CliSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`sync push` on the device passport emits only the closed summary, and
+    `GET /v1/devices` serves that stored document instead of a fabricated one."""
+    _enable(monkeypatch, cli_endpoint)
+    account_id = device_session.account_id
+    device_stable = new_id("device")
+
+    with open_registry(configured_path()) as connection:
+        revisions.commit(
+            connection,
+            _device_passport_content(device_stable, owner_id=account_id),
+            device_id=device_session.device_id,
+        )
+
+    pushed = sync_commands.push({"id": device_stable, "confirm": True}).payload
+    assert pushed.state == "accepted"
+
+    # The wire event is the summary entity bound to the session device — never
+    # the passport, which stays local (REQ-911).
+    page = cloud_sync.pull(
+        cli_endpoint, device_session.access_token, SyncPullQuery(cursor=None, page_size=20)
+    )
+    (item,) = [event for event in page.items if event.entity_kind == "device_summary"]
+    assert item.entity_id == device_session.device_id
+    payload = item.payload
+    assert payload["operating_system"] == "linux"
+    assert payload["architecture"] == "x86_64"
+    assert "facts" not in payload and "harness_installations" not in payload
+
+    # The read side serves what was stored, not a fabricated linux/x86_64.
+    import httpx
+
+    assert cli_server.transport is not None
+    with httpx.Client(transport=cli_server.transport, base_url="http://127.0.0.1") as web:
+        listed = web.get(
+            "/v1/devices",
+            headers={"Authorization": f"Bearer {device_session.access_token}"},
+        )
+    assert listed.status_code == 200, listed.text
+    (record,) = [
+        row for row in listed.json()["items"] if row["device_id"] == device_session.device_id
+    ]
+    summary = cast(dict[str, object], record["summary"])
+    assert summary["operating_system"] == "linux"
+    assert summary["architecture"] == "x86_64"
+    assert summary["toolchain_profile_version"] == payload["toolchain_profile_version"]
+
+
+def test_consent_round_trips_through_the_real_ledger_to_a_second_device(
+    cli_endpoint: Endpoint,
+    cli_server: SyncAsgiServer,
+    device_session: CliSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Grant on one device → pull applies it on another; revoke → tombstone."""
+    from ai_stp_cli.commands import component as component_command
+    from ai_stp_cli.local import consent
+
+    _enable(monkeypatch, cli_endpoint)
+    account_id = device_session.account_id
+
+    granted = component_command.consent_allow({"scope": "task", "target": "full-auto"})
+    entity = granted.payload.sync_entity_id
+    # The continuation names the exact entity and the real push command.
+    (step,) = granted.continuations
+    assert step.path == ["sync", "push"]
+    assert step.arguments == {"id": entity, "confirm": True}
+
+    pushed = sync_commands.push({"id": entity, "confirm": True}).payload
+    assert pushed.state == "accepted"
+
+    # A second device pulls the account stream and the consent lands locally.
+    _device_b, token_b = _second_device(cli_server, account_id)
+    page = cloud_sync.pull(cli_endpoint, token_b, SyncPullQuery(cursor=None, page_size=20))
+    other = tmp_path / "device-b.sqlite"
+    with open_registry(other) as connection:
+        applied, _replayed, _skipped = sync_state.apply_page(
+            connection, account_id=account_id, response=page, at=AT
+        )
+        assert applied >= 1
+        held = consent.held(connection, scope="task", target="full-auto")
+        assert held is not None and held.active
+        assert held.consent_id == entity
+
+    # Revocation pushes the tombstone, fast-forwarding off the accepted head.
+    component_command.consent_revoke({"scope": "task", "target": "full-auto"})
+    retracted = sync_commands.push({"id": entity, "confirm": True}).payload
+    assert retracted.state == "accepted"
+
+    page2 = cloud_sync.pull(cli_endpoint, token_b, SyncPullQuery(cursor=None, page_size=20))
+    tombstones = [
+        event
+        for event in page2.items
+        if event.entity_kind == "unverified_consent" and event.operation == "tombstone"
+    ]
+    assert len(tombstones) == 1
+    fresh = tmp_path / "device-c.sqlite"
+    with open_registry(fresh) as connection:
+        sync_state.apply_page(connection, account_id=account_id, response=page2, at=AT)
+        held = consent.held(connection, scope="task", target="full-auto")
+        assert held is not None and not held.active
+
+
+def test_a_malformed_consent_event_is_rejected_at_intake(
+    cli_endpoint: Endpoint,
+    cli_server: SyncAsgiServer,
+    device_session: CliSession,
+) -> None:
+    """Intake refuses a scope the contract never declared, before the ledger.
+
+    Without the shape check this event would be accepted, then refuse every
+    pulling device on the page boundary — a wedge with no client-side remedy
+    that names it. The receipt is `rejected`, durably.
+    """
+    account_id = device_session.account_id
+    event = _sealed_event(
+        account_id=account_id,
+        device_id=device_session.device_id,
+        entity_id="consent_deadbeef",
+        entity_kind="unverified_consent",
+        operation="upsert",
+        payload={
+            "schema_version": 1,
+            "scope": "everything",
+            "target": "*",
+            "fingerprint": {},
+            "observed": [],
+            "decided_by": account_id,
+            "origin": "planted",
+            "created_at": AT,
+        },
+    )
+    response = cloud_sync.push(
+        cli_endpoint, device_session.access_token, SyncPushRequest(events=[event])
+    )
+    receipt = response.receipts[0]
+    assert receipt.state == "rejected"
+
+    # And nothing entered the stream: a second device pulls an empty account.
+    _device_b, token_b = _second_device(cli_server, account_id)
+    page = cloud_sync.pull(cli_endpoint, token_b, SyncPullQuery(cursor=None, page_size=20))
+    assert page.items == []

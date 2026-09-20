@@ -5,18 +5,37 @@ from collections.abc import Mapping, Sequence
 from contextlib import closing
 from typing import cast
 
-from ai_stp_cli import config, identity
+from ai_stp_cli import config, identity, toolchain
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import cloud_auth
 from ai_stp_cli.application.auth import endpoint
+from ai_stp_cli.cloud import login as cloud_login
+from ai_stp_cli.cloud import session
 from ai_stp_cli.cloud import sync as cloud_sync
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.local import lifecycle, passports, revisions, sync_merge, sync_state, sync_versions
+from ai_stp_cli.local import (
+    consent,
+    lifecycle,
+    passports,
+    revisions,
+    sync_merge,
+    sync_state,
+    sync_versions,
+)
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_contracts.http import PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
+from ai_stp_contracts.identity import DetectedHarness, DeviceSummary
 from ai_stp_contracts.machine_help import SyncPreview, SyncPullView, SyncPushView
-from ai_stp_contracts.sync import SyncEventReceipt, SyncPullQuery, SyncPushRequest
+from ai_stp_contracts.sync import (
+    ConsentTombstonePayload,
+    ConsentUpsertPayload,
+    SyncEventReceipt,
+    SyncPullQuery,
+    SyncPushRequest,
+)
 from ai_stp_foundation.canonical import JsonValue, canonize
+from ai_stp_foundation.harnesses import HARNESS_IDS
+from ai_stp_foundation.revisions import revision_id
 from ai_stp_passports.envelope import seal_envelope
 
 
@@ -240,6 +259,13 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
     held = cloud_auth.required("sync push")
     with closing(open_registry(configured_path())) as connection:
         stored = revisions.head(connection, stable_id)
+        if stored is not None and stored.envelope.kind == "device":
+            # REQ-911: the full device passport never leaves the device — what
+            # pushes is its permitted summary, as the contract's own entity.
+            return _push_device_summary(connection, held, stored)
+        if stored is None and stable_id.startswith(("consent_", "request_")):
+            # A consent entity, addressed by its wire id or its local record id.
+            return _push_consent(connection, held, stable_id)
         if stored is None:
             raise CliFailure("AI_STP_NOT_FOUND", "that identifier has no local revision head")
         ordered: list[revisions.StoredRevision] = []
@@ -297,22 +323,7 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
                     stored=candidate,
                     payload=payload,
                 )
-                receipt = sync_state.saved_receipt(
-                    connection, account_id=held.account_id, event_id=pending.request.event_id
-                )
-                if receipt is None:
-                    response = cloud_sync.push(
-                        endpoint(), held.access_token, SyncPushRequest(events=[pending.request])
-                    )
-                    receipt = response.receipts[0]
-                    if receipt.event_id != pending.request.event_id:
-                        raise CliFailure(
-                            "AI_STP_VALIDATION_ERROR",
-                            "the sync receipt does not match the sent event",
-                        )
-                    sync_state.record_receipt(
-                        connection, account_id=held.account_id, receipt=receipt
-                    )
+                receipt = _deliver(connection, held, pending)
                 final_event_id = pending.request.event_id
                 final_remote_revision_id = pending.request.revision_id
                 processed += 1
@@ -340,20 +351,7 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
                 device_id=held.device_id,
                 stable_id=stable_id,
             )
-            receipt = sync_state.saved_receipt(
-                connection, account_id=held.account_id, event_id=pending.request.event_id
-            )
-            if receipt is None:
-                response = cloud_sync.push(
-                    endpoint(), held.access_token, SyncPushRequest(events=[pending.request])
-                )
-                receipt = response.receipts[0]
-                if receipt.event_id != pending.request.event_id:
-                    raise CliFailure(
-                        "AI_STP_VALIDATION_ERROR",
-                        "the sync receipt does not match the sent event",
-                    )
-                sync_state.record_receipt(connection, account_id=held.account_id, receipt=receipt)
+            receipt = _deliver(connection, held, pending)
             final_event_id = pending.request.event_id
             final_remote_revision_id = pending.request.revision_id
             processed += 1
@@ -450,3 +448,184 @@ def _skipped_event_ids(parameters: Mapping[str, object]) -> frozenset[str]:
                 details={"given": value},
             )
     return ids
+
+
+def _deliver(
+    connection: sqlite3.Connection, held: session.Session, pending: sync_state.Pending
+) -> SyncEventReceipt:
+    """Send one prepared event when no durable receipt already exists.
+
+    The receipt is read from the outbox first — a retry after a lost response
+    replays the stored answer instead of sending the same event twice.
+    """
+    receipt = sync_state.saved_receipt(
+        connection, account_id=held.account_id, event_id=pending.request.event_id
+    )
+    if receipt is not None:
+        return receipt
+    response = cloud_sync.push(
+        endpoint(), held.access_token, SyncPushRequest(events=[pending.request])
+    )
+    receipt = response.receipts[0]
+    if receipt.event_id != pending.request.event_id:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the sync receipt does not match the sent event",
+        )
+    sync_state.record_receipt(connection, account_id=held.account_id, receipt=receipt)
+    return receipt
+
+
+def _push_view(
+    stable_id: str,
+    local_revision_id: str,
+    pending: sync_state.Pending,
+    receipt: SyncEventReceipt,
+    processed: int = 1,
+) -> Answer[SyncPushView]:
+    return Answer(
+        SyncPushView(
+            stable_id=stable_id,
+            processed_events=processed,
+            local_revision_id=local_revision_id,
+            event_id=pending.request.event_id,
+            remote_revision_id=pending.request.revision_id,
+            state=receipt.state,
+            server_head_revision_id=receipt.server_head_revision_id,
+            conflict_fields=[] if receipt.conflict is None else receipt.conflict.affected_fields,
+            conflicting_entity_id=receipt.conflicting_entity_id,
+        )
+    )
+
+
+def _push_device_summary(
+    connection: sqlite3.Connection, held: session.Session, stored: revisions.StoredRevision
+) -> Answer[SyncPushView]:
+    """Push the device passport's permitted summary, never the passport itself.
+
+    REQ-911 and `device-passport.md` close the summary to five facts plus the
+    refresh time, and the server binds the entity to the session device. An
+    environment this build cannot summarise (`unknown` os or architecture) is
+    a refusal, not a guessed value — the same rule the passport applies.
+    """
+    facts = cast(
+        dict[str, JsonValue],
+        cast(dict[str, JsonValue], stored.envelope.model_dump(mode="json")).get("facts", {}),
+    )
+
+    def fact(name: str) -> JsonValue:
+        entry = facts.get(name)
+        return entry.get("value") if isinstance(entry, dict) else None
+
+    detected: list[DetectedHarness] = []
+    installations = fact("harness_installations")
+    if isinstance(installations, list):
+        for raw in installations:
+            if not isinstance(raw, dict):
+                continue
+            harness_id = raw.get("harness_id")
+            versions = raw.get("installations")
+            version = None
+            if isinstance(versions, list) and versions:
+                first = versions[0]
+                if isinstance(first, dict) and isinstance(first.get("version"), str):
+                    version = first["version"]
+            if isinstance(harness_id, str) and harness_id in HARNESS_IDS and version is not None:
+                detected.append(DetectedHarness(harness_id=harness_id, version=version))  # pyright: ignore[reportArgumentType]
+    os_name, arch = fact("operating_system"), fact("architecture")
+    if os_name not in ("linux", "macos", "windows") or arch not in ("x86_64", "arm64"):
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the device environment cannot be summarised for sync",
+            details={"reason": "an observed value falls outside the closed summary set"},
+        )
+    try:
+        summary = DeviceSummary(
+            display_name=cloud_login.device_display_name(),
+            operating_system=os_name,
+            architecture=arch,
+            detected_harnesses=detected[:16],
+            toolchain_profile_version=(
+                f"{toolchain.load().profile}/{toolchain.MANIFEST_SCHEMA_VERSION}"
+            ),
+            summary_updated_at=stored.created_at,
+        )
+    except ValueError as error:
+        raise CliFailure(
+            "AI_STP_PRECONDITION_FAILED",
+            "the device environment cannot be summarised for sync",
+            details={"reason": "an observed value falls outside the closed summary set"},
+        ) from error
+    payload = cast(dict[str, object], summary.model_dump(mode="json"))
+    pending = sync_state.prepare_event(
+        connection,
+        account_id=held.account_id,
+        device_id=held.device_id,
+        entity_id=held.device_id,
+        entity_kind="device_summary",
+        operation="upsert",
+        payload=payload,
+        created_at=stored.created_at,
+        local_revision_id=stored.revision_id,
+    )
+    receipt = _deliver(connection, held, pending)
+    return _push_view(stored.stable_id, stored.revision_id, pending, receipt)
+
+
+def _push_consent(
+    connection: sqlite3.Connection, held: session.Session, entity_id: str
+) -> Answer[SyncPushView]:
+    """Push one consent record's current state, or its tombstone once revoked.
+
+    The wire entity is `consent_<digest(scope, target)>` — the same identifier
+    on every device, because the consent is a property of the account and its
+    target, not of the installation that recorded it first.
+    """
+    record = None
+    for item in consent.all_records(connection):
+        if item.consent_id == entity_id or consent.entity_id(item.scope, item.target) == entity_id:
+            record = item
+            break
+    if record is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "no consent record is known by that identifier",
+            next_actions=["consent list --json"],
+        )
+    entity = consent.entity_id(record.scope, record.target)
+    if record.active:
+        document = ConsentUpsertPayload(
+            scope=record.scope,  # pyright: ignore[reportArgumentType]
+            target=record.target,
+            fingerprint=record.fingerprint,
+            observed=list(record.observed),
+            decided_by=record.decided_by,
+            origin=record.origin,
+            created_at=record.created_at,
+        )
+        operation = "upsert"
+        at = record.created_at
+    else:
+        document = ConsentTombstonePayload(
+            scope=record.scope,  # pyright: ignore[reportArgumentType]
+            target=record.target,
+            revoked_at=record.revoked_at,
+        )
+        operation = "tombstone"
+        at = str(record.revoked_at)
+    payload = cast(dict[str, object], document.model_dump(mode="json"))
+    pending = sync_state.prepare_event(
+        connection,
+        account_id=held.account_id,
+        device_id=held.device_id,
+        entity_id=entity,
+        entity_kind="unverified_consent",
+        operation=operation,
+        payload=payload,
+        created_at=at,
+    )
+    receipt = _deliver(connection, held, pending)
+    # The record is not a registry revision, but its exact pushed state still
+    # has a content address, and that is what the view reports.
+    local_id = revision_id(cast(JsonValue, payload))
+    return _push_view(entity, local_id, pending, receipt)

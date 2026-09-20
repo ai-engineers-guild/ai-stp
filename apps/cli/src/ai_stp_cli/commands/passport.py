@@ -11,13 +11,14 @@ from collections.abc import Callable, Mapping
 from contextlib import closing
 from typing import cast
 
-from ai_stp_cli import identity
+from ai_stp_cli import config, identity
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.errors import CliFailure
 from ai_stp_cli.local import passports, revisions
 from ai_stp_cli.local.database import configured_path, open_readonly, open_registry
 from ai_stp_contracts.machine_help import PassportView
 from ai_stp_foundation.canonical import JsonValue
+from ai_stp_foundation.envelope import Continuation
 
 
 def _view(stored: revisions.StoredRevision) -> PassportView:
@@ -110,7 +111,20 @@ def device_refresh(_parameters: Mapping[str, object]) -> Answer[PassportView]:
     def work(connection: sqlite3.Connection) -> PassportView:
         return _view(passports.ensure_device(connection, device_id=current.device_id))
 
-    return Answer(_with_registry(work, create=True))
+    view = _with_registry(work, create=True)
+    _catalog, sync_enabled = config.catalog_and_sync_enabled()
+    continuations: tuple[Continuation, ...] = ()
+    if sync_enabled:
+        # What syncs is the closed summary of this passport, addressed by the
+        # passport's own stable id — `sync push` dispatches on the kind.
+        continuations = (
+            Continuation(
+                kind="advance",
+                path=["sync", "push"],
+                arguments={"id": view.stable_id, "confirm": True},
+            ),
+        )
+    return Answer(view, continuations=continuations)
 
 
 def device_show(_parameters: Mapping[str, object]) -> Answer[PassportView]:

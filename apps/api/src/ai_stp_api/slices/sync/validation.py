@@ -8,6 +8,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Final, cast
 
+from ai_stp_contracts.identity import DeviceSummary
+from ai_stp_contracts.sync import ConsentTombstonePayload, ConsentUpsertPayload
 from ai_stp_contracts.sync_payload import SyncPayloadRejection, check_sync_payload
 from ai_stp_contracts.sync_versions import VersionBindingError, validate_payload
 from ai_stp_foundation.canonical import JsonValue
@@ -203,6 +205,23 @@ def validate_event_document(
         )
     except VersionBindingError as error:
         raise SyncValidationError(str(error)) from error
+    # The two closed-shape kinds are validated at intake, not on read: a
+    # malformed record that entered the ledger would refuse every pulling
+    # device on the page boundary forever, with no server-side remedy short of
+    # surgery. Rejecting it here is the same refusal the client makes, once,
+    # before the event exists.
+    try:
+        if entity_kind == "device_summary" and operation == "upsert":
+            DeviceSummary.model_validate(payload)
+        elif entity_kind == "unverified_consent":
+            if operation == "tombstone":
+                ConsentTombstonePayload.model_validate(payload)
+            else:
+                ConsentUpsertPayload.model_validate(payload)
+    except ValueError as error:
+        raise SyncValidationError(
+            f"{entity_kind} payload is not the declared closed shape"
+        ) from error
     document = seal_revision_document(
         entity_id=entity_id,
         entity_kind=entity_kind,
