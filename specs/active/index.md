@@ -22,10 +22,10 @@ last_verified: "2026-08-03"
 | [SPEC-011-cli-agent-skill.md](SPEC-011-cli-agent-skill.md) | SPEC-011: CLI, machine help and agent skill. | 2026-09-16 |
 | [SPEC-012-uninstall-recovery.md](SPEC-012-uninstall-recovery.md) | SPEC-012: Uninstallation, full cleanup, and recovery. | 2026-09-20 |
 | [SPEC-013-data-governance.md](SPEC-013-data-governance.md) | SPEC-013: User data governance. | 2026-09-01 |
-| [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Managed toolchain and bootstrap. | 2026-08-04 |
+| [SPEC-014-toolchain-bootstrap.md](SPEC-014-toolchain-bootstrap.md) | SPEC-014: Managed toolchain and bootstrap. | 2026-09-20 |
 | [SPEC-015-canonical-contracts.md](SPEC-015-canonical-contracts.md) | SPEC-015: Canonical data, identifiers, and hashes. | 2026-09-20 |
 | [SPEC-016-reports-moderation.md](SPEC-016-reports-moderation.md) | SPEC-016: Private requests and moderation. | 2026-09-04 |
-| [SPEC-017-runtime-shell-observability.md](SPEC-017-runtime-shell-observability.md) | SPEC-017: Server application shell and observability. | 2026-08-05 |
+| [SPEC-017-runtime-shell-observability.md](SPEC-017-runtime-shell-observability.md) | SPEC-017: Server application shell and observability. | 2026-09-20 |
 | [SPEC-018-worker-job-queue.md](SPEC-018-worker-job-queue.md) | SPEC-018: Background worker and PostgreSQL job queue. | 2026-08-31 |
 | [SPEC-019-runtime-deployment-operability.md](SPEC-019-runtime-deployment-operability.md) | SPEC-019: Runtime deployment and operation. | 2026-08-10 |
 | [SPEC-020-persistence-migrations-object-store.md](SPEC-020-persistence-migrations-object-store.md) | SPEC-020: Server-side storage, PostgreSQL migrations, artifact storage, and asset storage. | 2026-09-07 |
