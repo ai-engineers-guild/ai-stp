@@ -1,6 +1,6 @@
 ---
 description: "SPEC-030: Canonical bidirectional links between CLI and web."
-last_verified: "2026-08-09"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-030: Canonical bidirectional links between CLI and web

@@ -1,6 +1,6 @@
 ---
 description: "SPEC-039: CLI synchronization of the private registry between devices."
-last_verified: "2026-08-13"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-039: CLI synchronization of the private registry
