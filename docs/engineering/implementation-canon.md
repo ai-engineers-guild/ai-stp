@@ -157,7 +157,7 @@ Cluster-level labels; per-file refinement happens in phase 2.
 | `docs/documentation/` | code-backed | Zone rules and lint suite own this tree |
 | `docs/adr/` | code-backed | Append-only log; `binding.md` defaults accepted to binding |
 | `docs/engineering/` working rules — `coding-rules`, `dependency-policy`, `failure-catalog`, `git-workflow`, `quality-gates`, `repository-structure`, `schema-evolution`, `tech-debt-rules`, `tech-stack`, `testing`, `web-quality`, `github-connector-operations`, `release-evidence` | code-backed | Rules the gate or the team enforces today |
-| `docs/engineering/*-implementation-plan.md` for shipped surfaces — `article-publication`, `artifact-storage-private-delivery`, `github-connector`, `official-registry-identity-and-requests`, `seo-publication` | historical | Plans whose code now ships; move in phase 2 |
+| `docs/archive/*-implementation-plan.md` — `article-publication`, `artifact-storage-private-delivery`, `github-connector`, `official-registry-identity-and-requests`, `seo-publication` | historical | Plans whose code ships; archived 2026-09-20 |
 | `docs/engineering/agent-ux-implementation-plan.md` | unclassified | Live contract of open epic #261; not shipped, not dead |
 | `docs/engineering/` evidence/status — `audit-remediation-status`, `implementation-roadmap`, `catalog-search-benchmark`, `cli-performance`, `real-provider-evidence`, `first-party-corpus`, `federated-source-threat-model`, `runner-separation-readiness` | unclassified | Snapshot/proof docs; need a read before a label |
 | `docs/engineering/corporate-*` | colleague | frozen |

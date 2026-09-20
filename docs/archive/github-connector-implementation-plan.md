@@ -43,7 +43,7 @@ boundary or break the already recovered invitation code.
 | Component promotion | Durable visibility plan, public eligibility checks and projection update without object copy | Positive and every-negative-precondition PostgreSQL tests; immutable byte/location/access assertions |
 | Repository actions | Durable invite and make-public plans, scoped-token exchange, typed name and reconciliation | Success, refusal, concurrency, timeout/unknown and audit tests; no real repository mutation in local tests |
 | Web and CLI | Account Connector UI, RU/EN messages, CLI status/source preparation and publication binding | Generated-client drift, focused component tests, responsive/manual smoke and CLI contract tests |
-| Operations | One App settings exist | [Operations runbook](github-connector-operations.md), callback/rotation/rollback procedure and live evidence ledger |
+| Operations | One App settings exist | [Operations runbook](../engineering/github-connector-operations.md), callback/rotation/rollback procedure and live evidence ledger |
 
 ## Ordered implementation packets
 
