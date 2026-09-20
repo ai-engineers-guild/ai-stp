@@ -8,7 +8,7 @@ last_verified: "2026-09-07"
 This document retains the disposition of the August 2026 RVR audit. Its issue
 numbers refer to the historical source repository and must not be interpreted as
 current public issues with the same numbers. The current execution plan belongs
-to [implementation-roadmap.md](implementation-roadmap.md); CI and deployment
+to [implementation-roadmap.md](../engineering/implementation-roadmap.md); CI and deployment
 mechanisms belong to [ci-cd.md](../operations/ci-cd.md). This record does not create
 a second release checklist or new authority requirements.
 

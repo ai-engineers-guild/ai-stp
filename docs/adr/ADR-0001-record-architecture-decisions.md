@@ -1,11 +1,11 @@
 ---
 description: "Decision to record significant and hard-to-reverse architectural changes in ADRs."
-last_verified: "2026-08-03"
+last_verified: "2026-09-20"
 ---
 
 # ADR-0001: Record architecture decisions
 
-Accepted on 2026-07-28.
+Status: accepted. Accepted on 2026-07-28. Extended by ADR-0194.
 
 ## Context
 

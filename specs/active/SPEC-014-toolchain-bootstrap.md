@@ -1,6 +1,6 @@
 ---
 description: "SPEC-014: Managed toolchain and bootstrap."
-last_verified: "2026-08-04"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-014: Managed toolchain and bootstrap
@@ -32,7 +32,12 @@ The list of offline and network operations is owned by `docs/contracts/offline-c
 - `REQ-1404`: Tools are installed in a versioned user directory and invoked by exact path; the ambient `PATH` is not the source of truth.
 - `REQ-1405`: Installation and update use a plan, staging directory, integrity verification, an atomic current pointer, and rollback to the previous version.
 - `REQ-1406`: Package installation scripts and arbitrary bootstrap scripts are disabled by default and permitted only by a separate verified policy.
-- `REQ-1407`: The `mvp-full` profile contains language servers, linters, type checkers, analyzers, and scanners for Python, TypeScript/JavaScript, Rust, Go, and Dart/Flutter; an uninstalled adapter honestly returns `not_available` with a reason.
+- `REQ-1407`: The `mvp-full` profile declares all five ecosystems — Python,
+  TypeScript/JavaScript, Rust, Go, and Dart/Flutter — and pins each included
+  tool (language servers, linters, type checkers, analyzers, and scanners) with
+  an exact version and per-platform digests. An ecosystem nothing is pinned for
+  stays declared and reports `not_available` with a reason rather than
+  fabricating coverage.
 - `REQ-1408`: Analyzers for information formats and generalized parsing of bounded safe text are included in the profile and have resource limits.
 - `REQ-1409`: Tool execution uses an argument array, `shell=false`, a filtered environment, timeout, output limit, and cancellation.
 - `REQ-1410`: Normal installation does not require `sudo`; a required system action returns `needs_user_action` and an exact plan without the agent obtaining a password.

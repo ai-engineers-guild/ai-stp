@@ -1,6 +1,8 @@
-"""Safe limited Markdown validation and render (SPEC-029).
+"""Documents-profile Markdown validation and render (SPEC-031 REQ-3106).
 
-Pure functions: no I/O. Renderer version is pinned as commonmark_v1.
+Pure functions: no I/O. This is the operator-content renderer for public
+documents and SEO sections — it permits tables, which the strict passport
+profile (`ai_stp_passports.markdown`, SPEC-029) rejects.
 """
 
 from __future__ import annotations

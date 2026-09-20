@@ -1,6 +1,6 @@
 ---
 description: "SPEC-031: Public documents, versioned policies, and error pages."
-last_verified: "2026-08-08"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-031: Documents, policies, and error pages
@@ -50,7 +50,13 @@ acceptance workflow, or arbitrary remote Markdown.
 - `REQ-3105`: The API returns only the published revision for the requested locale or
   an explicitly declared fallback. Draft/pending policy, editor identity, internal
   review, and source credentials do not enter the public API/cache.
-- `REQ-3106`: Markdown documents use the renderer/policy from SPEC-029.
+- `REQ-3106`: Markdown documents render through the documents profile
+  (`ai_stp_contracts.safe_markdown` on the API, `apps/web` `render.ts` for
+  previews): a deterministic sanitized subset that additionally permits tables
+  and heading anchors, which operator-authored policies need. This is a
+  different profile from the strict passport `commonmark_v1`/`safe_markdown_v1`
+  pair of SPEC-029 — passport `description` fields remain under that profile
+  end to end, including the web catalog pages.
   Technical docs and policies have a table of contents, stable heading anchors,
   copy link, print-friendly view, and an accessible heading hierarchy.
 - `REQ-3107`: `/[locale]/not-found` is a complete 404 page with links to the

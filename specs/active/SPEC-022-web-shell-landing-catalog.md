@@ -1,6 +1,6 @@
 ---
 description: "SPEC-022: Web shell, bilingual landing page and anonymous public catalog."
-last_verified: "2026-08-17"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-022: Web shell, landing page and anonymous catalog

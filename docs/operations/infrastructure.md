@@ -1,6 +1,6 @@
 ---
 description: "Target infrastructure for the MVP server mode."
-last_verified: "2026-08-05"
+last_verified: "2026-09-20"
 ---
 
 # Infrastructure
@@ -20,7 +20,7 @@ reverse proxy
 
 ## Hosting
 
-The MVP server environment is hosted on the owner's own `server-nddev-kazakhstan` server; no separate cloud budget is allocated. The reverse proxy, application, database, worker, and object storage run on that node within its resources. The public domain is fixed before server mode is opened; until then, examples use a placeholder catalog address.
+The production environment is hosted on the owner's own `server-nddev-kazakhstan` server; no separate cloud budget is allocated. The reverse proxy, application, database, worker, and object storage run on that node within its resources. Public names are `ai-stp.aiguild.space` (web and `/v1`) and `docs.nddev.asia` (user docs). Production identity is `GET /v1/system/version` (`git_commit`); readiness is `GET /v1/health/ready`. The host timer pulls `refs/heads/deploy/prod` after a green `check` on `main`.
 
 The node is shared with the owner's other services, and this constraint determines
 port publication. External ports `80` and `443` belong to the host's `nginx`, which

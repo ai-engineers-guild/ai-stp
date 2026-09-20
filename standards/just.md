@@ -32,8 +32,9 @@ Fixed order, top to bottom:
 4. `default` — lists recipes, never runs work.
 5. Gate aggregates — `setup`, `gen`, `check`, `pre-commit`.
 6. Group sections, each under a `# --- <group> ---` rule, in the order
-   `docs`, `back`, `web`, then ungrouped concerns (release, evidence,
-   safety).
+   `docs`, `back`, `web`. `infra-*` recipes follow web (Docker, Compose,
+   host deploy). They are a group, but they are not in `check`. Ungrouped
+   concerns (release, evidence, safety) come last.
 
 ## Naming taxonomy
 
@@ -44,6 +45,7 @@ A recipe's group is its owner and its prefix is mandatory:
 | `docs-*` | documentation basis — specs, ADRs, `docs/`, MkDocs |
 | `back-*` | Python — `packages/`, `apps/api`, `apps/platform`, `apps/cli`, `tests/` |
 | `web-*` | `apps/web` |
+| `infra-*` | Docker images, Compose stacks, host-side deploy chain — **not** in `just check` |
 
 Every group carries the same verb set, so a command is derived, not
 memorized:
@@ -57,7 +59,7 @@ memorized:
 | `-regress` | runs the built artifact in a real engine |
 | `-check` | the group's aggregate |
 
-Recipes outside the three prefixes name a domain directly: `evidence-*`
+Recipes outside those prefixes name a domain directly: `evidence-*`
 (deployed/released proof, never in the gate), `safety-*`, `public-*`,
 `release-*`, `estate-*`.
 

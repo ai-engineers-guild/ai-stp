@@ -1,6 +1,6 @@
 ---
 description: "SPEC-043: Local reports for context budget, capability delta, and blast radius."
-last_verified: "2026-08-15"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-043: Selection impact reports
