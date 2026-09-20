@@ -490,7 +490,6 @@ def test_an_unusable_provider_is_refused(given: object) -> None:
         auth.begin({"provider": given})
 
 
-
 def _hold_session(token: str = "a") -> None:
     """Give this installation a usable cloud session to sign out of."""
     store, _warning = open_store()
@@ -891,7 +890,6 @@ def test_signing_in_survives_the_next_environment_change(monkeypatch: pytest.Mon
     assert local_passports.owner().account_id == account
 
 
-
 @pytest.mark.parametrize(
     ("code", "survives"),
     [
@@ -928,7 +926,6 @@ def test_only_a_decision_clears_the_pending_sign_in(
         auth.complete({})
 
     assert (session.load_pending(store) is not None) is survives
-
 
 
 def test_one_logical_start_carries_one_key_through_every_attempt() -> None:
