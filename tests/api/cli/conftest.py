@@ -27,7 +27,10 @@ from tests.support.postgres import (
 
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
+from ai_stp_cli.cloud import session
 from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.cloud.session import Session as CliSession
+from ai_stp_cli.secrets import open_store
 from ai_stp_foundation.ids import new_id
 from ai_stp_platform.models import Account
 
@@ -149,3 +152,37 @@ def web_approver(cli_server: SyncAsgiServer) -> Callable[[], WebApprover]:
         return WebApprover(account_id=account_id, token=token, approve=approve)
 
     return build
+
+
+@pytest.fixture()
+def device_session(
+    cli_endpoint: Endpoint,
+    web_approver: Callable[[], WebApprover],
+    monkeypatch: pytest.MonkeyPatch,
+) -> CliSession:
+    """A real device-bound session produced by the sign-in flow itself.
+
+    Publication requires an active device on the session, so issuing a bare
+    token is not enough — the device flow registers the key pair, the web
+    approver binds the account, and the CLI persists the credential.
+    """
+    from ai_stp_cli.application import auth
+    from ai_stp_cli.commands import passport as passport_cmd
+
+    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
+    approver = web_approver()
+    # A developer passport exists before sign-in so `complete` can rebind its
+    # owner to the approved account — the same sequence the real journey takes.
+    passport_cmd.developer_init({})
+    approval = auth.begin({"provider": "github"}).payload
+    assert approval.user_code
+    approved = approver.approve(approval.user_code)
+    assert approved.status_code == 200, approved.text
+    finished = auth.complete({}).payload
+    assert finished.state == "authenticated"
+
+    store, _warning = open_store()
+    held = session.load(store)
+    assert held is not None
+    assert held.account_id == approver.account_id
+    return held

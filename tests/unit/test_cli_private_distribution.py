@@ -1,4 +1,12 @@
-"""Private defaults and explicit owner opening at the authenticated HTTP boundary."""
+"""Private distribution: the refusal halves that stay client-local.
+
+The success journeys — `publication plan` defaulting to private and
+`visibility plan`/`confirm` opening and closing an exact published version —
+moved to `tests/api/cli/test_private_distribution.py` against the real `/v1`
+app. What remains here is what a mock legitimately owns: a response missing a
+contract field must be refused as off-contract, and a confirm carrying a
+different plan hash must be refused before any wire call.
+"""
 
 import json
 from contextlib import closing
@@ -33,63 +41,49 @@ def _login() -> session.Session:
     return held
 
 
-@pytest.mark.parametrize("legacy_response", [False, True])
-def test_component_upload_defaults_private_and_refuses_a_legacy_public_plan(
+def test_a_legacy_plan_response_missing_visibility_is_refused(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    legacy_response: bool,
 ) -> None:
+    """A plan answer without `visibility` is off-contract, not a private plan."""
     with closing(open_registry(configured_path(), create=True)) as connection:
         proposal = _confirmed(connection, tmp_path, "8")
         selected = selection.held(connection, proposal)
         assert selected is not None
         component_id = selected.members[0].stable_id
     held = _login()
-    requests: list[httpx.Request] = []
 
     def serve(request: httpx.Request) -> httpx.Response:
-        requests.append(request)
         assert request.method == "POST" and request.url.path == "/v1/publications/plans"
         body = json.loads(request.content)
         assert body["visibility"] == "private"
-        response = {
-            "plan_id": new_id("operation"),
-            "plan_hash": digest_canonical("ai-stp:plan:v1", body),
-            "state": "ready",
-            "object_kind": body["object_kind"],
-            "stable_id": body["stable_id"],
-            "version": body["version"],
-            "content_digest": body["content_digest"],
-            "policy_version": body["policy_version"],
-            "actor_id": held.account_id,
-            "device_id": held.device_id,
-            "expires_at": session.expiry(600),
-        }
-        if not legacy_response:
-            response["visibility"] = "private"
-        return httpx.Response(201, json=response)
+        return httpx.Response(
+            201,
+            json={
+                "plan_id": new_id("operation"),
+                "plan_hash": digest_canonical("ai-stp:plan:v1", body),
+                "state": "ready",
+                "object_kind": body["object_kind"],
+                "stable_id": body["stable_id"],
+                "version": body["version"],
+                "content_digest": body["content_digest"],
+                "policy_version": body["policy_version"],
+                "actor_id": held.account_id,
+                "device_id": held.device_id,
+                "expires_at": session.expiry(600),
+            },
+        )
 
     where = Endpoint("https://private.example.test", transport=httpx.MockTransport(serve))
     monkeypatch.setattr(publication_service, "endpoint", lambda: where)
     monkeypatch.setattr(publication_service, "_session", lambda: held)
-    parameters = {
-        "id": component_id,
-        "version": "1.0",
-    }
-    if legacy_response:
-        with pytest.raises(CliFailure, match="published contract"):
-            publication.plan(parameters)
-    else:
-        result = publication.plan(parameters).payload
-        assert result.visibility == "private"
-    assert len(requests) == 1
-    assert requests[0].headers["Authorization"] == f"Bearer {held.access_token}"
+
+    with pytest.raises(CliFailure, match="published contract"):
+        publication.plan({"id": component_id, "version": "1.0"})
 
 
-@pytest.mark.parametrize("wrong_hash", [False, True])
-def test_visibility_requires_exact_explicit_owner_confirmation_and_is_idempotent(
+def test_confirm_refuses_a_changed_plan_hash_before_the_wire(
     monkeypatch: pytest.MonkeyPatch,
-    wrong_hash: bool,
 ) -> None:
     held = _login()
     stable_id = new_id("component")
@@ -113,9 +107,6 @@ def test_visibility_requires_exact_explicit_owner_confirmation_and_is_idempotent
     def serve(request: httpx.Request) -> httpx.Response:
         paths.append(request.url.path)
         assert request.headers["Authorization"] == f"Bearer {held.access_token}"
-        if request.url.path.endswith("/confirm"):
-            assert json.loads(request.content)["plan_hash"] == response["plan_hash"]
-            response["state"] = "applied"
         return httpx.Response(200, json=response)
 
     where = Endpoint("https://private.example.test", transport=httpx.MockTransport(serve))
@@ -128,14 +119,7 @@ def test_visibility_requires_exact_explicit_owner_confirmation_and_is_idempotent
         visibility.confirm(parameters)
     assert len(paths) == 1
     parameters["confirm"] = True
-    if wrong_hash:
-        parameters["plan-hash"] = digest_canonical("ai-stp:plan:v1", {"wrong": stable_id})
-        with pytest.raises(CliFailure, match="changed after review"):
-            visibility.confirm(parameters)
-        assert not any(path.endswith("/confirm") for path in paths)
-    else:
-        completed = visibility.confirm(parameters).payload
-        assert completed.state == "applied"
-        assert completed.passport_digest == planned.passport_digest
-        assert visibility.confirm(parameters).payload == completed
-        assert sum(path.endswith("/confirm") for path in paths) == 1
+    parameters["plan-hash"] = digest_canonical("ai-stp:plan:v1", {"wrong": stable_id})
+    with pytest.raises(CliFailure, match="changed after review"):
+        visibility.confirm(parameters)
+    assert not any(path.endswith("/confirm") for path in paths)

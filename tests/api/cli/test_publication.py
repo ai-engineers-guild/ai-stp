@@ -28,10 +28,10 @@ from tests.support.publication_artifacts import (
     publication_passport,
 )
 
-from ai_stp_cli.cloud import publication, session
+from ai_stp_cli.cloud import publication
 from ai_stp_cli.cloud.client import Endpoint
+from ai_stp_cli.cloud.session import Session as CliSession
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.publication import (
     PublicationConfirmRequest,
     PublicationPlanCreateRequest,
@@ -88,31 +88,8 @@ def _object_store(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def _sign_in(
-    cli_endpoint: Endpoint,
-    approver: WebApprover,
-    monkeypatch: pytest.MonkeyPatch,
-) -> session.Session:
-    """A real device-bound session: begin → web approve → complete."""
-    from ai_stp_cli.application import auth
-
-    monkeypatch.setattr(auth, "endpoint", lambda: cli_endpoint)
-    approval = auth.begin({"provider": "github"}).payload
-    assert approval.user_code
-    approved = approver.approve(approval.user_code)
-    assert approved.status_code == 200, approved.text
-    finished = auth.complete({}).payload
-    assert finished.state == "authenticated"
-
-    store, _warning = open_store()
-    held = session.load(store)
-    assert held is not None
-    assert held.account_id == approver.account_id
-    return held
-
-
 def _create_request(
-    held: session.Session,
+    held: CliSession,
     *,
     idempotency_key: str | None = None,
     extra_projection: bool = False,
@@ -137,11 +114,10 @@ def _create_request(
 
 def test_plan_create_status_and_confirm_against_the_real_app(
     cli_endpoint: Endpoint,
-    web_approver: ApproverFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    device_session: CliSession,
 ) -> None:
     """create → bind → status → confirm — the whole journey the corpus faked."""
-    held = _sign_in(cli_endpoint, web_approver(), monkeypatch)
+    held = device_session
 
     planned = publication.create(cli_endpoint, held.access_token, _create_request(held))
     assert planned.plan_id.startswith("plan_")
@@ -189,11 +165,10 @@ def test_plan_create_status_and_confirm_against_the_real_app(
 
 def test_bind_places_exact_artifact_bytes_the_plan_declared(
     cli_endpoint: Endpoint,
-    web_approver: ApproverFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    device_session: CliSession,
 ) -> None:
     """The server re-hashes the bound bytes; the declared digest must match."""
-    held = _sign_in(cli_endpoint, web_approver(), monkeypatch)
+    held = device_session
     planned = publication.create(cli_endpoint, held.access_token, _create_request(held))
 
     bound = publication.bind(
@@ -208,11 +183,10 @@ def test_bind_places_exact_artifact_bytes_the_plan_declared(
 
 def test_bind_refuses_bytes_that_do_not_match_the_declared_digest(
     cli_endpoint: Endpoint,
-    web_approver: ApproverFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    device_session: CliSession,
 ) -> None:
     """Real digest verification: wrong bytes are a typed validation refusal."""
-    held = _sign_in(cli_endpoint, web_approver(), monkeypatch)
+    held = device_session
     planned = publication.create(cli_endpoint, held.access_token, _create_request(held))
 
     with pytest.raises(CliFailure) as raised:
@@ -228,11 +202,10 @@ def test_bind_refuses_bytes_that_do_not_match_the_declared_digest(
 
 def test_declared_projection_artifacts_bind_to_their_digest(
     cli_endpoint: Endpoint,
-    web_approver: ApproverFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    device_session: CliSession,
 ) -> None:
     """A passport declaring a projection requires its bytes before confirm."""
-    held = _sign_in(cli_endpoint, web_approver(), monkeypatch)
+    held = device_session
     planned = publication.create(
         cli_endpoint,
         held.access_token,
@@ -273,11 +246,10 @@ def test_declared_projection_artifacts_bind_to_their_digest(
 
 def test_create_replays_the_same_plan_for_one_idempotency_key(
     cli_endpoint: Endpoint,
-    web_approver: ApproverFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    device_session: CliSession,
 ) -> None:
     """Server-side dedup: a retried create must not open a second plan."""
-    held = _sign_in(cli_endpoint, web_approver(), monkeypatch)
+    held = device_session
     key = secrets.token_hex(8)
 
     first = publication.create(
@@ -295,9 +267,9 @@ def test_a_foreign_account_cannot_read_the_plan(
     cli_endpoint: Endpoint,
     cli_server: SyncAsgiServer,
     web_approver: ApproverFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    device_session: CliSession,
 ) -> None:
-    held = _sign_in(cli_endpoint, web_approver(), monkeypatch)
+    held = device_session
     planned = publication.create(cli_endpoint, held.access_token, _create_request(held))
 
     outsider = web_approver()
