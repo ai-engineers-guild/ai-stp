@@ -1,6 +1,6 @@
 ---
 description: "Required documentation updates alongside behavior, schemas, and operations."
-last_verified: "2026-08-03"
+last_verified: "2026-09-20"
 ---
 
 # Documentation Maintenance
@@ -27,7 +27,7 @@ Documentation is part of a change, not a follow-up task. A PR that changes behav
 - `index.md` is retained in every long-lived section and updated by the generator;
 - `last_verified` changes only after the content has actually been verified;
 - `last_verified` uses UTC rather than local time: east of the prime meridian, the local date leads UTC for several hours each day, so such a date can pass locally but be rejected by CI as a future date;
-- an active specification is updated before implementation or replaced by a new version;
+- an active specification is rewritten from implemented code in the same change, or moved to `specs/archive/` when it no longer matches (`ADR-0194`);
 - an accepted architectural decision is not rewritten retroactively; a new ADR is created;
 - an obsolete command is removed from every example in the same PR;
 - generated output is not edited independently of its source;
