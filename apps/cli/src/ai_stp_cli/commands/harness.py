@@ -137,7 +137,7 @@ def remove(parameters: Mapping[str, object]) -> Answer[HarnessProgram]:
                 Continuation(
                     kind="advance",
                     path=["harness", "remove"],
-                    arguments={**arguments, "confirm": ""},
+                    arguments={**arguments, "confirm": True},
                     missing=missing,
                 )
             ],

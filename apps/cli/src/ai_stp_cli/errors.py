@@ -11,6 +11,7 @@ from typing import Final
 
 from pydantic import ValidationError
 
+from ai_stp_cli.application.continuations import bind_continuation
 from ai_stp_cli.i18n import localize
 from ai_stp_foundation.envelope import Continuation, continuation_command
 from ai_stp_foundation.errors import exit_class_for
@@ -49,7 +50,7 @@ class CliFailure(Exception):
         self.details = details or {}
         self.operation_id = operation_id
         self.continuations = list(continuations or [])
-        derived = [continuation_command(item) for item in self.continuations]
+        derived = [continuation_command(bind_continuation(item)) for item in self.continuations]
         self.next_actions = list(next_actions) if next_actions is not None else derived
 
     @property
