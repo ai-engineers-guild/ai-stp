@@ -107,8 +107,9 @@ class SyncAsgiServer:
         router = getattr(self._app, "router", None)
         lifespan = getattr(router, "lifespan_context", None)
         if lifespan is not None:
-            self._lifespan = lifespan(self._app)
-            portal.call(self._lifespan.__aenter__)
+            entered: AbstractAsyncContextManager[Any] = lifespan(self._app)
+            self._lifespan = entered
+            portal.call(entered.__aenter__)
         self.transport = SyncAsgiTransport(portal, self._app)
         return self
 
