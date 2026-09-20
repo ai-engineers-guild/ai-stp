@@ -1,6 +1,6 @@
 ---
 description: "SPEC-047: Web/backend consumer surfaces for canonical CLI contracts and catalog delivery."
-last_verified: "2026-08-15"
+last_verified: "2026-09-20"
 ---
 
 # SPEC-047: Web/backend consumer surfaces
