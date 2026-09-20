@@ -6,7 +6,10 @@ import sys
 from collections.abc import Sequence
 from contextlib import closing
 from pathlib import Path
-from typing import Final
+from types import UnionType
+from typing import Final, Literal, TypeAliasType, Union, get_args, get_origin
+
+from pydantic import BaseModel
 
 from ai_stp_cli import config, identity, paths, secrets
 from ai_stp_cli.errors import CliFailure
@@ -16,12 +19,23 @@ from ai_stp_contracts.machine_help import (
     Capabilities,
     DoctorCheck,
     DoctorReport,
+    ParameterType,
     SetupState,
+    TaskAccountInput,
+    TaskAuthorInput,
+    TaskChangeInput,
+    TaskInitializeInput,
+    TaskInputField,
+    TaskInspectInput,
+    TaskInstallInput,
     TaskIntentDescriptor,
     TaskIntentsCatalog,
     TaskOrientation,
+    TaskPublishInput,
+    TaskSwitchInput,
 )
 from ai_stp_foundation.harnesses import HARNESS_IDS
+from ai_stp_foundation.schemas import schema_id
 
 SHIPPED_INTENT_NAMES: Final[tuple[str, ...]] = (
     "inspect",
@@ -33,48 +47,57 @@ SHIPPED_INTENT_NAMES: Final[tuple[str, ...]] = (
     "account",
     "publish",
 )
-INSPECT_WHEN: Final[str] = (
-    "Call when the user asks what is wrong or what this CLI can do. "
-    "Do not call as a prelude to every mutation."
-)
-INSPECT_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-inspect"
-INITIALIZE_WHEN: Final[str] = (
-    "Call on first run, or when the user says ai-stp is missing from this harness. "
-    "Do not call as a prelude to every coding request. "
-    "provider-too-old is not login: report it and stop; do not start account."
-)
-INITIALIZE_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-initialize"
-INSTALL_WHEN: Final[str] = (
-    "Call when the user wants a catalog or local setup on a target. "
-    "Do not choreograph plan, approve, or apply yourself."
-)
-INSTALL_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-install"
-CHANGE_WHEN: Final[str] = (
-    "Call when the user wants to add or remove a member of a saved setup. "
-    "Do not compose in place and do not type setup compose plan or apply."
-)
-CHANGE_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-change"
-AUTHOR_WHEN: Final[str] = (
-    "Call when the user wants to register a local directory as a component. "
-    "Do not type component adopt, component scaffold, or setup compose apply."
-)
-AUTHOR_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-author"
-SWITCH_WHEN: Final[str] = (
-    "Call when the user wants the last working user config back. "
-    "Do not type setup restore plan or setup preserve plan, and do not kill the caller."
-)
-SWITCH_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-switch"
-ACCOUNT_WHEN: Final[str] = (
-    "Call when the user says sign in, sign out, or explicitly sync. "
-    "Login never uploads. Do not type auth login or auth complete. "
-    "Do not call for provider-too-old."
-)
-ACCOUNT_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-account"
-PUBLISH_WHEN: Final[str] = (
-    "Call when the user wants to publish a local object. "
-    "Do not type publication plan or publication confirm, and do not invent git provenance."
-)
-PUBLISH_INPUT_SCHEMA: Final[str] = "urn:ai-stp:schema:v1:cli-task-input-publish"
+#: The validation model behind each intent's `--input` document. `task start`
+#: validates through this table, so the catalog, the JSON Schemas and the
+#: validator can never disagree about which intents exist or what they take.
+INTENT_INPUT_MODELS: Final[dict[str, type[BaseModel]]] = {
+    "inspect": TaskInspectInput,
+    "initialize": TaskInitializeInput,
+    "install": TaskInstallInput,
+    "change": TaskChangeInput,
+    "author": TaskAuthorInput,
+    "switch": TaskSwitchInput,
+    "account": TaskAccountInput,
+    "publish": TaskPublishInput,
+}
+
+#: When-to-call guidance per intent, in `SHIPPED_INTENT_NAMES` order.
+INTENT_WHEN: Final[dict[str, str]] = {
+    "inspect": (
+        "Call when the user asks what is wrong or what this CLI can do. "
+        "Do not call as a prelude to every mutation."
+    ),
+    "initialize": (
+        "Call on first run, or when the user says ai-stp is missing from this harness. "
+        "Do not call as a prelude to every coding request. "
+        "provider-too-old is not login: report it and stop; do not start account."
+    ),
+    "install": (
+        "Call when the user wants a catalog or local setup on a target. "
+        "Do not choreograph plan, approve, or apply yourself."
+    ),
+    "change": (
+        "Call when the user wants to add or remove a member of a saved setup. "
+        "Do not compose in place and do not type setup compose plan or apply."
+    ),
+    "author": (
+        "Call when the user wants to register a local directory as a component. "
+        "Do not type component adopt, component scaffold, or setup compose apply."
+    ),
+    "switch": (
+        "Call when the user wants the last working user config back. "
+        "Do not type setup restore plan or setup preserve plan, and do not kill the caller."
+    ),
+    "account": (
+        "Call when the user says sign in, sign out, or explicitly sync. "
+        "Login never uploads. Do not type auth login or auth complete. "
+        "Do not call for provider-too-old."
+    ),
+    "publish": (
+        "Call when the user wants to publish a local object. "
+        "Do not type publication plan or publication confirm, and do not invent git provenance."
+    ),
+}
 
 
 def capabilities() -> Capabilities:
@@ -118,6 +141,54 @@ def orientation() -> TaskOrientation:
     )
 
 
+def _unwrap_optional(annotation: object) -> object:
+    """`X | None` → `X`; anything else passes through."""
+    if get_origin(annotation) in (Union, UnionType):
+        non_none = [item for item in get_args(annotation) if item is not type(None)]
+        if len(non_none) == 1 and len(get_args(annotation)) == 2:
+            return non_none[0]
+    return annotation
+
+
+def _unwrap_alias(annotation: object) -> object:
+    """`HarnessId`-style PEP-695 aliases → their `Literal[...]` value."""
+    while isinstance(annotation, TypeAliasType):
+        annotation = annotation.__value__
+    return annotation
+
+
+def input_fields(model: type[BaseModel]) -> list[TaskInputField]:
+    """Flatten one intent input model into the catalog's field list.
+
+    `schema_version` is an envelope property, not a fact the caller supplies,
+    so it is skipped. Everything else is reported with its closed choice set
+    when the field is a `Literal`, so an agent reads valid values without a
+    second schema fetch.
+    """
+    fields: list[TaskInputField] = []
+    for name, info in model.model_fields.items():
+        if name == "schema_version":
+            continue
+        annotation = _unwrap_alias(_unwrap_optional(info.annotation))
+        value_type: ParameterType = "string"
+        choices: list[str] = []
+        if get_origin(annotation) is Literal:
+            choices = sorted(str(item) for item in get_args(annotation))
+        elif annotation is bool:
+            value_type = "boolean"
+        elif annotation is int:
+            value_type = "integer"
+        fields.append(
+            TaskInputField(
+                name=name,
+                required=info.is_required(),
+                value_type=value_type,
+                choices=choices,
+            )
+        )
+    return fields
+
+
 def intent_catalog() -> TaskIntentsCatalog:
     """Shipped intents only. Unknown names are not advertised."""
     from ai_stp_cli.registry import registry_digest
@@ -127,45 +198,12 @@ def intent_catalog() -> TaskIntentsCatalog:
         registry_digest=registry_digest(),
         intents=[
             TaskIntentDescriptor(
-                name="inspect",
-                when=INSPECT_WHEN,
-                input_schema=INSPECT_INPUT_SCHEMA,
-            ),
-            TaskIntentDescriptor(
-                name="initialize",
-                when=INITIALIZE_WHEN,
-                input_schema=INITIALIZE_INPUT_SCHEMA,
-            ),
-            TaskIntentDescriptor(
-                name="install",
-                when=INSTALL_WHEN,
-                input_schema=INSTALL_INPUT_SCHEMA,
-            ),
-            TaskIntentDescriptor(
-                name="change",
-                when=CHANGE_WHEN,
-                input_schema=CHANGE_INPUT_SCHEMA,
-            ),
-            TaskIntentDescriptor(
-                name="author",
-                when=AUTHOR_WHEN,
-                input_schema=AUTHOR_INPUT_SCHEMA,
-            ),
-            TaskIntentDescriptor(
-                name="switch",
-                when=SWITCH_WHEN,
-                input_schema=SWITCH_INPUT_SCHEMA,
-            ),
-            TaskIntentDescriptor(
-                name="account",
-                when=ACCOUNT_WHEN,
-                input_schema=ACCOUNT_INPUT_SCHEMA,
-            ),
-            TaskIntentDescriptor(
-                name="publish",
-                when=PUBLISH_WHEN,
-                input_schema=PUBLISH_INPUT_SCHEMA,
-            ),
+                name=name,
+                when=INTENT_WHEN[name],
+                input_schema=schema_id(f"cli-task-input-{name}"),
+                input_fields=input_fields(INTENT_INPUT_MODELS[name]),
+            )
+            for name in SHIPPED_INTENT_NAMES
         ],
     )
 

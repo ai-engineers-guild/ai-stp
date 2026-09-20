@@ -1,0 +1,57 @@
+{
+  "$defs": {
+    "CliSchemaEntry": {
+      "additionalProperties": true,
+      "description": "One exported schema id this build resolves.",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "urn": {
+          "minLength": 1,
+          "title": "Urn",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "urn"
+      ],
+      "title": "CliSchemaEntry",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-schema-index",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Every exported schema id this build resolves.\n\n`input_schema` and `result_schema` URNs inside machine payloads name\nentries in this index; `schema show` resolves one id to its document, so\nevery URN the CLI emits is answerable through the CLI itself.",
+  "properties": {
+    "cli_version": {
+      "minLength": 1,
+      "title": "Cli Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "schemas": {
+      "items": {
+        "$ref": "#/$defs/CliSchemaEntry"
+      },
+      "title": "Schemas",
+      "type": "array"
+    }
+  },
+  "required": [
+    "cli_version",
+    "schema_version",
+    "schemas"
+  ],
+  "title": "CliSchemaIndex",
+  "type": "object"
+}

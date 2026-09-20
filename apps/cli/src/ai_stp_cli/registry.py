@@ -831,6 +831,28 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("task intents --json",),
     ),
     Declaration(
+        path=["schema", "list"],
+        summary="List every exported schema id this build resolves.",
+        result_schema="urn:ai-stp:schema:v1:cli-schema-index",
+        handler="machine_help:schema_list",
+        next_actions=("schema show --id cli-task-intents --json",),
+    ),
+    Declaration(
+        path=["schema", "show"],
+        summary="Resolve one schema id, URN or generated file name to its JSON Schema.",
+        result_schema="urn:ai-stp:schema:v1:cli-schema-document",
+        handler="machine_help:schema_show",
+        parameters=(
+            option(
+                "id",
+                "string",
+                "Schema name, urn:ai-stp:schema:v1:… URN, or *.schema.json file name.",
+                required=True,
+            ),
+        ),
+        next_actions=("schema list --json",),
+    ),
+    Declaration(
         path=["contract", "inventory"],
         summary="List the coordinated standard family and every other contract axis.",
         result_schema="urn:ai-stp:schema:v1:cli-standard-inventory",
@@ -1698,6 +1720,12 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Return only the commands under this path, e.g. 'project sync'. "
                 "Omitted, the whole registry. The answer always names the build "
                 "it describes, so a scoped read stays comparable to a full one.",
+            ),
+            option(
+                "find",
+                "string",
+                "Keep only commands whose path or summary mentions this text, "
+                "within the --path scope when both are given.",
             ),
         ),
         next_actions=("help --path capabilities --json",),
@@ -4122,7 +4150,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 ),
             ),
             option("idempotency-key", "string", "Stable key for this exact intent.", required=True),
-            option("input", "string", "JSON object file, or - for stdin."),
+            option("input", "string", "JSON or YAML object file, or - for stdin."),
         ),
         next_actions=("help --path task --json",),
     ),
@@ -4137,7 +4165,7 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
             option("revision", "integer", "Revision this answer is based on.", required=True),
             option("question-id", "string", "Open question this answer belongs to."),
             option("value", "string", "Answer value."),
-            option("input", "string", "JSON object file, or - for stdin."),
+            option("input", "string", "JSON or YAML object file, or - for stdin."),
         ),
         next_actions=("help --path task --json",),
     ),

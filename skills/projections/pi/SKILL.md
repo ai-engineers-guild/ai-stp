@@ -28,7 +28,11 @@ not type `ai-stp`. Do not start `account`.
 
 1. Run `ai-stp task intents --json` and pick one shipped intent. If the
    executable is missing, follow [bootstrap](references/bootstrap.md).
-2. Call `ai-stp task start` for that intent.
+2. Call `ai-stp task start` for that intent. The descriptor's `input_fields`
+   names every field `--input` accepts; `--input` is a JSON or YAML object
+   file or `-` for stdin. `schema show --id <input_schema>` resolves the full
+   JSON Schema when a field's shape is unclear, and a validation refusal's
+   `details.fields` names the rejected field.
    `envelope.continuations[0].actor` is a JSON field, not the user's identity.
    When that field is `cli`, execute `argv` with your tools. When it is
    `human`, do not execute that `argv` as printed (the value is missing on

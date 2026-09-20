@@ -29,7 +29,11 @@ Native surface for this harness: Plugin/Skill and explicit import through `CLAUD
 
 1. Выполните `ai-stp task intents --json` и выберите один shipped intent. Если
    исполняемый файл не найден, откройте [bootstrap](references/bootstrap.md).
-2. Вызовите `ai-stp task start` для этого intent.
+2. Вызовите `ai-stp task start` для этого intent. `input_fields` дескриптора
+   называет все поля, которые принимает `--input`; `--input` — файл с JSON-
+   или YAML-объектом либо `-` для stdin. `schema show --id <input_schema>`
+   резолвит полную JSON Schema, когда форма поля неясна, а отказ валидации
+   в `details.fields` называет отвергнутое поле.
    `envelope.continuations[0].actor` — JSON-поле, а не личность пользователя.
    Когда поле `cli`, исполните `argv` своими tools. Когда `human`, этот
    `argv` как напечатан не исполняйте (value нарочно отсутствует). Сразу

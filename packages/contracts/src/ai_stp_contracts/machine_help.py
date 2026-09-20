@@ -219,6 +219,42 @@ class Capabilities(BaseModel):
     command_paths: Annotated[list[str], Field(min_length=1)]
 
 
+class CliSchemaEntry(BaseModel):
+    """One exported schema id this build resolves."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    name: Annotated[str, Field(min_length=1)]
+    urn: Annotated[str, Field(min_length=1)]
+
+
+class CliSchemaIndex(BaseModel):
+    """Every exported schema id this build resolves.
+
+    `input_schema` and `result_schema` URNs inside machine payloads name
+    entries in this index; `schema show` resolves one id to its document, so
+    every URN the CLI emits is answerable through the CLI itself.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    cli_version: Annotated[str, Field(min_length=1)]
+    schemas: list[CliSchemaEntry]
+
+
+class CliSchemaDocument(BaseModel):
+    """One exported schema resolved to its JSON Schema document."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    cli_version: Annotated[str, Field(min_length=1)]
+    name: Annotated[str, Field(min_length=1)]
+    urn: Annotated[str, Field(min_length=1)]
+    document: dict[str, JsonValue]
+
+
 class SyncPreview(BaseModel):
     """A read-only decision over the local heads of one syncable entity."""
 
@@ -468,6 +504,24 @@ class TaskPublishInput(BaseModel):
     provider: Literal["google", "github"] | None = None
 
 
+class TaskInputField(BaseModel):
+    """One field of one intent's `--input` document, flattened for callers.
+
+    `input_schema` names the authoritative JSON Schema, resolvable through
+    `schema show`; this flat list exists so choosing an intent takes one call,
+    not two. It is derived from the same model, so the two cannot disagree.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
+    required: bool
+    value_type: ParameterType
+    #: Closed value set when the field is an enum, e.g. `action` on account.
+    #: Empty means the value is free-form.
+    choices: list[str] = []
+
+
 class TaskIntentDescriptor(BaseModel):
     """One shipped intent the Skill may start."""
 
@@ -476,6 +530,7 @@ class TaskIntentDescriptor(BaseModel):
     name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
     when: Annotated[str, Field(min_length=1)]
     input_schema: Annotated[str, Field(min_length=1)]
+    input_fields: list[TaskInputField]
 
 
 class TaskIntentsCatalog(BaseModel):
