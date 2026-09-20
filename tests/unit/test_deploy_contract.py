@@ -14,6 +14,7 @@ import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 from deploy import verify_public
@@ -93,6 +94,12 @@ def test_the_deploy_workflow_keeps_the_guarantees_it_inherited() -> None:
     assert "--docs-origin" in workflow
     assert "vars.AI_STP_DOCS_ORIGIN" in workflow
     assert 'test -n "${DOCS_ORIGIN}"' in workflow
+
+    runbook = Path("docs/operations/runbooks/deploy.md").read_text(encoding="utf-8")
+    assert "AI_STP_PUBLIC_ORIGIN" in runbook
+    assert "AI_STP_DOCS_ORIGIN" in runbook
+    assert "AI_STP_CATALOG_CURSOR_SIGNING_SECRET" in runbook
+    assert "AI_STP_CATALOG_CURSOR_SECRET" not in runbook
 
     # A deployment interrupted between transfer and health check leaves a state
     # no verdict describes.
@@ -643,8 +650,10 @@ def test_a_deploy_overtaken_by_a_newer_one_is_not_a_failure() -> None:
     )
 
     # A docs host that does not serve is a deployment defect, not a detail.
+    # Match the request host, not a URL prefix: `startswith("https://docs.nddev.asia")`
+    # also matches `https://docs.nddev.asia.evil.com`.
     def docs_broken(url: str, _limit: int) -> tuple[int, bytes]:
-        if url.startswith("https://docs.nddev.asia"):
+        if urlsplit(url).hostname == "docs.nddev.asia":
             return 503, b""
         return fetch(url, _limit)
 
@@ -658,6 +667,25 @@ def test_a_deploy_overtaken_by_a_newer_one_is_not_a_failure() -> None:
             fetch=docs_broken,
             commit_accepted=lambda deployed: deployed == newer,
         )
+
+    # The same prefix would have 503'd a lookalike host. Production fetches the
+    # origin it is given; the stub must not treat another hostname as docs.
+    def lookalike_docs(url: str, _limit: int) -> tuple[int, bytes]:
+        if urlsplit(url).hostname == "docs.nddev.asia":
+            raise AssertionError(f"docs probe leaked onto {url}")
+        if urlsplit(url).hostname == "docs.nddev.asia.evil.com":
+            return 200, b"docs"
+        return fetch(url, _limit)
+
+    verify_public.verify(
+        "https://nddev.asia",
+        expected_commit=older,
+        expected_schema="0005",
+        expected_environment="prod",
+        docs_origin="https://docs.nddev.asia.evil.com",
+        fetch=lookalike_docs,
+        commit_accepted=lambda deployed: deployed == newer,
+    )
 
     # Unrelated is still a failure, and the default is still exact equality.
     with pytest.raises(verify_public.VerificationError, match="deployed git_commit"):

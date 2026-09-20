@@ -1,6 +1,6 @@
 ---
 description: "Runbook: reproducible deployment with a web tier, backups, and rollback."
-last_verified: "2026-08-29"
+last_verified: "2026-09-20"
 ---
 
 # Staging deployment
@@ -15,7 +15,7 @@ or this runbook—only variable names and commands do.
    (util-linux), and access to the repository clone.
 2. Copy `.env.prod.example` → `.env.prod` and fill in the actual secrets
    (at least 32 characters for `AI_STP_SESSION_SECRET` and
-   `AI_STP_CATALOG_CURSOR_SECRET`). The file is gitignored.
+   `AI_STP_CATALOG_CURSOR_SIGNING_SECRET`). The file is gitignored.
 3. Set `AI_STP_PUBLIC_HOST` to the public name of the deployment host (for ACME), or
    leave `localhost` for a local rehearsal.
 4. Pin the target commit: `git checkout <commit>` and
@@ -87,8 +87,10 @@ commits in `releases/`: otherwise, the full archive of every SHA accumulates wit
 
 It follows that the deployment owns neither an SSH key, nor a host address,
 nor a pinned `known_hosts`: the connection that required them no longer exists.
-The only value the workflow takes from the repository is the
-`AI_STP_PUBLIC_ORIGIN` variable, an input to `deploy/verify_public.py`.
+The only values the workflow takes from the repository are the
+`AI_STP_PUBLIC_ORIGIN` and `AI_STP_DOCS_ORIGIN` variables, inputs to
+`deploy/verify_public.py` — one bare HTTPS origin per published site, and an
+unset variable fails the job rather than skipping a published service.
 
 The separation of trust domains from `ADR-0046` rests on three assertions:
 
