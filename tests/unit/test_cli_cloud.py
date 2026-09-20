@@ -1,4 +1,11 @@
-"""The cloud boundary, driven entirely by the `#71` mock: no server exists yet."""
+"""The cloud client boundary: wire cases, retry/pacing rules, local session state.
+
+The sign-in journey lives in `tests/api/cli/test_device_sign_in.py` and the
+account drain in `tests/api/cli/test_account_tasks.py` — both against the real
+`/v1` app. Here the `#71` corpus remains what `#75` built it for: wire examples
+a client must accept or refuse, plus the local credential/session rules that
+never needed a server.
+"""
 
 import dataclasses
 import json
