@@ -106,6 +106,8 @@ from ai_stp_contracts.context import (
     ProviderProjectObservationRequest,
 )
 from ai_stp_contracts.corporate import (
+    CorporateAssignmentPlan,
+    CorporateAssignmentPlanRequest,
     CorporateAuditEntry,
     CorporateAuditExport,
     CorporateAuditList,
@@ -628,6 +630,8 @@ HTTP_MODELS: Final[dict[str, ExportedSchema]] = {
     "corporate-distribution-result": CorporateDistributionResult,
     "corporate-distribution-state-list": CorporateDistributionStateList,
     "corporate-distribution-state-query": CorporateDistributionStateQuery,
+    "corporate-assignment-plan": CorporateAssignmentPlan,
+    "corporate-assignment-plan-request": CorporateAssignmentPlanRequest,
     "corporate-membership-assignment": CorporateMembershipAssignment,
     "corporate-membership-assignment-request": CorporateMembershipAssignmentRequest,
     "corporate-member-update-request": CorporateMemberUpdateRequest,

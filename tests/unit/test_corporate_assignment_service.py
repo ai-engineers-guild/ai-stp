@@ -8,12 +8,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ai_stp_api.errors import ApiError
+from ai_stp_api.errors import ApiError, ErrorCategory
 from ai_stp_api.slices.corporate import assignments, service
 from ai_stp_contracts.corporate import (
+    CorporateAssignmentPlanRequest,
     CorporateCatalogAssignmentQuery,
     CorporateCatalogAssignmentRequest,
     CorporateDistributionRequest,
+    CorporatePlanMaterializedItem,
 )
 from ai_stp_foundation.ids import new_id
 
@@ -110,6 +112,7 @@ def _source(**overrides: object) -> SimpleNamespace:
         "stable_id": new_id("setup"),
         "selector": "exact",
         "version": "1.0",
+        "passport_digest": None,
         "harness": None,
         "state": "current",
         "revision": 1,
@@ -484,3 +487,193 @@ async def test_distribution_denies_unauthorized_targets(
     assert result.counts.denied == 1
     assert result.targets[0].result == "denied"
     assert result.targets[0].state is None
+
+
+def _plan_request(**overrides: object) -> CorporateAssignmentPlanRequest:
+    base: dict[str, object] = {
+        "account_id": new_id("account"),
+        "harness": "claude-code",
+    }
+    base.update(overrides)
+    return CorporateAssignmentPlanRequest.model_validate(base)
+
+
+def _scalars(items: list[object]) -> SimpleNamespace:
+    return SimpleNamespace(all=lambda: items)
+
+
+async def _run_plan(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    rows: list[object],
+    teams: list[object] | None = None,
+    eligible: dict[str, list[tuple[str, str]]] | None = None,
+    payload: CorporateAssignmentPlanRequest,
+):
+    monkeypatch.setattr(service, "read_member", AsyncMock())
+    db = AsyncMock()
+    db.scalars.side_effect = [_scalars(list(teams or [])), _scalars(list(rows))]
+    versions = dict(eligible or {})
+
+    def _by_line(
+        _db: object, *, object_kind: str, stable_id: str, account_id: str
+    ) -> list[tuple[str, str]]:
+        return list(versions.get(stable_id, []))
+
+    monkeypatch.setattr(assignments, "_eligible_versions", AsyncMock(side_effect=_by_line))
+    monkeypatch.setattr(assignments, "get_visible_metadata", AsyncMock(return_value=None))
+    organization_id = new_id("organization")
+    result = await assignments.plan_assignments(
+        db,
+        ctx=SimpleNamespace(account_id=new_id("account")),
+        organization_id=organization_id,
+        payload=payload,
+        request_id=None,
+    )
+    return result, organization_id
+
+
+@pytest.mark.asyncio
+async def test_plan_classifies_outdated_install_and_remove(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup_id = new_id("setup")
+    component_id = new_id("component")
+    rows = [
+        _source(
+            stable_id=setup_id,
+            version="2.0",
+            passport_digest="sha256:" + "1" * 64,
+        ),
+        _source(stable_id=component_id, object_kind="component", version="1.0"),
+    ]
+    materialized = [
+        CorporatePlanMaterializedItem(object_kind="setup", stable_id=setup_id, version="1.0"),
+        CorporatePlanMaterializedItem(
+            object_kind="component", stable_id=new_id("component"), version="3.0"
+        ),
+    ]
+    result, _ = await _run_plan(
+        monkeypatch,
+        rows=rows,
+        eligible={
+            setup_id: [("1.0", "sha256:" + "0" * 64), ("2.0", "sha256:" + "1" * 64)],
+            component_id: [("1.0", "sha256:" + "0" * 64)],
+        },
+        payload=_plan_request(materialized=materialized),
+    )
+    assert result.total == 3
+    keys = {(item.object_kind, item.stable_id): item for item in result.items}
+    assigned = keys[("setup", setup_id)]
+    assert assigned.outcome == "outdated"
+    assert assigned.action == "update"
+    assert assigned.version == "2.0"
+    assert assigned.passport_digest == "sha256:" + "1" * 64
+    assert assigned.installed_version == "1.0"
+    assert assigned.source_scope == "organization"
+    missing = keys[("component", component_id)]
+    assert missing.outcome == "missing"
+    assert missing.action == "install"
+    foreign = keys[("component", materialized[1].stable_id)]
+    assert foreign.state == "unassigned"
+    assert foreign.outcome == "unassigned"
+    assert foreign.action == "remove"
+    assert foreign.installed_version == "3.0"
+
+
+@pytest.mark.asyncio
+async def test_plan_reports_installed_revoked_and_unsupported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    account = new_id("account")
+    installed_id = new_id("setup")
+    revoked_id = new_id("setup")
+    unsupported_id = new_id("setup")
+    rows = [
+        _source(
+            stable_id=installed_id,
+            version="1.0",
+            passport_digest="sha256:" + "2" * 64,
+        ),
+        _source(
+            stable_id=revoked_id,
+            account_id=account,
+            state="retired",
+            version="1.0",
+            passport_digest="sha256:" + "3" * 64,
+        ),
+        _source(stable_id=unsupported_id, selector="latest", version=None),
+    ]
+    materialized = [
+        CorporatePlanMaterializedItem(
+            object_kind="setup",
+            stable_id=installed_id,
+            version="1.0",
+            passport_digest="sha256:" + "2" * 64,
+        ),
+        CorporatePlanMaterializedItem(object_kind="setup", stable_id=revoked_id, version="1.0"),
+    ]
+    result, _ = await _run_plan(
+        monkeypatch,
+        rows=rows,
+        eligible={installed_id: [("1.0", "sha256:" + "2" * 64)]},
+        payload=_plan_request(account_id=account, materialized=materialized),
+    )
+    keys = {(item.object_kind, item.stable_id): item for item in result.items}
+    current = keys[("setup", installed_id)]
+    assert current.outcome == "installed"
+    assert current.action == "none"
+    revoked = keys[("setup", revoked_id)]
+    assert revoked.state == "revoked"
+    assert revoked.outcome == "revoked"
+    assert revoked.action == "remove"
+    unsupported = keys[("setup", unsupported_id)]
+    assert unsupported.state == "assigned"
+    assert unsupported.outcome == "unsupported"
+    assert unsupported.action == "none"
+    assert unsupported.version is None
+    assert unsupported.diagnostic is not None
+
+
+@pytest.mark.asyncio
+async def test_plan_is_deterministic_and_sorted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rows = [
+        _source(stable_id=new_id("setup"), version="2.0"),
+        _source(stable_id=new_id("component"), object_kind="component", version="1.0"),
+    ]
+    payload = _plan_request()
+    digest = "sha256:" + "4" * 64
+    eligible = {row.stable_id: [("1.0", digest), ("2.0", digest)] for row in rows}
+    first, organization_id = await _run_plan(
+        monkeypatch, rows=rows, eligible=eligible, payload=payload
+    )
+    second, _ = await _run_plan(monkeypatch, rows=rows, eligible=eligible, payload=payload)
+    assert [item.model_dump(mode="json") for item in first.items] == [
+        item.model_dump(mode="json") for item in second.items
+    ]
+    ordering = [(item.object_kind, item.stable_id) for item in first.items]
+    assert ordering == sorted(ordering)
+    assert first.organization_id == organization_id
+
+
+@pytest.mark.asyncio
+async def test_plan_requires_member_authorization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        service,
+        "read_member",
+        AsyncMock(side_effect=ApiError(ErrorCategory.PERMISSION, "denied")),
+    )
+    db = AsyncMock()
+    with pytest.raises(ApiError, match="denied"):
+        await assignments.plan_assignments(
+            db,
+            ctx=SimpleNamespace(account_id=new_id("account")),
+            organization_id=new_id("organization"),
+            payload=_plan_request(),
+            request_id=None,
+        )
+    db.scalars.assert_not_called()

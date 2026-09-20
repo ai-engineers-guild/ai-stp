@@ -5,7 +5,7 @@ last_verified: "2026-09-19"
 
 # ADR-0195: Bulk corporate distribution
 
-Status: accepted. Extends ADR-0194.
+Status: accepted. Extends ADR-0194; extended by ADR-0196.
 
 ## Context
 

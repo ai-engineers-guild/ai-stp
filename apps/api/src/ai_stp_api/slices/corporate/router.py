@@ -24,6 +24,8 @@ from ai_stp_api.slices.corporate import (
 from ai_stp_api.slices.corporate.profile_router import router as profile_router
 from ai_stp_contracts.corporate import (
     AccountId,
+    CorporateAssignmentPlan,
+    CorporateAssignmentPlanRequest,
     CorporateAuditExport,
     CorporateAuditList,
     CorporateBinding,
@@ -285,6 +287,26 @@ async def list_catalog_assignment_distribution(
 ) -> CorporateDistributionStateList:
     return await assignments.list_distribution(
         db, ctx=ctx, organization_id=organization_id, query=query, request_id=_request_id(request)
+    )
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/catalog-assignments/plan",
+    response_model=CorporateAssignmentPlan,
+)
+async def plan_catalog_assignments(
+    organization_id: str,
+    payload: CorporateAssignmentPlanRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateAssignmentPlan:
+    return await assignments.plan_assignments(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=_request_id(request),
     )
 
 

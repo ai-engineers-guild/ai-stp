@@ -444,6 +444,7 @@ export async function readCorporateCatalogAssignments(
 
 export {
   distributeCorporateAssignment,
+  planCorporateAssignment,
   readCorporateAssignmentDistribution,
   readEffectiveCorporateAssignment,
 } from "./corporate-distribution";

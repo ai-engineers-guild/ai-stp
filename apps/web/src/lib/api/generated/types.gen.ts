@@ -1914,6 +1914,153 @@ export const ContinuationActor = {
 export type ContinuationActor = (typeof ContinuationActor)[keyof typeof ContinuationActor];
 
 /**
+ * CorporateAssignmentPlan
+ *
+ * The deterministic install/update plan for one context (ADR-0196).
+ *
+ * Items are sorted by object kind and stable identity; the response carries
+ * no wall-clock field so identical policy and materialized inputs produce an
+ * identical plan.
+ */
+export type CorporateAssignmentPlan = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  harness: HarnessId;
+  /**
+   * Items
+   */
+  items: Array<CorporateAssignmentPlanItem>;
+  /**
+   * Organization Id
+   */
+  organization_id: string;
+  /**
+   * Project Id
+   */
+  project_id: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version: 1;
+  /**
+   * Technology Id
+   */
+  technology_id: string | null;
+  /**
+   * Total
+   */
+  total: number;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateAssignmentPlanItem
+ *
+ * One catalog line's effective assignment and the planned action.
+ */
+export type CorporateAssignmentPlanItem = {
+  /**
+   * Action
+   */
+  action: "install" | "update" | "remove" | "none";
+  /**
+   * Assignment Id
+   */
+  assignment_id: string | null;
+  /**
+   * Candidates
+   */
+  candidates: Array<CorporateEffectiveAssignmentCandidate>;
+  /**
+   * Diagnostic
+   */
+  diagnostic: string | null;
+  harness: HarnessId | null;
+  /**
+   * Installed Passport Digest
+   */
+  installed_passport_digest: string | null;
+  /**
+   * Installed Version
+   */
+  installed_version: string | null;
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Outcome
+   */
+  outcome:
+    "missing" | "installed" | "outdated" | "revoked" | "unassigned" | "unsupported" | "conflicting";
+  /**
+   * Passport Digest
+   */
+  passport_digest: string | null;
+  /**
+   * Selector
+   */
+  selector: "exact" | "latest" | null;
+  /**
+   * Source Scope
+   */
+  source_scope: "employee" | "team" | "project" | "technology" | "organization" | null;
+  /**
+   * Source Subject Id
+   */
+  source_subject_id: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * State
+   */
+  state: "assigned" | "revoked" | "unassigned";
+  /**
+   * Version
+   */
+  version: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CorporateAssignmentPlanRequest
+ *
+ * Evaluate the deterministic install/update plan for one context (ADR-0196).
+ *
+ * The request names the authenticated employee context, the optional project
+ * and technology coordinates, the target harness, and the exact coordinates
+ * the caller reports as materialized. It never mutates assignments,
+ * distribution rows, or provider-owned state.
+ */
+export type CorporateAssignmentPlanRequest = {
+  /**
+   * Account Id
+   */
+  account_id: string;
+  harness: HarnessId;
+  /**
+   * Materialized
+   */
+  materialized?: Array<CorporatePlanMaterializedItem>;
+  /**
+   * Project Id
+   */
+  project_id?: string | null;
+  /**
+   * Schema Version
+   */
+  schema_version?: 1;
+  /**
+   * Technology Id
+   */
+  technology_id?: string | null;
+};
+
+/**
  * CorporateAuditEntry
  */
 export type CorporateAuditEntry = {
@@ -4059,6 +4206,30 @@ export type CorporatePermissionMatrix = {
    */
   schema_version: 1;
   [key: string]: unknown;
+};
+
+/**
+ * CorporatePlanMaterializedItem
+ *
+ * One exact coordinate the caller reports as currently materialized.
+ */
+export type CorporatePlanMaterializedItem = {
+  /**
+   * Object Kind
+   */
+  object_kind: "setup" | "component";
+  /**
+   * Passport Digest
+   */
+  passport_digest?: string | null;
+  /**
+   * Stable Id
+   */
+  stable_id: string;
+  /**
+   * Version
+   */
+  version: string;
 };
 
 /**
@@ -15624,6 +15795,64 @@ export type ReadCorporateEffectiveAssignmentResponses = {
 
 export type ReadCorporateEffectiveAssignmentResponse =
   ReadCorporateEffectiveAssignmentResponses[keyof ReadCorporateEffectiveAssignmentResponses];
+
+export type PlanCorporateAssignmentData = {
+  body: CorporateAssignmentPlanRequest;
+  headers?: {
+    /**
+     * Wire major the client speaks. An unknown one fails typed.
+     */
+    "X-AI-STP-Schema-Version"?: 1;
+  };
+  path: {
+    /**
+     * Explicit remote organization selected for this request.
+     */
+    organization_id: string;
+  };
+  query?: never;
+  url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/plan";
+};
+
+export type PlanCorporateAssignmentErrors = {
+  /**
+   * Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.
+   */
+  400: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.
+   */
+  401: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.
+   */
+  403: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_RATE_LIMITED.
+   */
+  429: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_INTERNAL.
+   */
+  500: ErrorEnvelope;
+  /**
+   * Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.
+   */
+  503: ErrorEnvelope;
+};
+
+export type PlanCorporateAssignmentError =
+  PlanCorporateAssignmentErrors[keyof PlanCorporateAssignmentErrors];
+
+export type PlanCorporateAssignmentResponses = {
+  /**
+   * Evaluate the deterministic install/update plan for one employee context, target harness, and reported materialized state.
+   */
+  200: CorporateAssignmentPlan;
+};
+
+export type PlanCorporateAssignmentResponse =
+  PlanCorporateAssignmentResponses[keyof PlanCorporateAssignmentResponses];
 
 export type WriteCorporateCatalogLifecycleData = {
   body: CorporateCatalogLifecycleRequest;

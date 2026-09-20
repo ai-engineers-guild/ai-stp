@@ -1,6 +1,8 @@
 import { apiRequest } from "@/lib/api/http";
 
 import type {
+  CorporateAssignmentPlan,
+  CorporateAssignmentPlanRequest,
   CorporateDistributionRequest,
   CorporateDistributionResult,
   CorporateDistributionStateList,
@@ -68,6 +70,21 @@ export async function readCorporateAssignmentDistribution(
         offset: query.offset === undefined ? undefined : String(query.offset),
         limit: query.limit === undefined ? undefined : String(query.limit),
       },
+    },
+  );
+}
+
+export async function planCorporateAssignment(
+  sessionToken: string,
+  organizationId: string,
+  request: CorporateAssignmentPlanRequest,
+): Promise<CorporateAssignmentPlan> {
+  return apiRequest<CorporateAssignmentPlan>(
+    `/v1/corporate/organizations/${organizationId}/catalog-assignments/plan`,
+    {
+      sessionToken,
+      method: "POST",
+      body: request,
     },
   );
 }

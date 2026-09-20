@@ -107,6 +107,9 @@ from ai_stp_contracts.context import (
     ProviderProjectObservationRequest,
 )
 from ai_stp_contracts.corporate import (
+    CorporateAssignmentPlan,
+    CorporateAssignmentPlanItem,
+    CorporateAssignmentPlanRequest,
     CorporateAuditEntry,
     CorporateAuditExport,
     CorporateAuditList,
@@ -150,6 +153,7 @@ from ai_stp_contracts.corporate import (
     CorporateMemberUpdateRequest,
     CorporateOrganization,
     CorporateOverview,
+    CorporatePlanMaterializedItem,
     CorporateProjectCreateRequest,
     CorporateProjectLifecycleRequest,
     CorporateProjectList,
@@ -1417,6 +1421,19 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         summary=("Read per-target distribution state for one source assignment."),
         response=CorporateDistributionStateList,
         query=CorporateDistributionStateQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/catalog-assignments/plan",
+        operation_id="planCorporateAssignment",
+        summary=(
+            "Evaluate the deterministic install/update plan for one employee "
+            "context, target harness, and reported materialized state."
+        ),
+        response=CorporateAssignmentPlan,
+        body=CorporateAssignmentPlanRequest,
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
     ),
@@ -3133,6 +3150,8 @@ NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
     CorporateDistributionExclusion,
     CorporateDistributionCounts,
     CorporateDistributionState,
+    CorporateAssignmentPlanItem,
+    CorporatePlanMaterializedItem,
 )
 
 

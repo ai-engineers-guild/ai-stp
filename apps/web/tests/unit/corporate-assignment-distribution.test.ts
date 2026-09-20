@@ -15,6 +15,7 @@ const { request } = vi.hoisted(() => ({
 vi.mock("@/lib/api/http", () => ({ apiRequest: request }));
 import {
   distributeCorporateAssignment,
+  planCorporateAssignment,
   readCorporateAssignmentDistribution,
 } from "@/lib/api/corporate";
 
@@ -117,4 +118,46 @@ it("omits optional pagination when it is not supplied", async () => {
     source_assignment_id: sourceId,
   });
   expect(result.total).toBe(0);
+});
+
+it("posts the plan request to the shared contract route", async () => {
+  request.mockImplementation((path, options) => {
+    expect(path).toBe(`/v1/corporate/organizations/${organizationId}/catalog-assignments/plan`);
+    expect(options?.method).toBe("POST");
+    expect(options?.body).toMatchObject({
+      account_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      harness: "claude-code",
+      materialized: [
+        { object_kind: "setup", stable_id: "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z", version: "1.0" },
+      ],
+    });
+    return {
+      schema_version: 1,
+      organization_id: organizationId,
+      account_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+      harness: "claude-code",
+      items: [
+        {
+          object_kind: "setup",
+          stable_id: "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+          state: "assigned",
+          outcome: "installed",
+          action: "none",
+          version: "1.0",
+          installed_version: "1.0",
+        },
+      ],
+      total: 1,
+    };
+  });
+  const result = await planCorporateAssignment("session", organizationId, {
+    schema_version: 1,
+    account_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+    harness: "claude-code",
+    materialized: [
+      { object_kind: "setup", stable_id: "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z", version: "1.0" },
+    ],
+  });
+  expect(result.total).toBe(1);
+  expect(result.items[0]?.outcome).toBe("installed");
 });

@@ -751,6 +751,47 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path corporate --json",),
     ),
     Declaration(
+        path=["corporate", "assignment", "plan"],
+        summary=(
+            "Evaluate the deterministic corporate install/update plan for the "
+            "authenticated context, target harness, and reported materialized "
+            "state. Plans are exact and write nothing; install consumes them."
+        ),
+        result_schema="urn:ai-stp:schema:v1:corporate-assignment-plan",
+        handler="corporate:plan",
+        mutability="plan",
+        parameters=(
+            option("organization", "string", "Organization identifier.", required=True),
+            option(
+                "account",
+                "string",
+                "Employee account identifier. Defaults to the signed-in account.",
+            ),
+            option(
+                "harness",
+                "string",
+                "Target harness the plan is evaluated for.",
+                required=True,
+                choices=tuple(sorted(HARNESS_IDS)),
+            ),
+            option("project", "string", "Corporate project context."),
+            option("technology", "string", "Corporate technology context."),
+            option(
+                "local-project",
+                "string",
+                "Local project identifier whose provider-verified target state "
+                "is reported as materialized.",
+            ),
+            option(
+                "materialized",
+                "string",
+                "Reported materialized coordinate as <kind>:<stable_id>@<version>.",
+                repeatable=True,
+            ),
+        ),
+        next_actions=("help --path corporate --json", "help --path install --json"),
+    ),
+    Declaration(
         path=["report", "preview"],
         summary="Prepare and show the exact bounded report payload without sending it.",
         result_schema="urn:ai-stp:schema:v1:cli-report-preview",

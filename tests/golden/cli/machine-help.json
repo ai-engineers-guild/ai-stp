@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:f75ebfee03a4e2fb728abcaac3197f8fc051cf136325c764d229327580809dde",
+  "registry_digest": "sha256:e22df71c4429fd95d9950b294ea09bf4072dc29564aada92687715fb8a8518f1",
   "global_options": [
     {
       "name": "json",
@@ -2357,6 +2357,95 @@
       "result_schema": "urn:ai-stp:schema:v1:corporate-effective-assignment",
       "next_actions": [
         "help --path corporate --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "plan"
+      ],
+      "summary": "Evaluate the deterministic corporate install/update plan for the authenticated context, target harness, and reported materialized state. Plans are exact and write nothing; install consumes them.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "account",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Employee account identifier. Defaults to the signed-in account.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Target harness the plan is evaluated for.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate project context.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate technology context.",
+          "choices": []
+        },
+        {
+          "name": "local-project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Local project identifier whose provider-verified target state is reported as materialized.",
+          "choices": []
+        },
+        {
+          "name": "materialized",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Reported materialized coordinate as <kind>:<stable_id>@<version>.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:corporate-assignment-plan",
+      "next_actions": [
+        "help --path corporate --json",
+        "help --path install --json"
       ]
     },
     {

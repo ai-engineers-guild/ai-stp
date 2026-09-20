@@ -324,6 +324,94 @@ class CorporateDistributionStateList(BaseModel):
     total: Annotated[int, Field(ge=0)]
 
 
+PlanAction = Literal["install", "update", "remove", "none"]
+PlanOutcome = Literal[
+    "missing", "installed", "outdated", "revoked", "unassigned", "unsupported", "conflicting"
+]
+
+
+class CorporatePlanMaterializedItem(BaseModel):
+    """One exact coordinate the caller reports as currently materialized."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    object_kind: Literal["setup", "component"]
+    stable_id: Annotated[str, Field(min_length=1, max_length=64)]
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)]
+    passport_digest: DigestValue | None = None
+
+    @model_validator(mode="after")
+    def typed_catalog_identity(self) -> Self:
+        if not re.fullmatch(stable_id_pattern(self.object_kind), self.stable_id):
+            raise ValueError("catalog identity does not match its kind")
+        return self
+
+
+class CorporateAssignmentPlanRequest(BaseModel):
+    """Evaluate the deterministic install/update plan for one context (ADR-0196).
+
+    The request names the authenticated employee context, the optional project
+    and technology coordinates, the target harness, and the exact coordinates
+    the caller reports as materialized. It never mutates assignments,
+    distribution rows, or provider-owned state.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
+    schema_version: Literal[1] = 1
+    account_id: AccountId
+    harness: HarnessId
+    project_id: ProjectId | None = None
+    technology_id: TechnologyId | None = None
+    materialized: Annotated[list[CorporatePlanMaterializedItem], Field(max_length=1024)] = []
+
+    @model_validator(mode="after")
+    def distinct_materialized(self) -> Self:
+        keys = {(item.object_kind, item.stable_id) for item in self.materialized}
+        if len(keys) != len(self.materialized):
+            raise ValueError("materialized coordinates must be distinct per catalog line")
+        return self
+
+
+class CorporateAssignmentPlanItem(BaseModel):
+    """One catalog line's effective assignment and the planned action."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    object_kind: Literal["setup", "component"]
+    stable_id: str
+    state: Literal["assigned", "revoked", "unassigned"]
+    outcome: PlanOutcome
+    action: PlanAction
+    assignment_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    source_scope: AssignmentSubjectKind | None = None
+    source_subject_id: str | None = None
+    selector: AssignmentSelector | None = None
+    version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    passport_digest: DigestValue | None = None
+    harness: HarnessId | None = None
+    installed_version: Annotated[str, Field(pattern=VERSION_PATTERN)] | None = None
+    installed_passport_digest: DigestValue | None = None
+    diagnostic: str | None = None
+    candidates: Annotated[list[CorporateEffectiveAssignmentCandidate], Field(max_length=256)] = []
+
+
+class CorporateAssignmentPlan(BaseModel):
+    """The deterministic install/update plan for one context (ADR-0196).
+
+    Items are sorted by object kind and stable identity; the response carries
+    no wall-clock field so identical policy and materialized inputs produce an
+    identical plan.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+    schema_version: Literal[1] = 1
+    organization_id: OrganizationId
+    account_id: AccountId
+    harness: HarnessId
+    project_id: ProjectId | None = None
+    technology_id: TechnologyId | None = None
+    items: Annotated[list[CorporateAssignmentPlanItem], Field(max_length=1024)] = []
+    total: Annotated[int, Field(ge=0)] = 0
+
+
 class CorporateBootstrapRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
     schema_version: Literal[1] = 1

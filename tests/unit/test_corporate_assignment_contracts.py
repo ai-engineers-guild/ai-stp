@@ -4,6 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from ai_stp_contracts.corporate import (
+    CorporateAssignmentPlan,
+    CorporateAssignmentPlanRequest,
     CorporateCatalogAssignmentRequest,
     CorporateDistributionRequest,
     CorporateDistributionResult,
@@ -255,3 +257,117 @@ def test_distribution_state_query_and_list_are_bounded() -> None:
     )
     assert state.source_state == "retired"
     assert state.items[0].state == "revoked"
+
+
+def _plan_base() -> dict[str, object]:
+    return {
+        "account_id": new_id("account"),
+        "harness": "claude-code",
+    }
+
+
+def test_plan_request_requires_harness_and_typed_materialized() -> None:
+    payload = _plan_base()
+    request = CorporateAssignmentPlanRequest.model_validate(payload)
+    assert request.harness == "claude-code"
+    assert request.materialized == []
+    materialized = {
+        "object_kind": "setup",
+        "stable_id": new_id("setup"),
+        "version": "1.0",
+    }
+    assert (
+        CorporateAssignmentPlanRequest.model_validate({**payload, "materialized": [materialized]})
+        .materialized[0]
+        .version
+        == "1.0"
+    )
+    changes: tuple[dict[str, object], ...] = (
+        {"harness": "vi"},
+        {"account_id": "not-an-account"},
+        {"materialized": [materialized, materialized]},
+        {
+            "materialized": [
+                {
+                    "object_kind": "setup",
+                    "stable_id": materialized["stable_id"],
+                    "version": "latest",
+                }
+            ]
+        },
+        {
+            "materialized": [
+                {
+                    "object_kind": "component",
+                    "stable_id": materialized["stable_id"],
+                    "version": "1.0",
+                }
+            ]
+        },
+        {"install": True},
+    )
+    for change in changes:
+        with pytest.raises(ValidationError):
+            CorporateAssignmentPlanRequest.model_validate({**payload, **change})
+
+
+def test_plan_carries_typed_outcomes_and_exact_coordinates() -> None:
+    plan = CorporateAssignmentPlan.model_validate(
+        {
+            "schema_version": 1,
+            "organization_id": new_id("organization"),
+            "account_id": new_id("account"),
+            "harness": "codex",
+            "items": [
+                {
+                    "object_kind": "setup",
+                    "stable_id": new_id("setup"),
+                    "state": "assigned",
+                    "outcome": "outdated",
+                    "action": "update",
+                    "source_scope": "team",
+                    "source_subject_id": new_id("operation"),
+                    "version": "2.0",
+                    "installed_version": "1.0",
+                },
+                {
+                    "object_kind": "component",
+                    "stable_id": new_id("component"),
+                    "state": "unassigned",
+                    "outcome": "unassigned",
+                    "action": "remove",
+                    "installed_version": "3.0",
+                },
+            ],
+            "total": 2,
+        }
+    )
+    assert plan.items[0].outcome == "outdated"
+    assert plan.items[0].version == "2.0"
+    assert plan.items[1].action == "remove"
+    for changes in (
+        {"outcome": "absent"},
+        {"action": "deploy"},
+        {"version": "latest"},
+        {"state": "current"},
+    ):
+        with pytest.raises(ValidationError):
+            CorporateAssignmentPlan.model_validate(
+                {
+                    "schema_version": 1,
+                    "organization_id": new_id("organization"),
+                    "account_id": new_id("account"),
+                    "harness": "codex",
+                    "items": [
+                        {
+                            "object_kind": "setup",
+                            "stable_id": new_id("setup"),
+                            "state": "assigned",
+                            "outcome": "missing",
+                            "action": "install",
+                            **changes,
+                        }
+                    ],
+                    "total": 1,
+                }
+            )

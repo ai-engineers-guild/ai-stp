@@ -1,8 +1,9 @@
 """Operational catalog assignments never mutate grants or harness state."""
 
+from collections.abc import Sequence
 from typing import Literal, cast
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -15,6 +16,9 @@ from ai_stp_contracts.corporate import (
     AssignmentSelector,
     AssignmentState,
     AssignmentSubjectKind,
+    CorporateAssignmentPlan,
+    CorporateAssignmentPlanItem,
+    CorporateAssignmentPlanRequest,
     CorporateCatalogAssignment,
     CorporateCatalogAssignmentList,
     CorporateCatalogAssignmentQuery,
@@ -33,9 +37,12 @@ from ai_stp_contracts.corporate import (
     CorporateEffectiveAssignment,
     CorporateEffectiveAssignmentCandidate,
     CorporateEffectiveAssignmentQuery,
+    CorporatePlanMaterializedItem,
     DistributionLifecycle,
     DistributionTargetKind,
     DistributionTargetResult,
+    PlanAction,
+    PlanOutcome,
 )
 from ai_stp_foundation.harnesses import HarnessId
 from ai_stp_foundation.ids import new_id
@@ -632,42 +639,9 @@ async def list_usage(
     )
 
 
-async def resolve_effective(
-    db: AsyncSession,
-    *,
-    ctx: AuthContext,
-    organization_id: str,
-    query: CorporateEffectiveAssignmentQuery,
-    request_id: str | None,
-) -> CorporateEffectiveAssignment:
-    """Evaluate the winning assignment for one employee and one catalog line.
-
-    Deterministic order (ADR-0194): employee, project, technology, team,
-    organization; inside one scope a harness-specific assignment outranks an
-    unrestricted one; an explicit employee decision - current or retired -
-    outranks every inherited assignment. `latest` resolves at evaluation time
-    against the employee's eligible catalog versions and never rewrites stored
-    assignments or materialized installations.
-    """
-    await service.read_member(
-        db,
-        ctx=ctx,
-        organization_id=organization_id,
-        account_id=query.account_id,
-        request_id=request_id,
-    )
-    rows = (
-        await db.scalars(
-            select(AssignmentRow)
-            .where(
-                AssignmentRow.organization_id == organization_id,
-                AssignmentRow.object_kind == query.object_kind,
-                AssignmentRow.stable_id == query.stable_id,
-            )
-            .order_by(AssignmentRow.id)
-        )
-    ).all()
-    team_ids = set(
+async def _member_team_ids(db: AsyncSession, *, organization_id: str, account_id: str) -> set[str]:
+    """Active team identities one employee belongs to inside the tenant."""
+    return set(
         (
             await db.scalars(
                 select(CorporateTeamMember.team_id)
@@ -678,12 +652,32 @@ async def resolve_effective(
                 )
                 .where(
                     CorporateTeamMember.organization_id == organization_id,
-                    CorporateTeamMember.account_id == query.account_id,
+                    CorporateTeamMember.account_id == account_id,
                     CorporateTeam.state == "active",
                 )
             )
         ).all()
     )
+
+
+async def _evaluate_assignment_line(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    query: CorporateEffectiveAssignmentQuery,
+    rows: Sequence[AssignmentRow],
+    team_ids: set[str],
+    viewer_account_id: str,
+) -> CorporateEffectiveAssignment:
+    """Evaluate the winning assignment for one employee and one catalog line.
+
+    Deterministic order (ADR-0194): employee, project, technology, team,
+    organization; inside one scope a harness-specific assignment outranks an
+    unrestricted one; an explicit employee decision - current or retired -
+    outranks every inherited assignment. `latest` resolves at evaluation time
+    against the employee's eligible catalog versions and never rewrites stored
+    assignments or materialized installations.
+    """
 
     def applicable(row: AssignmentRow) -> tuple[AssignmentSubjectKind, str] | None:
         kind, identity = _row_scope(row)
@@ -752,7 +746,7 @@ async def resolve_effective(
                     object_kind=query.object_kind,
                     stable_id=query.stable_id,
                     version=winner.version,
-                    account_id=ctx.account_id,
+                    account_id=viewer_account_id,
                 )
                 resolved_digest = None if catalog is None else catalog.passport_digest
 
@@ -799,6 +793,204 @@ async def resolve_effective(
         passport_digest=resolved_digest,
         harness=cast(HarnessId | None, winner.harness) if winner is not None else None,
         candidates=candidates,
+    )
+
+
+async def resolve_effective(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    query: CorporateEffectiveAssignmentQuery,
+    request_id: str | None,
+) -> CorporateEffectiveAssignment:
+    """Authorize the member read and evaluate one catalog line (ADR-0194)."""
+    await service.read_member(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        account_id=query.account_id,
+        request_id=request_id,
+    )
+    rows = (
+        await db.scalars(
+            select(AssignmentRow)
+            .where(
+                AssignmentRow.organization_id == organization_id,
+                AssignmentRow.object_kind == query.object_kind,
+                AssignmentRow.stable_id == query.stable_id,
+            )
+            .order_by(AssignmentRow.id)
+        )
+    ).all()
+    team_ids = await _member_team_ids(
+        db, organization_id=organization_id, account_id=query.account_id
+    )
+    return await _evaluate_assignment_line(
+        db,
+        organization_id=organization_id,
+        query=query,
+        rows=rows,
+        team_ids=team_ids,
+        viewer_account_id=ctx.account_id,
+    )
+
+
+def _plan_item(
+    evaluation: CorporateEffectiveAssignment,
+    *,
+    materialized: CorporatePlanMaterializedItem | None,
+    resolved_version: str | None,
+    resolved_digest: str | None,
+    supported: bool,
+) -> CorporateAssignmentPlanItem:
+    """Classify one evaluated line against the reported materialized state."""
+    outcome: PlanOutcome
+    action: PlanAction
+    diagnostic: str | None = None
+    if evaluation.state == "assigned" and not supported:
+        outcome, action = "unsupported", "none"
+        resolved_version, resolved_digest = None, None
+        diagnostic = "assigned coordinate has no eligible published version"
+    elif evaluation.state == "assigned":
+        if materialized is None:
+            outcome, action = "missing", "install"
+        elif materialized.version != resolved_version:
+            outcome, action = "outdated", "update"
+        elif (
+            materialized.passport_digest is not None
+            and resolved_digest is not None
+            and materialized.passport_digest != resolved_digest
+        ):
+            outcome, action = "conflicting", "update"
+            diagnostic = "materialized digest differs from the assigned coordinate"
+        else:
+            outcome, action = "installed", "none"
+    else:
+        outcome = cast(PlanOutcome, evaluation.state)
+        action = "remove" if materialized is not None else "none"
+    return CorporateAssignmentPlanItem(
+        object_kind=evaluation.object_kind,
+        stable_id=evaluation.stable_id,
+        state=evaluation.state,
+        outcome=outcome,
+        action=action,
+        assignment_id=evaluation.assignment_id,
+        source_scope=evaluation.source_scope,
+        source_subject_id=evaluation.source_subject_id,
+        selector=evaluation.selector,
+        version=resolved_version,
+        passport_digest=resolved_digest,
+        harness=evaluation.harness,
+        installed_version=None if materialized is None else materialized.version,
+        installed_passport_digest=None if materialized is None else materialized.passport_digest,
+        diagnostic=diagnostic,
+        candidates=evaluation.candidates,
+    )
+
+
+async def plan_assignments(
+    db: AsyncSession,
+    *,
+    ctx: AuthContext,
+    organization_id: str,
+    payload: CorporateAssignmentPlanRequest,
+    request_id: str | None,
+) -> CorporateAssignmentPlan:
+    """Evaluate the deterministic install/update plan for one context (ADR-0196).
+
+    Every catalog line carrying an assignment applicable to the context - plus
+    every materialized coordinate the caller reports - is evaluated through the
+    same precedence as the single-line effective read. Resolved coordinates are
+    always exact and eligible; the plan is a pure read and writes nothing.
+    """
+    await service.read_member(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        account_id=payload.account_id,
+        request_id=request_id,
+    )
+    team_ids = await _member_team_ids(
+        db, organization_id=organization_id, account_id=payload.account_id
+    )
+    scope_clauses: list[ColumnElement[bool]] = [
+        and_(
+            AssignmentRow.account_id.is_(None),
+            AssignmentRow.team_id.is_(None),
+            AssignmentRow.project_id.is_(None),
+            AssignmentRow.technology_id.is_(None),
+        ),
+        AssignmentRow.account_id == payload.account_id,
+    ]
+    if team_ids:
+        scope_clauses.append(AssignmentRow.team_id.in_(team_ids))
+    if payload.project_id is not None:
+        scope_clauses.append(AssignmentRow.project_id == payload.project_id)
+    if payload.technology_id is not None:
+        scope_clauses.append(AssignmentRow.technology_id == payload.technology_id)
+    rows = (
+        await db.scalars(
+            select(AssignmentRow)
+            .where(AssignmentRow.organization_id == organization_id, or_(*scope_clauses))
+            .order_by(AssignmentRow.id)
+        )
+    ).all()
+    by_line: dict[tuple[str, str], list[AssignmentRow]] = {}
+    for row in rows:
+        by_line.setdefault((row.object_kind, row.stable_id), []).append(row)
+    materialized = {(item.object_kind, item.stable_id): item for item in payload.materialized}
+    items: list[CorporateAssignmentPlanItem] = []
+    for object_kind, stable_id in sorted(set(by_line) | set(materialized)):
+        line_query = CorporateEffectiveAssignmentQuery(
+            account_id=payload.account_id,
+            object_kind=cast(Literal["setup", "component"], object_kind),
+            stable_id=stable_id,
+            project_id=payload.project_id,
+            technology_id=payload.technology_id,
+            harness=payload.harness,
+        )
+        evaluation = await _evaluate_assignment_line(
+            db,
+            organization_id=organization_id,
+            query=line_query,
+            rows=by_line.get((object_kind, stable_id), []),
+            team_ids=team_ids,
+            viewer_account_id=ctx.account_id,
+        )
+        resolved_version, resolved_digest = evaluation.version, evaluation.passport_digest
+        supported = True
+        if evaluation.state == "assigned":
+            eligible = await _eligible_versions(
+                db,
+                object_kind=line_query.object_kind,
+                stable_id=stable_id,
+                account_id=payload.account_id,
+            )
+            if evaluation.selector == "latest":
+                supported = bool(eligible)
+            else:
+                match = next((pair for pair in eligible if pair[0] == resolved_version), None)
+                supported = match is not None
+                if match is not None:
+                    resolved_version, resolved_digest = match
+        items.append(
+            _plan_item(
+                evaluation,
+                materialized=materialized.get((object_kind, stable_id)),
+                resolved_version=resolved_version,
+                resolved_digest=resolved_digest,
+                supported=supported,
+            )
+        )
+    return CorporateAssignmentPlan(
+        organization_id=organization_id,
+        account_id=payload.account_id,
+        harness=payload.harness,
+        project_id=payload.project_id,
+        technology_id=payload.technology_id,
+        items=items,
+        total=len(items),
     )
 
 

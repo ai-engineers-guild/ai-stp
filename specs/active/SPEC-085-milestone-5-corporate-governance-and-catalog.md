@@ -9,8 +9,9 @@ last_verified: "2026-09-19"
 
 Complete the enterprise-MVP extension of the existing Corporate Hub for issues
 210, 211, and 212, and extend the same assignment workflow for milestone 6
-issues 205 and 206 without introducing a second authorization, publication,
-assignment, distribution, or catalog search workflow.
+issues 205, 206, and 214 without introducing a second authorization,
+publication, assignment, distribution, installation-planning, or catalog
+search workflow.
 
 ## Normative boundary
 
@@ -60,6 +61,10 @@ by this specification.
   `skipped`, `conflicted`, `denied`, or `failed`.
 - `Distribution state` — the observable per-target lifecycle state consumed by
   Web, CLI, and CI: `pending`, `installed`, `outdated`, `failed`, or `revoked`.
+- `Assignment plan` — the deterministic per-line evaluation of the effective
+  assignments for one employee, context, and harness against the caller's
+  reported materialized coordinates; each line carries its outcome and a
+  planned `install`, `update`, `remove`, or `none` action.
 
 ## Requirements
 
@@ -139,6 +144,27 @@ by this specification.
   exposes source explainability and per-target `pending`, `installed`,
   `outdated`, `failed`, or `revoked` state. Distribution state never silently
   rewrites an active provider-owned harness target.
+- `REQ-8516`: A plan request names the authenticated employee, organization,
+  optional project and technology context, the target harness, and the exact
+  coordinates the caller reports as currently materialized. The evaluation
+  reuses the effective-assignment precedence and `latest` resolution; a caller
+  without member read authorization for the account is denied before any line
+  is evaluated.
+- `REQ-8517`: Each plan item reports the effective state, the winning source
+  scope and subject, the resolved exact version and digest, the reported
+  installed coordinate, one outcome of `missing`, `installed`, `outdated`,
+  `revoked`, `unassigned`, `unsupported`, or `conflicting`, and one action of
+  `install`, `update`, `remove`, or `none`. An assigned line with no eligible
+  published version is `unsupported`; an unassigned or revoked materialized
+  coordinate is reported as not allowed with `remove`.
+- `REQ-8518`: The plan is deterministic: items are sorted by catalog line, the
+  response carries no wall-clock field, and identical policy and materialized
+  inputs produce an identical plan.
+- `REQ-8519`: Plan evaluation is a read: it writes no assignment, distribution,
+  audit, or provider-owned state, and never rewrites a live harness target.
+  Web, CLI, and CI consume the same generated plan contract; executing a plan
+  remains the existing install transaction with its own approval and durable
+  record.
 
 ## States and errors
 
@@ -218,3 +244,7 @@ schemas and clients are updated only by repository generators.
 | `REQ-8513` | Revision/idempotency/audit tests cover retry replay, duplicate suppression for assignments/distribution rows/audit events, and reauthorization on replay. |
 | `REQ-8514` | Bulk API tests cover partial success, conflict/denial/failure visibility, update/revoke effects, and durable result retrieval. |
 | `REQ-8515` | Generated contract, CLI/Web, and CI-consumer tests cover the five distribution lifecycle states and the absence of active provider-target mutation. |
+| `REQ-8516` | Plan contract and service tests cover context/harness/materialized inputs and member authorization; `tests/api/platform/test_corporate_assignment_plan.py` covers the tenant-scoped route. |
+| `REQ-8517` | Plan service tests cover every outcome/action pair, `latest` resolution to exact coordinates, unsupported coordinates, employee exceptions and revocations, and source explainability. |
+| `REQ-8518` | Plan tests cover sorted items, absent wall-clock fields, and identical output for identical policy and materialized inputs. |
+| `REQ-8519` | Plan service/API tests and the CLI command test cover the no-mutation guarantee; contract tests cover the shared generated plan schema consumed by Web, CLI, and CI. |

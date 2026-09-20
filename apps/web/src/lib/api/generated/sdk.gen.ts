@@ -278,6 +278,9 @@ import type {
   PatchOwnerSetupFamilyData,
   PatchOwnerSetupFamilyErrors,
   PatchOwnerSetupFamilyResponses,
+  PlanCorporateAssignmentData,
+  PlanCorporateAssignmentErrors,
+  PlanCorporateAssignmentResponses,
   PlanGithubActionData,
   PlanGithubActionErrors,
   PlanGithubActionResponses,
@@ -1658,6 +1661,26 @@ export const readCorporateEffectiveAssignment = <ThrowOnError extends boolean = 
     security: [{ scheme: "bearer", type: "http" }],
     url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/effective",
     ...options,
+  });
+
+/**
+ * Evaluate the deterministic install/update plan for one employee context, target harness, and reported materialized state.
+ */
+export const planCorporateAssignment = <ThrowOnError extends boolean = false>(
+  options: Options<PlanCorporateAssignmentData, ThrowOnError>,
+): RequestResult<PlanCorporateAssignmentResponses, PlanCorporateAssignmentErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    PlanCorporateAssignmentResponses,
+    PlanCorporateAssignmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/v1/corporate/organizations/{organization_id}/catalog-assignments/plan",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

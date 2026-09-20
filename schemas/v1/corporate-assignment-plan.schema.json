@@ -1,0 +1,439 @@
+{
+  "$defs": {
+    "CorporateAssignmentPlanItem": {
+      "additionalProperties": true,
+      "description": "One catalog line's effective assignment and the planned action.",
+      "properties": {
+        "action": {
+          "enum": [
+            "install",
+            "update",
+            "remove",
+            "none"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "assignment_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assignment Id"
+        },
+        "candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CorporateEffectiveAssignmentCandidate"
+          },
+          "maxItems": 256,
+          "title": "Candidates",
+          "type": "array"
+        },
+        "diagnostic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diagnostic"
+        },
+        "harness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarnessId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "installed_passport_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Installed Passport Digest"
+        },
+        "installed_version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Installed Version"
+        },
+        "object_kind": {
+          "enum": [
+            "setup",
+            "component"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "missing",
+            "installed",
+            "outdated",
+            "revoked",
+            "unassigned",
+            "unsupported",
+            "conflicting"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "passport_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passport Digest"
+        },
+        "selector": {
+          "anyOf": [
+            {
+              "enum": [
+                "exact",
+                "latest"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selector"
+        },
+        "source_scope": {
+          "anyOf": [
+            {
+              "enum": [
+                "employee",
+                "team",
+                "project",
+                "technology",
+                "organization"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Scope"
+        },
+        "source_subject_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Subject Id"
+        },
+        "stable_id": {
+          "title": "Stable Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "assigned",
+            "revoked",
+            "unassigned"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "action",
+        "assignment_id",
+        "candidates",
+        "diagnostic",
+        "harness",
+        "installed_passport_digest",
+        "installed_version",
+        "object_kind",
+        "outcome",
+        "passport_digest",
+        "selector",
+        "source_scope",
+        "source_subject_id",
+        "stable_id",
+        "state",
+        "version"
+      ],
+      "title": "CorporateAssignmentPlanItem",
+      "type": "object"
+    },
+    "CorporateEffectiveAssignmentCandidate": {
+      "additionalProperties": true,
+      "description": "One assignment row considered by the deterministic effective evaluation.",
+      "properties": {
+        "assignment_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Assignment Id",
+          "type": "string"
+        },
+        "harness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarnessId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "outcome": {
+          "enum": [
+            "winner",
+            "overridden",
+            "revoked",
+            "inapplicable"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "resolved_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved Digest"
+        },
+        "resolved_version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolved Version"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "scope": {
+          "enum": [
+            "employee",
+            "team",
+            "project",
+            "technology",
+            "organization"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "selector": {
+          "enum": [
+            "exact",
+            "latest"
+          ],
+          "title": "Selector",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "retired"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "subject_id": {
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "assignment_id",
+        "harness",
+        "outcome",
+        "resolved_digest",
+        "resolved_version",
+        "revision",
+        "schema_version",
+        "scope",
+        "selector",
+        "state",
+        "subject_id",
+        "version"
+      ],
+      "title": "CorporateEffectiveAssignmentCandidate",
+      "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-assignment-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "The deterministic install/update plan for one context (ADR-0196).\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
+  "properties": {
+    "account_id": {
+      "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "harness": {
+      "$ref": "#/$defs/HarnessId"
+    },
+    "items": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorporateAssignmentPlanItem"
+      },
+      "maxItems": 1024,
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Project Id"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "technology_id": {
+      "anyOf": [
+        {
+          "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Technology Id"
+    },
+    "total": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "account_id",
+    "harness",
+    "items",
+    "organization_id",
+    "project_id",
+    "schema_version",
+    "technology_id",
+    "total"
+  ],
+  "title": "CorporateAssignmentPlan",
+  "type": "object"
+}

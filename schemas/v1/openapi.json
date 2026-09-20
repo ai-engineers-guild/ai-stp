@@ -3975,6 +3975,360 @@
         ],
         "type": "string"
       },
+      "CorporateAssignmentPlan": {
+        "additionalProperties": true,
+        "description": "The deterministic install/update plan for one context (ADR-0196).\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "harness": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "items": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateAssignmentPlanItem"
+            },
+            "maxItems": 1024,
+            "title": "Items",
+            "type": "array"
+          },
+          "organization_id": {
+            "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Id"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Id"
+          },
+          "total": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "account_id",
+          "harness",
+          "items",
+          "organization_id",
+          "project_id",
+          "schema_version",
+          "technology_id",
+          "total"
+        ],
+        "title": "CorporateAssignmentPlan",
+        "type": "object"
+      },
+      "CorporateAssignmentPlanItem": {
+        "additionalProperties": true,
+        "description": "One catalog line's effective assignment and the planned action.",
+        "properties": {
+          "action": {
+            "enum": [
+              "install",
+              "update",
+              "remove",
+              "none"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "assignment_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Assignment Id"
+          },
+          "candidates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporateEffectiveAssignmentCandidate"
+            },
+            "maxItems": 256,
+            "title": "Candidates",
+            "type": "array"
+          },
+          "diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Diagnostic"
+          },
+          "harness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarnessId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "installed_passport_digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Installed Passport Digest"
+          },
+          "installed_version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Installed Version"
+          },
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "missing",
+              "installed",
+              "outdated",
+              "revoked",
+              "unassigned",
+              "unsupported",
+              "conflicting"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "passport_digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Passport Digest"
+          },
+          "selector": {
+            "anyOf": [
+              {
+                "enum": [
+                  "exact",
+                  "latest"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Selector"
+          },
+          "source_scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "employee",
+                  "team",
+                  "project",
+                  "technology",
+                  "organization"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Scope"
+          },
+          "source_subject_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Subject Id"
+          },
+          "stable_id": {
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "assigned",
+              "revoked",
+              "unassigned"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Version"
+          }
+        },
+        "required": [
+          "action",
+          "assignment_id",
+          "candidates",
+          "diagnostic",
+          "harness",
+          "installed_passport_digest",
+          "installed_version",
+          "object_kind",
+          "outcome",
+          "passport_digest",
+          "selector",
+          "source_scope",
+          "source_subject_id",
+          "stable_id",
+          "state",
+          "version"
+        ],
+        "title": "CorporateAssignmentPlanItem",
+        "type": "object"
+      },
+      "CorporateAssignmentPlanRequest": {
+        "additionalProperties": false,
+        "description": "Evaluate the deterministic install/update plan for one context (ADR-0196).\n\nThe request names the authenticated employee context, the optional project\nand technology coordinates, the target harness, and the exact coordinates\nthe caller reports as materialized. It never mutates assignments,\ndistribution rows, or provider-owned state.",
+        "properties": {
+          "account_id": {
+            "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "harness": {
+            "$ref": "#/components/schemas/HarnessId"
+          },
+          "materialized": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CorporatePlanMaterializedItem"
+            },
+            "maxItems": 1024,
+            "title": "Materialized",
+            "type": "array"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "pattern": "^remote_project_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Id"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "technology_id": {
+            "anyOf": [
+              {
+                "pattern": "^technology_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Id"
+          }
+        },
+        "required": [
+          "account_id",
+          "harness"
+        ],
+        "title": "CorporateAssignmentPlanRequest",
+        "type": "object"
+      },
       "CorporateAuditEntry": {
         "additionalProperties": true,
         "properties": {
@@ -8227,6 +8581,51 @@
           "schema_version"
         ],
         "title": "CorporatePermissionMatrix",
+        "type": "object"
+      },
+      "CorporatePlanMaterializedItem": {
+        "additionalProperties": false,
+        "description": "One exact coordinate the caller reports as currently materialized.",
+        "properties": {
+          "object_kind": {
+            "enum": [
+              "setup",
+              "component"
+            ],
+            "title": "Object Kind",
+            "type": "string"
+          },
+          "passport_digest": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Passport Digest"
+          },
+          "stable_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Stable Id",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_kind",
+          "stable_id",
+          "version"
+        ],
+        "title": "CorporatePlanMaterializedItem",
         "type": "object"
       },
       "CorporateProjectCreateRequest": {
@@ -37279,6 +37678,252 @@
           }
         ],
         "summary": "Resolve the winning applicable assignment for one employee and catalog line."
+      }
+    },
+    "/v1/corporate/organizations/{organization_id}/catalog-assignments/plan": {
+      "post": {
+        "operationId": "planCorporateAssignment",
+        "parameters": [
+          {
+            "description": "Explicit remote organization selected for this request.",
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "pattern": "^organization_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Wire major the client speaks. An unknown one fails typed.",
+            "in": "header",
+            "name": "X-AI-STP-Schema-Version",
+            "required": false,
+            "schema": {
+              "const": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "planCorporateAssignment.corporate": {
+                  "summary": "The deterministic plan resolves exact coordinates and names the action per catalog line.",
+                  "value": {
+                    "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "harness": "claude-code",
+                    "materialized": [
+                      {
+                        "object_kind": "setup",
+                        "passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                        "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                        "version": "1.0"
+                      }
+                    ],
+                    "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                    "schema_version": 1
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorporateAssignmentPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "planCorporateAssignment.corporate": {
+                    "summary": "The deterministic plan resolves exact coordinates and names the action per catalog line.",
+                    "value": {
+                      "account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "harness": "claude-code",
+                      "items": [
+                        {
+                          "action": "update",
+                          "assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "candidates": [
+                            {
+                              "assignment_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                              "harness": null,
+                              "outcome": "winner",
+                              "resolved_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                              "resolved_version": "2.0",
+                              "revision": 1,
+                              "schema_version": 1,
+                              "scope": "team",
+                              "selector": "latest",
+                              "state": "current",
+                              "subject_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                              "version": null
+                            }
+                          ],
+                          "diagnostic": null,
+                          "harness": null,
+                          "installed_passport_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                          "installed_version": "1.0",
+                          "object_kind": "setup",
+                          "outcome": "outdated",
+                          "passport_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                          "selector": "latest",
+                          "source_scope": "team",
+                          "source_subject_id": "operation_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "stable_id": "setup_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                          "state": "assigned",
+                          "version": "2.0"
+                        }
+                      ],
+                      "organization_id": "organization_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "project_id": "remote_project_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
+                      "schema_version": 1,
+                      "technology_id": null,
+                      "total": 1
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CorporateAssignmentPlan"
+                }
+              }
+            },
+            "description": "Evaluate the deterministic install/update plan for one employee context, target harness, and reported materialized state.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id, echoed or minted.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_SCHEMA_UNSUPPORTED, AI_STP_VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_AUTH_REQUIRED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEVICE_REVOKED, AI_STP_PERMISSION_DENIED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_RATE_LIMITED.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_INTERNAL.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Typed failure. Stable codes: AI_STP_DEPENDENCY_UNAVAILABLE.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation id.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Evaluate the deterministic install/update plan for one employee context, target harness, and reported materialized state."
       }
     },
     "/v1/corporate/organizations/{organization_id}/catalog-governance/lifecycle": {
