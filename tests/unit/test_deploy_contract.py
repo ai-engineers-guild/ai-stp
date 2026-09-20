@@ -14,6 +14,7 @@ import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 from deploy import verify_public
@@ -643,8 +644,10 @@ def test_a_deploy_overtaken_by_a_newer_one_is_not_a_failure() -> None:
     )
 
     # A docs host that does not serve is a deployment defect, not a detail.
+    # Match the request host, not a URL prefix: `startswith("https://docs.nddev.asia")`
+    # also matches `https://docs.nddev.asia.evil.com`.
     def docs_broken(url: str, _limit: int) -> tuple[int, bytes]:
-        if url.startswith("https://docs.nddev.asia"):
+        if urlsplit(url).hostname == "docs.nddev.asia":
             return 503, b""
         return fetch(url, _limit)
 
@@ -658,6 +661,25 @@ def test_a_deploy_overtaken_by_a_newer_one_is_not_a_failure() -> None:
             fetch=docs_broken,
             commit_accepted=lambda deployed: deployed == newer,
         )
+
+    # The same prefix would have 503'd a lookalike host. Production fetches the
+    # origin it is given; the stub must not treat another hostname as docs.
+    def lookalike_docs(url: str, _limit: int) -> tuple[int, bytes]:
+        if urlsplit(url).hostname == "docs.nddev.asia":
+            raise AssertionError(f"docs probe leaked onto {url}")
+        if urlsplit(url).hostname == "docs.nddev.asia.evil.com":
+            return 200, b"docs"
+        return fetch(url, _limit)
+
+    verify_public.verify(
+        "https://nddev.asia",
+        expected_commit=older,
+        expected_schema="0005",
+        expected_environment="prod",
+        docs_origin="https://docs.nddev.asia.evil.com",
+        fetch=lookalike_docs,
+        commit_accepted=lambda deployed: deployed == newer,
+    )
 
     # Unrelated is still a failure, and the default is still exact equality.
     with pytest.raises(verify_public.VerificationError, match="deployed git_commit"):
