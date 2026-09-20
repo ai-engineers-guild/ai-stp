@@ -212,6 +212,7 @@ def _confirmed(
     component_type: str = "skill",
     scope: str = "global",
     required_env: tuple[str, ...] = (),
+    source: tuple[str, str, str] | None = None,
 ) -> str:
     """One confirmed composition, which is the only thing installable."""
     passports.init_developer(registry, device_id=DEVICE)
@@ -328,6 +329,34 @@ def _confirmed(
             },
         },
     }
+    if source is not None:
+        # Publication requires provenance: these facts materialize as
+        # passport.source (repository/commit/path) plus the artifact size.
+        cast(dict[str, JsonValue], document["facts"]).update(
+            {
+                "source_repository": {
+                    "value": source[0],
+                    "origin": "declared",
+                    "confirmation": "user_confirmed",
+                },
+                "source_revision": {
+                    "value": source[1],
+                    "origin": "declared",
+                    "confirmation": "user_confirmed",
+                },
+                "source_subpath": {
+                    "value": source[2],
+                    "origin": "declared",
+                    "confirmation": "user_confirmed",
+                },
+                "byte_length": {
+                    "value": artifact.byte_length,
+                    "origin": "observed",
+                    "confirmation": "none",
+                    "observed_at": MOMENT,
+                },
+            }
+        )
     revisions.commit(registry, document, device_id=DEVICE)
     passport, revision_id = component_passports.materialize_version_passport(
         registry, stable_id, "1.0", device_id=DEVICE, at=MOMENT
