@@ -117,6 +117,7 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
     latest = null;
   }
   const passport = latest?.passport;
+  const documentDescription = detail.presentation_bio;
   const catalogComponents = passport
     ? await Promise.all(
         passport.components.map(async (ref) => {
@@ -270,7 +271,8 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
       <ObjectDetailFrame
         description={
           <MarkdownDescription
-            source={detail.presentation_bio ?? passport?.description ?? summary.latest_description}
+            variant={documentDescription != null ? "document" : "passport"}
+            source={documentDescription ?? passport?.description ?? summary.latest_description}
             heading={t("description")}
           />
         }
