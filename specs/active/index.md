@@ -51,9 +51,9 @@ last_verified: "2026-08-03"
 | [SPEC-040-setup-evaluation-profiles.md](SPEC-040-setup-evaluation-profiles.md) | SPEC-040: Local functional evaluation profiles for an exact setup. | 2026-09-06 |
 | [SPEC-041-component-scaffold-framework.md](SPEC-041-component-scaffold-framework.md) | SPEC-041: Versioned scaffold plans for a component's complete authoring catalog. | 2026-09-05 |
 | [SPEC-042-local-setup-store-ports.md](SPEC-042-local-setup-store-ports.md) | SPEC-042: Local versioned ports for controlled SX and APM import. | 2026-09-20 |
-| [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-08-15 |
-| [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state as local evidence of obsolescence. | 2026-08-13 |
-| [SPEC-045-federated-source-boundaries.md](SPEC-045-federated-source-boundaries.md) | SPEC-045: Federated source descriptors and external observation boundaries. | 2026-08-16 |
+| [SPEC-043-selection-impact-reports.md](SPEC-043-selection-impact-reports.md) | SPEC-043: Local reports for context budget, capability delta, and blast radius. | 2026-09-20 |
+| [SPEC-044-github-archive-evidence.md](SPEC-044-github-archive-evidence.md) | SPEC-044: GitHub archived state as local evidence of obsolescence. | 2026-09-20 |
+| [SPEC-045-federated-source-boundaries.md](SPEC-045-federated-source-boundaries.md) | SPEC-045: Federated source descriptors and external observation boundaries. | 2026-09-20 |
 | [SPEC-046-web-feature-registry-and-content-hub.md](SPEC-046-web-feature-registry-and-content-hub.md) | SPEC-046: Typed web deploy profiles and a disableable content hub. | 2026-08-29 |
 | [SPEC-047-web-backend-consumer-surfaces.md](SPEC-047-web-backend-consumer-surfaces.md) | SPEC-047: Web/backend consumer surfaces for canonical CLI contracts and catalog delivery. | 2026-08-15 |
 | [SPEC-048-web-rsc-cache-and-fetch-boundaries.md](SPEC-048-web-rsc-cache-and-fetch-boundaries.md) | SPEC-048: Fast RSC catalog, explicit public/private fetch boundaries, and controlled prefetch. | 2026-08-15 |
