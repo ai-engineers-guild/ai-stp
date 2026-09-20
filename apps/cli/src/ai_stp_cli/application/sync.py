@@ -322,7 +322,12 @@ def push(parameters: Mapping[str, object]) -> Answer[SyncPushView]:
                     break
                 # An older uncertain request completed. Only now may the new
                 # version closure create its own event and idempotency key.
-            if receipt.state != "accepted":
+            if receipt.state != "accepted" and (is_head or receipt.state == "rejected"):
+                # A 'conflict' or 'superseded' ancestor is already in the
+                # server ledger — the merge built on it can still ship, and
+                # the server re-checks the head transition when it does. Only
+                # 'rejected' (the revision never landed) or a refused head
+                # itself stops the walk.
                 break
         if (
             lifecycle.entombed(connection, stable_id) is not None

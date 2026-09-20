@@ -18,6 +18,7 @@ from ai_stp_cli.local.database import open_registry
 from ai_stp_contracts.http import PageInfo
 from ai_stp_contracts.sync import (
     SyncConflictInfo,
+    SyncEvent,
     SyncEventReceipt,
     SyncPullQuery,
     SyncPullResponse,
@@ -74,8 +75,6 @@ def _accepted(event_id: str, revision_id: str, cursor: str) -> SyncEventReceipt:
 
 
 def _stream(request: object, sequence: int) -> SyncStreamEvent:
-    from ai_stp_contracts.sync import SyncEvent
-
     event = cast(SyncEvent, request)
     return SyncStreamEvent(
         **event.model_dump(exclude={"idempotency_key", "expected_head_revision_id"}, mode="python"),
@@ -874,6 +873,143 @@ def test_preview_does_not_answer_up_to_date_against_a_server_head_it_lacks(
         assert report.candidate_revision_id is None
     finally:
         connection.close()
+
+
+def test_a_conflicted_ancestor_does_not_block_the_merge_that_resolves_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`sync push` after `sync merge` must ship the merge, not replay the refusal.
+
+    The conflicted candidate's revision is already in the server ledger — the
+    whole point of storing it there is that a merge can name it a parent. The
+    push walk used to stop on the saved `conflict` receipt, so the merge event
+    was never sent and `sync push` answered `conflict` forever. Found by the
+    real-boundary suite; this test keeps the walk honest without Postgres.
+    """
+    registry_path = tmp_path / "registry.sqlite"
+    stable_id = new_id("developer")
+    with open_registry(registry_path) as registry:
+        root = revisions.commit(registry, _content(stable_id), device_id=DEVICE_A)
+    held = session.Session(
+        account_id=ACCOUNT,
+        device_id=DEVICE_A,
+        access_token="token",
+        refresh_token="refresh",
+        expires_at="2099-01-01T00:00:00.000Z",
+    )
+    pushed: list[SyncEvent] = []
+    remote_head: dict[str, str] = {}
+
+    def route(request: httpx.Request) -> httpx.Response:
+        event = SyncPushRequest.model_validate_json(request.read()).events[0]
+        pushed.append(event)
+        # The first event lands; anything naming a different expected head
+        # afterwards conflicts, exactly as the server decides.
+        expected = event.expected_head_revision_id
+        if "root" in remote_head and expected != remote_head["server"]:
+            receipt = SyncEventReceipt(
+                event_id=event.event_id,
+                state="conflict",
+                revision_id=event.revision_id,
+                server_head_revision_id=remote_head["server"],
+                cursor=None,
+                conflict=None,
+                conflicting_entity_id=None,
+                error_code=None,
+            )
+        else:
+            remote_head.setdefault("root", event.revision_id)
+            remote_head["server"] = event.revision_id
+            receipt = _accepted(event.event_id, event.revision_id, "cursor")
+        return httpx.Response(
+            200, json={"schema_version": 1, "receipts": [receipt.model_dump(mode="json")]}
+        )
+
+    monkeypatch.setattr(sync_commands, "_enabled", lambda: None)  # pyright: ignore[reportPrivateUsage]
+    monkeypatch.setattr(sync_commands, "configured_path", lambda: registry_path)
+
+    def required_session(_purpose: str) -> session.Session:
+        return held
+
+    monkeypatch.setattr(cloud_auth, "required", required_session)
+    monkeypatch.setattr(
+        sync_commands,
+        "endpoint",
+        lambda: Endpoint(
+            "https://platform.example", max_attempts=1, transport=httpx.MockTransport(route)
+        ),
+    )
+
+    assert sync_commands.push({"id": stable_id, "confirm": True}).payload.state == "accepted"
+
+    # What the server holds instead: a divergent child another device pushed —
+    # built by the same real stack on a second machine's registry, which learned
+    # the root by pull exactly as this device published it.
+    source = open_registry(tmp_path / "source.sqlite")
+    try:
+        sync_state.apply_page(
+            source,
+            account_id=ACCOUNT,
+            response=SyncPullResponse(
+                items=[_stream(pushed[0], 1)],
+                page=PageInfo(next_cursor="cursor-1", page_size=20),
+            ),
+            at=AT,
+        )
+        # Disjoint divergence — the remote child adds a fact while this
+        # device's child edits `role`, so the merge is mechanical.
+        remote_document = _content(stable_id, parents=[root.revision_id])
+        remote_document["facts"] = {
+            **cast(dict[str, JsonValue], remote_document["facts"]),
+            "autonomy": {
+                "value": "full-auto",
+                "origin": "declared",
+                "confirmation": "none",
+                "source_refs": [],
+                "observed_at": None,
+                "confirmed_at": None,
+                "confidence": None,
+            },
+        }
+        remote_stored = revisions.commit(source, remote_document, device_id=DEVICE_B)
+        remote_event = _stream(
+            sync_state.prepare(
+                source, account_id=ACCOUNT, device_id=DEVICE_B, stored=remote_stored
+            ).request,
+            2,
+        )
+    finally:
+        source.close()
+    # The remote head is what the server's copy of that child sealed to —
+    # this device learns it only when the conflicting push names it.
+    remote_head["server"] = remote_event.revision_id
+
+    # This device's own divergent child, committed only after the root landed.
+    with open_registry(registry_path) as registry:
+        revisions.commit(
+            registry,
+            _content(stable_id, parents=[root.revision_id], role="platform"),
+            device_id=DEVICE_A,
+        )
+    conflict = sync_commands.push({"id": stable_id, "confirm": True}).payload
+    assert conflict.state == "conflict"
+
+    with open_registry(registry_path) as registry:
+        # The remote head arrives by pull, then the merge resolves the fork.
+        sync_state.apply_page(
+            registry,
+            account_id=ACCOUNT,
+            response=SyncPullResponse(
+                items=[remote_event],
+                page=PageInfo(next_cursor="cursor-2", page_size=20),
+            ),
+            at=AT,
+        )
+        sync_commands.commit_merge(registry, stable_id=stable_id, device_id=DEVICE_A)
+
+    result = sync_commands.push({"id": stable_id, "confirm": True}).payload
+    assert result.state == "accepted", "the merge event must reach the server"
+    assert len(pushed) == 3  # root, divergent child, merge
 
 
 def test_a_server_reported_revocation_offers_the_same_recovery_as_a_local_one(
