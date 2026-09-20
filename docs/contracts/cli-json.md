@@ -75,7 +75,10 @@ in that field. `next_actions` is never passed to a shell.
 `continuations` is additive inside major 1. An older producer omits the field;
 a reader treats absence as an empty list. Each item names a declared command
 `path`, JSON arguments already bound, executable `argv`, `actor`, and
-`missing` for names the caller must still supply. `argv` and `actor` are
+`missing` for names the caller must still supply. `argv` is derived from
+the declared parameters: a boolean binds as a bare flag, a valued option
+as `--name value` (or `--name=value` when the value begins with a dash),
+and a repeatable option once per element. `argv` and `actor` are
 additive on the continuation object. `next_actions` remains the quoted
 display of `argv` for older callers. A finished compensation emits no
 continuation.
