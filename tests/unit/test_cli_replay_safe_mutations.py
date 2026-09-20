@@ -36,6 +36,9 @@ NATURALLY_REPLAY_SAFE: Final[dict[str, str]] = {
         "while the user decides, and the code is the operation identity"
     ),
     "/auth/logout": "ending a session twice ends it once; there is no second effect to create",
+    "/corporate/organizations/{organization_id}/catalog-assignments/plan": (
+        "the plan endpoint is a read-only POST: retrying evaluation creates no durable effect"
+    ),
     "/sync/push": (
         "the key is per event inside the envelope, not per request: "
         "SyncEvent.event_id is what the server deduplicates"
