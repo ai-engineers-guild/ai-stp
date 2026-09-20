@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-STATUS = Path(__file__).parents[2] / "docs" / "engineering" / "audit-remediation-status.md"
+STATUS = Path(__file__).parents[2] / "docs" / "archive" / "audit-remediation-status.md"
 
 EXPECTED = {
     "RVR-P1-001",
