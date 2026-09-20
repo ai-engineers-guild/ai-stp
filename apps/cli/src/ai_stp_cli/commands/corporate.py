@@ -61,6 +61,23 @@ def _required_integer(parameters: Mapping[str, object], name: str) -> int:
         ) from error
 
 
+def _distribution_preview(parameters: Mapping[str, object]) -> str:
+    command = ["corporate", "assignment", "distribute"]
+    for name in (
+        "organization",
+        "source",
+        "action",
+        "expected-revision",
+        "authorization-revision",
+        "idempotency-key",
+    ):
+        value = parameters.get(name)
+        if value is not None:
+            command.extend((f"--{name}", str(value)))
+    command.extend(("--dry-run", "--json"))
+    return " ".join(command)
+
+
 def _session(purpose: str) -> session.Session:
     return cloud_auth.required(purpose)
 
@@ -89,7 +106,7 @@ def distribute(parameters: Mapping[str, object]) -> Answer[CorporateDistribution
             "AI_STP_USER_DECISION_REQUIRED",
             "applying a bulk distribution requires explicit confirmation",
             details={"action": "corporate assignment distribute"},
-            next_actions=["corporate assignment distribute --dry-run --json"],
+            next_actions=[_distribution_preview(parameters)],
         )
     held = _session("corporate assignment distribution")
     request = CorporateDistributionRequest(

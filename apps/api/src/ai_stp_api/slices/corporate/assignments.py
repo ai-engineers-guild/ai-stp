@@ -1044,11 +1044,10 @@ async def distribute_assignment(
 
     Expansion, exclusion, override, per-target authorization, and result
     classification are identical for dry-run and apply; apply additionally
-    mutates the source (revoke retires it), persists applied outcomes plus
-    best-effort failed ledger rows, and stores the idempotent receipt. A
-    skipped/conflicted/denied plan is visible in the result and its receipt
-    but must never mask an earlier applied row or collide with it on the
-    composite key.
+    mutates the source (revoke retires it), persists every per-target outcome,
+    and stores the idempotent receipt. A later skipped/conflicted/denied row
+    must never mask an earlier applied row when deciding revoke eligibility or
+    collide with it on the composite key.
     Distribution rows never copy the source selector/version/harness
     policy and never touch provider state.
     """
@@ -1259,17 +1258,14 @@ async def distribute_assignment(
             source.revision += 1
             await db.flush()
         for index, plan in enumerate(plans):
-            if plan.result != "applied":
-                continue
-            # A durable row can only already exist at this operation revision
-            # as a failed outcome from an earlier apply; finalizing it in place
-            # lets a retry heal instead of colliding on the composite key.
+            # Reuse a row at this operation revision so a repeat operation can
+            # update the durable outcome without colliding on the composite key.
             prior = existing_by_key.get((plan.target_kind, plan.target_id, operation_revision))
             try:
                 async with db.begin_nested():
                     if prior is not None:
                         prior.action = payload.action
-                        prior.result = "applied"
+                        prior.result = plan.result
                         prior.state = plan.state
                         prior.diagnostic = plan.diagnostic
                         prior.overriding_assignment_id = plan.overriding_assignment_id
@@ -1282,7 +1278,7 @@ async def distribute_assignment(
                                 target_id=plan.target_id,
                                 operation_revision=operation_revision,
                                 action=payload.action,
-                                result="applied",
+                                result=plan.result,
                                 state=plan.state,
                                 diagnostic=plan.diagnostic,
                                 overriding_assignment_id=plan.overriding_assignment_id,

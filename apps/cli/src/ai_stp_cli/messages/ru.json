@@ -146,6 +146,7 @@
   "a valid setup id is required": "требуется корректный идентификатор сетапа",
   "a verified projection member disappeared before bundle assembly": "проверенный элемент проекции исчез до сборки пакета",
   "a version is recorded under its passport digest, not under another identifier": "версия записывается по digest паспорта, а не по другому идентификатору",
+  "applying a bulk distribution requires explicit confirmation": "применение массового распространения требует явного подтверждения",
   "account input is not valid": "входные данные account недопустимы",
   "all-missing cannot be combined with an explicit target harness": "all-missing нельзя сочетать с явным целевым харнессом",
   "an active local device identity is required for attestation signing": "для подписи attestation нужна активная локальная идентичность устройства",

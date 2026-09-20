@@ -146,6 +146,7 @@
   "a valid setup id is required": "a valid setup id is required",
   "a verified projection member disappeared before bundle assembly": "a verified projection member disappeared before bundle assembly",
   "a version is recorded under its passport digest, not under another identifier": "a version is recorded under its passport digest, not under another identifier",
+  "applying a bulk distribution requires explicit confirmation": "applying a bulk distribution requires explicit confirmation",
   "account input is not valid": "account input is not valid",
   "all-missing cannot be combined with an explicit target harness": "all-missing cannot be combined with an explicit target harness",
   "an active local device identity is required for attestation signing": "an active local device identity is required for attestation signing",
