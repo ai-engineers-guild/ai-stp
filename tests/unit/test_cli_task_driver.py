@@ -170,8 +170,10 @@ def test_idempotent_start_joins_a_running_duplicate(
             raise AssertionError("install apply never started")
         second = pool.submit(lambda: task_command.start(parameters))
         gate.set()
-        winner = first.result(timeout=10)
-        joined = second.result(timeout=10)
+        # Deadlock guards, not performance assertions: the join path polls up
+        # to RUNNING_JOIN_SECONDS, and a slow runner must not trip the test.
+        winner = first.result(timeout=60)
+        joined = second.result(timeout=60)
     assert winner.payload.state == "completed"
     assert joined.payload.state == "completed"
     assert winner.payload.task_id == joined.payload.task_id
@@ -214,8 +216,9 @@ def test_idempotent_start_joins_a_same_key_insert_race(
     with ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(lambda: task_command.start(parameters))
         second = pool.submit(lambda: task_command.start(parameters))
-        winner = first.result(timeout=10)
-        joined = second.result(timeout=10)
+        # Same rationale: 10s was within reach of a loaded Windows worker.
+        winner = first.result(timeout=60)
+        joined = second.result(timeout=60)
     assert winner.payload.state == "completed"
     assert joined.payload.state == "completed"
     assert winner.payload.task_id == joined.payload.task_id
