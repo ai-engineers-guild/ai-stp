@@ -17,6 +17,7 @@ from typing import Final, TextIO, cast
 
 from pydantic import BaseModel
 
+from ai_stp_cli.application.continuations import bind_continuation
 from ai_stp_cli.errors import CliFailure
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.envelope import (
@@ -24,7 +25,6 @@ from ai_stp_foundation.envelope import (
     Continuation,
     ErrorEnvelope,
     SuccessEnvelope,
-    bound_continuation,
 )
 from ai_stp_foundation.ids import new_id
 
@@ -78,7 +78,7 @@ def render_success(
             data=data,
             warnings=warnings or [],
             next_actions=next_actions or [],
-            continuations=[bound_continuation(item) for item in (continuations or [])],
+            continuations=[bind_continuation(item) for item in (continuations or [])],
         )
         out.write(json.dumps(envelope.model_dump(mode="json"), ensure_ascii=False) + "\n")
         return
@@ -113,7 +113,7 @@ def render_failure(
                 details=dict(failure.details),
             ),
             next_actions=failure.next_actions,
-            continuations=[bound_continuation(item) for item in failure.continuations],
+            continuations=[bind_continuation(item) for item in failure.continuations],
         )
         out.write(json.dumps(envelope.model_dump(mode="json"), ensure_ascii=False) + "\n")
     else:
