@@ -21,19 +21,24 @@ const landscape = [
 export function CorporateHubNavigation({ capabilities }: { capabilities: readonly string[] }) {
   const t = useTranslations("hub");
   const path = usePathname();
-  if (path === "/corporate" || path === "/corporate/overview") return null;
+  if (path === "/corporate") return null;
   const inLandscape = /\/corporate\/(catalog|categories|technology-landscape)(?:\/|$)/.test(path);
   const inOrganization =
     /\/corporate\/(organization|employees|projects|teams|technologies)(?:\/|$)/.test(path);
+  const isOverview = path === "/corporate/overview";
   const activeSection =
     path === "/corporate/dashboard" ? "dashboard" : inLandscape ? "landscape" : "organization";
   if (
     (activeSection !== "organization" && activeSection !== "landscape") ||
-    (!inOrganization && !inLandscape)
+    (!inOrganization && !inLandscape && !isOverview)
   )
     return null;
   const items = inLandscape ? landscape : organization;
-  if (path !== "/corporate/organization" && !items.some((item) => path === item.href)) {
+  if (
+    path !== "/corporate/organization" &&
+    !isOverview &&
+    !items.some((item) => path === item.href)
+  ) {
     return null;
   }
 

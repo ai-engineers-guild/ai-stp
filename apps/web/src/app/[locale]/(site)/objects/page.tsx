@@ -8,9 +8,13 @@ import { OwnerObjectActions } from "@/components/organisms/owner-object-actions"
 import { listCatalogAuthors, listExternalProducts } from "@/lib/api/catalog";
 import { ApiError } from "@/lib/api/errors";
 import { listOwnerObjects } from "@/lib/api/owner";
+import { readCorporateContext, readCorporateDirectoryPages } from "@/lib/api/corporate";
+import type { CorporateCatalogOwnerMember } from "@/lib/api/corporate-catalog-ownership";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
-import { filterAndSortOwnerObjects } from "@/lib/owner-catalog";
+import { loadPublisherProfiles, mapPool } from "@/lib/catalog-load";
+import { filterAndSortOwnerObjects, ownerCatalogItem } from "@/lib/owner-catalog";
+import { probeObjectMenu, type ObjectMenuOrgContext } from "@/lib/object-menu";
 import { ownerComponentNextStep, ownerSetupNextStep } from "@/lib/cli-copy";
 import { parseCatalogSearchParams, catalogQueryToRecord } from "@/lib/catalog-query";
 
@@ -67,20 +71,63 @@ export default async function OwnerObjectsPage({ params, searchParams }: PagePro
       .catch(() => []),
   ]);
   const items = filterAndSortOwnerObjects(ownerObjects.items, query);
+  const authorProfiles = await loadPublisherProfiles(
+    items
+      .map((item) => ownerCatalogItem(item))
+      .flatMap((card) => (card ? [card.publisher_id] : [])),
+  );
+
+  // Capability probes and the member directory feed the per-object menu; the
+  // member list is only read when some object grants the caller `edit`.
+  const corporateContext = await readCorporateContext(token).catch(() => null);
+  let membersPromise: Promise<CorporateCatalogOwnerMember[] | null> | null = null;
+  const orgContext: ObjectMenuOrgContext | undefined = corporateContext
+    ? {
+        organizationId: corporateContext.organization.organization_id,
+        authorizationRevision: corporateContext.organization.authorization_revision,
+        csrfToken,
+        members: () => {
+          membersPromise ??= readCorporateDirectoryPages(
+            token,
+            corporateContext.organization.organization_id,
+            { resource: "members", include_archived: true },
+          )
+            .then((result) =>
+              result.items
+                .filter((item) => item.state === "active")
+                .map(({ id, name, state }) => ({ id, name, state })),
+            )
+            .catch(() => null);
+          return membersPromise;
+        },
+      }
+    : undefined;
+  const menuProbes = await mapPool(items, 6, (item) =>
+    probeObjectMenu(token, item.object_kind, item.stable_id, item.latest_version, orgContext),
+  );
+  const probeByKey = new Map(
+    items.map((item, index) => [`${item.object_kind}:${item.stable_id}`, menuProbes[index]]),
+  );
   const ownerActions = Object.fromEntries(
-    items.map((item) => [
-      `${item.object_kind}:${item.stable_id}`,
-      <OwnerObjectActions
-        key={`${item.object_kind}:${item.stable_id}`}
-        csrfToken={csrfToken}
-        deviceId={session.deviceId}
-        kind={item.object_kind}
-        stableId={item.stable_id}
-        name={item.name}
-        version={item.latest_version}
-        visibility={item.visibility}
-      />,
-    ]),
+    items.map((item) => {
+      const probe = probeByKey.get(`${item.object_kind}:${item.stable_id}`);
+      return [
+        `${item.object_kind}:${item.stable_id}`,
+        <OwnerObjectActions
+          key={`${item.object_kind}:${item.stable_id}`}
+          csrfToken={csrfToken}
+          deviceId={session.deviceId}
+          kind={item.object_kind}
+          stableId={item.stable_id}
+          name={item.name}
+          version={item.latest_version}
+          visibility={item.visibility}
+          locale={locale}
+          capabilities={probe?.capabilities ?? []}
+          {...(probe?.ownerEdit ? { ownerEdit: probe.ownerEdit } : {})}
+        />,
+      ];
+    }),
   );
   const labels = {
     authoritative: tCatalog("authoritative"),
@@ -270,6 +317,7 @@ export default async function OwnerObjectsPage({ params, searchParams }: PagePro
           query={catalogQueryToRecord(query)}
           labels={labels}
           locale={locale}
+          authors={authorProfiles}
           ownerItems={items}
           ownerActions={ownerActions}
         />

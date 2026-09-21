@@ -144,6 +144,19 @@ class OwnerObjectDetail(BaseModel):
     versions: Annotated[list[OwnerVersionSummary], Field(default_factory=list)]
 
 
+class OwnerObjectCapabilities(BaseModel):
+    """Management capabilities the caller holds on one catalog object."""
+
+    model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
+
+    schema_version: Literal[1] = 1
+    object_kind: ObjectKind
+    stable_id: Annotated[str, Field(min_length=8, max_length=64)]
+    capabilities: Annotated[
+        list[Literal["edit", "edit_presentation", "delete"]], Field(max_length=8)
+    ] = []
+
+
 # SPEC-035 component media upload bounds (author gallery, not profile avatar).
 COMPONENT_MEDIA_MAX_BYTES: Final = 25 * 1024 * 1024
 COMPONENT_MEDIA_ALLOWED_MIME: Final = frozenset(

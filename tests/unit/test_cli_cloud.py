@@ -1081,9 +1081,12 @@ def test_the_shipped_client_names_itself_rather_than_its_library() -> None:
     assert cli_version() in agent
 
 
-def _refused(code: str, status: int = 403) -> CliFailure:
+def _refused(code: str, status: int = 403, details: dict[str, str] | None = None) -> CliFailure:
     def refuses(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(status, json={"error": {"code": code}})
+        error: dict[str, object] = {"code": code}
+        if details:
+            error["details"] = details
+        return httpx.Response(status, json={"error": error})
 
     with (
         client.open_client(MOCK, transport=httpx.MockTransport(refuses)) as http,
@@ -1165,6 +1168,27 @@ def test_a_pending_authorization_starts_the_account_intent() -> None:
     assert failure.continuations[0].argv[3] == "account"
     assert all("auth complete" not in action for action in failure.next_actions)
     assert all("auth login" not in action for action in failure.next_actions)
+
+
+def test_a_foreign_device_key_is_offered_the_rebind_path() -> None:
+    """Switching accounts on one device is the one PERMISSION_DENIED a key causes.
+
+    The server qualifies the denial with `reason=device_key_foreign`; only that
+    reason may name `device reset`, because only that reason means the local key
+    is bound to a different account (#359).
+    """
+    failure = _refused("AI_STP_PERMISSION_DENIED", details={"reason": "device_key_foreign"})
+    assert failure.next_actions[0] == "device reset --confirm --json"
+    assert failure.next_actions[1:] == [ACCOUNT_START]
+    assert failure.continuations[0].argv[3] == "account"
+
+
+def test_a_generic_permission_denial_is_not_a_device_problem() -> None:
+    # An unqualified PERMISSION_DENIED — a revoked publish right, a foreign
+    # object — must not suggest discarding the device key.
+    failure = _refused("AI_STP_PERMISSION_DENIED")
+    assert all("device reset" not in action for action in failure.next_actions)
+    assert failure.continuations == []
 
 
 def test_a_revoked_device_keeps_the_reset_behind_its_decision_gate() -> None:

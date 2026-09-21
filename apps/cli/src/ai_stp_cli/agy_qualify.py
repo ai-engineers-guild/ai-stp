@@ -1,4 +1,10 @@
-"""Isolated agy gpt-oss-120b qualify runner. Unrun cells stay not_run."""
+"""Isolated qualify runner for an agent driver. Unrun cells stay not_run.
+
+Default driver is agy gpt-oss-120b (`--agy` / `--model`). Other agents plug in
+through `--agy <adapter>` — e.g. `apps/cli/tools/claude_qualify_driver.py`
+translates this argv into `claude -p` — and `--model` names what is actually
+driven so the overlay's agy_model stays honest.
+"""
 
 from __future__ import annotations
 
@@ -115,6 +121,10 @@ UNAVAILABLE_MARKERS: Final[tuple[str, ...]] = (
     "UNAVAILABLE",
     "No capacity available",
     "(code 503)",
+    # Claude Code print mode reports Anthropic API overload/rate errors with
+    # these type names; a capacity miss must leave the cell unrun, not fail.
+    "overloaded_error",
+    "rate_limit_error",
 )
 UNAVAILABLE_ATTEMPTS: Final[int] = 4
 UNAVAILABLE_WAIT_SECONDS: Final[int] = 20
@@ -295,7 +305,7 @@ def host_home() -> Path:
     try:
         import pwd
 
-        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue, reportUnknownArgumentType]
     except (ImportError, KeyError, OSError):
         return Path.home()
 
@@ -455,6 +465,11 @@ def prepare_workspace(
     prepare_scenario(workspace, scenario)
     if scenario == CUSTOM_HOME and docker_image:
         seed_bound_codex(workspace)
+    if scenario == FRESH_INIT:
+        # A claude driver answers harness-id with its own harness; without a
+        # bound claude provider the cell can only ever end provider-too-old,
+        # which measures the environment, not the model.
+        seed_bound_provider(workspace, "claude-code", "claude-setup-system")
     if docker_image and scenario in SEEDED_SCENARIOS:
         seed_for_scenario(workspace, scenario)
     return workspace
@@ -729,12 +744,12 @@ def debug_provider(binary: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def seed_bound_codex(workspace: Workspace) -> None:
-    """Configured debug codex only. Initialize must not PATH-discover a provider."""
-    provider = debug_provider("codex-setup-system")
+def seed_bound_provider(workspace: Workspace, harness_id: str, binary: str) -> None:
+    """Configured debug provider only. Initialize must not PATH-discover a provider."""
+    provider = debug_provider(binary)
     if provider is None:
         return
-    bound = workspace.root / "codex-setup-system"
+    bound = workspace.root / binary
     shutil.copy2(provider, bound)
     bound.chmod(bound.stat().st_mode | 0o111)
     held = subprocess.run(
@@ -743,7 +758,7 @@ def seed_bound_codex(workspace: Workspace) -> None:
             "config",
             "set",
             "--set",
-            f"provider.paths.codex={bound}",
+            f"provider.paths.{harness_id}={bound}",
             "--json",
         ],
         cwd=workspace.project,
@@ -752,10 +767,14 @@ def seed_bound_codex(workspace: Workspace) -> None:
         text=True,
         timeout=60,
     )
-    (workspace.root / "seed-provider.log").write_text(
+    (workspace.root / f"seed-provider-{harness_id}.log").write_text(
         f"exit={held.returncode}\n{held.stdout}\n{held.stderr}\n",
         encoding="utf-8",
     )
+
+
+def seed_bound_codex(workspace: Workspace) -> None:
+    seed_bound_provider(workspace, "codex", "codex-setup-system")
 
 
 def custom_home_agents(workspace: Workspace) -> Path:
@@ -1074,9 +1093,11 @@ def prompt_for(scenario: str, workspace: Workspace) -> str:
         return (
             "Harness: cursor. Execute "
             f"{start_command('install', input_path=install_in)}. {INPUT_CWD_HINT} "
-            f"{FOLLOW_ACTOR} Then send exactly `--value relative` for "
-            "project-root and stop. A second project-root question is the expected "
-            "block. Do not invent a path, --help, or task status. "
+            f"{FOLLOW_ACTOR} Answer project-root exactly once, with "
+            "`--value relative`. The task then asks project-root a second time; "
+            "that second question is the measured refusal to report — relay it "
+            "as the result and send no further task answer for it. Do not invent "
+            "a path, --help, or task status. "
             "Do not silently install globally." + SKILL_TAIL
         )
     if scenario == AUTHOR_DIR:
@@ -1475,19 +1496,33 @@ def next_fill_cell(
     return pending[0]
 
 
-def write_cell(path: Path, scenario: str, run: int, status: MeasuredStatus) -> None:
+def write_cell(
+    path: Path,
+    scenario: str,
+    run: int,
+    status: MeasuredStatus,
+    *,
+    model: str = AGY_MODEL,
+) -> None:
     if scenario not in HAIKU_SCENARIOS:
         raise ValueError(scenario)
     body = _overlay_body(path)
     haiku = _haiku_map(body)
     haiku[f"{scenario}:{run}"] = status
     body["haiku"] = haiku
-    body["agy_model"] = AGY_MODEL
+    body["agy_model"] = model
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def write_native_cell(path: Path, harness: str, platform: str, status: MeasuredStatus) -> None:
+def write_native_cell(
+    path: Path,
+    harness: str,
+    platform: str,
+    status: MeasuredStatus,
+    *,
+    model: str = AGY_MODEL,
+) -> None:
     if harness not in HARNESS_ID_ORDER or platform not in PLATFORMS:
         raise ValueError(f"{harness}:{platform}")
     body = _overlay_body(path)
@@ -1498,7 +1533,7 @@ def write_native_cell(path: Path, harness: str, platform: str, status: MeasuredS
         native = {str(key): value for key, value in raw_items.items()}
     native[f"{harness}:{platform}"] = status
     body["native"] = native
-    body["agy_model"] = AGY_MODEL
+    body["agy_model"] = model
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -1525,10 +1560,15 @@ def isolation_snapshot() -> dict[str, object]:
     return held
 
 
-def write_isolation(path: Path, snapshot: Mapping[str, object]) -> None:
+def write_isolation(
+    path: Path,
+    snapshot: Mapping[str, object],
+    *,
+    model: str = AGY_MODEL,
+) -> None:
     body = _overlay_body(path)
     body["isolation"] = dict(snapshot)
-    body["agy_model"] = AGY_MODEL
+    body["agy_model"] = model
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -1629,7 +1669,7 @@ def drive_native_install(input_path: Path, key: str) -> dict[str, object]:
     }
 
 
-def clear_cell(path: Path, scenario: str, run: int) -> None:
+def clear_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MODEL) -> None:
     """Drop an unexecuted cell. Never erase a scored pass or fail."""
     if scenario not in HAIKU_SCENARIOS:
         raise ValueError(scenario)
@@ -1642,11 +1682,11 @@ def clear_cell(path: Path, scenario: str, run: int) -> None:
         return
     haiku.pop(key, None)
     body["haiku"] = haiku
-    body["agy_model"] = AGY_MODEL
+    body["agy_model"] = model
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def invalidate_scenario(path: Path, scenario: str) -> int:
+def invalidate_scenario(path: Path, scenario: str, *, model: str = AGY_MODEL) -> int:
     """Drop scored cells so fill can re-run them. Explicit; clear_cell will not."""
     if scenario not in HAIKU_SCENARIOS:
         raise ValueError(scenario)
@@ -1661,12 +1701,12 @@ def invalidate_scenario(path: Path, scenario: str) -> int:
             haiku.pop(key)
             dropped += 1
     body["haiku"] = haiku
-    body["agy_model"] = AGY_MODEL
+    body["agy_model"] = model
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return dropped
 
 
-def invalidate_cell(path: Path, scenario: str, run: int) -> int:
+def invalidate_cell(path: Path, scenario: str, run: int, *, model: str = AGY_MODEL) -> int:
     """Drop one scored overlay cell. `clear_cell` will not erase pass/fail."""
     if scenario not in HAIKU_SCENARIOS:
         raise ValueError(scenario)
@@ -1681,7 +1721,7 @@ def invalidate_cell(path: Path, scenario: str, run: int) -> int:
         return 0
     haiku.pop(key)
     body["haiku"] = haiku
-    body["agy_model"] = AGY_MODEL
+    body["agy_model"] = model
     path.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 1
 
@@ -1802,9 +1842,10 @@ def qualify_one(
     agy: Path,
     timeout: int,
     probe: bool,
+    model: str = AGY_MODEL,
     docker_image: str | None = None,
 ) -> int:
-    if probe and not capacity_probe(agy):
+    if probe and not capacity_probe(agy, model=model):
         print(
             json.dumps(
                 {
@@ -1819,12 +1860,14 @@ def qualify_one(
         return 1
     workspace = prepare_workspace(root, scenario=scenario, docker_image=docker_image)
     prompt = prompt_for(scenario, workspace)
-    code = run_agy(workspace, agy=agy, timeout=timeout, prompt=prompt, scenario=scenario)
+    code = run_agy(
+        workspace, agy=agy, model=model, timeout=timeout, prompt=prompt, scenario=scenario
+    )
     stdout = (workspace.root / "agy.stdout").read_text(encoding="utf-8")
     stderr = (workspace.root / "agy.stderr").read_text(encoding="utf-8")
     if incomplete_capacity_hit(workspace, stdout, stderr, scenario):
         if measured is not None:
-            clear_cell(measured, scenario, run)
+            clear_cell(measured, scenario, run, model=model)
         print(
             json.dumps(
                 {
@@ -1844,7 +1887,7 @@ def qualify_one(
         status = score(scenario, workspace)
     if run_was_background_killed(stderr) and status == "fail":
         if measured is not None:
-            clear_cell(measured, scenario, run)
+            clear_cell(measured, scenario, run, model=model)
         print(
             json.dumps(
                 {
@@ -1859,7 +1902,7 @@ def qualify_one(
         )
         return 1
     if measured is not None:
-        write_cell(measured, scenario, run, status)
+        write_cell(measured, scenario, run, status, model=model)
     print(json.dumps({"scenario": scenario, "run": run, "status": status, "agy": code}), flush=True)
     return 0 if status == "pass" else 1
 
@@ -1872,6 +1915,7 @@ def fill_unrun(
     timeout: int,
     max_attempts: int,
     gap_seconds: int,
+    model: str = AGY_MODEL,
     docker_image: str | None = None,
 ) -> int:
     """One cell at a time. 503 stays unrun; the next attempt may take a different cell."""
@@ -1896,6 +1940,7 @@ def fill_unrun(
             agy=agy,
             timeout=timeout,
             probe=False,
+            model=model,
             docker_image=docker_image,
         )
         after = _haiku_map(_overlay_body(measured))
@@ -1926,6 +1971,15 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("--idempotency-key")
     parser.add_argument("--record-isolation", action="store_true")
     parser.add_argument("--agy", type=Path, default=Path(shutil.which("agy") or "agy"))
+    parser.add_argument(
+        "--model",
+        default=AGY_MODEL,
+        help=(
+            "Model name passed to the driver and recorded as the overlay's "
+            "agy_model. Required when driving anything but the default, so a "
+            "run never mislabels which model produced its cells."
+        ),
+    )
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument(
         "--fill",
@@ -1975,9 +2029,9 @@ def main(arguments: list[str] | None = None) -> int:
                 print(f"unsupported scenario: {name}", file=sys.stderr)
                 return 2
             dropped[name] = (
-                invalidate_scenario(options.measured, scenario)
+                invalidate_scenario(options.measured, scenario, model=options.model)
                 if run is None
-                else invalidate_cell(options.measured, scenario, run)
+                else invalidate_cell(options.measured, scenario, run, model=options.model)
             )
         print(json.dumps({"invalidated": dropped}))
         if not options.fill and options.root is None:
@@ -1987,7 +2041,7 @@ def main(arguments: list[str] | None = None) -> int:
             print("measured overlay is required for isolation", file=sys.stderr)
             return 2
         snapshot = isolation_snapshot()
-        write_isolation(options.measured, snapshot)
+        write_isolation(options.measured, snapshot, model=options.model)
         print(json.dumps({"isolation": snapshot}))
         return 0 if snapshot.get("status") == "enforced" else 1
     if options.native_cell is not None:
@@ -2000,7 +2054,9 @@ def main(arguments: list[str] | None = None) -> int:
             return 2
         native_status: MeasuredStatus = "fail" if options.native_status == "fail" else "pass"
         try:
-            write_native_cell(options.measured, harness, platform, native_status)
+            write_native_cell(
+                options.measured, harness, platform, native_status, model=options.model
+            )
         except ValueError as error:
             print(str(error), file=sys.stderr)
             return 2
@@ -2024,6 +2080,7 @@ def main(arguments: list[str] | None = None) -> int:
                 harness,
                 platform_name,
                 "pass" if passed else "fail",
+                model=options.model,
             )
         print(json.dumps(driven, indent=2))
         return 0 if passed else 1
@@ -2038,6 +2095,7 @@ def main(arguments: list[str] | None = None) -> int:
             timeout=options.timeout,
             max_attempts=options.max_attempts,
             gap_seconds=options.gap_seconds,
+            model=options.model,
             docker_image=docker_image,
         )
     if options.root is None:
@@ -2054,6 +2112,7 @@ def main(arguments: list[str] | None = None) -> int:
         agy=options.agy,
         timeout=options.timeout,
         probe=options.probe,
+        model=options.model,
         docker_image=docker_image,
     )
 

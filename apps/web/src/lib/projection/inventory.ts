@@ -74,6 +74,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "corporate/dashboard", access: "session", presenter: "domain" },
   { pattern: "corporate/organization", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins", access: "session", presenter: "domain" },
+  { pattern: "corporate/organization/admins/access", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins/settings", access: "session", presenter: "domain" },
   { pattern: "corporate/organization/admins/audit", access: "session", presenter: "domain" },
   {
@@ -108,6 +109,7 @@ export const PAGE_INVENTORY: readonly PageInventoryEntry[] = [
   { pattern: "corporate/:resource/:resourceId", access: "session", presenter: "domain" },
   { pattern: "corporate/:resource/:resourceId/edit", access: "session", presenter: "domain" },
   { pattern: "devices", access: "session", presenter: "domain" },
+  { pattern: "assigned", access: "session", presenter: "domain" },
   { pattern: "objects", access: "session", presenter: "domain" },
   { pattern: "likes", access: "session", presenter: "domain" },
   { pattern: "objects/component/:stableId/edit", access: "session", presenter: "domain" },

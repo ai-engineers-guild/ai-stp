@@ -55,26 +55,25 @@ def test_profile_contracts_validate_identity_and_safe_content() -> None:
 
 
 @pytest.mark.parametrize(
-    "administrator,lead,owner,assignment,expected",
+    "administrator,owner,assignment,expected",
     [
-        (True, False, False, False, True),
-        (False, True, False, False, True),
-        (False, True, False, True, True),
-        (False, False, True, False, True),
-        (False, False, True, True, False),
-        (False, False, False, False, False),
+        (True, False, False, True),
+        (True, False, True, True),
+        (False, True, False, True),
+        (False, True, True, False),
+        (False, False, False, False),
+        (False, False, True, False),
     ],
 )
 async def test_edit_authority(
     monkeypatch: pytest.MonkeyPatch,
     administrator: bool,
-    lead: bool,
     owner: bool,
     assignment: bool,
     expected: bool,
 ) -> None:
     db = AsyncMock()
-    db.scalar.side_effect = ["lead" if lead else None, "technology" if owner else None]
+    db.scalar.side_effect = ["technology" if owner else None]
     monkeypatch.setattr(
         entity_profiles, "has_corporate_permission", AsyncMock(return_value=administrator)
     )

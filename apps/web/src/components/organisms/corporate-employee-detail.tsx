@@ -59,6 +59,8 @@ function EmployeeCatalog({
   labels: CorporateEmployeeDetailLabels;
 }) {
   const t = useTranslations("hub");
+  const tc = useTranslations("catalog");
+  const common = useTranslations("common");
   const [page, setPage] = useState(0);
   const states = [content.components, content.setups];
   const items = states.flatMap((state) => (state.status === "data" ? state.data : []));
@@ -72,19 +74,44 @@ function EmployeeCatalog({
     const visible = items.slice(page * 10, (page + 1) * 10);
     return (
       <DetailAccordion title={title} summary={`${items.length}`} defaultOpen>
-        <ul className="min-w-0 space-y-3">
+        <ul className="border-border divide-border grid min-w-0 divide-y overflow-hidden rounded-lg border">
           {visible.map((item) =>
             item.summary ? (
-              <ObjectCard
-                key={`${item.kind}:${item.id}`}
-                kind={item.kind}
-                item={item.summary}
-                href={`/catalog/${item.kind === "setup" ? "setups" : "components"}/${item.id}`}
-                view="list"
-                labels={catalogCardLabels}
-              />
+              <li key={`${item.kind}:${item.id}`} className="min-w-0">
+                <ObjectCard
+                  kind={item.kind}
+                  item={item.summary}
+                  href={`/catalog/${item.kind === "setup" ? "setups" : "components"}/${item.id}`}
+                  view="list"
+                  labels={{
+                    version: tc("version"),
+                    harness: tc("harness"),
+                    tags: tc("tags"),
+                    type: tc("type"),
+                    publisher: tc("publisher"),
+                    likes: tc("likes"),
+                    componentKind: tc("componentKind"),
+                    setupKind: tc("setupKind"),
+                    moreActions: tc("moreActions"),
+                    copyCli: tc("copyCli"),
+                    copyId: tc("copyId"),
+                    copyUrl: tc("copyUrl"),
+                    copied: tc("copied"),
+                    report: tc("report"),
+                    reportSetup: tc("reportSetup"),
+                    like: tc("likeMenu"),
+                    unlike: tc("unlikeMenu"),
+                    authorVerified: tc("authorVerified"),
+                    componentVerified: tc("componentVerified"),
+                    yes: common("yes"),
+                    no: common("no"),
+                    publicVisibility: tc("public"),
+                    privateVisibility: tc("private"),
+                  }}
+                />
+              </li>
             ) : (
-              <li key={`${item.kind}:${item.id}`} className="border-border rounded-lg border p-4">
+              <li key={`${item.kind}:${item.id}`} className="min-w-0 px-4 py-3">
                 <Link
                   href={`/catalog/${item.kind === "setup" ? "setups" : "components"}/${item.id}`}
                   className="font-medium underline underline-offset-4"
@@ -140,32 +167,6 @@ function EmployeeCatalog({
     <ReadState title={title} message={labels.noCatalogItems ?? labels.noComponents} state="empty" />
   );
 }
-
-const catalogCardLabels = {
-  harness: "Harness",
-  tags: "Tags",
-  version: "Version",
-  type: "Type",
-  authorVerified: "Author verified",
-  componentVerified: "Component verified",
-  yes: "Yes",
-  no: "No",
-  publisher: "Publisher",
-  publishedAt: "Published",
-  likes: "Likes",
-  componentKind: "Component",
-  setupKind: "Setup",
-  requirements: "Requirements",
-  moreActions: "More actions",
-  copyCli: "Copy CLI command",
-  copyId: "Copy ID",
-  copyUrl: "Copy URL",
-  copied: "Copied",
-  report: "Report component",
-  reportSetup: "Report setup",
-  publicVisibility: "Public",
-  privateVisibility: "Private",
-} as Parameters<typeof ObjectCard>[0]["labels"];
 
 function ReadState({
   title,

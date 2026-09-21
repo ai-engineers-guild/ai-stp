@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "IdempotencyKey": {
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:corporate-distribution-request",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Preview or apply one bulk assign/revoke over a source assignment's targets.",
+  "properties": {
+    "action": {
+      "enum": [
+        "assign",
+        "revoke"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "authorization_revision": {
+      "minimum": 1,
+      "title": "Authorization Revision",
+      "type": "integer"
+    },
+    "dry_run": {
+      "default": false,
+      "title": "Dry Run",
+      "type": "boolean"
+    },
+    "expected_revision": {
+      "minimum": 1,
+      "title": "Expected Revision",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/IdempotencyKey"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_assignment_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Source Assignment Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_assignment_id",
+    "action",
+    "expected_revision",
+    "authorization_revision",
+    "idempotency_key"
+  ],
+  "title": "CorporateDistributionRequest",
+  "type": "object"
+}

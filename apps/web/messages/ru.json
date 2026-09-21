@@ -48,14 +48,12 @@
     "lead": "Тимлид",
     "staff": "Участник",
     "addMembership": "Добавить участие",
-    "catalogAssignments": "Сетапы и компоненты",
+    "catalogAssignments": "Назначенные сетапы и компоненты",
     "catalogGovernanceFilters": "Фасеты корпоративного каталога",
     "catalogOwner": "Корпоративный владелец",
     "catalogMaintainer": "Ответственный",
     "catalogAssignment": "Назначение",
     "effectiveAssignment": "Действующее назначение",
-    "catalogUsageTitle": "Использование в организации",
-    "catalogUsageSummary": "Назначений с доступом: {count}",
     "corporateVerification": "Корпоративная проверка",
     "verified": "Проверен",
     "notVerified": "Не проверен",
@@ -116,6 +114,7 @@
     "deprecated": "Устаревший",
     "moreActions": "Другие действия",
     "openDetails": "Открыть подробности",
+    "editPresentation": "Редактировать публичное представление",
     "copyId": "Скопировать ID",
     "copyUrl": "Скопировать URL",
     "share": "Поделиться",
@@ -131,7 +130,14 @@
     "notAvailable": "Нет данных",
     "deleted": "Удалён",
     "pagination": "Страницы",
-    "pageSize": "На странице"
+    "pageSize": "На странице",
+    "assignDialogTitle": "Назначить субъектам",
+    "assignVersion": "Версия",
+    "latestVersion": "Последняя версия",
+    "assign": "Назначить",
+    "assignPartial": "Сохранено: {saved}, ошибок: {failed}.",
+    "assignFailed": "Назначение не выполнено.",
+    "loading": "Загрузка…"
   },
   "technology": {
     "mergeTitle": "Явное объединение технологий",
@@ -378,6 +384,7 @@
     "profileShortcut": "Клавиша P",
     "profile": "Профиль",
     "myObjects": "Мои объекты",
+    "assignedToMe": "Назначено мне",
     "myLikes": "Мои лайки",
     "accountMenu": "Меню аккаунта",
     "contactKey": "C"
@@ -919,7 +926,10 @@
     "contextBudgetInvalidGraph": "Не удалось проверить точный граф компонентов.",
     "contextBudgetDependencyFailure": "Хранилище артефактов или API недоступно. Повторите попытку.",
     "contextBudgetNonUtf8": "Артефакт не является текстом UTF-8.",
-    "contextBudgetAdaptationRequired": "Для этой версии с несколькими адаптациями нужен расчёт под конкретную среду."
+    "contextBudgetAdaptationRequired": "Для этой версии с несколькими адаптациями нужен расчёт под конкретную среду.",
+    "objectDelete": "Удалить объект",
+    "objectDeleteConfirm": "Удалить этот объект? Действие необратимо.",
+    "objectDeleted": "Объект удалён"
   },
   "publisher": {
     "title": "Издатель",
@@ -1243,6 +1253,12 @@
   },
   "a11y": {
     "skipToContent": "К содержимому"
+  },
+  "assigned": {
+    "title": "Назначено мне",
+    "subtitle": "Сетапы и компоненты каталога, которые организация назначила вам.",
+    "emptyTitle": "Пока ничего не назначено",
+    "emptyBody": "Когда организация назначит вам или вашей команде сетап или компонент, он появится здесь."
   },
   "myLikes": {
     "title": "Мои лайки",
@@ -1755,6 +1771,15 @@
     "membershipFilter": "Участие в командах",
     "teamFilter": "Фильтр по команде",
     "notAssigned": "Не назначены",
-    "allTeams": "Все команды"
+    "allTeams": "Все команды",
+    "accessMatrix": "Матрица доступа",
+    "accessMatrixBody": "Разрешения каждой роли, сгруппированные по сущностям.",
+    "accessMatrixGroups": "Области",
+    "permission": "Разрешение",
+    "granted": "Есть",
+    "notGranted": "Нет",
+    "effectiveAccess": "Ваши эффективные права",
+    "scopeId": "ID области",
+    "grantedBy": "Назначено через"
   }
 }

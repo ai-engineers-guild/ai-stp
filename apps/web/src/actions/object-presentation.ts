@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { ApiError } from "@/lib/api/errors";
 import { fieldErrorsFromDetails, fieldErrorsFromIssues } from "@/lib/api/field-errors";
-import { updateOwnerPresentation } from "@/lib/api/owner";
+import { deleteOwnerObject, updateOwnerPresentation } from "@/lib/api/owner";
 import {
   isExternalMediaUrl,
   isGithubRawUrl,
@@ -122,6 +122,39 @@ export async function updateObjectPresentationAction(input: unknown) {
   revalidatePath(
     `/${parsed.data.locale}/catalog/${parsed.data.objectKind === "component" ? "components" : "setups"}/${parsed.data.stableId}`,
   );
+  revalidatePath(`/${parsed.data.locale}/catalog`);
+  return { ok: true as const };
+}
+
+const deleteSchema = z.object({
+  csrfToken: z.string().min(1),
+  stableId: z.string().min(8).max(64),
+  objectKind: z.enum(["component", "setup"]),
+  locale: z.string().min(2).max(5),
+});
+
+export async function deleteObjectAction(input: unknown) {
+  const parsed = deleteSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, message: "Invalid delete request." };
+  }
+  try {
+    assertCsrf(parsed.data.csrfToken, await readCsrfToken());
+  } catch {
+    return { ok: false as const, message: "The form expired. Reload the page." };
+  }
+  const token = await sessionCookieValue();
+  if (!token) {
+    return { ok: false as const, message: "Not signed in." };
+  }
+  try {
+    await deleteOwnerObject(token, parsed.data.objectKind, parsed.data.stableId);
+  } catch (error) {
+    return {
+      ok: false as const,
+      message: error instanceof ApiError ? error.message : "Could not delete the object.",
+    };
+  }
   revalidatePath(`/${parsed.data.locale}/catalog`);
   return { ok: true as const };
 }

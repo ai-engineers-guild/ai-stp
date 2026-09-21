@@ -91,7 +91,8 @@
         "state": "archived",
         "lifecycle": "deprecated",
         "restore_lifecycle": "active",
-        "revision": 2
+        "revision": 2,
+        "available_actions": []
       },
       "error_code": null
     },
@@ -135,7 +136,8 @@
         "restore_lifecycle": "draft",
         "revision": 2,
         "redirect_id": null,
-        "provenance": "manual"
+        "provenance": "manual",
+        "available_actions": []
       },
       "error_code": null
     },
@@ -187,7 +189,8 @@
         "restore_lifecycle": "draft",
         "revision": 1,
         "redirect_id": null,
-        "provenance": "manual"
+        "provenance": "manual",
+        "available_actions": []
       },
       "error_code": null
     },
@@ -451,7 +454,8 @@
             "restore_lifecycle": "draft",
             "revision": 1,
             "redirect_id": null,
-            "provenance": "manual"
+            "provenance": "manual",
+            "available_actions": []
           }
         ],
         "total": 1
@@ -589,7 +593,8 @@
         "restore_lifecycle": "draft",
         "revision": 1,
         "redirect_id": null,
-        "provenance": "manual"
+        "provenance": "manual",
+        "available_actions": []
       },
       "error_code": null
     },
@@ -699,7 +704,8 @@
               "restore_lifecycle": "draft",
               "revision": 2,
               "redirect_id": null,
-              "provenance": "manual"
+              "provenance": "manual",
+              "available_actions": []
             },
             "project_count": 1,
             "proposed_project_count": 0,
@@ -867,7 +873,8 @@
         "restore_lifecycle": "draft",
         "revision": 2,
         "redirect_id": null,
-        "provenance": "manual"
+        "provenance": "manual",
+        "available_actions": []
       },
       "error_code": null
     },
@@ -1120,7 +1127,8 @@
           "restore_lifecycle": "draft",
           "revision": 2,
           "redirect_id": null,
-          "provenance": "manual"
+          "provenance": "manual",
+          "available_actions": []
         },
         "target": {
           "name": "npm CLI",
@@ -1139,7 +1147,8 @@
           "restore_lifecycle": "draft",
           "revision": 2,
           "redirect_id": null,
-          "provenance": "manual"
+          "provenance": "manual",
+          "available_actions": []
         },
         "affected_project_count": 0,
         "affected_team_count": 0,
@@ -1185,7 +1194,8 @@
           "restore_lifecycle": "active",
           "revision": 3,
           "redirect_id": "technology_00000000000000000000000002",
-          "provenance": "manual"
+          "provenance": "manual",
+          "available_actions": []
         },
         "target": {
           "name": "npm CLI",
@@ -1207,7 +1217,8 @@
           "restore_lifecycle": "draft",
           "revision": 3,
           "redirect_id": null,
-          "provenance": "manual"
+          "provenance": "manual",
+          "available_actions": []
         },
         "project_effects": [],
         "team_effects": []
@@ -1450,7 +1461,8 @@
               "restore_lifecycle": "draft",
               "revision": 2,
               "redirect_id": null,
-              "provenance": "manual"
+              "provenance": "manual",
+              "available_actions": []
             },
             "project_count": 1,
             "proposed_project_count": 0,
@@ -1546,7 +1558,8 @@
               "restore_lifecycle": "draft",
               "revision": 2,
               "redirect_id": null,
-              "provenance": "manual"
+              "provenance": "manual",
+              "available_actions": []
             },
             "project_count": 1,
             "proposed_project_count": 0,
@@ -1648,7 +1661,8 @@
               "restore_lifecycle": "draft",
               "revision": 2,
               "redirect_id": null,
-              "provenance": "manual"
+              "provenance": "manual",
+              "available_actions": []
             },
             "project_count": 1,
             "proposed_project_count": 0,

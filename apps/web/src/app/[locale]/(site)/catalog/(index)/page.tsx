@@ -22,6 +22,7 @@ import {
   type CatalogReadScope,
 } from "@/lib/catalog-load";
 import { catalogQueryToRecord, parseCatalogSearchParams } from "@/lib/catalog-query";
+import { filterAndSortOwnerObjects } from "@/lib/owner-catalog";
 import { readCanonicalPathname } from "@/lib/projection/mode";
 import type {
   CorporateCatalogFacetConfig,
@@ -83,33 +84,46 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   let corporateFacets: CorporateCatalogFacetConfig[] = [];
   let catalogScope: CatalogReadScope = {};
   const hub = isCorporateCatalog ? await getTranslations("hub") : null;
-  if (isCorporateCatalog && sessionToken) {
-    try {
-      const context = await readCorporateContext(sessionToken);
-      if (context) {
-        const [members, technologies] = await Promise.allSettled([
-          readCorporateDirectoryPages(sessionToken, context.organization.organization_id, {
+  // The context read gates both the scoped search and the facet directories;
+  // run the search as soon as the scope is known instead of after facets load.
+  const corporateContext =
+    isCorporateCatalog && sessionToken
+      ? await readCorporateContext(sessionToken).catch(() => null)
+      : null;
+  type DirectoryRead = PromiseSettledResult<
+    Awaited<ReturnType<typeof readCorporateDirectoryPages>>
+  >;
+  let facetReads: [DirectoryRead, DirectoryRead] | null = null;
+  const facetReadsPending =
+    corporateContext && sessionToken
+      ? Promise.allSettled([
+          readCorporateDirectoryPages(sessionToken, corporateContext.organization.organization_id, {
             resource: "members",
             include_archived: false,
           }),
-          readCorporateDirectoryPages(sessionToken, context.organization.organization_id, {
+          readCorporateDirectoryPages(sessionToken, corporateContext.organization.organization_id, {
             resource: "technologies",
             include_archived: false,
           }),
-        ]);
-        corporateFacets = buildCorporateCatalogFacets(
-          hub ?? (() => ""),
-          context,
-          members,
-          technologies,
-        );
-        catalogScope = {
-          sessionToken,
-          organizationId: context.organization.organization_id,
-        };
-      }
-    } catch {
-      // The public catalog remains usable if corporate facet data is unavailable.
+        ])
+      : null;
+  if (corporateContext && sessionToken) {
+    catalogScope = {
+      sessionToken,
+      organizationId: corporateContext.organization.organization_id,
+    };
+  }
+  const started = startCatalogResourceReads(query, undefined, catalogScope);
+  if (facetReadsPending) {
+    facetReads = await facetReadsPending;
+    if (corporateContext) {
+      const [members, technologies] = facetReads;
+      corporateFacets = buildCorporateCatalogFacets(
+        hub ?? (() => ""),
+        corporateContext,
+        members,
+        technologies,
+      );
     }
   }
 
@@ -134,7 +148,6 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   let componentTotalItems: number | null = null;
   let componentTotalPages: number | null = null;
   let authorProfiles: Record<string, CatalogAuthor> = {};
-  const started = startCatalogResourceReads(query, undefined, catalogScope);
   const auxiliaryReads = Promise.all([
     started.services,
     listCatalogAuthors()
@@ -281,7 +294,24 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
           : {}),
         page_size: 100,
       });
-      privateItems = ownerObjects.items.filter((item) => item.visibility === "private");
+      // Corporate relation filters are enforced server-side; owner items carry
+      // no relation projection, so under an active relation filter they cannot
+      // match and must not leak into results unfiltered.
+      const hasRelationFilter =
+        query.teamIds.length > 0 ||
+        query.projectIds.length > 0 ||
+        query.technologyIds.length > 0 ||
+        query.categoryIds.length > 0 ||
+        query.ownerIds.length > 0 ||
+        query.maintainerIds.length > 0 ||
+        query.assignment !== undefined ||
+        query.corporateVerified !== undefined;
+      privateItems = hasRelationFilter
+        ? []
+        : filterAndSortOwnerObjects(
+            ownerObjects.items.filter((item) => item.visibility === "private"),
+            query,
+          );
     } catch {
       privateItems = [];
     }

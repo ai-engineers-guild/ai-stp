@@ -21,6 +21,17 @@
           "default": null,
           "title": "Display Name"
         },
+        "harness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarnessId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "object_kind": {
           "enum": [
             "setup",
@@ -34,6 +45,19 @@
           "title": "Organization Id",
           "type": "string"
         },
+        "passport_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passport Digest"
+        },
         "revision": {
           "minimum": 1,
           "title": "Revision",
@@ -44,6 +68,15 @@
           "default": 1,
           "title": "Schema Version",
           "type": "integer"
+        },
+        "selector": {
+          "default": "exact",
+          "enum": [
+            "exact",
+            "latest"
+          ],
+          "title": "Selector",
+          "type": "string"
         },
         "source_team_id": {
           "anyOf": [
@@ -79,24 +112,36 @@
             "employee",
             "team",
             "project",
-            "technology"
+            "technology",
+            "organization"
           ],
           "title": "Subject Kind",
           "type": "string"
         },
         "version": {
-          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
-          "title": "Version",
-          "type": "string"
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
         }
       },
       "required": [
         "assignment_id",
         "display_name",
+        "harness",
         "object_kind",
         "organization_id",
+        "passport_digest",
         "revision",
         "schema_version",
+        "selector",
         "source_team_id",
         "stable_id",
         "state",
@@ -244,6 +289,18 @@
       ],
       "title": "CorporateOverviewNode",
       "type": "object"
+    },
+    "HarnessId": {
+      "enum": [
+        "claude-code",
+        "codex",
+        "pi",
+        "opencode",
+        "grok-build",
+        "cursor",
+        "antigravity"
+      ],
+      "type": "string"
     }
   },
   "$id": "urn:ai-stp:schema:v1:corporate-overview",

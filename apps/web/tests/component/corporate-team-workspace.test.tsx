@@ -39,6 +39,7 @@ const employee: CorporateMember = {
   job_title_name: null,
   state: "active",
   revision: 1,
+  available_actions: [],
 };
 const bob: CorporateMember = { ...employee, account_id: "account_B", display_name: "Bob" };
 const team: CorporateTeamView = {

@@ -512,8 +512,9 @@ describe("CatalogFilters", () => {
       />,
     );
 
-    const chip = screen.getByRole("link", { name: /Alice Example/ });
-    expect(chip).toContainElement(container.querySelector("img"));
+    const chip = screen.getByText("Alice Example");
+    expect(chip.parentElement).toContainElement(container.querySelector("img"));
+    expect(screen.getByRole("link", { name: "Remove filter: Alice Example" })).toBeInTheDocument();
   });
 
   it("falls back to an author's first and last name in the selected chip", () => {
@@ -533,7 +534,8 @@ describe("CatalogFilters", () => {
       />,
     );
 
-    expect(screen.getByRole("link", { name: /Alice Example/ })).toBeInTheDocument();
+    expect(screen.getByText("Alice Example")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Remove filter: Alice Example" })).toBeInTheDocument();
   });
 
   it("uses an overlay filter surface on a narrow viewport without dropping controls", async () => {

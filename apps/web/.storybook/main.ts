@@ -56,6 +56,14 @@ const config: StorybookConfig = {
             replacement: path.resolve(appDir, "src/stories/shims/actions-devices.ts"),
           },
           {
+            find: "@/actions/corporate",
+            replacement: path.resolve(appDir, "src/stories/shims/actions-corporate.ts"),
+          },
+          {
+            find: "@/actions/object-presentation",
+            replacement: path.resolve(appDir, "src/stories/shims/actions-object-presentation.ts"),
+          },
+          {
             find: "@",
             replacement: path.resolve(appDir, "src"),
           },

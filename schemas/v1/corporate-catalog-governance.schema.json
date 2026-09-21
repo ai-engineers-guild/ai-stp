@@ -286,6 +286,15 @@
           "title": "Can Edit",
           "type": "boolean"
         },
+        "capabilities": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "title": "Capabilities",
+          "type": "array"
+        },
         "object_kind": {
           "enum": [
             "setup",
@@ -364,6 +373,7 @@
       },
       "required": [
         "can_edit",
+        "capabilities",
         "object_kind",
         "organization_id",
         "owner_account_id",

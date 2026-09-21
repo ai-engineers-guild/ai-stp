@@ -1,5 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
+import { readAccount } from "@/lib/api/account";
+import { readCorporateCatalogAssignments, readCorporateContext } from "@/lib/api/corporate";
 import {
   listOwnerObjects,
   readOwnerExternalProducts,
@@ -18,6 +20,7 @@ import {
   staffCasePublicFacts,
 } from "@/lib/projection/page-facts";
 import { orNotFound } from "@/lib/projection/not-found";
+import { presentPage } from "@/lib/projection/presenters";
 import { presentOwnerObjects, presentReportCases } from "@/lib/projection/private-presenters";
 import {
   presentInvitation,
@@ -30,6 +33,38 @@ import {
 import type { MachineRoute } from "@/lib/projection/route-table";
 
 export const WORKSPACE_ROUTES: MachineRoute[] = [
+  {
+    pattern: "assigned",
+    resolve: async () => {
+      const t = await getTranslations("assigned");
+      const session = (await sessionCookieValue()) ?? "";
+      const account = await readAccount(session).catch(() => null);
+      const context = account ? await readCorporateContext(session).catch(() => null) : null;
+      const assignments =
+        account && context
+          ? await readCorporateCatalogAssignments(
+              session,
+              context.organization.organization_id,
+              "employee",
+              account.account_id,
+            )
+              .then((result) => result.items.filter((item) => item.state === "current"))
+              .catch(() => [])
+          : [];
+      return presentPage({
+        title: t("title"),
+        summary: t("subtitle"),
+        emptyMessage: t("emptyTitle"),
+        links: assignments.map(
+          (item) =>
+            [
+              item.stable_id,
+              `/catalog/${item.object_kind === "component" ? "components" : "setups"}/${item.stable_id}`,
+            ] as const,
+        ),
+      });
+    },
+  },
   {
     pattern: "objects",
     resolve: async () => {

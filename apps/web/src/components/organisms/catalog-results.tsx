@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { ObjectCard, type CatalogAuthor } from "@/components/organisms/object-card";
+import { NavPendingRegion } from "@/components/molecules/nav-pending-region";
 import { StatePanel } from "@/components/molecules/state-panel";
 import type { ComponentSummary, SetupSummary } from "@/lib/api/generated/types.gen";
-import type { OwnerObjectSummary } from "@/lib/api/generated/types.gen";
+import type { OwnerCardItem } from "@/components/organisms/object-card";
 import { PageNav, SingleResourcePager } from "@/components/organisms/catalog-page-nav";
 import { catalogHref } from "@/lib/catalog-query";
 import { UI } from "@/lib/ui-selectors";
@@ -103,7 +104,7 @@ type CatalogResultsProps = {
   locale?: string;
   authors?: Record<string, CatalogAuthor>;
   likedIds?: ReadonlyArray<string>;
-  ownerItems?: OwnerObjectSummary[];
+  ownerItems?: OwnerCardItem[];
   ownerActions?: Record<string, ReactNode>;
 };
 
@@ -235,98 +236,102 @@ export function CatalogResults({
 
   return (
     <div data-ui={UI.catalog.results} className="flex min-w-0 flex-col gap-8">
-      <section aria-labelledby="catalog-results-heading" className="min-w-0" data-resource={kind}>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-          <div className="min-w-0">
-            <h2
-              id="catalog-results-heading"
-              className="text-xl font-medium tracking-tight break-words"
-            >
-              {labels.resultsHeading}
-            </h2>
-            {showExperimental ? (
-              <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                {labels.experimentalNote}
-              </p>
-            ) : null}
+      <NavPendingRegion>
+        <section aria-labelledby="catalog-results-heading" className="min-w-0" data-resource={kind}>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div className="min-w-0">
+              <h2
+                id="catalog-results-heading"
+                className="text-xl font-medium tracking-tight break-words"
+              >
+                {labels.resultsHeading}
+              </h2>
+              {showExperimental ? (
+                <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                  {labels.experimentalNote}
+                </p>
+              ) : null}
+            </div>
+            <p className="text-muted-foreground font-mono text-sm" aria-live="polite">
+              {totalItems ?? rows.length}
+            </p>
           </div>
-          <p className="text-muted-foreground font-mono text-sm" aria-live="polite">
-            {totalItems ?? rows.length}
-          </p>
-        </div>
 
-        {rows.length === 0 ? (
-          <StatePanel
-            kind="empty"
-            title={showExperimental ? labels.emptyAll : labels.emptyAuthoritative}
+          {rows.length === 0 ? (
+            <StatePanel
+              kind="empty"
+              title={showExperimental ? labels.emptyAll : labels.emptyAuthoritative}
+            />
+          ) : (
+            <ul className={gridClass}>
+              {merged.map((item) => {
+                const resource = isComponentSummary(item) ? "components" : "setups";
+                return (
+                  <li key={`${resource}:${item.stable_id}`} className="min-w-0">
+                    <ObjectCard
+                      kind={resource === "components" ? "component" : "setup"}
+                      item={item}
+                      href={hrefFor(resource, item.stable_id, catalogHref(basePath, query))}
+                      labels={cardLabels}
+                      view={view}
+                      initiallyLiked={likedIds.includes(item.stable_id)}
+                      {...(authors[item.publisher_id]
+                        ? { author: authors[item.publisher_id] }
+                        : {})}
+                      locale={locale}
+                      visibility="public"
+                    />
+                  </li>
+                );
+              })}
+              {ownerItems.map((item) => {
+                const resource = item.object_kind === "component" ? "components" : "setups";
+                const href = hrefFor(resource, item.stable_id, catalogHref(basePath, query));
+                return (
+                  <li key={`${item.object_kind}:${item.stable_id}`} className="min-w-0">
+                    <ObjectCard
+                      kind={item.object_kind}
+                      item={item}
+                      href={href}
+                      labels={cardLabels}
+                      view={view}
+                      ownerActions={ownerActions[`${item.object_kind}:${item.stable_id}`]}
+                      visibility={item.visibility}
+                      locale={locale}
+                      {...(item.catalog_item &&
+                      "publisher_id" in item.catalog_item &&
+                      authors[item.catalog_item.publisher_id]
+                        ? { author: authors[item.catalog_item.publisher_id] }
+                        : {})}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+        {kind === "mixed" ? null : (
+          <SingleResourcePager
+            nextCursor={nextCursor}
+            totalPages={totalPages}
+            pageNumber={pageNumber}
+            basePath={basePath}
+            query={query}
+            nextLabel={labels.nextPage}
+            paginationLabel={labels.pagination ?? "Pagination"}
           />
-        ) : (
-          <ul className={gridClass}>
-            {merged.map((item) => {
-              const resource = isComponentSummary(item) ? "components" : "setups";
-              return (
-                <li key={`${resource}:${item.stable_id}`} className="min-w-0">
-                  <ObjectCard
-                    kind={resource === "components" ? "component" : "setup"}
-                    item={item}
-                    href={hrefFor(resource, item.stable_id, catalogHref(basePath, query))}
-                    labels={cardLabels}
-                    view={view}
-                    initiallyLiked={likedIds.includes(item.stable_id)}
-                    {...(authors[item.publisher_id] ? { author: authors[item.publisher_id] } : {})}
-                    locale={locale}
-                    visibility="public"
-                  />
-                </li>
-              );
-            })}
-            {ownerItems.map((item) => {
-              const resource = item.object_kind === "component" ? "components" : "setups";
-              const href = hrefFor(resource, item.stable_id, catalogHref(basePath, query));
-              return (
-                <li key={`${item.object_kind}:${item.stable_id}`} className="min-w-0">
-                  <ObjectCard
-                    kind={item.object_kind}
-                    item={item}
-                    href={href}
-                    labels={cardLabels}
-                    view={view}
-                    ownerActions={ownerActions[`${item.object_kind}:${item.stable_id}`]}
-                    visibility={item.visibility}
-                    locale={locale}
-                    {...(item.catalog_item &&
-                    "publisher_id" in item.catalog_item &&
-                    authors[item.catalog_item.publisher_id]
-                      ? { author: authors[item.catalog_item.publisher_id] }
-                      : {})}
-                  />
-                </li>
-              );
-            })}
-          </ul>
         )}
-      </section>
-      {kind === "mixed" ? null : (
-        <SingleResourcePager
-          nextCursor={nextCursor}
-          totalPages={totalPages}
-          pageNumber={pageNumber}
-          basePath={basePath}
-          query={query}
-          nextLabel={labels.nextPage}
-          paginationLabel={labels.pagination ?? "Pagination"}
-        />
-      )}
-      {kind === "mixed" ? (
-        <MixedPager
-          labels={labels}
-          pageNumber={pageNumber}
-          setupsTotalPages={setupsTotalPages}
-          componentsTotalPages={componentsTotalPages}
-          basePath={basePath}
-          query={query}
-        />
-      ) : null}
+        {kind === "mixed" ? (
+          <MixedPager
+            labels={labels}
+            pageNumber={pageNumber}
+            setupsTotalPages={setupsTotalPages}
+            componentsTotalPages={componentsTotalPages}
+            basePath={basePath}
+            query={query}
+          />
+        ) : null}
+      </NavPendingRegion>
     </div>
   );
 }

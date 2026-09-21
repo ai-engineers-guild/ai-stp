@@ -67,6 +67,9 @@ it("links overview assignments to their exact catalog versions", () => {
       subject_id: "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
       subject_kind: "employee",
       version: "1.2",
+      selector: "exact",
+      passport_digest: null,
+      harness: null,
       display_name: "Worker",
       source_team_id: null,
       source_team_name: null,
@@ -135,6 +138,9 @@ it("toggles every usage row from the shared global action", () => {
     subject_id: "t1",
     subject_kind: "team" as const,
     version: "1.0",
+    selector: "exact" as const,
+    passport_digest: null,
+    harness: null,
   };
   const team = graph.nodes.find((item) => item.id === "t1");
   if (!team) throw new Error("Missing team fixture");
@@ -232,6 +238,9 @@ it("separates and collapses technology and catalog assignment groups", () => {
     subject_id: "grouped-team",
     subject_kind: "team" as const,
     version: "1.0",
+    selector: "exact" as const,
+    passport_digest: null,
+    harness: null,
   };
   render(
     <CorporateOverviewTree
@@ -279,6 +288,9 @@ it("groups a shared object once and deduplicates usage anchors", () => {
     subject_id: "t1",
     subject_kind: "team" as const,
     version: "1.0",
+    selector: "exact" as const,
+    passport_digest: null,
+    harness: null,
   };
   const shared = {
     ...graph,
@@ -314,6 +326,9 @@ it("renders one unified usage list with catalog type, author, and owner", () => 
     subject_id: "t1",
     subject_kind: "team" as const,
     version: "1.0",
+    selector: "exact" as const,
+    passport_digest: null,
+    harness: null,
     author_name: "Alex Kim",
     owner_name: "Elena Smirnova",
     owner_id: "e1",

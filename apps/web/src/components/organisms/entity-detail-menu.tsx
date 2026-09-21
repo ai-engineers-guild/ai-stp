@@ -8,8 +8,40 @@ import { toast } from "sonner";
 import { Button } from "@/components/atoms/button";
 import { ContactReportDialog } from "@/components/organisms/contact-report-dialog";
 import { Link } from "@/lib/i18n/navigation";
-import { Icon } from "@/theme";
+import { Icon, type IconName } from "@/theme";
 
+const itemClassName =
+  "hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none";
+
+function MenuLink({ href, icon, children }: { href: string; icon: IconName; children: ReactNode }) {
+  return (
+    <DropdownMenu.Item asChild>
+      <Link href={href} className={itemClassName}>
+        <Icon name={icon} size="sm" />
+        {children}
+      </Link>
+    </DropdownMenu.Item>
+  );
+}
+
+function MenuAction({
+  icon,
+  onSelect,
+  children,
+}: {
+  icon: IconName;
+  onSelect: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <DropdownMenu.Item className={itemClassName} onSelect={onSelect}>
+      <Icon name={icon} size="sm" />
+      {children}
+    </DropdownMenu.Item>
+  );
+}
+
+// Canonical order: open, copy ID, copy URL, share, privileged actions, report.
 export function EntityDetailMenu({
   moreLabel,
   openLabel,
@@ -21,6 +53,7 @@ export function EntityDetailMenu({
   entityId,
   shareHref,
   copyIdLabel,
+  copyUrlLabel,
   shareLabel,
   reportLabel,
   reportTarget,
@@ -36,6 +69,7 @@ export function EntityDetailMenu({
   entityId?: string | undefined;
   shareHref?: string | undefined;
   copyIdLabel?: string | undefined;
+  copyUrlLabel?: string | undefined;
   shareLabel?: string | undefined;
   reportLabel?: string | undefined;
   reportTarget?: string | undefined;
@@ -82,71 +116,60 @@ export function EntityDetailMenu({
             className="border-border bg-popover text-popover-foreground z-50 min-w-48 rounded-md border p-1 shadow-md"
           >
             {openHref ? (
-              <DropdownMenu.Item asChild>
-                <Link
-                  href={openHref}
-                  className="hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
-                >
-                  <Icon name="eye" size="sm" />
-                  {openLabel ?? "Open details"}
-                </Link>
-              </DropdownMenu.Item>
+              <MenuLink href={openHref} icon="eye">
+                {openLabel ?? "Open details"}
+              </MenuLink>
             ) : null}
-            {editHref ? (
-              <DropdownMenu.Item asChild>
-                <Link
-                  href={editHref}
-                  className="hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
-                >
-                  <Icon name="edit" size="sm" />
-                  {editLabel}
-                </Link>
-              </DropdownMenu.Item>
-            ) : null}
-            {editPresentationHref ? (
-              <DropdownMenu.Item asChild>
-                <Link
-                  href={editPresentationHref}
-                  className="hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
-                >
-                  <Icon name="edit" size="sm" />
-                  {editPresentationLabel}
-                </Link>
-              </DropdownMenu.Item>
-            ) : null}
-            {adminItems}
             {entityId ? (
-              <DropdownMenu.Item
-                className="hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
+              <MenuAction
+                icon="copy"
                 onSelect={() => {
                   void copy(entityId);
                 }}
               >
-                <Icon name="copy" size="sm" />
                 {copyIdLabel ?? "Copy ID"}
-              </DropdownMenu.Item>
+              </MenuAction>
             ) : null}
             {shareHref ? (
-              <DropdownMenu.Item
-                className="hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
+              <MenuAction
+                icon="copy"
+                onSelect={() => {
+                  void copy(new URL(shareHref, window.location.origin).toString());
+                }}
+              >
+                {copyUrlLabel ?? "Copy URL"}
+              </MenuAction>
+            ) : null}
+            {shareHref ? (
+              <MenuAction
+                icon="link"
                 onSelect={() => {
                   void share();
                 }}
               >
-                <Icon name="link" size="sm" />
                 {shareLabel ?? "Share"}
-              </DropdownMenu.Item>
+              </MenuAction>
             ) : null}
+            {editHref ? (
+              <MenuLink href={editHref} icon="edit">
+                {editLabel}
+              </MenuLink>
+            ) : null}
+            {editPresentationHref ? (
+              <MenuLink href={editPresentationHref} icon="edit">
+                {editPresentationLabel}
+              </MenuLink>
+            ) : null}
+            {adminItems}
             {reportTarget ? (
-              <DropdownMenu.Item
-                className="hover:bg-muted focus-visible:bg-muted flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none"
+              <MenuAction
+                icon="flag"
                 onSelect={() => {
                   setReportOpen(true);
                 }}
               >
-                <Icon name="flag" size="sm" />
                 {reportLabel ?? "Report"}
-              </DropdownMenu.Item>
+              </MenuAction>
             ) : null}
           </DropdownMenu.Content>
         </DropdownMenu.Portal>

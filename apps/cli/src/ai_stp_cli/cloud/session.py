@@ -16,7 +16,14 @@ from typing import Final
 
 from ai_stp_cli.cloud.client import login_actions, login_continuations
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.secrets import SecretStore, load_json, open_store, promote, store_json
+from ai_stp_cli.secrets import (
+    FileStore,
+    SecretStore,
+    load_json,
+    open_store,
+    promote,
+    store_json,
+)
 from ai_stp_contracts.machine_help import AuthStatus, SessionState
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 
@@ -111,12 +118,19 @@ def clear(store: SecretStore) -> None:
 
 @dataclass(frozen=True)
 class Pending:
-    """A sign-in awaiting the user's approval."""
+    """A sign-in awaiting the user's approval.
+
+    `user_code`/`verification_uri` are kept so a task started after `auth
+    login` can still show the code — records written before they were stored
+    load as empty strings.
+    """
 
     provider: str
     device_code: str
     interval: int
     expires_in: int
+    user_code: str = ""
+    verification_uri: str = ""
 
 
 def load_pending(store: SecretStore) -> Pending | None:
@@ -129,6 +143,8 @@ def load_pending(store: SecretStore) -> Pending | None:
             device_code=document["device_code"],
             interval=int(document["interval"]),
             expires_in=int(document["expires_in"]),
+            user_code=str(document.get("user_code") or ""),
+            verification_uri=str(document.get("verification_uri") or ""),
         )
     except (KeyError, ValueError) as error:
         raise CliFailure(
@@ -149,6 +165,8 @@ def save_pending(store: SecretStore, pending: Pending) -> None:
             "device_code": pending.device_code,
             "interval": str(pending.interval),
             "expires_in": str(pending.expires_in),
+            "user_code": pending.user_code,
+            "verification_uri": pending.verification_uri,
         },
     )
 
@@ -171,12 +189,16 @@ def status(*, now: datetime | None = None) -> tuple[AuthStatus, str | None]:
             ),
             warning,
         )
+    tier = store.tier
+    if tier == "os_keyring" and FileStore().get(CREDENTIALS_ENTRY) is not None:
+        # The live copy is the file the OS store refused to take; name it.
+        tier = "file"
     return (
         AuthStatus(
             state=session.state(now=now),
             account_id=session.account_id,
             expires_at=session.expires_at,
-            credential_store=store.tier,
+            credential_store=tier,
         ),
         warning,
     )

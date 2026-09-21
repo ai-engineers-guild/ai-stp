@@ -8,7 +8,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-device-approval",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "What a person must approve before a sign-in can complete (issue #75).\n\nReturned rather than waited on. `#72` fixed that the CLI never blocks for a\nhuman decision — a command that polled until someone walked to their browser\nwould hang in CI and in a container, which is the same reason the sign-in is\na device-code flow and not a loopback redirect. So this is the first half of\nthe answer, and `auth login --await` is the second.\n\nNo secret is representable here. The device code the client polls with is\nkept in the credential store, not published: it is the bearer of the\npending authorization.",
+  "description": "What a person must approve before a sign-in can complete (issue #75).\n\nReturned rather than waited on. `#72` fixed that the CLI never blocks for a\nhuman decision — a command that polled until someone walked to their browser\nwould hang in CI and in a container, which is the same reason the sign-in is\na device-code flow and not a loopback redirect. So this is the first half of\nthe answer, and `auth complete --wait` is the second.\n\nNo secret is representable here. The device code the client polls with is\nkept in the credential store, not published: it is the bearer of the\npending authorization.",
   "properties": {
     "browser_opened": {
       "title": "Browser Opened",

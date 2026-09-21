@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:ba9f3b4f27f2369640312b9d6ba35b374b1b82f184896ce8876ceb2abeda580c",
+  "registry_digest": "sha256:66501083ff1eb4bc04c710476bdc2e5a23273d4f563d7fad37df7753a51583dd",
   "global_options": [
     {
       "name": "json",
@@ -221,6 +221,7 @@
       "parameter_rules": [],
       "result_schema": "urn:ai-stp:schema:v1:cli-device-approval",
       "next_actions": [
+        "auth complete --json",
         "help --path auth --json"
       ]
     },
@@ -2125,6 +2126,447 @@
     },
     {
       "path": [
+        "corporate",
+        "assignment",
+        "distribute"
+      ],
+      "summary": "Preview or apply one bulk assign/revoke distribution across the member and project targets of a source assignment. Dry-run reports targets, exclusions, and per-target results without mutating anything.",
+      "mutability": "apply",
+      "confirmation": "explicit_flag",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Source assignment identifier whose scope is expanded.",
+          "choices": []
+        },
+        {
+          "name": "action",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Bulk action to distribute.",
+          "choices": [
+            "assign",
+            "revoke"
+          ]
+        },
+        {
+          "name": "dry-run",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Preview targets and results without mutation.",
+          "choices": []
+        },
+        {
+          "name": "confirm",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Confirm applying the distribution. Required without --dry-run.",
+          "choices": []
+        },
+        {
+          "name": "expected-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Expected source assignment revision.",
+          "choices": []
+        },
+        {
+          "name": "authorization-revision",
+          "kind": "option",
+          "value_type": "integer",
+          "required": true,
+          "repeatable": false,
+          "summary": "Expected organization authorization revision.",
+          "choices": []
+        },
+        {
+          "name": "idempotency-key",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Durable idempotency key for the distribution.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:corporate-distribution-result",
+      "next_actions": [
+        "help --path corporate --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "distribution"
+      ],
+      "summary": "Read the latest per-target distribution state for one source assignment, including pending, installed, outdated, failed, and revoked lifecycle.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "source",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Source assignment identifier.",
+          "choices": []
+        },
+        {
+          "name": "offset",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Zero-based result offset.",
+          "choices": []
+        },
+        {
+          "name": "limit",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Maximum targets to return.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:corporate-distribution-state-list",
+      "next_actions": [
+        "help --path corporate --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "effective"
+      ],
+      "summary": "Resolve the winning corporate assignment for one employee and catalog line, including the exact coordinates a latest selector evaluates to.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "account",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Employee account identifier.",
+          "choices": []
+        },
+        {
+          "name": "kind",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Catalog object kind.",
+          "choices": [
+            "component",
+            "setup"
+          ]
+        },
+        {
+          "name": "id",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Stable catalog line identifier.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate project context.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate technology context.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Harness the assignment may be conditioned on.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:corporate-effective-assignment",
+      "next_actions": [
+        "help --path corporate --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "plan"
+      ],
+      "summary": "Evaluate the deterministic corporate install/update plan for the authenticated context, target harness, and reported materialized state. Plans are exact and write nothing; install consumes them.",
+      "mutability": "plan",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "account",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Employee account identifier. Defaults to the signed-in account.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Target harness the plan is evaluated for.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate project context.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate technology context.",
+          "choices": []
+        },
+        {
+          "name": "local-project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Local project identifier whose provider-verified target state is reported as materialized.",
+          "choices": []
+        },
+        {
+          "name": "materialized",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "Reported materialized coordinate as <kind>:<stable_id>@<version>.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:corporate-assignment-plan",
+      "next_actions": [
+        "help --path corporate --json",
+        "help --path install --json"
+      ]
+    },
+    {
+      "path": [
+        "corporate",
+        "assignment",
+        "verify"
+      ],
+      "summary": "Verify that a managed target still carries exactly the organization-approved setup and components. Compares the verified installation record, the cached bundle manifest, and the live provider status against the corporate assignment plan, classifies every difference, and changes nothing.",
+      "mutability": "read",
+      "confirmation": "none",
+      "parameters": [
+        {
+          "name": "organization",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Organization identifier.",
+          "choices": []
+        },
+        {
+          "name": "account",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Employee account identifier. Defaults to the signed-in account.",
+          "choices": []
+        },
+        {
+          "name": "harness",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Target harness the verification is evaluated for.",
+          "choices": [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi"
+          ]
+        },
+        {
+          "name": "local-project",
+          "kind": "option",
+          "value_type": "string",
+          "required": true,
+          "repeatable": false,
+          "summary": "Local project identifier or root whose managed target is verified.",
+          "choices": []
+        },
+        {
+          "name": "project",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate project context.",
+          "choices": []
+        },
+        {
+          "name": "technology",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Corporate technology context.",
+          "choices": []
+        },
+        {
+          "name": "offline",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Skip the corporate assignment evaluation; verify local evidence only. The verdict can then be at most unverifiable.",
+          "choices": []
+        },
+        {
+          "name": "provider",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider executable whose status observation is included when available.",
+          "choices": []
+        },
+        {
+          "name": "protocol-version",
+          "kind": "option",
+          "value_type": "integer",
+          "required": false,
+          "repeatable": false,
+          "summary": "Provider protocol version for the status observation.",
+          "choices": []
+        },
+        {
+          "name": "unverified-provider",
+          "kind": "option",
+          "value_type": "boolean",
+          "required": false,
+          "repeatable": false,
+          "summary": "Accept a provider that carries no signed release manifest.",
+          "choices": []
+        }
+      ],
+      "parameter_rules": [],
+      "result_schema": "urn:ai-stp:schema:v1:cli-managed-verification",
+      "next_actions": [
+        "target diff --project <id> --harness <id> --json",
+        "corporate assignment plan --organization <id> --harness <id> --json"
+      ]
+    },
+    {
+      "path": [
         "device",
         "init"
       ],
@@ -3728,6 +4170,15 @@
           "choices": []
         },
         {
+          "name": "allow-permission",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "A permission this target grants the composition, spelled family:value as the component passport declares it, such as process:git or filesystem:.herdr/**. Repeatable. Without a grant the target permits nothing and the plan refuses.",
+          "choices": []
+        },
+        {
           "name": "scope",
           "kind": "option",
           "value_type": "string",
@@ -4111,6 +4562,15 @@
           "required": false,
           "repeatable": false,
           "summary": "Use a previously verified release.",
+          "choices": []
+        },
+        {
+          "name": "allow-permission",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "A permission each child target grants the composition, spelled family:value. Repeatable; forwarded to every child plan.",
           "choices": []
         }
       ],

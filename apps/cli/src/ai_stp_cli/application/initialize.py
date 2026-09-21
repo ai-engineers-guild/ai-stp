@@ -315,6 +315,47 @@ def instruction_path(harness_id: str, environment: Mapping[str, str] | None = No
     return harnesses.config_root(detector, held) / relative
 
 
+def _provider_block_prompt(
+    harness_id: str,
+    *,
+    bound: bool,
+    held: frozenset[protocol_v3.Operation],
+    declares_field: bool,
+    surface_missing: bool,
+) -> str:
+    """Name the actual blocker — one question id covers four different ones.
+
+    "Upgrade it" is a lie when nothing is bound, and the remedies differ:
+    bind or install a provider, upgrade one, or fix the harness surface.
+    """
+    if not bound:
+        return (
+            f"No provider is bound for {harness_id}, so nothing here declares "
+            f"{PATCH_OPERATION.value}. Configure provider.paths.{harness_id} or "
+            "install a setup for this harness, then continue."
+        )
+    if surface_missing:
+        return (
+            f"The {harness_id} instruction surface does not resolve on this "
+            "installation; initialize cannot aim at it."
+        )
+    if PATCH_OPERATION not in held:
+        return (
+            f"The bound provider for {harness_id} does not declare "
+            f"{PATCH_OPERATION.value}. Upgrade it, then continue."
+        )
+    if not declares_field:
+        return (
+            f"The bound provider for {harness_id} declares "
+            f"{PATCH_OPERATION.value} but not `instruction_section`. "
+            "Upgrade it, then continue."
+        )
+    return (
+        f"The bound provider for {harness_id} cannot apply "
+        f"{PATCH_OPERATION.value} on this installation."
+    )
+
+
 def drain(
     facts: Mapping[str, JsonValue],
     *,
@@ -349,6 +390,9 @@ def drain(
         )
     held: frozenset[protocol_v3.Operation]
     active: RegionPatcher | None
+    # The hook seam stands in for a bound provider, so it reports `bound`.
+    bound = True
+    declares_field = True
     if operations is None and patcher is None:
         hooked = provider_operations()
         if hooked:
@@ -356,24 +400,28 @@ def drain(
             active = patch_via_provider
         else:
             capabilities = bound_capabilities(harness_id)
+            bound = capabilities is not None
             held = capabilities.operations if capabilities is not None else frozenset()
-            ready = (
+            declares_field = (
                 capabilities is not None
-                and PATCH_OPERATION in held
                 and "instruction_section" in capabilities.plan_request_fields
             )
-            active = patch_via_provider if ready else None
+            active = patch_via_provider if PATCH_OPERATION in held and declares_field else None
     else:
         held = operations() if operations is not None else frozenset()
         active = patcher
-    if PATCH_OPERATION not in held or active is None or instruction_path(harness_id) is None:
+    surface_missing = instruction_path(harness_id) is None
+    if PATCH_OPERATION not in held or active is None or surface_missing:
         return DrainResult(
             questions=(
                 TaskQuestion(
                     question_id="provider-too-old",
-                    prompt=(
-                        "The active provider does not declare "
-                        f"{PATCH_OPERATION.value}. Upgrade it, then continue."
+                    prompt=_provider_block_prompt(
+                        harness_id,
+                        bound=bound,
+                        held=held,
+                        declares_field=declares_field,
+                        surface_missing=surface_missing,
                     ),
                     value_type="string",
                     choices=[],

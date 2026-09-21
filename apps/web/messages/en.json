@@ -48,14 +48,12 @@
     "lead": "Lead",
     "staff": "Staff",
     "addMembership": "Add participation",
-    "catalogAssignments": "Setups and components",
+    "catalogAssignments": "Assigned setups and components",
     "catalogGovernanceFilters": "Corporate catalog facets",
     "catalogOwner": "Corporate owner",
     "catalogMaintainer": "Maintainer",
     "catalogAssignment": "Assignment",
     "effectiveAssignment": "Effective assignment",
-    "catalogUsageTitle": "Organization usage",
-    "catalogUsageSummary": "{count} authorized assignment(s)",
     "corporateVerification": "Corporate verification",
     "verified": "Verified",
     "notVerified": "Not verified",
@@ -116,6 +114,7 @@
     "deprecated": "Deprecated",
     "moreActions": "More actions",
     "openDetails": "Open details",
+    "editPresentation": "Edit public presentation",
     "copyId": "Copy ID",
     "copyUrl": "Copy URL",
     "share": "Share",
@@ -131,7 +130,14 @@
     "notAvailable": "Not available",
     "deleted": "Deleted",
     "pagination": "Pagination",
-    "pageSize": "Per page"
+    "pageSize": "Per page",
+    "assignDialogTitle": "Assign to subjects",
+    "assignVersion": "Version",
+    "latestVersion": "Latest version",
+    "assign": "Assign",
+    "assignPartial": "{saved} saved, {failed} failed.",
+    "assignFailed": "Assignment failed.",
+    "loading": "Loading…"
   },
   "technology": {
     "mergeTitle": "Deliberate technology merge",
@@ -378,6 +384,7 @@
     "profileShortcut": "Shortcut P",
     "profile": "Profile",
     "myObjects": "My objects",
+    "assignedToMe": "Assigned to me",
     "myLikes": "My likes",
     "accountMenu": "Account menu",
     "contactKey": "C"
@@ -919,7 +926,10 @@
     "contextBudgetInvalidGraph": "The exact component graph cannot be verified.",
     "contextBudgetDependencyFailure": "Artifact storage or the API is unavailable. Try again.",
     "contextBudgetNonUtf8": "This artifact is not UTF-8 text.",
-    "contextBudgetAdaptationRequired": "A target-specific estimate is required for this version with multiple adaptations."
+    "contextBudgetAdaptationRequired": "A target-specific estimate is required for this version with multiple adaptations.",
+    "objectDelete": "Delete object",
+    "objectDeleteConfirm": "Delete this object? This cannot be undone.",
+    "objectDeleted": "Object deleted"
   },
   "publisher": {
     "title": "Publisher",
@@ -1243,6 +1253,12 @@
   },
   "a11y": {
     "skipToContent": "Skip to content"
+  },
+  "assigned": {
+    "title": "Assigned to me",
+    "subtitle": "Catalog setups and components your organization assigned to you.",
+    "emptyTitle": "Nothing assigned yet",
+    "emptyBody": "When your organization assigns a setup or component to you or your team, it shows up here."
   },
   "myLikes": {
     "title": "My likes",
@@ -1755,6 +1771,15 @@
     "membershipFilter": "Team membership",
     "teamFilter": "Filter by team",
     "notAssigned": "Not assigned",
-    "allTeams": "All teams"
+    "allTeams": "All teams",
+    "accessMatrix": "Access matrix",
+    "accessMatrixBody": "Permissions granted to each role, grouped by entity.",
+    "accessMatrixGroups": "Areas",
+    "permission": "Permission",
+    "granted": "Granted",
+    "notGranted": "Not granted",
+    "effectiveAccess": "Your effective access",
+    "scopeId": "Scope ID",
+    "grantedBy": "Granted by"
   }
 }

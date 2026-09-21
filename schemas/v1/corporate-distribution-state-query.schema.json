@@ -1,0 +1,32 @@
+{
+  "$id": "urn:ai-stp:schema:v1:corporate-distribution-state-query",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Bounded read of one source assignment's per-target distribution state.",
+  "properties": {
+    "limit": {
+      "default": 128,
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "source_assignment_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Source Assignment Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_assignment_id"
+  ],
+  "title": "CorporateDistributionStateQuery",
+  "type": "object"
+}

@@ -24,6 +24,8 @@ from ai_stp_api.slices.corporate import (
 from ai_stp_api.slices.corporate.profile_router import router as profile_router
 from ai_stp_contracts.corporate import (
     AccountId,
+    CorporateAssignmentPlan,
+    CorporateAssignmentPlanRequest,
     CorporateAuditExport,
     CorporateAuditList,
     CorporateBinding,
@@ -40,6 +42,12 @@ from ai_stp_contracts.corporate import (
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateDistributionRequest,
+    CorporateDistributionResult,
+    CorporateDistributionStateList,
+    CorporateDistributionStateQuery,
+    CorporateEffectiveAssignment,
+    CorporateEffectiveAssignmentQuery,
     CorporateJobTitleCreateRequest,
     CorporateJobTitleList,
     CorporateJobTitleUpdateRequest,
@@ -195,6 +203,22 @@ async def list_catalog_assignments(
 
 
 @router.get(
+    "/corporate/organizations/{organization_id}/catalog-assignments/effective",
+    response_model=CorporateEffectiveAssignment,
+)
+async def read_effective_assignment(
+    organization_id: str,
+    query: Annotated[CorporateEffectiveAssignmentQuery, Query()],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateEffectiveAssignment:
+    return await assignments.resolve_effective(
+        db, ctx=ctx, organization_id=organization_id, query=query, request_id=_request_id(request)
+    )
+
+
+@router.get(
     "/corporate/organizations/{organization_id}/catalog-usage",
     response_model=CorporateCatalogUsageList,
 )
@@ -222,6 +246,62 @@ async def write_catalog_assignment(
     ctx: Annotated[AuthContext, Depends(require_auth)],
 ) -> CorporateCatalogAssignment:
     return await assignments.write_assignment(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+    response_model=CorporateDistributionResult,
+)
+async def distribute_catalog_assignment(
+    organization_id: str,
+    payload: CorporateDistributionRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateDistributionResult:
+    return await assignments.distribute_assignment(
+        db,
+        ctx=ctx,
+        organization_id=organization_id,
+        payload=payload,
+        request_id=_request_id(request),
+    )
+
+
+@router.get(
+    "/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+    response_model=CorporateDistributionStateList,
+)
+async def list_catalog_assignment_distribution(
+    organization_id: str,
+    query: Annotated[CorporateDistributionStateQuery, Query()],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateDistributionStateList:
+    return await assignments.list_distribution(
+        db, ctx=ctx, organization_id=organization_id, query=query, request_id=_request_id(request)
+    )
+
+
+@router.post(
+    "/corporate/organizations/{organization_id}/catalog-assignments/plan",
+    response_model=CorporateAssignmentPlan,
+)
+async def plan_catalog_assignments(
+    organization_id: str,
+    payload: CorporateAssignmentPlanRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ctx: Annotated[AuthContext, Depends(require_auth)],
+) -> CorporateAssignmentPlan:
+    return await assignments.plan_assignments(
         db,
         ctx=ctx,
         organization_id=organization_id,

@@ -27,7 +27,8 @@
         "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "revision": 1,
         "owner_display_name": "fixture-owner",
-        "can_edit": true
+        "can_edit": true,
+        "capabilities": []
       }
     },
     {
@@ -61,7 +62,8 @@
         "owner_account_id": "account_01JQZK7B8N4M6P2R9T5V0X3Y7Z",
         "revision": 1,
         "owner_display_name": "fixture-owner",
-        "can_edit": true
+        "can_edit": true,
+        "capabilities": []
       }
     },
     {

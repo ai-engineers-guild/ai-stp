@@ -512,6 +512,26 @@ def _way_back(code: str) -> list[str]:
     return list(_WAY_BACK.get(code, ()))
 
 
+#: Recovery that applies only when the server qualified the code with a
+#: `reason` detail — a generic PERMISSION_DENIED is not a device problem.
+_WAY_BACK_REASON: Final[Mapping[tuple[str, str], tuple[str, ...]]] = {
+    # The device key is bound to a different account: only a new identity
+    # (`device reset`) followed by a fresh sign-in unbinds it (#359).
+    ("AI_STP_PERMISSION_DENIED", "device_key_foreign"): (
+        "device reset --confirm --json",
+        *_LOGIN_ACTIONS,
+    ),
+}
+
+
+def _way_back_for(code: str, details: Mapping[str, str]) -> list[str]:
+    """Reason-qualified recovery first, then the plain code map."""
+    qualified = _WAY_BACK_REASON.get((code, details.get("reason", "")))
+    if qualified is not None:
+        return list(qualified)
+    return _way_back(code)
+
+
 #: Detail keys a server refusal may carry through to the caller. An allowlist
 #: rather than the whole mapping: the details are the server's own text, and a
 #: field nobody designed for a reader is how a path, a token or another
@@ -594,6 +614,9 @@ def failure_from(response: httpx.Response) -> CliFailure:
             "status": str(response.status_code),
             "request_id": response.headers.get(REQUEST_ID_HEADER, ""),
         },
-        next_actions=_way_back(code),
-        continuations=login_continuations() if code in _ACCOUNT_RESTART else [],
+        next_actions=_way_back_for(code, reported_details),
+        continuations=login_continuations()
+        if code in _ACCOUNT_RESTART
+        or (code, reported_details.get("reason", "")) in _WAY_BACK_REASON
+        else [],
     )

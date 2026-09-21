@@ -38,6 +38,13 @@ type Labels = {
   page: string;
   noMatches: string;
   moreActions: string;
+  openDetails?: string;
+  edit?: string;
+  editPresentation?: string;
+  copyId?: string;
+  copyUrl?: string;
+  share?: string;
+  report?: string;
   owner: string;
   operationalOwner: string;
   teams: string;
@@ -62,6 +69,7 @@ export type CorporateRelationApi = {
     CorporateDirectoryQuery,
     "lead_ids" | "team_ids" | "technology_ids" | "project_ids" | "category_ids"
   >;
+  subjectIds?: readonly string[];
   leadOnly?: boolean;
 };
 
@@ -102,6 +110,7 @@ async function loadRelationPage(
     limit: String(PAGE_SIZE),
     ...(leadOnly || api.leadOnly ? { is_lead: "true" } : {}),
   });
+  for (const id of api.subjectIds ?? []) params.append("subject_ids", id);
   for (const [key, value] of Object.entries(api.filters ?? {})) {
     for (const item of value) params.append(key, item);
   }
@@ -142,7 +151,7 @@ export function CorporateRelationSection({
     facets: CorporateDirectoryFacets;
   } | null>(null);
   useEffect(() => {
-    if (!api) return;
+    if (!api || api.subjectIds?.length === 0) return;
     const controller = new AbortController();
     void loadRelationPage(api, selected, leadOnly, page, controller.signal)
       .then((data) => {

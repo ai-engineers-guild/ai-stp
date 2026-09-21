@@ -107,6 +107,9 @@ from ai_stp_contracts.context import (
     ProviderProjectObservationRequest,
 )
 from ai_stp_contracts.corporate import (
+    CorporateAssignmentPlan,
+    CorporateAssignmentPlanItem,
+    CorporateAssignmentPlanRequest,
     CorporateAuditEntry,
     CorporateAuditExport,
     CorporateAuditList,
@@ -126,6 +129,17 @@ from ai_stp_contracts.corporate import (
     CorporateContext,
     CorporateDeleteRequest,
     CorporateDeleteResult,
+    CorporateDistributionCounts,
+    CorporateDistributionExclusion,
+    CorporateDistributionRequest,
+    CorporateDistributionResult,
+    CorporateDistributionState,
+    CorporateDistributionStateList,
+    CorporateDistributionStateQuery,
+    CorporateDistributionTargetResult,
+    CorporateEffectiveAssignment,
+    CorporateEffectiveAssignmentCandidate,
+    CorporateEffectiveAssignmentQuery,
     CorporateJobTitleCreateRequest,
     CorporateJobTitleList,
     CorporateJobTitleUpdateRequest,
@@ -139,6 +153,7 @@ from ai_stp_contracts.corporate import (
     CorporateMemberUpdateRequest,
     CorporateOrganization,
     CorporateOverview,
+    CorporatePlanMaterializedItem,
     CorporateProjectCreateRequest,
     CorporateProjectLifecycleRequest,
     CorporateProjectList,
@@ -241,6 +256,7 @@ from ai_stp_contracts.owner import (
     OwnerLifecycleRequest,
     OwnerLifecycleResponse,
     OwnerMediaUploadResponse,
+    OwnerObjectCapabilities,
     OwnerObjectDetail,
     OwnerObjectListQuery,
     OwnerObjectListResponse,
@@ -1324,7 +1340,10 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         method="put",
         path="/corporate/organizations/{organization_id}/catalog-assignments",
         operation_id="writeCorporateCatalogAssignment",
-        summary="Assign or retire an exact catalog version without granting access.",
+        summary=(
+            "Assign or retire a catalog line with an exact or latest selector, "
+            "without granting access."
+        ),
         response=CorporateCatalogAssignment,
         body=CorporateCatalogAssignmentRequest,
         path_params=(_ORGANIZATION_ID,),
@@ -1368,6 +1387,54 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
         summary="Read direct and team-derived assignments visible to the caller.",
         response=CorporateCatalogAssignmentList,
         query=CorporateCatalogAssignmentQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/catalog-assignments/effective",
+        operation_id="readCorporateEffectiveAssignment",
+        summary=("Resolve the winning applicable assignment for one employee and catalog line."),
+        response=CorporateEffectiveAssignment,
+        query=CorporateEffectiveAssignmentQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+        operation_id="distributeCorporateCatalogAssignment",
+        summary=(
+            "Preview or apply one bulk assign/revoke distribution across the "
+            "source assignment scope."
+        ),
+        response=CorporateDistributionResult,
+        body=CorporateDistributionRequest,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+        idempotent_mutation=True,
+        requires_precondition=True,
+    ),
+    Operation(
+        method="get",
+        path="/corporate/organizations/{organization_id}/catalog-assignments/distribution",
+        operation_id="readCorporateAssignmentDistribution",
+        summary=("Read per-target distribution state for one source assignment."),
+        response=CorporateDistributionStateList,
+        query=CorporateDistributionStateQuery,
+        path_params=(_ORGANIZATION_ID,),
+        authenticated=True,
+    ),
+    Operation(
+        method="post",
+        path="/corporate/organizations/{organization_id}/catalog-assignments/plan",
+        operation_id="planCorporateAssignment",
+        summary=(
+            "Evaluate the deterministic install/update plan for one employee "
+            "context, target harness, and reported materialized state."
+        ),
+        response=CorporateAssignmentPlan,
+        body=CorporateAssignmentPlanRequest,
         path_params=(_ORGANIZATION_ID,),
         authenticated=True,
     ),
@@ -2690,6 +2757,38 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
     ),
     Operation(
         method="get",
+        path="/owner/objects/{object_kind}/{stable_id}/capabilities",
+        operation_id="readOwnerObjectCapabilities",
+        summary="Read the caller's capabilities on a catalog object, including drafts.",
+        response=OwnerObjectCapabilities,
+        path_params=(_OBJECT_KIND, _OBJECT_ID),
+        authenticated=True,
+        errors=("AI_STP_NOT_FOUND",),
+    ),
+    Operation(
+        method="delete",
+        path="/owner/objects/{object_kind}/{stable_id}",
+        operation_id="deleteOwnerObject",
+        summary="Delete an unpublished catalog object as its author or a governing administrator.",
+        response=None,
+        path_params=(
+            PathParam(
+                name="object_kind",
+                description="component or setup",
+                pattern=r"^(component|setup)$",
+            ),
+            PathParam(
+                name="stable_id",
+                description="Typed stable identifier of the owned object.",
+                pattern=r"^(component|setup)_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            ),
+        ),
+        authenticated=True,
+        status=204,
+        errors=("AI_STP_NOT_FOUND", "AI_STP_PERMISSION_DENIED", "AI_STP_VALIDATION_ERROR"),
+    ),
+    Operation(
+        method="get",
         path="/owner/objects/{object_kind}/{stable_id}",
         operation_id="readOwnerObject",
         summary="Read one owned object and its versions.",
@@ -3079,6 +3178,13 @@ NESTED_ONLY_MODELS: Final[tuple[type[BaseModel], ...]] = (
     ProviderProjectObservationRequest,
     CorporateAuditEntry,
     CorporateCatalogUsage,
+    CorporateEffectiveAssignmentCandidate,
+    CorporateDistributionTargetResult,
+    CorporateDistributionExclusion,
+    CorporateDistributionCounts,
+    CorporateDistributionState,
+    CorporateAssignmentPlanItem,
+    CorporatePlanMaterializedItem,
 )
 
 

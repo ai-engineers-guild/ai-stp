@@ -42,9 +42,21 @@ def test_sign_in_pending_then_approved(
     passport.developer_init({})
     before = passport.developer_show({}).payload
 
-    approval = auth.begin({"provider": "github"}).payload
+    answer = auth.begin({"provider": "github"})
+    approval = answer.payload
     assert approval.user_code
     assert approval.browser_opened is False
+    # The second phase is not discoverable from the payload alone (#359): the
+    # answer names the task surface that finishes the pending approval.
+    assert answer.continuations[0].argv[1:4] == ["start", "--intent", "account"]
+
+    store, _warning = open_store()
+    held_pending = session.load_pending(store)
+    assert held_pending is not None
+    # The display fields ride along so a task opened after `auth login` can
+    # still show the code (#359).
+    assert held_pending.user_code == approval.user_code
+    assert held_pending.verification_uri == approval.verification_uri
 
     # Not yet approved: a typed answer, the pending record stays.
     with pytest.raises(CliFailure) as pending:
@@ -64,7 +76,6 @@ def test_sign_in_pending_then_approved(
     assert after.owner_id != before.owner_id
     assert after.parent_revision_ids == [before.revision_id]
 
-    store, _warning = open_store()
     # The pending record is consumed, not left to be polled again.
     assert session.load_pending(store) is None
 
@@ -73,6 +84,58 @@ def test_sign_in_pending_then_approved(
     assert held is not None
     logout = login.revoke_session(cli_endpoint, held.access_token)
     assert logout.revoked is True
+
+
+def test_a_foreign_device_key_names_the_rebind_reason(
+    cli_server: SyncAsgiServer,
+    cli_endpoint: Endpoint,
+    web_approver: ApproverFactory,
+) -> None:
+    """The exchange qualifies a foreign key so the CLI can name the rebind.
+
+    `reason=device_key_foreign` is the detail `_way_back_for` keys the
+    `device reset` recovery on (#359); an unqualified denial suggests none.
+    This covers the exchange leg; `test_devices_lifecycle` covers
+    `POST /v1/devices`.
+    """
+    from ai_stp_api.slices.devices.crypto import normalize_public_key
+    from ai_stp_platform.models import Account, Device
+
+    foreign_owner = new_id("account")
+    sessionmaker = cli_server.app.state.sessionmaker
+
+    async def seed() -> None:
+        async with sessionmaker() as db:
+            db.add(Account(id=foreign_owner))
+            db.add(
+                Device(
+                    id=new_id("device"),
+                    account_id=foreign_owner,
+                    # The lookup compares the canonical form; seeding the raw
+                    # padded key would never match.
+                    public_key=normalize_public_key(PUBLIC_KEY),
+                    state="active",
+                )
+            )
+            await db.commit()
+
+    cli_server.call(seed)
+
+    approver = web_approver()
+    started = login.start(cli_endpoint, "github")
+    assert approver.approve(started.user_code).status_code == 200
+
+    with pytest.raises(CliFailure) as raised:
+        login.exchange(
+            cli_endpoint,
+            started,
+            device_id=DEVICE_ID,
+            public_key=PUBLIC_KEY,
+            display_name="boundary-test",
+        )
+    assert raised.value.code == "AI_STP_PERMISSION_DENIED"
+    assert raised.value.details.get("reason") == "device_key_foreign"
+    assert any("device reset" in action for action in raised.value.next_actions)
 
 
 def test_approve_with_an_unknown_code_is_a_typed_answer(

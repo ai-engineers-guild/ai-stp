@@ -23,7 +23,7 @@ from ai_stp_platform.organization_models import (
     OrganizationMembership,
     ProjectIdentity,
 )
-from ai_stp_platform.technology_models import Technology
+from ai_stp_platform.technology_models import ProjectTeamRelation, Technology
 
 ProfileRow = CorporateTeam | CorporateProject | OrganizationMembership | Technology
 
@@ -31,25 +31,39 @@ ProfileRow = CorporateTeam | CorporateProject | OrganizationMembership | Technol
 async def can_edit_profile(
     db: AsyncSession,
     *,
-    ctx: AuthContext,
+    ctx: AuthContext | None = None,
+    account_id: str | None = None,
     organization_id: str,
     subject_kind: str,
     subject_id: str,
     owner_assignment: bool = False,
 ) -> bool:
+    principal_id = account_id or (ctx.account_id if ctx is not None else "")
+    if not principal_id:
+        return False
     # Callers first establish active tenant membership; each grant remains tenant-scoped.
-    if await has_corporate_permission(
-        db,
-        organization_id=organization_id,
-        principal_type="user",
-        principal_id=ctx.account_id,
-        permission="member.update",
-        scope_kind="organization",
-        scope_id=organization_id,
-    ):
+    resource = "member" if subject_kind == "employee" else subject_kind
+    subject_permission = (
+        ("catalog_object.ownership_transfer" if owner_assignment else "catalog_object.edit")
+        if subject_kind == "catalog_object"
+        else f"{resource}.update"
+    )
+
+    async def _org(permission: str) -> bool:
+        return await has_corporate_permission(
+            db,
+            organization_id=organization_id,
+            principal_type="user",
+            principal_id=principal_id,
+            permission=permission,
+            scope_kind="organization",
+            scope_id=organization_id,
+        )
+
+    if await _org(subject_permission) or await _org("member.update"):
         return True
-    lead = await db.scalar(
-        select(CorporateTeamMember.account_id)
+    led_teams = (
+        select(CorporateTeamMember.team_id)
         .join(
             CorporateTeam,
             (CorporateTeam.organization_id == CorporateTeamMember.organization_id)
@@ -57,20 +71,53 @@ async def can_edit_profile(
         )
         .where(
             CorporateTeamMember.organization_id == organization_id,
-            CorporateTeamMember.account_id == ctx.account_id,
+            CorporateTeamMember.account_id == principal_id,
             CorporateTeamMember.role == "lead",
             CorporateTeam.state == "active",
         )
     )
-    if lead is not None:
-        return True
+    if subject_kind == "employee":
+        return (
+            await db.scalar(
+                select(CorporateTeamMember.account_id).where(
+                    CorporateTeamMember.organization_id == organization_id,
+                    CorporateTeamMember.account_id == subject_id,
+                    CorporateTeamMember.team_id.in_(led_teams),
+                )
+            )
+            is not None
+        )
+    if subject_kind == "team":
+        return (
+            await db.scalar(
+                select(CorporateTeam.id).where(
+                    CorporateTeam.organization_id == organization_id,
+                    CorporateTeam.id == subject_id,
+                    CorporateTeam.id.in_(led_teams),
+                )
+            )
+            is not None
+        )
+    if subject_kind == "project":
+        return (
+            await db.scalar(
+                select(ProjectTeamRelation.team_id).where(
+                    ProjectTeamRelation.organization_id == organization_id,
+                    ProjectTeamRelation.project_id == subject_id,
+                    ProjectTeamRelation.team_id.in_(led_teams),
+                    ProjectTeamRelation.role == "owner",
+                    ProjectTeamRelation.state == "current",
+                )
+            )
+            is not None
+        )
     if subject_kind == "technology" and not owner_assignment:
         return (
             await db.scalar(
                 select(Technology.id).where(
                     Technology.organization_id == organization_id,
                     Technology.id == subject_id,
-                    Technology.owner_account_id == ctx.account_id,
+                    Technology.owner_account_id == principal_id,
                     Technology.redirect_id.is_(None),
                     Technology.lifecycle != "archived",
                 )

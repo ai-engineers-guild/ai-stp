@@ -1,55 +1,49 @@
-import { DetailAccordion } from "@/components/molecules/detail-accordion";
-import type { CorporateCatalogUsage } from "@/lib/api/generated/types.gen";
-import { Link } from "@/lib/i18n/navigation";
+import {
+  CorporateRelationSection,
+  type CorporateRelationSectionLabels,
+} from "@/components/organisms/corporate-relation-section";
+import type { DirectoryResource } from "@/components/organisms/corporate-directory-types";
+import type { CorporateCatalogUsage as CorporateCatalogUsageItem } from "@/lib/api/generated/types.gen";
 
-const subjectPaths = {
-  employee: "employees",
+const SUBJECT_RESOURCES = {
+  employee: "members",
   team: "teams",
   project: "projects",
   technology: "technologies",
-} as const;
+} as const satisfies Record<CorporateCatalogUsageItem["subject_kind"], DirectoryResource>;
 
 export function CorporateCatalogUsage({
   items,
-  total,
   labels,
 }: {
-  items: CorporateCatalogUsage[];
-  total: number;
+  items: CorporateCatalogUsageItem[];
   labels: {
-    title: string;
-    summary: string;
-    direct: string;
-    effective: string;
-    subjectKinds: Record<CorporateCatalogUsage["subject_kind"], string>;
+    subjectSections: Record<CorporateCatalogUsageItem["subject_kind"], string>;
+    relation: CorporateRelationSectionLabels;
   };
 }) {
-  if (total === 0) return null;
   return (
-    <DetailAccordion
-      title={labels.title}
-      summary={labels.summary.replace("{count}", String(total))}
-    >
-      <ul className="divide-border min-w-0 divide-y">
-        {items.map((item) => (
-          <li key={`${item.subject_kind}:${item.subject_id}:${item.source_team_id ?? "direct"}`}>
-            <Link
-              href={`/corporate/${subjectPaths[item.subject_kind]}/${encodeURIComponent(item.subject_id)}`}
-              className="flex min-w-0 items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{item.subject_name}</span>
-                <span className="text-muted-foreground block text-xs">
-                  {labels.subjectKinds[item.subject_kind]}
-                </span>
-              </span>
-              <span className="text-muted-foreground shrink-0 text-xs">
-                {item.source === "effective" ? labels.effective : labels.direct}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </DetailAccordion>
+    <>
+      {(Object.keys(SUBJECT_RESOURCES) as (keyof typeof SUBJECT_RESOURCES)[]).map((kind) => {
+        const resource = SUBJECT_RESOURCES[kind];
+        const references = [
+          ...new Map(
+            items
+              .filter((item) => item.subject_kind === kind)
+              .map((item) => [item.subject_id, { id: item.subject_id, name: item.subject_name }]),
+          ).values(),
+        ];
+        return (
+          <CorporateRelationSection
+            key={kind}
+            title={labels.subjectSections[kind]}
+            resource={resource}
+            references={references}
+            api={{ resource, subjectIds: references.map((reference) => reference.id) }}
+            labels={labels.relation}
+          />
+        );
+      })}
+    </>
   );
 }

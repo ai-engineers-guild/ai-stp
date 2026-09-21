@@ -59,6 +59,7 @@ def plan(parameters: Mapping[str, object]) -> Answer[MultiRootTransactionView]:
                 "target": str(target),
                 "scope": scope,
                 "action": "install",
+                "allow-permission": parameters.get("allow-permission", ()),
             }
             _copy_trust(parameters, child_parameters)
             view = install.plan(child_parameters).payload

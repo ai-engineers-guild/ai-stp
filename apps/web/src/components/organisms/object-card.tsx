@@ -20,7 +20,26 @@ import { Icon } from "@/theme";
 import { ComponentTypeIcon } from "@/theme/component-types";
 
 type CatalogItem = ComponentSummary | SetupSummary;
-type CardItem = CatalogItem | OwnerObjectSummary;
+// Pick keeps the concrete field types: Omit collapses them into the index
+// signature (`[key: string]: unknown`) that OwnerObjectSummary declares.
+export type OwnerCardItem = Pick<
+  OwnerObjectSummary,
+  | "author_verified"
+  | "catalog_item"
+  | "component_verified"
+  | "latest_version"
+  | "lifecycle_state"
+  | "name"
+  | "object_kind"
+  | "schema_version"
+  | "stable_id"
+  | "trust_lane"
+  | "updated_at"
+> & {
+  visibility?: "public" | "private";
+};
+
+type CardItem = CatalogItem | OwnerCardItem;
 type Labels = {
   harness: string;
   tags: string;
@@ -90,11 +109,11 @@ type Props = {
   author?: CatalogAuthor;
   locale?: string | undefined;
   initiallyLiked?: boolean;
-  visibility?: "public" | "private";
+  visibility?: "public" | "private" | undefined;
   ownerActions?: ReactNode;
 };
 
-function isOwnerObject(item: CardItem): item is OwnerObjectSummary {
+function isOwnerObject(item: CardItem): item is OwnerCardItem {
   return "object_kind" in item;
 }
 
@@ -102,17 +121,26 @@ function AuthorRail({
   item,
   author,
   labels,
+  containerQuery = false,
 }: {
   item: ComponentSummary | SetupSummary;
   author: CatalogAuthor | undefined;
   labels: Labels;
+  /** List cards size by their own width; cards-view items size by viewport. */
+  containerQuery?: boolean;
 }) {
   return (
-    <div className="flex max-w-full min-w-0 flex-col items-start gap-1 md:max-w-44 md:items-end">
+    <div
+      className={cn(
+        "flex max-w-full min-w-0 flex-col items-start gap-1",
+        containerQuery ? "@3xl:max-w-44 @3xl:items-end" : "md:max-w-44 md:items-end",
+      )}
+    >
       <Author
         item={item}
         author={author}
         verifiedLabel={verifiedLabel(labels.authorVerifiedDescription)}
+        containerQuery={containerQuery}
       />
     </div>
   );
@@ -150,16 +178,21 @@ function Author({
   item,
   author,
   verifiedLabel,
+  containerQuery = false,
 }: {
   item: ComponentSummary | SetupSummary;
   author: CatalogAuthor | undefined;
   verifiedLabel: string;
+  containerQuery?: boolean;
 }) {
   return (
     <Link
       href={`/publishers/${item.publisher_id}`}
       prefetch={false}
-      className="relative z-10 inline-flex max-w-full min-w-0 items-center gap-2 hover:underline md:max-w-40"
+      className={cn(
+        "relative z-10 inline-flex max-w-full min-w-0 items-center gap-2 hover:underline",
+        containerQuery ? "@3xl:max-w-40" : "md:max-w-40",
+      )}
     >
       <VerifiedAvatar
         src={author?.avatarUrl}
@@ -245,7 +278,7 @@ function menuLabels(kind: "component" | "setup", labels: Labels) {
 }
 
 /** Sparse catalog item: identity, compatibility, tags, author and likes only. */
-// eslint-disable-next-line max-lines-per-function
+// eslint-disable-next-line max-lines-per-function, complexity
 export function ObjectCard({
   kind,
   item,
@@ -273,14 +306,21 @@ export function ObjectCard({
       />
     );
   }
-  const itemVisibility = owner?.visibility ?? visibility;
+  const itemVisibility = owner ? (owner.visibility ?? null) : visibility;
   const type =
     kind === "component"
       ? (catalogItem as ComponentSummary).latest_component_type
       : (labels.setupKind ?? "Setup");
   const harnesses = namedHarnesses(catalogItem);
   const actions = menuLabels(kind, labels);
-  const authorBlock = <AuthorRail item={catalogItem} author={author} labels={labels} />;
+  const authorBlock = (
+    <AuthorRail
+      item={catalogItem}
+      author={author}
+      labels={labels}
+      containerQuery={view === "list"}
+    />
+  );
   const metrics = <CatalogMetrics item={catalogItem} labels={labels} locale={locale} />;
   const reason = whyOpen(catalogItem, labels, view);
   if (view === "list")
@@ -288,7 +328,7 @@ export function ObjectCard({
       <article
         data-ui={UI.catalog.card}
         className={cn(
-          "group relative min-w-0 overflow-x-hidden px-4 py-3 transition-colors",
+          "group @container relative min-w-0 overflow-x-hidden px-4 py-3 transition-colors",
           kind === "setup"
             ? "bg-muted/50 hover:bg-muted"
             : "bg-background hover:bg-muted/35 focus-within:bg-muted/35",
@@ -296,7 +336,7 @@ export function ObjectCard({
         data-kind={kind}
         data-view="list"
       >
-        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 md:grid-cols-[auto_minmax(0,1fr)_auto_minmax(8rem,11rem)_minmax(8rem,auto)_auto] md:items-center">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 @3xl:grid-cols-[auto_minmax(0,1fr)_auto_minmax(8rem,11rem)_minmax(8rem,auto)_auto] @3xl:items-center">
           <div className="shrink-0">
             <TypeMark kind={kind} item={catalogItem} compact />
           </div>
@@ -323,7 +363,7 @@ export function ObjectCard({
             />
             <CardFacts item={catalogItem} kind={kind} labels={labels} />
           </div>
-          <div className="relative z-20 col-start-3 row-start-1 flex items-center gap-2 md:col-start-6">
+          <div className="relative z-20 col-start-3 row-start-1 flex items-center gap-2 @3xl:col-start-6">
             {owner ? ownerActions : null}
             {!owner ? (
               <CatalogItemMenu
@@ -336,24 +376,26 @@ export function ObjectCard({
               />
             ) : null}
           </div>
-          <div className="col-start-2 row-start-2 min-w-0 md:col-start-3 md:row-start-1 md:justify-self-end">
+          <div className="col-start-2 row-start-2 min-w-0 @3xl:col-start-3 @3xl:row-start-1 @3xl:justify-self-end">
             {metrics}
           </div>
-          <div className="col-start-2 row-start-3 min-w-0 md:col-start-4 md:row-start-1">
+          <div className="col-start-2 row-start-3 min-w-0 @3xl:col-start-4 @3xl:row-start-1">
             {kind === "component" ? (
               <SafetyScore item={catalogItem} labels={labels} compact />
             ) : null}
           </div>
-          <div className="relative z-20 col-span-2 col-start-2 row-start-4 min-w-0 md:col-span-1 md:col-start-5 md:row-start-1 md:justify-self-end">
+          <div className="relative z-20 col-span-2 col-start-2 row-start-4 min-w-0 @3xl:col-span-1 @3xl:col-start-5 @3xl:row-start-1 @3xl:justify-self-end">
             {authorBlock}
           </div>
         </div>
-        <VisibilityLabel
-          className="absolute top-0 right-4 z-20"
-          visibility={itemVisibility}
-          publicLabel={labels.publicVisibility}
-          privateLabel={labels.privateVisibility}
-        />
+        {itemVisibility ? (
+          <VisibilityLabel
+            className="absolute top-0 right-14 z-20"
+            visibility={itemVisibility}
+            publicLabel={labels.publicVisibility}
+            privateLabel={labels.privateVisibility}
+          />
+        ) : null}
       </article>
     );
   return (
@@ -418,12 +460,14 @@ export function ObjectCard({
         <RequirementCount item={catalogItem} labels={labels} />
         {authorBlock}
       </div>
-      <VisibilityLabel
-        className="absolute top-0 right-4 z-20"
-        visibility={itemVisibility}
-        publicLabel={labels.publicVisibility}
-        privateLabel={labels.privateVisibility}
-      />
+      {itemVisibility ? (
+        <VisibilityLabel
+          className="absolute top-0 right-14 z-20"
+          visibility={itemVisibility}
+          publicLabel={labels.publicVisibility}
+          privateLabel={labels.privateVisibility}
+        />
+      ) : null}
     </article>
   );
 }
@@ -437,7 +481,7 @@ export function OwnerObjectCard({
   authorVerifiedLabel,
   componentVerifiedLabel,
 }: {
-  item: OwnerObjectSummary;
+  item: OwnerCardItem;
   href: string;
   actions: ReactNode;
   publicLabel?: string | undefined;
@@ -471,7 +515,7 @@ function OwnerFallbackCard({
   publicLabel,
   privateLabel,
 }: {
-  item: OwnerObjectSummary;
+  item: OwnerCardItem;
   href: string;
   actions: ReactNode;
   view: "cards" | "list";
@@ -526,12 +570,14 @@ function OwnerFallbackCard({
         </div>
         <div className="relative z-20">{actions}</div>
       </div>
-      <VisibilityLabel
-        className="absolute top-0 right-4 z-20"
-        visibility={item.visibility}
-        publicLabel={publicLabel}
-        privateLabel={privateLabel}
-      />
+      {item.visibility ? (
+        <VisibilityLabel
+          className="absolute top-0 right-14 z-20"
+          visibility={item.visibility}
+          publicLabel={publicLabel}
+          privateLabel={privateLabel}
+        />
+      ) : null}
     </article>
   );
 }

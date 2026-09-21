@@ -93,6 +93,59 @@ export function directoryHref(resource: DirectoryResource, id: string, returnFil
   return `/corporate/${routeResource}/${encodeURIComponent(id)}${returnFilters ? `?${returnFilters}` : ""}`;
 }
 
+export function relationSectionLabels(
+  h: (key: string) => string,
+  catalog: (key: string) => string = h,
+) {
+  return {
+    filters: h("filters"),
+    filterTitle: h("filterTitle"),
+    filterHint: h("filterHint"),
+    reset: h("clearFilters"),
+    close: h("closeFilters"),
+    search: h("search"),
+    apply: h("applyFilters"),
+    previous: h("previous"),
+    next: h("next"),
+    page: h("page"),
+    noMatches: h("noMatches"),
+    moreActions: h("moreActions"),
+    openDetails: h("openDetails"),
+    edit: h("edit"),
+    editPresentation: h("editPresentation"),
+    copyId: h("copyId"),
+    copyUrl: h("copyUrl"),
+    share: h("share"),
+    report: h("report"),
+    owner: h("owner"),
+    operationalOwner: h("operationalOwner"),
+    teams: h("teams"),
+    projects: h("projects"),
+    technologies: h("technologies"),
+    categories: h("categories"),
+    teamLeads: h("teamLeads"),
+    team: h("team"),
+    employee: h("employee"),
+    author: catalog("author"),
+    type: h("type"),
+    lead: h("lead"),
+    unknownEmployee: h("unknownEmployee"),
+    notAvailable: h("notAvailable"),
+  };
+}
+
+export function usageSectionLabels(h: (key: string) => string, catalog: (key: string) => string) {
+  return {
+    subjectSections: {
+      employee: h("employees"),
+      team: h("teams"),
+      project: h("projects"),
+      technology: h("technologies"),
+    },
+    relation: relationSectionLabels(h, catalog),
+  };
+}
+
 export function isComponentType(value: string | undefined): value is ComponentType {
   return [
     "instruction",

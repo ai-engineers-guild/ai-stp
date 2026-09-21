@@ -18,6 +18,7 @@ const arrayFields = [
   "technology_ids",
   "project_ids",
   "category_ids",
+  "subject_ids",
 ] as const;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {

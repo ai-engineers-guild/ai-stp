@@ -7,15 +7,22 @@ import type { ParsedCatalogQuery } from "@/lib/catalog-query";
 
 type OwnerCatalogItem = ComponentSummary | SetupSummary;
 
-export function ownerCatalogItem(item: OwnerObjectSummary): OwnerCatalogItem | null {
+export function ownerCatalogItem(
+  item: Pick<OwnerObjectSummary, "catalog_item">,
+): OwnerCatalogItem | null {
   const value = item.catalog_item;
   return value && "latest_name" in value ? value : null;
 }
 
-export function filterAndSortOwnerObjects(
-  items: readonly OwnerObjectSummary[],
+type OwnerFilterItem = Pick<
+  OwnerObjectSummary,
+  "catalog_item" | "name" | "object_kind" | "stable_id" | "updated_at"
+>;
+
+export function filterAndSortOwnerObjects<T extends OwnerFilterItem>(
+  items: readonly T[],
   query: ParsedCatalogQuery,
-): OwnerObjectSummary[] {
+): T[] {
   const filtered = items.filter((item) => matchesOwnerQuery(item, query));
   const direction = query.sortDirection === "asc" ? 1 : -1;
   return filtered
@@ -36,7 +43,7 @@ export function filterAndSortOwnerObjects(
 
 // Keep the owner workspace on the same filter contract as the catalog.
 // eslint-disable-next-line complexity
-function matchesOwnerQuery(item: OwnerObjectSummary, query: ParsedCatalogQuery): boolean {
+function matchesOwnerQuery(item: OwnerFilterItem, query: ParsedCatalogQuery): boolean {
   const card = ownerCatalogItem(item);
   if (query.resource !== "all" && item.object_kind !== query.resource.slice(0, -1)) return false;
   const text = [

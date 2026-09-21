@@ -23,6 +23,7 @@ costs about 100 ms, three times what Click costs, and most invocations never
 touch a secret. `ai-stp version` should not pay for a store it does not open.
 """
 
+import contextlib
 import hmac
 import json
 from pathlib import Path
@@ -309,12 +310,20 @@ def promote(store: SecretStore, name: str) -> None:
     if kept is None:
         return
 
-    held = store.get(name)
-    if held is None:
-        store.put(name, kept)
-        # Read back rather than trust the write: this is the step that makes the
-        # deletion below safe to perform.
+    try:
         held = store.get(name)
+        if held is None:
+            store.put(name, kept)
+            # Read back rather than trust the write: this is the step that makes the
+            # deletion below safe to perform.
+            held = store.get(name)
+    except CliFailure as error:
+        # A selected OS store can still refuse an entry - Windows Credential
+        # Manager rejects blobs past its size cap. The file stays the live copy
+        # rather than the read failing on a secret this machine already holds.
+        if error.code == "AI_STP_DEPENDENCY_UNAVAILABLE":
+            return
+        raise
     if held is None or not hmac.compare_digest(held.encode("utf-8"), kept.encode("utf-8")):
         raise CliFailure(
             "AI_STP_PRECONDITION_FAILED",
@@ -347,8 +356,21 @@ def drop_everywhere(store: SecretStore, name: str) -> None:
 
 
 def load_json(store: SecretStore, name: str) -> dict[str, str] | None:
-    """Read a stored JSON document, refusing anything that is not one."""
-    raw = store.get(name)
+    """Read a stored JSON document, refusing anything that is not one.
+
+    On the OS tier a `None` or an unusable-store failure still consults the
+    file tier: an entry the OS store refused to accept at write or promotion
+    time lives there, and reading it is the honest answer rather than
+    reporting the secret absent.
+    """
+    try:
+        raw = store.get(name)
+    except CliFailure as error:
+        if store.tier != "os_keyring" or error.code != "AI_STP_DEPENDENCY_UNAVAILABLE":
+            raise
+        raw = None
+    if raw is None and store.tier == "os_keyring":
+        raw = FileStore().get(name)
     if raw is None:
         return None
     try:
@@ -372,5 +394,21 @@ def load_json(store: SecretStore, name: str) -> dict[str, str] | None:
 
 
 def store_json(store: SecretStore, name: str, document: dict[str, str]) -> None:
-    """Write a JSON document, sorted so a rewrite of equal content is equal."""
-    store.put(name, json.dumps(document, sort_keys=True, ensure_ascii=False))
+    """Write a JSON document, sorted so a rewrite of equal content is equal.
+
+    An OS store that refuses the write - Windows Credential Manager caps one
+    credential blob at 2560 bytes, under a session document with two tokens -
+    keeps the secret in the file tier instead of failing the caller that was
+    asked to save it. `load_json` reads that copy back on the same tier.
+    """
+    payload = json.dumps(document, sort_keys=True, ensure_ascii=False)
+    try:
+        store.put(name, payload)
+    except CliFailure as error:
+        if store.tier != "os_keyring" or error.code != "AI_STP_DEPENDENCY_UNAVAILABLE":
+            raise
+        with contextlib.suppress(CliFailure):
+            store.drop(name)
+        FileStore(detail="owner-only file; the credential store refused the entry").put(
+            name, payload
+        )

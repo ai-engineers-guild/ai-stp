@@ -1,6 +1,6 @@
 ---
 description: "SPEC-085: Corporate governance lifecycle, team profile, and catalog context."
-last_verified: "2026-09-18"
+last_verified: "2026-09-19"
 ---
 
 # SPEC-085: Milestone 5 corporate governance and catalog context
@@ -8,8 +8,10 @@ last_verified: "2026-09-18"
 ## Purpose
 
 Complete the enterprise-MVP extension of the existing Corporate Hub for issues
-issues 210, 211, and 212 without introducing a second authorization, publication,
-assignment, or catalog search workflow.
+210, 211, and 212, and extend the same assignment workflow for milestone 6
+issues 205, 206, and 214 without introducing a second authorization,
+publication, assignment, distribution, installation-planning, or catalog
+search workflow.
 
 ## Normative boundary
 
@@ -22,8 +24,10 @@ global verification, or provider authority.
 ## Scope
 
 This specification covers tenant-scoped governance relations for published
-components and setups, the existing Corporate Hub team detail projection, and
-corporate context on the existing component/setup catalog searches. It does not
+components and setups, the existing Corporate Hub team detail projection,
+corporate context on the existing component/setup catalog searches, the
+deterministic effective-assignment policy used by the CLI and Web, and bulk
+distribution of component/setup assignments across corporate scopes. It does not
 replace publication, global author verification, catalog access grants, setup
 installation, or provider-owned harness state.
 
@@ -37,14 +41,30 @@ by this specification.
 - `Corporate governance relation` — an organization-scoped ownership,
   maintainership, corporate-verification, lifecycle, or exact-version
   assignment row.
-- `Effective assignment` — an employee-visible assignment derived from a
-  current canonical team membership and a current team assignment.
+- `Effective assignment` — the winning applicable assignment for an employee,
+  resolved from direct user, project, technology, team, and organization scopes
+  plus an optional harness condition. A team-derived row remains a projection
+  of its source assignment.
+- `Assignment selector` — either an exact immutable catalog coordinate (version
+  and, when available, digest) or the `latest` selector, which is resolved to an
+  exact eligible coordinate only when an effective plan is evaluated.
 - `Corporate catalog context` — an authenticated organization plus optional
   team, project, technology, owner, maintainer, assignment, and verification
   filters applied to the existing catalog search contract.
 - `Governance history` — authorized audit and retired/revoked relation evidence
   for a tenant, with stable target, actor, reason, revision, timestamp, and
   correlation metadata.
+- `Bulk distribution` — an explicit assign or revoke operation that evaluates
+  one source assignment against a resolved set of member and project targets;
+  it creates derived per-target state without copying the source policy.
+- `Distribution result` — the per-target outcome of a bulk operation: `applied`,
+  `skipped`, `conflicted`, `denied`, or `failed`.
+- `Distribution state` — the observable per-target lifecycle state consumed by
+  Web, CLI, and CI: `pending`, `installed`, `outdated`, `failed`, or `revoked`.
+- `Assignment plan` — the deterministic per-line evaluation of the effective
+  assignments for one employee, context, and harness against the caller's
+  reported materialized coordinates; each line carries its outcome and a
+  planned `install`, `update`, `remove`, or `none` action.
 
 ## Requirements
 
@@ -79,17 +99,136 @@ by this specification.
   exposes a paginated organization-usage projection over readable teams, projects,
   and technologies for one stable setup or component. Direct and effective paths are
   deduplicated without erasing source, and authorization precedes rows and totals.
+- `REQ-8507`: An assignment targets one stable setup or component line and carries
+  an exact immutable selector or `latest`, plus an optional harness restriction.
+  Exact selectors must identify an eligible published coordinate; wildcard,
+  mutable, unverified, unavailable, and malformed coordinates are rejected.
+  `latest` is never persisted as an installed coordinate and is resolved only by
+  an authorized evaluation or installation-plan operation.
+- `REQ-8508`: Effective assignment precedence is deterministic and documented as
+  user, project, technology, team, then organization. Within a scope, a
+  harness-specific assignment wins over an unrestricted assignment; an explicit
+  user exception or revocation wins over inherited assignments. Effective results
+  identify the winning assignment and source scope. `latest` resolves according
+  to the same catalog eligibility and trust rules as exact selection, and the
+  resulting plan records the exact version and digest.
+- `REQ-8509`: Assignment mutations remain tenant-scoped and use the existing
+  authorization evaluator, role bindings, expected revision, authorization
+  revision, idempotency receipt, and audit history. Organization-wide and foreign
+  tenant mutations are denied to actors without the corresponding scope
+  permission. Retiring or changing an assignment does not rewrite prior history
+  or silently mutate a materialized installation.
+- `REQ-8510`: CLI and Web consume one generated effective-assignment contract and
+  return the same winning source, exact resolved coordinate, and explainability
+  fields. Evaluation and planning are read/plan operations separate from live
+  provider installation or active-harness replacement.
+- `REQ-8511`: A bulk assign or revoke request identifies one source assignment,
+  an operation action, and a resolved target set across organization, team,
+  project, technology, or individual-user scopes. Every request exposes a
+  dry-run preview that lists affected members and projects, exclusions,
+  individual overrides, and per-target planned results without mutation.
+- `REQ-8512`: Applying a bulk request reuses the existing single-assignment
+  mutation primitives and validates authorization and tenant ownership for each
+  target. It preserves individual exceptions, does not copy the source policy,
+  and returns an explicit per-target result of `applied`, `skipped`,
+  `conflicted`, `denied`, or `failed`.
+- `REQ-8513`: Bulk operations use the existing revision, authorization-revision,
+  idempotency, and audit model. Repeated requests and retries return the durable
+  per-target result without duplicate assignments, distribution rows, or audit
+  events.
+- `REQ-8514`: Partial application is visible: successful target changes remain
+  observable while conflicted, denied, and failed targets retain their result
+  and safe diagnostic. Updating or revoking the source assignment exposes the
+  resulting effect for every affected member and project.
+- `REQ-8515`: Web, CLI, and CI consume one generated distribution contract that
+  exposes source explainability and per-target `pending`, `installed`,
+  `outdated`, `failed`, or `revoked` state. Distribution state never silently
+  rewrites an active provider-owned harness target.
+- `REQ-8516`: A plan request names the authenticated employee, organization,
+  optional project and technology context, the target harness, and the exact
+  coordinates the caller reports as currently materialized. The evaluation
+  reuses the effective-assignment precedence and `latest` resolution; a caller
+  without member read authorization for the account is denied before any line
+  is evaluated.
+- `REQ-8517`: Each plan item reports the effective state, the winning source
+  scope and subject, the resolved exact version and digest, the reported
+  installed coordinate, one outcome of `missing`, `installed`, `outdated`,
+  `revoked`, `unassigned`, `unsupported`, or `conflicting`, and one action of
+  `install`, `update`, `remove`, or `none`. An assigned line with no eligible
+  published version is `unsupported`; an unassigned or revoked materialized
+  coordinate is reported as not allowed with `remove`.
+- `REQ-8518`: The plan is deterministic: items are sorted by catalog line, the
+  response carries no wall-clock field, and identical policy and materialized
+  inputs produce an identical plan.
+- `REQ-8519`: Plan evaluation is a read: it writes no assignment, distribution,
+  audit, or provider-owned state, and never rewrites a live harness target.
+  Web, CLI, and CI consume the same generated plan contract; executing a plan
+  remains the existing install transaction with its own approval and durable
+  record.
+- `REQ-8520`: `corporate assignment verify` names the organization, the
+  employee (defaulting to the signed-in account), the optional project and
+  technology context, the target harness, and the local project whose managed
+  target is verified. Evidence is the durable provider-verified installation
+  record, the cached HarnessBundle manifest, the recomputed managed-path
+  digests, and the provider's own status observation when available; the
+  result binds tenant, account, project, technology, and harness.
+- `REQ-8521`: Verification classifies every installed setup and component line
+  by exact coordinates - stable identity, kind, version, and passport digest -
+  and every managed path as `unchanged`, `locally_modified`, `missing`,
+  `extra`, `unverifiable`, or `expected_change`. A later provider-verified
+  installation on the same provider target is the authorized baseline and is
+  `expected_change`, never tampering. The single verdict is `pass`, `fail`,
+  `outdated`, `revoked`, `unsupported`, `not_enrolled`, or `unverifiable`.
+- `REQ-8522`: A proven local difference is `fail` regardless of policy state;
+  an unreachable or skipped assignment layer is `unverifiable`, never `pass`.
+  `--offline` verifies local evidence alone. Revoked or policy-disallowed
+  coordinates report `revoked`, coordinates behind the effective assignment
+  report `outdated`, and a target with no verified installation or no
+  effective setup assignment reports `not_enrolled`.
+- `REQ-8523`: Verification is read-only: it never repairs, applies, rolls
+  back, or asks a provider to write, and it preserves the provider
+  plan/apply/status/recovery contracts. Diagnostics carry coordinates,
+  expected and observed digests, classifications, timestamps, and evidence
+  references only - never repository contents, prompts, secrets, complete
+  files, or absolute local paths.
+- `REQ-8524`: `GET /v1/owner/objects/{object_kind}/{stable_id}/capabilities`
+  reports the caller's management capabilities on one catalog object without
+  requiring a published version: `edit` and `edit_presentation` for the
+  author, the operational owner (employee, lead of the owning team, lead of a
+  project-owning team, or technology owner), and holders of
+  `catalog_object.edit`; `delete` additionally for the author and holders of
+  `catalog_object.delete` while no published version exists. Corporate
+  editors manage content and presentation through the author's account
+  namespace; the object never changes authorship.
+- `REQ-8525`: `DELETE /v1/owner/objects/{object_kind}/{stable_id}` removes a
+  catalog object only while no version is published. The author or a holder
+  of `catalog_object.delete` may delete; published objects are immutable and
+  reject deletion. Deletion removes dependent assignments, ownership,
+  maintainers, media, metadata, and the catalog identity, and records one
+  `catalog_object.delete` audit event.
+- `REQ-8526`: Corporate subject detail projections for employees, teams,
+  projects, and technologies expose `available_actions` computed against the
+  specific subject scope - not the caller's organization-wide capability
+  list - so presentation and deletion affordances follow the same scoped
+  decision as the mutation endpoints.
 
 ## States and errors
 
 Ownership is current for a stable component/setup coordinate and is transferred
 or cleared by an exact expected revision. Maintainer, assignment, verification,
 and lifecycle rows retain retired, revoked, or historical states rather than
-rewriting the relation's past. Verification and assignment always identify an
-exact published version; ownership remains stable-object scoped. Invalid typed
-identities, stale revisions, missing idempotency, unavailable catalog versions,
-foreign tenant coordinates, and insufficient permissions are rejected before a
-durable mutation. Replays reauthorize and return the original durable result.
+rewriting the relation's past. Verification and exact assignments identify an
+exact published version; an assignment may additionally use the `latest`
+selector for future evaluation. Every evaluated or materialized plan contains
+an exact eligible version and digest. Invalid typed identities, stale revisions,
+missing idempotency, unavailable catalog versions, foreign tenant coordinates,
+mutable or unverified selectors, and insufficient permissions are rejected
+before a durable mutation. A dry-run has no durable side effect. Bulk apply
+records one result per resolved target; target-local authorization, conflicts,
+and failures do not erase successful targets. Replays reauthorize and return the
+original durable result. Changing a `latest` assignment affects future plans
+only; it does not rewrite assignment history or an existing materialized
+installation.
 
 ## Security and privacy
 
@@ -101,7 +240,9 @@ or provider authority. Search authorization runs before relation filters,
 counts, sorting, and pagination, and unauthorized corporate context fails
 without revealing object existence or relation counts. Audit history is
 redacted to safe actor, target, revision, reason, timestamp, and correlation
-metadata; secrets and personal data do not enter contracts, logs, or fixtures.
+metadata; bulk authorization runs for every resolved target inside its tenant
+boundary; denied targets reveal no foreign membership or project data. Secrets
+and personal data do not enter contracts, logs, or fixtures.
 
 ## Compatibility and migration
 
@@ -113,15 +254,22 @@ catalog requests, publication workflows, role bindings, and catalog routes
 remain compatible. Generated schemas, OpenAPI, provider projections, and web
 clients are regenerated by the repository generators. Rollback can disable the
 new governance routes and corporate search context without deleting incumbent
-catalog, publication, membership, or audit data.
+catalog, publication, membership, or audit data. The legacy exact-version
+assignment request remains valid. Selector, harness condition, precedence,
+explainability, and effective-plan fields are additive; existing exact
+assignments keep their current semantics. No existing active installation is
+rewritten during migration or latest-selector evaluation. Bulk operation and
+distribution records are additive and retain the source assignment identity;
+they do not duplicate assignment policy or rewrite provider-owned state.
 
 ## Acceptance
 
 Contract, unit, PostgreSQL tenant/isolation, revision/idempotency/audit, API, Web
 component, and E2E tests cover the governance matrix, derived assignments,
 effective team profile, both catalog object kinds, URL-backed filters, and public
-compatibility. Generated schemas and clients are updated only by repository
-generators.
+compatibility. Bulk contract/API/CLI/Web tests cover dry-run, target expansion,
+exceptions, partial results, retries, and distribution-state retrieval. Generated
+schemas and clients are updated only by repository generators.
 
 ## Acceptance criteria
 
@@ -133,3 +281,23 @@ generators.
 | `REQ-8504` | `tests/api/platform/test_corporate_entity_profiles.py` covers the existing team/entity projection and tenant authorization; the full API suite covers the additive profile response fields and redaction. |
 | `REQ-8505` | `tests/contract/test_openapi.py` covers generated search contracts; Web unit tests cover corporate catalog loading and URL/query transport; the full API suite covers public compatibility and tenant isolation. |
 | `REQ-8506` | Contract and PostgreSQL API tests cover technology-category filtering, setup/component usage pagination, direct/effective source, deduplication, authorization-before-count, and tenant isolation. |
+| `REQ-8507` | Contract/API tests cover exact and `latest` selectors, harness conditions, immutable-coordinate validation, and rejection of mutable, unverified, wildcard, or unavailable selectors. |
+| `REQ-8508` | Effective-assignment tests cover precedence, harness-specific selection, user exceptions/revocations, winning-source explainability, and exact version/digest resolution for `latest`. |
+| `REQ-8509` | API tests cover tenant/scope authorization, revision/idempotency replay, audit retention, and the absence of live-installation mutation. |
+| `REQ-8510` | Generated contract tests and CLI/Web integration tests compare the effective result and explanation fields across both clients. |
+| `REQ-8511` | Bulk contract/API tests cover assign and revoke previews, affected member/project expansion, exclusions, individual overrides, all supported scope coordinates, and the no-mutation dry-run guarantee. |
+| `REQ-8512` | Bulk API tests cover per-target authorization, tenant isolation, reuse of single-assignment validation, exception preservation, and the five explicit per-target results. |
+| `REQ-8513` | Revision/idempotency/audit tests cover retry replay, duplicate suppression for assignments/distribution rows/audit events, and reauthorization on replay. |
+| `REQ-8514` | Bulk API tests cover partial success, conflict/denial/failure visibility, update/revoke effects, and durable result retrieval. |
+| `REQ-8515` | Generated contract, CLI/Web, and CI-consumer tests cover the five distribution lifecycle states and the absence of active provider-target mutation. |
+| `REQ-8516` | Plan contract and service tests cover context/harness/materialized inputs and member authorization; `tests/api/platform/test_corporate_assignment_plan.py` covers the tenant-scoped route. |
+| `REQ-8517` | Plan service tests cover every outcome/action pair, `latest` resolution to exact coordinates, unsupported coordinates, employee exceptions and revocations, and source explainability. |
+| `REQ-8518` | Plan tests cover sorted items, absent wall-clock fields, and identical output for identical policy and materialized inputs. |
+| `REQ-8519` | Plan service/API tests and the CLI command test cover the no-mutation guarantee; contract tests cover the shared generated plan schema consumed by Web, CLI, and CI. |
+| `REQ-8520` | CLI verification tests cover context binding, the session-account default, the verified-record plus manifest plus provider-status evidence layers, and the not-enrolled verdicts for absent local state. |
+| `REQ-8521` | CLI verification tests cover setup and component coordinate checks, modified/missing/extra managed paths, and the expected-change verdict for a later authorized installation on the same provider target. |
+| `REQ-8522` | CLI verification tests cover verdict precedence (proven drift over policy states), offline and unreachable-layer behavior, and the revoked/outdated/unsupported/not-enrolled outcomes. |
+| `REQ-8523` | CLI verification tests assert the operation log and target bytes are untouched and the rendered result carries no local paths or file content; contract tests pin the generated verdict schema. |
+| `REQ-8524` | `tests/api/platform/test_corporate_subject_rbac.py::test_catalog_object_capabilities_and_draft_delete` covers author, superadmin, and operational-owner capability sets plus the unpublished draft probe. |
+| `REQ-8525` | `tests/api/platform/test_corporate_subject_rbac.py::test_catalog_object_capabilities_and_draft_delete` covers published immutability, non-owner denial, successful draft removal, and ownership cleanup. |
+| `REQ-8526` | `tests/api/platform/test_corporate_subject_rbac.py::test_team_lead_manages_own_team_members_only` asserts `available_actions` on member detail for a scoped lead; generated contract tests pin the response fields. |

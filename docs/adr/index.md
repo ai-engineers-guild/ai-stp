@@ -192,6 +192,10 @@ last_verified: "2026-08-03"
 | [ADR-0192-one-account-identity-in-corporate-ui.md](ADR-0192-one-account-identity-in-corporate-ui.md) | One account identity owns corporate employee and public publisher projections. | 2026-09-18 |
 | [ADR-0193-one-corporate-catalog-and-directory-projection.md](ADR-0193-one-corporate-catalog-and-directory-projection.md) | The Corporate Hub extends one catalog and one authorized directory projection. | 2026-09-18 |
 | [ADR-0194-rebuild-normative-surface-from-implemented-code.md](ADR-0194-rebuild-normative-surface-from-implemented-code.md) | Rebuild specs, current docs, and tests from implemented code; archive unmatched history. | 2026-09-20 |
+| [ADR-0195-effective-corporate-catalog-assignments.md](ADR-0195-effective-corporate-catalog-assignments.md) | Deterministic effective corporate catalog assignments and exact install plans. | 2026-09-19 |
+| [ADR-0196-bulk-corporate-distribution.md](ADR-0196-bulk-corporate-distribution.md) | Idempotent, observable bulk distribution of corporate assignments. | 2026-09-19 |
+| [ADR-0197-corporate-assignment-plan.md](ADR-0197-corporate-assignment-plan.md) | Deterministic install/update planning over effective corporate assignments. | 2026-09-20 |
+| [ADR-0198-managed-installation-verification.md](ADR-0198-managed-installation-verification.md) | Read-only verification that a managed target still carries the organization-approved setup and components. | 2026-09-20 |
 | [binding.md](binding.md) | Which accepted ADRs still constrain non-corporate work; default is binding. | 2026-09-20 |
 | [template.md](template.md) | Architecture decision record template. | 2026-08-03 |
 
