@@ -2327,6 +2327,223 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
         next_actions=("help --path project --json",),
     ),
     Declaration(
+        path=["project", "detect"],
+        summary=(
+            "Detect the technology coordinates one project root uses. Reads only "
+            "the bounded index; stores findings locally and publishes nothing."
+        ),
+        result_schema="urn:ai-stp:schema:v1:cli-technology-scan",
+        handler="project:detect",
+        # Records an immutable scan and merges findings in the local registry.
+        mutability="apply",
+        parameters=(
+            option("root", "string", "Exact project root to scan.", required=True),
+            option(
+                "scope",
+                "string",
+                "Named scan scope findings belong to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technologies"],
+        summary="List the stored technology findings for one local project.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-findings",
+        handler="project:technologies",
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option("scope", "string", "Only findings recorded under this scan scope."),
+        ),
+        next_actions=("project detect --root <path> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "confirm"],
+        summary="Confirm one finding: it is a real usage of what it names.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-review",
+        handler="project:technology_confirm",
+        mutability="apply",
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "finding",
+                "string",
+                "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+                required=True,
+            ),
+            option(
+                "context",
+                "string",
+                "Usage context when the coordinate exists in more than one.",
+                choices=("production", "development", "testing", "browser_support"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the finding belongs to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "reject"],
+        summary="Reject one finding: not a usage; it stays out of publication.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-review",
+        handler="project:technology_reject",
+        mutability="apply",
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "finding",
+                "string",
+                "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+                required=True,
+            ),
+            option(
+                "context",
+                "string",
+                "Usage context when the coordinate exists in more than one.",
+                choices=("production", "development", "testing", "browser_support"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the finding belongs to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "override"],
+        summary="Override one finding's resolved identity with a canonical technology.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-review",
+        handler="project:technology_override",
+        mutability="apply",
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "finding",
+                "string",
+                "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+                required=True,
+            ),
+            option(
+                "technology",
+                "string",
+                "Canonical technology_<ulid> the coordinate resolves to.",
+                required=True,
+            ),
+            option("version", "string", "Corrected version the usage carries."),
+            option(
+                "context",
+                "string",
+                "Usage context when the coordinate exists in more than one.",
+                choices=("production", "development", "testing", "browser_support"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the finding belongs to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "retire"],
+        summary="Retire one finding: it was a usage and no longer is.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-review",
+        handler="project:technology_retire",
+        mutability="apply",
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option(
+                "finding",
+                "string",
+                "Finding coordinate as <kind>:<coordinate>, e.g. package:django.",
+                required=True,
+            ),
+            option(
+                "context",
+                "string",
+                "Usage context when the coordinate exists in more than one.",
+                choices=("production", "development", "testing", "browser_support"),
+            ),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the finding belongs to. Defaults to 'repository'.",
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "mappings", "list"],
+        summary="List the organization technology-mapping snapshots cached locally.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-mappings",
+        handler="project:technology_mappings",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+        ),
+        next_actions=(
+            "project technology mappings fetch --organization <id> --version <v> --json",
+        ),
+    ),
+    Declaration(
+        path=["project", "technology", "mappings", "fetch"],
+        summary="Fetch one organization mapping snapshot by exact version and cache it.",
+        result_schema="urn:ai-stp:schema:v1:cli-technology-mappings",
+        handler="project:technology_mapping_fetch",
+        mutability="apply",
+        parameters=(
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option("version", "string", "Exact published mapping snapshot version.", required=True),
+        ),
+        next_actions=("project technology mappings list --organization <id> --json",),
+    ),
+    Declaration(
+        path=["project", "technology", "publish"],
+        summary="Publish the stored findings of a linked project as a scan handoff.",
+        result_schema="urn:ai-stp:schema:v1:technology-scan-result",
+        handler="project:technology_publish",
+        mutability="apply",
+        parameters=(
+            option("project", "string", "Stable local project identifier."),
+            option("root", "string", "Project root to resolve the identifier from."),
+            option("organization", "string", "Explicit remote organization.", required=True),
+            option(
+                "scope",
+                "string",
+                "Named scan scope the findings belong to. Defaults to 'repository'.",
+            ),
+            option("scan", "string", "Exact stored scan to publish. Defaults to the latest."),
+            option(
+                "mapping-version",
+                "string",
+                "Exact organization mapping snapshot. Defaults to the latest cached.",
+            ),
+            option(
+                "expected-revision",
+                "string",
+                "Remote project revision the scan is based on. Defaults to the link's.",
+            ),
+            option(
+                "authorization-revision",
+                "string",
+                "Revision from the selected capability projection.",
+                required=True,
+            ),
+            option(
+                "idempotency-key", "string", "Stable key for this exact publication.", required=True
+            ),
+        ),
+        next_actions=("project technologies --project <id> --json",),
+    ),
+    Declaration(
         path=["harness", "install"],
         summary="Install the harness program itself under an exact prefix.",
         result_schema="urn:ai-stp:schema:v1:cli-harness-program",

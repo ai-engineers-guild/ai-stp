@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.cloud import context as cloud_context
+from ai_stp_cli.cloud import technology as cloud_technology
 from ai_stp_cli.commands import cloud_auth
 from ai_stp_cli.commands.auth import endpoint
 from ai_stp_cli.errors import CliFailure
@@ -24,6 +25,8 @@ from ai_stp_cli.local import (
     projects,
     revisions,
     symbols,
+    tech_detect,
+    tech_findings,
 )
 from ai_stp_cli.local.database import configured_path, open_registry, transaction
 from ai_stp_cli.local.passports import moment, owner
@@ -45,6 +48,14 @@ from ai_stp_contracts.context import (
     ProjectUnlinkRequest,
 )
 from ai_stp_contracts.machine_help import (
+    CliTechnologyClaim,
+    CliTechnologyEvidence,
+    CliTechnologyFinding,
+    CliTechnologyFindings,
+    CliTechnologyMapping,
+    CliTechnologyMappings,
+    CliTechnologyReview,
+    CliTechnologyScan,
     DiscoveryDiagnostic,
     ExcludedPath,
     ImportedFile,
@@ -60,6 +71,7 @@ from ai_stp_contracts.machine_help import (
     SetupImportComponent,
     SetupImportPlan,
 )
+from ai_stp_contracts.technology import TechnologyScanRequest, TechnologyScanResult
 from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.errors import ERROR_CODES
 from ai_stp_foundation.harnesses import HARNESS_IDS
@@ -1205,3 +1217,430 @@ def _root(parameters: Mapping[str, object]) -> Path:
             next_actions=["toolchain harnesses --json"],
         )
     return Path(str(given)).expanduser()
+
+
+# --------------------------------------------------------------------------
+# Local technology detection (issue #222)
+# --------------------------------------------------------------------------
+
+
+def _scan_scope(parameters: Mapping[str, object]) -> str:
+    scope = _optional(parameters, "scope") or "repository"
+    if len(scope) > 128 or tech_findings.SCOPE_PATTERN.match(scope) is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a scan scope is required and must be at most 128 characters of "
+            "letters, digits, dot, underscore, dash or slash",
+            details={"option": "--scope"},
+        )
+    return scope
+
+
+def _project_id_for(connection: sqlite3.Connection, parameters: Mapping[str, object]) -> str:
+    """The local project identity: explicit `--project`, or resolved from `--root`."""
+    project_id = _optional(parameters, "project")
+    if project_id is not None:
+        if not is_valid_id(project_id, "project"):
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a project identity is written as project_<ulid>",
+                details={"option": "--project"},
+            )
+        return project_id
+    root = _optional(parameters, "root")
+    if root is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a local project is required",
+            details={"option": "--project or --root"},
+            next_actions=["project detect --root <path> --json"],
+        )
+    resolved = Path(root).resolve()
+    known = project_passport.stable_id_for(connection, resolved)
+    if known is None:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "that root has no local project identity yet",
+            details={"root": redact_home(resolved)},
+            next_actions=[f"project detect --root {resolved} --json"],
+        )
+    return known
+
+
+def _finding_view(held: tech_findings.Finding) -> CliTechnologyFinding:
+    return CliTechnologyFinding(
+        key=held.key,
+        kind=held.kind,
+        coordinate=held.coordinate,
+        context=held.context,
+        technology_id=held.technology_id,
+        effective_technology_id=held.effective_technology_id,
+        version=held.version,
+        version_kind=held.version_kind,
+        review=held.review,
+        freshness=held.freshness,
+        claims=[
+            CliTechnologyClaim(
+                version=claim.version,
+                version_kind=claim.version_kind,
+                evidence=[
+                    CliTechnologyEvidence(
+                        source=trace.source,
+                        path=trace.path,
+                        reference=trace.reference,
+                        confidence=trace.confidence,
+                    )
+                    for trace in claim.evidence
+                ],
+            )
+            for claim in held.claims
+        ],
+        override_technology_id=held.override_technology_id,
+        override_version=held.override_version,
+        first_seen_scan=held.first_seen_scan,
+        last_seen_scan=held.last_seen_scan,
+        reviewed_at=held.reviewed_at,
+    )
+
+
+def _parse_finding_key(
+    connection: sqlite3.Connection,
+    *,
+    project_id: str,
+    scope: str,
+    given: str,
+    context: str | None,
+) -> tuple[str, str, str]:
+    """`kind:coordinate` plus context resolution.
+
+    The context is part of the finding's identity. When the caller does not
+    name it and exactly one context holds the coordinate, that one is meant;
+    more than one and the command must not guess.
+    """
+    kind, separator, coordinate = given.partition(":")
+    if not separator or kind not in tech_findings.FINDING_KINDS or not coordinate:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a finding is written as <kind>:<coordinate>",
+            details={
+                "finding": given,
+                "kinds": ", ".join(sorted(tech_findings.FINDING_KINDS)),
+            },
+        )
+    if context is not None:
+        return kind, coordinate, context
+    candidates = [
+        held
+        for held in tech_findings.findings(connection, project_id=project_id, scope=scope)
+        if held.kind == kind and held.coordinate == coordinate
+    ]
+    if not candidates:
+        raise CliFailure(
+            "AI_STP_NOT_FOUND",
+            "no technology finding exists for that coordinate",
+            details={"finding": f"{kind}:{coordinate}", "scope": scope},
+        )
+    if len(candidates) == 1:
+        return kind, coordinate, candidates[0].context
+    contexts = ", ".join(sorted({held.context for held in candidates}))
+    raise CliFailure(
+        "AI_STP_VALIDATION_ERROR",
+        "the finding's usage context is required",
+        details={"contexts": contexts, "option": "--context"},
+    )
+
+
+def detect(parameters: Mapping[str, object]) -> Answer[CliTechnologyScan]:
+    """Detect the technology coordinates one project root uses (issue #222).
+
+    Reads the same bounded index the passport builds — one walk, one truth —
+    over files the index already hashed. Nothing executes, nothing installs,
+    nothing is sent anywhere: the scan and its findings are stored locally,
+    and publication is a separate explicit act.
+    """
+    given = parameters.get("root")
+    if given is None:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a project root is required",
+            next_actions=["project discover --root <path> --json"],
+        )
+    scope = _scan_scope(parameters)
+    at = moment()
+
+    def work(connection: sqlite3.Connection) -> CliTechnologyScan:
+        found = project_passport.scan(connection, Path(str(given)))
+        detected = tech_detect.detect(found.index)
+        link = project_links.cached_link(connection, local_project_id=found.stable_id)
+        mapping = tech_findings.effective_mapping(
+            connection,
+            organization_id=link.organization_id if link is not None else None,
+        )
+        record = tech_findings.record_scan(
+            connection,
+            project_id=found.stable_id,
+            scope=scope,
+            detected=detected,
+            mapping=mapping,
+            at=at,
+        )
+        stored = tech_findings.findings(connection, project_id=found.stable_id, scope=scope)
+        # The wire preview resolves the way publication does: the platform
+        # rejects observations outside the named organization snapshot, so
+        # bundled-only coordinates travel only when no snapshot exists yet.
+        held_snapshot = (
+            tech_findings.cached_mapping(connection, organization_id=link.organization_id)
+            if link is not None
+            else None
+        )
+        wire_mapping = held_snapshot if held_snapshot is not None else tech_detect.bundled_mapping()
+        handoff = tech_findings.build_handoff(
+            project_findings=stored,
+            scan_id=record.scan_id,
+            scope=scope,
+            complete=record.complete,
+            mapping=wire_mapping,
+            local_project_id=found.stable_id,
+            organization_id=link.organization_id if link is not None else None,
+            remote_project_id=link.remote_project_id if link is not None else None,
+            at=at,
+        )
+        return CliTechnologyScan(
+            scan_id=record.scan_id,
+            project_id=found.stable_id,
+            root=redact_home(found.root),
+            scope=scope,
+            state="complete" if record.complete else "partial",
+            stopped_by=record.stopped_by,
+            detector_version=record.detector_version,
+            mapping_version=mapping.version,
+            findings=[_finding_view(item) for item in stored],
+            unmapped=list(handoff.unmapped),
+            observations=len(handoff.handoff.observations),
+            handoff=handoff.handoff,
+        )
+
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
+        return Answer(work(connection))
+
+
+def technologies(parameters: Mapping[str, object]) -> Answer[CliTechnologyFindings]:
+    """List the stored technology findings for one local project."""
+    scope = _optional(parameters, "scope")
+
+    def work(connection: sqlite3.Connection) -> CliTechnologyFindings:
+        project_id = _project_id_for(connection, parameters)
+        stored = tech_findings.findings(connection, project_id=project_id, scope=scope)
+        return CliTechnologyFindings(
+            project_id=project_id,
+            findings=[_finding_view(item) for item in stored],
+        )
+
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        return Answer(work(connection))
+
+
+def _technology_decision(
+    parameters: Mapping[str, object], decision: str
+) -> Answer[CliTechnologyReview]:
+    scope = _scan_scope(parameters)
+    at = moment()
+
+    def work(connection: sqlite3.Connection) -> CliTechnologyReview:
+        project_id = _project_id_for(connection, parameters)
+        kind, coordinate, context = _parse_finding_key(
+            connection,
+            project_id=project_id,
+            scope=scope,
+            given=_required(parameters, "finding"),
+            context=_optional(parameters, "context"),
+        )
+        held = tech_findings.review(
+            connection,
+            project_id=project_id,
+            scope=scope,
+            kind=kind,
+            coordinate=coordinate,
+            context=context,
+            decision=decision,
+            override_technology_id=_optional(parameters, "technology"),
+            override_version=_optional(parameters, "version"),
+            at=at,
+        )
+        return CliTechnologyReview(finding=_finding_view(held))
+
+    with (
+        closing(open_registry(configured_path(), create=False)) as connection,
+        transaction(connection),
+    ):
+        return Answer(work(connection))
+
+
+def technology_confirm(parameters: Mapping[str, object]) -> Answer[CliTechnologyReview]:
+    """Confirm one finding: it is a real usage of the technology it names."""
+    return _technology_decision(parameters, "confirmed")
+
+
+def technology_reject(parameters: Mapping[str, object]) -> Answer[CliTechnologyReview]:
+    """Reject one finding: it is not a usage, and stays out of publication."""
+    return _technology_decision(parameters, "rejected")
+
+
+def technology_override(parameters: Mapping[str, object]) -> Answer[CliTechnologyReview]:
+    """Override one finding's resolved identity with a canonical technology id."""
+    return _technology_decision(parameters, "overridden")
+
+
+def technology_retire(parameters: Mapping[str, object]) -> Answer[CliTechnologyReview]:
+    """Retire one finding: it was a usage and no longer is."""
+    return _technology_decision(parameters, "retired")
+
+
+def technology_mappings(parameters: Mapping[str, object]) -> Answer[CliTechnologyMappings]:
+    """List the organization mapping snapshots cached locally."""
+    organization = _required(parameters, "organization")
+
+    def work(connection: sqlite3.Connection) -> CliTechnologyMappings:
+        return CliTechnologyMappings(
+            organization_id=organization,
+            items=[
+                CliTechnologyMapping(
+                    organization_id=organization,
+                    version=version,
+                    digest=digest,
+                    entries=count,
+                )
+                for version, digest, count in tech_findings.cached_mappings(
+                    connection, organization_id=organization
+                )
+            ],
+        )
+
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        return Answer(work(connection))
+
+
+def technology_mapping_fetch(
+    parameters: Mapping[str, object],
+) -> Answer[CliTechnologyMappings]:
+    """Fetch one organization mapping snapshot by exact version and cache it."""
+    organization = _required(parameters, "organization")
+    version = _required(parameters, "version")
+    held = cloud_auth.required("technology mapping fetch")
+    view = cloud_technology.read_mapping(endpoint(), held.access_token, organization, version)
+
+    def work(connection: sqlite3.Connection) -> None:
+        tech_findings.cache_mapping(
+            connection,
+            organization_id=organization,
+            version=view.version,
+            digest=view.digest,
+            entries=[(entry.kind, entry.coordinate, entry.technology_id) for entry in view.entries],
+            at=moment(),
+        )
+
+    with (
+        closing(open_registry(configured_path(), create=True)) as connection,
+        transaction(connection),
+    ):
+        work(connection)
+    return technology_mappings(parameters)
+
+
+def technology_publish(parameters: Mapping[str, object]) -> Answer[TechnologyScanResult]:
+    """Publish the stored findings of one linked project as a scan handoff.
+
+    Identity is never inferred: the organization and the remote project come
+    from the cached link created by `project link create`, not from anything
+    the detector saw. The mapping snapshot must be a fetched organization
+    snapshot — the platform verifies observations against it, so the bundled
+    table alone cannot publish. Local preconditions are checked before the
+    session is demanded: a missing link is the answer, not a login prompt.
+    """
+    organization = _required(parameters, "organization")
+    scope = _scan_scope(parameters)
+
+    with closing(open_registry(configured_path(), create=False)) as connection:
+        project_id = _project_id_for(connection, parameters)
+        link = project_links.cached_link(connection, local_project_id=project_id)
+        if link is None or link.state != "linked":
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "a scan publishes only for an explicitly linked project",
+                details={"project": project_id},
+                next_actions=["help --path project --json"],
+            )
+        if link.organization_id != organization:
+            raise CliFailure(
+                "AI_STP_CONFLICT",
+                "the linked organization does not match the publication target",
+                details={"linked": link.organization_id, "named": organization},
+            )
+        mapping_version = _optional(parameters, "mapping-version")
+        snapshot = tech_findings.cached_mapping(
+            connection, organization_id=organization, version=mapping_version
+        )
+        if snapshot is None:
+            raise CliFailure(
+                "AI_STP_PRECONDITION_FAILED",
+                "an organization mapping snapshot is required before publishing",
+                details={"version": mapping_version or "latest"},
+                next_actions=[
+                    f"project technology mappings fetch --organization {organization} "
+                    "--version <v> --json"
+                ],
+            )
+        stored = tech_findings.findings(connection, project_id=project_id, scope=scope)
+        scan_id = _optional(parameters, "scan")
+        recorded = [
+            item
+            for item in tech_findings.scans(connection, project_id=project_id)
+            if item.scope == scope
+        ]
+        chosen = (
+            next((item for item in recorded if item.scan_id == scan_id), None)
+            if scan_id is not None
+            else (recorded[-1] if recorded else None)
+        )
+        if chosen is None:
+            raise CliFailure(
+                "AI_STP_NOT_FOUND",
+                "no stored scan exists for that scope",
+                details={"scope": scope, "scan": scan_id or "latest"},
+                next_actions=["project detect --root <path> --json"],
+            )
+        built = tech_findings.build_handoff(
+            project_findings=stored,
+            scan_id=chosen.scan_id,
+            scope=scope,
+            complete=chosen.complete,
+            mapping=snapshot,
+            local_project_id=project_id,
+            organization_id=organization,
+            remote_project_id=link.remote_project_id,
+            at=chosen.created_at,
+        )
+    expected = _optional(parameters, "expected-revision")
+    try:
+        expected_revision = int(expected) if expected is not None else int(link.remote_revision)
+    except ValueError as error:
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "the expected remote project revision must be an integer",
+            details={"option": "--expected-revision"},
+        ) from error
+    request = TechnologyScanRequest(
+        authorization_revision=_integer(parameters, "authorization-revision"),
+        expected_revision=expected_revision,
+        idempotency_key=_required(parameters, "idempotency-key"),
+        handoff=built.handoff,
+    )
+    held = cloud_auth.required("technology scan publication")
+    return Answer(
+        cloud_technology.publish_scan(
+            endpoint(), held.access_token, organization, link.remote_project_id, request
+        )
+    )

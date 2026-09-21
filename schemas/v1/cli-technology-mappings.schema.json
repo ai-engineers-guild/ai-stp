@@ -1,0 +1,75 @@
+{
+  "$defs": {
+    "CliTechnologyMapping": {
+      "additionalProperties": true,
+      "description": "One cached organization mapping snapshot, summarized.",
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "entries": {
+          "minimum": 0,
+          "title": "Entries",
+          "type": "integer"
+        },
+        "organization_id": {
+          "minLength": 1,
+          "title": "Organization Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "digest",
+        "entries",
+        "organization_id",
+        "schema_version",
+        "version"
+      ],
+      "title": "CliTechnologyMapping",
+      "type": "object"
+    }
+  },
+  "$id": "urn:ai-stp:schema:v1:cli-technology-mappings",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CliTechnologyMapping"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "organization_id": {
+      "minLength": 1,
+      "title": "Organization Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "organization_id",
+    "schema_version"
+  ],
+  "title": "CliTechnologyMappings",
+  "type": "object"
+}
