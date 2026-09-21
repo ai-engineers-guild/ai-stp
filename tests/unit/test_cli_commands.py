@@ -257,6 +257,36 @@ def test_device_reset_with_confirmation_produces_a_new_identity() -> None:
     assert after.public_key != before.public_key
 
 
+def test_device_reset_drops_the_retired_identity_credentials() -> None:
+    """REQ-207 makes cloud access require a new sign-in; a session or pending
+    approval minted for the retired device would let `auth status` or `auth
+    complete` answer as if that sign-in already happened."""
+    from ai_stp_cli.cloud import session
+    from ai_stp_cli.commands import device
+    from ai_stp_cli.secrets import open_store
+    from ai_stp_foundation.ids import new_id
+
+    device.init({})
+    store, _warning = open_store()
+    session.save(
+        store,
+        session.Session(
+            account_id=new_id("account"),
+            device_id=new_id("device"),
+            access_token="a",
+            refresh_token="r",
+            expires_at=session.expiry(3600),
+        ),
+    )
+    session.save_pending(
+        store,
+        session.Pending(provider="github", device_code="code", interval=5, expires_in=600),
+    )
+    device.reset({"confirm": True})
+    assert session.load(store) is None
+    assert session.load_pending(store) is None
+
+
 def test_auth_status_is_local_only_before_any_sign_in() -> None:
     from ai_stp_cli.commands import auth_status
 

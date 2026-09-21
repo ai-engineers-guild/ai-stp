@@ -11,7 +11,9 @@ from collections.abc import Mapping
 
 from ai_stp_cli import identity
 from ai_stp_cli.answer import Answer, with_warning
+from ai_stp_cli.cloud import session
 from ai_stp_cli.errors import CliFailure
+from ai_stp_cli.secrets import open_store
 from ai_stp_contracts.machine_help import DeviceIdentity
 
 
@@ -52,6 +54,12 @@ def reset(parameters: Mapping[str, object]) -> Answer[DeviceIdentity]:
     key, so neither the identifier nor the key is reused. The retired identifier
     is remembered so it cannot come back, and no local data is touched
     (REQ-205).
+
+    The credentials bound to the retired identity are not "local data": a
+    session or pending approval left behind would either fail against the new
+    key or, worse, satisfy `auth status` with a token minted for a device this
+    installation no longer is — which is exactly the sign-in REQ-207 requires
+    to happen again.
     """
     if not parameters.get("confirm"):
         raise CliFailure(
@@ -60,5 +68,8 @@ def reset(parameters: Mapping[str, object]) -> Answer[DeviceIdentity]:
             details={"command": "device reset"},
             next_actions=["device reset --confirm --json"],
         )
+    store, _store_warning = open_store()
+    session.clear(store)
+    session.clear_pending(store)
     fresh, warning = identity.reset()
     return with_warning(fresh.report(), warning)
