@@ -24,7 +24,7 @@ import platform
 import re
 import sqlite3
 import subprocess
-from collections.abc import Generator, Mapping
+from collections.abc import Generator, Mapping, Sequence
 from contextlib import closing, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -393,7 +393,11 @@ def plan(parameters: Mapping[str, object]) -> Answer[InstallationView]:
         # key to an owned file needs that file's current bytes and they exist
         # only here (`ADR-0129`).
         compiled = select_command.compile_harness_bundle(
-            connection, proposal_id, held.harness_id, Path(provider_target)
+            connection,
+            proposal_id,
+            held.harness_id,
+            Path(provider_target),
+            allowed_permissions=_allowed_permissions(parameters),
         )
         compiled_format = str(compiled.manifest.get("bundle_format") or "")
         _supports_bundle(info, held.harness_id, compiled_format)
@@ -563,6 +567,7 @@ def _plan_v3(
             expected_harness=pair.harness_id,
             host_root=Path(provider_target),
             scope=str(parameters.get("scope") or "global"),
+            allowed_permissions=_allowed_permissions(parameters),
         )
         planned_scope = _v3_profile_accepts(capabilities, compiled).scope
         compiled_format = str(compiled.manifest.get("bundle_format") or "")
@@ -2197,6 +2202,35 @@ def _executable(
             details={"provider": redact_home(place)},
             next_actions=["provider trust --json"],
         ) from None
+
+
+def _allowed_permissions(parameters: Mapping[str, object]) -> tuple[str, ...]:
+    """Explicit `family:value` grants the caller gives this target.
+
+    Repeatable options arrive as a tuple; a single string is one grant, and an
+    absent option is the empty set the composition refuses honestly on.
+    """
+    value = parameters.get("allow-permission")
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if not isinstance(value, Sequence):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "a repeated option must contain strings",
+            details={"option": "--allow-permission"},
+        )
+    result: list[str] = []
+    for item in cast(Sequence[object], value):
+        if not isinstance(item, str):
+            raise CliFailure(
+                "AI_STP_VALIDATION_ERROR",
+                "a repeated option must contain strings",
+                details={"option": "--allow-permission"},
+            )
+        result.append(item)
+    return tuple(result)
 
 
 def _operation(parameters: Mapping[str, object]) -> str:

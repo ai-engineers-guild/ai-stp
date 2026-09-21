@@ -36,6 +36,19 @@ class DrainResult:
     child_operation_ids: tuple[str, ...] = ()
 
 
+def _allowed_permissions(facts: Mapping[str, JsonValue]) -> tuple[str, ...]:
+    value = facts.get("allowed_permissions")
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise CliFailure(
+            "AI_STP_VALIDATION_ERROR",
+            "install input is not valid",
+            details={"field": "allowed_permissions"},
+        )
+    return tuple(str(item) for item in value)
+
+
 def recommend_setup(harness_id: str) -> SetupPin | None:
     """One justified pin. Never a catalog page."""
     from ai_stp_contracts.first_party import versions
@@ -215,6 +228,7 @@ def drain(
             "project": project_root,
             "harness": harness,
             "target": str(harness_target(harness)),
+            "allow-permission": _allowed_permissions(facts),
         }
     )
     if persist_operation is not None:

@@ -509,9 +509,11 @@ async def _run_plan(
     teams: list[object] | None = None,
     eligible: dict[str, list[tuple[str, str]]] | None = None,
     payload: CorporateAssignmentPlanRequest,
+    member: str | None = None,
 ):
     monkeypatch.setattr(service, "read_member", AsyncMock())
     db = AsyncMock()
+    db.scalar.return_value = member
     db.scalars.side_effect = [_scalars(list(teams or [])), _scalars(list(rows))]
     versions = dict(eligible or {})
 
@@ -677,3 +679,53 @@ async def test_plan_requires_member_authorization(
             request_id=None,
         )
     db.scalars.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_plan_refuses_a_project_the_account_is_not_a_member_of(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A foreign or mistyped project must not widen the evaluated scope."""
+    monkeypatch.setattr(service, "read_member", AsyncMock())
+    db = AsyncMock()
+    db.scalar.return_value = None
+    payload = _plan_request(project_id=new_id("remote_project"))
+    with pytest.raises(ApiError, match="not a member of the named project"):
+        await assignments.plan_assignments(
+            db,
+            ctx=SimpleNamespace(account_id=new_id("account")),
+            organization_id=new_id("organization"),
+            payload=payload,
+            request_id=None,
+        )
+    db.scalars.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_plan_applies_project_scope_to_a_current_member(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    account = new_id("account")
+    project = new_id("remote_project")
+    stable_id = new_id("component")
+    rows = [
+        _source(
+            stable_id=stable_id,
+            object_kind="component",
+            version="1.0",
+            project_id=project,
+        )
+    ]
+    result, _ = await _run_plan(
+        monkeypatch,
+        rows=rows,
+        eligible={stable_id: [("1.0", "sha256:" + "0" * 64)]},
+        payload=_plan_request(account_id=account, project_id=project),
+        member=account,
+    )
+    assert result.total == 1
+    item = result.items[0]
+    assert item.stable_id == stable_id
+    assert item.source_scope == "project"
+    assert item.source_subject_id == project
+    assert item.outcome == "missing"

@@ -33,7 +33,11 @@ and one outcome with one action: `missing`/`install`, `installed`/`none`,
 `outdated`/`update`, `conflicting`/`update` for a same-version digest
 mismatch, `unsupported`/`none` when no eligible published version satisfies
 the assignment, and `revoked`/`unassigned` with `remove` when the coordinate
-is materialized but not allowed. Items are sorted by catalog line and carry no
+is materialized but not allowed. "Allowed" includes coverage: assigning a
+setup approves the exact component graph its version pins, so a member
+materialized at that pinned coordinate reports `installed`/`none` even though
+the component line itself stays `unassigned`; an explicit revoke still
+dominates. Items are sorted by catalog line and carry no
 wall-clock field, so identical policy and materialized inputs produce an
 identical plan.
 

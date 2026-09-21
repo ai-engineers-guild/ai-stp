@@ -402,6 +402,10 @@ class TaskInstallInput(BaseModel):
     project_root: str | None = None
     setup_id: str | None = None
     setup_version: str | None = None
+    #: Explicit `family:value` grants the caller gives the install target, in
+    #: the spelling component passports use. Without a grant the target permits
+    #: nothing and the plan refuses an escalating composition.
+    allowed_permissions: list[str] | None = None
 
 
 class TaskChangeInput(BaseModel):

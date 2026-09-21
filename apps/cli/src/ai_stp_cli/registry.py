@@ -3009,6 +3009,15 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "Provider-declared execution posture, separate from setup identity.",
             ),
             option(
+                "allow-permission",
+                "string",
+                "A permission this target grants the composition, spelled "
+                "family:value as the component passport declares it, such as "
+                "process:git or filesystem:.herdr/**. Repeatable. Without a "
+                "grant the target permits nothing and the plan refuses.",
+                repeatable=True,
+            ),
+            option(
                 "scope",
                 "string",
                 "Projection scope the plan installs into: the harness home (global), "
@@ -3132,6 +3141,13 @@ DECLARATIONS: Final[tuple[Declaration, ...]] = (
                 "unverified-provider", "boolean", "Explicitly use an unverified local provider."
             ),
             option("provider-release-recovery", "boolean", "Use a previously verified release."),
+            option(
+                "allow-permission",
+                "string",
+                "A permission each child target grants the composition, spelled "
+                "family:value. Repeatable; forwarded to every child plan.",
+                repeatable=True,
+            ),
         ),
         next_actions=("help --path install --json",),
     ),

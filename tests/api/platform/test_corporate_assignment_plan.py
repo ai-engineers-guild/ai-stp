@@ -13,6 +13,9 @@ from ai_stp_platform.models import Account, CatalogMetadata
 from ai_stp_platform.organization_models import (
     CorporateAssignmentDistribution,
     CorporateCatalogAssignment,
+    CorporateProject,
+    CorporateProjectMember,
+    ProjectIdentity,
 )
 
 pytestmark = pytest.mark.platform
@@ -162,3 +165,263 @@ async def test_corporate_assignment_plan_http(
         )
     assert assignments == 1
     assert distributions == 0
+
+
+async def test_corporate_assignment_plan_scopes_projects_to_members(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    """A project context applies only while the account is a project member."""
+    client, sessionmaker, _ = db_api_client
+    account_id = new_id("account")
+    component_id = new_id("component")
+    async with sessionmaker() as db:
+        db.add(Account(id=account_id, status="active"))
+        await db.flush()
+        session = await issue_session(db, account_id=account_id, device_id=None, ttl_seconds=3600)
+        await db.commit()
+    auth = {"Authorization": f"Bearer {session.raw_token}"}
+    bootstrap = await client.post(
+        "/v1/corporate/bootstrap",
+        json={
+            "organization_name": "Project scope acceptance",
+            "superadmin_account_id": account_id,
+            "idempotency_key": "plan-project-bootstrap-fixture",
+        },
+        headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+    )
+    assert bootstrap.status_code == 200, bootstrap.text
+    organization_id = bootstrap.json()["organization_id"]
+    project_id = new_id("remote_project")
+    async with sessionmaker() as db:
+        db.add(
+            ProjectIdentity(
+                id=project_id,
+                organization_id=organization_id,
+                namespace="remote",
+                external_key=f"corporate:{project_id}",
+                display_name="Scoped project",
+            )
+        )
+        await db.flush()
+        db.add(
+            CorporateProject(
+                id=project_id,
+                organization_id=organization_id,
+                name="Scoped project",
+            )
+        )
+        db.add(
+            CatalogMetadata(
+                owner_account_id=account_id,
+                organization_id=organization_id,
+                object_kind="component",
+                stable_id=component_id,
+                version="1.0",
+                current_revision_id="revision-1.0",
+                visibility="private",
+                lifecycle_state="active",
+                name="Scoped Component",
+                published_at=datetime.now(UTC),
+                passport_document={"fixture": True},
+                passport_digest=DIGEST,
+                trust_lane="experimental",
+            )
+        )
+        await db.commit()
+    base = f"/v1/corporate/organizations/{organization_id}/catalog-assignments"
+    context = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()
+    written = await client.put(
+        base,
+        headers=auth,
+        json={
+            "subject_kind": "project",
+            "subject_id": project_id,
+            "object_kind": "component",
+            "stable_id": component_id,
+            "version": "1.0",
+            "expected_revision": 0,
+            "authorization_revision": context["organization"]["authorization_revision"],
+            "idempotency_key": "plan-project-source-fixture",
+        },
+    )
+    assert written.status_code == 200, written.text
+    plan_url = f"{base}/plan"
+    body = {"account_id": account_id, "harness": "claude-code", "project_id": project_id}
+
+    refused = await client.post(plan_url, headers=auth, json=body)
+    assert refused.status_code == 400, refused.text
+
+    async with sessionmaker() as db:
+        db.add(
+            CorporateProjectMember(
+                organization_id=organization_id,
+                project_id=project_id,
+                account_id=account_id,
+            )
+        )
+        await db.commit()
+    planned = await client.post(plan_url, headers=auth, json=body)
+    assert planned.status_code == 200, planned.text
+    assert planned.json()["total"] == 1
+    item = planned.json()["items"][0]
+    assert item["stable_id"] == component_id
+    assert item["source_scope"] == "project"
+    assert item["source_subject_id"] == project_id
+    assert item["outcome"] == "missing"
+    assert item["action"] == "install"
+
+
+async def test_corporate_assignment_plan_covers_setup_members(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], object],
+) -> None:
+    """A member materialized at the coordinate its assigned setup pins is allowed.
+
+    The member line itself carries no assignment: its `state` stays unassigned,
+    but the outcome is `installed`/`none` rather than `remove`, because the
+    organization approved the exact graph by assigning the setup.
+    """
+    client, sessionmaker, _ = db_api_client
+    account_id = new_id("account")
+    setup_id = new_id("setup")
+    member_id = new_id("component")
+    member_digest = "sha256:" + "7" * 64
+    async with sessionmaker() as db:
+        db.add(Account(id=account_id, status="active"))
+        await db.flush()
+        session = await issue_session(db, account_id=account_id, device_id=None, ttl_seconds=3600)
+        await db.commit()
+    auth = {"Authorization": f"Bearer {session.raw_token}"}
+    bootstrap = await client.post(
+        "/v1/corporate/bootstrap",
+        json={
+            "organization_name": "Member coverage acceptance",
+            "superadmin_account_id": account_id,
+            "idempotency_key": "plan-member-bootstrap-fixture",
+        },
+        headers={"X-AI-STP-Bootstrap-Secret": "corporate-bootstrap-test-secret"},
+    )
+    assert bootstrap.status_code == 200, bootstrap.text
+    organization_id = bootstrap.json()["organization_id"]
+    async with sessionmaker() as db:
+        db.add(
+            CatalogMetadata(
+                owner_account_id=account_id,
+                organization_id=organization_id,
+                object_kind="component",
+                stable_id=member_id,
+                version="1.0",
+                current_revision_id="revision-1.0",
+                visibility="private",
+                lifecycle_state="active",
+                name="Member Component",
+                published_at=datetime.now(UTC),
+                passport_document={"fixture": True},
+                passport_digest=member_digest,
+                trust_lane="experimental",
+            )
+        )
+        db.add(
+            CatalogMetadata(
+                owner_account_id=account_id,
+                organization_id=organization_id,
+                object_kind="setup",
+                stable_id=setup_id,
+                version="1.0",
+                current_revision_id="revision-1.0",
+                visibility="private",
+                lifecycle_state="active",
+                name="Covering Setup",
+                published_at=datetime.now(UTC),
+                passport_document={
+                    "fixture": True,
+                    "components": [
+                        {
+                            "stable_id": member_id,
+                            "version": "1.0",
+                            "passport_digest": member_digest,
+                        }
+                    ],
+                },
+                passport_digest=DIGEST,
+                trust_lane="experimental",
+            )
+        )
+        await db.commit()
+    base = f"/v1/corporate/organizations/{organization_id}/catalog-assignments"
+    context = (
+        await client.get(f"/v1/corporate/organizations/{organization_id}/context", headers=auth)
+    ).json()
+    written = await client.put(
+        base,
+        headers=auth,
+        json={
+            "subject_kind": "organization",
+            "subject_id": organization_id,
+            "object_kind": "setup",
+            "stable_id": setup_id,
+            "version": "1.0",
+            "expected_revision": 0,
+            "authorization_revision": context["organization"]["authorization_revision"],
+            "idempotency_key": "plan-member-source-fixture",
+        },
+    )
+    assert written.status_code == 200, written.text
+    plan_url = f"{base}/plan"
+
+    covered = await client.post(
+        plan_url,
+        headers=auth,
+        json={
+            "account_id": account_id,
+            "harness": "claude-code",
+            "materialized": [
+                {
+                    "object_kind": "setup",
+                    "stable_id": setup_id,
+                    "version": "1.0",
+                    "passport_digest": DIGEST,
+                },
+                {
+                    "object_kind": "component",
+                    "stable_id": member_id,
+                    "version": "1.0",
+                    "passport_digest": member_digest,
+                },
+            ],
+        },
+    )
+    assert covered.status_code == 200, covered.text
+    by_line = {(i["object_kind"], i["stable_id"]): i for i in covered.json()["items"]}
+    member = by_line[("component", member_id)]
+    assert member["state"] == "unassigned"
+    assert member["outcome"] == "installed"
+    assert member["action"] == "none"
+    assert setup_id in member["diagnostic"]
+
+    mismatched = await client.post(
+        plan_url,
+        headers=auth,
+        json={
+            "account_id": account_id,
+            "harness": "claude-code",
+            "materialized": [
+                {
+                    "object_kind": "setup",
+                    "stable_id": setup_id,
+                    "version": "1.0",
+                    "passport_digest": DIGEST,
+                },
+                {
+                    "object_kind": "component",
+                    "stable_id": member_id,
+                    "version": "9.9",
+                },
+            ],
+        },
+    )
+    assert mismatched.status_code == 200, mismatched.text
+    stale = next(i for i in mismatched.json()["items"] if i["stable_id"] == member_id)
+    assert stale["outcome"] == "unassigned"
+    assert stale["action"] == "remove"

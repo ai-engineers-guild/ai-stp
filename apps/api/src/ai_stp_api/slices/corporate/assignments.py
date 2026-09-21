@@ -679,6 +679,35 @@ async def _member_team_ids(db: AsyncSession, *, organization_id: str, account_id
     )
 
 
+async def _require_project_scope(
+    db: AsyncSession, *, organization_id: str, project_id: str, account_id: str
+) -> None:
+    """A project scope applies to an employee only while the link is current.
+
+    Distribution resolves project assignments onto project members, so
+    evaluation must apply the same boundary: naming a project the account is
+    not a member of is an invalid context, not a silent extra scope (REQ-8107).
+    Refusing keeps a mistyped or foreign project from quietly producing a plan
+    that omits requirements the named context was meant to carry.
+    """
+    member = await db.scalar(
+        select(CorporateProjectMember.account_id)
+        .join(
+            CorporateProject,
+            (CorporateProject.id == CorporateProjectMember.project_id)
+            & (CorporateProject.organization_id == CorporateProjectMember.organization_id),
+        )
+        .where(
+            CorporateProjectMember.organization_id == organization_id,
+            CorporateProjectMember.project_id == project_id,
+            CorporateProjectMember.account_id == account_id,
+            CorporateProject.state == "active",
+        )
+    )
+    if member is None:
+        raise ApiError(ErrorCategory.VALIDATION, "the account is not a member of the named project")
+
+
 async def _evaluate_assignment_line(
     db: AsyncSession,
     *,
@@ -831,6 +860,13 @@ async def resolve_effective(
         account_id=query.account_id,
         request_id=request_id,
     )
+    if query.project_id is not None:
+        await _require_project_scope(
+            db,
+            organization_id=organization_id,
+            project_id=query.project_id,
+            account_id=query.account_id,
+        )
     rows = (
         await db.scalars(
             select(AssignmentRow)
@@ -908,6 +944,135 @@ def _plan_item(
     )
 
 
+#: A setup's member graph is walked transitively through `requires_components`;
+#: the bound keeps a malformed or cyclic document from turning a read into a
+#: scan, the same way every other catalog walk in this slice is bounded.
+_MEMBER_GRAPH_BOUND = 512
+
+
+def _reference_triples(
+    document: dict[str, object], field: str
+) -> list[tuple[str, str, str | None]]:
+    raw = document.get(field)
+    if not isinstance(raw, list):
+        return []
+    triples: list[tuple[str, str, str | None]] = []
+    for entry in cast(list[object], raw):
+        if not isinstance(entry, dict):
+            continue
+        held = cast(dict[str, object], entry)
+        stable_id = held.get("stable_id")
+        version = held.get("version")
+        if not isinstance(stable_id, str) or not stable_id:
+            continue
+        if not isinstance(version, str) or not version:
+            continue
+        digest = held.get("passport_digest")
+        triples.append((stable_id, version, digest if isinstance(digest, str) else None))
+    return triples
+
+
+async def _passport_document(
+    db: AsyncSession,
+    *,
+    object_kind: Literal["setup", "component"],
+    stable_id: str,
+    version: str,
+    account_id: str,
+) -> dict[str, object] | None:
+    metadata = await get_visible_metadata(
+        db,
+        object_kind=object_kind,
+        stable_id=stable_id,
+        version=version,
+        account_id=account_id,
+    )
+    document = None if metadata is None else metadata.passport_document
+    return document if isinstance(document, dict) else None
+
+
+async def _assigned_setup_members(
+    db: AsyncSession,
+    *,
+    items: list[CorporateAssignmentPlanItem],
+    materialized: dict[tuple[str, str], CorporatePlanMaterializedItem],
+    account_id: str,
+) -> dict[tuple[str, str, str | None], str]:
+    """Exact member coordinates an assigned setup's materialized version pins.
+
+    Assigning a setup approves the exact component graph that version carries,
+    so a member materialized at its pinned coordinate is allowed through the
+    setup rather than standing as an unauthorized install. Only setups the
+    context both assigns and has materialized contribute their graph, and only
+    lines with no effective assignment at all are covered - an explicit revoke
+    still dominates.
+    """
+    covered: dict[tuple[str, str, str | None], str] = {}
+    for item in items:
+        if item.object_kind != "setup" or item.state != "assigned":
+            continue
+        held = materialized.get(("setup", item.stable_id))
+        if held is None:
+            continue
+        document = await _passport_document(
+            db,
+            object_kind="setup",
+            stable_id=held.stable_id,
+            version=held.version,
+            account_id=account_id,
+        )
+        if document is None:
+            continue
+        pending = _reference_triples(document, "components")
+        steps = 0
+        while pending and steps < _MEMBER_GRAPH_BOUND:
+            steps += 1
+            member_id, member_version, member_digest = pending.pop()
+            key = (member_id, member_version, member_digest)
+            if key in covered:
+                continue
+            covered[key] = held.stable_id
+            member = await _passport_document(
+                db,
+                object_kind="component",
+                stable_id=member_id,
+                version=member_version,
+                account_id=account_id,
+            )
+            if member is not None:
+                pending.extend(_reference_triples(member, "requires_components"))
+    return covered
+
+
+def _cover_setup_member(
+    item: CorporateAssignmentPlanItem,
+    materialized: dict[tuple[str, str], CorporatePlanMaterializedItem],
+    covered: dict[tuple[str, str, str | None], str],
+) -> CorporateAssignmentPlanItem:
+    if item.object_kind != "component" or item.state != "unassigned":
+        return item
+    held = materialized.get(("component", item.stable_id))
+    if held is None:
+        return item
+    for (member_id, version, digest), setup_id in covered.items():
+        if member_id != item.stable_id or version != held.version:
+            continue
+        if (
+            digest is not None
+            and held.passport_digest is not None
+            and digest != held.passport_digest
+        ):
+            continue
+        return item.model_copy(
+            update={
+                "outcome": "installed",
+                "action": "none",
+                "diagnostic": (f"materialized as an exact member of the assigned setup {setup_id}"),
+            }
+        )
+    return item
+
+
 async def plan_assignments(
     db: AsyncSession,
     *,
@@ -930,6 +1095,13 @@ async def plan_assignments(
         account_id=payload.account_id,
         request_id=request_id,
     )
+    if payload.project_id is not None:
+        await _require_project_scope(
+            db,
+            organization_id=organization_id,
+            project_id=payload.project_id,
+            account_id=payload.account_id,
+        )
     team_ids = await _member_team_ids(
         db, organization_id=organization_id, account_id=payload.account_id
     )
@@ -1002,6 +1174,14 @@ async def plan_assignments(
                 supported=supported,
             )
         )
+    covered = await _assigned_setup_members(
+        db,
+        items=items,
+        materialized=materialized,
+        account_id=payload.account_id,
+    )
+    if covered:
+        items = [_cover_setup_member(item, materialized, covered) for item in items]
     return CorporateAssignmentPlan(
         organization_id=organization_id,
         account_id=payload.account_id,

@@ -18,6 +18,21 @@
   "additionalProperties": false,
   "description": "Pins and scope. Omitted pins mean one justified pick, not a catalog quiz.",
   "properties": {
+    "allowed_permissions": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Allowed Permissions"
+    },
     "harness_id": {
       "anyOf": [
         {

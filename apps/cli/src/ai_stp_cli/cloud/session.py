@@ -16,7 +16,14 @@ from typing import Final
 
 from ai_stp_cli.cloud.client import login_actions, login_continuations
 from ai_stp_cli.errors import CliFailure
-from ai_stp_cli.secrets import SecretStore, load_json, open_store, promote, store_json
+from ai_stp_cli.secrets import (
+    FileStore,
+    SecretStore,
+    load_json,
+    open_store,
+    promote,
+    store_json,
+)
 from ai_stp_contracts.machine_help import AuthStatus, SessionState
 from ai_stp_foundation.timestamps import format_timestamp, parse_timestamp
 
@@ -171,12 +178,16 @@ def status(*, now: datetime | None = None) -> tuple[AuthStatus, str | None]:
             ),
             warning,
         )
+    tier = store.tier
+    if tier == "os_keyring" and FileStore().get(CREDENTIALS_ENTRY) is not None:
+        # The live copy is the file the OS store refused to take; name it.
+        tier = "file"
     return (
         AuthStatus(
             state=session.state(now=now),
             account_id=session.account_id,
             expires_at=session.expires_at,
-            credential_store=store.tier,
+            credential_store=tier,
         ),
         warning,
     )
