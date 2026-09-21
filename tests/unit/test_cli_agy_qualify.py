@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from ai_stp_cli.agy_qualify import (
+    AGY_MODEL,
     ANTIGRAVITY,
     AUTH_PUBLISH,
     AUTHOR_DIR,
@@ -1035,6 +1036,23 @@ def test_write_cell_refuses_an_unknown_scenario(tmp_path: Path) -> None:
     assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
 
 
+def test_write_cell_records_the_model_that_drove_it(tmp_path: Path) -> None:
+    measured = tmp_path / "measured.json"
+    write_cell(measured, NO_REINIT, 0, "pass")
+    assert json.loads(measured.read_text(encoding="utf-8"))["agy_model"] == AGY_MODEL
+    write_cell(measured, NO_REINIT, 1, "pass", model="claude-haiku-4-5")
+    body = json.loads(measured.read_text(encoding="utf-8"))
+    assert body["agy_model"] == "claude-haiku-4-5"
+    assert body["haiku"][f"{NO_REINIT}:0"] == "pass"
+    assert body["haiku"][f"{NO_REINIT}:1"] == "pass"
+
+
+def test_unavailable_markers_cover_claude_overload() -> None:
+    assert run_was_unavailable("", '{"error": {"type": "overloaded_error"}}')
+    assert run_was_unavailable("API Error: rate_limit_error", "")
+    assert not run_was_unavailable("", "a plain failure")
+
+
 def test_invalidate_drops_scored_cells_so_fill_can_rerun(tmp_path: Path) -> None:
     measured = tmp_path / "measured.json"
     write_cell(measured, INSTALL_OPEN, 0, "pass")
@@ -1683,7 +1701,7 @@ def test_docker_custom_home_score_is_the_codex_write(tmp_path: Path) -> None:
         tmp_path / "custom-docker", scenario=CUSTOM_HOME, docker_image=image
     )
     prompt_for(CUSTOM_HOME, workspace)
-    seed_log = (workspace.root / "seed-provider.log").read_text(encoding="utf-8")
+    seed_log = (workspace.root / "seed-provider-codex.log").read_text(encoding="utf-8")
     assert seed_log.startswith("exit=0"), seed_log
     started = subprocess.run(
         [
