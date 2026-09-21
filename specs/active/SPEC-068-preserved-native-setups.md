@@ -78,6 +78,13 @@ configuration can require preservation without becoming a portable write route.
   storage boundaries; portable component metadata cannot disclose them. Mixed
   native configuration may remain in protected local recovery storage, but its
   contents never enter portable metadata, CLI output or publication.
+- `REQ-6811`: The machine view of a preserved setup derives the verified setup
+  version the target held when the snapshot was taken — its stable id, version
+  and name — and marks whether the captured bytes differ from that version's
+  recorded target digest. A capture with no recorded predecessor reads as
+  local state dated by its capture. Derivation reads the operation history
+  rather than a stored copy, so snapshots registered before this output
+  existed answer the same fields.
 
 ## States and errors
 
@@ -121,6 +128,7 @@ saved recovery bytes are not discarded to accommodate an older reader.
 | `REQ-6808` | A stale source, target change, process kill and lost provider response leave a recoverable record and no false terminal result. |
 | `REQ-6809` | Add one unexpected native file after restoration: verification must fail even when all old managed files match. |
 | `REQ-6810` | Portable metadata and CLI output omit credential values and backup contents. |
+| `REQ-6811` | A snapshot captured over a verified install lists its setup id, version and name; a differing target digest marks it modified, and a capture over unrecorded state labels as local. |
 
 ## Required checks
 
