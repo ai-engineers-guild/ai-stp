@@ -179,6 +179,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "member.update",
             "member.delete",
             "project.read",
+            "project.update",
             "project.list",
             "team.read",
             "team.update",

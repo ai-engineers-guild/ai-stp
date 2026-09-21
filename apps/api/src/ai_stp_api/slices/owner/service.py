@@ -395,7 +395,17 @@ async def _object_namespace(
     if author_id == ctx.account_id:
         return author_id
     if organization_id is None:
-        raise ApiError(ErrorCategory.PERMISSION, "object management is forbidden")
+        # Legacy pre-scope rows are personal: a foreign object is absent from
+        # the caller's surface, not refused - a refusal would leak that the
+        # identifier exists.
+        raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+    from ai_stp_platform.organization_models import Organization
+
+    organization = await db.get(Organization, organization_id)
+    if organization is None or organization.kind != "corporate":
+        # Personal workspaces share the same boundary: tenant capabilities only
+        # exist inside corporate organizations.
+        raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
     from ai_stp_api.slices.corporate.subject_access import catalog_object_capabilities
 
     capabilities = await catalog_object_capabilities(
@@ -739,8 +749,14 @@ async def read_owner_object_capabilities(
             raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
         author_id = author_id or metadata_owner.owner_account_id
         organization_id = organization_id or metadata_owner.organization_id
-    if organization_id is None:
-        # Legacy pre-scope rows belong to the author only.
+    from ai_stp_platform.organization_models import Organization
+
+    organization = (
+        await db.get(Organization, organization_id) if organization_id is not None else None
+    )
+    if organization is None or organization.kind != "corporate":
+        # Legacy pre-scope rows and personal workspaces belong to the author
+        # only; a foreign object is absent from the caller's surface.
         if author_id != ctx.account_id:
             raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
         published = await db.scalar(
@@ -761,7 +777,7 @@ async def read_owner_object_capabilities(
     capabilities = await catalog_object_capabilities(
         db,
         account_id=ctx.account_id,
-        organization_id=organization_id,
+        organization_id=organization.id,
         object_kind=object_kind,
         stable_id=stable_id,
     )
@@ -820,6 +836,13 @@ async def delete_owner_object(
         raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
     if author_id != ctx.account_id:
         if organization_id is None:
+            raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
+        from ai_stp_platform.organization_models import Organization
+
+        organization = await db.get(Organization, organization_id)
+        if organization is None or organization.kind != "corporate":
+            # Personal workspaces keep the owner surface indistinguishable:
+            # foreign objects are absent, not refused.
             raise ApiError(ErrorCategory.NOT_FOUND, "object not found")
         allowed = await has_corporate_permission(
             db,

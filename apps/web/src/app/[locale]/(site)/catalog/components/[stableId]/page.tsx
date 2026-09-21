@@ -54,7 +54,7 @@ import { sessionCookieValue } from "@/lib/auth/require-session";
 import { readCsrfToken } from "@/lib/auth/session";
 import { asAccountId, asVersionId, tryAsComponentId } from "@/lib/brands";
 import { namedHarnesses } from "@/lib/catalog-harnesses";
-import { registryVersion } from "@/lib/cli-copy";
+import { installStart, registryVersion } from "@/lib/cli-copy";
 import { isFeatureEnabled } from "@/lib/features/gate";
 import { buildDeepLink, normalizeTarget } from "@/lib/deep-links";
 import { publicOrigin } from "@/lib/site";
@@ -150,9 +150,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
           componentId,
         )
       : null;
-  const objectActions = token
-    ? await readOwnerObjectActions(token, "component", stableId)
-    : null;
+  const objectActions = token ? await readOwnerObjectActions(token, "component", stableId) : null;
   const deleteCsrfToken = objectActions?.canDelete ? ((await readCsrfToken()) ?? "") : "";
   const initiallyLiked = token ? await isLiked(token, "component", stableId) : false;
   const metadata = await readComponentGithubMetadata(
@@ -225,9 +223,7 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
           likesCount: summary.likes_count,
           initiallyLiked,
           reportHref,
-          ...(objectActions?.canEdit
-            ? { editHref: `/objects/component/${stableId}/edit` }
-            : {}),
+          ...(objectActions?.canEdit ? { editHref: `/objects/component/${stableId}/edit` } : {}),
           ...(objectActions?.canDelete
             ? { objectDelete: { csrfToken: deleteCsrfToken, locale, catalogHref: "/catalog" } }
             : {}),
@@ -359,8 +355,20 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
               labels={contextBudgetLabels(t, tCli)}
             />
             <CliCopyBlock
-              command={cliCommand}
+              command={installStart()}
               title={tCli("useTitle")}
+              description={tCli("useBody")}
+              copyLabel={tCli("copy")}
+              copiedLabel={tCli("copied")}
+              errorLabel={tCli("copyError")}
+              docsLabel={tCli("docs")}
+              visibility={isPrivate ? "private" : "public"}
+              publicLabel={t("public")}
+              privateLabel={t("private")}
+            />
+            <CliCopyBlock
+              command={cliCommand}
+              title={tCli("inspectTitle")}
               description={tCli("inspectBody")}
               copyLabel={tCli("copy")}
               copiedLabel={tCli("copied")}

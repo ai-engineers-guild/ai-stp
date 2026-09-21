@@ -16,7 +16,7 @@ from collections.abc import Mapping
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Final, Literal
 
 from ai_stp_cli.answer import Answer
 from ai_stp_cli.application import install as install_service
@@ -56,6 +56,18 @@ _PATH_CLASSIFICATION: dict[str, _Classification] = {
     "deleted": "missing",
     "added": "extra",
 }
+
+#: Options the provider status observation reads. They are forwarded
+#: explicitly rather than inside the whole parameter mapping, so a declared
+#: option the observer never consults is visible in this file instead of a
+#: secondhand hop through `install.py`.
+_OBSERVATION_KEYS: Final[tuple[str, ...]] = (
+    "provider",
+    "provider-manifest",
+    "protocol-version",
+    "target",
+    "unverified-provider",
+)
 
 _Verdict = Literal[
     "pass",
@@ -173,9 +185,10 @@ def verify_managed(
                     "the verified installation record names no provider target; "
                     "managed content cannot be inspected"
                 )
+        observation = {name: parameters[name] for name in _OBSERVATION_KEYS if parameters.get(name)}
         try:
             observed_digest, _evidence, shadowed = install_service._observe_target(  # pyright: ignore[reportPrivateUsage]
-                connection, parameters, resolved, harness
+                connection, observation, resolved, harness
             )
         except CliFailure as error:
             diagnostics.append(f"the provider status observation is unavailable: {error}")
