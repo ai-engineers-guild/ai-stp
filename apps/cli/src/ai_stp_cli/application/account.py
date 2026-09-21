@@ -100,6 +100,8 @@ def ensure_session(facts: Mapping[str, JsonValue]) -> DrainResult | AuthStatus:
         # Drop it and start one that can be completed (#359).
         session.clear_pending(store)
         pending = None
+    # Facts carry the code after the first authorization block so a re-run
+    # drain does not begin a second flow while the first still pends.
     already_begun = pending is not None or bool(_text(facts.get("user_code")))
     if not already_begun:
         approval = begin(provider)
