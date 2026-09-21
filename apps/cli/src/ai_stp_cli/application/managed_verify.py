@@ -27,6 +27,7 @@ from ai_stp_cli.local import cache, installation, managed_diff, targets, version
 from ai_stp_cli.local.database import configured_path, open_readonly
 from ai_stp_cli.provider import status as provider_status
 from ai_stp_contracts.corporate import (
+    CorporateAssignmentPlan,
     CorporateAssignmentPlanRequest,
     CorporatePlanMaterializedItem,
     PlanOutcome,
@@ -36,6 +37,7 @@ from ai_stp_contracts.machine_help import (
     ManagedVerificationItem,
     ShadowedSurface,
 )
+from ai_stp_foundation.envelope import Continuation
 
 #: Path evidence stays bounded even when a target is heavily drifted; the
 #: classification already says what happened, and a CI gate does not need ten
@@ -203,6 +205,7 @@ def verify_managed(
 
     plan_lines: dict[tuple[str, str], PlanOutcome] = {}
     corporate_state = "evaluated"
+    found: CorporateAssignmentPlan | None = None
     if offline:
         corporate_state = "offline"
     else:
@@ -217,6 +220,7 @@ def verify_managed(
             found = corporate.assignment_plan(endpoint_url, access_token, organization, request)
         except CliFailure:
             corporate_state = "unavailable"
+            found = None
             diagnostics.append(
                 "the corporate assignment layer could not be reached; "
                 "the local verdict is reported without it"
@@ -255,6 +259,9 @@ def verify_managed(
             else baseline_plan.setup_stable_id
         ),
     )
+    remediation: tuple[Continuation, ...] = ()
+    if status != "pass" and found is not None:
+        remediation = _remediation(found, resolved)
     return Answer(
         ManagedVerification(
             status=status,
@@ -277,7 +284,35 @@ def verify_managed(
             ],
             items=items,
             diagnostics=diagnostics,
-        )
+        ),
+        continuations=remediation,
+    )
+
+
+def _remediation(found: CorporateAssignmentPlan, project_id: str) -> tuple[Continuation, ...]:
+    """The one install plan that makes the assigned set materialize.
+
+    Assigned components without an assigned setup cannot be named here: the
+    plan binds extras to an exact prepared graph, so a components-only gap
+    reports no action rather than a command that could not run. Two assigned
+    setups are a policy conflict no single plan resolves either.
+    """
+    assigned = [item for item in found.items if item.state == "assigned"]
+    setups = [item for item in assigned if item.object_kind == "setup"]
+    components = [item for item in assigned if item.object_kind == "component"]
+    if len(setups) != 1 or not all(item.version for item in assigned):
+        return ()
+    setup = setups[0]
+    return (
+        Continuation(
+            kind="advance",
+            path=["install", "plan"],
+            arguments={
+                "setup": f"{setup.stable_id}@{setup.version}",
+                "component": [f"{item.stable_id}@{item.version}" for item in components],
+                "project": project_id,
+            },
+        ),
     )
 
 

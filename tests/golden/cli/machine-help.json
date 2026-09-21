@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "cli_version": "0.0.0-pinned",
-  "registry_digest": "sha256:66501083ff1eb4bc04c710476bdc2e5a23273d4f563d7fad37df7753a51583dd",
+  "registry_digest": "sha256:e9e3c91a370f3a66edf8aff3ad596263930349ad697bb12a8fdda29904cb7fb5",
   "global_options": [
     {
       "name": "json",
@@ -4036,6 +4036,15 @@
           "required": false,
           "repeatable": false,
           "summary": "An immutable prepared SetupVersion as <stable_id>@<X.Y>.",
+          "choices": []
+        },
+        {
+          "name": "component",
+          "kind": "option",
+          "value_type": "string",
+          "required": false,
+          "repeatable": true,
+          "summary": "An exact standalone component as <stable_id>@<X.Y>, repeatable. Installed alongside the named prepared SetupVersion so a managed assignment of loose components can reach a verified baseline; the bundle manifest covers each one.",
           "choices": []
         },
         {
