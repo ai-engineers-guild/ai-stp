@@ -3418,6 +3418,19 @@ class PreservedSetupView(BaseModel):
     verification: Literal["recorded_verified", "verified", "unavailable"] = "recorded_verified"
     target_state: Literal["not_observed", "matches", "differs", "unavailable"] = "not_observed"
     held: bool | None = None
+    #: A legible name derived at read time: the applied setup's name and
+    #: version, `local <date>` when no verified install preceded the capture.
+    label: str = ""
+    #: The verified setup version that stood on the target when the snapshot
+    #: was taken. Empty when the captured state was never installed by a
+    #: recorded operation — a hand-built configuration.
+    origin_setup_id: str = ""
+    origin_version: str = ""
+    origin_name: str = ""
+    #: True when the captured bytes differ from the origin version's recorded
+    #: target digest — the user modified what was installed. None when no
+    #: reference digest was recorded to compare against.
+    modified: bool | None = None
 
 
 class EnvironmentRequirement(BaseModel):
